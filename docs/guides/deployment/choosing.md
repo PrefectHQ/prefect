@@ -25,23 +25,24 @@ Follow the flow chart below and click on the terminal nodes to go to the relevan
   init: {
     'theme': 'base',
     'themeVariables': {
-      'fontSize': '19px'
+      'fontSize': '20px'
     }
   }
 }%%
 
 flowchart TD
-    A{Need customized <br> or dynamically provisioned <br> infrastructure?}:::green--No-->B[Use flow.serve, likely in a cloud VM]
+    A{Need customized <br> or dynamically provisioned <br> infrastructure?}:::green--No-->B[Use flow.serve, <br> likely in a VM]
     A--Yes-->C{Want to run in <br> serverless infrastructure?}:::yellow
-    C--No-->D[Want to run on managed K8s?]:::orange
-    C--Yes-->E{Able to store <br> credentials on Prefect Cloud}:::blue
-    D--No-->B
-    D--Yes-->G[Use a K8s work pool]
-    E--No-->H[Use serverless non-push work pool]
-    E--Yes-->I[Use serverless push work pool]
+    C--No-->D{Want to run on Kubernetes?}:::orange
+    C--Yes-->E{Able to store <br> credentials on Prefect Cloud?}:::blue
+    D--No-->F[Use process work pool, <br> likely in a VM]
+    D--Yes-->G[Use Kubernetes <br> work pool]
+    E--No-->H[Use serverless <br> non-push work pool]
+    E--Yes-->I[Use serverless <br> push work pool]
   
 
     click B "/tutorial/deployments/" _blank
+    click F "/" _blank
     click G "/guides/deployment/kubernetes/" _blank
     click H "https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs/" _blank
     click I "/guides/deployment/push-work-pools/" _blank
@@ -52,12 +53,28 @@ flowchart TD
     classDef blue fill:blue,stroke:blue,stroke-width:4px,color:white
     classDef green fill:green,stroke:green,stroke-width:4px,color:white
     classDef red fill:red,stroke:red,stroke-width:4px,color:white
-    classDef orange fill:orange,stroke:orange,stroke-width:4px
+    classDef orange fill:orange,stroke:orange,stroke-width:4px: white
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
 
-The first question in the flow chart "Need customized or dynamically provisioned infrastructure?" is getting at whether you need to run your flows in containers.
-Nearly all of the of the options on the "Yes" path use Docker containers so that you can more easily scale your infrastructure up or down.
+## Notes
+
+The first question in the flow chart - "Need customized or dynamically provisioned infrastructure?" - gets at whether you want to run your flows in containers.
+Nearly all of the of the options on the "Yes" path use Docker containers so that you can more easily scale your infrastructure up and down.
+
+If you don't need customized or scalable infrastructure, you shouldn't need a worker and work pool and `flow.serve` should meet your needs.
+
+"Want to run in serverless architecture"? gets at whether you want to run your workflows on serverless cloud options on AWS, Azure, or Google Cloud.
+
+If you want to use serverless infrastructure and you're able to store your credentials in a [block(/concepts/blocks/) in our encrypted Prefect Cloud database, then AWS ECS, Azure Container Instances, or Google Cloud Run serverless push work pools are great options.
+No worker is required with a push work pool.
+Jobs are automatically submitted to your serverless infrastructure.
+
+If push work pools aren't an option for you, you can choose among AWS ECS, Azure Container Instances, Google Cloud Run, or Google Vertex AI serverless work pools.
+
+If you don't want to use serveless, Kubernetes is a very popular option for running workflows at scale.
+
+If you need infrastructure customization and don't run on Kubernetes or serverless infrastructure, a process worker in a cloud VM or on you own server is a good option.
 
 ## Next steps
 
