@@ -268,10 +268,10 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         - additional constraints (like possible enum values)
 
     Args:
-        fn (function): The function whose arguments will be serialized
+        fn (Callable): The function whose arguments will be serialized
 
     Returns:
-        dict: the argument schema
+        ParameterSchema: the argument schema
     """
     signature = inspect.signature(fn)
     model_fields = {}
