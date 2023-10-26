@@ -2374,9 +2374,19 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
     if hooks:
         logger = flow_run_logger(flow_run)
         for hook in hooks:
+            hook_name = (
+                hook.__name__
+                if hasattr(hook, "__name__")
+                else (
+                    hook.func.__name__
+                    if isinstance(hook, partial)
+                    else hook.__class__.__name__
+                )
+            )
+
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
                 if is_async_fn(hook):
@@ -2387,11 +2397,11 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     )
             except Exception:
                 logger.error(
-                    f"An error was encountered while running hook {hook.__name__!r}",
+                    f"An error was encountered while running hook {hook_name!r}",
                     exc_info=True,
                 )
             else:
-                logger.info(f"Hook {hook.__name__!r} finished running successfully")
+                logger.info(f"Hook {hook_name!r} finished running successfully")
 
 
 async def check_api_reachable(client: PrefectClient, fail_message: str):

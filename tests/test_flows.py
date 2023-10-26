@@ -2420,26 +2420,24 @@ def create_async_hook(mock_obj):
 
 class TestFlowHooks:
     def test_hook_with_extra_default_arg(self):
-        from prefect import flow
+        data = {}
 
         def hook(flow, flow_run, state, foo=42):
-            assert hook.__name__ == "hook"
-            assert state.is_completed()
-            assert foo == 42
+            data.update(name=hook.__name__, state=state, foo=foo)
 
         @flow(on_completion=[hook])
         def foo_flow():
             pass
 
-        foo_flow()
+        state = foo_flow(return_state=True)
+
+        assert data == dict(name="hook", state=state, foo=42)
 
     def test_hook_with_bound_kwargs(self):
-        from prefect import flow
+        data = {}
 
         def hook(flow, flow_run, state, **kwargs):
-            assert hook.__name__ == "hook"
-            assert state.is_completed()
-            assert kwargs["foo"] == 42
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
 
         hook_with_kwargs = partial(hook, foo=42)
         hook_with_kwargs.__name__ = hook.__name__
@@ -2448,22 +2446,23 @@ class TestFlowHooks:
         def foo_flow():
             pass
 
-        foo_flow()
+        state = foo_flow(return_state=True)
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42})
 
     def test_hook_with_bound_kwargs_via_utility(self):
-        from prefect import flow
+        data = {}
 
         def hook(flow, flow_run, state, **kwargs):
-            assert hook.__name__ == "hook"
-            assert state.is_completed()
-            assert kwargs["foo"] == 42
-            assert kwargs["bar"] == 99
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
 
         @flow(on_completion=[bind_args_to_fn(hook, **{"foo": 42, "bar": 99})])
         def foo_flow():
             pass
 
-        foo_flow()
+        state = foo_flow(return_state=True)
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42, "bar": 99})
 
 
 class TestFlowHooksOnCompletion:
