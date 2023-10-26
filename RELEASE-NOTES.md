@@ -2,7 +2,7 @@
 
 ## Release 2.14.2
 
-## Ability to pass **kwargs to `on_completion` and `on_failure` hooks
+## Ability to pass **kwargs to state change hooks
 
 You can now pass a partial (sometimes called ["curried"](https://www.geeksforgeeks.org/partial-functions-python/)) hook to your tasks and flows.
 
