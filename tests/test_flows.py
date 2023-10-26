@@ -48,7 +48,10 @@ from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
-from prefect.settings import PREFECT_FLOW_DEFAULT_RETRIES, temporary_settings
+from prefect.settings import (
+    PREFECT_FLOW_DEFAULT_RETRIES,
+    temporary_settings,
+)
 from prefect.states import (
     Cancelled,
     Paused,
@@ -2890,6 +2893,24 @@ class TestFlowHooksOnCancellation:
             await my_flow._run()
         my_mock.assert_not_called()
 
+    def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
+        my_mock = MagicMock()
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        def cancelled_hook1(flow, flow_run, state):
+            my_mock("cancelled_hook1")
+
+        def cancelled_hook2(flow, flow_run, state):
+            my_mock("cancelled_hook2")
+
+        @flow(on_cancellation=[cancelled_hook1, cancelled_hook2])
+        def my_flow():
+            return State(type=StateType.CANCELLING)
+
+        state = my_flow._run()
+        assert state.type == StateType.CANCELLING
+        my_mock.assert_not_called()
+
 
 class TestFlowHooksOnCrashed:
     def test_noniterable_hook_raises(self):
@@ -3098,6 +3119,24 @@ class TestFlowHooksOnCrashed:
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow._run()
+        my_mock.assert_not_called()
+
+    def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
+        my_mock = MagicMock()
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        state = my_flow._run()
+        assert state.type == StateType.CRASHED
         my_mock.assert_not_called()
 
 
