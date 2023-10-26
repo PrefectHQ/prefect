@@ -32,8 +32,8 @@ Follow the flow chart below and click on the terminal nodes to go to the relevan
 
 flowchart TD
     A{Need customized <br> or dynamically provisioned <br> infrastructure?}:::green--No-->B[Use flow.serve, <br> likely in a VM]
-    A--Yes-->C{Want to run in <br> serverless infrastructure?}:::yellow
-    C--No-->D{Want to run on Kubernetes?}:::orange
+    A--Yes-->C{Want to run in <br> serverless infrastructure?}:::blue
+    C--No-->D{Want to run on Kubernetes?}:::blue
     C--Yes-->E{Able to store <br> credentials on Prefect Cloud?}:::blue
     D--No-->F[Use process work pool, <br> likely in a VM]
     D--Yes-->G[Use Kubernetes <br> work pool]
