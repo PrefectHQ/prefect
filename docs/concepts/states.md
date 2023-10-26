@@ -274,14 +274,15 @@ def bad_task():
     raise ValueError("meh")
 
 @flow
-def lazy_flow(x: str = "foo", y: int = 42):
+def ok_with_failure_flow(x: str = "foo", y: int = 42):
     bad_task_with_a_hook = bad_task.with_options(
         on_failure=[partial(my_hook, **dict(x=x, y=y))]
     )
-
+    # return a tuple of "bar" and the task run state
+    # to avoid raising the task's exception
     return "bar", bad_task_with_a_hook(return_state=True)
 
-_, task_run_state = lazy_flow()
+_, task_run_state = ok_with_failure_flow()
 
 assert data == {"x": "foo", "y": 42, "state": task_run_state}
 ```
