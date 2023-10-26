@@ -64,23 +64,19 @@ For example, if using [venv](https://docs.python.org/3/library/venv.html), chang
 
 Next, set up your environment so that the Prefect client will know which server to connect to.
 
-=== "Prefect Cloud"
+If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-getting-started/#create-an-api-key) to obtain an API key and then run:
 
-  If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-getting-started/#create-an-api-key) to obtain an API key and then run:
+```bash
+prefect cloud login -k YOUR_API_KEY
+```
 
-  ```bash
-  prefect cloud login -k YOUR_API_KEY
-  ```
+When prompted, choose the Prefect workspace you'd like to log in to.
 
-  When prompted, choose the Prefect workspace you'd like to log in to.
+If connecting to a self-hosted Prefect server instance, run the following and substitute the IP address of your server:
 
-=== "Prefect server instance"
-
-  If connecting to a self-hosted Prefect server instance, run the following and substitute the IP address of your server:
-
-  ```bash
-  prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200
-  ```
+```bash
+prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200
+```
 
 Finally, run the `exit` command to sign out of the `prefect` Linux account.
 This command switches you back to your sudo-enabled account so you will can run the commands in the next section.
@@ -98,58 +94,58 @@ Populate the file depending upon the type of service you want to run. We use the
 
 === "Prefect Worker"
 
-  ```
-  [Unit]
-  Description=Prefect Worker
+    ```
+    [Unit]
+    Description=Prefect Worker
 
-  [Service]
-  User=prefect
-  WorkingDirectory=/home/prefect
-  ExecStart=/usr/local/bin/prefect worker start --pool YOUR_WORK_POOL_NAME
-  Restart=always
+    [Service]
+    User=prefect
+    WorkingDirectory=/home/prefect
+    ExecStart=/usr/local/bin/prefect worker start --pool YOUR_WORK_POOL_NAME
+    Restart=always
 
-  [Install]
-  WantedBy=multi-user.target
+    [Install]
+    WantedBy=multi-user.target
 
-  ```
+    ```
 
-  Make sure you substitute your own work pool name.
+    Make sure you substitute your own work pool name.
 
 === "`.serve`"
 
-  Copy your flow code entrypoint file, and any other files needed for your flow to run, into the `/home/prefect` directory.
+    Copy your flow code entrypoint file, and any other files needed for your flow to run, into the `/home/prefect` directory.
 
-  ```
-  [Unit]
-  Description=Prefect serve 
+    ```
+    [Unit]
+    Description=Prefect serve 
 
-  [Service]
-  User=prefect
-  WorkingDirectory=/home/prefect
-  ExecStart=/usr/local/bin/python my_file.py
-  Restart=always
+    [Service]
+    User=prefect
+    WorkingDirectory=/home/prefect
+    ExecStart=/usr/local/bin/python my_file.py
+    Restart=always
 
-  [Install]
-  WantedBy=multi-user.target
+    [Install]
+    WantedBy=multi-user.target
 
-  ```
+    ```
 
-  Make sure you substitute your own flow code entrypoint file name.
+    Make sure you substitute your own flow code entrypoint file name.
 
-  If you want to make changes to your flow code without restarting your process, you can use `flow.from_source().serve()`, as in the example below.
+    If you want to make changes to your flow code without restarting your process, you can use `flow.from_source().serve()`, as in the example below.
 
-  ```python
-  from prefect import flow
-  ...
+    ```python
+    from prefect import flow
+    ...
 
-  if __name__ == "__main__":
-    flow.from_source(
-        source="https://github.com/org/repo.git",
-        entrypoint="path/to/flow.py:my_flow",
-    ).serve(name="deployment-from-remote-flow")
-  ```
+    if __name__ == "__main__":
+      flow.from_source(
+          source="https://github.com/org/repo.git",
+          entrypoint="path/to/flow.py:my_flow",
+      ).serve(name="deployment-from-remote-flow")
+    ```
 
-  Note that if you change the flow entrypoint parameters, you will need to restart the process.
+    Note that if you change the flow entrypoint parameters, you will need to restart the process.
 
 To save the file and exit Vim hit the escape key, type `:wq!`, then press the return key.
 
