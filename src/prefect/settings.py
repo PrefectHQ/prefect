@@ -1375,7 +1375,6 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
-
 # Deprecated settings ------------------------------------------------------------------
 
 

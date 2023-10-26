@@ -2362,13 +2362,23 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
+    enable_cancellation_and_crashed_hooks = (
+        os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
+        == "true"
+    )
     if state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
-    elif state.is_cancelling() and flow.on_cancellation:
+    elif (
+        enable_cancellation_and_crashed_hooks
+        and state.is_cancelling()
+        and flow.on_cancellation
+    ):
         hooks = flow.on_cancellation
-    elif state.is_crashed() and flow.on_crashed:
+    elif (
+        enable_cancellation_and_crashed_hooks and state.is_crashed() and flow.on_crashed
+    ):
         hooks = flow.on_crashed
 
     if hooks:
