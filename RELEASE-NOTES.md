@@ -1,5 +1,93 @@
 # Prefect Release Notes
 
+## Release 2.14.2
+
+## Ability to pass **kwargs to state change hooks
+
+You can now pass a partial (sometimes called ["curried"](https://www.geeksforgeeks.org/partial-functions-python/)) hook to your tasks and flows, allowing for more tailored post-execution behavior.
+
+```python
+from functools import partial
+from prefect import flow
+
+data = {}
+
+def my_hook(flow, flow_run, state, **kwargs):
+    data.update(state=state, **kwargs)
+
+@flow(on_completion=[partial(my_hook, my_arg="custom_value")])
+def lazy_flow():
+    pass
+
+state = lazy_flow(return_state=True)
+
+assert data == {"my_arg": "custom_value", "state": state}
+```
+
+This can be used in conjunction with the `.with_options` method on tasks and flows to dynamically provide extra kwargs to your hooks, like [this example](docs.prefect.io/concepts/states/#pass-kwargs-to-your-hooks) in the docs.
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11022
+
+### Fixes
+- Moves responsibility for running `on_cancellation` and `on_crashed` flow hooks to runner when present — https://github.com/PrefectHQ/prefect/pull/11026
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.1...2.14.2
+
+## Release 2.14.1
+
+### Documentation
+- Add Python `serve` and `deploy` options to the `schedules` concepts documentation — https://github.com/PrefectHQ/prefect/pull/11000
+
+### Fixes
+- Refine flow parameter validation to use the correct form of validation depending on if the parameter is a pydantic v1 or v2 model.  — https://github.com/PrefectHQ/prefect/pull/11028
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.0...2.14.1
+
+## Release 2.14.0
+
+### Introducing the `prefect-client`
+
+This release provides a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with the Prefect server or Prefect Cloud **only**. You can install `prefect-client` by using `pip`:
+
+```bash
+pip install prefect-client
+```
+
+To use it, you will need to configure your environment to interact with a remote Prefect API by setting the `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables. Using it in your code remains the same:
+
+```python
+from prefect import flow, task
+
+@flow(log_prints=True)
+def hello_world():
+    print("Hello from prefect-client!")
+
+hello_world()
+```
+
+See implementation details in the following pull request:
+-  https://github.com/PrefectHQ/prefect/pull/10988
+
+### Enhancements
+- Add flow name to the label for subflow runs in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11009
+
+### Fixes
+- Fix ability to pull flows and build deployments in Windows environments - https://github.com/PrefectHQ/prefect/pull/10989
+- Remove unnecessary work queue health indicator from push pools in the Prefect UI dashboard - https://github.com/PrefectHQ/prefect-ui-library/pull/1813
+- Rename mismatched alembic file — https://github.com/PrefectHQ/prefect/pull/10888
+
+### Documentation
+- Standardize heading capitalization in guide to developing a new worker type — https://github.com/PrefectHQ/prefect/pull/10999
+- Update Docker guide to mention image builds with `prefect.yaml` and `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11012
+- Update Kubernetes guide to mention and link to Python-based flow `deploy` creation method — https://github.com/PrefectHQ/prefect/pull/11010
+
+## New Contributors
+* @m-steinhauer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10888
+* @maitlandmarshall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10989
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.8...2.14.0
+
 ## Release 2.13.8
 
 ### Introducing `flow.deploy`

@@ -6,6 +6,7 @@ import os
 import signal
 import sys
 import time
+from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
@@ -48,7 +49,10 @@ from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
-from prefect.settings import PREFECT_FLOW_DEFAULT_RETRIES, temporary_settings
+from prefect.settings import (
+    PREFECT_FLOW_DEFAULT_RETRIES,
+    temporary_settings,
+)
 from prefect.states import (
     Cancelled,
     Paused,
@@ -2202,6 +2206,26 @@ def test_load_flow_from_entrypoint(tmp_path):
     assert flow.fn() == "woof!"
 
 
+def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
+    # test absolute paths to ensure compatibility for all operating systems
+
+    flow_code = """
+    from prefect import flow
+
+    @flow
+    def dog():
+        return "woof!"
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code))
+
+    # convert the fpath into an absolute path
+    absolute_fpath = str(fpath.resolve())
+
+    flow = load_flow_from_entrypoint(f"{absolute_fpath}:dog")
+    assert flow.fn() == "woof!"
+
+
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
@@ -2395,6 +2419,38 @@ def create_async_hook(mock_obj):
         mock_obj()
 
     return my_hook
+
+
+class TestFlowHooksWithKwargs:
+    def test_hook_with_extra_default_arg(self):
+        data = {}
+
+        def hook(flow, flow_run, state, foo=42):
+            data.update(name=hook.__name__, state=state, foo=foo)
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        state = foo_flow(return_state=True)
+
+        assert data == dict(name="hook", state=state, foo=42)
+
+    def test_hook_with_bound_kwargs(self):
+        data = {}
+
+        def hook(flow, flow_run, state, **kwargs):
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
+
+        hook_with_kwargs = partial(hook, foo=42)
+
+        @flow(on_completion=[hook_with_kwargs])
+        def foo_flow():
+            pass
+
+        state = foo_flow(return_state=True)
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42})
 
 
 class TestFlowHooksOnCompletion:
@@ -2870,6 +2926,24 @@ class TestFlowHooksOnCancellation:
             await my_flow._run()
         my_mock.assert_not_called()
 
+    def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
+        my_mock = MagicMock()
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        def cancelled_hook1(flow, flow_run, state):
+            my_mock("cancelled_hook1")
+
+        def cancelled_hook2(flow, flow_run, state):
+            my_mock("cancelled_hook2")
+
+        @flow(on_cancellation=[cancelled_hook1, cancelled_hook2])
+        def my_flow():
+            return State(type=StateType.CANCELLING)
+
+        state = my_flow._run()
+        assert state.type == StateType.CANCELLING
+        my_mock.assert_not_called()
+
 
 class TestFlowHooksOnCrashed:
     def test_noniterable_hook_raises(self):
@@ -3078,6 +3152,24 @@ class TestFlowHooksOnCrashed:
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow._run()
+        my_mock.assert_not_called()
+
+    def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
+        my_mock = MagicMock()
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        state = my_flow._run()
+        assert state.type == StateType.CRASHED
         my_mock.assert_not_called()
 
 
