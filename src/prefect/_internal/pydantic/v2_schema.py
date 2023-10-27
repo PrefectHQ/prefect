@@ -5,6 +5,7 @@ import typing as t
 
 import pendulum
 import pydantic
+from pydantic import BaseModel as V2BaseModel
 from pydantic import ConfigDict, create_model
 from pydantic.type_adapter import TypeAdapter
 
@@ -16,10 +17,19 @@ from prefect._internal.pydantic.annotations.pendulum import (
 from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
 
 
+def has_v2_model_as_param(signature: inspect.Signature) -> bool:
+    parameters = signature.parameters.values()
+    return any(
+        isinstance(p, V2BaseModel)
+        or (inspect.isclass(p.annotation) and issubclass(p.annotation, V2BaseModel))
+        for p in parameters
+    )
+
+
 def process_v2_params(
-    position: int,
     param: inspect.Parameter,
     *,
+    position: int,
     docstrings: t.Dict[str, str],
     aliases: t.Dict
 ) -> t.Tuple[str, t.Any, "pydantic.Field"]:

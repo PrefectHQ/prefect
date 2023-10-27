@@ -12,7 +12,11 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 
-    from prefect._internal.pydantic.v2_schema import create_v2_schema, process_v2_params
+    from prefect._internal.pydantic.v2_schema import (
+        create_v2_schema,
+        has_v2_model_as_param,
+        process_v2_params,
+    )
 else:
     import pydantic
 
@@ -260,22 +264,13 @@ def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
     return param_docstrings
 
 
-def _process_param(
+def process_v1_params(
     param: inspect.Parameter,
     *,
     position: int,
     docstrings: Dict[str, str],
     aliases: Dict,
 ) -> Tuple[str, Any, "pydantic.Field"]:
-    """
-    Generate a sanitized name, type, and pydantic.Field for a given parameter.
-    """
-    if HAS_PYDANTIC_V2:
-        # if we're processing a v2 parameter, we need to create v2 fields
-        return process_v2_params(
-            position, param, docstrings=docstrings, aliases=aliases
-        )
-
     # Pydantic model creation will fail if names collide with the BaseModel type
     if hasattr(pydantic.BaseModel, param.name):
         name = param.name + "__"
@@ -294,16 +289,9 @@ def _process_param(
     return name, type_, field
 
 
-def _generate_schema_for_model(name_: str, **model_fields) -> Dict:
-    class ModelConfig:
-        arbitrary_types_allowed = True
-
-    if HAS_PYDANTIC_V2:
-        # if we're processing v2 fields, we need to create a v2 schema
-        return create_v2_schema(name_, model_cfg=ModelConfig, **model_fields)
-
+def create_v1_schema(name_: str, model_cfg, **model_fields):
     model: "pydantic.BaseModel" = pydantic.create_model(
-        name_, __config__=ModelConfig, **model_fields
+        name_, __config__=model_cfg, **model_fields
     )
     return model.schema(by_alias=True)
 
@@ -328,21 +316,33 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
 
+    class ModelConfig:
+        arbitrary_types_allowed = True
+
+    if HAS_PYDANTIC_V2 and has_v2_model_as_param(signature):
+        create_schema = create_v2_schema
+        process_params = process_v2_params
+    else:
+        create_schema = create_v1_schema
+        process_params = process_v1_params
+
     for position, param in enumerate(signature.parameters.values()):
-        name, type_, field = _process_param(
+        name, type_, field = process_params(
             param, position=position, docstrings=docstrings, aliases=aliases
         )
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
         try:
-            _generate_schema_for_model("CheckParameter", **{name: (type_, field)})
+            create_schema(
+                "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
+            )
         except ValueError:
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)
 
     # Generate the final model and schema
-    schema = _generate_schema_for_model("Parameters", **model_fields)
+    schema = create_schema("Parameters", model_cfg=ModelConfig, **model_fields)
     return ParameterSchema(**schema)
 
 
