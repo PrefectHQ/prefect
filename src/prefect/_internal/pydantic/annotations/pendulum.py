@@ -6,31 +6,42 @@ generation and validation.
 import typing as t
 
 import pendulum
-from pydantic import (
-    GetCoreSchemaHandler,
-    GetJsonSchemaHandler,
-)
+from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 from typing_extensions import Annotated
 
 
-class _PendulumAnnotation:
+class _PendulumDateTimeAnnotation:
+    _pendulum_type: t.Type[t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]] = (
+        pendulum.DateTime
+    )
+
+    _pendulum_types_to_schemas = {
+        pendulum.DateTime: core_schema.datetime_schema(),
+        pendulum.Date: core_schema.date_schema(),
+        pendulum.Duration: core_schema.timedelta_schema(),
+    }
+
     @classmethod
     def __get_pydantic_core_schema__(
         cls,
         _source_type: t.Any,
         _handler: GetCoreSchemaHandler,
     ) -> core_schema.CoreSchema:
-        def validate_from_str(value: str) -> pendulum.DateTime:
+        def validate_from_str(
+            value: str,
+        ) -> t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]:
             return pendulum.parse(value)
 
-        def to_str(value: pendulum.DateTime) -> str:
+        def to_str(
+            value: t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]
+        ) -> str:
             return value.isoformat()
 
         from_str_schema = core_schema.chain_schema(
             [
-                core_schema.datetime_schema(),
+                cls._pendulum_types_to_schemas[cls._pendulum_type],
                 core_schema.no_info_plain_validator_function(validate_from_str),
             ]
         )
@@ -40,7 +51,7 @@ class _PendulumAnnotation:
             python_schema=core_schema.union_schema(
                 [
                     # check if it's an instance first before doing any further work
-                    core_schema.is_instance_schema(pendulum.DateTime),
+                    core_schema.is_instance_schema(cls._pendulum_type),
                     from_str_schema,
                 ]
             ),
@@ -51,7 +62,17 @@ class _PendulumAnnotation:
     def __get_pydantic_json_schema__(
         cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        return handler(core_schema.datetime_schema())
+        return handler(cls._pendulum_types_to_schemas[cls._pendulum_type])
 
 
-PydanticPendulumType = Annotated[pendulum.DateTime, _PendulumAnnotation]
+class _PendulumDateAnnotation(_PendulumDateTimeAnnotation):
+    _pendulum_type = pendulum.Date
+
+
+class _PendulumDurationAnnotation(_PendulumDateTimeAnnotation):
+    _pendulum_type = pendulum.Duration
+
+
+PydanticPendulumDateTimeType = Annotated[pendulum.DateTime, _PendulumDateTimeAnnotation]
+PydanticPendulumDateType = Annotated[pendulum.Date, _PendulumDateAnnotation]
+PydanticPendulumDurationType = Annotated[pendulum.Duration, _PendulumDurationAnnotation]
