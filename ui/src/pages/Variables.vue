@@ -3,11 +3,13 @@
     <template #header>
       <PageHeadingVariables @create="refresh" />
     </template>
-    <template v-if="empty">
-      <VariablesPageEmptyState @create="refresh" />
-    </template>
-    <template v-else-if="loaded">
-      <VariablesTable ref="table" @delete="refresh" @update="refresh" />
+    <template v-if="loaded">
+      <template v-if="empty">
+        <VariablesPageEmptyState @create="refresh" />
+      </template>
+      <template v-else>
+        <VariablesTable ref="table" @delete="refresh" @update="refresh" />
+      </template>
     </template>
   </p-layout-default>
 </template>
