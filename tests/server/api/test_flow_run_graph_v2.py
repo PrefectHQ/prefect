@@ -524,6 +524,7 @@ async def subflow_run(
 
 async def test_reading_graph_with_subflow_run(
     session: AsyncSession,
+    flow,  # db.Flow,
     flow_run,  # db.FlowRun,
     subflow_run,  # db.FlowRun,
 ):
@@ -544,7 +545,7 @@ async def test_reading_graph_with_subflow_run(
             Node(
                 kind="flow-run",
                 id=subflow_run.id,
-                label=subflow_run.name,
+                label=f"{flow.name} / {subflow_run.name}",
                 state_type=subflow_run.state_type,
                 state_name=subflow_run.state_name,
                 start_time=subflow_run.start_time,
