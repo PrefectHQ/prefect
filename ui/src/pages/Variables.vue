@@ -1,5 +1,5 @@
 <template>
-  <p-layout-default class="workspace-variables">
+  <p-layout-default class="variables">
     <template #header>
       <PageHeadingVariables @create="refresh" />
     </template>
