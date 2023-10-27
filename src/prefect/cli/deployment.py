@@ -559,7 +559,9 @@ async def run(
                         "TO_TIMEZONE": "UTC",
                         "RETURN_AS_TIMEZONE_AWARE": False,
                         "PREFER_DATES_FROM": "future",
-                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                        "RELATIVE_BASE": datetime.fromtimestamp(
+                            now.timestamp(), tz=pendulum.tz.UTC
+                        ),
                     },
                 )
 
@@ -601,6 +603,7 @@ async def run(
         )
 
         try:
+            print(Scheduled(scheduled_time=scheduled_start_time).state_details)
             flow_run = await client.create_flow_run_from_deployment(
                 deployment.id,
                 parameters=parameters,
@@ -621,6 +624,7 @@ async def run(
         run_url = "<no dashboard available>"
 
     datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    print(datetime_local_tz)
     scheduled_display = (
         datetime_local_tz.to_datetime_string()
         + " "

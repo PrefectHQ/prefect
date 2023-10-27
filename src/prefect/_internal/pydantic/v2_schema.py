@@ -3,9 +3,13 @@
 import inspect
 import typing as t
 
+import pendulum
 import pydantic
 from pydantic import ConfigDict, create_model
 from pydantic.type_adapter import TypeAdapter
+
+from prefect._internal.pydantic.annotations.pendulum import PydanticPendulumType
+from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
 
 
 def process_v2_params(
@@ -29,6 +33,10 @@ def process_v2_params(
         name = param.name
 
     type_ = t.Any if param.annotation is inspect._empty else param.annotation
+    if type_ == pendulum.DateTime:
+        # Replace pendulum type annoations with our own so that they are pydantic compatible
+        type_ = PydanticPendulumType
+
     field = pydantic.Field(
         default=... if param.default is param.empty else param.default,
         title=param.name,
@@ -47,7 +55,11 @@ def create_v2_schema(name_: str, model_cfg: ConfigDict, **model_fields):
     adapter = TypeAdapter(model)
 
     # root model references under #definitions
-    schema = adapter.json_schema(by_alias=True, ref_template="#/definitions/{model}")
+    schema = adapter.json_schema(
+        by_alias=True,
+        ref_template="#/definitions/{model}",
+        schema_generator=GenerateEmptySchemaForUserClasses,
+    )
     # ensure backwards compatability by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]

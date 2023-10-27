@@ -137,6 +137,20 @@ class TestFunctionToSchema:
         ):
             pass
 
+        timedelta_schema = {
+            "title": "z",
+            "default": 5.0,
+            "type": "number",
+            "format": "time-delta",
+            "position": 2,
+        }
+        dt_default = "2025-01-01T00:00:00+00:00"
+        if HAS_PYDANTIC_V2:
+            timedelta_schema["default"] = "PT5S"
+            timedelta_schema["type"] = "string"
+            timedelta_schema["format"] = "duration"
+            dt_default = "2025-01-01T00:00:00Z"  # alternate format for specifying UTC
+
         schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
@@ -150,18 +164,12 @@ class TestFunctionToSchema:
                 },
                 "y": {
                     "title": "y",
-                    "default": "2025-01-01T00:00:00+00:00",
+                    "default": dt_default,
                     "type": "string",
                     "format": "date-time",
                     "position": 1,
                 },
-                "z": {
-                    "title": "z",
-                    "default": 5.0,
-                    "type": "number",
-                    "format": "time-delta",
-                    "position": 2,
-                },
+                "z": timedelta_schema,
             },
             "required": ["x"],
         }
@@ -175,6 +183,18 @@ class TestFunctionToSchema:
         def f(x: Color = "RED"):
             pass
 
+        # pydantic 2 has different descriptions for enums
+        color_def = {
+            "title": "Color",
+            "description": "An enumeration.",  # in pydantic 1
+            "type": "string",  # in pydantic 2
+            "enum": ["RED", "GREEN", "BLUE"],
+        }
+        if HAS_PYDANTIC_V2:
+            color_def.pop("description")
+        else:
+            color_def.pop("type")
+
         schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
@@ -187,13 +207,7 @@ class TestFunctionToSchema:
                     "position": 0,
                 }
             },
-            "definitions": {
-                "Color": {
-                    "title": "Color",
-                    "description": "An enumeration.",
-                    "enum": ["RED", "GREEN", "BLUE"],
-                }
-            },
+            "definitions": {"Color": color_def},
         }
 
     def test_function_with_generic_arguments(self):
@@ -216,6 +230,16 @@ class TestFunctionToSchema:
             else {}
         )
 
+        # pydantic 2 keys tuple items differently in the parameter schema
+        tuple_schema = {
+            "items": [{"type": "integer"}, {"type": "number"}],  # in pydantic 1
+            "prefixItems": [{"type": "integer"}, {"type": "number"}],  # in pydantic 2
+        }
+        if HAS_PYDANTIC_V2:
+            tuple_schema.pop("items")
+        else:
+            tuple_schema.pop("prefixItems")
+
         schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
@@ -232,7 +256,7 @@ class TestFunctionToSchema:
                 "d": {
                     "title": "d",
                     "type": "array",
-                    "items": [{"type": "integer"}, {"type": "number"}],
+                    **tuple_schema,
                     **min_max_items,
                     "position": 3,
                 },
@@ -265,6 +289,8 @@ class TestFunctionToSchema:
         }
 
     def test_function_with_user_defined_pydantic_model(self):
+        import pydantic
+
         class Foo(pydantic.BaseModel):
             y: int
             z: str
@@ -428,6 +454,18 @@ class TestMethodToSchema:
             def h(color: Color = "RED"):
                 pass
 
+        # pydantic 2 has different descriptions for enums
+        color_def = {
+            "title": "Color",
+            "description": "An enumeration.",  # in pydantic 1
+            "type": "string",  # in pydantic 2
+            "enum": ["RED", "GREEN", "BLUE"],
+        }
+        if HAS_PYDANTIC_V2:
+            color_def.pop("description")
+        else:
+            color_def.pop("type")
+
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
             assert schema.dict() == {
@@ -441,13 +479,7 @@ class TestMethodToSchema:
                         "position": 0,
                     }
                 },
-                "definitions": {
-                    "Color": {
-                        "title": "Color",
-                        "description": "An enumeration.",
-                        "enum": ["RED", "GREEN", "BLUE"],
-                    }
-                },
+                "definitions": {"Color": color_def},
             }
 
     def test_methods_with_complex_arguments(self):
@@ -462,6 +494,10 @@ class TestMethodToSchema:
             @staticmethod
             def h(x: datetime.datetime, y: int = 42, z: bool = None):
                 pass
+
+        z_schema = {"title": "z", "type": "boolean", "position": 2}
+        if HAS_PYDANTIC_V2:
+            z_schema["default"] = None
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
@@ -481,7 +517,7 @@ class TestMethodToSchema:
                         "type": "integer",
                         "position": 1,
                     },
-                    "z": {"title": "z", "type": "boolean", "position": 2},
+                    "z": z_schema,
                 },
                 "required": ["x"],
             }
