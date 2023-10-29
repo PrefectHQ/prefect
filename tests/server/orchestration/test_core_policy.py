@@ -982,7 +982,7 @@ class TestTaskRetryingRule:
         )
         ctx.run.run_count = 1
         ctx.run_settings.retries = 1
-        ctx.initial_state.state_details.retriable = False
+        ctx.proposed_state.state_details.retriable = False
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
@@ -1009,7 +1009,7 @@ class TestTaskRetryingRule:
         ctx.proposed_state.name = "AwaitingRetry"
         ctx.run.deployment_id = uuid4()
         ctx.run.run_count = 1
-        ctx.initial_state.state_details.retriable = False
+        ctx.proposed_state.state_details.retriable = False
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in manual_retry_policy:
