@@ -157,11 +157,16 @@ class CancellationCleanup(LoopService):
                 # Nothing to do here; the parent is not cancelled
                 return False
 
+            if flow_run.deployment_id:
+                state = states.Cancelling(message="The parent flow run was cancelled.")
+            else:
+                state = states.Cancelled(message="The parent flow run was cancelled.")
+
         async with db.session_context(begin_transaction=True) as session:
             await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=states.Cancelled(message="The parent flow run was cancelled."),
+                state=state,
             )
 
 
