@@ -91,7 +91,10 @@ class TestGitRepository:
     def test_init_with_username_no_token(self):
         with pytest.raises(
             ValueError,
-            match="If a username is provided, an access token must also be provided.",
+            match=(
+                "If a username is provided, an access token or password must also be"
+                " provided."
+            ),
         ):
             GitRepository(
                 url="https://github.com/org/repo.git",
