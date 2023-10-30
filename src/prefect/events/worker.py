@@ -37,7 +37,6 @@ class EventsWorker(QueueService[Event]):
         event, context = event_and_context
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
-
         await self._client.emit(event)
 
     async def attach_related_resources_from_context(self, event: Event):

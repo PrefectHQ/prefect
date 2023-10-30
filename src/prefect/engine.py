@@ -202,6 +202,7 @@ from prefect.utilities.text import truncated_to
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
 
+NUM_CHARS_DYNAMIC_KEY = 8
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
@@ -1148,8 +1149,14 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    if task.isasync and flow_run_context.flow.isasync:
+    is_async_autonomous_task = task.isasync and flow_run_context.flow is None
+    is_async_task_in_async_flow = (
+        task.isasync and flow_run_context.flow and flow_run_context.flow.isasync
+    )
+
+    if is_async_autonomous_task or is_async_task_in_async_flow:
         # return a coro for the user to await if an async task in an async flow
+        # or an async task outside of a flow
         return from_async.wait_for_call_in_loop_thread(begin_run)
     else:
         return from_sync.wait_for_call_in_loop_thread(begin_run)
@@ -1338,14 +1345,24 @@ async def create_task_run_future(
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-    task_run_name = f"{task.name}-{dynamic_key}"
+    task_run_name = (
+        f"{task.name}-{dynamic_key}"
+        if flow_run_context and flow_run_context.flow_run
+        else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
+    )
 
     # Generate a future
+    asynchronous = (
+        task.isasync and flow_run_context.flow.isasync
+        if flow_run_context and flow_run_context.flow
+        else task.isasync
+    )
+
     future = PrefectFuture(
         name=task_run_name,
         key=uuid4(),
         task_runner=task_runner,
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
+        asynchronous=asynchronous,
     )
 
     # Create and submit the task run in the background
@@ -1433,7 +1450,7 @@ async def create_task_run(
     task_run = await flow_run_context.client.create_task_run(
         task=task,
         name=name,
-        flow_run_id=flow_run_context.flow_run.id,
+        flow_run_id=flow_run_context.flow_run.id if flow_run_context.flow_run else None,
         dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
@@ -2201,7 +2218,10 @@ async def propose_state(
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
-    if task.task_key not in context.task_run_dynamic_keys:
+    if context.flow_run is None:  # this is an autonomous task run
+        context.task_run_dynamic_keys[task.task_key] = task.dynamic_key or str(uuid4())
+
+    elif task.task_key not in context.task_run_dynamic_keys:
         context.task_run_dynamic_keys[task.task_key] = 0
     else:
         context.task_run_dynamic_keys[task.task_key] += 1
