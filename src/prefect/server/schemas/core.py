@@ -750,6 +750,9 @@ class BlockDocument(ORMBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
+    block_type_name: Optional[str] = Field(
+        default=None, description="The associated block type's name"
+    )
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
@@ -823,6 +826,7 @@ class BlockDocument(ORMBaseModel):
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
+            block_type_name=orm_block_document.block_type_name,
             block_type=orm_block_document.block_type,
             is_anonymous=orm_block_document.is_anonymous,
         )
