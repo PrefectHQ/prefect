@@ -829,7 +829,7 @@ class TestReadBlockDocuments:
 
         read_blocks = await models.block_documents.read_block_documents(
             session=session,
-            sort=schemas.sorting.BlockDocumentSort.BLOCK_TYPE_NAME_NAME_ASC,
+            sort=schemas.sorting.BlockDocumentSort.BLOCK_TYPE_AND_NAME_ASC,
         )
 
         # by default, exclude anonymous block documents

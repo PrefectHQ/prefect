@@ -86,4 +86,4 @@ class BlockDocumentSort(AutoEnum):
 
     NAME_DESC = AutoEnum.auto()
     NAME_ASC = AutoEnum.auto()
-    BLOCK_TYPE_NAME_NAME_ASC = AutoEnum.auto()
+    BLOCK_TYPE_AND_NAME_ASC = AutoEnum.auto()

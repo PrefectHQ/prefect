@@ -620,9 +620,7 @@ class TestReadBlockDocuments:
                         ]
                     }
                 },
-                "sort": (
-                    schemas.sorting.BlockDocumentSort.BLOCK_TYPE_NAME_NAME_ASC.value
-                ),
+                "sort": schemas.sorting.BlockDocumentSort.BLOCK_TYPE_AND_NAME_ASC.value,
             },
         )
         assert response.status_code == status.HTTP_200_OK
