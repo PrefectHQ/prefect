@@ -1074,6 +1074,8 @@ class ORMBlockDocument:
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
 
+    block_type_name = sa.Column(sa.String, nullable=True)
+
     @declared_attr
     def block_type_id(cls):
         return sa.Column(

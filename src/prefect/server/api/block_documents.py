@@ -52,6 +52,9 @@ async def read_block_documents(
     include_secrets: bool = Body(
         False, description="Whether to include sensitive values in the block document."
     ),
+    sort: Optional[schemas.sorting.BlockDocumentSort] = Body(
+        schemas.sorting.BlockDocumentSort.NAME_ASC
+    ),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.BlockDocument]:
@@ -65,6 +68,7 @@ async def read_block_documents(
             block_type_filter=block_types,
             block_schema_filter=block_schemas,
             include_secrets=include_secrets,
+            sort=sort,
             offset=offset,
             limit=limit,
         )
