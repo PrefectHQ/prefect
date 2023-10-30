@@ -30,6 +30,8 @@ In this guide you will:
 * A Prefect Cloud account, or a local instance of a Prefect server running on your network.
 * If daemonizing a worker, you'll need a Prefect [deployment](/concepts/deployments/) with a [work pool](/concepts/work-pools/) your worker can connect to.
 
+If using an AWS t2-micro instance with an AWS Linux image you can install Python and pip with `sudo yum install -y python3 python3-pip`
+
 ## Add a user
 
 First, create a user account on your linux system for the Prefect worker.
@@ -64,7 +66,7 @@ For example, if using [venv](https://docs.python.org/3/library/venv.html), chang
 
 Next, set up your environment so that the Prefect client will know which server to connect to.
 
-If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-getting-started/#create-an-api-key) to obtain an API key and then run:
+If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-getting-started/#create-an-api-key) to obtain an API key and then run the following:
 
 ```bash
 prefect cloud login -k YOUR_API_KEY
@@ -72,7 +74,7 @@ prefect cloud login -k YOUR_API_KEY
 
 When prompted, choose the Prefect workspace you'd like to log in to.
 
-If connecting to a self-hosted Prefect server instance, run the following and substitute the IP address of your server:
+If connecting to a self-hosted Prefect server instance instead of Prefect Cloud, run the following and substitute the IP address of your server:
 
 ```bash
 prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200
@@ -83,14 +85,15 @@ This command switches you back to your sudo-enabled account so you will can run 
 
 ## Set up a systemd service
 
-Create a file for your systemd service; substitute your own name for the file.
+Move into the `/etc/systemd/system` folder and open a file for editing.
 
 ```bash
 cd /etc/systemd/system
 sudo vim my-prefect-service.service
 ```
 
-Populate the file depending upon the type of service you want to run. We use the Vim text editor below.
+Populate the file depending upon the type of service you want to run.
+We use the Vim text editor below.
 
 === "Prefect Worker"
 
@@ -101,7 +104,7 @@ Populate the file depending upon the type of service you want to run. We use the
     [Service]
     User=prefect
     WorkingDirectory=/home/prefect
-    ExecStart=/usr/local/bin/prefect worker start --pool YOUR_WORK_POOL_NAME
+    ExecStart=prefect worker start --pool YOUR_WORK_POOL_NAME
     Restart=always
 
     [Install]
@@ -113,8 +116,6 @@ Populate the file depending upon the type of service you want to run. We use the
 
 === "`.serve`"
 
-    Copy your flow code entrypoint file, and any other files needed for your flow to run, into the `/home/prefect` directory.
-
     ```
     [Unit]
     Description=Prefect serve 
@@ -122,7 +123,7 @@ Populate the file depending upon the type of service you want to run. We use the
     [Service]
     User=prefect
     WorkingDirectory=/home/prefect
-    ExecStart=/usr/local/bin/python my_file.py
+    ExecStart=python3 my_file.py
     Restart=always
 
     [Install]
@@ -130,9 +131,24 @@ Populate the file depending upon the type of service you want to run. We use the
 
     ```
 
-    Make sure you substitute your own flow code entrypoint file name.
+    Make sure you substitute your own flow code entrypoint path.
 
-    If you want to make changes to your flow code without restarting your process, you can use `flow.from_source().serve()`, as in the example below.
+    Copy your flow entrypoint file and any other files needed for your flow to run into the `/home/prefect` directory.
+
+    Here's a basic example flow:
+
+    ```python title="my_file.py"
+    from prefect import flow
+
+    @flow(log_prints=True)
+    def say_hi():
+        print("Hello!")
+        
+    if __name__=="__main__":
+        say_hi.serve(name="Greeting from daemonized .serve")
+    ```
+
+    If you want to make changes to your flow code without restarting your process, you can push your code to git-based cloud storage (GitHub, BitBucket, GitLab) and use `flow.from_source().serve()`, as in the example below.
 
     ```python
     from prefect import flow
@@ -149,12 +165,14 @@ Populate the file depending upon the type of service you want to run. We use the
 
 To save the file and exit Vim hit the escape key, type `:wq!`, then press the return key.
 
-Next, run `systemctl daemon-reload` to make systemd aware of your new service.
+Next, run `sudo systemctl daemon-reload` to make systemd aware of your new service.
 
-Then, run `systemctl enable my-prefect-service` to enable the service.
+Then, run `sudo systemctl enable my-prefect-service` to enable the service.
 This command will ensure it runs when your system boots.
 
-Finally, run `systemctl start my-prefect-service` to start the service.
+Finally, run `sudo systemctl start my-prefect-service` to start the service.
+
+You can check that your daemonized Prefect worker or serve process is running with `systemctl`.
 
 And that's it!
 You now have a systemd service that starts when your system boots, and will restart if it ever crashes.
