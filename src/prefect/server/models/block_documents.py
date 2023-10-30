@@ -29,6 +29,11 @@ async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
     db: PrefectDBInterface,
 ):
+    # lookup block type name and copy to the block document table
+    block_type = await models.block_types.read_block_type(
+        session=session, block_type_id=block_document.block_type_id
+    )
+
     # anonymous block documents can be given a random name if none is provided
     if block_document.is_anonymous and not block_document.name:
         name = f"anonymous-{uuid4()}"
@@ -39,6 +44,7 @@ async def create_block_document(
         name=name,
         block_schema_id=block_document.block_schema_id,
         block_type_id=block_document.block_type_id,
+        block_type_name=block_type.name,
         is_anonymous=block_document.is_anonymous,
     )
 
@@ -261,13 +267,15 @@ async def read_block_documents(
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     include_secrets: bool = False,
+    sort: Optional[
+        schemas.sorting.BlockDocumentSort
+    ] = schemas.sorting.BlockDocumentSort.NAME_ASC,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
 ):
     """
     Read block documents with an optional limit and offset
     """
-
     # if no filter is provided, one is created that excludes anonymous blocks
     if block_document_filter is None:
         block_document_filter = schemas.filters.BlockDocumentFilter(
@@ -275,8 +283,10 @@ async def read_block_documents(
         )
 
     # --- Build an initial query that filters for the requested block documents
-    filtered_block_documents_query = sa.select(db.BlockDocument.id).where(
-        block_document_filter.as_sql_filter(db)
+    filtered_block_documents_query = (
+        sa.select(db.BlockDocument.id)
+        .where(block_document_filter.as_sql_filter(db))
+        .order_by(sort.as_sql_sort(db))
     )
 
     if block_type_filter is not None:
@@ -349,7 +359,7 @@ async def read_block_documents(
         )
         .select_from(all_block_documents_query)
         .join(db.BlockDocument, db.BlockDocument.id == all_block_documents_query.c.id)
-        .order_by(db.BlockDocument.name)
+        .order_by(sort.as_sql_sort(db))
     )
 
     result = await session.execute(

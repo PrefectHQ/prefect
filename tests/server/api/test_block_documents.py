@@ -598,6 +598,43 @@ class TestReadBlockDocuments:
         docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
         assert [b.id for b in docs] == [block_documents[2].id, block_documents[4].id]
 
+    async def test_read_block_documents_sorts_by_block_type_name_name(
+        self, client, block_documents
+    ):
+        block_documents_sorted_by_block_type_name_name = sorted(
+            block_documents,
+            key=lambda block_document: (
+                block_document.block_type.name,
+                block_document.name,
+            ),
+        )
+
+        response = await client.post(
+            "/block_documents/filter",
+            json={
+                "block_documents": {
+                    "name": {
+                        "any_": [
+                            b.name
+                            for b in block_documents_sorted_by_block_type_name_name
+                        ]
+                    }
+                },
+                "sort": schemas.sorting.BlockDocumentSort.BLOCK_TYPE_AND_NAME_ASC.value,
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK
+        read_block_documents = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+        # sorted by block type name, block document name
+        # anonymous blocks excluded by default
+        assert [b.id for b in read_block_documents] == [
+            b.id
+            for b in block_documents_sorted_by_block_type_name_name
+            if not b.is_anonymous
+        ]
+
 
 class TestDeleteBlockDocument:
     async def test_delete_block(self, session, client, block_schemas):
