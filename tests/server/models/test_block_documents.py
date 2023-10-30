@@ -820,6 +820,28 @@ class TestReadBlockDocuments:
             b.id for b in block_documents if not b.is_anonymous
         ]
 
+    async def test_read_block_documents_sorts_by_block_type_name_name(
+        self, session, block_documents
+    ):
+        sorted_blocks = sorted(
+            block_documents, key=lambda b: (b.block_type.name, b.name)
+        )
+
+        read_blocks = await models.block_documents.read_block_documents(
+            session=session,
+            sort=schemas.sorting.BlockDocumentSort.BLOCK_TYPE_NAME_NAME_ASC,
+        )
+
+        # by default, exclude anonymous block documents
+        assert {b.id for b in read_blocks} == {
+            b.id for b in sorted_blocks if not b.is_anonymous
+        }
+
+        # sorted by block document name
+        assert [rb.id for rb in read_blocks] == [
+            b.id for b in sorted_blocks if not b.is_anonymous
+        ]
+
     async def test_read_block_documents_with_is_anonymous_filter(
         self, session, block_documents
     ):
