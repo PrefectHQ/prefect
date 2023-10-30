@@ -57,7 +57,7 @@ sudo su prefect
 Run:
 
 ```bash
-pip install prefect
+pip3 install prefect
 ```
 
 This guide assumes you are installing Prefect globally, not in a virtual environment.
@@ -107,7 +107,6 @@ This command switches you back to your sudo-enabled account so you will can run 
 
     [Install]
     WantedBy=multi-user.target
-
     ```
 
     Make sure you substitute your own work pool name.
@@ -164,7 +163,6 @@ This command switches you back to your sudo-enabled account so you will can run 
 
     [Install]
     WantedBy=multi-user.target
-
     ```
 
 To save the file and exit Vim hit the escape key, type `:wq!`, then press the return key.
@@ -178,7 +176,7 @@ Next, run `sudo systemctl start my-prefect-service` to start the service.
 
 Run your deployment from UI and check out the logs on the **Flow Runs** page.
 
-You can check that your daemonized Prefect worker or serve process is running and see the Prefect logs with `systemctl status my-prefect-service`.
+You can see if your daemonized Prefect worker or serve process is running and see the Prefect logs with `systemctl status my-prefect-service`.
 
 That's it!
 You now have a systemd service that starts when your system boots, and will restart if it ever crashes.
@@ -188,7 +186,4 @@ You now have a systemd service that starts when your system boots, and will rest
 If you want to set up a long-lived process on a Windows machine the pattern is similar.
 Instead of systemd, you can use [NSSM](https://nssm.cc/).
 
-To run a worker in Kubernetes using Helm see [the Kubernetes guide](/guides/deployment/kubernetes/#deploy-a-worker-using-helm).
-
-To run your workflows on serverless cloud infrastructure, no worker is required if you use a push work pool with Prefect Cloud.
-See [Serverless Push Work Pools guide](/guides/deployment/push-work-pools/) to learn more.
+Check out other [Prefect guides](/guides/) to see what else you can do with Prefect!
