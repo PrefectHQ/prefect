@@ -151,6 +151,36 @@ class TestGitRepository:
             ]
         )
 
+    async def test_pull_code_with_username_and_password(
+        self,
+        monkeypatch,
+        mock_run_process: AsyncMock,
+    ):
+        """
+        We need to handle username+password combo for backwards compatibility with
+        previous `git_clone` pull step implementation.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/11051
+        """
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "username", "password": "password"},
+        )
+        await repo.pull_code()
+
+        mock_run_process.assert_awaited_once_with(
+            [
+                "git",
+                "clone",
+                "https://username:password@github.com/org/repo.git",
+                "--depth",
+                "1",
+                str(Path.cwd() / "repo"),
+            ]
+        )
+
     def test_eq(self):
         repo1 = GitRepository(url="https://github.com/org/repo.git")
         repo2 = GitRepository(url="https://github.com/org/repo.git")
