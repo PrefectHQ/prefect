@@ -91,7 +91,10 @@ class TestGitRepository:
     def test_init_with_username_no_token(self):
         with pytest.raises(
             ValueError,
-            match="If a username is provided, an access token must also be provided.",
+            match=(
+                "If a username is provided, an access token or password must also be"
+                " provided."
+            ),
         ):
             GitRepository(
                 url="https://github.com/org/repo.git",
@@ -145,6 +148,36 @@ class TestGitRepository:
                 "git",
                 "clone",
                 "https://oauth2:token@github.com/org/repo.git",
+                "--depth",
+                "1",
+                str(Path.cwd() / "repo"),
+            ]
+        )
+
+    async def test_pull_code_with_username_and_password(
+        self,
+        monkeypatch,
+        mock_run_process: AsyncMock,
+    ):
+        """
+        We need to handle username+password combo for backwards compatibility with
+        previous `git_clone` pull step implementation.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/11051
+        """
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "username", "password": "password"},
+        )
+        await repo.pull_code()
+
+        mock_run_process.assert_awaited_once_with(
+            [
+                "git",
+                "clone",
+                "https://username:password@github.com/org/repo.git",
                 "--depth",
                 "1",
                 str(Path.cwd() / "repo"),
