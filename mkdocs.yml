@@ -158,14 +158,15 @@ nav:
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
                 - Moving data: guides/moving-data.md
-          - Workers and agents:
-                - Deploying flows to work pools and workers: guides/prefect-deploy.md
+          - Workers and Agents:
+                - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
                 - Storage: guides/deployment/storage-guide.md
                 - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
-                - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
+                - Run a Flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
+                - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
           - Troubleshooting: guides/troubleshooting.md
           - Recipes: recipes/recipes.md
