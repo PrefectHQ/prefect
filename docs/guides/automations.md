@@ -11,19 +11,23 @@ search:
 
 # Using Automations for Dynamic Responses
 
-From the Automations tutorial, we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
+From the [Automations tutorial](https://docs.prefect.io/2.14.2/concepts/automations/), we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
 
-In this guide, we will showcase common usecases where automations can shine when responding to your workflows. First we will create a simple notification automation in just a few UI clicks. Then build upon that with an event based automation where a deployment will be kicked off. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
+In this guide, we will showcase common usecases where automations can come in handy by:
+- Creating a simple notification automation in just a few UI clicks
+- Build upon an event based automation
+- Combine into a multi-layered responsive deployment pattern
 
-!!! Warning "Available only on Prefect Cloud"
+!!! cloud-ad "Available only on Prefect Cloud"
         Automations are only available on Prefect Cloud, please refer to the [Cloud documentation](https://docs.prefect.io/2.13.4/cloud/#welcome-to-prefect-cloud) to see what 
         additional features are available such as Events and webhooks!
 
 
 ## Creating the test script
 
-Automations are great when handling mixed outcome workflows, as you are able to respond to specific actions done by the orchestrator. 
-For example, let us try to grab data from an API and have a notification get kicked off of our end state. 
+Automations are the one stop shop to react to different workflows by responding to specific actions recorded by Prefect. 
+
+For example, let us try to grab data from an API and have a notification get based on the end state. 
 
 We can get started by pulling data from this endpoint in order to do some data cleaning and transformations. 
 
@@ -33,7 +37,6 @@ Let us create a simple extract method, that pulls the data from a random user da
 from prefect import flow, task, get_run_logger
 import requests
 import json
-import pandas as pd
 
 @task
 def fetch(url: str):
@@ -71,9 +74,9 @@ if __name__ == "__main__":
 From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
 
 ## Create notification block within the UI
-Now let us try to send a notification based off a completed state outcome. We can configure a notification to be thrown so that we know when to look into our workflow logic. 
+Now let us try to send a notification based off a completed state outcome. We can configure a notification to be sent so that we know when to look into our workflow logic. 
 
-1. Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be thrown. 
+1. Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be sent. 
 ![List of available blocks](/img/guides/block-list.png)
 
 2. Let us navigate to the blocks page on the UI, and click into creating an email notification block. 
@@ -83,7 +86,6 @@ Now let us try to send a notification based off a completed state outcome. We ca
 ![Automations page](/img/guides/automation-list.png)
 
 4. Next we try to find the trigger type, in this case let us do a flow completion. 
-
 ![Trigger type](/img/guides/automation-triggers.png)
 
 5. Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the completion. 
