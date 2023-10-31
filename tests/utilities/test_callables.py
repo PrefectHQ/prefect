@@ -344,6 +344,11 @@ class TestFunctionToSchema:
         class Foo(pydantic.BaseModel):
             bar: str
 
+        class Color(Enum):
+            RED = "RED"
+            GREEN = "GREEN"
+            BLUE = "BLUE"
+
         def f(
             a: int,
             s: List[None],
@@ -354,6 +359,7 @@ class TestFunctionToSchema:
             pdt: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
             pdate: pendulum.Date = pendulum.date(2025, 1, 1),
             pduration: pendulum.Duration = pendulum.duration(seconds=5),
+            c: Color = Color.BLUE,
         ):
             ...
 
@@ -371,6 +377,12 @@ class TestFunctionToSchema:
             "type": "number",
             "format": "time-delta",
         }
+        enum_schema = {
+            "enum": ["RED", "GREEN", "BLUE"],
+            "title": "Color",
+            "type": "string",
+            "description": "An enumeration.",
+        }
 
         if HAS_PYDANTIC_V2:
             # these overrides represent changes in how pydantic generates schemas in v2
@@ -378,6 +390,9 @@ class TestFunctionToSchema:
             duration_schema["default"] = "PT5S"
             duration_schema["type"] = "string"
             duration_schema["format"] = "duration"
+            enum_schema.pop("description")
+        else:
+            enum_schema.pop("type")
 
         schema = callables.parameter_schema(f)
         assert schema.dict() == {
@@ -413,6 +428,12 @@ class TestFunctionToSchema:
                     "format": "date",
                 },
                 "pduration": duration_schema,
+                "c": {
+                    "title": "c",
+                    "default": "BLUE",
+                    "position": 9,
+                    "allOf": [{"$ref": "#/definitions/Color"}],
+                },
             },
             "required": ["a", "s", "m"],
             "definitions": {
@@ -421,7 +442,8 @@ class TestFunctionToSchema:
                     "required": ["bar"],
                     "title": "Foo",
                     "type": "object",
-                }
+                },
+                "Color": enum_schema,
             },
         }
 
