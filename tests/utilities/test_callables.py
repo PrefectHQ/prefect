@@ -380,7 +380,6 @@ class TestFunctionToSchema:
             duration_schema["format"] = "duration"
 
         schema = callables.parameter_schema(f)
-        print(schema.dict())
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
