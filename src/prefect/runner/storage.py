@@ -371,14 +371,20 @@ class RemoteStorage:
 
         remote_path = str(self._remote_path) + "/"
 
-        await from_async.wait_for_call_in_new_thread(
-            create_call(
-                self._filesystem.get,
-                remote_path,
-                str(self.destination),
-                recursive=True,
+        try:
+            await from_async.wait_for_call_in_new_thread(
+                create_call(
+                    self._filesystem.get,
+                    remote_path,
+                    str(self.destination),
+                    recursive=True,
+                )
             )
-        )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to pull contents from remote storage {self._url!r} to"
+                f" {self.destination!r}"
+            ) from exc
 
     def to_pull_step(self) -> dict:
         """
