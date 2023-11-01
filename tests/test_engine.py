@@ -2325,7 +2325,7 @@ async def test_long_task_introspection_warning_on(
                 log_prints=False,
             )
 
-    assert "Long running task parameter introspection detected" in caplog.text
+    assert "Task parameter introspection took" in caplog.text
 
 
 async def test_long_task_introspection_warning_off(
@@ -2370,4 +2370,4 @@ async def test_long_task_introspection_warning_off(
                 log_prints=False,
             )
 
-    assert "Long running task parameter introspection detected" not in caplog.text
+    assert "Task parameter introspection took" not in caplog.text

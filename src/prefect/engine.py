@@ -1659,17 +1659,19 @@ async def orchestrate_task_run(
             force=task_run.state.is_pending(),
         )
     task_introspection_end_time = time.perf_counter()
-    if (
-        PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
-        and (task_introspection_end_time - task_introspection_start_time)
-        > PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
-    ):
+
+    introspection_time = round(
+        task_introspection_end_time - task_introspection_start_time, 3
+    )
+    threshold = PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
+    if threshold and introspection_time > threshold:
         logger.warning(
-            "Long running task parameter introspection detected. "
+            f"Task parameter introspection took {introspection_time} seconds "
+            f", exceeding `PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD` of {threshold}. "
             "Try wrapping large task parameters with "
-            "`prefect.utilities.annotations.quote` for increased "
-            "performance, e.g. `my_task(quote(param))`. "
-            "Disable this message with PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD=0."
+            "`prefect.utilities.annotations.quote` for increased performance, "
+            "e.g. `my_task(quote(param))`. To disable this message set "
+            "`PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD=0`."
         )
 
     # Generate the cache key to attach to proposed states
