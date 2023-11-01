@@ -3,12 +3,12 @@ Core set of steps for specifying a Prefect project pull step.
 """
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.blocks.core import Block
 from prefect.logging.loggers import get_logger
-from prefect.runner.storage import GitRepository
+from prefect.runner.storage import GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import sync_compatible
 
 deployment_logger = get_logger("deployment")
@@ -124,6 +124,16 @@ async def git_clone(
 
     directory = str(storage.destination.relative_to(Path.cwd()))
     deployment_logger.info(f"Cloned repository {repository!r} into {directory!r}")
+    return {"directory": directory}
+
+
+async def pull_from_remote_storage(url: str, **settings: Any):
+    storage = RemoteStorage(url, **settings)
+
+    await storage.pull_code()
+
+    directory = str(storage.destination.relative_to(Path.cwd()))
+    deployment_logger.info(f"Pulled code from {url!r} into {directory!r}")
     return {"directory": directory}
 
 
