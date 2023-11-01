@@ -237,6 +237,56 @@ def my_succeed_or_fail_hook(task, task_run, state):
 )
 ```
 
+#### Pass `kwargs` to your hooks
+The Prefect engine will call your hooks for you upon the state change, passing in the flow, flow run, and state objects.
+
+However, you can define your hook to have additional default arguments:
+```python
+from prefect import flow
+
+data = {}
+
+def my_hook(flow, flow_run, state, my_arg="custom_value"):
+    data.update(my_arg=my_arg, state=state)
+
+@flow(on_completion=[my_hook])
+def lazy_flow():
+    pass
+
+state = lazy_flow(return_state=True)
+
+assert data == {"my_arg": "custom_value", "state": state}
+```
+
+
+... or define your hook to accept arbitrary keyword arguments:
+```python
+from functools import partial
+from prefect import flow, task
+
+data = {}
+
+def my_hook(task, task_run, state, **kwargs):
+    data.update(state=state, **kwargs)
+
+@task
+def bad_task():
+    raise ValueError("meh")
+
+@flow
+def ok_with_failure_flow(x: str = "foo", y: int = 42):
+    bad_task_with_a_hook = bad_task.with_options(
+        on_failure=[partial(my_hook, **dict(x=x, y=y))]
+    )
+    # return a tuple of "bar" and the task run state
+    # to avoid raising the task's exception
+    return "bar", bad_task_with_a_hook(return_state=True)
+
+_, task_run_state = ok_with_failure_flow()
+
+assert data == {"x": "foo", "y": 42, "state": task_run_state}
+```
+
 ### More examples of state change hooks
 - [Send a notification when a flow run fails](/guides/state-change-hooks/#send-a-notification-when-a-flow-run-fails)
 - [Delete a Cloud Run job when a flow crashes](/guides/state-change-hooks/#delete-a-cloud-run-job-when-a-flow-crashes)

@@ -90,7 +90,18 @@ import threading
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
-from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TypeVar,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -2324,6 +2335,16 @@ def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str
     return task_run_name
 
 
+def _get_hook_name(hook: Callable) -> str:
+    return (
+        hook.__name__
+        if hasattr(hook, "__name__")
+        else (
+            hook.func.__name__ if isinstance(hook, partial) else hook.__class__.__name__
+        )
+    )
+
+
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     """Run the on_failure and on_completion hooks for a task, making sure to
     catch and log any errors that occur.
@@ -2337,9 +2358,10 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     if hooks:
         logger = task_run_logger(task_run)
         for hook in hooks:
+            hook_name = _get_hook_name(hook)
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
                 if is_async_fn(hook):
@@ -2350,11 +2372,11 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     )
             except Exception:
                 logger.error(
-                    f"An error was encountered while running hook {hook.__name__!r}",
+                    f"An error was encountered while running hook {hook_name!r}",
                     exc_info=True,
                 )
             else:
-                logger.info(f"Hook {hook.__name__!r} finished running successfully")
+                logger.info(f"Hook {hook_name!r} finished running successfully")
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
@@ -2362,21 +2384,32 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
+    enable_cancellation_and_crashed_hooks = (
+        os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
+        == "true"
+    )
     if state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
-    elif state.is_cancelling() and flow.on_cancellation:
+    elif (
+        enable_cancellation_and_crashed_hooks
+        and state.is_cancelling()
+        and flow.on_cancellation
+    ):
         hooks = flow.on_cancellation
-    elif state.is_crashed() and flow.on_crashed:
+    elif (
+        enable_cancellation_and_crashed_hooks and state.is_crashed() and flow.on_crashed
+    ):
         hooks = flow.on_crashed
 
     if hooks:
         logger = flow_run_logger(flow_run)
         for hook in hooks:
+            hook_name = _get_hook_name(hook)
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
                 if is_async_fn(hook):
@@ -2387,11 +2420,11 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     )
             except Exception:
                 logger.error(
-                    f"An error was encountered while running hook {hook.__name__!r}",
+                    f"An error was encountered while running hook {hook_name!r}",
                     exc_info=True,
                 )
             else:
-                logger.info(f"Hook {hook.__name__!r} finished running successfully")
+                logger.info(f"Hook {hook_name!r} finished running successfully")
 
 
 async def check_api_reachable(client: PrefectClient, fail_message: str):
