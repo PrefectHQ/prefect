@@ -1665,9 +1665,9 @@ async def orchestrate_task_run(
     ):
         logger.warning(
             "Long running task parameter introspection detected. "
-            "Consider wrapping large task parameters with\n"
+            "Consider wrapping large task parameters with "
             "prefect.utilities.annotations.quote for increased "
-            "performance, e.g. `my_task(quote(param))`.\n"
+            "performance, e.g. `my_task(quote(param))`."
             "Disable this message with PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD=0."
         )
 
