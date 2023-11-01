@@ -1,5 +1,5 @@
 ---
-description: Restrict Block and Deployment access to individual actors within a workspace. 
+description: Manage teams of users in Prefect Cloud. 
 tags:
     - UI
     - Permissions
