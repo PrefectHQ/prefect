@@ -19,7 +19,7 @@ search:
 
 Prefect Cloud's [Enterprise plan](https://www.prefect.io/pricing) offers team management to simplify access control governance.
 
-Organization Admins can configure teams and team membership from their account settings menu by clicking ***teams***. Teams are composed of users and service account, and can be added to workspaces or object access control lists just like users and service accounts.
+Organization Administrators can configure teams and team membership from the account settings menu by clicking ***teams***. Teams are composed of users and service accounts, and can be added to workspaces or object access control lists just like users and service accounts.
 
 
 ![Viewing a team in the Prefect Cloud UI.](/img/ui/teams.png)
