@@ -9,7 +9,7 @@ search:
 
 # Global concurrency limits and rate limits
 
-Global concurrency limits allow you to manage task execution efficiently, controlling how many tasks can run simultaneously. They are ideal when optimizing resource usage, preventing bottlenecks, and customizing task execution are priorities.
+Global concurrency limits allow you to manage execution efficiently, controlling how many tasks, flows or other operations can run simultaneously. They are ideal when optimizing resource usage, preventing bottlenecks, and customizing task execution are priorities.
 
 Rate Limits ensure system stability by governing the frequency of requests or operations. They are suitable for preventing overuse, ensuring fairness, and handling errors gracefully.
 
