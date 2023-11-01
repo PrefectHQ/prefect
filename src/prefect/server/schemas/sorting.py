@@ -4,6 +4,8 @@ Schemas for sorting Prefect REST API objects.
 
 from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
+
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -186,5 +188,22 @@ class VariableSort(AutoEnum):
             "UPDATED_DESC": db.Variable.updated.desc(),
             "NAME_DESC": db.Variable.name.desc(),
             "NAME_ASC": db.Variable.name.asc(),
+        }
+        return sort_mapping[self.value]
+
+
+class BlockDocumentSort(AutoEnum):
+    """Defines block document sorting options."""
+
+    NAME_DESC = "NAME_DESC"
+    NAME_ASC = "NAME_ASC"
+    BLOCK_TYPE_AND_NAME_ASC = "BLOCK_TYPE_AND_NAME_ASC"
+
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
+        """Return an expression used to sort block documents"""
+        sort_mapping = {
+            "NAME_DESC": db.BlockDocument.name.desc(),
+            "NAME_ASC": db.BlockDocument.name.asc(),
+            "BLOCK_TYPE_AND_NAME_ASC": sa.text("block_type_name asc, name asc"),
         }
         return sort_mapping[self.value]
