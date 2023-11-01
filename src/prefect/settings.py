@@ -928,6 +928,15 @@ interpreted and lead to incomplete output, e.g.
 `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
 """
 
+PREFECT_WARN_LONG_TASK_INTROSPECTION = Setting(
+    bool,
+    default=True,
+)
+"""
+Whether to disable warnings about long running task parameter introspection.
+Defaults to `True`. Set to `False` to disable.
+"""
+
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
     default=15,
@@ -1262,7 +1271,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 """
 The maximum size of a flow run graph on the v2 API
 """
-
 
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """

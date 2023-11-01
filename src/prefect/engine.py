@@ -165,6 +165,7 @@ from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
+    PREFECT_WARN_LONG_TASK_INTROSPECTION,
 )
 from prefect.states import (
     Paused,
@@ -1642,7 +1643,7 @@ async def orchestrate_task_run(
         result_factory=result_factory,
         log_prints=log_prints,
     )
-
+    start_time = time.time()
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
@@ -1656,6 +1657,15 @@ async def orchestrate_task_run(
             # if orchestrating a run already in a pending state, force orchestration to
             # update the state name
             force=task_run.state.is_pending(),
+        )
+    end_time = time.time()
+    if PREFECT_WARN_LONG_TASK_INTROSPECTION and (end_time - start_time) > 5:
+        logger.warning(
+            "Long running task parameter introspection detected."
+            "Consider wrapping large task parameters with "
+            "prefect.utilities.annotations.quote() for increased "
+            "performance. Disable this waring message by setting"
+            "PREFECT_WARN_LONG_TASK_INTROSPECTION=False."
         )
 
     # Generate the cache key to attach to proposed states
