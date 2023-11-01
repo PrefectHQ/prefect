@@ -24,7 +24,7 @@ state = lazy_flow(return_state=True)
 assert data == {"my_arg": "custom_value", "state": state}
 ```
 
-This can be used in conjunction with the `.with_options` method on tasks and flows to dynamically provide extra kwargs to your hooks, like [this example](docs.prefect.io/concepts/states/#pass-kwargs-to-your-hooks) in the docs.
+This can be used in conjunction with the `.with_options` method on tasks and flows to dynamically provide extra kwargs to your hooks, like [this example](https://docs.prefect.io/latest/concepts/states/#pass-kwargs-to-your-hooks) in the docs.
 
 See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11022
