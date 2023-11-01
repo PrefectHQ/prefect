@@ -1643,7 +1643,7 @@ async def orchestrate_task_run(
         result_factory=result_factory,
         log_prints=log_prints,
     )
-    start_time = time.time()
+    task_introspection_start_time = time.perf_counter()
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
@@ -1658,10 +1658,11 @@ async def orchestrate_task_run(
             # update the state name
             force=task_run.state.is_pending(),
         )
-    end_time = time.time()
+    task_introspection_end_time = time.perf_counter()
     if (
         PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
-        and (end_time - start_time) > PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
+        and (task_introspection_end_time - task_introspection_start_time)
+        > PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
     ):
         logger.warning(
             "Long running task parameter introspection detected. "
