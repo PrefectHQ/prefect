@@ -293,7 +293,7 @@ class RemoteStorage:
         self._pull_interval = pull_interval
 
     @staticmethod
-    def get_required_package_for_scheme(scheme: str) -> Optional[str]:
+    def _get_required_package_for_scheme(scheme: str) -> Optional[str]:
         # attempt to discover the package name for the given scheme
         # from fsspec's registry
         known_implementation = fsspec.registry.get(scheme)
@@ -308,10 +308,10 @@ class RemoteStorage:
         elif scheme == "abfs" or scheme == "az":
             return "adlfs"
         else:
-            None
+            return None
 
     @property
-    def filesystem(self) -> fsspec.AbstractFileSystem:
+    def _filesystem(self) -> fsspec.AbstractFileSystem:
         scheme, _, _, _, _ = urlsplit(self._url)
 
         def replace_blocks_with_values(obj: Any) -> Any:
@@ -346,8 +346,15 @@ class RemoteStorage:
         """
         The local file path to pull contents from remote storage to.
         """
+        return self._storage_base_path / self._remote_path
+
+    @property
+    def _remote_path(self) -> Path:
+        """
+        The remote file path to pull contents from remote storage to.
+        """
         _, netloc, urlpath, _, _ = urlsplit(self._url)
-        return self._storage_base_path / Path(netloc) / Path(urlpath.lstrip("/"))
+        return Path(netloc) / Path(urlpath.lstrip("/"))
 
     async def pull_code(self):
         """
@@ -358,16 +365,15 @@ class RemoteStorage:
             self._url,
             self.destination,
         )
-        _, netloc, urlpath, _, _ = urlsplit(self._url)
 
         if not self.destination.exists():
             self.destination.mkdir(parents=True, exist_ok=True)
 
-        remote_path = str(Path(netloc) / Path(urlpath.lstrip("/"))) + "/"
+        remote_path = str(self._remote_path) + "/"
 
         await from_async.wait_for_call_in_new_thread(
             create_call(
-                self.filesystem.get,
+                self._filesystem.get,
                 remote_path,
                 str(self.destination),
                 recursive=True,
@@ -390,7 +396,7 @@ class RemoteStorage:
         )
         return {
             "prefect.deployments.steps.pull_from_remote_storage": {
-                "requires": self.get_required_package_for_scheme(
+                "requires": self._get_required_package_for_scheme(
                     urlparse(self._url).scheme
                 ),
                 "url": self._url,

@@ -14,6 +14,7 @@ import os
 import subprocess
 import warnings
 from copy import deepcopy
+from importlib import import_module
 from typing import Any, Dict, List, Optional, Tuple
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
@@ -38,7 +39,14 @@ class StepExecutionError(Exception):
 
 
 def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = None):
+    if not isinstance(requires, list):
+        packages = [requires] if requires else []
+    else:
+        packages = requires
+
     try:
+        for package in packages:
+            import_module(package)
         step_func = import_object(fully_qualified_name)
         return step_func
     except ImportError:
@@ -49,11 +57,6 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
             )
         else:
             raise
-
-    if not isinstance(requires, list):
-        packages = [requires]
-    else:
-        packages = requires
 
     subprocess.check_call(
         [get_sys_executable(), "-m", "pip", "install", ",".join(packages)]
