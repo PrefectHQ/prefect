@@ -99,6 +99,7 @@ from typing import (
     List,
     Optional,
     Set,
+    Type,
     TypeVar,
     Union,
 )
@@ -180,6 +181,7 @@ from prefect.states import (
 from prefect.task_runners import (
     CONCURRENCY_MESSAGES,
     BaseTaskRunner,
+    SequentialTaskRunner,
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
@@ -207,6 +209,50 @@ NUM_CHARS_DYNAMIC_KEY = 8
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
+
+
+@sync_compatible
+async def run_task(
+    task: Task,
+    parameters: Optional[Dict] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    mapped: bool = False,
+    return_type: EngineReturnType = "state",
+    task_runner: Optional[Type[BaseTaskRunner]] = SequentialTaskRunner,
+) -> Any:
+    async with AsyncExitStack() as stack:
+        partial_context = PartialModel(
+            FlowRunContext,
+            flow=None,
+            flow_run=None,
+            task_runner=await stack.enter_async_context(
+                (task_runner if task_runner else SequentialTaskRunner()).start()
+            ),
+            client=await stack.enter_async_context(get_client()),
+            parameters=parameters,
+        )
+        with partial_context.finalize(
+            result_factory=await ResultFactory.from_task(task),
+            background_tasks=await stack.enter_async_context(anyio.create_task_group()),
+            sync_portal=(
+                stack.enter_context(start_blocking_portal()) if task.isasync else None
+            ),
+        ) as flow_run_context:
+            begin_run = create_call(
+                begin_task_map if mapped else get_task_call_return_value,
+                task=task,
+                flow_run_context=flow_run_context,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=task_runner,
+            )
+            if task.isasync:
+                # we await this call, the run_task function is sync compatible
+                # so the user will await it if they are in an async context
+                return await from_async.wait_for_call_in_loop_thread(begin_run)
+            else:
+                return from_sync.wait_for_call_in_loop_thread(begin_run)
 
 
 def enter_flow_run_engine_from_flow_call(
@@ -1125,10 +1171,7 @@ def enter_task_run_engine(
 
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
-        raise RuntimeError(
-            "Tasks cannot be run outside of a flow. To call the underlying task"
-            " function outside of a flow use `task.fn()`."
-        )
+        return run_task(task, parameters, wait_for, mapped, return_type, task_runner)
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -1149,12 +1192,7 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    is_async_autonomous_task = task.isasync and flow_run_context.flow is None
-    is_async_task_in_async_flow = (
-        task.isasync and flow_run_context.flow and flow_run_context.flow.isasync
-    )
-
-    if is_async_autonomous_task or is_async_task_in_async_flow:
+    if task.isasync or (task.isasync and flow_run_context.flow.isasync):
         # return a coro for the user to await if an async task in an async flow
         # or an async task outside of a flow
         return from_async.wait_for_call_in_loop_thread(begin_run)
