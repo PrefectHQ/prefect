@@ -1192,7 +1192,7 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    if task.isasync or (task.isasync and flow_run_context.flow.isasync):
+    if task.isasync and flow_run_context.flow.isasync:
         # return a coro for the user to await if an async task in an async flow
         # or an async task outside of a flow
         return from_async.wait_for_call_in_loop_thread(begin_run)
