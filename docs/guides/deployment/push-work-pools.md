@@ -115,6 +115,10 @@ Now navigate to work pools and click create to start configuring your push work 
 
 Create your pool and you are ready to deploy flows to your Push work pool.
 
+!!! note "Push work pool concurrency"
+
+    Push work pools do not have a concurrency setting. If you would like to control concurrency at the flow level, you can use [global concurrency limits](/guides/global-concurrency-limits/).
+
 ## Deployment
 
 Deployment details are described in the deployments [concept section](/concepts/deployments/). Your deployment needs to be configured to send flow runs to our push work pool. For example, if you create a deployment through the interactive command line experience, choose the work pool you just created. If you are deploying an existing `prefect.yaml` file,  the deployment would contain:
