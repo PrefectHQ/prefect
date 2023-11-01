@@ -24,7 +24,7 @@ Organization Administrators can configure teams and team membership from the acc
 
 ![Viewing a team in the Prefect Cloud UI.](/img/ui/teams.png)
 
-If SCIM is enabled on your account, the set of teams and the users within them is govered by your IDP, however, you can configure service account membership in teams manually if you choose to.
+If SCIM is enabled on your account, the set of teams and the users within them is govered by your IDP. However, you can configure service account membership in teams manually if you choose to.
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting teams.
 
