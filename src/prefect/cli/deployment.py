@@ -559,7 +559,9 @@ async def run(
                         "TO_TIMEZONE": "UTC",
                         "RETURN_AS_TIMEZONE_AWARE": False,
                         "PREFER_DATES_FROM": "future",
-                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                        "RELATIVE_BASE": datetime.fromtimestamp(
+                            now.timestamp(), tz=pendulum.tz.UTC
+                        ),
                     },
                 )
 

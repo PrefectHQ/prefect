@@ -18,7 +18,7 @@ numpy
 pillow
 pre-commit
 pytest > 7
-pytest-asyncio >= 0.18.2
+pytest-asyncio >= 0.18.2, != 0.22.0
 pytest-cov
 pytest-benchmark
 pytest-env

@@ -110,10 +110,11 @@ class GitRepository:
         if (
             isinstance(credentials, dict)
             and credentials.get("username")
-            and not credentials.get("access_token")
+            and not (credentials.get("access_token") or credentials.get("password"))
         ):
             raise ValueError(
-                "If a username is provided, an access token must also be provided."
+                "If a username is provided, an access token or password must also be"
+                " provided."
             )
         self._url = url
         self._branch = branch

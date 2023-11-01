@@ -1,5 +1,8 @@
 import datetime
+import os
 import re
+import signal
+import time
 from itertools import combinations
 from pathlib import Path
 from time import sleep
@@ -11,7 +14,7 @@ import pytest
 from starlette import status
 
 import prefect.runner
-from prefect import flow, serve
+from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule
@@ -22,6 +25,7 @@ from prefect.deployments.runner import (
     deploy,
 )
 from prefect.flows import load_flow_from_entrypoint
+from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check
 from prefect.settings import (
@@ -37,6 +41,32 @@ from prefect.utilities.dockerutils import parse_image_tag
 def dummy_flow_1():
     """I'm just here for tests"""
     pass
+
+
+@task
+def my_task(seconds: int):
+    time.sleep(seconds)
+
+
+def on_cancellation(flow, flow_run, state):
+    logger = flow_run_logger(flow_run, flow)
+    logger.info("This flow was cancelled!")
+
+
+@flow(on_cancellation=[on_cancellation], log_prints=True)
+def cancel_flow_submitted_tasks(sleep_time: int = 100):
+    my_task.submit(sleep_time)
+
+
+def on_crashed(flow, flow_run, state):
+    logger = flow_run_logger(flow_run, flow)
+    logger.info("This flow crashed!")
+
+
+@flow(on_crashed=[on_crashed], log_prints=True)
+def crashing_flow():
+    print("Oh boy, here I go crashing again...")
+    os.kill(os.getpid(), signal.SIGTERM)
 
 
 @flow
@@ -262,10 +292,13 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_can_cancel_flow_runs(self, prefect_client: PrefectClient):
+    @pytest.mark.flaky
+    async def test_runner_can_cancel_flow_runs(
+        self, prefect_client: PrefectClient, caplog
+    ):
         runner = Runner(query_seconds=2)
 
-        deployment = await tired_flow.to_deployment(__file__)
+        deployment = await cancel_flow_submitted_tasks.to_deployment(__file__)
 
         await runner.add_deployment(deployment)
 
@@ -273,7 +306,7 @@ class TestRunner:
             tg.start_soon(runner.start)
 
             deployment = await prefect_client.read_deployment_by_name(
-                name="tired-flow/test_runner"
+                name="cancel-flow-submitted-tasks/test_runner"
             )
 
             flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -291,7 +324,7 @@ class TestRunner:
             await prefect_client.set_flow_run_state(
                 flow_run_id=flow_run.id,
                 state=flow_run.state.copy(
-                    update={"name": "Cancelled", "type": StateType.CANCELLED}
+                    update={"name": "Cancelled", "type": StateType.CANCELLING}
                 ),
             )
 
@@ -307,6 +340,26 @@ class TestRunner:
             tg.cancel_scope.cancel()
 
         assert flow_run.state.is_cancelled()
+        # check to make sure on_cancellation hook was called
+        assert "This flow was cancelled!" in caplog.text
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_runs_on_crashed_hooks(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        runner = Runner()
+
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner.execute_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state.is_crashed()
+        # check to make sure on_cancellation hook was called
+        assert "This flow crashed!" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_can_execute_a_single_flow_run(
