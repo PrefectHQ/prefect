@@ -5,6 +5,7 @@ on:
     paths:
       - "**/*.py"
       - requirements.txt
+      - requirements-client.txt
       - setup.cfg
   push:
     branches:
