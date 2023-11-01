@@ -61,6 +61,7 @@ from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     temporary_settings,
 )
 from prefect.states import Cancelled, Failed, Paused, Pending, Running, State
@@ -2280,3 +2281,93 @@ async def test_collect_task_run_inputs_respects_quote(
     await collect_task_run_inputs(quote([{"a": 1}, {"b": 2}, {"c": 3}]))
     assert mock_outer_visit_collection.call_count == 1
     assert mock_recursive_visit_collection.call_count == 0
+
+
+async def test_long_task_introspection_warning_on(
+    prefect_client, flow_run, result_factory, monkeypatch, caplog
+):
+    # the flow run must be running prior to running tasks
+    await prefect_client.set_flow_run_state(
+        flow_run_id=flow_run.id,
+        state=Running(),
+    )
+
+    @task
+    def my_task():
+        pass
+
+    # Create a task run to test
+    task_run = await prefect_client.create_task_run(
+        task=my_task,
+        flow_run_id=flow_run.id,
+        state=Pending(),
+        dynamic_key="0",
+    )
+
+    async def mock_resolve_inputs(*args, **kwargs):
+        # sleep for longer than PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD
+        await anyio.sleep(0.5)
+        return {}
+
+    monkeypatch.setattr("prefect.engine.resolve_inputs", mock_resolve_inputs)
+    with caplog.at_level("WARNING"):
+        with temporary_settings(
+            updates={PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD: "0.6"}
+        ):
+            await orchestrate_task_run(
+                task=my_task,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+            )
+
+    assert "Long running task parameter introspection detected" in caplog.text
+
+
+async def test_long_task_introspection_warning_off(
+    prefect_client, flow_run, result_factory, monkeypatch, caplog
+):
+    # the flow run must be running prior to running tasks
+    await prefect_client.set_flow_run_state(
+        flow_run_id=flow_run.id,
+        state=Running(),
+    )
+
+    @task
+    def my_task():
+        pass
+
+    # Create a task run to test
+    task_run = await prefect_client.create_task_run(
+        task=my_task,
+        flow_run_id=flow_run.id,
+        state=Pending(),
+        dynamic_key="0",
+    )
+
+    async def mock_resolve_inputs(*args, **kwargs):
+        # sleep for longer than PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD
+        await anyio.sleep(0.5)
+        return {}
+
+    monkeypatch.setattr("prefect.engine.resolve_inputs", mock_resolve_inputs)
+    with caplog.at_level("WARNING"):
+        with temporary_settings(
+            updates={PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD: "0"}
+        ):
+            await orchestrate_task_run(
+                task=my_task,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+            )
+
+    assert "Long running task parameter introspection detected" not in caplog.text

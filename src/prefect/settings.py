@@ -928,13 +928,14 @@ interpreted and lead to incomplete output, e.g.
 `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
 """
 
-PREFECT_WARN_LONG_TASK_INTROSPECTION = Setting(
-    bool,
-    default=True,
+PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
+    float,
+    default=10.0,
 )
 """
-Whether to disable warnings about long running task parameter introspection.
-Defaults to `True`. Set to `False` to disable.
+Threshold time in seconds for logging a warning if task parameter introspection 
+exceeds this duration. Defaults to `10.0`. Set to `0` to disable logging the
+warning.
 """
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(

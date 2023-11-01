@@ -163,9 +163,9 @@ from prefect.results import BaseResult, ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
+    PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
-    PREFECT_WARN_LONG_TASK_INTROSPECTION,
 )
 from prefect.states import (
     Paused,
@@ -1659,7 +1659,10 @@ async def orchestrate_task_run(
             force=task_run.state.is_pending(),
         )
     end_time = time.time()
-    if PREFECT_WARN_LONG_TASK_INTROSPECTION and (end_time - start_time) > 5:
+    if (
+        PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
+        and (end_time - start_time) > PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
+    ):
         logger.warning(
             "Long running task parameter introspection detected."
             "Consider wrapping large task parameters with "
