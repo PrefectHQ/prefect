@@ -4,6 +4,7 @@
 - Add variables page empty state — https://github.com/PrefectHQ/prefect/pull/11044
 - Allow sorting block documents by block_type_name, name — https://github.com/PrefectHQ/prefect/pull/11054
 - Add option to skip building a Docker image with `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11082
+- Warn if task parameter introspection takes a long time — https://github.com/PrefectHQ/prefect/pull/11075
 
 ### Fixes
 - Update cancellation cleanup service to allow for infrastructure teardown — https://github.com/PrefectHQ/prefect/pull/11055
@@ -11,21 +12,18 @@
 - Reset PREFECT_UI_SERVE_BASE to enable page refresh loading for non dashboard pages — https://github.com/PrefectHQ/prefect/pull/11065
 - Skips unsupported Windows tests — https://github.com/PrefectHQ/prefect/pull/11076
 - Allow runner to load remotely stored flows when running hooks — https://github.com/PrefectHQ/prefect/pull/11077
+- Avoid yanked `pytest-asyncio==0.22.0` — https://github.com/PrefectHQ/prefect/pull/11064
+- Use `expected_start_time` in Graph v2 for unstarted runs — https://github.com/PrefectHQ/prefect/pull/11070
+- Handle v2 models in flow function signatures — https://github.com/PrefectHQ/prefect/pull/10966
+- Run client build workflow on reqs.txt updates — https://github.com/PrefectHQ/prefect/pull/11079
 
 ### Documentation
+- Add clarification on term `task` in Global Concurrency docs — https://github.com/PrefectHQ/prefect/pull/11085
 - Adds guide to daemonize a worker or `.serve` process with systemd — https://github.com/PrefectHQ/prefect/pull/11008
 - Update push-work-pools to mention concurrency — https://github.com/PrefectHQ/prefect/pull/11068
-- Update 2.14.2 RELEASE-NOTES.md link  — https://github.com/PrefectHQ/prefect/pull/11053
-
-### Uncategorized
-- Avoid yanked `pytest-asyncio==0.22.0` — https://github.com/PrefectHQ/prefect/pull/11064
-- Handle v2 models in flow function signatures — https://github.com/PrefectHQ/prefect/pull/10966
 - Adds a docs page for teams — https://github.com/PrefectHQ/prefect/pull/11057
+- Update 2.14.2 RELEASE-NOTES.md link  — https://github.com/PrefectHQ/prefect/pull/11053
 - Add missing public assets to UI bundle — https://github.com/PrefectHQ/prefect/pull/11069
-- Run client build workflow on reqs.txt updates — https://github.com/PrefectHQ/prefect/pull/11079
-- Warn if task parameter introspection takes a long time — https://github.com/PrefectHQ/prefect/pull/11075
-- Use `expected_start_time` in Graph v2 for unstarted runs — https://github.com/PrefectHQ/prefect/pull/11070
-- Add clarification on term `task` in Global Concurrency docs — https://github.com/PrefectHQ/prefect/pull/11085
 - Fix typo in `README.md` — https://github.com/PrefectHQ/prefect/pull/11058
 
 ## New Contributors
