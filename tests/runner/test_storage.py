@@ -523,7 +523,7 @@ class TestRemoteStorage:
 
     @pytest.mark.asyncio
     async def test_pull_code(self, monkeypatch):
-        rs = RemoteStorage("s3://bucket/path")
+        rs = RemoteStorage("memory://path/to/directory/")
 
         mock_mkdir = MagicMock()
         monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
@@ -534,7 +534,7 @@ class TestRemoteStorage:
         await rs.pull_code()
         mock_mkdir.assert_called_once()
         mock_get.assert_called_once_with(
-            "bucket/path/", str(rs.destination), recursive=True
+            "path/to/directory/", str(rs.destination), recursive=True
         )
 
     def test_to_pull_step(self, monkeypatch):
