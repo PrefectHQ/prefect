@@ -7,7 +7,7 @@
 You can now track the status of your deployments in the Prefect UI, which is especially useful when serving flows as they have no associated work pool or worker. If you see a flow run enter a `LATE` state (it isn’t running), you can click into the deployment for that flow run and see a red indicator next to your deployment. The worker, runner, or agent polling that deployment or its associated work queue is offline.
 - Deployments created from served flows will have a `READY` status if its associated process is running.
 - Deployments created in a work pool will have a `READY` status when a worker is `ONLINE` and polling the associated work queue.
-- With deployments associated with push work pools (Prefect Cloud), they will default to a `READY` status.
+- Deployments created in a push work pool (Prefect Cloud) will always have a `READY` status.
   
 <p align="center">
 <img width="976" alt="a late flow run for a deployment that is `NOT_READY`" src="https://github.com/PrefectHQ/prefect/assets/42048900/db20979a-870d-44c4-ac0b-66f70d99e58b">
