@@ -3,6 +3,7 @@
 ## Release 2.14.3
 
 ### Enhancements
+- Add generic remote storage for flow.from_source using ffspec - https://github.com/PrefectHQ/prefect/pull/11072
 - Add variables page empty state — https://github.com/PrefectHQ/prefect/pull/11044
 - Allow sorting block documents by block_type_name, name — https://github.com/PrefectHQ/prefect/pull/11054
 - Add option to skip building a Docker image with `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11082
@@ -20,7 +21,7 @@
 - Run client build workflow on reqs.txt updates — https://github.com/PrefectHQ/prefect/pull/11079
 
 ### Documentation
-- Add clarification on term `task` in Global Concurrency docs — https://github.com/PrefectHQ/prefect/pull/11085
+- Add clarification of term `task` in Global Concurrency docs — https://github.com/PrefectHQ/prefect/pull/11085
 - Adds guide to daemonize a worker or `.serve` process with systemd — https://github.com/PrefectHQ/prefect/pull/11008
 - Update push-work-pools to mention concurrency — https://github.com/PrefectHQ/prefect/pull/11068
 - Adds a docs page for teams — https://github.com/PrefectHQ/prefect/pull/11057
