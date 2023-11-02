@@ -431,6 +431,9 @@ class Runner:
                         pid=pid, flow_run=flow_run
                     )
 
+                    # We want this loop to stop when the flow run process exits
+                    # so we'll check if the flow run process is still alive on
+                    # each iteration and cancel the task group if it is not.
                     workload = partial(
                         self._check_for_cancelled_flow_runs,
                         should_stop=lambda: not self._flow_run_process_map,
@@ -642,6 +645,16 @@ class Runner:
     async def _check_for_cancelled_flow_runs(
         self, should_stop: Callable = lambda: False, on_stop: Callable = lambda: None
     ):
+        """
+        Checks for flow runs with CANCELLING a cancelling state and attempts to
+        cancel them.
+
+        Args:
+            should_stop: A callable that returns a boolean indicating whether or not
+                the runner should stop checking for cancelled flow runs.
+            on_stop: A callable that is called when the runner should stop checking
+                for cancelled flow runs.
+        """
         if self.stopping:
             return
         if not self.started:
