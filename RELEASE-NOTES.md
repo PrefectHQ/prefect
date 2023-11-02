@@ -24,6 +24,11 @@ You can also create an automation triggered by deployment status changes on the 
 <img width="862" alt="deployment status trigger on automations page" src="https://github.com/PrefectHQ/prefect/assets/42048900/87a0945e-9b9e-406b-b020-fbd9733cb4c3">
 </p>
 
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1801
+- https://github.com/PrefectHQ/prefect/pull/10969
+- https://github.com/PrefectHQ/prefect/pull/10951
+- https://github.com/PrefectHQ/prefect/pull/10949
 ### Additional storage options for `flow.from_source`
 
 You can now load flows from a variety of storage options with `flow.from_source`! In addition to loading flows from a git repository, you can load flows from any supported `fsspec` protocol.
