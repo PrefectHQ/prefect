@@ -1055,6 +1055,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -1115,6 +1119,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -1182,6 +1190,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             prefect_yaml = {
@@ -1258,6 +1270,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             with open("Dockerfile", "w") as f:
@@ -1355,6 +1371,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             with open("Dockerfile", "w") as f:
                 f.write("FROM python:3.8-slim\n")
@@ -1451,6 +1471,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             with open("Dockerfile", "w") as f:
                 f.write("FROM python:3.8-slim\n")
@@ -1521,6 +1545,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             await run_sync_in_worker_thread(
@@ -2345,6 +2373,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -2384,6 +2416,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             await run_sync_in_worker_thread(

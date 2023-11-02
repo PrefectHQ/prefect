@@ -400,15 +400,18 @@ class RemoteStorage:
         settings_with_placeholders = visit_collection(
             self._settings, replace_block_with_placeholder, return_data=True
         )
-        return {
+        requires = self._get_required_package_for_scheme(urlparse(self._url).scheme)
+        step = {
             "prefect.deployments.steps.pull_from_remote_storage": {
-                "requires": self._get_required_package_for_scheme(
-                    urlparse(self._url).scheme
-                ),
                 "url": self._url,
                 **settings_with_placeholders,
             }
         }
+        if requires:
+            step["prefect.deployments.steps.pull_from_remote_storage"][
+                "requires"
+            ] = requires
+        return step
 
     def __eq__(self, __value) -> bool:
         """
