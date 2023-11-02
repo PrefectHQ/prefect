@@ -193,7 +193,10 @@ async def run_deployment(
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: FlowRun, client: PrefectClient, ignore_storage: bool = False
+    flow_run: FlowRun,
+    client: PrefectClient,
+    ignore_storage: bool = False,
+    storage_base_path: Optional[str] = None,
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
@@ -204,7 +207,9 @@ async def load_flow_from_flow_run(
     deployment = await client.read_deployment(flow_run.deployment_id)
     logger = flow_run_logger(flow_run)
 
-    runner_storage_base_path = os.environ.get("PREFECT__STORAGE_BASE_PATH")
+    runner_storage_base_path = storage_base_path or os.environ.get(
+        "PREFECT__STORAGE_BASE_PATH"
+    )
 
     if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
