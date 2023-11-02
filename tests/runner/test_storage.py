@@ -5,7 +5,12 @@ import pytest
 
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
-from prefect.runner.storage import GitRepository, RunnerStorage, create_storage_from_url
+from prefect.runner.storage import (
+    GitRepository,
+    RemoteStorage,
+    RunnerStorage,
+    create_storage_from_url,
+)
 from prefect.testing.utilities import AsyncMock, MagicMock
 
 
@@ -39,17 +44,15 @@ class TestCreateStorageFromUrl:
     @pytest.mark.parametrize(
         "url",
         [
-            "http://example.com",
-            "ftp://example.com/file.txt",
-            "https://github.com/user/repo.png",
+            "s3://my-bucket/path/to/folder",
+            "ftp://example.com/path/to/folder",
         ],
     )
-    def test_invalid_storage_url(self, url):
-        with pytest.raises(
-            ValueError,
-            match=f"Unsupported storage URL: {url}. Only git URLs are supported.",
-        ):
-            create_storage_from_url(url)
+    def test_alternative_storage_url(self, url):
+        storage = create_storage_from_url(url)
+        assert isinstance(storage, RemoteStorage)
+        assert storage._url == url
+        assert storage.pull_interval == 60  # default value
 
 
 @pytest.fixture

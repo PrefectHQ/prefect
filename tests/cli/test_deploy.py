@@ -214,6 +214,10 @@ def mock_build_docker_image(monkeypatch):
         "prefect.deployments.steps.core.import_object",
         lambda x: mock_build,
     )
+    monkeypatch.setattr(
+        "prefect.deployments.steps.core.import_module",
+        lambda x: None,
+    )
 
     return mock_build
 
