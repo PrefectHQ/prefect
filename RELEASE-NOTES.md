@@ -81,7 +81,7 @@ See the following pull request for implementation details:
 - Update Global Concurrency guide to highlight general purpose use of concurrency limits — https://github.com/PrefectHQ/prefect/pull/11074
 - Update push work pools documentation to mention concurrency — https://github.com/PrefectHQ/prefect/pull/11068
 - Add documentation on Prefect Cloud teams — https://github.com/PrefectHQ/prefect/pull/11057
-- Update 2.14.2 RELEASE-NOTES.md link  — https://github.com/PrefectHQ/prefect/pull/11053
+- Update 2.14.2 release notes  — https://github.com/PrefectHQ/prefect/pull/11053
 - Fix rendering of marketing banner on the Prefect dashboard — https://github.com/PrefectHQ/prefect/pull/11069
 - Fix typo in `README.md` — https://github.com/PrefectHQ/prefect/pull/11058
 
