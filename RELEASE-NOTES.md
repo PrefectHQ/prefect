@@ -45,7 +45,7 @@ You can also create an automation triggered by deployment status on the Automati
 ### Documentation
 - Add clarification of term `task` in Global Concurrency docs — https://github.com/PrefectHQ/prefect/pull/11085
 - Add guide to daemonize a worker or `.serve` process with systemd — https://github.com/PrefectHQ/prefect/pull/11008
-- Update Push Work Pools documentation to mention concurrency — https://github.com/PrefectHQ/prefect/pull/11068
+- Update push work pools documentation to mention concurrency — https://github.com/PrefectHQ/prefect/pull/11068
 - Add documentation on Prefect Cloud teams — https://github.com/PrefectHQ/prefect/pull/11057
 - Update 2.14.2 RELEASE-NOTES.md link  — https://github.com/PrefectHQ/prefect/pull/11053
 - Add missing public assets to UI bundle — https://github.com/PrefectHQ/prefect/pull/11069
