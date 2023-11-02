@@ -212,7 +212,7 @@ engine_logger = get_logger("engine")
 
 
 @sync_compatible
-async def run_task(
+async def run_autonomous_task(
     task: Task,
     parameters: Optional[Dict] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
@@ -245,7 +245,8 @@ async def run_task(
                 task_runner=task_runner,
             )
             if task.isasync:
-                # we await this call, the run_task function is sync compatible
+                # TODO: revisit awaiting `from_async.wait_for_call_in_loop_thread`
+                # we await this call and run_autonomous_task is sync_compatible
                 # so the user will await it if they are in an async context
                 return await from_async.wait_for_call_in_loop_thread(begin_run)
             else:
@@ -1168,7 +1169,14 @@ def enter_task_run_engine(
 
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
-        return run_task(task, parameters, wait_for, mapped, return_type, task_runner)
+        return run_autonomous_task(
+            task=task,
+            parameters=parameters,
+            wait_for=wait_for,
+            mapped=mapped,
+            return_type=return_type,
+            task_runner=task_runner,
+        )
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -1191,7 +1199,6 @@ def enter_task_run_engine(
 
     if task.isasync and flow_run_context.flow.isasync:
         # return a coro for the user to await if an async task in an async flow
-        # or an async task outside of a flow
         return from_async.wait_for_call_in_loop_thread(begin_run)
     else:
         return from_sync.wait_for_call_in_loop_thread(begin_run)

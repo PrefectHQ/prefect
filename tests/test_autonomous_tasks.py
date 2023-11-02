@@ -2,7 +2,6 @@ import pytest
 
 from prefect import task
 from prefect.client.schemas.objects import TaskRunResult
-from prefect.runtime import task_run
 from prefect.tasks import task_input_hash
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -111,7 +110,7 @@ class TestTaskOptionsRespectedByAutonomousTasks:
 
             async def test_caching_async(self, async_foo_task_with_caching):
                 state = await async_foo_task_with_caching(42, return_state=True)
-                assert (await state.result()) == 42
+                assert await state.result() == 42
                 assert state.is_completed()
 
                 next_state = await async_foo_task_with_caching(42, return_state=True)
@@ -131,13 +130,13 @@ class TestTaskOptionsRespectedByAutonomousTasks:
                 self, async_foo_task_with_caching
             ):
                 state = await async_foo_task_with_caching.submit(42, return_state=True)
-                assert (await state.result()) == 42
+                assert await state.result() == 42
                 assert state.is_completed()
 
                 next_state = await async_foo_task_with_caching.submit(
                     42, return_state=True
                 )
-                assert (await next_state.result()) == 42
+                assert await next_state.result() == 42
                 assert next_state.name == "Cached"
 
             def test_caching_when_mapped(self, foo_task_with_caching):
@@ -164,69 +163,112 @@ class TestTaskOptionsRespectedByAutonomousTasks:
                 assert [s.name for s in next_results] == ["Cached"] * 2
 
     class TestRetries:
-        @pytest.fixture
-        def bad_task(self):
+        def test_retries(self):
+            task_run_count = 0
+
             @task
             def slow_starter(x: int) -> int:
-                if task_run.run_count == 0:
+                nonlocal task_run_count
+                task_run_count += 1
+                if task_run_count == 1:
                     raise ValueError("oops")
                 return x
 
-            return slow_starter
-
-        @pytest.fixture
-        async def async_bad_task(self):
-            @task
-            async def async_slow_starter(x: int) -> int:
-                if task_run.run_count == 0:
-                    raise ValueError("oops")
-                return x
-
-            return async_slow_starter
-
-        def test_retries(self, bad_task):
-            bad_task_with_retries = bad_task.with_options(retries=1)
-
+            bad_task_with_retries = slow_starter.with_options(retries=1)
             state = bad_task_with_retries(42, return_state=True)
             assert state.is_completed()
             assert state.result() == 42
+            assert task_run_count == 2
 
-        async def test_retries_async(self, async_bad_task):
-            async_bad_task_with_retries = async_bad_task.with_options(retries=1)
+        async def test_retries_async(self):
+            task_run_count = 0
+
+            @task
+            async def async_slow_starter(x: int) -> int:
+                nonlocal task_run_count
+                task_run_count += 1
+                if task_run_count == 1:
+                    raise ValueError("oops")
+                return x
+
+            async_bad_task_with_retries = async_slow_starter.with_options(retries=1)
 
             state = await async_bad_task_with_retries(42, return_state=True)
             assert state.is_completed()
-            assert (await state.result()) == 42
+            assert await state.result() == 42
+            assert task_run_count == 2
 
-        def test_retries_when_submitted(self, bad_task):
-            bad_task_with_retries = bad_task.with_options(retries=1)
+        def test_retries_when_submitted(self):
+            task_run_count = 0
+
+            @task
+            def slow_starter(x: int) -> int:
+                nonlocal task_run_count
+                task_run_count += 1
+                if task_run_count == 1:
+                    raise ValueError("oops")
+                return x
+
+            bad_task_with_retries = slow_starter.with_options(retries=1)
 
             state = bad_task_with_retries.submit(42, return_state=True)
             assert state.is_completed()
             assert state.result() == 42
+            assert task_run_count == 2
 
-        async def test_retries_when_submitted_async(self, async_bad_task):
-            async_bad_task_with_retries = async_bad_task.with_options(retries=1)
+        async def test_retries_when_submitted_async(self):
+            task_run_count = 0
+
+            @task
+            async def async_slow_starter(x: int) -> int:
+                nonlocal task_run_count
+                task_run_count += 1
+                if task_run_count == 1:
+                    raise ValueError("oops")
+                return x
+
+            async_bad_task_with_retries = async_slow_starter.with_options(retries=1)
 
             state = await async_bad_task_with_retries.submit(42, return_state=True)
             assert state.is_completed()
-            assert (await state.result()) == 42
+            assert await state.result() == 42
+            assert task_run_count == 2
 
-        def test_retries_when_mapped(self, bad_task):
-            bad_task_with_retries = bad_task.with_options(retries=1)
+        def test_retries_when_mapped(self):
+            task_run_count = 0
+
+            @task
+            def slow_starter(x: int) -> int:
+                nonlocal task_run_count
+                task_run_count += 1
+                if task_run_count == 1:
+                    raise ValueError("oops")
+                return x
+
+            bad_task_with_retries = slow_starter.with_options(retries=1)
 
             results = bad_task_with_retries.map([42, 43], return_state=True)
             assert [s.result() for s in results] == [42, 43]
+            assert [s.name for s in results] == ["Completed"] * 2
+            assert task_run_count == 3
 
-            assert [s.name for s in results] == ["Completed", "Completed"]
+        async def test_retries_when_mapped_async(self):
+            task_run_count = 0
 
-        async def test_retries_when_mapped_async(self, async_bad_task):
-            async_bad_task_with_retries = async_bad_task.with_options(retries=1)
+            @task
+            async def async_slow_starter(x: int) -> int:
+                nonlocal task_run_count
+                task_run_count += 1
+                if task_run_count == 1:
+                    raise ValueError("oops")
+                return x
+
+            async_bad_task_with_retries = async_slow_starter.with_options(retries=1)
 
             results = await async_bad_task_with_retries.map([42, 43], return_state=True)
             assert [await s.result() for s in results] == [42, 43]
-
-            assert [s.name for s in results] == ["Completed", "Completed"]
+            assert [s.name for s in results] == ["Completed"] * 2
+            assert task_run_count == 3
 
 
 class TestWaitFor:
@@ -249,8 +291,8 @@ class TestWaitFor:
         assert state.is_completed()
         assert other_state.is_completed()
 
-        assert (await state.result()) == 42
-        assert (await other_state.result()) == 43
+        assert await state.result() == 42
+        assert await other_state.result() == 43
 
     def test_wait_for_when_submitted(self, foo_task):
         state = foo_task.submit(42, return_state=True)
@@ -273,8 +315,8 @@ class TestWaitFor:
         assert state.is_completed()
         assert other_state.is_completed()
 
-        assert (await state.result()) == 42
-        assert (await other_state.result()) == 43
+        assert await state.result() == 42
+        assert await other_state.result() == 43
 
     def test_wait_for_when_mapped(self, foo_task):
         state = foo_task.map([42, 43], return_state=True)
