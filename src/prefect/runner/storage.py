@@ -314,6 +314,7 @@ class RemoteStorage:
 
         storage = RemoteStorage(
             url="s3://my-bucket/my-folder",
+            # Use Secret blocks to keep credentials out of your code
             key=Secret.load("my-aws-access-key"),
             secret=Secret.load("my-aws-secret-key"),
         )
