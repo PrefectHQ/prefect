@@ -934,8 +934,12 @@ PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
 )
 """
 Threshold time in seconds for logging a warning if task parameter introspection 
-exceeds this duration. Defaults to `10.0`. Set to `0` to disable logging the
-warning.
+exceeds this duration. Parameter introspection can be a significant performance hit
+when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
+and each element needs to be inspected. See `prefect.utilities.annotations.quote` 
+for more details.
+Defaults to `10.0`. 
+Set to `0` to disable logging the warning.
 """
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
