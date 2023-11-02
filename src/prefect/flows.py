@@ -829,6 +829,7 @@ class Flow(Generic[P, R]):
         name: str,
         work_pool_name: str,
         image: Union[str, DeploymentImage],
+        build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict] = None,
@@ -856,6 +857,8 @@ class Flow(Generic[P, R]):
             image: The name of the Docker image to build, including the registry and
                 repository. Pass a DeploymentImage instance to customize the Dockerfile used
                 and build arguments.
+            build: Whether or not to build a new image for the flow. If False, the provided
+                image will be used as-is and pulled at runtime.
             push: Whether or not to skip pushing the built image to a registry.
             work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
                 If not provided the default work queue for the work pool will be used.
@@ -946,6 +949,7 @@ class Flow(Generic[P, R]):
             deployment,
             work_pool_name=work_pool_name,
             image=image,
+            build=build,
             push=push,
             print_next_steps_message=False,
         )

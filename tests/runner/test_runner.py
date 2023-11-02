@@ -1011,6 +1011,43 @@ class TestDeploy:
             dockerfile="Dockerfile",
         )
 
+    async def test_deploy_skip_build(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_2.to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+            build=False,
+        )
+        assert len(deployment_ids) == 2
+        mock_generate_default_dockerfile.assert_not_called()
+        mock_build_image.assert_not_called()
+        mock_docker_client.api.push.assert_not_called()
+
+        deployment_1 = await prefect_client.read_deployment(
+            deployment_id=deployment_ids[0]
+        )
+        assert (
+            deployment_1.infra_overrides["image"] == "test-registry/test-image:test-tag"
+        )
+
+        deployment_2 = await prefect_client.read_deployment(
+            deployment_id=deployment_ids[1]
+        )
+        assert (
+            deployment_2.infra_overrides["image"] == "test-registry/test-image:test-tag"
+        )
+
     async def test_deploy_skip_push(
         self,
         mock_build_image,

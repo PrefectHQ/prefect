@@ -685,6 +685,7 @@ async def deploy(
     *deployments: RunnerDeployment,
     work_pool_name: str,
     image: Union[str, DeploymentImage],
+    build: bool = True,
     push: bool = True,
     print_next_steps_message: bool = True,
 ) -> List[UUID]:
@@ -702,6 +703,8 @@ async def deploy(
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DeploymentImage instance to customize the Dockerfile used
             and build arguments.
+        build: Whether or not to build a new image for the flow. If False, the provided
+            image will be used as-is and pulled at runtime.
         push: Whether or not to skip pushing the built image to a registry.
         print_next_steps_message: Whether or not to print a message with next steps
             after deploying the deployments.
@@ -756,19 +759,22 @@ async def deploy(
         )
 
     console = Console()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn(f"Building image {image.reference}..."),
-        transient=True,
-        console=console,
-    ) as progress:
-        docker_build_task = progress.add_task("docker_build", total=1)
-        image.build()
+    if build:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn(f"Building image {image.reference}..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_build_task = progress.add_task("docker_build", total=1)
+            image.build()
 
-        progress.update(docker_build_task, completed=1)
-        console.print(f"Successfully built image {image.reference!r}", style="green")
+            progress.update(docker_build_task, completed=1)
+            console.print(
+                f"Successfully built image {image.reference!r}", style="green"
+            )
 
-    if push:
+    if build and push:
         with Progress(
             SpinnerColumn(),
             TextColumn("Pushing image..."),
