@@ -40,6 +40,23 @@ class StepExecutionError(Exception):
 
 
 def _strip_version(requirement: str) -> str:
+    """
+    Strips the version from a requirement string.
+
+    Args:
+        requirement: A requirement string, e.g. "requests>=2.0.0"
+
+    Returns:
+        The package name, e.g. "requests"
+
+    Examples:
+        ```python
+        >>> _strip_version("s3fs>=2.0.0<3.0.0")
+        "s3fs"
+        ```
+    """
+    # split on any of the characters in the set [<>=!~]
+    # and return the first element which will be the package name
     return re.split(r"[<>=!~]", requirement)[0].strip()
 
 
