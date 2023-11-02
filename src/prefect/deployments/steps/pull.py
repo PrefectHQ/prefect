@@ -128,6 +128,38 @@ async def git_clone(
 
 
 async def pull_from_remote_storage(url: str, **settings: Any):
+    """
+    Pulls code from a remote storage location into the current working directory.
+
+    Works with protocols supported by `fsspec`.
+
+    Args:
+        url (str): the URL of the remote storage location. Should be a valid `fsspec` URL.
+            Some protocols may require an additional `fsspec` dependency to be installed.
+            Refer to the [`fsspec` docs](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+            for more details.
+        **settings (Any): any additional settings to pass the `fsspec` filesystem class.
+
+    Returns:
+        dict: a dictionary containing a `directory` key of the new directory that was created
+
+    Examples:
+        Pull code from a remote storage location:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.pull_from_remote_storage:
+                url: s3://my-bucket/my-folder
+        ```
+
+        Pull code from a remote storage location with additional settings:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.pull_from_remote_storage:
+                url: s3://my-bucket/my-folder
+                key: {{ prefect.blocks.secret.my-aws-access-key }}}
+                secret: {{ prefect.blocks.secret.my-aws-secret-key }}}
+        ```
+    """
     storage = RemoteStorage(url, **settings)
 
     await storage.pull_code()

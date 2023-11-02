@@ -280,6 +280,48 @@ class GitRepository:
 
 
 class RemoteStorage:
+    """
+    Pulls the contents of a remote storage location to the local filesystem.
+
+    Parameters:
+        url: The URL of the remote storage location to pull from. Supports
+            `fsspec` URLs. Some protocols may require an additional `fsspec`
+            dependency to be installed. Refer to the
+            [`fsspec` docs](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+            for more details.
+        pull_interval: The interval in seconds at which to pull contents from
+            remote storage to local storage. If None, remote storage will perform
+            a one-time sync.
+        **settings: Any additional settings to pass the `fsspec` filesystem class.
+
+    Examples:
+        Pull the contents of a remote storage location to the local filesystem:
+
+        ```python
+        from prefect.runner.storage import RemoteStorage
+
+        storage = RemoteStorage(url="s3://my-bucket/my-folder")
+
+        await storage.pull_code()
+        ```
+
+        Pull the contents of a remote storage location to the local filesystem
+        with additional settings:
+
+        ```python
+        from prefect.runner.storage import RemoteStorage
+        from prefect.blocks.system import Secret
+
+        storage = RemoteStorage(
+            url="s3://my-bucket/my-folder",
+            key=Secret.load("my-aws-access-key"),
+            secret=Secret.load("my-aws-secret-key"),
+        )
+
+        await storage.pull_code()
+        ```
+    """
+
     def __init__(
         self,
         url: str,
@@ -432,7 +474,8 @@ def create_storage_from_url(
     Creates a storage object from a URL.
 
     Args:
-        url: The URL to create a storage object from
+        url: The URL to create a storage object from. Supports git and `fsspec`
+            URLs.
         pull_interval: The interval at which to pull contents from remote storage to
             local storage
 
