@@ -559,6 +559,18 @@ class TestRemoteStorage:
             }
         }
 
+    def test_to_pull_step_with_unsaved_block_secret(self):
+        key = Secret(value="fake")
+        secret = Secret(value="fake")
+
+        rs = RemoteStorage(url="s3://bucket/path", key=key, secret=secret)
+
+        with pytest.raises(
+            BlockNotSavedError,
+            match="Could not generate block placeholder for unsaved block.",
+        ):
+            rs.to_pull_step()
+
     def test_eq(self):
         rs1 = RemoteStorage("s3://bucket/path")
         rs2 = RemoteStorage("s3://bucket/path")
