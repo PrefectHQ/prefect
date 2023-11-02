@@ -11,6 +11,7 @@ Whenever a step is run, the following actions are taken:
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
 import os
+import re
 import subprocess
 import warnings
 from copy import deepcopy
@@ -38,6 +39,10 @@ class StepExecutionError(Exception):
     """
 
 
+def _strip_version(requirement: str) -> str:
+    return re.split(r"[<>=!~]", requirement)[0].strip()
+
+
 def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = None):
     if not isinstance(requires, list):
         packages = [requires] if requires else []
@@ -46,7 +51,7 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
 
     try:
         for package in packages:
-            import_module(package)
+            import_module(_strip_version(package))
         step_func = import_object(fully_qualified_name)
         return step_func
     except ImportError:
