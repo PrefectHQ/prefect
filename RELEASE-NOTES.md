@@ -18,7 +18,7 @@ Deployment status events are viewable in the Event Feed in the Prefect UI, where
 <img width="538" alt="event feed deployment status events" src="https://github.com/PrefectHQ/prefect/assets/42048900/8ee076cd-fd30-47d1-9ee5-6b5a3b383b63">
 </p>
 
-You can also create an automation triggered by deployment status on the Automations page!
+You can also create an automation triggered by deployment status changes on the Automations page!
 
 <p align="center">
 <img width="862" alt="deployment status trigger on automations page" src="https://github.com/PrefectHQ/prefect/assets/42048900/87a0945e-9b9e-406b-b020-fbd9733cb4c3">
