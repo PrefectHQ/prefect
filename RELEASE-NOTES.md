@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-# Release 2.14.3
+## Release 2.14.3
 
 ### Enhancements
 - Add variables page empty state — https://github.com/PrefectHQ/prefect/pull/11044
