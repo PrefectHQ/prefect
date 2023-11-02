@@ -11,9 +11,11 @@ Whenever a step is run, the following actions are taken:
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
 import os
+import re
 import subprocess
 import warnings
 from copy import deepcopy
+from importlib import import_module
 from typing import Any, Dict, List, Optional, Tuple
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
@@ -37,8 +39,36 @@ class StepExecutionError(Exception):
     """
 
 
+def _strip_version(requirement: str) -> str:
+    """
+    Strips the version from a requirement string.
+
+    Args:
+        requirement: A requirement string, e.g. "requests>=2.0.0"
+
+    Returns:
+        The package name, e.g. "requests"
+
+    Examples:
+        ```python
+        >>> _strip_version("s3fs>=2.0.0<3.0.0")
+        "s3fs"
+        ```
+    """
+    # split on any of the characters in the set [<>=!~]
+    # and return the first element which will be the package name
+    return re.split(r"[<>=!~]", requirement)[0].strip()
+
+
 def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = None):
+    if not isinstance(requires, list):
+        packages = [requires] if requires else []
+    else:
+        packages = requires
+
     try:
+        for package in packages:
+            import_module(_strip_version(package))
         step_func = import_object(fully_qualified_name)
         return step_func
     except ImportError:
@@ -49,11 +79,6 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
             )
         else:
             raise
-
-    if not isinstance(requires, list):
-        packages = [requires]
-    else:
-        packages = requires
 
     subprocess.check_call(
         [get_sys_executable(), "-m", "pip", "install", ",".join(packages)]

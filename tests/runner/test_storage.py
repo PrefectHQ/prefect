@@ -5,7 +5,12 @@ import pytest
 
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
-from prefect.runner.storage import GitRepository, RunnerStorage, create_storage_from_url
+from prefect.runner.storage import (
+    GitRepository,
+    RemoteStorage,
+    RunnerStorage,
+    create_storage_from_url,
+)
 from prefect.testing.utilities import AsyncMock, MagicMock
 
 
@@ -39,17 +44,15 @@ class TestCreateStorageFromUrl:
     @pytest.mark.parametrize(
         "url",
         [
-            "http://example.com",
-            "ftp://example.com/file.txt",
-            "https://github.com/user/repo.png",
+            "s3://my-bucket/path/to/folder",
+            "ftp://example.com/path/to/folder",
         ],
     )
-    def test_invalid_storage_url(self, url):
-        with pytest.raises(
-            ValueError,
-            match=f"Unsupported storage URL: {url}. Only git URLs are supported.",
-        ):
-            create_storage_from_url(url)
+    def test_alternative_storage_url(self, url):
+        storage = create_storage_from_url(url)
+        assert isinstance(storage, RemoteStorage)
+        assert storage._url == url
+        assert storage.pull_interval == 60  # default value
 
 
 @pytest.fixture
@@ -481,3 +484,123 @@ class TestGitRepository:
                 ),
             ):
                 repo.to_pull_step()
+
+
+class TestRemoteStorage:
+    def test_init(self):
+        rs = RemoteStorage("s3://bucket/path")
+        assert rs._url == "s3://bucket/path"
+        assert rs.pull_interval == 60
+
+    def test_get_required_package_for_scheme(self):
+        assert RemoteStorage._get_required_package_for_scheme("s3") == "s3fs"
+        assert RemoteStorage._get_required_package_for_scheme("gs") == "gcsfs"
+        assert RemoteStorage._get_required_package_for_scheme("unknown") is None
+
+    def test_filesystem(self, monkeypatch):
+        mock_filesystem = MagicMock()
+        monkeypatch.setattr("fsspec.filesystem", mock_filesystem)
+
+        key = Secret(value="fake")
+        secret = Secret(value="fake")
+        token = Secret(value="fake")
+
+        rs = RemoteStorage("s3://bucket/path", key=key, secret=secret, token=token)
+        rs._filesystem
+        mock_filesystem.assert_called_once_with(
+            "s3", key="fake", secret="fake", token="fake"
+        )
+
+    def test_set_base_path(self):
+        rs = RemoteStorage("s3://bucket/path")
+        path = Path.cwd() / "new_base_path"
+        rs.set_base_path(path)
+        assert rs._storage_base_path == path
+
+    def test_destination(self):
+        rs = RemoteStorage("s3://bucket/path")
+        assert rs.destination == Path.cwd() / Path("bucket") / Path("path")
+
+    async def test_pull_code(self, monkeypatch):
+        rs = RemoteStorage("memory://path/to/directory/")
+
+        mock_mkdir = MagicMock()
+        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
+
+        mock_get = MagicMock()
+        monkeypatch.setattr(rs._filesystem, "get", mock_get)
+
+        await rs.pull_code()
+        mock_mkdir.assert_called_once()
+        mock_get.assert_called_once_with(
+            "path/to/directory/", str(rs.destination), recursive=True
+        )
+
+    async def test_pull_code_fails(self, monkeypatch):
+        rs = RemoteStorage("memory://path/to/directory/")
+
+        mock_mkdir = MagicMock()
+        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
+
+        mock_get = MagicMock()
+        mock_get.side_effect = Exception("oops")
+        monkeypatch.setattr(rs._filesystem, "get", mock_get)
+
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Failed to pull contents from remote storage"
+                " 'memory://path/to/directory/'"
+            ),
+        ):
+            await rs.pull_code()
+        mock_mkdir.assert_called_once()
+        mock_get.assert_called_once_with(
+            "path/to/directory/", str(rs.destination), recursive=True
+        )
+
+    def test_to_pull_step(self, monkeypatch):
+        # saving blocks for this test
+        key = Secret(value="fake")
+        key.save(name="aws-access-key-id")
+        secret = Secret(value="fake")
+        secret.save(name="aws-secret-access-key")
+        token = Secret(value="fake")
+        token.save(name="aws-session-token")
+
+        rs = RemoteStorage(url="s3://bucket/path", key=key, secret=secret, token=token)
+
+        pull_step = rs.to_pull_step()
+        assert pull_step == {
+            "prefect.deployments.steps.pull_from_remote_storage": {
+                "requires": "s3fs",
+                "url": "s3://bucket/path",
+                "key": "{{ prefect.blocks.secret.aws-access-key-id }}",
+                "secret": "{{ prefect.blocks.secret.aws-secret-access-key }}",
+                "token": "{{ prefect.blocks.secret.aws-session-token }}",
+            }
+        }
+
+    def test_to_pull_step_with_unsaved_block_secret(self):
+        key = Secret(value="fake")
+        secret = Secret(value="fake")
+
+        rs = RemoteStorage(url="s3://bucket/path", key=key, secret=secret)
+
+        with pytest.raises(
+            BlockNotSavedError,
+            match="Could not generate block placeholder for unsaved block.",
+        ):
+            rs.to_pull_step()
+
+    def test_eq(self):
+        rs1 = RemoteStorage("s3://bucket/path")
+        rs2 = RemoteStorage("s3://bucket/path")
+        rs3 = RemoteStorage("gs://bucket/path")
+
+        assert rs1 == rs2
+        assert rs1 != rs3
+
+    def test_repr(self):
+        rs = RemoteStorage("s3://bucket/path")
+        assert repr(rs) == "RemoteStorage(url='s3://bucket/path')"
