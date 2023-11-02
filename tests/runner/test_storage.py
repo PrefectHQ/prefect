@@ -521,7 +521,6 @@ class TestRemoteStorage:
         rs = RemoteStorage("s3://bucket/path")
         assert rs.destination == Path.cwd() / Path("bucket") / Path("path")
 
-    @pytest.mark.asyncio
     async def test_pull_code(self, monkeypatch):
         rs = RemoteStorage("memory://path/to/directory/")
 
@@ -532,6 +531,29 @@ class TestRemoteStorage:
         monkeypatch.setattr(rs._filesystem, "get", mock_get)
 
         await rs.pull_code()
+        mock_mkdir.assert_called_once()
+        mock_get.assert_called_once_with(
+            "path/to/directory/", str(rs.destination), recursive=True
+        )
+
+    async def test_pull_code_fails(self, monkeypatch):
+        rs = RemoteStorage("memory://path/to/directory/")
+
+        mock_mkdir = MagicMock()
+        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
+
+        mock_get = MagicMock()
+        mock_get.side_effect = Exception("oops")
+        monkeypatch.setattr(rs._filesystem, "get", mock_get)
+
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Failed to pull contents from remote storage"
+                " 'memory://path/to/directory/'"
+            ),
+        ):
+            await rs.pull_code()
         mock_mkdir.assert_called_once()
         mock_get.assert_called_once_with(
             "path/to/directory/", str(rs.destination), recursive=True
