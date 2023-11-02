@@ -13,7 +13,7 @@ You can now track the status of your deployments in the Prefect UI, which is esp
 <img width="976" alt="a late flow run for a deployment that is `NOT_READY`" src="https://github.com/PrefectHQ/prefect/assets/42048900/db20979a-870d-44c4-ac0b-66f70d99e58b">
 </p>
 
-Deployment status events are viewable in the Event Feed in the Prefect UI, where an event is emitted when a deployment changes status.
+In Prefect Cloud, an event is emitted each time a deployment changes status. These events are viewable in the Event Feed.
 <p align="center">
 <img width="538" alt="event feed deployment status events" src="https://github.com/PrefectHQ/prefect/assets/42048900/8ee076cd-fd30-47d1-9ee5-6b5a3b383b63">
 </p>
