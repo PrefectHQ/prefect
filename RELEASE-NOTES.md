@@ -24,9 +24,42 @@ You can also create an automation triggered by deployment status changes on the 
 <img width="862" alt="deployment status trigger on automations page" src="https://github.com/PrefectHQ/prefect/assets/42048900/87a0945e-9b9e-406b-b020-fbd9733cb4c3">
 </p>
 
+### Additional storage options for `flow.from_source`
+
+You can now load flows from a variety of storage options with `flow.from_source`! In addition to loading flows from a git repository, you can load flows from any supported `fsspec` protocol.
+
+Here's an example of loading and serving a flow from and S3 bucket:
+
+```python
+from prefect import flow
+
+if __name__ == "__main__":
+    flow.from_source(
+        source="s3://my-bucket/my-folder",
+        entrypoint="flows.py:my_flow",
+    ).serve(name="deployment-from-remote-flow")
+```
+
+You can use the `RemoteStorage` class to provide additional configuration options.
+
+Here's an example of loading and serving a flow from Azure Blob Storage with a custom account name:
+
+```python
+from prefect import flow
+from prefect.runner.storage import RemoteStorage
+
+if __name__ == "__main__":
+    flow.from_source(
+        source=RemoteStorage(url="az://my-container/my-folder", account_name="my-account-name")
+        entrypoint="flows.py:my_flow",
+    ).serve(name="deployment-from-remote-flow")
+```
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11072
+
 ### Enhancements
 - Add option to skip building a Docker image with `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11082
-- Add ability to specify remote storage for `Flow.from_source` via ffspec - https://github.com/PrefectHQ/prefect/pull/11072
 - Add variables page empty state — https://github.com/PrefectHQ/prefect/pull/11044
 - Allow composite sort of block documents by `block_type_name` and name — https://github.com/PrefectHQ/prefect/pull/11054
 - Warn if task parameter introspection takes a long time — https://github.com/PrefectHQ/prefect/pull/11075
