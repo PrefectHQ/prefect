@@ -725,7 +725,12 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
                         COALESCE(subflow.state_name, task_run.state_name) as state_name,
-                        COALESCE(subflow.start_time, task_run.start_time) as start_time,
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) as start_time,
                         COALESCE(subflow.end_time, task_run.end_time) as end_time,
                         (argument->>'id')::uuid as parent
                 FROM    task_run
@@ -1117,7 +1122,12 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
                         COALESCE(subflow.state_name, task_run.state_name) as state_name,
-                        COALESCE(subflow.start_time, task_run.start_time) as start_time,
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) as start_time,
                         COALESCE(subflow.end_time, task_run.end_time) as end_time,
                         json_extract(argument.value, '$.id') as parent
                 FROM    task_run

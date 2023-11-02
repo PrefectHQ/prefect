@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+import sqlalchemy as sa
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -209,6 +210,7 @@ async def linked_tasks(
             dynamic_key=f"task-{i}",
             state_type=StateType.COMPLETED,
             state_name="Completed",
+            expected_start_time=base_time.add(seconds=i).subtract(microseconds=1),
             start_time=base_time.add(seconds=i),
             end_time=base_time.add(minutes=1, seconds=i),
         )
@@ -226,6 +228,9 @@ async def linked_tasks(
                 dynamic_key=f"task-{index + j}",
                 state_type=StateType.COMPLETED,
                 state_name="Completed",
+                expected_start_time=base_time.add(seconds=index + j).subtract(
+                    microseconds=1
+                ),
                 start_time=base_time.add(seconds=index + j),
                 end_time=base_time.add(minutes=1, seconds=index + j),
                 task_inputs={
@@ -260,10 +265,6 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
     assert graph.start_time == flow_run.start_time
     assert graph.end_time == flow_run.end_time
     assert graph.root_node_ids == [task_run.id for task_run in linked_tasks[:4]]
-
-    import pprint
-
-    pprint.pprint(graph.dict())
 
     assert_graph_is_connected(graph)
 
@@ -367,6 +368,141 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 state_type=StateType.COMPLETED,
                 state_name="Completed",
                 start_time=base_time.add(seconds=5),
+                end_time=base_time.add(minutes=1, seconds=5),
+                parents=[
+                    Edge(id=linked_tasks[2].id),
+                    Edge(id=linked_tasks[3].id),
+                ],
+                children=[],
+            ),
+        ),
+    ]
+
+
+async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    linked_tasks: List,  # List[db.TaskRun],
+    base_time: pendulum.DateTime,
+):
+    await session.execute(
+        sa.update(db.TaskRun)
+        .where(db.TaskRun.id.in_([task_run.id for task_run in linked_tasks]))
+        .values(start_time=None)
+    )
+
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.start_time == flow_run.start_time
+    assert graph.end_time == flow_run.end_time
+    assert graph.root_node_ids == [task_run.id for task_run in linked_tasks[:4]]
+
+    assert_graph_is_connected(graph)
+
+    # The shape of this will be:
+    # 4 top-level tasks
+    # 2 tasks that each take two arguments from the top-level tasks
+    # task-1 -|
+    #         |-> task-5
+    # task-2 -|
+    # task-3 -|
+    #         |-> task-6
+    # task-4 -|
+    assert graph.nodes == [
+        (
+            linked_tasks[0].id,
+            Node(
+                kind="task-run",
+                id=linked_tasks[0].id,
+                label="task-0",
+                state_type=StateType.COMPLETED,
+                state_name="Completed",
+                start_time=base_time.add(seconds=0).subtract(microseconds=1),
+                end_time=base_time.add(minutes=1, seconds=0),
+                parents=[],
+                children=[
+                    Edge(id=linked_tasks[4].id),
+                ],
+            ),
+        ),
+        (
+            linked_tasks[1].id,
+            Node(
+                kind="task-run",
+                id=linked_tasks[1].id,
+                label="task-1",
+                state_type=StateType.COMPLETED,
+                state_name="Completed",
+                start_time=base_time.add(seconds=1).subtract(microseconds=1),
+                end_time=base_time.add(minutes=1, seconds=1),
+                parents=[],
+                children=[
+                    Edge(id=linked_tasks[4].id),
+                ],
+            ),
+        ),
+        (
+            linked_tasks[2].id,
+            Node(
+                kind="task-run",
+                id=linked_tasks[2].id,
+                label="task-2",
+                state_type=StateType.COMPLETED,
+                state_name="Completed",
+                start_time=base_time.add(seconds=2).subtract(microseconds=1),
+                end_time=base_time.add(minutes=1, seconds=2),
+                parents=[],
+                children=[
+                    Edge(id=linked_tasks[5].id),
+                ],
+            ),
+        ),
+        (
+            linked_tasks[3].id,
+            Node(
+                kind="task-run",
+                id=linked_tasks[3].id,
+                label="task-3",
+                state_type=StateType.COMPLETED,
+                state_name="Completed",
+                start_time=base_time.add(seconds=3).subtract(microseconds=1),
+                end_time=base_time.add(minutes=1, seconds=3),
+                parents=[],
+                children=[
+                    Edge(id=linked_tasks[5].id),
+                ],
+            ),
+        ),
+        (
+            linked_tasks[4].id,
+            Node(
+                kind="task-run",
+                id=linked_tasks[4].id,
+                label="task-4",
+                state_type=StateType.COMPLETED,
+                state_name="Completed",
+                start_time=base_time.add(seconds=4).subtract(microseconds=1),
+                end_time=base_time.add(minutes=1, seconds=4),
+                parents=[
+                    Edge(id=linked_tasks[0].id),
+                    Edge(id=linked_tasks[1].id),
+                ],
+                children=[],
+            ),
+        ),
+        (
+            linked_tasks[5].id,
+            Node(
+                kind="task-run",
+                id=linked_tasks[5].id,
+                label="task-5",
+                state_type=StateType.COMPLETED,
+                state_name="Completed",
+                start_time=base_time.add(seconds=5).subtract(microseconds=1),
                 end_time=base_time.add(minutes=1, seconds=5),
                 parents=[
                     Edge(id=linked_tasks[2].id),
@@ -501,6 +637,7 @@ async def subflow_run(
         dynamic_key="task-0",
         state_type=StateType.COMPLETED,
         state_name="Completed",
+        expected_start_time=base_time.subtract(microseconds=1),
         start_time=base_time.add(seconds=1),
         end_time=base_time.add(minutes=1),
     )
@@ -512,6 +649,7 @@ async def subflow_run(
         flow_id=flow_run.flow_id,
         state_type=StateType.COMPLETED,
         state_name="Completed",
+        expected_start_time=base_time.subtract(microseconds=1),
         start_time=base_time,
         end_time=base_time.add(minutes=5),
         parent_task_run_id=wrapper_task.id,
@@ -549,6 +687,48 @@ async def test_reading_graph_with_subflow_run(
                 state_type=subflow_run.state_type,
                 state_name=subflow_run.state_name,
                 start_time=subflow_run.start_time,
+                end_time=subflow_run.end_time,
+                parents=[],
+                children=[],
+            ),
+        )
+    ]
+
+
+async def test_reading_graph_with_unstarted_subflow_run(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    flow,  # db.Flow,
+    flow_run,  # db.FlowRun,
+    subflow_run,  # db.FlowRun,
+):
+    await session.execute(
+        sa.update(db.FlowRun)
+        .where(db.FlowRun.id == subflow_run.id)
+        .values(start_time=None)
+    )
+
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.start_time == flow_run.start_time
+    assert graph.end_time == flow_run.end_time
+    assert graph.root_node_ids == [subflow_run.id]
+
+    assert_graph_is_connected(graph)
+
+    assert graph.nodes == [
+        (
+            subflow_run.id,
+            Node(
+                kind="flow-run",
+                id=subflow_run.id,
+                label=f"{flow.name} / {subflow_run.name}",
+                state_type=subflow_run.state_type,
+                state_name=subflow_run.state_name,
+                start_time=subflow_run.expected_start_time,
                 end_time=subflow_run.end_time,
                 parents=[],
                 children=[],
