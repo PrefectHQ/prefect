@@ -1,5 +1,7 @@
 # Prefect Release Notes
 
+# Release 2.14.3
+
 ### Enhancements
 - Add variables page empty state — https://github.com/PrefectHQ/prefect/pull/11044
 - Allow sorting block documents by block_type_name, name — https://github.com/PrefectHQ/prefect/pull/11054
