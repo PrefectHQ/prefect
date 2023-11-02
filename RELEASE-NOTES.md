@@ -69,7 +69,7 @@ See the following pull request for implementation details:
 - Allow `password` to be provided in `credentials` for `GitRespository` — https://github.com/PrefectHQ/prefect/pull/11056
 - Enable page refresh loading for non dashboard pages — https://github.com/PrefectHQ/prefect/pull/11065
 - Allow runner to load remotely stored flows when running hooks — https://github.com/PrefectHQ/prefect/pull/11077
-- Use `expected_start_time` in Graph v2 for unstarted runs — https://github.com/PrefectHQ/prefect/pull/11070
+- Fix reading of flow run graph with unstarted runs — https://github.com/PrefectHQ/prefect/pull/11070
 - Allow Pydantic V2 models in flow function signatures — https://github.com/PrefectHQ/prefect/pull/10966
 - Run `prefect-client` build workflow on reqs.txt updates — https://github.com/PrefectHQ/prefect/pull/11079
 - Skips unsupported Windows tests — https://github.com/PrefectHQ/prefect/pull/11076
