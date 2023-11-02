@@ -70,6 +70,23 @@ class quote(BaseAnnotation[T]):
     Simple wrapper to mark an expression as a different type so it will not be coerced
     by Prefect. For example, if you want to return a state from a flow without having
     the flow assume that state.
+
+    quote will also instruct prefect to ignore introspection of the wrapped object
+    when passed as flow or task parameter. Parameter introspection can be a
+    significant performance hit when the object is a large collection,
+    e.g. a large dictionary or DataFrame, and each element needs to be visited. This
+    will disable task dependency tracking for the wrapped object, but likely will
+    increase performance.
+
+    ```
+    @task
+    def my_task(df):
+        ...
+
+    @flow
+    def my_flow():
+        my_task(quote(df))
+    ```
     """
 
     def unquote(self) -> T:

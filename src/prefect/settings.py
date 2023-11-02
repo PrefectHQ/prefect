@@ -928,6 +928,20 @@ interpreted and lead to incomplete output, e.g.
 `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
 """
 
+PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
+    float,
+    default=10.0,
+)
+"""
+Threshold time in seconds for logging a warning if task parameter introspection 
+exceeds this duration. Parameter introspection can be a significant performance hit
+when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
+and each element needs to be inspected. See `prefect.utilities.annotations.quote` 
+for more details.
+Defaults to `10.0`. 
+Set to `0` to disable logging the warning.
+"""
+
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
     default=15,
@@ -1262,7 +1276,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 """
 The maximum size of a flow run graph on the v2 API
 """
-
 
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
