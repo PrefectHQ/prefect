@@ -35,7 +35,35 @@ def read_task_run(prefect_client):
     return _read_task_run
 
 
-class TestTaskOptionsRespectedByAutonomousTasks:
+class TestResults:
+    def test_result_via_state(self, foo_task):
+        state = foo_task(42, return_state=True)
+        assert state.is_completed()
+        assert state.result() == 42
+
+    async def test_result_via_state_async(self, async_foo_task):
+        state = await async_foo_task(42, return_state=True)
+        assert state.is_completed()
+        assert await state.result() == 42
+
+    def test_result_via_submit(self, foo_task):
+        result = foo_task.submit(42).result()
+        assert result == 42
+
+    async def test_result_via_submit_async(self, async_foo_task):
+        result = await (await async_foo_task.submit(42)).result()
+        assert result == 42
+
+    def test_result_via_map(self, foo_task):
+        results = foo_task.map([42, 43])
+        assert [r.result() for r in results] == [42, 43]
+
+    async def test_result_via_map_async(self, async_foo_task):
+        results = await async_foo_task.map([42, 43])
+        assert [await r.result() for r in results] == [42, 43]
+
+
+class TestOptionsRespected:
     @pytest.fixture
     def foo_task_with_caching(self, foo_task):
         return foo_task.with_options(cache_key_fn=task_input_hash)
@@ -70,33 +98,6 @@ class TestTaskOptionsRespectedByAutonomousTasks:
             await async_foo_task.with_options(log_prints=True).map([42, 43])
             assert "42" in caplog.text
             assert "43" in caplog.text
-
-    class TestResults:
-        def test_result_via_state(self, foo_task):
-            state = foo_task(42, return_state=True)
-            assert state.is_completed()
-            assert state.result() == 42
-
-        async def test_result_via_state_async(self, async_foo_task):
-            state = await async_foo_task(42, return_state=True)
-            assert state.is_completed()
-            assert (await state.result()) == 42
-
-        def test_result_via_submit(self, foo_task):
-            result = foo_task.submit(42).result()
-            assert result == 42
-
-        async def test_result_via_submit_async(self, async_foo_task):
-            result = await (await async_foo_task.submit(42)).result()
-            assert result == 42
-
-        def test_result_via_map(self, foo_task):
-            results = foo_task.map([42, 43])
-            assert [r.result() for r in results] == [42, 43]
-
-        async def test_result_via_map_async(self, async_foo_task):
-            results = await async_foo_task.map([42, 43])
-            assert [await r.result() for r in results] == [42, 43]
 
         class TestCaching:
             def test_caching(self, foo_task_with_caching):
