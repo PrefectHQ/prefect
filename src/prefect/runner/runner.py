@@ -433,7 +433,8 @@ class Runner:
 
                     workload = partial(
                         self._check_for_cancelled_flow_runs,
-                        on_nothing_to_watch=tg.cancel_scope.cancel,
+                        should_stop=lambda: not self._flow_run_process_map,
+                        on_stop=tg.cancel_scope.cancel,
                     )
 
                     tg.start_soon(
@@ -639,7 +640,7 @@ class Runner:
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
-        self, on_nothing_to_watch: Callable = lambda: None
+        self, should_stop: Callable = lambda: False, on_stop: Callable = lambda: None
     ):
         if self.stopping:
             return
@@ -649,15 +650,12 @@ class Runner:
                 "as an async context manager."
             )
 
-        # To stop loop service checking for cancelled runs.
-        # Need to find a better way to stop runner spawned by
-        # a worker.
-        if not self._flow_run_process_map and not self._deployment_ids:
+        if should_stop():
             self._logger.debug(
                 "Runner has no active flow runs or deployments. Sending message to loop"
                 " service that no further cancellation checks are needed."
             )
-            on_nothing_to_watch()
+            on_stop()
 
         self._logger.debug("Checking for cancelled flow runs...")
 

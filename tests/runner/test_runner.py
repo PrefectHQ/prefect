@@ -5,6 +5,7 @@ import signal
 import time
 from itertools import combinations
 from pathlib import Path
+from textwrap import dedent
 from time import sleep
 from unittest.mock import MagicMock
 
@@ -81,6 +82,48 @@ def tired_flow():
     for _ in range(100):
         print("zzzzz...")
         sleep(5)
+
+
+class MockStorage:
+    """
+    A mock storage class that simulates pulling code from a remote location.
+    """
+
+    def __init__(self, pull_code_spy=None):
+        self._base_path = Path.cwd()
+        self._pull_code_spy = pull_code_spy
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    code = dedent(
+        """\
+        from prefect import flow
+
+        @flow
+        def test_flow():
+            return 1
+        """
+    )
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        if self._pull_code_spy:
+            self._pull_code_spy()
+
+        if self._base_path:
+            with open(self._base_path / "flows.py", "w") as f:
+                f.write(self.code)
+
+    def to_pull_step(self):
+        return {"prefect.fake.module": {}}
 
 
 class TestInit:
@@ -344,12 +387,102 @@ class TestRunner:
         assert "This flow was cancelled!" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_runs_on_crashed_hooks(
+    @pytest.mark.flaky
+    async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        runner = Runner(query_seconds=2)
+
+        storage = MockStorage()
+        storage.code = dedent(
+            """\
+            from time import sleep
+
+            from prefect import flow
+            from prefect.logging.loggers import flow_run_logger
+
+            def on_cancellation(flow, flow_run, state):
+                logger = flow_run_logger(flow_run, flow)
+                logger.info("This flow was cancelled!")
+
+            @flow(on_cancellation=[on_cancellation], log_prints=True)
+            def cancel_flow(sleep_time: int = 100):
+                sleep(sleep_time)
+            """
+        )
+
+        deployment_id = await runner.add_flow(
+            await flow.from_source(source=storage, entrypoint="flows.py:cancel_flow"),
+            name=__file__,
+        )
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(runner.start)
+
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment_id
+            )
+
+            # Need to wait for polling loop to pick up flow run and
+            # start execution
+            for _ in range(15):
+                await anyio.sleep(1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                if flow_run.state.is_running():
+                    break
+
+            await prefect_client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=flow_run.state.copy(
+                    update={"name": "Cancelling", "type": StateType.CANCELLING}
+                ),
+            )
+
+            # Need to wait for polling loop to pick up flow run and then
+            # finish cancellation
+            for _ in range(15):
+                await anyio.sleep(1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                if flow_run.state.is_cancelled():
+                    break
+
+            await runner.stop()
+            tg.cancel_scope.cancel()
+
+        assert flow_run.state.is_cancelled()
+        # check to make sure on_cancellation hook was called
+        assert "This flow was cancelled!" in caplog.text
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_runs_on_crashed_hooks_for_remotely_stored_flows(
         self, prefect_client: PrefectClient, caplog
     ):
         runner = Runner()
+        storage = MockStorage()
+        storage.code = dedent(
+            """\
+        import os
+        import signal
 
-        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+        from prefect import flow
+        from prefect.logging.loggers import flow_run_logger
+
+        def on_crashed(flow, flow_run, state):
+            logger = flow_run_logger(flow_run, flow)
+            logger.info("This flow crashed!")
+
+
+        @flow(on_crashed=[on_crashed], log_prints=True)
+        def crashing_flow():
+            print("Oh boy, here I go crashing again...")
+            os.kill(os.getpid(), signal.SIGTERM)
+        """
+        )
+
+        deployment_id = await runner.add_flow(
+            await flow.from_source(source=storage, entrypoint="flows.py:crashing_flow"),
+            name=__file__,
+        )
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -832,45 +965,6 @@ class TestRunnerDeployment:
         assert "$STORAGE_BASE_PATH" in deployment._path
         assert deployment.entrypoint == "flows.py:test_flow"
         assert deployment.storage == storage
-
-
-class MockStorage:
-    """
-    A mock storage class that simulates pulling code from a remote location.
-    """
-
-    def __init__(self, pull_code_spy=None):
-        self._base_path = Path.cwd()
-        self._pull_code_spy = pull_code_spy
-
-    def set_base_path(self, path: Path):
-        self._base_path = path
-
-    @property
-    def destination(self):
-        return self._base_path
-
-    @property
-    def pull_interval(self):
-        return 60
-
-    async def pull_code(self):
-        if self._pull_code_spy:
-            self._pull_code_spy()
-
-        code = """
-from prefect import Flow
-
-@Flow
-def test_flow():
-    return 1
-"""
-        if self._base_path:
-            with open(self._base_path / "flows.py", "w") as f:
-                f.write(code)
-
-    def to_pull_step(self):
-        return {"prefect.fake.module": {}}
 
 
 class TestServer:
