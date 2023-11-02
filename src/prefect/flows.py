@@ -848,8 +848,11 @@ class Flow(Generic[P, R]):
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
 
-        Calling this method will build a Docker image for the flow, push it to a registry,
+        By default, calling this method will build a Docker image for the flow, push it to a registry,
         and create a deployment via the Prefect API that will run the flow on the given schedule.
+
+        If you want to use an existing image, you can pass `build=False` to skip building and pushing
+        an image.
 
         Args:
             name: The name to give the created deployment.

@@ -693,9 +693,12 @@ async def deploy(
     Deploy the provided list of deployments to dynamic infrastructure via a
     work pool.
 
-    Calling this function will build a Docker image for the deployments, push it to a
+    By default, calling this function will build a Docker image for the deployments, push it to a
     registry, and create each deployment via the Prefect API that will run the corresponding
     flow on the given schedule.
+
+    If you want to use an existing image, you can pass `build=False` to skip building and pushing
+    an image.
 
     Args:
         *deployments: A list of deployments to deploy.
