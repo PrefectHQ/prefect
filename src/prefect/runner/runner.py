@@ -56,7 +56,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -431,9 +431,13 @@ class Runner:
                         pid=pid, flow_run=flow_run
                     )
 
+                    # We want this loop to stop when the flow run process exits
+                    # so we'll check if the flow run process is still alive on
+                    # each iteration and cancel the task group if it is not.
                     workload = partial(
                         self._check_for_cancelled_flow_runs,
-                        on_nothing_to_watch=tg.cancel_scope.cancel,
+                        should_stop=lambda: not self._flow_run_process_map,
+                        on_stop=tg.cancel_scope.cancel,
                     )
 
                     tg.start_soon(
@@ -639,8 +643,18 @@ class Runner:
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
-        self, on_nothing_to_watch: Callable = lambda: None
+        self, should_stop: Callable = lambda: False, on_stop: Callable = lambda: None
     ):
+        """
+        Checks for flow runs with CANCELLING a cancelling state and attempts to
+        cancel them.
+
+        Args:
+            should_stop: A callable that returns a boolean indicating whether or not
+                the runner should stop checking for cancelled flow runs.
+            on_stop: A callable that is called when the runner should stop checking
+                for cancelled flow runs.
+        """
         if self.stopping:
             return
         if not self.started:
@@ -649,15 +663,12 @@ class Runner:
                 "as an async context manager."
             )
 
-        # To stop loop service checking for cancelled runs.
-        # Need to find a better way to stop runner spawned by
-        # a worker.
-        if not self._flow_run_process_map and not self._deployment_ids:
+        if should_stop():
             self._logger.debug(
                 "Runner has no active flow runs or deployments. Sending message to loop"
                 " service that no further cancellation checks are needed."
             )
-            on_nothing_to_watch()
+            on_stop()
 
         self._logger.debug("Checking for cancelled flow runs...")
 
@@ -710,7 +721,7 @@ class Runner:
 
         pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
         if not pid:
-            await _run_on_cancellation_hooks(flow_run, flow_run.state, self._client)
+            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -726,7 +737,7 @@ class Runner:
             await self._kill_process(pid)
         except RuntimeError as exc:
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
-            await _run_on_cancellation_hooks(flow_run, flow_run.state, self._client)
+            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(flow_run)
         except Exception:
             run_logger.exception(
@@ -736,7 +747,7 @@ class Runner:
             # We will try again on generic exceptions
             self._cancelling_flow_run_ids.remove(flow_run.id)
         else:
-            await _run_on_cancellation_hooks(flow_run, flow_run.state, self._client)
+            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -890,9 +901,7 @@ class Runner:
         api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
         terminal_state = api_flow_run.state
         if terminal_state.is_crashed():
-            await _run_on_crashed_hooks(
-                flow_run=flow_run, state=terminal_state, client=self._client
-            )
+            await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
 
         return status_code
 
@@ -1009,6 +1018,38 @@ class Runner:
                 await result
 
         await self._runs_task_group.start(wrapper)
+
+    async def _run_on_cancellation_hooks(
+        self,
+        flow_run: "FlowRun",
+        state: State,
+    ) -> None:
+        """
+        Run the hooks for a flow.
+        """
+        if state.is_cancelling():
+            flow = await load_flow_from_flow_run(
+                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+            )
+            hooks = flow.on_cancellation or []
+
+            await _run_hooks(hooks, flow_run, flow, state)
+
+    async def _run_on_crashed_hooks(
+        self,
+        flow_run: "FlowRun",
+        state: State,
+    ) -> None:
+        """
+        Run the hooks for a flow.
+        """
+        if state.is_crashed():
+            flow = await load_flow_from_flow_run(
+                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+            )
+            hooks = flow.on_crashed or []
+
+            await _run_hooks(hooks, flow_run, flow, state)
 
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
@@ -1159,33 +1200,3 @@ async def _run_hooks(
             )
         else:
             logger.info(f"Hook {hook.__name__!r} finished running successfully")
-
-
-async def _run_on_cancellation_hooks(
-    flow_run: "FlowRun",
-    state: State,
-    client: PrefectClient,
-) -> None:
-    """
-    Run the hooks for a flow.
-    """
-    if state.is_cancelling():
-        flow = await load_flow_from_flow_run(flow_run, client=client)
-        hooks = flow.on_cancellation or []
-
-        await _run_hooks(hooks, flow_run, flow, state)
-
-
-async def _run_on_crashed_hooks(
-    flow_run: "FlowRun",
-    state: State,
-    client: PrefectClient,
-) -> None:
-    """
-    Run the hooks for a flow.
-    """
-    if state.is_crashed():
-        flow = await load_flow_from_flow_run(flow_run, client=client)
-        hooks = flow.on_crashed or []
-
-        await _run_hooks(hooks, flow_run, flow, state)
