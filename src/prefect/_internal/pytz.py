@@ -1,5 +1,5 @@
 """
-This is a compatability module that allows us to drop our dependency on pytz in the mimimal prefect-client. 
+This is a compatibility module that allows us to drop our dependency on pytz in the minimal prefect-client. 
 
 All values here are taken from:
 

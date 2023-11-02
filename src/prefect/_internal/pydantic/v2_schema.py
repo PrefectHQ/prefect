@@ -79,7 +79,7 @@ def create_v2_schema(name_: str, model_cfg: ConfigDict, **model_fields):
         ref_template="#/definitions/{model}",
         schema_generator=GenerateEmptySchemaForUserClasses,
     )
-    # ensure backwards compatability by copying $defs into definitions
+    # ensure backwards compatibility by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]
     return schema
