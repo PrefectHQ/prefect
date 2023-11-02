@@ -2,6 +2,28 @@
 
 ## Release 2.14.3
 
+## Observability with deployment status
+
+You can now track the status of your deployments in the Prefect UI, which is especially useful when you are running served flows as they have no associated work pool or worker. If you see a flow run enter a `LATE` state (it isn’t running), you can click into the deployment for that flow run and see a red indicator next to your deployment. The worker, runner, or agent polling that deployment or its associated work queue is offline.
+- With served flows, your deployment be given a `READY` status if its associated process is running.
+- With workers and work pools, your deployment will be given a `READY` status when a worker is `ONLINE`.
+- With deployments associated with push work pools (Prefect Cloud), they will default to a `READY` status.
+  
+<p align="center">
+<img width="976" alt="a late flow run for a deployment that is `NOT_READY`" src="https://github.com/PrefectHQ/prefect/assets/42048900/db20979a-870d-44c4-ac0b-66f70d99e58b">
+</p>
+
+Deployment status events are viewable in the Event Feed in the Prefect UI, where an event is emitted when a deployment changes status.
+<p align="center">
+<img width="538" alt="event feed deployment status events" src="https://github.com/PrefectHQ/prefect/assets/42048900/8ee076cd-fd30-47d1-9ee5-6b5a3b383b63">
+</p>
+
+You can also create an automation triggered by deployment status on the Automations page!
+
+<p align="center">
+<img width="862" alt="deployment status trigger on automations page" src="https://github.com/PrefectHQ/prefect/assets/42048900/87a0945e-9b9e-406b-b020-fbd9733cb4c3">
+</p>
+
 ### Enhancements
 - Add option to skip building a Docker image with `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11082
 - Add ability to specify remote storage for `Flow.from_source` via ffspec - https://github.com/PrefectHQ/prefect/pull/11072
