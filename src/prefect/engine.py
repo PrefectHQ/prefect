@@ -221,8 +221,7 @@ async def run_task(
     task_runner: Optional[Type[BaseTaskRunner]] = SequentialTaskRunner,
 ) -> Any:
     async with AsyncExitStack() as stack:
-        partial_context = PartialModel(
-            FlowRunContext,
+        with FlowRunContext(
             flow=None,
             flow_run=None,
             task_runner=await stack.enter_async_context(
@@ -230,8 +229,6 @@ async def run_task(
             ),
             client=await stack.enter_async_context(get_client()),
             parameters=parameters,
-        )
-        with partial_context.finalize(
             result_factory=await ResultFactory.from_task(task),
             background_tasks=await stack.enter_async_context(anyio.create_task_group()),
             sync_portal=(
