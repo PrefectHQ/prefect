@@ -28,7 +28,7 @@ You can also create an automation triggered by deployment status changes on the 
 
 You can now load flows from a variety of storage options with `flow.from_source`! In addition to loading flows from a git repository, you can load flows from any supported `fsspec` protocol.
 
-Here's an example of loading and serving a flow from and S3 bucket:
+Here's an example of loading and serving a flow from an S3 bucket:
 
 ```python
 from prefect import flow
@@ -81,7 +81,7 @@ See the following pull request for implementation details:
 - Update push work pools documentation to mention concurrency — https://github.com/PrefectHQ/prefect/pull/11068
 - Add documentation on Prefect Cloud teams — https://github.com/PrefectHQ/prefect/pull/11057
 - Update 2.14.2 RELEASE-NOTES.md link  — https://github.com/PrefectHQ/prefect/pull/11053
-- Add missing public assets to UI bundle — https://github.com/PrefectHQ/prefect/pull/11069
+- Fix rendering of marketing banner on the Prefect dashboard — https://github.com/PrefectHQ/prefect/pull/11069
 - Fix typo in `README.md` — https://github.com/PrefectHQ/prefect/pull/11058
 
 ## New Contributors
