@@ -3550,6 +3550,7 @@ class TestFlowDeploy:
             ),
             work_pool_name=work_pool.name,
             image=image,
+            build=True,
             push=False,
             print_next_steps_message=False,
         )
