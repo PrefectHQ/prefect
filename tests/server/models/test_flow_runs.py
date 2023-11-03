@@ -837,11 +837,16 @@ class TestReadFlowRuns:
                 flow_id=flow.id,
             ),
         )
-
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run_1.id, task_key="my-key", dynamic_key="0"
+            ),
+        )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, parent_flow_run_id=flow_run_1.id
+                flow_id=flow.id, parent_task_run_id=task_run.id
             ),
         )
 
