@@ -264,8 +264,8 @@ def _apply_block_document_filters(
     query,
     db: PrefectDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_schema_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_type_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
+    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
 ):
     # if no filter is provided, one is created that excludes anonymous blocks
     if block_document_filter is None:
@@ -435,8 +435,8 @@ async def count_block_documents(
     session: AsyncSession,
     db: PrefectDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_type_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_schema_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
+    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
 ) -> int:
     """
     Count block documents that match the filters.
