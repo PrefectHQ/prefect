@@ -56,7 +56,7 @@ from prefect.runner.storage import RemoteStorage
 
 if __name__ == "__main__":
     flow.from_source(
-        source=RemoteStorage(url="az://my-container/my-folder", account_name="my-account-name")
+        source=RemoteStorage(url="az://my-container/my-folder", account_name="my-account-name"),
         entrypoint="flows.py:my_flow",
     ).serve(name="deployment-from-remote-flow")
 ```
