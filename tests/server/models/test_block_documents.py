@@ -931,7 +931,7 @@ class TestReadBlockDocuments:
         assert [b.id for b in swim_block_documents] == [block_documents[6].id]
 
 
-class TestCOuntBlockDocuments:
+class TestCountBlockDocuments:
     @pytest.fixture(autouse=True)
     async def block_documents(self, session, block_schemas):
         block_documents = []
