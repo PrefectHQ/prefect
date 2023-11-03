@@ -636,6 +636,113 @@ class TestReadBlockDocuments:
         ]
 
 
+class TestCountBlockDocuments:
+    @pytest.fixture(autouse=True)
+    async def block_documents(self, session, block_schemas):
+        block_documents = []
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[0].id,
+                    name="block-1",
+                    block_type_id=block_schemas[0].block_type_id,
+                ),
+            )
+        )
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[1].id,
+                    name="block-2",
+                    block_type_id=block_schemas[1].block_type_id,
+                ),
+            )
+        )
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[2].id,
+                    name="block-3",
+                    block_type_id=block_schemas[2].block_type_id,
+                ),
+            )
+        )
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[1].id,
+                    name="block-4",
+                    block_type_id=block_schemas[1].block_type_id,
+                ),
+            )
+        )
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[2].id,
+                    name="block-5",
+                    block_type_id=block_schemas[2].block_type_id,
+                ),
+            )
+        )
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[2].id,
+                    block_type_id=block_schemas[2].block_type_id,
+                    is_anonymous=True,
+                ),
+            )
+        )
+
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    name="nested-block-1",
+                    block_schema_id=block_schemas[3].id,
+                    block_type_id=block_schemas[3].block_type_id,
+                    data={
+                        "b": {"$ref": {"block_document_id": block_documents[1].id}},
+                        "z": "index",
+                    },
+                ),
+            )
+        )
+
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    name="nested-block-2",
+                    block_schema_id=block_schemas[4].id,
+                    block_type_id=block_schemas[4].block_type_id,
+                    data={
+                        "c": {"$ref": {"block_document_id": block_documents[2].id}},
+                        "d": {"$ref": {"block_document_id": block_documents[5].id}},
+                    },
+                ),
+            )
+        )
+
+        await session.commit()
+        return sorted(block_documents, key=lambda b: b.name)
+
+    async def test_count_block_documents(self, client, block_documents):
+        response = await client.post("/block_documents/count")
+        assert response.status_code == status.HTTP_200_OK
+        count = response.json()
+        # sorted by block document name
+        # anonymous blocks excluded by default
+        assert count == len([b.id for b in block_documents if not b.is_anonymous])
+
+
 class TestDeleteBlockDocument:
     async def test_delete_block(self, session, client, block_schemas):
         response = await client.post(
