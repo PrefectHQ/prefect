@@ -8,7 +8,7 @@ from typing import Any, Optional
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.blocks.core import Block
 from prefect.logging.loggers import get_logger
-from prefect.runner.storage import GitRepository, RemoteStorage
+from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import sync_compatible
 
 deployment_logger = get_logger("deployment")
@@ -166,6 +166,28 @@ async def pull_from_remote_storage(url: str, **settings: Any):
 
     directory = str(storage.destination.relative_to(Path.cwd()))
     deployment_logger.info(f"Pulled code from {url!r} into {directory!r}")
+    return {"directory": directory}
+
+
+async def pull_with_block(block_document_name: str, block_type: str):
+    """
+    Pulls code using a block.
+
+    Args:
+        block_document_name: The name of the block document to use
+        block_type: The type of block to use
+    """
+    block = await Block.load(f"{block_type}/{block_document_name}")
+
+    storage = BlockStorageAdapter(block)
+
+    await storage.pull_code()
+
+    directory = str(storage.destination.relative_to(Path.cwd()))
+    deployment_logger.info(
+        f"Pulled code using block '{block_type}/{block_document_name}' into"
+        f" {directory!r}"
+    )
     return {"directory": directory}
 
 

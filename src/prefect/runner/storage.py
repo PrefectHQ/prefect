@@ -470,7 +470,7 @@ class RemoteStorage:
 
     def __repr__(self) -> str:
         return f"RemoteStorage(url={self._url!r})"
-    
+
 
 class BlockStorageAdapter:
     """
@@ -524,7 +524,7 @@ class BlockStorageAdapter:
             return {
                 "prefect.deployments.steps.pull_with_block": {
                     "block_type": self._block.get_block_type_name(),
-                    "block_name": self._block._block_document_name,
+                    "block_document_name": self._block._block_document_name,
                 }
             }
 
@@ -532,8 +532,6 @@ class BlockStorageAdapter:
         if isinstance(__value, BlockStorageAdapter):
             return self._block == __value._block
         return False
-
-
 
 
 def create_storage_from_url(
