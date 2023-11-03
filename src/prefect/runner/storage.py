@@ -486,14 +486,14 @@ class BlockStorageAdapter:
         self._block = block
         self._pull_interval = pull_interval
         self._storage_base_path = Path.cwd()
-        if not isinstance(block, ReadableDeploymentStorage):
+        if not hasattr(block, "get_directory"):
             raise ValueError(
                 "Provided block must implement the ReadableDeploymentStorage interface."
             )
 
         self._name = (
-            f"{block.get_block_type_name()}-{block._block_document_name}"
-            if block.block_document_name
+            f"{block.get_block_type_slug()}-{block._block_document_name}"
+            if block._block_document_name
             else str(uuid4())
         )
 
@@ -516,14 +516,14 @@ class BlockStorageAdapter:
         if hasattr(self._block, "get_pull_step"):
             return self._block.get_pull_step()
         else:
-            if not self._block.block_document_name:
+            if not self._block._block_document_name:
                 raise BlockNotSavedError(
                     "Block must be saved with `.save()` before it can be converted to a"
                     " pull step."
                 )
             return {
                 "prefect.deployments.steps.pull_with_block": {
-                    "block_type": self._block.get_block_type_name(),
+                    "block_type": self._block.get_block_type_slug(),
                     "block_document_name": self._block._block_document_name,
                 }
             }
