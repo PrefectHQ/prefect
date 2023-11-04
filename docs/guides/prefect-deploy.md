@@ -84,20 +84,56 @@ A deployment additionally enables you to:
 
 ## Creating deployments
 
-In the [tutorial](/tutorial/deployments/) you saw how to create a deployment with a long-running process using `.serve`. In this section, we will explore how to create a deployment for a flow that is run by a worker.
+The [tutorial](/tutorial/deployments/) shows how to create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`. See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools) if needed.
 
-If you need infrastructure that you can dynamically provision and scale up and down as needed, you will want to create a deployment that uses a [work pool](/concepts/work-pools/) and worker.
-
-You can create a deployment that uses a work pool by changing the `.serve` method to `.deploy`. Or you can add a `prefect.yaml` file to your working directory. Let's explore both options.
+In this guide, we will explore how to use `.deploy` in more depth and see a YAML-based alternative for managing deployments. Let's explore both options.
 
 === ".deploy"
 
-    You can create a deployment entirely from Python code with by calling the `.deploy` method on a flow. Let's create a deployment for the flow we created in the [tutorial](/tutorial/deployments/).
+    You can create a deployment entirely from Python code by calling the `.deploy` method on a flow. Here's our example from the [tutorial](/tutorial/workers/).
+
+    ```python hl_lines="17-22" title="repo_info.py"
+    import httpx
+    from prefect import flow
 
 
-    ```python
+    @flow(log_prints=True)
+    def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
+        url = f"https://api.github.com/repos/{repo_name}"
+        response = httpx.get(url)
+        response.raise_for_status()
+        repo = response.json()
+        print(f"{repo_name} repository statistics 🤓:")
+        print(f"Stars 🌠 : {repo['stargazers_count']}")
+        print(f"Forks 🍴 : {repo['forks_count']}")
 
+
+    if __name__ == "__main__":
+        get_repo_info.deploy(
+            name="my-first-deployment", 
+            work_pool_name="my-docker-pool", 
+            image="my-first-deployment-image:tutorial"
+            push=False
+        )
     ```
+
+    Note that an image will be built and the environment where you are creating this deployment from needs to have Docker installed and running. You also need to have a Docker registry set up to push to. 
+
+    Note that the registry needs
+
+    Like `.serve()`, for multiple deployments, you can use the analagous `deploy` function.
+
+    Also like ``.serve()` you can chain together the `.from_source` method and the `.deploy` method to create a deployment that pulls your flow code from a remote source.
+
+
+    demo from git-based storage
+    demo from git-based storage with auth needed
+
+    demo of from fsspec storage - s3
+
+    demo of using custom image (move from tutorial note)
+
+    demo of using no image 
 
 === "`prefect.yaml`"
 
@@ -194,6 +230,7 @@ You can create a deployment that uses a work pool by changing the `.serve` metho
         We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control.
         However, sometimes you may need to initialize programmatically and avoid the interactive prompts.  
         To do so, provide all required fields for your recipe using the `--field` flag:
+        
         <div class="terminal">
         ```bash
         $ prefect init --recipe docker \
