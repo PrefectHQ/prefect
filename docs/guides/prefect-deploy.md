@@ -92,7 +92,8 @@ You can create a deployment that uses a work pool by changing the `.serve` metho
 
 === ".deploy"
 
-    You can create a deployment entirely from Python code with by calling the `.deploy` method on a flow:
+    You can create a deployment entirely from Python code with by calling the `.deploy` method on a flow. Let's create a deployment for the flow we created in the [tutorial](/tutorial/deployments/).
+
 
     ```python
 
@@ -100,7 +101,7 @@ You can create a deployment that uses a work pool by changing the `.serve` metho
 
 === "`prefect.yaml`"
 
-    The [`prefect.yaml`](#the-prefect-yaml-file) is a YAML file describing base settings for your deployments, procedural steps for preparing deployments, as well as instructions for preparing the execution environment for a deployment run.
+    The `prefect.yaml` file is a YAML file describing base settings for your deployments, procedural steps for preparing deployments, and instructions for preparing the execution environment for a deployment run.
 
     You can initialize your deployment configuration, which creates the `prefect.yaml` file, by running the CLI command `prefect init` in any directory or repository that stores your flow code.
 
