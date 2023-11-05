@@ -398,9 +398,15 @@ def is_state(obj: Any) -> TypeGuard[State]:
     """
     # We may want to narrow this to client-side state types but for now this provides
     # backwards compatibility
-    from prefect.server.schemas.states import State as State_
+    try:
+        from prefect.server.schemas.states import State as State_
 
-    return isinstance(obj, (State, State_))
+        classes_ = (State, State_)
+    except ImportError:
+        classes_ = State
+
+    # return isinstance(obj, (State, State_))
+    return isinstance(obj, classes_)
 
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
@@ -414,7 +420,7 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
 
     Other iterables will return `False` even if they contain states.
     """
-    # We do not check for arbitary iterables because this is not intended to be used
+    # We do not check for arbitrary iterables because this is not intended to be used
     # for things like dictionaries, dataframes, or pydantic models
     if (
         not isinstance(obj, BaseAnnotation)

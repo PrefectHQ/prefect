@@ -15,9 +15,17 @@ import base64
 import warnings
 from typing import Any, Generic, Optional, TypeVar
 
-import pydantic
-from pydantic import BaseModel
-from pydantic.json import pydantic_encoder
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+    from pydantic.v1 import BaseModel
+    from pydantic.v1.json import pydantic_encoder
+else:
+    import pydantic
+    from pydantic import BaseModel
+    from pydantic.json import pydantic_encoder
+
 from typing_extensions import Literal
 
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
@@ -255,18 +263,18 @@ class CompressedSerializer(Serializer):
         methods.
         """
         try:
-            compresser = from_qualified_name(value)
+            compressor = from_qualified_name(value)
         except (ImportError, AttributeError) as exc:
             raise ValueError(
                 f"Failed to import requested compression library: {value!r}."
             ) from exc
 
-        if not callable(getattr(compresser, "compress", None)):
+        if not callable(getattr(compressor, "compress", None)):
             raise ValueError(
                 f"Compression library at {value!r} does not have a 'compress' method."
             )
 
-        if not callable(getattr(compresser, "decompress", None)):
+        if not callable(getattr(compressor, "decompress", None)):
             raise ValueError(
                 f"Compression library at {value!r} does not have a 'decompress' method."
             )
@@ -275,12 +283,12 @@ class CompressedSerializer(Serializer):
 
     def dumps(self, obj: Any) -> bytes:
         blob = self.serializer.dumps(obj)
-        compresser = from_qualified_name(self.compressionlib)
-        return base64.encodebytes(compresser.compress(blob))
+        compressor = from_qualified_name(self.compressionlib)
+        return base64.encodebytes(compressor.compress(blob))
 
     def loads(self, blob: bytes) -> Any:
-        compresser = from_qualified_name(self.compressionlib)
-        uncompressed = compresser.decompress(base64.decodebytes(blob))
+        compressor = from_qualified_name(self.compressionlib)
+        uncompressed = compressor.decompress(base64.decodebytes(blob))
         return self.serializer.loads(uncompressed)
 
 

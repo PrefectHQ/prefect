@@ -4,7 +4,7 @@ Utilities for experimental features.
 Experimental features have a group, feature name, and optional help string.
 
 When an experimental feature is used, a warning will be displayed. Warnings may be
-disabled per feature group with the setting `PREFECT_EXPERIMENTAL_WARN_<GROUP>`. 
+disabled per feature group with the setting `PREFECT_EXPERIMENTAL_WARN_<GROUP>`.
 Warnings may also be disabled globally with the setting `PREFECT_EXPERIMENTAL_WARN`.
 
 Some experimental features require opt-in to enable any usage. These require the setting
@@ -14,7 +14,12 @@ import functools
 import warnings
 from typing import Any, Callable, Optional, Set, Type, TypeVar
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
 
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
 from prefect.utilities.callables import get_call_parameters
@@ -38,7 +43,7 @@ EXPERIMENTAL_ERROR = (
 
 class ExperimentalWarning(Warning):
     """
-    A warning related to expirimental code.
+    A warning related to experimental code.
     """
 
 

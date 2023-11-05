@@ -309,7 +309,6 @@ class Task(Generic[P, R]):
             raise ValueError("`retry_jitter_factor` must be >= 0.")
 
         self.retry_jitter_factor = retry_jitter_factor
-
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
@@ -821,7 +820,7 @@ class Task(Generic[P, R]):
 
         Must be called with at least one iterable and all iterables must be
         the same length. Any arguments that are not iterable will be treated as
-        a static value and each task run will recieve the same value.
+        a static value and each task run will receive the same value.
 
         Will create as many task runs as the length of the iterable(s) in the
         backing API and submit the task runs to the flow's task runner. This

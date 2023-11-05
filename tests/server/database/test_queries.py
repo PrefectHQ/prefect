@@ -127,7 +127,7 @@ class TestGetRunsInQueueQuery:
         self, session, db, deployment_1
     ):
         """
-        Tests that the query sorts by scheduled time correctly; the unit tests with a small nubmer of runs
+        Tests that the query sorts by scheduled time correctly; the unit tests with a small number of runs
         can return the correct order even though no sort is applied.
 
         https://github.com/PrefectHQ/prefect/pull/7457
@@ -207,7 +207,7 @@ class TestGetRunsInQueueQuery:
     async def test_query_skips_locked(self, db):
         """Concurrent queries should not both receive runs"""
         if db.database_config.connection_url.startswith("sqlite"):
-            pytest.skip("FOR UDPATE SKIP LOCKED is not supported on SQLite")
+            pytest.skip("FOR UPDATE SKIP LOCKED is not supported on SQLite")
 
         query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
@@ -692,7 +692,7 @@ class TestGetRunsFromWorkQueueQuery:
         before the limit is applied.
         """
         if db.database_config.connection_url.startswith("sqlite"):
-            pytest.skip("FOR UDPATE SKIP LOCKED is not supported on SQLite")
+            pytest.skip("FOR UPDATE SKIP LOCKED is not supported on SQLite")
 
         db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
@@ -715,7 +715,7 @@ class TestGetRunsFromWorkQueueQuery:
         sees 18 runs and the second query sees the others.
         """
         if db.database_config.connection_url.startswith("sqlite"):
-            pytest.skip("FOR UDPATE SKIP LOCKED is not supported on SQLite")
+            pytest.skip("FOR UPDATE SKIP LOCKED is not supported on SQLite")
 
         db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 

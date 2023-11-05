@@ -6,14 +6,26 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, conint, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, HttpUrl, conint, root_validator, validator
+else:
+    from pydantic import BaseModel, Field, HttpUrl, conint, root_validator, validator
+
 from typing_extensions import Literal
 
 import prefect.server.database
-from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.server.schemas import schedules, states
-from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import (
+    ORMBaseModel,
+    PrefectBaseModel,
+)
+from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.validators import (
+    raise_on_name_with_banned_characters,
+)
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
@@ -131,6 +143,30 @@ class FlowRunPolicy(PrefectBaseModel):
         ):
             values["retry_delay"] = values["retry_delay_seconds"]
         return values
+
+
+class CreatedBy(BaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the creator of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the creator of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the creator."
+    )
+
+
+class UpdatedBy(BaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the updater of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the updater of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the updater."
+    )
 
 
 class FlowRun(ORMBaseModel):
@@ -373,8 +409,8 @@ class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run id of the task run."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
     )
     task_key: str = Field(
         default=..., description="A unique identifier for the task being run."
@@ -530,6 +566,10 @@ class Deployment(ORMBaseModel):
             " be scheduled."
         ),
     )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The last time the deployment was polled for status updates.",
+    )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
@@ -573,6 +613,12 @@ class Deployment(ORMBaseModel):
         default=None,
         description=(
             "The id of the work pool queue to which this deployment is assigned."
+        ),
+    )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
         ),
     )
 
@@ -704,6 +750,9 @@ class BlockDocument(ORMBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
+    block_type_name: Optional[str] = Field(
+        default=None, description="The associated block type's name"
+    )
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
@@ -777,6 +826,7 @@ class BlockDocument(ORMBaseModel):
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
+            block_type_name=orm_block_document.block_type_name,
             block_type=orm_block_document.block_type,
             is_anonymous=orm_block_document.is_anonymous,
         )
@@ -853,8 +903,8 @@ class Log(ORMBaseModel):
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
     timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run ID associated with the log."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run ID associated with the log."
     )
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
@@ -932,7 +982,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
     ) -> bool:
         """
-        Given empirical information about the state of the work queue, evaulate its health status.
+        Given empirical information about the state of the work queue, evaluate its health status.
 
         Args:
             late_runs: the count of late runs for the work queue.

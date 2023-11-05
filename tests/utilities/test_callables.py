@@ -3,7 +3,14 @@ from enum import Enum
 from typing import Any, Dict, List, Tuple, Union
 
 import pendulum
-import pydantic.version
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic.version
+
 import pytest
 from packaging.version import Version
 
@@ -184,7 +191,11 @@ class TestFunctionToSchema:
                 "Color": {
                     "title": "Color",
                     "description": "An enumeration.",
-                    "enum": ["RED", "GREEN", "BLUE"],
+                    "enum": [
+                        "RED",
+                        "GREEN",
+                        "BLUE",
+                    ],
                 }
             },
         }
@@ -290,6 +301,152 @@ class TestFunctionToSchema:
             "type": "object",
         }
 
+    def test_function_with_pydantic_model_default_across_v1_and_v2(self):
+        # this import ensures this test imports the installed version of
+        # pydantic (not pydantic.v1) and allows us to test that we
+        # generate consistent schemas across v1 and v2
+        import pydantic
+
+        class Foo(pydantic.BaseModel):
+            bar: str
+
+        def f(foo: Foo = Foo(bar="baz")):
+            ...
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "default": {"bar": "baz"},
+                    "position": 0,
+                    "title": "foo",
+                }
+            },
+            "definitions": {
+                "Foo": {
+                    "properties": {"bar": {"title": "Bar", "type": "string"}},
+                    "required": ["bar"],
+                    "title": "Foo",
+                    "type": "object",
+                }
+            },
+        }
+
+    def test_function_with_complex_args_across_v1_and_v2(self):
+        # this import ensures this test imports the installed version of
+        # pydantic (not pydantic.v1) and allows us to test that we
+        # generate consistent schemas across v1 and v2
+        import pydantic
+
+        class Foo(pydantic.BaseModel):
+            bar: str
+
+        class Color(Enum):
+            RED = "RED"
+            GREEN = "GREEN"
+            BLUE = "BLUE"
+
+        def f(
+            a: int,
+            s: List[None],
+            m: Foo,
+            i: int = 0,
+            x: float = 1.0,
+            model: Foo = Foo(bar="bar"),
+            pdt: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            pdate: pendulum.Date = pendulum.date(2025, 1, 1),
+            pduration: pendulum.Duration = pendulum.duration(seconds=5),
+            c: Color = Color.BLUE,
+        ):
+            ...
+
+        datetime_schema = {
+            "title": "pdt",
+            "default": "2025-01-01T00:00:00+00:00",
+            "position": 6,
+            "type": "string",
+            "format": "date-time",
+        }
+        duration_schema = {
+            "title": "pduration",
+            "default": 5.0,
+            "position": 8,
+            "type": "number",
+            "format": "time-delta",
+        }
+        enum_schema = {
+            "enum": ["RED", "GREEN", "BLUE"],
+            "title": "Color",
+            "type": "string",
+            "description": "An enumeration.",
+        }
+
+        if HAS_PYDANTIC_V2:
+            # these overrides represent changes in how pydantic generates schemas in v2
+            datetime_schema["default"] = "2025-01-01T00:00:00Z"
+            duration_schema["default"] = "PT5S"
+            duration_schema["type"] = "string"
+            duration_schema["format"] = "duration"
+            enum_schema.pop("description")
+        else:
+            enum_schema.pop("type")
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "a": {"position": 0, "title": "a", "type": "integer"},
+                "s": {
+                    "items": {"type": "null"},
+                    "position": 1,
+                    "title": "s",
+                    "type": "array",
+                },
+                "m": {
+                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "position": 2,
+                    "title": "m",
+                },
+                "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
+                "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
+                "model": {
+                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "default": {"bar": "bar"},
+                    "position": 5,
+                    "title": "model",
+                },
+                "pdt": datetime_schema,
+                "pdate": {
+                    "title": "pdate",
+                    "default": "2025-01-01",
+                    "position": 7,
+                    "type": "string",
+                    "format": "date",
+                },
+                "pduration": duration_schema,
+                "c": {
+                    "title": "c",
+                    "default": "BLUE",
+                    "position": 9,
+                    "allOf": [{"$ref": "#/definitions/Color"}],
+                },
+            },
+            "required": ["a", "s", "m"],
+            "definitions": {
+                "Foo": {
+                    "properties": {"bar": {"title": "Bar", "type": "string"}},
+                    "required": ["bar"],
+                    "title": "Foo",
+                    "type": "object",
+                },
+                "Color": enum_schema,
+            },
+        }
+
 
 class TestMethodToSchema:
     def test_methods_with_no_arguments(self):
@@ -348,7 +505,11 @@ class TestMethodToSchema:
                     "Color": {
                         "title": "Color",
                         "description": "An enumeration.",
-                        "enum": ["RED", "GREEN", "BLUE"],
+                        "enum": [
+                            "RED",
+                            "GREEN",
+                            "BLUE",
+                        ],
                     }
                 },
             }

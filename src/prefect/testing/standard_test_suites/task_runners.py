@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 import time
 from abc import ABC, abstractmethod
 from functools import partial
@@ -172,7 +173,7 @@ class TaskRunnerStandardTestSuite(ABC):
         @task
         def foo():
             time.sleep(self.get_sleep_time())
-            # Yield again in case the sleep started before the other thread was aready
+            # Yield again in case the sleep started before the other thread was already
             time.sleep(0)
             tmp_file.write_text("foo")
 
@@ -416,6 +417,10 @@ class TaskRunnerStandardTestSuite(ABC):
         assert bx.type == StateType.PENDING
         assert cx.type == StateType.COMPLETED
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Timeout is unsupported on Windows",
+    )
     def test_sync_task_timeout(self, task_runner):
         @task(timeout_seconds=0.1)
         def my_timeout_task():

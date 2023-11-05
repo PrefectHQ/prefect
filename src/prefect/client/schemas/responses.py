@@ -2,7 +2,13 @@ import datetime
 from typing import Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import Literal
 
 import prefect.client.schemas.objects as objects
@@ -154,6 +160,7 @@ class FlowRunResponse(ObjectBaseModel):
     flow_id: UUID = FieldFrom(objects.FlowRun)
     state_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     deployment_id: Optional[UUID] = FieldFrom(objects.FlowRun)
+    work_queue_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(objects.FlowRun)
     flow_version: Optional[str] = FieldFrom(objects.FlowRun)
     parameters: dict = FieldFrom(objects.FlowRun)
@@ -176,6 +183,7 @@ class FlowRunResponse(ObjectBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(objects.FlowRun)
     created_by: Optional[CreatedBy] = FieldFrom(objects.FlowRun)
+    work_pool_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's work pool.",
@@ -210,6 +218,7 @@ class DeploymentResponse(ObjectBaseModel):
     parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
     tags: List[str] = FieldFrom(objects.Deployment)
     work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(objects.Deployment)
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
     path: Optional[str] = FieldFrom(objects.Deployment)
     pull_steps: Optional[List[dict]] = FieldFrom(objects.Deployment)
@@ -223,6 +232,11 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+    status: Optional[objects.DeploymentStatus] = Field(
+        default=None,
+        description="Current status of the deployment.",
+    )
+    enforce_parameter_schema: bool = FieldFrom(objects.Deployment)
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):

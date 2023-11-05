@@ -1,11 +1,13 @@
 <template>
   <p-layout-default class="workspace-dashboard">
-    <PageHeading :crumbs="crumbs">
-      <template v-if="!empty" #actions>
-        <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
-        <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
-      </template>
-    </PageHeading>
+    <template #header>
+      <PageHeading :crumbs="crumbs">
+        <template v-if="!empty" #actions>
+          <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
+          <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
+        </template>
+      </PageHeading>
+    </template>
     <template v-if="loaded">
       <template v-if="empty">
         <FlowRunsPageEmptyState />
@@ -20,6 +22,16 @@
         </div>
       </template>
     </template>
+    <MarketingBanner
+      title="Ready to scale?"
+      subtitle="Automations, role and object-level security, and serverless push work pools on Prefect Cloud"
+    >
+      <template #actions>
+        <p-button to="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none" target="_blank" primary>
+          Upgrade to Cloud
+        </p-button>
+      </template>
+    </MarketingBanner>
   </p-layout-default>
 </template>
 
@@ -38,6 +50,7 @@
     subscriptionIntervalKey,
     mapper,
     TaskRunsFilter,
+    MarketingBanner,
     Getter
   } from '@prefecthq/prefect-ui-library'
   import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'

@@ -1,14 +1,32 @@
 import abc
+import shlex
+import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import anyio.abc
-import pydantic
+
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    ExperimentalFeature,
+    experiment_enabled,
+)
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from typing_extensions import Self
 
 import prefect
 from prefect.blocks.core import Block
 from prefect.logging import get_logger
-from prefect.settings import get_current_settings
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    get_current_settings,
+)
 
 MIN_COMPAT_PREFECT_VERSION = "2.0b12"
 
@@ -76,6 +94,12 @@ class Infrastructure(Block, abc.ABC):
     def logger(self):
         return get_logger(f"prefect.infrastructure.{self.type}")
 
+    @property
+    def is_using_a_runner(self):
+        return self.command is not None and "prefect flow-run execute" in shlex.join(
+            self.command
+        )
+
     @classmethod
     def _base_environment(cls) -> Dict[str, str]:
         """
@@ -123,6 +147,22 @@ class Infrastructure(Block, abc.ABC):
         """
         Generate a command for a flow run job.
         """
+        if experiment_enabled("enhanced_cancellation"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Enhanced flow run cancellation",
+                        group="enhanced_cancellation",
+                        help="",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+            return ["prefect", "flow-run", "execute"]
+
         return ["python", "-m", "prefect.engine"]
 
     @staticmethod
@@ -142,7 +182,7 @@ class Infrastructure(Block, abc.ABC):
         Generate a dictionary of environment variables for a flow run job.
         """
         environment = {}
-        environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
+        environment["PREFECT__FLOW_RUN_ID"] = str(flow_run.id)
         return environment
 
     @staticmethod

@@ -19,27 +19,26 @@ search:
 !!! warning "Advanced Topic"
     This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
 
-
 Prefect workers are responsible for setting up execution infrastructure and starting flow runs on that infrastructure.
 
-A list of available workers can be found in the [Work Pools, Workers & Agents documentation](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
+A list of available workers can be found [here](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
 
-## Worker Configuration
+## Worker configuration
 
 When setting up an execution environment for a flow run, a worker receives configuration for the infrastructure it is designed to work with. Examples of configuration values include memory allocation, CPU allocation, credentials, image name, etc. The worker then uses this configuration to create the execution environment and start the flow run.
 
 !!! tip "How are the configuration values populated?"
     The work pool that a worker polls for flow runs has a [base job template](/concepts/work-pools/#base-job-template) associated with it. The template is the contract for how configuration values populate for each flow run.
-    
+
     The keys in the `job_configuration` section of this base job template match the worker's configuration class attributes. The values in the `job_configuration` section of the base job template are used to populate the attributes of the worker's configuration class.
 
     The work pool creator gets to decide how they want to populate the values in the `job_configuration` section of the base job template. The values can be hard-coded, templated using placeholders, or a mix of these two approaches. Because you, as the worker developer, don't know how the work pool creator will populate the values, you should set sensible defaults for your configuration class attributes as a matter of best practice.
 
-### Implementing a `BaseJobConfiguration` Subclass
+### Implementing a `BaseJobConfiguration` subclass
 
-A worker developer defines their worker's configuration to function with a class extending [`BaseJobConfiguration`](/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration). 
+A worker developer defines their worker's configuration to function with a class extending [`BaseJobConfiguration`](/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration).
 
-`BaseJobConfiguration` has attributes that are common to all workers: 
+`BaseJobConfiguration` has attributes that are common to all workers:
 
 | Attribute | Description |
 | --------- | ----------- |
@@ -77,7 +76,7 @@ class MyWorkerConfiguration(BaseJobConfiguration):
         )
 ```
 
-This configuration class will populate the `job_configuration` section of the resulting base job template. 
+This configuration class will populate the `job_configuration` section of the resulting base job template.
 
 For this example, the base job template would look like this:
 
@@ -167,7 +166,7 @@ job_configuration:
 
 Note that to use custom templates, you will need to declare the template variables used in the template because the names of those variables can no longer be inferred from the configuration class attributes. We will cover how to declare the default variable schema in the [Worker Template Variables](#worker-template-variables) section.
 
-### Rules for Template Variable Interpolation
+### Rules for template variable interpolation
 
 When defining a job configuration model, it's useful to understand how template variables are interpolated into the job configuration. The templating engine follows a few simple rules:
 
@@ -177,31 +176,31 @@ When defining a job configuration model, it's useful to understand how template 
 
 These rules allow worker developers and work pool maintainers to define template variables that can be complex types like dictionaries and lists. These rules also mean that worker developers should give reasonable default values to job configuration fields whenever possible because values are not guaranteed to be provided if template variables are unset.
 
-### Template Variable Usage Strategies
+### Template variable usage strategies
 
 Template variables define the interface that deployment creators interact with to configure the execution environments of their deployments. The complexity of this interface can be controlled via the template variables that are defined for a base job template. This control allows work pool maintainers to find a point along the spectrum of flexibility and simplicity appropriate for their organization.
 
 There are two patterns that are represented in current worker implementations:
 
-#### Pass-Through
+#### Pass-through
 
-In the pass-through pattern, template variables are passed through to the job configuration with little change. This pattern exposes complete control to deployment creators but also requires them to understand the details of the execution environment. 
+In the pass-through pattern, template variables are passed through to the job configuration with little change. This pattern exposes complete control to deployment creators but also requires them to understand the details of the execution environment.
 
-This pattern is useful when the execution environment is simple, and the deployment creators are expected to have high technical knowledge. 
+This pattern is useful when the execution environment is simple, and the deployment creators are expected to have high technical knowledge.
 
 The [Docker worker](https://prefecthq.github.io/prefect-docker/worker/) is an example of a worker that uses this pattern.
 
-#### Infrastructure as Code Templating
+#### Infrastructure as code templating
 
-Depending on the infrastructure they interact with, workers can sometimes employ a declarative infrastructure syntax (i.e., infrastructure as code) to create execution environments (e.g., a Kubernetes manifest or an ECS task definition). 
+Depending on the infrastructure they interact with, workers can sometimes employ a declarative infrastructure syntax (i.e., infrastructure as code) to create execution environments (e.g., a Kubernetes manifest or an ECS task definition).
 
-In the IaC pattern, it's often useful to use template variables to template portions of the declarative syntax which then can be used to generate the declarative syntax into a final form. 
+In the IaC pattern, it's often useful to use template variables to template portions of the declarative syntax which then can be used to generate the declarative syntax into a final form.
 
 This approach allows work pool creators to provide a simpler interface to deployment creators while also controlling which portions of infrastructure are configurable by deployment creators.
 
 The [Kubernetes worker](https://prefecthq.github.io/prefect-kubernetes/worker/) is an example of a worker that uses this pattern.
 
-### Configuring Credentials
+### Configuring credentials
 
 When executing flow runs within cloud services, workers will often need credentials to authenticate with those services. For example, a worker that executes flow runs in AWS Fargate will need AWS credentials. As a worker developer, you can use blocks to accept credentials configuration from the user.
 
@@ -219,7 +218,7 @@ class MyWorkerConfiguration(BaseJobConfiguration):
 
 Users can create and assign a block to the `aws_credentials` attribute in the UI and the worker will use these credentials when interacting with AWS resources.
 
-## Worker Template Variables
+## Worker template variables
 
 Providing template variables for a base job template defines the fields that deployment creators can override per deployment. The work pool creator ultimately defines the template variables for a base job template, but the worker developer is able to define default template variables for the worker to make it easier to use.
 
@@ -296,11 +295,11 @@ variables:
             default: 500
 ```
 
-Note that template variable classes are never used directly. Instead, they are used to generate a schema that is used to populate the `variables` section of a base job template and validate the template variables provided by the user. 
+Note that template variable classes are never used directly. Instead, they are used to generate a schema that is used to populate the `variables` section of a base job template and validate the template variables provided by the user.
 
 We don't recommend using template variable classes within your worker implementation for validation purposes because the work pool creator ultimately defines the template variables. The configuration class should handle any necessary run-time validation.
 
-## Worker Implementation
+## Worker implementation
 
 Workers set up execution environments using provided configuration. Workers also observe the execution environment as the flow run executes and report any crashes to the Prefect API.
 
@@ -345,18 +344,17 @@ class MyWorkerResult(BaseWorkerResult):
 
 If you would like to return more information about a flow run, then additional attributes can be added to the `BaseWorkerResult` class.
 
-
 #### `kill_infrastructure`
 
 Workers must implement a `kill_infrastructure` method to support flow run cancellation. The `kill_infrastructure` method is called when a flow run is canceled and is passed an identifier for the infrastructure to tear down and the execution environment configuration for the flow run.
 
-The `infrastructure_pid` passed to the `kill_infrastructure` method is the same identifier used to mark a flow run execution as started in the `run` method. The `infrastructure_pid` must be a string, but it can take on any format you choose. 
+The `infrastructure_pid` passed to the `kill_infrastructure` method is the same identifier used to mark a flow run execution as started in the `run` method. The `infrastructure_pid` must be a string, but it can take on any format you choose.
 
 The `infrastructure_pid` should contain enough information to uniquely identify the infrastructure created for a flow run when used with the `job_configuration` passed to the `kill_infrastructure` method. Examples of useful information include: the cluster name, the hostname, the process ID, the container ID, etc.
 
 If a worker cannot tear down infrastructure created for a flow run, the `kill_infrastructure` command should raise an `InfrastructureNotFound` or `InfrastructureNotAvailable` exception.
 
-### Worker Implementation Example
+### Worker implementation example
 
 Below is an example of a worker implementation. This example is not intended to be a complete implementation but to illustrate the aforementioned concepts.
 
@@ -431,7 +429,7 @@ To see other examples of worker implementations, see the [`ProcessWorker`](/api-
 
 ### Integrating with the Prefect CLI
 
-Workers can be started via the Prefect CLI by providing the `--type` option to the `prefect worker start` CLI command. To make your worker type available via the CLI, it must be available at import time. 
+Workers can be started via the Prefect CLI by providing the `--type` option to the `prefect worker start` CLI command. To make your worker type available via the CLI, it must be available at import time.
 
 If your worker is in a package, you can add an entry point to your setup file in the following format:
 

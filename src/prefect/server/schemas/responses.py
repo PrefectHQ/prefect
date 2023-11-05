@@ -6,17 +6,22 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
-from prefect.server.utilities.schemas import (
-    DateTimeTZ,
+from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.transformations import (
     FieldFrom,
-    ORMBaseModel,
-    PrefectBaseModel,
     copy_model_fields,
 )
 from prefect.utilities.collections import AutoEnum
@@ -227,6 +232,9 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
+DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 30
+
+
 @copy_model_fields
 class DeploymentResponse(ORMBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
@@ -241,6 +249,7 @@ class DeploymentResponse(ORMBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.Deployment)
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
         schemas.core.Deployment
     )
@@ -256,21 +265,40 @@ class DeploymentResponse(ORMBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+    status: Optional[schemas.statuses.DeploymentStatus] = Field(
+        default=schemas.statuses.DeploymentStatus.NOT_READY,
+        description="Whether the deployment is ready to run flows.",
+    )
+    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
 
     @classmethod
     def from_orm(
         cls, orm_deployment: "prefect.server.database.orm_models.ORMDeployment"
     ):
         response = super().from_orm(orm_deployment)
+
         if orm_deployment.work_queue:
             response.work_queue_name = orm_deployment.work_queue.name
             if orm_deployment.work_queue.work_pool:
                 response.work_pool_name = orm_deployment.work_queue.work_pool.name
 
+        not_ready_horizon = datetime.datetime.now(
+            tz=datetime.timezone.utc
+        ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS)
+
+        if response.last_polled and response.last_polled > not_ready_horizon:
+            response.status = schemas.statuses.DeploymentStatus.READY
+        elif (
+            orm_deployment.work_queue
+            and orm_deployment.work_queue.last_polled
+            and orm_deployment.work_queue.last_polled > not_ready_horizon
+        ):
+            response.status = schemas.statuses.DeploymentStatus.READY
+
         return response
 
 
-class WorkQueueResponse(schemas.core.WorkQueue.subclass()):
+class WorkQueueResponse(schemas.core.WorkQueue):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the work pool the work pool resides within.",

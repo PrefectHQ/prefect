@@ -8,9 +8,19 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, root_validator, validator
 
-from prefect.server.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
+
+from prefect.server.utilities.schemas.bases import (
+    IDBaseModel,
+    PrefectBaseModel,
+)
+from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -108,7 +118,7 @@ class State(StateBaseModel, Generic[R]):
         """
         During orchestration, ORM states can be instantiated prior to inserting results
         into the artifact table and the `data` field will not be eagerly loaded. In
-        these cases, sqlalchemy will attept to lazily load the the relationship, which
+        these cases, sqlalchemy will attempt to lazily load the the relationship, which
         will fail when called within a synchronous pydantic method.
 
         This method will construct a `State` object from an ORM model without a loaded

@@ -2,9 +2,16 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
-from fastapi import status
+from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
@@ -464,6 +471,29 @@ class TestGetRunsInWorkQueue:
         assert agent.id == fake_agent_id
         assert agent.work_queue_id == work_queue.id
         assert agent.last_activity_time >= now
+
+    async def test_read_work_queue_runs_associated_deployments_return_status_of_ready(
+        self,
+        client,
+        deployment,
+    ):
+        work_queue_id = deployment.work_queue_id
+        # ensure deployment currently has a not ready status
+        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert deployment_response.status_code == status.HTTP_200_OK
+        assert deployment_response.json()["status"] == "NOT_READY"
+
+        # trigger a poll of the work queue, which should update the deployment status
+        response = await client.post(
+            f"/work_queues/{work_queue_id}/get_runs",
+            json=dict(),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # check that the deployment status is now ready
+        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert updated_deployment_response.status_code == status.HTTP_200_OK
+        assert updated_deployment_response.json()["status"] == "READY"
 
 
 class TestDeleteWorkQueue:

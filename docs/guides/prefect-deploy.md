@@ -24,7 +24,7 @@ In this guide, we will dive deep into configuring a deployment for a worker and 
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
 
-Creating a _deployment_ for a Prefect workflow means packaging workflow code, settings, and infrastructure configuration so that the workflow can be managed via the Prefect API and run remotely by a Prefect agent.
+Creating a _deployment_ for a Prefect workflow means packaging workflow code, settings, and infrastructure configuration so that the workflow can be managed via the Prefect API and run remotely by a Prefect worker.
 
 The following diagram provides a high-level overview of the conceptual elements involved in defining a deployment and executing a flow run based on that deployment.
 
@@ -65,9 +65,9 @@ flowchart LR
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
 
-When creating a deployment, we must answer *two* basic questions:
+When creating a deployment, we must answer _two_ basic questions:
 
-- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow? 
+- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow?
 For example, a flow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
@@ -95,7 +95,7 @@ You can initialize your deployment configuration, which creates the `prefect.yam
 
 The `prefect.yaml` file contains deployment configuration for deployments created from this file, default instructions for how to build and push any necessary code artifacts (such as Docker images), and default instructions for pulling a deployment in remote execution environments (e.g., cloning a GitHub repository).
 
-Any deployment configuration can be overridden via options available on the `prefect deploy` CLI command when creating a deployment. 
+Any deployment configuration can be overridden via options available on the `prefect deploy` CLI command when creating a deployment.
 
 The base structure for `prefect.yaml` is as follows:
 
@@ -137,8 +137,8 @@ You can create deployments via the CLI command `prefect deploy` without ever nee
 
 ### Deployment actions
 
-Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of your deployments. 
-The three actions available are `build`, `push`, and `pull`. 
+Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of your deployments.
+The three actions available are `build`, `push`, and `pull`.
 `pull` is the only required deployment action — it is used to define how Prefect will pull your deployment in remote execution environments.
 
 Each action is defined as a list of steps that are executing in sequence.
@@ -163,7 +163,6 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 
     This capability is useful with multiple deployments that require different deployment instructions.
 
-
 ### The build action
 
 The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image. If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
@@ -177,7 +176,7 @@ $ prefect init --recipe docker
 </div>
 
 !!! tip "Use `--field` to avoid the interactive experience"
-    We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control. 
+    We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control.
     However, sometimes you may need to initialize programmatically and avoid the interactive prompts.  
     To do so, provide all required fields for your recipe using the `--field` flag:
     <div class="terminal">
@@ -185,7 +184,7 @@ $ prefect init --recipe docker
     $ prefect init --recipe docker \
         --field image_name=my-repo/my-image \
         --field tag=my-tag
-    ```
+```
     </div>
 
 ```yaml
@@ -201,7 +200,6 @@ build:
 Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  
 [As the `prefect-docker` package documentation notes](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  
 It is best practice to use `{{ image }}` within `prefect.yaml` (specifically the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  
-
 
 !!! note Some steps require Prefect integrations
     Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
@@ -303,9 +301,10 @@ pull:
 ```
 
 ### Utility steps
+
 Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
-- `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script. 
+- `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script.
 This step is useful for scripts that require execution in a specific environment, or those which have specific input and output requirements.
 
 Here is an example of retrieving the short Git commit hash of the current repository to use as a Docker image tag:
@@ -343,12 +342,11 @@ Below is an example of installing dependencies from a `requirements.txt` file af
 ```yaml
 pull:
     - prefect.deployments.steps.git_clone:
-        id: clone-step
+        id: clone-step  # needed in order to be referenced in subsequent steps
         repository: https://github.com/org/repo.git
     - prefect.deployments.steps.pip_install_requirements:
-        directory: {{ clone-step.directory }}
+        directory: {{ clone-step.directory }}  # `clone-step` is a user-provided `id` field
         requirements_file: requirements.txt
-        stream_output: False
 ```
 
 Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
@@ -365,7 +363,7 @@ pull:
     access_token: "{{ get-access-token.stdout }}"
 ```
 
-You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a Docker image (which is /opt/prefect by default). 
+You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a Docker image (which is /opt/prefect by default).
 `main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval.
 
 ```yaml
@@ -427,9 +425,11 @@ So long as our `build` steps produce fields called `image_name` and `tag`, every
     The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
 
     For an example, [check out the deployments tutorial](/guides/deployment/docker/).
+
 ### Deployment Configurations
 
 Each `prefect.yaml` file can have multiple deployment configurations that control the behavior of created deployments. These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations in the same codebase.
+
 ### Working With Multiple Deployments
 
 Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments to be version controlled and deployed with a single command.
@@ -468,7 +468,7 @@ deployments:
 
 This file has three deployment declarations, each referencing a different flow. Each deployment declaration has a unique `name` field and can be deployed individually by using the `--name` flag when deploying.
 
-For example, to deploy `deployment-1` we would run:
+For example, to deploy `deployment-1` you would run:
 
 <div class="terminal">
 ```bash
@@ -500,11 +500,19 @@ $ prefect deploy --all
 ```
 </div>
 
+To deploy deployments that match a pattern you can run:
+<div class="terminal">
+```bash
+$ prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
+```
+</div>
+The above command will deploy all deployments from the flow `my-flow`, all flows ending in `dev` with a deployment named `my-deployment`, and all deployments starting with `dep` and ending in `prod`.
+
 !!! note "CLI Options When Deploying Multiple Deployments"
     When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided via the CLI will be ignored.
 
     To provide overrides to a deployment via the CLI, you must deploy that deployment individually.
-    
+
 ### Reusing configuration across deployments
 
 Because a `prefect.yaml` file is a standard YAML file, you can use [YAML aliases](https://yaml.org/spec/1.2.2/#71-alias-nodes) to reuse configuration across deployments.
@@ -576,6 +584,7 @@ In the above example, we are using YAML aliases to reuse work pool, schedule, an
 - `deployment-1` and `deployment-2` are using the same build deployment action, but `deployment-2` is overriding the `dockerfile` field to use a custom Dockerfile
 
 ## Deployment Declaration Reference
+
 ### Deployment Fields
 
 Below are fields that can be added to each deployment declaration.
@@ -590,6 +599,7 @@ Below are fields that can be added to each deployment declaration.
 | `triggers`                                  | An optional array of [triggers](/concepts/deployments/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
+| <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
 | `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
 ### Schedule Fields
@@ -623,7 +633,7 @@ Anytime you run `prefect deploy` in a directory that contains a `prefect.yaml` f
 
 - The `prefect.yaml` file is loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided.
 - Next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
-- Next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime
+- Next, the `pull` section is templated with any step outputs but _is not run_.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime
 - Next, all variable and block references are resolved with the deployment declaration.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file.
 - The final step occurs when the fully realized deployment specification is registered with the Prefect API
 

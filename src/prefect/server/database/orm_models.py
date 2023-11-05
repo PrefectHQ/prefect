@@ -684,7 +684,7 @@ class ORMTaskRun(ORMRun):
         return sa.Column(
             UUID(),
             sa.ForeignKey("flow_run.id", ondelete="cascade"),
-            nullable=False,
+            nullable=True,
             index=True,
         )
 
@@ -842,6 +842,10 @@ class ORMDeployment:
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
     work_queue_name = sa.Column(sa.String, nullable=True, index=True)
+    last_polled = sa.Column(
+        Timestamp(),
+        nullable=True,
+    )
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)
     entrypoint = sa.Column(sa.String, nullable=True)
@@ -872,6 +876,9 @@ class ORMDeployment:
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
+    enforce_parameter_schema = sa.Column(
+        sa.Boolean, default=False, server_default="0", nullable=False
+    )
     created_by = sa.Column(
         Pydantic(schemas.core.CreatedBy),
         server_default=None,
@@ -974,7 +981,7 @@ class ORMConcurrencyLimitV2:
     active_slots = sa.Column(sa.Integer, nullable=False)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
 
-    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=True)
+    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)
     avg_slot_occupancy_seconds = sa.Column(sa.Float, default=2.0, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
@@ -1066,6 +1073,8 @@ class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
+
+    block_type_name = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def block_type_id(cls):

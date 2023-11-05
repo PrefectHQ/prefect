@@ -50,7 +50,7 @@ The full complement of states and state types includes:
 | Pending | PENDING | No | The run has been submitted to run, but is waiting on necessary preconditions to be satisfied. |
 | Running | RUNNING | No | The run code is currently executing. |
 | Retrying | RUNNING | No | The run code is currently executing after previously not complete successfully. |
-| Paused | PAUSED | No | The run code has stopped executing until it recieves manual approval to proceed. |
+| Paused | PAUSED | No | The run code has stopped executing until it receives manual approval to proceed. |
 | Cancelling | CANCELLING | No | The infrastructure on which the code was running is being cleaned up. |
 | Cancelled | CANCELLED | Yes | The run did not complete because a user determined that it should not. |
 | Completed | COMPLETED | Yes | The run completed successfully. |
@@ -235,6 +235,56 @@ def my_succeed_or_fail_hook(task, task_run, state):
     on_completion=[my_success_hook, my_succeed_or_fail_hook],
     on_failure=[my_failure_hook, my_succeed_or_fail_hook]
 )
+```
+
+#### Pass `kwargs` to your hooks
+The Prefect engine will call your hooks for you upon the state change, passing in the flow, flow run, and state objects.
+
+However, you can define your hook to have additional default arguments:
+```python
+from prefect import flow
+
+data = {}
+
+def my_hook(flow, flow_run, state, my_arg="custom_value"):
+    data.update(my_arg=my_arg, state=state)
+
+@flow(on_completion=[my_hook])
+def lazy_flow():
+    pass
+
+state = lazy_flow(return_state=True)
+
+assert data == {"my_arg": "custom_value", "state": state}
+```
+
+
+... or define your hook to accept arbitrary keyword arguments:
+```python
+from functools import partial
+from prefect import flow, task
+
+data = {}
+
+def my_hook(task, task_run, state, **kwargs):
+    data.update(state=state, **kwargs)
+
+@task
+def bad_task():
+    raise ValueError("meh")
+
+@flow
+def ok_with_failure_flow(x: str = "foo", y: int = 42):
+    bad_task_with_a_hook = bad_task.with_options(
+        on_failure=[partial(my_hook, **dict(x=x, y=y))]
+    )
+    # return a tuple of "bar" and the task run state
+    # to avoid raising the task's exception
+    return "bar", bad_task_with_a_hook(return_state=True)
+
+_, task_run_state = ok_with_failure_flow()
+
+assert data == {"x": "foo", "y": 42, "state": task_run_state}
 ```
 
 ### More examples of state change hooks

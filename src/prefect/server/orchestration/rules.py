@@ -22,7 +22,14 @@ from types import TracebackType
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import sqlalchemy as sa
-from pydantic import Field
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
@@ -429,8 +436,9 @@ class TaskOrchestrationContext(OrchestrationContext):
                 state_result_artifact = core.Artifact.from_result(state_data)
                 state_result_artifact.task_run_id = self.run.id
 
-                flow_run = await self.flow_run()
-                state_result_artifact.flow_run_id = flow_run.id
+                if self.run.flow_run_id is not None:
+                    flow_run = await self.flow_run()
+                    state_result_artifact.flow_run_id = flow_run.id
 
                 await artifacts.create_artifact(self.session, state_result_artifact)
                 state_payload["result_artifact_id"] = state_result_artifact.id
@@ -662,7 +670,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             mutating the run can also cause unintended writes to the database.
 
         Args:
-            initial_state: The initial state of a transtion
+            initial_state: The initial state of a transition
             proposed_state: The proposed state of a transition
             context: A safe copy of the `OrchestrationContext`, with the exception of
                 `context.run`, mutating this context will have no effect on the broader
@@ -682,7 +690,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Implements a hook that can fire after a state is committed to the database.
 
         Args:
-            initial_state: The initial state of a transtion
+            initial_state: The initial state of a transition
             validated_state: The governed state that has been committed to the database
             context: A safe copy of the `OrchestrationContext`, with the exception of
                 `context.run`, mutating this context will have no effect on the broader
@@ -707,7 +715,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         keeps track of all other rules that might govern a transition.
 
         Args:
-            initial_state: The initial state of a transtion
+            initial_state: The initial state of a transition
             validated_state: The governed state that has been committed to the database
             context: A safe copy of the `OrchestrationContext`, with the exception of
                 `context.run`, mutating this context will have no effect on the broader

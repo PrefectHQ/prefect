@@ -31,7 +31,13 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, validator
+else:
+    from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
@@ -103,6 +109,13 @@ class ProcessJobConfiguration(BaseJobConfiguration):
             else self.command
         )
 
+    def _base_flow_run_command(self) -> str:
+        """
+        Override the base flow run command because enhanced cancellation doesn't
+        work with the process worker.
+        """
+        return "python -m prefect.engine"
+
 
 class ProcessVariables(BaseVariables):
     stream_output: bool = Field(
@@ -140,7 +153,7 @@ class ProcessWorker(BaseWorker):
     _documentation_url = (
         "https://docs.prefect.io/latest/api-ref/prefect/workers/process/"
     )
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
 
     async def run(
         self,

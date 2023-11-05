@@ -8,8 +8,16 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, status
-from fastapi.responses import ORJSONResponse
+from prefect._vendor.fastapi import (
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Response,
+    status,
+)
+from prefect._vendor.fastapi.responses import ORJSONResponse
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -18,9 +26,14 @@ from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.models.flow_runs import DependencyResult
+from prefect.server.exceptions import FlowRunGraphTooLarge
+from prefect.server.models.flow_runs import (
+    DependencyResult,
+    read_flow_run_graph,
+)
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
@@ -233,7 +246,7 @@ async def read_flow_run(
 
 
 @router.get("/{id}/graph")
-async def read_flow_run_graph(
+async def read_flow_run_graph_v1(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[DependencyResult]:
@@ -244,6 +257,32 @@ async def read_flow_run_graph(
         return await models.flow_runs.read_task_run_dependencies(
             session=session, flow_run_id=flow_run_id
         )
+
+
+@router.get("/{id:uuid}/graph-v2")
+async def read_flow_run_graph_v2(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    since: datetime.datetime = Query(
+        datetime.datetime.min,
+        description="Only include runs that start or end after this time.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> Graph:
+    """
+    Get a graph of the tasks and subflow runs for the given flow run
+    """
+    async with db.session_context() as session:
+        try:
+            return await read_flow_run_graph(
+                session=session,
+                flow_run_id=flow_run_id,
+                since=since,
+            )
+        except FlowRunGraphTooLarge as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
 
 
 @router.post("/{id}/resume")

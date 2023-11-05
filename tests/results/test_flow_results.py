@@ -1,9 +1,13 @@
+import base64
+import pickle
+
 import pytest
 
+from prefect import flow, task
+from prefect.context import get_run_context
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import flow
-from prefect.results import UnpersistedResult
+from prefect.results import PersistedResultBlob, UnpersistedResult
 from prefect.serializers import (
     CompressedSerializer,
     JSONSerializer,
@@ -11,9 +15,15 @@ from prefect.serializers import (
     Serializer,
 )
 from prefect.server import schemas
-from prefect.settings import PREFECT_HOME
+from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_HOME,
+    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
+    temporary_settings,
+)
 from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (
+    assert_blocks_equal,
     assert_uses_result_serializer,
     assert_uses_result_storage,
 )
@@ -441,3 +451,94 @@ def test_flow_server_state_schema_result_is_respected(persist_result, return_sta
     if return_state.data:
         with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
             assert state.result(raise_on_failure=False) == return_state.data
+
+
+async def test_root_flow_default_remote_storage():
+    @flow
+    async def foo():
+        result_fac = get_run_context().result_factory
+        return result_fac.storage_block
+
+    block = LocalFileSystem()
+    await block.save("my-result-storage")
+
+    with temporary_settings(
+        {
+            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+        }
+    ):
+        storage_block = await foo()
+
+    assert_blocks_equal(storage_block, block)
+    assert storage_block._is_anonymous is False
+
+
+async def test_root_flow_default_remote_storage_saves_correct_result():
+    await LocalFileSystem(basepath="~/.prefect/results").save("my-result-storage")
+
+    @task(result_storage_key="my-result.pkl")
+    async def bar():
+        return {"foo": "bar"}
+
+    @flow
+    async def foo():
+        return await bar()
+
+    with temporary_settings(
+        {
+            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+        }
+    ):
+        result = await foo()
+
+    assert result == {"foo": "bar"}
+    local_storage = await LocalFileSystem.load("my-result-storage")
+    result_bytes = await local_storage.read_path("~/.prefect/results/my-result.pkl")
+    saved_python_result = pickle.loads(
+        base64.b64decode(PersistedResultBlob.parse_raw(result_bytes).data)
+    )
+
+    assert saved_python_result == {"foo": "bar"}
+
+
+async def test_root_flow_nonexistent_default_storage_block_fails():
+    @flow
+    async def foo():
+        result_fac = get_run_context().result_factory
+        return result_fac.storage_block
+
+    with temporary_settings(
+        {
+            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+        }
+    ):
+        with pytest.raises(
+            ValueError, match="Unable to find block document named my-result-storage"
+        ):
+            await foo()
+
+
+async def test_root_flow_explicit_result_storage_settings_overrides_default():
+    await LocalFileSystem(basepath="~/.prefect/results").save("explicit-storage")
+    await LocalFileSystem(basepath="~/.prefect/other-results").save(
+        "default-result-storage"
+    )
+
+    @flow(result_storage=await LocalFileSystem.load("explicit-storage"))
+    async def foo():
+        return get_run_context().result_factory.storage_block
+
+    with temporary_settings(
+        {
+            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: (
+                "local-file-system/default-result-storage"
+            ),
+        }
+    ):
+        result = await foo()
+
+    assert_blocks_equal(result, await LocalFileSystem.load("explicit-storage"))

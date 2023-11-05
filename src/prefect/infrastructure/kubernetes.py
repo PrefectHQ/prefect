@@ -9,7 +9,14 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 
 import anyio.abc
 import yaml
-from pydantic import Field, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
+
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -82,7 +89,7 @@ class KubernetesJob(Infrastructure):
         stream_output: If set, stream output from the job to local standard output.
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob"
 
     type: Literal["kubernetes-job"] = Field(
@@ -184,7 +191,7 @@ class KubernetesJob(Infrastructure):
         )
         if incompatible:
             raise ValueError(
-                "Job has incompatble values for the following attributes: "
+                "Job has incompatible values for the following attributes: "
                 f"{', '.join(incompatible)}"
             )
         return value

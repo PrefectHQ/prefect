@@ -1,3 +1,4 @@
+import json
 import os
 import threading
 from enum import Enum
@@ -101,6 +102,15 @@ async def start(
         help="Install policy to use workers from Prefect integration packages.",
         case_sensitive=False,
     ),
+    base_job_template: typer.FileText = typer.Option(
+        None,
+        "--base-job-template",
+        help=(
+            "The path to a JSON file containing the base job template to use. If"
+            " unspecified, Prefect will use the default base job template for the given"
+            " worker type. If the work pool already exists, this will be ignored."
+        ),
+    ),
 ):
     """
     Start a worker process to poll a work pool for flow runs.
@@ -129,6 +139,10 @@ async def start(
         worker_process_id, f"the {worker_type} worker", app.console.print
     )
 
+    template_contents = None
+    if base_job_template is not None:
+        template_contents = json.load(fp=base_job_template)
+
     async with worker_cls(
         name=worker_name,
         work_pool_name=work_pool_name,
@@ -136,6 +150,7 @@ async def start(
         limit=limit,
         prefetch_seconds=prefetch_seconds,
         heartbeat_interval_seconds=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+        base_job_template=template_contents,
     ) as worker:
         app.console.print(f"Worker {worker.name!r} started!", style="green")
         async with anyio.create_task_group() as tg:
@@ -301,8 +316,9 @@ async def _get_worker_class(
             # Confirm with the user for installation in an interactive session
             elif install_policy == InstallPolicy.PROMPT and is_interactive():
                 message = (
-                    f"Could not find a {worker_type} worker in the current"
-                    " environment. Install it now?"
+                    "Could not find the Prefect integration library for the"
+                    f" {worker_type} worker in the current environment."
+                    " Install the library now?"
                 )
                 should_install = confirm(message, default=True)
 

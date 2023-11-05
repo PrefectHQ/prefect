@@ -7,11 +7,14 @@ tags:
     - AWS ECS
     - Azure Container Instance
     - ACI
+    - push work pools
 search:
   boost: 2
 ---
 
-# Push Work to Serverless Computing Infrastructure <span class="badge cloud"></span> <span class="badge beta"></span>
+
+# Push Work to Serverless Computing Infrastructure <span class="badge cloud"></span>
+
 Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without running a worker. Push work pools currently support execution in GCP Cloud Run Jobs, Azure Container Instances, and AWS ECS Tasks.
 
 In this guide you will:
@@ -111,6 +114,10 @@ Now navigate to work pools and click create to start configuring your push work 
     Fill in the subscription ID and resource group name from the resource group you created.  Add the Azure Container Instance Credentials block you created in the step above. 
 
 Create your pool and you are ready to deploy flows to your Push work pool.
+
+!!! note "Push work pool concurrency"
+
+    Push work pools do not have a concurrency setting. If you would like to control concurrency at the flow level, you can use [global concurrency limits](/guides/global-concurrency-limits/).
 
 ## Deployment
 

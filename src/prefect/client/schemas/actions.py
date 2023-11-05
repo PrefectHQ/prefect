@@ -4,7 +4,13 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
 import jsonschema
-from pydantic import Field, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.compatibility.experimental import experimental_field
@@ -121,6 +127,13 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(objects.Deployment)
     flow_id: UUID = FieldFrom(objects.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(objects.Deployment)
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
+    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
     parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
     tags: List[str] = FieldFrom(objects.Deployment)
     pull_steps: Optional[List[dict]] = FieldFrom(objects.Deployment)
@@ -136,7 +149,6 @@ class DeploymentCreate(ActionBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
     schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
     description: Optional[str] = FieldFrom(objects.Deployment)
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
     path: Optional[str] = FieldFrom(objects.Deployment)
     version: Optional[str] = FieldFrom(objects.Deployment)
     entrypoint: Optional[str] = FieldFrom(objects.Deployment)
@@ -208,7 +220,10 @@ class DeploymentUpdate(ActionBaseModel):
     schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
     description: Optional[str] = FieldFrom(objects.Deployment)
     is_schedule_active: bool = FieldFrom(objects.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
     tags: List[str] = FieldFrom(objects.Deployment)
     work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
     work_pool_name: Optional[str] = Field(
@@ -222,6 +237,12 @@ class DeploymentUpdate(ActionBaseModel):
     manifest_path: Optional[str] = FieldFrom(objects.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -266,7 +287,7 @@ class TaskRunCreate(ActionBaseModel):
     )
 
     name: str = FieldFrom(objects.TaskRun)
-    flow_run_id: UUID = FieldFrom(objects.TaskRun)
+    flow_run_id: Optional[UUID] = FieldFrom(objects.TaskRun)
     task_key: str = FieldFrom(objects.TaskRun)
     dynamic_key: str = FieldFrom(objects.TaskRun)
     cache_key: Optional[str] = FieldFrom(objects.TaskRun)
@@ -446,7 +467,7 @@ class LogCreate(ActionBaseModel):
     level: int = FieldFrom(objects.Log)
     message: str = FieldFrom(objects.Log)
     timestamp: objects.DateTimeTZ = FieldFrom(objects.Log)
-    flow_run_id: UUID = FieldFrom(objects.Log)
+    flow_run_id: Optional[UUID] = FieldFrom(objects.Log)
     task_run_id: Optional[UUID] = FieldFrom(objects.Log)
 
 

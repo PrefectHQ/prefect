@@ -12,7 +12,14 @@ from typing import Dict, Tuple, Union
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import Literal
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
@@ -69,7 +76,7 @@ class Process(Infrastructure):
             a tmp directory will be used.
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
     _documentation_url = "https://docs.prefect.io/concepts/infrastructure/#process"
 
     type: Literal["process"] = Field(

@@ -1,11 +1,19 @@
 from typing import List
-from uuid import uuid4
+from unittest import mock
+from uuid import UUID, uuid4
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 import sqlalchemy as sa
-from fastapi import status
+from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas import actions, core, responses, states
@@ -20,7 +28,7 @@ class TestCreateFlowRun:
             "/flow_runs/",
             json=actions.FlowRunCreate(
                 flow_id=flow.id,
-                name="orange you glad i didnt say yellow salamander",
+                name="orange you glad i didn't say yellow salamander",
                 state=states.Pending(),
             ).dict(json_compatible=True),
         )
@@ -29,7 +37,7 @@ class TestCreateFlowRun:
         assert response.json()["id"]
         assert response.json()["state"]["type"] == "PENDING"
         assert (
-            response.json()["name"] == "orange you glad i didnt say yellow salamander"
+            response.json()["name"] == "orange you glad i didn't say yellow salamander"
         )
 
         flow_run = await models.flow_runs.read_flow_run(
@@ -259,6 +267,34 @@ class TestReadFlowRun:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(flow_run.id)
         assert response.json()["flow_id"] == str(flow.id)
+
+    async def test_read_flow_run_like_the_engine_does(self, flow, flow_run, client):
+        """Regression test for the hex format of UUIDs in `PREFECT__FLOW_RUN_ID`
+
+        The only route that is requested in this way is `GET /flow_runs/{id}`; other
+        methods aren't affected because they are based on prior requests for flow runs
+        and will use a fully-formatted UUID with dashes.
+        """
+
+        flow_run_id = flow_run.id.hex
+        assert "-" not in flow_run_id
+        assert len(flow_run_id) == 32
+
+        response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == str(flow_run.id)
+        assert response.json()["flow_id"] == str(flow.id)
+
+    async def test_read_flow_run_with_invalid_id_is_rejected(self, client):
+        """Additional safety check with for the above regression test to confirm that
+        we're not attempting query with any old string as a flow run ID."""
+        with mock.patch("prefect.server.models.flow_runs.read_flow_run") as mock_read:
+            response = await client.get("/flow_runs/THISAINTIT")
+            # Ideally this would be a 404, but we're letting FastAPI take care of this
+            # at the parameter parsing level, so it's a 422
+            assert response.status_code == 422
+
+        mock_read.assert_not_called()
 
     async def test_read_flow_run_with_state(self, flow_run, client, session):
         state_id = uuid4()
@@ -644,6 +680,131 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
+
+    @pytest.fixture
+    async def parent_flow_run(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Pending(),
+            ),
+        )
+        await session.commit()
+        return flow_run
+
+    @pytest.fixture
+    async def child_runs(
+        self,
+        flow,
+        parent_flow_run,
+        session,
+    ):
+        children = []
+        for i in range(5):
+            dummy_task = await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.core.TaskRun(
+                    flow_run_id=parent_flow_run.id,
+                    name=f"dummy-{i}",
+                    task_key=f"dummy-{i}",
+                    dynamic_key=f"dummy-{i}",
+                ),
+            )
+            children.append(
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=flow.id,
+                        flow_version="1.0",
+                        state=schemas.states.Pending(),
+                        parent_task_run_id=dummy_task.id,
+                    ),
+                )
+            )
+        return children
+
+    @pytest.fixture
+    async def grandchild_runs(self, flow, child_runs, session):
+        grandchildren = []
+        for child in child_runs:
+            for i in range(3):
+                dummy_task = await models.task_runs.create_task_run(
+                    session=session,
+                    task_run=schemas.core.TaskRun(
+                        flow_run_id=child.id,
+                        name=f"dummy-{i}",
+                        task_key=f"dummy-{i}",
+                        dynamic_key=f"dummy-{i}",
+                    ),
+                )
+                grandchildren.append(
+                    await models.flow_runs.create_flow_run(
+                        session=session,
+                        flow_run=schemas.core.FlowRun(
+                            flow_id=flow.id,
+                            flow_version="1.0",
+                            state=schemas.states.Pending(),
+                            parent_task_run_id=dummy_task.id,
+                        ),
+                    )
+                )
+        return grandchildren
+
+    async def test_read_subflow_runs(
+        self,
+        client,
+        parent_flow_run,
+        child_runs,
+        # included to make sure we're only going 1 level deep
+        grandchild_runs,
+        # included to make sure we're not bringing in extra flow runs
+        flow_runs,
+    ):
+        """We should be able to find all subflow runs of a given flow run."""
+        subflow_filter = {
+            "flow_runs": schemas.filters.FlowRunFilter(
+                parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
+                    any_=[parent_flow_run.id]
+                )
+            ).dict(json_compatible=True)
+        }
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=subflow_filter,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == len(child_runs)
+
+        returned = {UUID(run["id"]) for run in response.json()}
+        expected = {run.id for run in child_runs}
+        assert returned == expected
+
+    async def test_read_subflow_runs_non_existant(
+        self,
+        client,
+        # including these to make sure we aren't bringing in extra flow runs
+        parent_flow_run,
+        child_runs,
+        grandchild_runs,
+        flow_runs,
+    ):
+        subflow_filter = {
+            "flow_runs": schemas.filters.FlowRunFilter(
+                parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
+                    any_=[uuid4()]
+                )
+            ).dict(json_compatible=True)
+        }
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=subflow_filter,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 0
 
 
 class TestReadFlowRunGraph:

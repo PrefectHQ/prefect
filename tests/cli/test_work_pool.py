@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import httpx
 import pytest
@@ -10,6 +11,7 @@ from prefect.client.schemas.objects import WorkPool
 from prefect.exceptions import ObjectNotFound
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 
 FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
@@ -94,6 +96,47 @@ class TestCreate:
         assert client_res.name == pool_name
         assert client_res.base_job_template == {}
         assert isinstance(client_res, WorkPool)
+
+    async def test_create_work_pool_with_base_job_template(
+        self, prefect_client, mock_collection_registry
+    ):
+        pool_name = "my-olympic-pool"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "create",
+                pool_name,
+                "--type",
+                "process",
+                "--base-job-template",
+                Path(__file__).parent / "base-job-templates" / "process-worker.json",
+            ],
+            expected_code=0,
+            expected_output="Created work pool 'my-olympic-pool'.",
+        )
+
+        client_res = await prefect_client.read_work_pool(pool_name)
+        assert isinstance(client_res, WorkPool)
+        assert client_res.name == pool_name
+        assert client_res.base_job_template == {
+            "job_configuration": {"command": "{{ command }}", "name": "{{ name }}"},
+            "variables": {
+                "properties": {
+                    "command": {
+                        "description": "Command to run.",
+                        "title": "Command",
+                        "type": "string",
+                    },
+                    "name": {
+                        "description": "Description.",
+                        "title": "Name",
+                        "type": "string",
+                    },
+                },
+                "type": "object",
+            },
+        }
 
     async def test_create_work_pool_with_empty_name(
         self, prefect_client, mock_collection_registry
@@ -186,17 +229,19 @@ class TestCreate:
         assert client_res.type == "process"
         assert isinstance(client_res, WorkPool)
 
-    def test_create_with_unsupported_type(self):
+    def test_create_with_unsupported_type(self, monkeypatch):
+        def available():
+            return ["process"]
+
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
         invoke_and_assert(
             ["work-pool", "create", "my-pool", "--type", "unsupported"],
             expected_code=1,
-            expected_output_contains=[
-                "Unknown work pool type 'unsupported'.",
-                "Please choose from",
-                "process",
-                "prefect-agent",
-                "fake",
-            ],
+            expected_output=(
+                "Unknown work pool type 'unsupported'. Please choose from fake,"
+                " prefect-agent, process."
+            ),
         )
 
     def test_create_non_interactive_missing_args(self):
@@ -342,6 +387,174 @@ class TestLS:
         assert res.exit_code == 0
 
 
+class TestUpdate:
+    async def test_update_description(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        metamorphosis = (
+            "One morning, as Gregor Samsa was waking up from anxious dreams, he"
+            " discovered that in bed he had been changed into a monstrous verminous"
+            " bug."
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--description",
+                metamorphosis,
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.description == metamorphosis
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+        assert client_res.concurrency_limit == work_pool.concurrency_limit
+
+    async def test_update_concurrency_limit(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--concurrency-limit",
+                123456,
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.concurrency_limit == 123456
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.description == work_pool.description
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+
+        # Verify that the concurrency limit is unmodified when changing another
+        # setting
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--description",
+                "Hello world lorem ipsum",
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.concurrency_limit == 123456
+        assert client_res.description == "Hello world lorem ipsum"
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+
+    async def test_update_base_job_template(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--base-job-template",
+                Path(__file__).parent / "base-job-templates" / "process-worker.json",
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.base_job_template != work_pool.base_job_template
+        assert client_res.base_job_template == {
+            "job_configuration": {"command": "{{ command }}", "name": "{{ name }}"},
+            "variables": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "title": "Name",
+                        "description": "Description.",
+                        "type": "string",
+                    },
+                    "command": {
+                        "title": "Command",
+                        "description": "Command to run.",
+                        "type": "string",
+                    },
+                },
+            },
+        }
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.description == work_pool.description
+        assert client_res.type == work_pool.type
+        assert client_res.is_paused == work_pool.is_paused
+        assert client_res.concurrency_limit == work_pool.concurrency_limit
+
+    async def test_update_multi(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--description",
+                "Foo bar baz",
+                "--concurrency-limit",
+                300,
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.description == "Foo bar baz"
+        assert client_res.concurrency_limit == 300
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+
+
 class TestPreview:
     async def test_preview(self, prefect_client, work_pool):
         res = await run_sync_in_worker_thread(
@@ -349,3 +562,75 @@ class TestPreview:
             f"work-pool preview {work_pool.name}",
         )
         assert res.exit_code == 0
+
+
+class TestGetDefaultBaseJobTemplate:
+    @pytest.fixture(autouse=True)
+    async def mock_collection_registry(self, respx_mock):
+        respx_mock.get(
+            "https://raw.githubusercontent.com/PrefectHQ/"
+            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "prefect": {
+                        "prefect-agent": {
+                            "type": "prefect-agent",
+                            "default_base_job_configuration": {},
+                        }
+                    },
+                    "prefect-fake": {
+                        "fake": {
+                            "type": "fake",
+                            "default_base_job_configuration": (
+                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
+                            ),
+                        }
+                    },
+                },
+            )
+        )
+
+    async def test_unknown_type(self, mock_collection_registry, monkeypatch):
+        def available():
+            return ["process"]
+
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "get-default-base-job-template", "--type", "foobar"],
+            expected_code=1,
+            expected_output=(
+                "Unknown work pool type 'foobar'. Please choose from fake,"
+                " prefect-agent, process."
+            ),
+        )
+
+    async def test_stdout(self, mock_collection_registry):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "get-default-base-job-template", "--type", "fake"],
+            expected_code=0,
+            expected_output_contains="fake_var",
+        )
+
+    async def test_file(self, mock_collection_registry, tmp_path):
+        file = tmp_path / "out.json"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "get-default-base-job-template",
+                "--type",
+                "fake",
+                "--file",
+                file,
+            ],
+            expected_code=0,
+        )
+
+        contents = file.read_text()
+        assert "job_configuration" in contents
+        assert len(contents) == 211

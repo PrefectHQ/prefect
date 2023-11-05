@@ -7,7 +7,14 @@ import datetime
 from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import parse_obj_as
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import parse_obj_as
+else:
+    from pydantic import parse_obj_as
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -327,7 +334,7 @@ async def _legacy_get_runs_in_work_queue(
     # if the work queue has a concurrency limit, check how many runs are currently
     # executing and compare that count to the concurrency limit
     if work_queue.concurrency_limit is not None:
-        # Note this does not guarantee race conditions wont be hit
+        # Note this does not guarantee race conditions won't be hit
         running_frs = await models.flow_runs.count_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(

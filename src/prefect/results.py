@@ -13,17 +13,28 @@ from typing import (
     Union,
 )
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from typing_extensions import Self
 
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingContextError, MissingResult
-from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
+from prefect.filesystems import (
+    LocalFileSystem,
+    ReadableFileSystem,
+    WritableFileSystem,
+)
 from prefect.logging import get_logger
 from prefect.serializers import Serializer
 from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
@@ -50,11 +61,17 @@ logger = get_logger("results")
 R = TypeVar("R")
 
 
-def get_default_result_storage() -> ResultStorage:
+@sync_compatible
+async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
-    return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+
+    return (
+        await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+        if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
+        else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+    )
 
 
 def get_default_result_serializer() -> ResultSerializer:
@@ -118,7 +135,7 @@ class ResultFactory(pydantic.BaseModel):
     persist_result: bool
     cache_result_in_memory: bool
     serializer: Serializer
-    storage_block_id: uuid.UUID
+    storage_block_id: Optional[uuid.UUID]
     storage_block: WritableFileSystem
     storage_key_fn: Callable[[], str]
 
@@ -137,7 +154,7 @@ class ResultFactory(pydantic.BaseModel):
                 kwargs.pop(key)
 
         # Apply defaults
-        kwargs.setdefault("result_storage", get_default_result_storage())
+        kwargs.setdefault("result_storage", await get_default_result_storage())
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
@@ -258,7 +275,7 @@ class ResultFactory(pydantic.BaseModel):
         client: "PrefectClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
-            result_storage, client=client
+            result_storage, client=client, persist_result=persist_result
         )
         serializer = cls.resolve_serializer(result_serializer)
 
@@ -273,23 +290,31 @@ class ResultFactory(pydantic.BaseModel):
 
     @staticmethod
     async def resolve_storage_block(
-        result_storage: ResultStorage, client: "PrefectClient"
-    ) -> Tuple[uuid.UUID, WritableFileSystem]:
+        result_storage: ResultStorage,
+        client: "PrefectClient",
+        persist_result: bool = True,
+    ) -> Tuple[Optional[uuid.UUID], WritableFileSystem]:
         """
         Resolve one of the valid `ResultStorage` input types into a saved block
         document id and an instance of the block.
         """
         if isinstance(result_storage, Block):
             storage_block = result_storage
-            storage_block_id = (
+
+            if storage_block._block_document_id is not None:
                 # Avoid saving the block if it already has an identifier assigned
-                storage_block._block_document_id
-                # TODO: Overwrite is true to avoid issues where the save collides with
-                #       a previously saved document with a matching hash
-                or await storage_block._save(
-                    is_anonymous=True, overwrite=True, client=client
-                )
-            )
+                storage_block_id = storage_block._block_document_id
+            else:
+                if persist_result:
+                    # TODO: Overwrite is true to avoid issues where the save collides with
+                    # a previously saved document with a matching hash
+                    storage_block_id = await storage_block._save(
+                        is_anonymous=True, overwrite=True, client=client
+                    )
+                else:
+                    # a None-type UUID on unpersisted storage should not matter
+                    # since the ID is generated on the server
+                    storage_block_id = None
         elif isinstance(result_storage, str):
             storage_block = await Block.load(result_storage, client=client)
             storage_block_id = storage_block._block_document_id
@@ -486,6 +511,9 @@ class PersistedResult(BaseResult):
 
     @inject_client
     async def _read_blob(self, client: "PrefectClient") -> "PersistedResultBlob":
+        assert (
+            self.storage_block_id is not None
+        ), "Unexpected storage block ID. Was it persisted?"
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)
@@ -521,6 +549,10 @@ class PersistedResult(BaseResult):
         The object will be serialized and written to the storage block under a unique
         key. It will then be cached on the returned result.
         """
+        assert (
+            storage_block_id is not None
+        ), "Unexpected storage block ID. Was it persisted?"
+
         data = serializer.dumps(obj)
         blob = PersistedResultBlob(serializer=serializer, data=data)
 

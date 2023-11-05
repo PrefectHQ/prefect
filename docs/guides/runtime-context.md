@@ -14,7 +14,7 @@ search:
 
 Prefect tracks information about the current flow or task run with a run context. The run context can be thought of as a global variable that allows the Prefect engine to determine relationships between your runs, e.g. which flow your task is called from.
 
-The run context itself contains many internal objects used by Prefect to manage execution of your run and is only available in specific situtations. For this reason, we expose a simple interface that only includes the items you care about and dynamically retrieves additional information when necessary. We call this the "runtime context" as it contains information that can only be accessed when a run is happening.
+The run context itself contains many internal objects used by Prefect to manage execution of your run and is only available in specific situations. For this reason, we expose a simple interface that only includes the items you care about and dynamically retrieves additional information when necessary. We call this the "runtime context" as it contains information that can only be accessed when a run is happening.
 
 !!! tip "Mock values via environment variable"
     Oftentimes, you may want to mock certain values for testing purposes.  For example, by manually setting an ID or a scheduled start time to ensure your code is functioning properly.  Starting in version `2.10.3`, you can mock values in runtime via environment variable using the schema `PREFECT__RUNTIME__{SUBMODULE}__{KEY_NAME}=value`:
@@ -22,10 +22,9 @@ The run context itself contains many internal objects used by Prefect to manage 
     ```bash
     $ export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
     $ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
-    ```
+```
     </div>
     If the environment variable mocks an existing runtime attribute, the value is cast to the same type. This works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `pendulum.DateTime`. For complex types like `list` or `dict`, we suggest mocking them using [monkeypatch](https://docs.pytest.org/en/latest/how-to/monkeypatch.html) or a similar tool.
-
 
 ## Accessing runtime information
 
@@ -34,7 +33,6 @@ The `prefect.runtime` module is the home for all runtime context access. Each ma
 - `deployment`: Access information about the deployment for the current run
 - `flow_run`: Access information about the current flow run
 - `task_run`: Access information about the current task run
-
 
 For example:
 
@@ -72,7 +70,7 @@ $ python my_runtime_info.py
 10:08:04.968 | INFO    | Flow run 'solid-gibbon' - Finished in state Completed('All states completed.')
 ```
 </div>
-Above, we demonstrate access to information about the current flow run, task run, and deployment. When run without a deployment (via `python my_runtime_info.py`), you should see `"I belong to deployment None"` logged. When information is not available, the runtime will always return an empty value. Because this flow was run without a deployment, there is no deployment data. If this flow were deployed and executed by an agent or worker, we'd see the name of the deployment instead.
+Above, we demonstrate access to information about the current flow run, task run, and deployment. When run without a deployment (via `python my_runtime_info.py`), you should see `"I belong to deployment None"` logged. When information is not available, the runtime will always return an empty value. Because this flow was run without a deployment, there is no deployment data. If this flow were deployed and executed by a worker, we'd see the name of the deployment instead.
 
 See the [runtime API reference](/api-ref/prefect/runtime/flow_run/) for a full list of available attributes.
 

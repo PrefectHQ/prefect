@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import readchar
-from fastapi import status
+from starlette import status
 from typer import Exit
 
 from prefect.cli.cloud import LoginFailed, LoginSuccess
@@ -425,6 +425,7 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
+@pytest.mark.flaky(max_runs=2)
 def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
@@ -1349,7 +1350,7 @@ def test_update_webhook(respx_mock):
     new_webhook_name = "wowza-webhooks"
     existing_webhook = {
         "name": "this will change",
-        "description": "this wont change",
+        "description": "this won't change",
         "template": "neither will this",
     }
     respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(

@@ -1,4 +1,3 @@
-import pendulum
 import pytest
 
 from prefect.events import Event
@@ -8,11 +7,6 @@ from prefect.events.clients import AssertingEventsClient
 @pytest.fixture(autouse=True)
 def reset_asserting_events_client():
     AssertingEventsClient.reset()
-
-
-@pytest.fixture
-def start_of_test() -> pendulum.DateTime:
-    return pendulum.now("UTC")
 
 
 @pytest.fixture
@@ -26,7 +20,7 @@ def example_event_1() -> Event:
 @pytest.fixture
 def example_event_2() -> Event:
     return Event(
-        event="wonderous.things.happened",
+        event="wondrous.things.happened",
         resource={"prefect.resource.id": "something-valuable"},
     )
 
