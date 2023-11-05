@@ -121,19 +121,80 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     Note that the registry needs
 
-    Like `.serve()`, for multiple deployments, you can use the analagous `deploy` function.
+    `
+
+
 
     Also like ``.serve()` you can chain together the `.from_source` method and the `.deploy` method to create a deployment that pulls your flow code from a remote source.
 
+   demo of using custom image (move from tutorial note)
+
+    ## Not baking your flow code in your image
+
+    You can choose to pull your flow code from a remote source instead of baking it into your image.
+
+    You can chain the `flow.from_source` method to `.deploy` method and speciy a git-based cloud storage option such as GitHub, Bitbucket, or Gitlab. 
+
+```python
+    ... 
+    if __name__ == "__main__":
+        get_repo_info.from_source().deploy(
+            name="my-first-deployment", 
+            work_pool_name="my-docker-pool", 
+            image="discdiver/my-image:0.1",
+            build=False,
+            push=False))
+
+    ```
+
+   You can also use [fsspec](https://filesystem-spec.readthedocs.io/en/latest/) storage, which supports S3, GCS, Azure Blobs, and more.
+    ```
 
     demo from git-based storage
     demo from git-based storage with auth needed
 
     demo of from fsspec storage - s3
 
-    demo of using custom image (move from tutorial note)
+   
 
-    demo of using no image 
+    You can specify that you don't want to build an image by setting `build=False` in the `.deploy` method. 
+
+    ```python 
+    ... 
+    if __name__ == "__main__":
+        get_repo_info.deploy(
+            name="my-first-deployment", 
+            work_pool_name="my-docker-pool", 
+            image="discdiver/my-image:0.1",
+            build=False,
+            push=False)
+    ```
+
+    Like `serve()`, for multiple deployments you can use the analagous `deploy` function.
+
+    Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
+
+    ```python hl_lines="9-19"
+        from prefect import deploy, flow
+
+
+        @flow(log_prints=True)
+        def local_flow():
+            print("I'm a locally defined flow!")
+
+        if __name__ == "__main__":
+            deploy(
+                local_flow.to_deployment(name="example-deploy-local-flow"),
+                flow.from_source(
+                    source="https://github.com/org/repo.git",
+                    entrypoint="flows.py:my_flow",
+                ).to_deployment(
+                    name="example-deploy-remote-flow",
+                ),
+                work_pool_name="my-work-pool",
+                image="my-registry/my-image:dev",
+            )
+    ``
 
 === "`prefect.yaml`"
 
