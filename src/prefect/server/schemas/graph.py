@@ -15,7 +15,6 @@ class Node(PrefectBaseModel):
     id: UUID
     label: str
     state_type: StateType
-    state_name: str
     start_time: datetime
     end_time: Optional[datetime]
     parents: List[Edge]
