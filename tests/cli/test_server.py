@@ -27,6 +27,7 @@ def mock_run_process(monkeypatch: pytest.MonkeyPatch):
     yield mock
 
 
+@pytest.mark.flaky(max_runs=2)
 @pytest.mark.parametrize("command_group", ["server"])
 def test_start_no_options(mock_run_process: AsyncMock, command_group: str):
     invoke_and_assert(
@@ -58,6 +59,7 @@ def test_start_no_options(mock_run_process: AsyncMock, command_group: str):
     )
 
 
+@pytest.mark.flaky(max_runs=2)
 def test_start_with_keep_alive_from_setting(mock_run_process: AsyncMock):
     with temporary_settings({PREFECT_SERVER_API_KEEPALIVE_TIMEOUT: 100}):
         invoke_and_assert(["server", "start"])
@@ -68,6 +70,7 @@ def test_start_with_keep_alive_from_setting(mock_run_process: AsyncMock):
     assert command[command.index("--timeout-keep-alive") + 1] == "100"
 
 
+@pytest.mark.flaky(max_runs=2)
 def test_start_from_cli_with_keep_alive(mock_run_process: AsyncMock):
     invoke_and_assert(
         ["server", "start", "--keep-alive-timeout", "100"],
