@@ -98,7 +98,7 @@ Now let us try to send a notification based off a completed state outcome. We ca
         Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not tied to creating a full deployment in order to have safe responses to our desired outcomes.
 
 ## Event based deployment automation 
-We can create an automation that can kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catelog to help 'automate' the creation of this automation.  
+We can create an automation that can kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catalogue to help 'automate' the creation of this automation.  
 
 Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further.
 
