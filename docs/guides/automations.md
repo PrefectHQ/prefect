@@ -27,11 +27,11 @@ In this guide, we will showcase common usecases where automations can come in ha
 
 Automations are the one stop shop to react to different workflows by responding to specific actions recorded by Prefect. 
 
-For example, let us try to grab data from an API and have a notification get based on the end state. 
+For example, let's try to grab data from an API and have a notification get based on the end state. 
 
 We can get started by pulling data from this endpoint in order to do some data cleaning and transformations. 
 
-Let us create a simple extract method, that pulls the data from a random user data generator endpoint. 
+Let's create a simple extract method, that pulls the data from a random user data generator endpoint. 
 
 ```python
 from prefect import flow, task, get_run_logger
@@ -74,35 +74,35 @@ if __name__ == "__main__":
 From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
 
 ## Create notification block within the UI
-Now let us try to send a notification based off a completed state outcome. We can configure a notification to be sent so that we know when to look into our workflow logic. 
+Now let's try to send a notification based off a completed state outcome. We can configure a notification to be sent so that we know when to look into our workflow logic. 
 
-1. Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be sent. 
+1. Prior to creating the automation, let's confirm the notification location. We have to create a notification block to help define where the notification will be sent. 
 ![List of available blocks](/img/guides/block-list.png)
 
-2. Let us navigate to the blocks page on the UI, and click into creating an email notification block. 
+2. Let's navigate to the blocks page on the UI, and click into creating an email notification block. 
 ![Creating a notification block in the Cloud UI](/img/guides/notification-block.png)
 
 3. Now that we created a notification block, we can go to the automations page to create our first automation.
 ![Automations page](/img/guides/automation-list.png)
 
-4. Next we try to find the trigger type, in this case let us do a flow completion. 
+4. Next we try to find the trigger type, in this case let's do a flow completion. 
 ![Trigger type](/img/guides/automation-triggers.png)
 
-5. Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the completion. 
+5. Finally, let's create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
-6. Now the automation is ready to be triggered from a flow run completion. Let us locally run the file and see that the notification being sent to our inbox after the completion.
+6. Now the automation is ready to be triggered from a flow run completion. Let's locally run the file and see that the notification being sent to our inbox after the completion.
 ![Final notification](/img/guides/final-automation.png)
 
 !!! Tip "No deployment created"
         Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not tied to creating a full deployment in order to have safe responses to our desired outcomes.
 
 ## Event based deployment automation 
-We can create an automation that can kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catalogue to help 'automate' the creation of this automation.  
+We can create an automation that can kick off a deployment instead of a notification. Let's explore how we can programatically create this automation. We will take advantage of our extensive REST API catalogue to help 'automate' the creation of this automation.  
 
 Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further.
 
-Let us have local deployment created where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking too long to execute, we can kick off a deployment of the same flow `build_names` but replace the count value with something less.
+Let's have local deployment created where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking too long to execute, we can kick off a deployment of the same flow `build_names` but replace the count value with something less.
 
 By following the deployment steps, we can get started by creating a local prefect.yaml that looks like this for our flow `build_names`
 
@@ -201,7 +201,7 @@ def create_event_driven_automation():
  
 After running this function, you will see within the UI the changes that came from the post request. Keep in mind, the context will be "custom" on UI. 
 
-Let us run the underlying flow and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of `build_names`, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
+Let's run the underlying flow and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of `build_names`, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
 
 In a few quick changes, we are able to programatically create an automation that deploys workflows with custom parameters. 
 
@@ -209,7 +209,7 @@ In a few quick changes, we are able to programatically create an automation that
 
 We can extend this idea one step further by utilizing our own .yaml interpretation of the automation, and registering that file with our UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
 
-Let us first start with creating the .yaml file that will house the automation requirements. Here is how it would look like:
+Let's first start with creating the .yaml file that will house the automation requirements. Here is how it would look like:
 
 ```yaml
 name: Cancel long running flows
@@ -270,7 +270,7 @@ Let's take this idea one step further, by creating a deployment that will be tri
 
 Based on the automation trigger, similarly we can add a trigger to a deployment, that would be waiting for this specified event. 
 
-Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the AI function to start analyzing some of the work. 
+Let's look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the AI function to start analyzing some of the work. 
 
 Here is an example of pulling in that data and classifying using Marvin AI. We can help create dummy data based on classifications we have already created.
 
