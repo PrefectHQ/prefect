@@ -724,7 +724,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         COALESCE(subflow.id, task_run.id) as id,
                         COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
-                        COALESCE(subflow.state_name, task_run.state_name) as state_name,
                         COALESCE(
                             subflow.start_time,
                             subflow.expected_start_time,
@@ -740,7 +739,8 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                                 ON subflow.parent_task_run_id = task_run.id
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
-                WHERE   task_run.flow_run_id = :flow_run_id
+                WHERE   task_run.flow_run_id = :flow_run_id AND
+                        task_run.state_type <> 'PENDING'
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
@@ -768,7 +768,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         edges.id,
                         edges.label,
                         edges.state_type,
-                        edges.state_name,
                         edges.start_time,
                         edges.end_time,
                         with_parents.parent_ids,
@@ -783,7 +782,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                     id,
                     label,
                     state_type,
-                    state_name,
                     start_time,
                     end_time,
                     parent_ids,
@@ -819,7 +817,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         id=row.id,
                         label=row.label,
                         state_type=row.state_type,
-                        state_name=row.state_name,
                         start_time=row.start_time,
                         end_time=row.end_time,
                         parents=[Edge(id=id) for id in row.parent_ids or []],
@@ -1121,7 +1118,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         COALESCE(subflow.id, task_run.id) as id,
                         COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
-                        COALESCE(subflow.state_name, task_run.state_name) as state_name,
                         COALESCE(
                             subflow.start_time,
                             subflow.expected_start_time,
@@ -1137,7 +1133,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                                 ON subflow.parent_task_run_id = task_run.id
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
-                WHERE   task_run.flow_run_id = :flow_run_id
+                WHERE   task_run.flow_run_id = :flow_run_id AND
+                        task_run.state_type <> 'PENDING'
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
@@ -1166,7 +1163,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         edges.id,
                         edges.label,
                         edges.state_type,
-                        edges.state_name,
                         edges.start_time,
                         edges.end_time,
                         with_parents.parent_ids,
@@ -1181,7 +1177,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                     id,
                     label,
                     state_type,
-                    state_name,
                     start_time,
                     end_time,
                     parent_ids,
@@ -1251,7 +1246,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         id=row.id,
                         label=row.label,
                         state_type=row.state_type,
-                        state_name=row.state_name,
                         start_time=time(row.start_time),
                         end_time=time(row.end_time),
                         parents=edges(row.parent_ids),
