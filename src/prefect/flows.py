@@ -902,7 +902,7 @@ class Flow(Generic[P, R]):
             if __name__ == "__main__":
                 my_flow.deploy(
                     "example-deployment",
-                    work_pool="my-work-pool",
+                    work_pool_name="my-work-pool",
                     image="my-repository/my-image:dev",
                 )
             ```
@@ -918,7 +918,7 @@ class Flow(Generic[P, R]):
                     entrypoint="flows.py:my_flow",
                 ).deploy(
                     "example-deployment",
-                    work_pool="my-work-pool",
+                    work_pool_name="my-work-pool",
                     image="my-repository/my-image:dev",
                 )
             ```
