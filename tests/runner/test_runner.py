@@ -1327,7 +1327,7 @@ class TestDeploy:
         work_pool_with_image_variable,
     ):
         with pytest.raises(ValueError):
-            deployment_ids = await deploy(
+            await deploy(
                 await dummy_flow_1.to_deployment(__file__),
                 await (
                     await flow.from_source(
