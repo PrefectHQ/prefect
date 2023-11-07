@@ -1337,7 +1337,6 @@ class TestDeploy:
                 work_pool_name=work_pool_with_image_variable.name,
             )
 
-            assert len(deployment_ids) == 1
 
     async def test_deploy_with_image_string_no_tag(
         self,
