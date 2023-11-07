@@ -1298,28 +1298,20 @@ class TestDeploy:
                 work_pool_name=work_pool_with_image_variable.name,
             )
 
-    async def test_deploy_with_image_and_flow_stored_remotely(
+    async def test_deploy_with_image_and_flow_stored_remotely_raises(
         self,
         work_pool_with_image_variable,
-        mock_build_image,
     ):
-        deployment_id = await deploy(
-            await (
-                await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
-                )
-            ).to_deployment(__file__),
-            work_pool_name=work_pool_with_image_variable.name,
-            image="test-registry/test-image:test-tag",
-        )
-
-        assert len(deployment_id) == 1
-
-        mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag",
-            context=Path.cwd(),
-            pull=True,
-        )
+        with pytest.raises(RuntimeError, match="Failed to generate Dockerfile"):
+            await deploy(
+                await (
+                    await flow.from_source(
+                        source=MockStorage(), entrypoint="flows.py:test_flow"
+                    )
+                ).to_deployment(__file__),
+                work_pool_name=work_pool_with_image_variable.name,
+                image="test-registry/test-image:test-tag",
+            )
 
     async def test_deploy_multiple_flows_one_using_storage_one_without_raises_with_no_image(
         self,
