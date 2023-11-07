@@ -1273,6 +1273,73 @@ class TestDeploy:
             pull=True,
         )
 
+    async def test_deploy_without_image_with_flow_stored_remotely(
+        self,
+        work_pool_with_image_variable,
+    ):
+        deployment_id = await deploy(
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+        )
+
+        assert len(deployment_id) == 1
+
+    async def test_deploy_without_image_or_flow_storage_raises(
+        self,
+        work_pool_with_image_variable,
+    ):
+        with pytest.raises(ValueError):
+            deployment_id = await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                work_pool_name=work_pool_with_image_variable.name,
+            )
+
+            assert len(deployment_id) == 1
+
+    async def test_deploy_with_image_and_flow_stored_remotely(
+        self,
+        work_pool_with_image_variable,
+        mock_build_image,
+    ):
+        deployment_id = await deploy(
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image:test-tag",
+        )
+
+        assert len(deployment_id) == 1
+
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+        )
+
+    async def test_deploy_multiple_flows_one_using_storage_one_without_raises_with_no_image(
+        self,
+        work_pool_with_image_variable,
+    ):
+        with pytest.raises(ValueError):
+            deployment_ids = await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                await (
+                    await flow.from_source(
+                        source=MockStorage(), entrypoint="flows.py:test_flow"
+                    )
+                ).to_deployment(__file__),
+                work_pool_name=work_pool_with_image_variable.name,
+            )
+
+            assert len(deployment_ids) == 1
+
     async def test_deploy_with_image_string_no_tag(
         self,
         mock_build_image: MagicMock,
