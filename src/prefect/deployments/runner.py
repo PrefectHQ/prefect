@@ -749,8 +749,8 @@ async def deploy(
     """
     if not image and not all(d.storage for d in deployments):
         raise ValueError(
-            "An image must be provided when deploying a deployment that does not have"
-            " storage."
+            "Either an image or remote storage location must be provided when deploying"
+            " a deployment."
         )
 
     if image and isinstance(image, str):
