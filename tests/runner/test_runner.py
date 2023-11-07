@@ -1254,7 +1254,7 @@ class TestDeploy:
         # we need to determine which images to support first
         pass
 
-    async def test_deploy_managed_work_pool_doesnt_prompt_worker_start(
+    async def test_deploy_managed_work_pool_doesnt_prompt_worker_start_or_build_image(
         self,
         managed_work_pool,
         capsys,
