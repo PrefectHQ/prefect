@@ -647,7 +647,12 @@ class DeploymentImage:
     """
 
     def __init__(self, name, tag=None, dockerfile="auto", **build_kwargs):
-        self.name = name
+        split_name = name.split(":")
+        self.name = split_name[0]
+        if split_name[1] and tag:
+            raise ValueError(f"Both {split_name[1]} and {tag} were provided as tags.")
+        elif split_name[1]:
+            tag = split_name[1]
         self.tag = tag or slugify(pendulum.now("utc").isoformat())
         self.dockerfile = dockerfile
         self.build_kwargs = build_kwargs
