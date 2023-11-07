@@ -1293,11 +1293,10 @@ class TestDeploy:
         work_pool_with_image_variable,
     ):
         with pytest.raises(ValueError):
-            deployment_id = await deploy(
+            await deploy(
                 await dummy_flow_1.to_deployment(__file__),
                 work_pool_name=work_pool_with_image_variable.name,
             )
-
 
     async def test_deploy_with_image_and_flow_stored_remotely(
         self,
@@ -1336,7 +1335,6 @@ class TestDeploy:
                 ).to_deployment(__file__),
                 work_pool_name=work_pool_with_image_variable.name,
             )
-
 
     async def test_deploy_with_image_string_no_tag(
         self,
