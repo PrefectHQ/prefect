@@ -1100,6 +1100,12 @@ class TestDeploy:
         assert image.tag == "test-tag"
         assert image.reference == "test-registry/test-image:test-tag"
 
+        # test both can't be provided
+        with pytest.raises(
+            ValueError, match="both 'test-tag' and 'bad-tag' were provided"
+        ):
+            DeploymentImage(name="test-registry/test-image:test-tag", tag="bad-tag")
+
     async def test_deploy_custom_dockerfile(
         self,
         mock_build_image,

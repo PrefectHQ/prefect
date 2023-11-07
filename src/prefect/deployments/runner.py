@@ -650,7 +650,10 @@ class DeploymentImage:
         split_name = name.split(":")
         self.name = split_name[0]
         if len(split_name) > 1 and tag:
-            raise ValueError(f"Both {split_name[1]} and {tag} were provided as tags.")
+            raise ValueError(
+                f"Only one tag can be provided - both {split_name[1]!r} and"
+                f" {tag!r} were provided as tags."
+            )
         elif len(split_name) > 1:
             tag = split_name[1]
         self.tag = tag or slugify(pendulum.now("utc").isoformat())
