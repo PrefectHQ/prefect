@@ -1277,6 +1277,8 @@ class TestDeploy:
         assert len(deployment_ids) == 2
 
         console_output = capsys.readouterr().out
+        assert "Successfully created/updated all deployments!" in console_output
+
         assert "Building image" not in capsys.readouterr().out
         assert "Pushing image" not in capsys.readouterr().out
         assert "prefect worker start" not in console_output
