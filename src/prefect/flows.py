@@ -828,7 +828,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: str,
-        image: Union[str, DeploymentImage],
+        image: Optional[Union[str, DeploymentImage]],
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
