@@ -1078,6 +1078,28 @@ class TestDeploy:
                 image="test-registry/test-image",
             )
 
+    async def test_deployment_image_tag_handling(self):
+        # test image tag has default
+        image = DeploymentImage(
+            name="test-registry/test-image",
+        )
+        assert image.name == "test-registry/test-image"
+        assert image.tag.startswith(str(pendulum.now("utc").year))
+
+        # test image tag can be inferred
+        image = DeploymentImage(
+            name="test-registry/test-image:test-tag",
+        )
+        assert image.name == "test-registry/test-image"
+        assert image.tag == "test-tag"
+        assert image.reference == "test-registry/test-image:test-tag"
+
+        # test image tag can be provided
+        image = DeploymentImage(name="test-registry/test-image", tag="test-tag")
+        assert image.name == "test-registry/test-image"
+        assert image.tag == "test-tag"
+        assert image.reference == "test-registry/test-image:test-tag"
+
     async def test_deploy_custom_dockerfile(
         self,
         mock_build_image,
