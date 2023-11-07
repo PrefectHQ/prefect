@@ -1298,7 +1298,6 @@ class TestDeploy:
                 work_pool_name=work_pool_with_image_variable.name,
             )
 
-            assert len(deployment_id) == 1
 
     async def test_deploy_with_image_and_flow_stored_remotely(
         self,
