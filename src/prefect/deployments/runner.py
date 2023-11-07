@@ -692,7 +692,7 @@ class DeploymentImage:
 async def deploy(
     *deployments: RunnerDeployment,
     work_pool_name: str,
-    image: Union[str, DeploymentImage],
+    image: Optional[Union[str, DeploymentImage]] = None,
     build: bool = True,
     push: bool = True,
     print_next_steps_message: bool = True,
@@ -747,7 +747,13 @@ async def deploy(
             )
         ```
     """
-    if isinstance(image, str):
+    if not image and not all(d.storage for d in deployments):
+        raise ValueError(
+            "An image must be provided when deploying a deployment that does not have"
+            " storage."
+        )
+
+    if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
         image = DeploymentImage(name=image_name, tag=image_tag)
 
@@ -770,7 +776,7 @@ async def deploy(
         )
 
     console = Console()
-    if build:
+    if image and build:
         with Progress(
             SpinnerColumn(),
             TextColumn(f"Building image {image.reference}..."),
@@ -785,7 +791,7 @@ async def deploy(
                 f"Successfully built image {image.reference!r}", style="green"
             )
 
-    if build and push:
+    if image and build and push:
         with Progress(
             SpinnerColumn(),
             TextColumn("Pushing image..."),
@@ -802,6 +808,7 @@ async def deploy(
 
     deployment_exceptions = []
     deployment_ids = []
+    image_ref = image.reference if image else None
     for deployment in track(
         deployments,
         description="Creating/updating deployments...",
@@ -810,9 +817,7 @@ async def deploy(
     ):
         try:
             deployment_ids.append(
-                await deployment.apply(
-                    image=image.reference, work_pool_name=work_pool_name
-                )
+                await deployment.apply(image=image_ref, work_pool_name=work_pool_name)
             )
         except Exception as exc:
             if len(deployments) == 1:
