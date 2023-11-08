@@ -130,6 +130,9 @@ Deployment details are described in the deployments [concept section](/concepts/
 
 Deploying your flow to the `my-push-pool` work pool will ensure that runs that are ready for execution will be submitted immediately, without the need for a worker to poll for them.
 
+!!! danger "Serverless infrastructure may require a certain image architecture"
+    Note that serverless infrastructure may assume a certain Docker image architecture; for example, Google Cloud Run will fail to run images built with `linux/arm64` architecture. If using Prefect to build your image, you can change the image architecture through the `platform` keyword (e.g., `platform="linux/amd64"`).
+
 ## Putting it all together
 
 With your deployment created, navigate to its detail page and create a new flow run. You'll see the flow start running without ever having to poll the work pool, because Prefect Cloud securely connected to your serverless infrastructure, created a job, ran the job, and began reporting on its execution.
