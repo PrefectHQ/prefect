@@ -773,6 +773,11 @@ async def deploy(
             "Please use a work pool with an `image` variable in its base job template."
         )
 
+    is_managed_pool = work_pool.is_managed_pool
+    if is_managed_pool:
+        build = False
+        push = False
+
     console = Console()
     if image and build:
         with Progress(
