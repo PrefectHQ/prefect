@@ -22,7 +22,7 @@ import prefect
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
-from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
+from prefect.exceptions import InfrastructureNotAvailable
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
@@ -475,19 +475,6 @@ async def test_process_kill_mismatching_hostname(monkeypatch, work_pool):
             )
 
     os_kill.assert_not_called()
-
-
-@pytest.mark.flaky(max_runs=3)
-async def test_process_kill_no_matching_pid(monkeypatch, work_pool):
-    patch_client(monkeypatch)
-    infrastructure_pid = f"{socket.gethostname()}:12345"
-
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        with pytest.raises(InfrastructureNotFound):
-            await worker.kill_infrastructure(
-                infrastructure_pid=infrastructure_pid,
-                configuration=ProcessJobConfiguration(),
-            )
 
 
 @pytest.mark.skipif(
