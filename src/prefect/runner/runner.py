@@ -332,8 +332,6 @@ class Runner:
                 runner.start()
             ```
         """
-        runner_process = os.getpid()
-        self._logger.info(f"Runner process PID: {runner_process}")
         signal.signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
@@ -777,7 +775,9 @@ class Runner:
         Retrieve scheduled flow runs for this runner.
         """
         scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
-        self._logger.info(f"Querying for flow runs scheduled before {scheduled_before}")
+        self._logger.debug(
+            f"Querying for flow runs scheduled before {scheduled_before}"
+        )
 
         scheduled_flow_runs = (
             await self._client.get_scheduled_flow_runs_for_deployments(
