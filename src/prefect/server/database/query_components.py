@@ -748,7 +748,13 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
                 WHERE   task_run.flow_run_id = :flow_run_id AND
-                        task_run.state_type <> 'PENDING'
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
@@ -1150,7 +1156,13 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
                 WHERE   task_run.flow_run_id = :flow_run_id AND
-                        task_run.state_type <> 'PENDING'
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
