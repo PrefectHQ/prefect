@@ -208,9 +208,6 @@ class APILogHandler(logging.Handler):
                     "Encountered malformed run context. Does not contain flow or task "
                     "run information."
                 )
-        # allow logger to be used without a known flow run id
-        if flow_run_id in ("None", "unknown"):
-            flow_run_id = None
 
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
         # from the standard lib `handleError` method if something goes wrong and
