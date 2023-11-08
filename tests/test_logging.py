@@ -883,6 +883,23 @@ def test_task_run_logger_with_flow_run_from_context(task_run, flow_run):
         assert logger.extra["flow_name"] == test_flow.name == "foo"
 
 
+def test_run_logger_works_without_parent_flow_run_id(
+    task_run_with_no_parent_flow, caplog
+):
+    with FlowRunContext.construct(flow_run=None, flow=None):
+        logger = task_run_logger(task_run_with_no_parent_flow)
+
+        with caplog.at_level(logging.INFO):
+            logger.info("test3141592")
+
+        assert "prefect.task_runs" in caplog.text
+        assert "test3141592" in caplog.text
+
+        assert logger.extra["flow_run_id"] == "None"
+        assert logger.extra["flow_run_name"] == "<unknown>"
+        assert logger.extra["flow_name"] == "<unknown>"
+
+
 def test_task_run_logger_with_kwargs(task_run):
     logger = task_run_logger(task_run, foo="test", task_run_name="bar")
     assert logger.extra["foo"] == "test"
