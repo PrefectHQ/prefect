@@ -1248,6 +1248,43 @@ class TestDeploy:
         assert "prefect worker start" not in console_output
         assert "prefect deployment run [DEPLOYMENT_NAME]" not in console_output
 
+    async def test_deploy_managed_work_pool_doesnt_prompt_worker_start_or_build_image(
+        self,
+        managed_work_pool,
+        capsys,
+        mock_generate_default_dockerfile,
+        mock_build_image,
+        mock_docker_client,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=managed_work_pool.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+            print_next_steps_message=False,
+        )
+
+        assert len(deployment_ids) == 2
+
+        console_output = capsys.readouterr().out
+        assert "Successfully created/updated all deployments!" in console_output
+
+        assert "Building image" not in capsys.readouterr().out
+        assert "Pushing image" not in capsys.readouterr().out
+        assert "prefect worker start" not in console_output
+        assert "prefect deployment run [DEPLOYMENT_NAME]" not in console_output
+
+        mock_generate_default_dockerfile.assert_not_called()
+        mock_build_image.assert_not_called()
+        mock_docker_client.api.push.assert_not_called()
+
     async def test_deploy_with_image_string(
         self,
         mock_build_image,
