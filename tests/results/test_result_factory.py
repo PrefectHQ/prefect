@@ -896,3 +896,45 @@ async def test_default_storage_creation_for_task_without_persistence_features():
 
     result_factory = my_flow()
     await _verify_default_storage_creation_without_persistence(result_factory)
+
+
+@pytest.mark.parametrize(
+    "options,expected",
+    [
+        (
+            {
+                "persist_result": True,
+                "cache_result_in_memory": False,
+                "result_serializer": "json",
+            },
+            {
+                "persist_result": True,
+                "cache_result_in_memory": False,
+                "serializer": JSONSerializer(),
+            },
+        ),
+        (
+            {
+                "persist_result": False,
+                "cache_result_in_memory": True,
+                "result_serializer": "json",
+            },
+            {
+                "persist_result": False,
+                "cache_result_in_memory": True,
+                "serializer": JSONSerializer(),
+            },
+        ),
+    ],
+)
+async def test_result_factory_from_task_with_no_flow_run_context(options, expected):
+    @task(**options)
+    def my_task():
+        pass
+
+    result_factory = await ResultFactory.from_task(task=my_task)
+
+    assert result_factory.persist_result == expected["persist_result"]
+    assert result_factory.cache_result_in_memory == expected["cache_result_in_memory"]
+    assert result_factory.serializer == expected["serializer"]
+    assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
