@@ -238,18 +238,6 @@ async def task_run(session, flow_run):
 
 
 @pytest.fixture
-async def task_run_with_no_parent_flow(session, flow_run):
-    model = await models.task_runs.create_task_run(
-        session=session,
-        task_run=schemas.actions.TaskRunCreate(
-            flow_run_id=None, task_key="my-key", dynamic_key="0"
-        ),
-    )
-    await session.commit()
-    return model
-
-
-@pytest.fixture
 async def task_run_state(session, task_run, db):
     task_run.set_state(db.TaskRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
