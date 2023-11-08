@@ -1248,12 +1248,6 @@ class TestDeploy:
         assert "prefect worker start" not in console_output
         assert "prefect deployment run [DEPLOYMENT_NAME]" not in console_output
 
-    async def test_deploy_managed_work_pool_unsupported_image_raises(
-        self, managed_work_pool, capsys
-    ):
-        # we need to determine which images to support first
-        pass
-
     async def test_deploy_managed_work_pool_doesnt_prompt_worker_start_or_build_image(
         self,
         managed_work_pool,

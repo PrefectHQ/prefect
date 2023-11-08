@@ -777,7 +777,6 @@ async def deploy(
     if is_managed_pool:
         build = False
         push = False
-        # TODO: ensure that the image is available in the pool
 
     console = Console()
     if image and build:
