@@ -402,41 +402,6 @@ def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable
         setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
 
 
-def setup_signal_handlers_runner(
-    pid: int, process_name: str, print_fn: Callable, cancel_fn: Callable
-):
-    """
-    Handle interrupts of runners gracefully and allow for graceful cancellation of flows on SIGTERM.
-    """
-
-    def handle_sigterm(signum, frame):
-        # Log the SIGTERM event
-        print_fn(
-            f"SIGTERM received for process {process_name}, cancelling flow runs..."
-        )
-        # Perform the cancellation of the flows
-        cancel_fn()
-        # Proceed with the default SIGTERM action afterwards, which might be stopping the process
-        print_fn(f"SIGTERM handling complete for process {process_name}, stopping now.")
-        forward_signal_handler(
-            pid, signum, signal.SIGKILL, process_name=process_name, print_fn=print_fn
-        )
-
-    setup_handler = partial(
-        forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
-    )
-
-    if sys.platform == "win32":
-        # Special handling for Windows as before
-        setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
-    else:
-        # Forward first SIGINT directly, send SIGKILL on subsequent interrupt
-        setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
-
-        # Set up custom SIGTERM handling
-        signal.signal(signal.SIGTERM, handle_sigterm)
-
-
 def get_sys_executable() -> str:
     # python executable needs to be quotable on windows
     if os.name == "nt":

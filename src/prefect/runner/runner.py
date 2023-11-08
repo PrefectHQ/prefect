@@ -420,6 +420,7 @@ class Runner:
                 " .start()"
             )
 
+        self.started = False
         self.stopping = True
         await self.cancel_all()
         try:
