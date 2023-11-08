@@ -884,6 +884,8 @@ def test_task_run_logger_with_flow_run_from_context(task_run, flow_run):
 
 
 def test_run_logger_with_flow_run_context_without_parent_flow_run_id(caplog):
+    """Test that get_run_logger works when called from a constructed FlowRunContext"""
+
     with FlowRunContext.construct(flow_run=None, flow=None):
         logger = get_run_logger()
 
@@ -901,7 +903,7 @@ def test_run_logger_with_flow_run_context_without_parent_flow_run_id(caplog):
 async def test_run_logger_with_task_run_context_without_parent_flow_run_id(
     prefect_client, caplog
 ):
-    """"""
+    """Test that get_run_logger works when passed a constructed TaskRunContext"""
 
     @task
     def foo():
