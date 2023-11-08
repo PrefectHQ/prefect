@@ -863,7 +863,7 @@ async def deploy(
     console.print(table)
 
     if print_next_steps_message and not complete_failure:
-        if not work_pool.is_push_pool:
+        if not work_pool.is_push_pool and not work_pool.is_managed_pool:
             console.print(
                 "\nTo execute flow runs from these deployments, start a worker in a"
                 " separate terminal that pulls work from the"

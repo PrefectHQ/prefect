@@ -959,7 +959,7 @@ class Flow(Generic[P, R]):
 
         if print_next_steps:
             console = Console()
-            if not work_pool.is_push_pool:
+            if not work_pool.is_push_pool and not work_pool.is_managed_pool:
                 console.print(
                     "\nTo execute flow runs from this deployment, start a worker in a"
                     " separate terminal that pulls work from the"
