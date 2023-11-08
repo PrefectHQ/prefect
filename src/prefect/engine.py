@@ -164,6 +164,7 @@ from prefect.results import BaseResult, ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
+    PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
 )
@@ -1699,7 +1700,7 @@ async def orchestrate_task_run(
         result_factory=result_factory,
         log_prints=log_prints,
     )
-
+    task_introspection_start_time = time.perf_counter()
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
@@ -1713,6 +1714,21 @@ async def orchestrate_task_run(
             # if orchestrating a run already in a pending state, force orchestration to
             # update the state name
             force=task_run.state.is_pending(),
+        )
+    task_introspection_end_time = time.perf_counter()
+
+    introspection_time = round(
+        task_introspection_end_time - task_introspection_start_time, 3
+    )
+    threshold = PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
+    if threshold and introspection_time > threshold:
+        logger.warning(
+            f"Task parameter introspection took {introspection_time} seconds "
+            f", exceeding `PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD` of {threshold}. "
+            "Try wrapping large task parameters with "
+            "`prefect.utilities.annotations.quote` for increased performance, "
+            "e.g. `my_task(quote(param))`. To disable this message set "
+            "`PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD=0`."
         )
 
     # Generate the cache key to attach to proposed states
