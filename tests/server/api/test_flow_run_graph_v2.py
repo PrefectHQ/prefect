@@ -139,6 +139,7 @@ async def flat_tasks(
             dynamic_key=f"task-{i}",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=i).subtract(microseconds=1),
             start_time=base_time.add(seconds=i),
             end_time=base_time.add(minutes=1, seconds=i),
         )
@@ -161,6 +162,14 @@ async def flat_tasks(
             end_time=base_time.add(minutes=1, seconds=3),
         )
     )
+
+    # turn the 3rd task into a Cached task, which needs to be treated specially
+    # because Cached tasks are COMPLETED, but don't have start/end times, only
+    # an expected_start_time
+    task_runs[2].start_time = None
+    task_runs[2].end_time = None
+    task_runs[2].state_type = StateType.COMPLETED
+    task_runs[2].state_name = "Cached"
 
     await session.commit()
     return task_runs
@@ -188,8 +197,22 @@ async def test_reading_graph_for_flow_run_with_flat_tasks(
                 id=task_run.id,
                 label=task_run.name,
                 state_type=task_run.state_type,
-                start_time=task_run.start_time,
-                end_time=task_run.end_time,
+                start_time=(
+                    task_run.expected_start_time
+                    if (
+                        task_run.state_type == StateType.COMPLETED
+                        and not task_run.start_time
+                    )
+                    else task_run.start_time
+                ),
+                end_time=(
+                    task_run.expected_start_time
+                    if (
+                        task_run.state_type == StateType.COMPLETED
+                        and not task_run.end_time
+                    )
+                    else task_run.end_time
+                ),
                 parents=[],
                 children=[],
             ),
