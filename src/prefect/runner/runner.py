@@ -174,8 +174,6 @@ class Runner:
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
 
-        self._original_sigterm_handler = None
-
     @sync_compatible
     async def add_deployment(
         self,
@@ -291,11 +289,7 @@ class Runner:
         """
         self._logger.info("SIGTERM received, initiating graceful shutdown...")
         from_sync.call_in_loop_thread(create_call(self.stop))
-        if callable(self._original_sigterm_handler):
-            self._logger.info("Calling original SIGTERM handler")
-            self._original_sigterm_handler(signum, frame)
 
-        # Once we've cancelled flow runs, we'll want to stop the loops
         sys.exit(0)
 
     @sync_compatible
@@ -338,12 +332,8 @@ class Runner:
                 runner.start()
             ```
         """
-        # loop = asyncio.get_running_loop()
-        # loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(self.handle_sigterm()))
-
         runner_process = os.getpid()
         self._logger.info(f"Runner process PID: {runner_process}")
-        self._original_sigterm_handler = signal.getsignal(signal.SIGTERM)
         signal.signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
@@ -694,7 +684,7 @@ class Runner:
             )
             on_stop()
 
-        self._logger.info("Checking for cancelled flow runs...")
+        self._logger.debug("Checking for cancelled flow runs...")
 
         named_cancelling_flow_runs = await self._client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
@@ -795,7 +785,7 @@ class Runner:
                 scheduled_before=scheduled_before,
             )
         )
-        self._logger.info(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
+        self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
 
     def _acquire_limit_slot(self, flow_run_id: str) -> bool:
@@ -1074,7 +1064,7 @@ class Runner:
             await _run_hooks(hooks, flow_run, flow, state)
 
     async def __aenter__(self):
-        self._logger.info("Starting runner...")
+        self._logger.debug("Starting runner...")
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
         await self._client.__aenter__()
@@ -1084,7 +1074,7 @@ class Runner:
         return self
 
     async def __aexit__(self, *exc_info):
-        self._logger.info("Stopping runner...")
+        self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
         self.started = False
