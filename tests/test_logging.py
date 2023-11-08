@@ -883,6 +883,49 @@ def test_task_run_logger_with_flow_run_from_context(task_run, flow_run):
         assert logger.extra["flow_name"] == test_flow.name == "foo"
 
 
+def test_run_logger_with_flow_run_context_without_parent_flow_run_id(caplog):
+    """Test that get_run_logger works when called from a constructed FlowRunContext"""
+
+    with FlowRunContext.construct(flow_run=None, flow=None):
+        logger = get_run_logger()
+
+        with caplog.at_level(logging.INFO):
+            logger.info("test3141592")
+
+        assert "prefect.flow_runs" in caplog.text
+        assert "test3141592" in caplog.text
+
+        assert logger.extra["flow_run_id"] == "<unknown>"
+        assert logger.extra["flow_run_name"] == "<unknown>"
+        assert logger.extra["flow_name"] == "<unknown>"
+
+
+async def test_run_logger_with_task_run_context_without_parent_flow_run_id(
+    prefect_client, caplog
+):
+    """Test that get_run_logger works when passed a constructed TaskRunContext"""
+
+    @task
+    def foo():
+        pass
+
+    task_run = await prefect_client.create_task_run(
+        foo, flow_run_id=None, dynamic_key=""
+    )
+
+    task_run_context = TaskRunContext.construct(
+        task=foo, task_run=task_run, client=prefect_client
+    )
+
+    logger = get_run_logger(task_run_context)
+
+    with caplog.at_level(logging.INFO):
+        logger.info("test3141592")
+
+    assert "prefect.task_runs" in caplog.text
+    assert "test3141592" in caplog.text
+
+
 def test_task_run_logger_with_kwargs(task_run):
     logger = task_run_logger(task_run, foo="test", task_run_name="bar")
     assert logger.extra["foo"] == "test"
