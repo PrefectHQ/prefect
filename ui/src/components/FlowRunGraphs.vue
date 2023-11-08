@@ -28,14 +28,11 @@
   } from '@prefecthq/prefect-ui-library'
   import { computed, ref } from 'vue'
 
-  const props = defineProps<{
+  defineProps<{
     flowRun: FlowRun,
   }>()
 
-  const dateRange = ref<RunGraphViewportDateRange>([
-    props.flowRun.startTime ?? new Date(),
-    props.flowRun.endTime ?? new Date(),
-  ])
+  const dateRange = ref<RunGraphViewportDateRange>()
 
   const fullscreen = ref(false)
   const selectedNode = ref<RunGraphNodeSelection | null>(null)
