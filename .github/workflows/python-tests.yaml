@@ -223,7 +223,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
 
-  # Run a smaller subset of tests with pydantic v2 installed, only the oldest and newest
+  # Run a smaller subset of tests with pydantic v2 installed, the
   # Python versions we support, and only on sqlite + postgres 14
   run-tests-pydantic-v2:
     name: pydantic v2, python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
@@ -236,6 +236,8 @@ jobs:
           - "oss-test-runner"
         python-version:
           - "3.8"
+          - "3.9"
+          - "3.10"
           - "3.11"
         pytest-options:
           - "--exclude-services"
