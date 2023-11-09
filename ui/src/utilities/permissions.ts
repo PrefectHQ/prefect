@@ -6,7 +6,7 @@ const featureFlags = [
   "access:work_pools",
   "access:artifacts",
   "access:deploymentStatus",
-] as const;
+] as const
 
 export type FeatureFlag = typeof featureFlags[number] | WorkspaceFeatureFlag
 
