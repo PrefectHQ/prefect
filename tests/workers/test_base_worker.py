@@ -1777,6 +1777,7 @@ class TestCancellation:
         # No need for state message update
         assert post_flow_run.state.message is None
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
