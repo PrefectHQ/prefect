@@ -87,6 +87,44 @@ def base_time(start_of_test: pendulum.DateTime) -> pendulum.DateTime:
 
 
 @pytest.fixture
+async def unstarted_flow_run(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow,  # : db.Flow,
+    base_time: pendulum.DateTime,
+):
+    flow_run = db.FlowRun(
+        id=uuid4(),
+        flow_id=flow.id,
+        state_type=StateType.COMPLETED,
+        state_name="Irrelevant",
+        expected_start_time=base_time.subtract(seconds=1),
+        start_time=None,
+        end_time=None,
+    )
+    session.add(flow_run)
+    await session.commit()
+    return flow_run
+
+
+async def test_reading_graph_for_unstarted_flow_run_uses_expected_start_time(
+    session: AsyncSession,
+    unstarted_flow_run,  # db.FlowRun,
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=unstarted_flow_run.id,
+    )
+
+    assert graph.start_time == unstarted_flow_run.expected_start_time
+    assert graph.end_time == unstarted_flow_run.end_time
+    assert graph.root_node_ids == []
+    assert graph.nodes == []
+
+    assert_graph_is_connected(graph)
+
+
+@pytest.fixture
 async def flow_run(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -98,6 +136,7 @@ async def flow_run(
         flow_id=flow.id,
         state_type=StateType.COMPLETED,
         state_name="Irrelevant",
+        expected_start_time=base_time.subtract(seconds=1),
         start_time=base_time,
         end_time=base_time.add(minutes=5),
     )
