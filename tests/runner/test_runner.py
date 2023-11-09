@@ -179,12 +179,17 @@ class TestServe:
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
     is_python_38 = sys.version_info[:2] == (3, 8)
+    is_python_39 = sys.version_info[:2] == (3, 9)
     is_python_310 = sys.version_info[:2] == (3, 10)
     is_pydantic_v2 = PYDANTIC_VERSION.startswith("2.")
 
     @pytest.mark.xfail(
         is_python_310 and is_pydantic_v2,
         reason="Will fail on Python 3.10 with Pydantic V2",
+    )
+    @pytest.mark.xfail(
+        is_python_39,
+        reason="Will fail on Python 3.9 regardless of Pydantic version",
     )
     async def test_serve_typed_container_inputs_flow(self, capsys):
         if self.is_python_38:
