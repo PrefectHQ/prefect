@@ -2,6 +2,7 @@
 Command line interface for working with work queues.
 """
 import json
+import subprocess
 
 import pendulum
 import typer
@@ -49,6 +50,13 @@ async def create(
     ),
     type: str = typer.Option(
         None, "-t", "--type", help="The type of work pool to create."
+    ),
+    use_as_default: bool = typer.Option(
+        False,
+        "--use-as-default",
+        help=(
+            "Whether or not to use the created work pool as the default for deployment."
+        ),
     ),
 ):
     """
@@ -109,6 +117,15 @@ async def create(
                 is_paused=paused,
             )
             work_pool = await client.create_work_pool(work_pool=wp)
+            if use_as_default:
+                subprocess.check_call(
+                    [
+                        "prefect",
+                        "config",
+                        "set",
+                        f"PREFECT_DEFAULT_WORK_POOL_NAME={work_pool.name}",
+                    ]
+                )
             exit_with_success(f"Created work pool {work_pool.name!r}.")
         except ObjectAlreadyExists:
             exit_with_error(

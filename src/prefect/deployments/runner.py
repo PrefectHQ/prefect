@@ -44,7 +44,7 @@ from rich.table import Table
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME, PREFECT_UI_URL
 from prefect.utilities.collections import get_from_dict
 
 if HAS_PYDANTIC_V2:
@@ -689,7 +689,7 @@ class DeploymentImage:
 @sync_compatible
 async def deploy(
     *deployments: RunnerDeployment,
-    work_pool_name: str,
+    work_pool_name: Optional[str] = None,
     image: Optional[Union[str, DeploymentImage]] = None,
     build: bool = True,
     push: bool = True,
@@ -745,6 +745,8 @@ async def deploy(
             )
         ```
     """
+    work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+
     if not image and not all(d.storage for d in deployments):
         raise ValueError(
             "Either an image or remote storage location must be provided when deploying"

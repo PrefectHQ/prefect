@@ -55,7 +55,11 @@ from prefect.deployments.steps.core import run_steps
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
@@ -435,7 +439,11 @@ async def _run_single_deploy(
     deploy_config["schedule"] = _construct_schedule(deploy_config, ci=ci)
 
     # determine work pool
-    if get_from_dict(deploy_config, "work_pool.name"):
+    work_pool_name = (
+        get_from_dict(deploy_config, "work_pool.name")
+        or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+    )
+    if work_pool_name:
         try:
             work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
