@@ -45,10 +45,12 @@ Your user permissions within workspaces may vary. [Account Admins](/ui/pro-enter
 
 ## Create a workspace
 
-On the **Workspaces** page, select the **+** icon to create a new workspace. You'll be prompted to configure:
+On the Account Workspaces dropdown or the **Workspaces** page select the **+** icon to create a new workspace.
 
-- The workspace owner &mdash; the user account or organization managing the workspace.
-- A handle, or name, for the workspace. This name must be unique within your account or organization.
+You'll be prompted to configure:
+
+- The **Workspace Owner** from the dropdown account menu options.
+- The **Workspace Name** must be unique within the account.
 - An optional description for the workspace.
 
 ![Creating a new workspace in the Prefect Cloud UI.](/img/ui/create-workspace.png)
@@ -68,11 +70,12 @@ The options menu enables you to edit workspace details or delete the workspace.
 !!! warning "Deleting a workspace"
     Deleting a workspace deletes all deployments, flow run history, work pools, and notifications configured in workspace.
 
-## Workspace collaborators
+## Account membership
 
-Personal account users may invite _workspace collaborators_, users who can join, view, and run flows in your workspaces.
+You can send an email invitation to invite a user to become a member of your account.
 
-In your workspace, select **Workspace Collaborators**. If you've previously invited collaborators, you'll see them listed.
+In your account select **Members**. Any members will be listed with their handle, organizational role, and most recent login date.
+On the **Invitiations** tab you'll see any previously invited individuals and information about the invitation status.
 
 ![Managing collaborators in a workspace in the Prefect Cloud UI.](/img/ui/workspace-collaborators.png)
 
@@ -82,18 +85,18 @@ If the user does not already have a Prefect Cloud account, they will be able to 
 
 To delete a workspace collaborator, select **Remove** from the menu on the left side of the user's information on this page.
 
-## Workspace sharing <span class="badge pro"></span>
+## Workspace access <span class="badge pro"></span>
 
-Within a Prefect Cloud [organization](/ui/organizations/), Admins and workspace Owners may invite users and [service accounts](/ui/service-accounts/) to work in an organization workspace.
-In addition to giving the user access to the workspace, the Admin or Owner assigns a [workspace role](/ui/roles/) to the user.
+Within a Prefect Cloud [organization](/ui/organizations/), Admins can invite other users and provision [service accounts](/ui/service-accounts/) to a workspace.
+In addition to giving the user access to the workspace, the Admin assigns a [workspace role](/ui/roles/) to the user.
 The role specifies the scope of permissions for the user within the workspace.
 
-In an organization workspace, select **Workspace Sharing** to manage users and service accounts for the workspace.
-If you've previously invited users and service accounts, you'll see them listed.
+As an Admin in workspace, select **Workspace Sharing** to manage individuals and service accounts for the workspace.
+If you've previously invited other individuals and service accounts, you'll see them listed.
 
 ![Managing sharing in a workspace in the Prefect Cloud UI.](/img/ui/workspace-sharing.png)
 
-To invite a user to become a workspace collaborator, select the Members **+** icon. You can select from a list of existing organization members.
+To invite a user to become a workspace, select the Members **+** icon. You can select from a list of existing organization members.
 
 Select a Workspace Role for the user.
 This will be the initial role for the user within the workspace. A workspace Owner can change this role at any time.
