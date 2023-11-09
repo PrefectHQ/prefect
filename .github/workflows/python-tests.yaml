@@ -222,7 +222,6 @@ jobs:
           && docker container logs postgres
           || echo "Ignoring bad exit code"
 
-
   notify-tests-failing-on-main:
     needs: run-tests
     if: github.ref == 'refs/heads/main' && failure()
