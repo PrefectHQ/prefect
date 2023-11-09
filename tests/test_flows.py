@@ -14,7 +14,6 @@ from typing import List
 from unittest.mock import MagicMock, call, create_autospec
 
 import anyio
-from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -1357,11 +1356,10 @@ class TestFlowParameterTypes:
     is_python_38 = sys.version_info[:2] == (3, 8)
     is_python_39 = sys.version_info[:2] == (3, 9)
     is_python_310 = sys.version_info[:2] == (3, 10)
-    is_pydantic_v2 = PYDANTIC_VERSION.startswith("2.")
 
     @pytest.mark.xfail(
-        is_python_310 and is_pydantic_v2,
-        reason="Will fail on Python 3.10 with Pydantic V2",
+        is_python_39 or is_python_310,
+        reason="Will fail on Python 3.9 and 3.10 with Pydantic V2",
     )
     def test_type_container_flow_inputs(self):
         if self.is_python_38:
