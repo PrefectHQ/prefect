@@ -2,6 +2,7 @@ import datetime
 import os
 import re
 import signal
+import sys
 import time
 from itertools import combinations
 from pathlib import Path
@@ -12,6 +13,7 @@ from unittest.mock import MagicMock
 import anyio
 import pendulum
 import pytest
+from pydantic import VERSION as PYDANTIC_VERSION
 from starlette import status
 
 import prefect.runner
@@ -173,6 +175,32 @@ class TestServe:
         assert "dummy-flow-1/test_runner" in captured.out
         assert "dummy-flow-2/test_runner" in captured.out
         assert "tired-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
+    is_python_310 = sys.version_info[:2] == (3, 10)
+    is_pydantic_v2 = PYDANTIC_VERSION.startswith("2.")
+
+    @pytest.mark.xfail(
+        is_python_310 and is_pydantic_v2,
+        reason="Will fail on Python 3.10 with Pydantic V2",
+    )
+    async def test_serve_typed_container_inputs_flow(self, capsys):
+        @flow
+        def type_container_input_flow(arg1: list[str]) -> str:
+            print(arg1)
+            return ",".join(arg1)
+
+        await serve(
+            await type_container_input_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "pydanticv2-compat-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
     async def test_serve_can_create_multiple_deployments(
