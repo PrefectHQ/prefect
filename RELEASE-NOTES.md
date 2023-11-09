@@ -36,7 +36,7 @@ We've re-written the flow run graph from scratch for maximum performance. Render
 - Fix typo in release notes — https://github.com/PrefectHQ/prefect/pull/11094
 - Fix docstring for `flow.deploy` method example — https://github.com/PrefectHQ/prefect/pull/11108
 - Add warning about image architecture to push pool guide — https://github.com/PrefectHQ/prefect/pull/11118
-- Move `Webhooks` to `Development` — https://github.com/PrefectHQ/prefect/pull/11141
+- Move webhooks guide to `Development` section in guides index — https://github.com/PrefectHQ/prefect/pull/11141
 
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.3...2.14.4
