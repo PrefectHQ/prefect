@@ -828,7 +828,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: str,
-        image: Union[str, DeploymentImage],
+        image: Optional[Union[str, DeploymentImage]] = None,
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
@@ -902,7 +902,7 @@ class Flow(Generic[P, R]):
             if __name__ == "__main__":
                 my_flow.deploy(
                     "example-deployment",
-                    work_pool="my-work-pool",
+                    work_pool_name="my-work-pool",
                     image="my-repository/my-image:dev",
                 )
             ```
@@ -918,7 +918,7 @@ class Flow(Generic[P, R]):
                     entrypoint="flows.py:my_flow",
                 ).deploy(
                     "example-deployment",
-                    work_pool="my-work-pool",
+                    work_pool_name="my-work-pool",
                     image="my-repository/my-image:dev",
                 )
             ```
@@ -959,7 +959,7 @@ class Flow(Generic[P, R]):
 
         if print_next_steps:
             console = Console()
-            if not work_pool.is_push_pool:
+            if not work_pool.is_push_pool and not work_pool.is_managed_pool:
                 console.print(
                     "\nTo execute flow runs from this deployment, start a worker in a"
                     " separate terminal that pulls work from the"

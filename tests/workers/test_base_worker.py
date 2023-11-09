@@ -379,9 +379,8 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
 
     assert (
         f"Flow run {flow_run.id!r} was created from deployment"
-        f" {deployment.name!r} which is configured with a storage block. Workers"
-        " currently only support local storage. Please use an agent to execute this"
-        " flow run."
+        f" {deployment.name!r} which is configured with a storage block. Please use an"
+        + " agent to execute this flow run."
         in caplog.text
     )
 
@@ -1777,6 +1776,7 @@ class TestCancellation:
         # No need for state message update
         assert post_flow_run.state.message is None
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )

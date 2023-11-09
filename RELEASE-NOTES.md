@@ -1,5 +1,43 @@
 # Prefect Release Notes
 
+## Release 2.14.4
+
+### New improved flow run graph with dependency layout
+
+The flow run graph in the Prefect UI has been rebuilt from the ground up, offering significantly improved performance capabilities that allow larger flow runs to be displayed much more smoothly. We’ve added three new layouts: two non-temporal layout options, designed to provide a clearer picture of the dependency paths, and one to facilitate easy comparison of run durations. The x-axis can now be independently scaled for temporal layouts; and you can adjust it in the graph settings or with the new keyboard shortcuts - and +. We included additional small bug fixes, including the display of cached tasks.
+
+<p align="center">
+<img width="976" alt="flow run graph sequential grid view" src="https://user-images.githubusercontent.com/6776415/281769376-bccc4cd5-db2c-42b9-9c21-fc32b094323b.png">
+</p>
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11112
+- https://github.com/PrefectHQ/prefect/pull/11105
+- https://github.com/PrefectHQ/prefect/pull/11113
+- https://github.com/PrefectHQ/prefect/pull/11132
+- https://github.com/PrefectHQ/prefect/pull/11138
+
+### Enhancements
+- Add API route for block counts — https://github.com/PrefectHQ/prefect/pull/11090
+- Improved tag handling on `DeploymentImage` for `.deploy`:
+    - https://github.com/PrefectHQ/prefect/pull/11115
+    - https://github.com/PrefectHQ/prefect/pull/11119
+- Allow `image` passed into `.deploy` to be optional if loading flow from storage — https://github.com/PrefectHQ/prefect/pull/11117
+- Ensure client avoids image builds when deploying to managed work pools — https://github.com/PrefectHQ/prefect/pull/11120
+- Add `SIGTERM` handling to runner to gracefully handle timeouts — https://github.com/PrefectHQ/prefect/pull/11133
+- Allow tasks to use `get_run_logger` w/o parent flow run — https://github.com/PrefectHQ/prefect/pull/11129
+- Allow `ResultFactory` creation `from_task` when no `flow_run_context` — https://github.com/PrefectHQ/prefect/pull/11134
+
+### Fixes
+- Avoid printing references to workers when deploying to managed pools — https://github.com/PrefectHQ/prefect/pull/11122
+
+### Documentation
+- Fix docstring for `flow.deploy` method example — https://github.com/PrefectHQ/prefect/pull/11108
+- Add warning about image architecture to push pool guide — https://github.com/PrefectHQ/prefect/pull/11118
+- Move webhooks guide to `Development` section in guides index — https://github.com/PrefectHQ/prefect/pull/11141
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.3...2.14.4
+
 ## Release 2.14.3
 
 ### Observability with deployment status
