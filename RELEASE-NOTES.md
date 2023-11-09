@@ -33,7 +33,7 @@ We've re-written the flow run graph from scratch for maximum performance. Render
 - Avoid printing references to workers when deploying to managed pools — https://github.com/PrefectHQ/prefect/pull/11122
 
 ### Documentation
-- Fix typo in RELEASE-NOTES.md — https://github.com/PrefectHQ/prefect/pull/11094
+- Fix typo in release notes — https://github.com/PrefectHQ/prefect/pull/11094
 - Fix docstring for `flow.deploy` method example — https://github.com/PrefectHQ/prefect/pull/11108
 - Add warning to push pool guide — https://github.com/PrefectHQ/prefect/pull/11118
 - Move `Webhooks` to `Development` — https://github.com/PrefectHQ/prefect/pull/11141
