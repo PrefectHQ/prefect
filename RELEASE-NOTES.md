@@ -11,15 +11,15 @@ The flow run graph in the Prefect UI has been rebuilt from the ground up, offeri
 </p>
 
 See the following pull requests for implementation details:
-- Improved flow run graph with new dependency layout — https://github.com/PrefectHQ/prefect/pull/11112
-- Flow run graph polish — https://github.com/PrefectHQ/prefect/pull/11105
-- Handle Cached tasks on the flow run graph — https://github.com/PrefectHQ/prefect/pull/11113
-- Exclude any flow/task run with a `NULL` `start_time` from Graph v2 — https://github.com/PrefectHQ/prefect/pull/11132
-- Use an unstarted flow run's expected start time as the Graph's start time — https://github.com/PrefectHQ/prefect/pull/11138
+- https://github.com/PrefectHQ/prefect/pull/11112
+- https://github.com/PrefectHQ/prefect/pull/11105
+- https://github.com/PrefectHQ/prefect/pull/11113
+- https://github.com/PrefectHQ/prefect/pull/11132
+- https://github.com/PrefectHQ/prefect/pull/11138
 
 ### Enhancements
 - Add API route for block counts — https://github.com/PrefectHQ/prefect/pull/11090
-- Improved tag handling on `DeploymentImage` for `.deploy`
+- Improved tag handling on `DeploymentImage` for `.deploy`:
     - https://github.com/PrefectHQ/prefect/pull/11115
     - https://github.com/PrefectHQ/prefect/pull/11119
 - Allow `image` passed into `.deploy` to be optional if loading flow from storage — https://github.com/PrefectHQ/prefect/pull/11117
