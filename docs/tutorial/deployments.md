@@ -153,7 +153,7 @@ You should spend some time experimenting with this setup; a few next steps for e
 !!! tip "Security Note"
     Another implication of Prefect's deployment interface is our hybrid execution model. Whether you use Prefect Cloud or host a Prefect server instance yourself, you'll always be able to run work flows in the environments best suited to their execution. This model allows you efficient use of your infrastructure resources while maintaining the privacy of your code and data.
     There is no ingress required. 
-    For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#overview).
+    For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
 
 ## Next steps
 

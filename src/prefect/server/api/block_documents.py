@@ -76,6 +76,27 @@ async def read_block_documents(
     return result
 
 
+@router.post("/count")
+async def count_block_documents(
+    block_documents: Optional[schemas.filters.BlockDocumentFilter] = None,
+    block_types: Optional[schemas.filters.BlockTypeFilter] = None,
+    block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count block documents.
+    """
+    async with db.session_context() as session:
+        result = await models.block_documents.count_block_documents(
+            session=session,
+            block_document_filter=block_documents,
+            block_type_filter=block_types,
+            block_schema_filter=block_schemas,
+        )
+
+    return result
+
+
 @router.get("/{id:uuid}")
 async def read_block_document_by_id(
     block_document_id: UUID = Path(
