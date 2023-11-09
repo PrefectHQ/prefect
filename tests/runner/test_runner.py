@@ -8,6 +8,7 @@ from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
+from typing import List
 from unittest.mock import MagicMock
 
 import anyio
@@ -177,6 +178,7 @@ class TestServe:
         assert "tired-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
+    is_python_38 = sys.version_info[:2] == (3, 8)
     is_python_310 = sys.version_info[:2] == (3, 10)
     is_pydantic_v2 = PYDANTIC_VERSION.startswith("2.")
 
@@ -185,10 +187,19 @@ class TestServe:
         reason="Will fail on Python 3.10 with Pydantic V2",
     )
     async def test_serve_typed_container_inputs_flow(self, capsys):
-        @flow
-        def type_container_input_flow(arg1: list[str]) -> str:
-            print(arg1)
-            return ",".join(arg1)
+        if self.is_python_38:
+
+            @flow
+            def type_container_input_flow(arg1: List[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        else:
+
+            @flow
+            def type_container_input_flow(arg1: list[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
 
         await serve(
             await type_container_input_flow.to_deployment(__file__),
