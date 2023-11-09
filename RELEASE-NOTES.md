@@ -4,15 +4,18 @@
 
 ### New improved flow run graph with dependency layout
 
-We've re-written the flow run graph from scratch for maximum performance. Rendering of large graphs should be much more stable in v2 and we've added a few new features including a much requested dependency layout!
+The Flow Run Graph has been rebuilt from the ground up, offering significantly improved performance capabilities that allow larger flow runs to be displayed much more smoothly. We’ve added three new layouts: two non-temporal layout options, designed to provide a clearer picture of the dependency paths, and one to facilitate easy comparison of run durations. The x-axis can now be independently scaled for temporal layouts, you can adjust it in the graph settings or with the new keyboard shortcuts - and +. Additional small bug fixes, including displaying of cached tasks, have also been included.
 
-#### Features
-- Grid based dependency layouts
-- Comparative duration layout
-- Cached tasks appear on the graph
-- Faster layouts
-- Optimized api endpoint for fetching graph data
-- Horizontal scale controls
+<p align="center">
+<img width="976" alt="flow run graph sequential grid view" src="https://user-images.githubusercontent.com/6776415/281769376-bccc4cd5-db2c-42b9-9c21-fc32b094323b.png">
+</p>
+
+See the following pull requests for implementation details:
+- Improved flow run graph with new dependency layout — https://github.com/PrefectHQ/prefect/pull/11112
+- Flow run graph v2 polish — https://github.com/PrefectHQ/prefect/pull/11105
+- Handle Cached tasks on graph-v2 — https://github.com/PrefectHQ/prefect/pull/11113
+- Exclude any flow/task run with a `NULL` `start_time` from Graph v2 — https://github.com/PrefectHQ/prefect/pull/11132
+- Use an unstarted flow run's expected start time for the Graph start time — https://github.com/PrefectHQ/prefect/pull/11138
 
 ### Enhancements
 - Add a count blocks api route — https://github.com/PrefectHQ/prefect/pull/11090
@@ -20,14 +23,9 @@ We've re-written the flow run graph from scratch for maximum performance. Render
 - Improve tag handling in `DeploymentImage` with `parse_image_tag` — https://github.com/PrefectHQ/prefect/pull/11119
 - Allow `image` passed into `deploy` to be optional if loading flow from storage — https://github.com/PrefectHQ/prefect/pull/11117
 - Ensure client avoids image builds for managed work pools — https://github.com/PrefectHQ/prefect/pull/11120
-- Improved flow run graph with new dependency layout — https://github.com/PrefectHQ/prefect/pull/11112
 - Add `SIGTERM` handling to runner to gracefully handle timeouts — https://github.com/PrefectHQ/prefect/pull/11133
-- Flow run graph v2 polish — https://github.com/PrefectHQ/prefect/pull/11105
-- Handle Cached tasks on graph-v2 — https://github.com/PrefectHQ/prefect/pull/11113
-- Exclude any flow/task run with a `NULL` `start_time` from Graph v2 — https://github.com/PrefectHQ/prefect/pull/11132
 - Allow tasks to use `get_run_logger` w/o parent flow run — https://github.com/PrefectHQ/prefect/pull/11129
 - Allow `ResultFactory` creation `from_task` when no `flow_run_context` — https://github.com/PrefectHQ/prefect/pull/11134
-- Use an unstarted flow run's expected start time for the Graph start time — https://github.com/PrefectHQ/prefect/pull/11138
 
 ### Fixes
 - Dont print worker start command for managed pool — https://github.com/PrefectHQ/prefect/pull/11122
@@ -37,7 +35,6 @@ We've re-written the flow run graph from scratch for maximum performance. Render
 - Fix docstring for `flow.deploy` method example — https://github.com/PrefectHQ/prefect/pull/11108
 - Add warning to push pool guide — https://github.com/PrefectHQ/prefect/pull/11118
 - Move `Webhooks` to `Development` — https://github.com/PrefectHQ/prefect/pull/11141
-
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.3...2.14.4
 
