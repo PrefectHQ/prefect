@@ -1378,6 +1378,8 @@ class TestFlowParameterTypes:
                 print(arg1)
                 return ",".join(arg1)
 
+        assert type_container_input_flow(["a", "b", "c"]) == "a,b,c"
+
     def test_subflow_parameters_can_be_unserializable_types(self):
         data = ParameterTestClass()
 
