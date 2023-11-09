@@ -37,7 +37,7 @@ Prefer to follow this tutorial in a video? We've got exactly what you need. Happ
 
 To sign in with an existing account or register an account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
-You can create an account with:
+You can create an account with any of the following:
 
 - Google account
 - Microsoft account
