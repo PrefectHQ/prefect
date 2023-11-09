@@ -35,6 +35,7 @@ def test_app_exposes_ui_settings():
         "work_pools",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
     }
 
 
@@ -53,4 +54,5 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "artifacts",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
     }
