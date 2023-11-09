@@ -2,6 +2,8 @@
 Command line interface for working with work queues.
 """
 import json
+import subprocess
+from pathlib import Path
 
 import pendulum
 import typer
@@ -50,6 +52,11 @@ async def create(
     type: str = typer.Option(
         None, "-t", "--type", help="The type of work pool to create."
     ),
+    from_scratch: bool = typer.Option(
+        False,
+        "--from-scratch",
+        help="Whether or not to create the work pool from scratch.",
+    ),
 ):
     """
     Create a new work pool.
@@ -60,6 +67,91 @@ async def create(
     """
     if not name.lower().strip("'\" "):
         exit_with_error("Work pool name cannot be empty.")
+
+    if from_scratch and type != "cloud-run:push":
+        exit_with_error(
+            "Work pool type must be cloud-run:push when using --from-scratch"
+        )
+
+    creds_block = None
+    creds_id = None
+
+    if from_scratch:
+        # print nice message saying what we're about to do
+        project = (
+            subprocess.check_output(["gcloud", "config", "get-value", "project"])
+            .decode()
+            .strip()
+        )
+        # output = subprocess.check_output(
+        #     ["gcloud", "iam", "service-accounts", "create", "prefect", "--display-name", "prefect"]
+        # )
+        subprocess.check_output(
+            [
+                "gcloud",
+                "projects",
+                "add-iam-policy-binding",
+                project,
+                f"--member=serviceAccount:prefect@{project}.iam.gserviceaccount.com",
+                "--role=roles/iam.serviceAccountUser",
+                "--condition=None",
+            ]
+        )
+        subprocess.check_output(
+            [
+                "gcloud",
+                "projects",
+                "add-iam-policy-binding",
+                project,
+                f"--member=serviceAccount:prefect@{project}.iam.gserviceaccount.com",
+                "--role=roles/run.developer",
+                "--condition=None",
+            ]
+        )
+        # output = subprocess.check_output(
+        #     [
+        #         "gcloud",
+        #         "artifacts",
+        #         "repositories",
+        #         "create",
+        #         "prefect",
+        #         "--repository-format=docker",
+        #         "--location=us-central1",
+        #     ]
+        # )
+        # output = subprocess.check_output(
+        #     [
+        #         "gcloud",
+        #         "iam",
+        #         "service-accounts",
+        #         "keys",
+        #         "create",
+        #         "key.json",
+        #         "--iam-account",
+        #         f"prefect@{project}.iam.gserviceaccount.com",
+        #     ]
+        # )
+        # activate cloud run api
+        subprocess.check_output(
+            [
+                "gcloud",
+                "services",
+                "enable",
+                "run.googleapis.com",
+                "--project",
+                project,
+            ]
+        )
+        key = json.loads(Path("key.json").read_text())
+        from prefect_gcp import GcpCredentials
+
+        creds_block = GcpCredentials(service_account_info=key, project=project)
+        creds_id = await creds_block.save(f"{name}-push-pool-creds", overwrite=True)
+
+        # create a service account with cloud run developer role
+        # create a block for the service account
+        # enable cloud run API
+        # add the block to the work pool base job template
 
     if type is None:
         async with get_collections_metadata_client() as collections_client:
@@ -99,6 +191,11 @@ async def create(
         )
     else:
         template_contents = json.load(base_job_template)
+
+    if creds_block:
+        template_contents["variables"]["properties"]["credentials"]["default"] = {
+            "$ref": {"block_document_id": creds_id}
+        }
 
     async with get_client() as client:
         try:
