@@ -27,17 +27,6 @@
 - Move `Webhooks` to `Development` — https://github.com/PrefectHQ/prefect/pull/11141
 
 
-### Contributors
-- @chrisguidry
-- @cicdw
-- @csreuter
-- @discdiver
-- @pleek91
-- @serinamarie
-- @urimandujano
-- @zangell44
-- @zzstoatzz
-
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.3...2.14.4
 
 ## Release 2.14.3
