@@ -55,7 +55,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
-from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -283,6 +283,15 @@ class Runner:
         else:
             return next(s for s in self._storage_objs if s == storage)
 
+    def handle_sigterm(self, signum, frame):
+        """
+        Gracefully shuts down the runner when a SIGTERM is received.
+        """
+        self._logger.info("SIGTERM received, initiating graceful shutdown...")
+        from_sync.call_in_loop_thread(create_call(self.stop))
+
+        sys.exit(0)
+
     @sync_compatible
     async def start(
         self, run_once: bool = False, webserver: Optional[bool] = None
@@ -323,6 +332,8 @@ class Runner:
                 runner.start()
             ```
         """
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
+
         webserver = webserver if webserver is not None else self.webserver
 
         if webserver:
@@ -397,6 +408,7 @@ class Runner:
                 " .start()"
             )
 
+        self.started = False
         self.stopping = True
         await self.cancel_all()
         try:
