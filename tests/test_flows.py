@@ -14,6 +14,7 @@ from typing import List
 from unittest.mock import MagicMock, call, create_autospec
 
 import anyio
+from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -1352,6 +1353,30 @@ class TestFlowParameterTypes:
             return x
 
         assert my_flow(data) == data
+
+    is_python_38 = sys.version_info[:2] == (3, 8)
+    is_python_39 = sys.version_info[:2] == (3, 9)
+    is_python_310 = sys.version_info[:2] == (3, 10)
+    is_pydantic_v2 = PYDANTIC_VERSION.startswith("2.")
+
+    @pytest.mark.xfail(
+        is_python_310 and is_pydantic_v2,
+        reason="Will fail on Python 3.10 with Pydantic V2",
+    )
+    def test_type_container_flow_inputs(self):
+        if self.is_python_38:
+
+            @flow
+            def type_container_input_flow(arg1: list[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        else:
+
+            @flow
+            def type_container_input_flow(arg1: List[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
 
     def test_subflow_parameters_can_be_unserializable_types(self):
         data = ParameterTestClass()
