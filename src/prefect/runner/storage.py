@@ -487,9 +487,7 @@ class BlockStorageAdapter:
         self._pull_interval = pull_interval
         self._storage_base_path = Path.cwd()
         if not hasattr(block, "get_directory"):
-            raise ValueError(
-                "Provided block must implement the ReadableDeploymentStorage interface."
-            )
+            raise ValueError("Provided block must have a get_directory method.")
 
         self._name = (
             f"{block.get_block_type_slug()}-{block._block_document_name}"
@@ -509,6 +507,8 @@ class BlockStorageAdapter:
         return self._storage_base_path / self._name
 
     async def pull_code(self):
+        if not self.destination.exists():
+            self.destination.mkdir(parents=True, exist_ok=True)
         await self._block.get_directory(local_path=str(self.destination))
 
     def to_pull_step(self) -> dict:

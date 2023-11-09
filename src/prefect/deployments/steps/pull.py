@@ -169,24 +169,34 @@ async def pull_from_remote_storage(url: str, **settings: Any):
     return {"directory": directory}
 
 
-async def pull_with_block(block_document_name: str, block_type: str):
+async def pull_with_block(block_document_name: str, block_type_slug: str):
     """
     Pulls code using a block.
 
     Args:
         block_document_name: The name of the block document to use
-        block_type: The type of block to use
+        block_type_slug: The slug of the type of block to use
     """
-    block = await Block.load(f"{block_type}/{block_document_name}")
+    full_slug = f"{block_type_slug}/{block_document_name}"
+    try:
+        block = await Block.load(full_slug)
+    except Exception:
+        deployment_logger.exception("Unable to load block '%s'", full_slug)
+        raise
 
-    storage = BlockStorageAdapter(block)
+    try:
+        storage = BlockStorageAdapter(block)
+    except Exception:
+        deployment_logger.exception(
+            "Unable to create storage adapter for block '%s'", full_slug
+        )
+        raise
 
     await storage.pull_code()
 
     directory = str(storage.destination.relative_to(Path.cwd()))
     deployment_logger.info(
-        f"Pulled code using block '{block_type}/{block_document_name}' into"
-        f" {directory!r}"
+        "Pulled code using block '%s' into '%s'", full_slug, directory
     )
     return {"directory": directory}
 
