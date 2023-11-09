@@ -200,7 +200,7 @@ class TestServe:
             "Your deployments are being served and polling for scheduled runs!"
             in captured.out
         )
-        assert "pydanticv2-compat-flow/test_runner" in captured.out
+        assert "type-container-input-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
     async def test_serve_can_create_multiple_deployments(
