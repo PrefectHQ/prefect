@@ -2,6 +2,18 @@
 
 ## Release 2.14.4
 
+### New improved flow run graph with dependency layout
+
+We've re-written the flow run graph from scratch for maximum performance. Rendering of large graphs should be much more stable in v2 and we've added a few new features including a much requested dependency layout!
+
+#### Features
+- Grid based dependency layouts
+- Comparative duration layout
+- Cached tasks appear on the graph
+- Faster layouts
+- Optimized api endpoint for fetching graph data
+- Horizontal scale controls
+
 ### Enhancements
 - Add a count blocks api route — https://github.com/PrefectHQ/prefect/pull/11090
 - Improved tag handling on DeploymentImage — https://github.com/PrefectHQ/prefect/pull/11115
