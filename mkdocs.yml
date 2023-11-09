@@ -152,9 +152,9 @@ nav:
                 - Global Concurrency Limits: guides/global-concurrency-limits.md
                 - Variables: guides/variables.md
                 - Using the Client: guides/using-the-client.md
+                - Webhooks: guides/webhooks.md
           - Execution:
                 - Docker: guides/docker.md
-                - Webhooks: guides/webhooks.md
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
                 - Moving data: guides/moving-data.md
