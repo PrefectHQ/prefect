@@ -724,9 +724,21 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         COALESCE(subflow.id, task_run.id) as id,
                         COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
-                        COALESCE(subflow.state_name, task_run.state_name) as state_name,
-                        COALESCE(subflow.start_time, task_run.start_time) as start_time,
-                        COALESCE(subflow.end_time, task_run.end_time) as end_time,
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) as start_time,
+                        COALESCE(
+                            subflow.end_time,
+                            task_run.end_time,
+                            CASE
+                                WHEN task_run.state_type = 'COMPLETED'
+                                    THEN task_run.expected_start_time
+                                ELSE NULL
+                            END
+                        ) as end_time,
                         (argument->>'id')::uuid as parent
                 FROM    task_run
                         LEFT JOIN jsonb_each(task_run.task_inputs) as input ON true
@@ -735,7 +747,14 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                                 ON subflow.parent_task_run_id = task_run.id
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
-                WHERE   task_run.flow_run_id = :flow_run_id
+                WHERE   task_run.flow_run_id = :flow_run_id AND
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
@@ -763,7 +782,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         edges.id,
                         edges.label,
                         edges.state_type,
-                        edges.state_name,
                         edges.start_time,
                         edges.end_time,
                         with_parents.parent_ids,
@@ -778,7 +796,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                     id,
                     label,
                     state_type,
-                    state_name,
                     start_time,
                     end_time,
                     parent_ids,
@@ -814,7 +831,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         id=row.id,
                         label=row.label,
                         state_type=row.state_type,
-                        state_name=row.state_name,
                         start_time=row.start_time,
                         end_time=row.end_time,
                         parents=[Edge(id=id) for id in row.parent_ids or []],
@@ -1116,9 +1132,21 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         COALESCE(subflow.id, task_run.id) as id,
                         COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
-                        COALESCE(subflow.state_name, task_run.state_name) as state_name,
-                        COALESCE(subflow.start_time, task_run.start_time) as start_time,
-                        COALESCE(subflow.end_time, task_run.end_time) as end_time,
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) as start_time,
+                        COALESCE(
+                            subflow.end_time,
+                            task_run.end_time,
+                            CASE
+                                WHEN task_run.state_type = 'COMPLETED'
+                                    THEN task_run.expected_start_time
+                                ELSE NULL
+                            END
+                        ) as end_time,
                         json_extract(argument.value, '$.id') as parent
                 FROM    task_run
                         LEFT JOIN json_each(task_run.task_inputs) as input ON true
@@ -1127,7 +1155,14 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                                 ON subflow.parent_task_run_id = task_run.id
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
-                WHERE   task_run.flow_run_id = :flow_run_id
+                WHERE   task_run.flow_run_id = :flow_run_id AND
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
@@ -1156,7 +1191,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         edges.id,
                         edges.label,
                         edges.state_type,
-                        edges.state_name,
                         edges.start_time,
                         edges.end_time,
                         with_parents.parent_ids,
@@ -1171,7 +1205,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                     id,
                     label,
                     state_type,
-                    state_name,
                     start_time,
                     end_time,
                     parent_ids,
@@ -1241,7 +1274,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         id=row.id,
                         label=row.label,
                         state_type=row.state_type,
-                        state_name=row.state_name,
                         start_time=time(row.start_time),
                         end_time=time(row.end_time),
                         parents=edges(row.parent_ids),

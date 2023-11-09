@@ -5,6 +5,7 @@ on:
     paths:
       - "**/*.py"
       - requirements.txt
+      - requirements-client.txt
       - setup.cfg
   push:
     branches:
@@ -44,7 +45,7 @@ jobs:
       - name: Prepare files for prefect-client build (omit the local build)
         run: sh client/build_client.sh   
         env:
-          TMPDIR: ${{ env.TMPDIR }}       
+          TMPDIR: ${{ env.TMPDIR }}
 
       - name: Build a binary wheel and a source tarball
         run: pip install wheel && python setup.py sdist bdist_wheel
@@ -55,7 +56,7 @@ jobs:
         working-directory: ${{ env.TMPDIR }}
 
       - name: Run the smoke test flow using the built client
-        run: python client_flow.py
+        run: python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
@@ -68,7 +69,7 @@ jobs:
         run: pip list | grep prefect
 
       - name: Run the smoke test flow again with prefect and prefect-client installed
-        run: python client_flow.py
+        run: python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}

@@ -1,13 +1,16 @@
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
-from urllib.parse import urlparse, urlunparse
+from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
+from urllib.parse import urlparse, urlsplit, urlunparse
 
+import fsspec
 from anyio import run_process
 
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.logging.loggers import get_logger
+from prefect.utilities.collections import visit_collection
 
 
 @runtime_checkable
@@ -110,10 +113,11 @@ class GitRepository:
         if (
             isinstance(credentials, dict)
             and credentials.get("username")
-            and not credentials.get("access_token")
+            and not (credentials.get("access_token") or credentials.get("password"))
         ):
             raise ValueError(
-                "If a username is provided, an access token must also be provided."
+                "If a username is provided, an access token or password must also be"
+                " provided."
             )
         self._url = url
         self._branch = branch
@@ -275,6 +279,197 @@ class GitRepository:
         return pull_step
 
 
+class RemoteStorage:
+    """
+    Pulls the contents of a remote storage location to the local filesystem.
+
+    Parameters:
+        url: The URL of the remote storage location to pull from. Supports
+            `fsspec` URLs. Some protocols may require an additional `fsspec`
+            dependency to be installed. Refer to the
+            [`fsspec` docs](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+            for more details.
+        pull_interval: The interval in seconds at which to pull contents from
+            remote storage to local storage. If None, remote storage will perform
+            a one-time sync.
+        **settings: Any additional settings to pass the `fsspec` filesystem class.
+
+    Examples:
+        Pull the contents of a remote storage location to the local filesystem:
+
+        ```python
+        from prefect.runner.storage import RemoteStorage
+
+        storage = RemoteStorage(url="s3://my-bucket/my-folder")
+
+        await storage.pull_code()
+        ```
+
+        Pull the contents of a remote storage location to the local filesystem
+        with additional settings:
+
+        ```python
+        from prefect.runner.storage import RemoteStorage
+        from prefect.blocks.system import Secret
+
+        storage = RemoteStorage(
+            url="s3://my-bucket/my-folder",
+            # Use Secret blocks to keep credentials out of your code
+            key=Secret.load("my-aws-access-key"),
+            secret=Secret.load("my-aws-secret-key"),
+        )
+
+        await storage.pull_code()
+        ```
+    """
+
+    def __init__(
+        self,
+        url: str,
+        pull_interval: Optional[int] = 60,
+        **settings: Any,
+    ):
+        self._url = url
+        self._settings = settings
+        self._logger = get_logger("runner.storage.remote-storage")
+        self._storage_base_path = Path.cwd()
+        self._pull_interval = pull_interval
+
+    @staticmethod
+    def _get_required_package_for_scheme(scheme: str) -> Optional[str]:
+        # attempt to discover the package name for the given scheme
+        # from fsspec's registry
+        known_implementation = fsspec.registry.get(scheme)
+        if known_implementation:
+            return known_implementation.__module__.split(".")[0]
+        # if we don't know the implementation, try to guess it for some
+        # common schemes
+        elif scheme == "s3":
+            return "s3fs"
+        elif scheme == "gs" or scheme == "gcs":
+            return "gcsfs"
+        elif scheme == "abfs" or scheme == "az":
+            return "adlfs"
+        else:
+            return None
+
+    @property
+    def _filesystem(self) -> fsspec.AbstractFileSystem:
+        scheme, _, _, _, _ = urlsplit(self._url)
+
+        def replace_blocks_with_values(obj: Any) -> Any:
+            if isinstance(obj, Block):
+                if hasattr(obj, "get"):
+                    return obj.get()
+                if hasattr(obj, "value"):
+                    return obj.value
+                else:
+                    return obj.dict()
+            return obj
+
+        settings_with_block_values = visit_collection(
+            self._settings, replace_blocks_with_values, return_data=True
+        )
+
+        return fsspec.filesystem(scheme, **settings_with_block_values)
+
+    def set_base_path(self, path: Path):
+        self._storage_base_path = path
+
+    @property
+    def pull_interval(self) -> Optional[int]:
+        """
+        The interval at which contents from remote storage should be pulled to
+        local storage. If None, remote storage will perform a one-time sync.
+        """
+        return self._pull_interval
+
+    @property
+    def destination(self) -> Path:
+        """
+        The local file path to pull contents from remote storage to.
+        """
+        return self._storage_base_path / self._remote_path
+
+    @property
+    def _remote_path(self) -> Path:
+        """
+        The remote file path to pull contents from remote storage to.
+        """
+        _, netloc, urlpath, _, _ = urlsplit(self._url)
+        return Path(netloc) / Path(urlpath.lstrip("/"))
+
+    async def pull_code(self):
+        """
+        Pulls contents from remote storage to the local filesystem.
+        """
+        self._logger.debug(
+            "Pulling contents from remote storage '%s' to '%s'...",
+            self._url,
+            self.destination,
+        )
+
+        if not self.destination.exists():
+            self.destination.mkdir(parents=True, exist_ok=True)
+
+        remote_path = str(self._remote_path) + "/"
+
+        try:
+            await from_async.wait_for_call_in_new_thread(
+                create_call(
+                    self._filesystem.get,
+                    remote_path,
+                    str(self.destination),
+                    recursive=True,
+                )
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to pull contents from remote storage {self._url!r} to"
+                f" {self.destination!r}"
+            ) from exc
+
+    def to_pull_step(self) -> dict:
+        """
+        Returns a dictionary representation of the storage object that can be
+        used as a deployment pull step.
+        """
+
+        def replace_block_with_placeholder(obj: Any) -> Any:
+            if isinstance(obj, Block):
+                return f"{{{{ {obj.get_block_placeholder()} }}}}"
+            return obj
+
+        settings_with_placeholders = visit_collection(
+            self._settings, replace_block_with_placeholder, return_data=True
+        )
+        required_package = self._get_required_package_for_scheme(
+            urlparse(self._url).scheme
+        )
+        step = {
+            "prefect.deployments.steps.pull_from_remote_storage": {
+                "url": self._url,
+                **settings_with_placeholders,
+            }
+        }
+        if required_package:
+            step["prefect.deployments.steps.pull_from_remote_storage"][
+                "requires"
+            ] = required_package
+        return step
+
+    def __eq__(self, __value) -> bool:
+        """
+        Equality check for runner storage objects.
+        """
+        if isinstance(__value, RemoteStorage):
+            return self._url == __value._url and self._settings == __value._settings
+        return False
+
+    def __repr__(self) -> str:
+        return f"RemoteStorage(url={self._url!r})"
+
+
 def create_storage_from_url(
     url: str, pull_interval: Optional[int] = 60
 ) -> RunnerStorage:
@@ -282,7 +477,8 @@ def create_storage_from_url(
     Creates a storage object from a URL.
 
     Args:
-        url: The URL to create a storage object from
+        url: The URL to create a storage object from. Supports git and `fsspec`
+            URLs.
         pull_interval: The interval at which to pull contents from remote storage to
             local storage
 
@@ -292,7 +488,8 @@ def create_storage_from_url(
     parsed_url = urlparse(url)
     if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
         return GitRepository(url=url, pull_interval=pull_interval)
-    raise ValueError(f"Unsupported storage URL: {url}. Only git URLs are supported.")
+    else:
+        return RemoteStorage(url=url, pull_interval=pull_interval)
 
 
 def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
