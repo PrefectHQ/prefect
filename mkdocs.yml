@@ -152,9 +152,9 @@ nav:
                 - Global Concurrency Limits: guides/global-concurrency-limits.md
                 - Variables: guides/variables.md
                 - Using the Client: guides/using-the-client.md
+                - Webhooks: guides/webhooks.md
           - Execution:
                 - Docker: guides/docker.md
-                - Webhooks: guides/webhooks.md
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
                 - Moving data: guides/moving-data.md
@@ -201,6 +201,7 @@ nav:
                 - Single Sign-on (SSO): cloud/users/sso.md
                 - Audit Log: cloud/users/audit-log.md
                 - Object-Level Access Control Lists: cloud/users/object-access-control-lists.md
+                - Teams: cloud/users/teams.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
     - Integrations:

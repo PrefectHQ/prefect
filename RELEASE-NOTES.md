@@ -1,8 +1,104 @@
 # Prefect Release Notes
 
+## Release 2.14.3
+
+### Observability with deployment status
+
+You can now track the status of your deployments in the Prefect UI, which is especially useful when serving flows as they have no associated work pool or worker. If you see a flow run enter a `LATE` state (it isn’t running), you can click into the deployment for that flow run and see a red indicator next to your deployment. The worker, runner, or agent polling that deployment or its associated work queue is offline.
+- Deployments created from served flows will have a `READY` status if its associated process is running.
+- Deployments created in a work pool will have a `READY` status when a worker is `ONLINE` and polling the associated work queue.
+- Deployments created in a push work pool (Prefect Cloud) will always have a `READY` status.
+  
+<p align="center">
+<img width="976" alt="a late flow run for a deployment that is `NOT_READY`" src="https://github.com/PrefectHQ/prefect/assets/42048900/db20979a-870d-44c4-ac0b-66f70d99e58b">
+</p>
+
+In Prefect Cloud, an event is emitted each time a deployment changes status. These events are viewable in the Event Feed.
+<p align="center">
+<img width="538" alt="event feed deployment status events" src="https://github.com/PrefectHQ/prefect/assets/42048900/8ee076cd-fd30-47d1-9ee5-6b5a3b383b63">
+</p>
+
+You can also create an automation triggered by deployment status changes on the Automations page!
+
+<p align="center">
+<img width="862" alt="deployment status trigger on automations page" src="https://github.com/PrefectHQ/prefect/assets/42048900/87a0945e-9b9e-406b-b020-fbd9733cb4c3">
+</p>
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1801
+- https://github.com/PrefectHQ/prefect/pull/10969
+- https://github.com/PrefectHQ/prefect/pull/10951
+- https://github.com/PrefectHQ/prefect/pull/10949
+
+### Additional storage options for `flow.from_source`
+
+You can now load flows from a variety of storage options with `flow.from_source`! In addition to loading flows from a git repository, you can load flows from any supported `fsspec` protocol.
+
+Here's an example of loading and serving a flow from an S3 bucket:
+
+```python
+from prefect import flow
+
+if __name__ == "__main__":
+    flow.from_source(
+        source="s3://my-bucket/my-folder",
+        entrypoint="flows.py:my_flow",
+    ).serve(name="deployment-from-remote-flow")
+```
+
+You can use the `RemoteStorage` class to provide additional configuration options.
+
+Here's an example of loading and serving a flow from Azure Blob Storage with a custom account name:
+
+```python
+from prefect import flow
+from prefect.runner.storage import RemoteStorage
+
+if __name__ == "__main__":
+    flow.from_source(
+        source=RemoteStorage(url="az://my-container/my-folder", account_name="my-account-name"),
+        entrypoint="flows.py:my_flow",
+    ).serve(name="deployment-from-remote-flow")
+```
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11072
+
+### Enhancements
+- Add option to skip building a Docker image with `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11082
+- Display placeholder on the variables page when no variables are present — https://github.com/PrefectHQ/prefect/pull/11044
+- Allow composite sort of block documents by `block_type_name` and name — https://github.com/PrefectHQ/prefect/pull/11054
+- Add option to configure a warning via `PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD` if task parameter introspection takes a long time — https://github.com/PrefectHQ/prefect/pull/11075
+
+### Fixes
+- Update cancellation cleanup service to allow for infrastructure teardown — https://github.com/PrefectHQ/prefect/pull/11055
+- Allow `password` to be provided in `credentials` for `GitRespository` — https://github.com/PrefectHQ/prefect/pull/11056
+- Enable page refresh loading for non dashboard pages — https://github.com/PrefectHQ/prefect/pull/11065
+- Allow runner to load remotely stored flows when running hooks — https://github.com/PrefectHQ/prefect/pull/11077
+- Fix reading of flow run graph with unstarted runs — https://github.com/PrefectHQ/prefect/pull/11070
+- Allow Pydantic V2 models in flow function signatures — https://github.com/PrefectHQ/prefect/pull/10966
+- Run `prefect-client` build workflow on reqs.txt updates — https://github.com/PrefectHQ/prefect/pull/11079
+- Skips unsupported Windows tests — https://github.com/PrefectHQ/prefect/pull/11076
+- Avoid yanked `pytest-asyncio==0.22.0` — https://github.com/PrefectHQ/prefect/pull/11064
+
+### Documentation
+- Add guide to daemonize a worker or `.serve` process with systemd — https://github.com/PrefectHQ/prefect/pull/11008
+- Add clarification of term `task` in Global Concurrency docs — https://github.com/PrefectHQ/prefect/pull/11085
+- Update Global Concurrency guide to highlight general purpose use of concurrency limits — https://github.com/PrefectHQ/prefect/pull/11074
+- Update push work pools documentation to mention concurrency — https://github.com/PrefectHQ/prefect/pull/11068
+- Add documentation on Prefect Cloud teams — https://github.com/PrefectHQ/prefect/pull/11057
+- Update 2.14.2 release notes  — https://github.com/PrefectHQ/prefect/pull/11053
+- Fix rendering of marketing banner on the Prefect dashboard — https://github.com/PrefectHQ/prefect/pull/11069
+- Fix typo in `README.md` — https://github.com/PrefectHQ/prefect/pull/11058
+
+## New Contributors
+* @vatsalya-vyas made their first contribution in https://github.com/PrefectHQ/prefect/pull/11058
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.2...2.14.3
+
 ## Release 2.14.2
 
-## Ability to pass **kwargs to state change hooks
+### Ability to pass **kwargs to state change hooks
 
 You can now pass a partial (sometimes called ["curried"](https://www.geeksforgeeks.org/partial-functions-python/)) hook to your tasks and flows, allowing for more tailored post-execution behavior.
 
