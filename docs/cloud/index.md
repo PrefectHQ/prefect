@@ -35,7 +35,7 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
     - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
     - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
     - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's server based on automation triggers.
-    - [Organizations](/cloud/organizations/) &mdash; user and workspace management features that enable collaboration for larger teams.
+    - [Pro & Enterprise Accounts](/cloud/pro-enterprise/) &mdash; user and workspace management features that enable collaboration for organizations.
     - [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
     - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an account or a workspace.
     - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.

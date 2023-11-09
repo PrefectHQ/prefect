@@ -22,15 +22,14 @@ After creating your workspace, you'll be able to view flow runs, flows, deployme
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
-Select the current workspace name in the navigation menu to see all workspaces you can access.
+Select a workspace name in the navigation menu to see all workspaces you can access.
 
 ![Viewing all available workspaces in the Prefect Cloud UI.](/img/ui/all-workspaces.png)
 
 Your list of available workspaces may include:
 
-- Your own personal workspaces.
-- Workspaces owned by other users, who have invited you to their workspace as a collaborator.
-- Workspaces in an [organization](/ui/organizations/) to which you've been invited and have been given access.
+- Your own account workspace.
+- Workspaces in an account to which you've been invited and have been given access as an Admin or Member.
 
 !!! cloud-ad "Workspace-specific features"
     Each workspace keeps track of its own:
@@ -40,9 +39,9 @@ Your list of available workspaces may include:
     - [Deployments](/concepts/deployments/)
     - [Work pools](/concepts/work-pools/)
     - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
-    - [Automations](../automations/)
+    - [Automations](/concepts/automations/)
 
-Your user permissions within workspaces may vary. [Organizations](/ui/organizations/) can assign roles and permissions at the workspace level.
+Your user permissions within workspaces may vary. [Account Admins](/ui/pro-enterprise/) can assign roles and permissions at the workspace level.
 
 ## Create a workspace
 
