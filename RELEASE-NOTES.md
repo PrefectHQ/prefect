@@ -19,7 +19,7 @@ See the following pull requests for implementation details:
 
 ### Enhancements
 - Add API route for block counts — https://github.com/PrefectHQ/prefect/pull/11090
-- Improved tag handling on `DeploymentImage` for `.deploy`
+- Improved tag handling on `DeploymentImage` for `.deploy`:
     - https://github.com/PrefectHQ/prefect/pull/11115
     - https://github.com/PrefectHQ/prefect/pull/11119
 - Allow `image` passed into `.deploy` to be optional if loading flow from storage — https://github.com/PrefectHQ/prefect/pull/11117
