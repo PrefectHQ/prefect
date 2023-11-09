@@ -98,21 +98,15 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
 
     @flow(log_prints=True)
-    def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-        url = f"https://api.github.com/repos/{repo_name}"
-        response = httpx.get(url)
-        response.raise_for_status()
-        repo = response.json()
-        print(f"{repo_name} repository statistics 🤓:")
-        print(f"Stars 🌠 : {repo['stargazers_count']}")
-        print(f"Forks 🍴 : {repo['forks_count']}")
+    def buy():
+        print("Buying securities")
 
 
     if __name__ == "__main__":
-        get_repo_info.deploy(
+        buy.deploy(
             name="my-first-deployment", 
             work_pool_name="my-docker-pool", 
-            image="my-first-deployment-image:tutorial"
+            image="my-first-deployment-image:0.0.1"
             push=False
         )
     ```
@@ -121,8 +115,12 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     Note that the registry needs
 
-    `
+    
+    demo of passing params
 
+    demo of changing base job template
+
+    demo of adding an environment variable
 
 
     Also like ``.serve()` you can chain together the `.from_source` method and the `.deploy` method to create a deployment that pulls your flow code from a remote source.
@@ -135,7 +133,7 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     You can chain the `flow.from_source` method to `.deploy` method and speciy a git-based cloud storage option such as GitHub, Bitbucket, or Gitlab. 
 
-```python
+    ```python
     ... 
     if __name__ == "__main__":
         get_repo_info.from_source().deploy(
@@ -170,31 +168,33 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
             push=False)
     ```
 
-    Like `serve()`, for multiple deployments you can use the analagous `deploy` function.
+    For multiple deployments you can use the `deploy` function, analogous to the `serve` function. 
 
     Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
     ```python hl_lines="9-19"
-        from prefect import deploy, flow
+    from prefect import deploy, flow
 
 
-        @flow(log_prints=True)
-        def local_flow():
-            print("I'm a locally defined flow!")
+    @flow(log_prints=True)
+    def local_flow():
+        print("I'm a flow!")
 
-        if __name__ == "__main__":
-            deploy(
-                local_flow.to_deployment(name="example-deploy-local-flow"),
-                flow.from_source(
-                    source="https://github.com/org/repo.git",
-                    entrypoint="flows.py:my_flow",
-                ).to_deployment(
-                    name="example-deploy-remote-flow",
-                ),
-                work_pool_name="my-work-pool",
-                image="my-registry/my-image:dev",
-            )
-    ``
+    if __name__ == "__main__":
+        deploy(
+            local_flow.to_deployment(name="example-deploy-local-flow"),
+            flow.from_source(
+                source="https://github.com/org/repo.git",
+                entrypoint="flows.py:my_flow",
+            ).to_deployment(
+                name="example-deploy-remote-flow",
+            ),
+            work_pool_name="my-work-pool",
+            image="my-registry/my-image:dev",
+        )
+    ```
+
+    You can specify different work pools for each deployment by 
 
 === "`prefect.yaml`"
 
@@ -281,7 +281,7 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     <div class="terminal">
     ```bash
-    $ prefect init --recipe docker
+    prefect init --recipe docker
     >> image_name: < insert image name here >
     >> tag: < insert image tag here >
     ```
@@ -294,10 +294,10 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
         
         <div class="terminal">
         ```bash
-        $ prefect init --recipe docker \
+        prefect init --recipe docker \
             --field image_name=my-repo/my-image \
             --field tag=my-tag
-    ```
+        ```
         </div>
 
     ```yaml
@@ -343,7 +343,7 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     <div class="terminal">
     ```bash
-    $ prefect init --recipe s3
+    prefect init --recipe s3
     >> bucket: < insert bucket name here >
     ```
     </div>
@@ -539,11 +539,34 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
         For an example, [check out the deployments tutorial](/guides/deployment/docker/).
 
-    ### Deployment Configurations
+### Deployment Configurations
 
-    Each `prefect.yaml` file can have multiple deployment configurations that control the behavior of created deployments. These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations in the same codebase.
+You can create multiple deployments from one or more python file that use `.deploy`. Similarly a `prefect.yaml` file can have multiple deployment configurations that control the behavior of created deployments.
 
-    ### Working With Multiple Deployments
+These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations in the same codebase.
+
+### Working with multiple deployments
+
+=== "`.deploy`"
+
+    ```python
+    from prefect import deploy, flow
+
+    @flow(log_prints=True)
+    def buy():
+        print("Buying securities")
+    
+    
+    if __name__ == "__main__":
+        deploy(
+            buy.to_deployment(name="dev-deploy", work_pool_name="my-dev-work-pool"),
+            buy.to_deployment(name="prod-deploy", work_pool_name="my-prod-work-pool"),
+            image="my-registry/my-image:dev",
+            push=False,
+        )
+    ```
+
+=== "`prefect.yaml`"
 
     Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments to be version controlled and deployed with a single command.
 
@@ -585,7 +608,7 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     <div class="terminal">
     ```bash
-    $ prefect deploy --name deployment-1
+    prefect deploy --name deployment-1
     ```
     </div>
 
@@ -593,7 +616,7 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     <div class="terminal">
     ```bash
-    $ prefect deploy --name deployment-1 --name deployment-2
+    prefect deploy --name deployment-1 --name deployment-2
     ```
     </div>
 
@@ -601,7 +624,7 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     <div class="terminal">
     ```bash
-    $ prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
+    prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
     ```
     </div>
 
@@ -609,16 +632,18 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     <div class="terminal">
     ```bash
-    $ prefect deploy --all
+    prefect deploy --all
     ```
     </div>
 
     To deploy deployments that match a pattern you can run:
+
     <div class="terminal">
     ```bash
-    $ prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
+    prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
     ```
     </div>
+
     The above command will deploy all deployments from the flow `my-flow`, all flows ending in `dev` with a deployment named `my-deployment`, and all deployments starting with `dep` and ending in `prod`.
 
     !!! note "CLI Options When Deploying Multiple Deployments"
