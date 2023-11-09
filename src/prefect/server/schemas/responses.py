@@ -232,7 +232,7 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
-DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 30
+DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 60
 
 
 @copy_model_fields
