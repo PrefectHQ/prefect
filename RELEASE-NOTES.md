@@ -15,7 +15,7 @@ We've re-written the flow run graph from scratch for maximum performance. Render
 - Horizontal scale controls
 
 ### Enhancements
-- Add a count blocks api route — https://github.com/PrefectHQ/prefect/pull/11090
+- Add API route for block counts — https://github.com/PrefectHQ/prefect/pull/11090
 - Improved tag handling on `DeploymentImage` for `.deploy`
     - https://github.com/PrefectHQ/prefect/pull/11115
     - https://github.com/PrefectHQ/prefect/pull/11119
