@@ -20,7 +20,7 @@ We've re-written the flow run graph from scratch for maximum performance. Render
     - https://github.com/PrefectHQ/prefect/pull/11115
     - https://github.com/PrefectHQ/prefect/pull/11119
 - Allow `image` passed into `.deploy` to be optional if loading flow from storage — https://github.com/PrefectHQ/prefect/pull/11117
-- Ensure client avoids image builds for managed work pools — https://github.com/PrefectHQ/prefect/pull/11120
+- Ensure client avoids image builds when deploying to managed work pools — https://github.com/PrefectHQ/prefect/pull/11120
 - Improved flow run graph with new dependency layout — https://github.com/PrefectHQ/prefect/pull/11112
 - Add `SIGTERM` handling to runner to gracefully handle timeouts — https://github.com/PrefectHQ/prefect/pull/11133
 - Flow run graph v2 polish — https://github.com/PrefectHQ/prefect/pull/11105
