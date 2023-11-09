@@ -30,7 +30,7 @@ We've re-written the flow run graph from scratch for maximum performance. Render
 - Use an unstarted flow run's expected start time for the Graph start time — https://github.com/PrefectHQ/prefect/pull/11138
 
 ### Fixes
-- Dont print worker start command for managed pool — https://github.com/PrefectHQ/prefect/pull/11122
+- Avoid printing references to workers when deploying to managed pools — https://github.com/PrefectHQ/prefect/pull/11122
 
 ### Documentation
 - Fix typo in RELEASE-NOTES.md — https://github.com/PrefectHQ/prefect/pull/11094
