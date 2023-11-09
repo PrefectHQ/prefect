@@ -16,8 +16,9 @@ We've re-written the flow run graph from scratch for maximum performance. Render
 
 ### Enhancements
 - Add a count blocks api route — https://github.com/PrefectHQ/prefect/pull/11090
-- Improved tag handling on DeploymentImage — https://github.com/PrefectHQ/prefect/pull/11115
-- Improve tag handling in `DeploymentImage` with `parse_image_tag` — https://github.com/PrefectHQ/prefect/pull/11119
+- Improved tag handling on `DeploymentImage` for `.deploy`
+    - https://github.com/PrefectHQ/prefect/pull/11115
+    - https://github.com/PrefectHQ/prefect/pull/11119
 - Allow `image` passed into `deploy` to be optional if loading flow from storage — https://github.com/PrefectHQ/prefect/pull/11117
 - Ensure client avoids image builds for managed work pools — https://github.com/PrefectHQ/prefect/pull/11120
 - Improved flow run graph with new dependency layout — https://github.com/PrefectHQ/prefect/pull/11112
