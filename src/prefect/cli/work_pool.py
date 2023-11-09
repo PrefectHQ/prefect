@@ -83,9 +83,17 @@ async def create(
             .decode()
             .strip()
         )
-        # output = subprocess.check_output(
-        #     ["gcloud", "iam", "service-accounts", "create", "prefect", "--display-name", "prefect"]
-        # )
+        subprocess.check_output(
+            [
+                "gcloud",
+                "iam",
+                "service-accounts",
+                "create",
+                "prefect",
+                "--display-name",
+                "prefect",
+            ]
+        )
         subprocess.check_output(
             [
                 "gcloud",
@@ -119,18 +127,18 @@ async def create(
         #         "--location=us-central1",
         #     ]
         # )
-        # output = subprocess.check_output(
-        #     [
-        #         "gcloud",
-        #         "iam",
-        #         "service-accounts",
-        #         "keys",
-        #         "create",
-        #         "key.json",
-        #         "--iam-account",
-        #         f"prefect@{project}.iam.gserviceaccount.com",
-        #     ]
-        # )
+        subprocess.check_output(
+            [
+                "gcloud",
+                "iam",
+                "service-accounts",
+                "keys",
+                "create",
+                "key.json",
+                "--iam-account",
+                f"prefect@{project}.iam.gserviceaccount.com",
+            ]
+        )
         # activate cloud run api
         subprocess.check_output(
             [
