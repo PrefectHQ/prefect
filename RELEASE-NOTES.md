@@ -32,7 +32,6 @@ See the following pull requests for implementation details:
 - Avoid printing references to workers when deploying to managed pools — https://github.com/PrefectHQ/prefect/pull/11122
 
 ### Documentation
-- Fix typo in release notes — https://github.com/PrefectHQ/prefect/pull/11094
 - Fix docstring for `flow.deploy` method example — https://github.com/PrefectHQ/prefect/pull/11108
 - Add warning about image architecture to push pool guide — https://github.com/PrefectHQ/prefect/pull/11118
 - Move webhooks guide to `Development` section in guides index — https://github.com/PrefectHQ/prefect/pull/11141
