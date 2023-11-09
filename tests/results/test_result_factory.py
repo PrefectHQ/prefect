@@ -5,7 +5,7 @@ import pytest
 import prefect.exceptions
 import prefect.results
 from prefect import flow, task
-from prefect.context import get_run_context
+from prefect.context import FlowRunContext, get_run_context
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
     LiteralResult,
@@ -931,6 +931,8 @@ async def test_result_factory_from_task_with_no_flow_run_context(options, expect
     @task(**options)
     def my_task():
         pass
+
+    assert FlowRunContext.get() is None
 
     result_factory = await ResultFactory.from_task(task=my_task)
 
