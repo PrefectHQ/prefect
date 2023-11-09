@@ -83,7 +83,7 @@ If the user does not already have a Prefect Cloud account, they will be able to 
 
 To delete a workspace collaborator, select **Remove** from the menu on the left side of the user's information on this page.
 
-## Workspace sharing <span class="badge orgs"></span>
+## Workspace sharing <span class="badge pro"></span>
 
 Within a Prefect Cloud [organization](/ui/organizations/), Admins and workspace Owners may invite users and [service accounts](/ui/service-accounts/) to work in an organization workspace.
 In addition to giving the user access to the workspace, the Admin or Owner assigns a [workspace role](/ui/roles/) to the user.

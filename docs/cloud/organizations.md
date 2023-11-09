@@ -13,7 +13,7 @@ search:
   boost: 2
 ---
 
-# Organizations <span class="badge cloud"></span> <span class="badge orgs"></span>
+# Organizations <span class="badge cloud"></span> <span class="badge pro"></span>
 
 For larger teams or companies with more complex needs around user and access management, organizations in Prefect Cloud provide several features that enable you to collaborate securely at scale.
 

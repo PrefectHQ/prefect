@@ -100,18 +100,18 @@ Service accounts are typically used to configure API access for running workers 
 
 See the [service accounts](/cloud/users/service-accounts/) documentation for more information about creating and managing service accounts in a Prefect Cloud organization.
 
-## Roles and custom permissions <span class="badge orgs"></span>
+## Roles and custom permissions <span class="badge pro"> </span><span class="badge enterprise"></span>
 
 Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.
 
 See the [role-based access controls (RBAC)](../cloud/users/roles/) documentation for more information about managing user roles in a Prefect Cloud organization.
 
-## Single Sign-on (SSO) <span class="badge orgs"></span> <span class="badge enterprise"></span>
+## Single Sign-on (SSO) <span class="badge pro"></span> <span class="badge enterprise"></span>
 
 Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/cloud/users/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
 SCIM provisioning is also available with Enterprise plans.
 
-## Audit log <span class="badge orgs"></span> <span class="badge enterprise"></span>
+## Audit log <span class="badge pro"></span> <span class="badge enterprise"></span>
 
 Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/cloud/users/audit-log/) compliance and transparency tools.
 Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes.
