@@ -4,7 +4,7 @@
 
 ### New improved flow run graph with dependency layout
 
-The Flow Run Graph has been rebuilt from the ground up, offering significantly improved performance capabilities that allow larger flow runs to be displayed much more smoothly. We’ve added three new layouts: two non-temporal layout options, designed to provide a clearer picture of the dependency paths, and one to facilitate easy comparison of run durations. The x-axis can now be independently scaled for temporal layouts, you can adjust it in the graph settings or with the new keyboard shortcuts - and +. Additional small bug fixes, including displaying of cached tasks, have also been included.
+The flow run graph in the Prefect UI has been rebuilt from the ground up, offering significantly improved performance capabilities that allow larger flow runs to be displayed much more smoothly. We’ve added three new layouts: two non-temporal layout options, designed to provide a clearer picture of the dependency paths, and one to facilitate easy comparison of run durations. The x-axis can now be independently scaled for temporal layouts, you can adjust it in the graph settings or with the new keyboard shortcuts - and +. Additional small bug fixes, including displaying of cached tasks, have also been included.
 
 <p align="center">
 <img width="976" alt="flow run graph sequential grid view" src="https://user-images.githubusercontent.com/6776415/281769376-bccc4cd5-db2c-42b9-9c21-fc32b094323b.png">
