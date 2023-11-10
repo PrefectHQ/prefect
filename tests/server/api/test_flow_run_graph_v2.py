@@ -87,6 +87,44 @@ def base_time(start_of_test: pendulum.DateTime) -> pendulum.DateTime:
 
 
 @pytest.fixture
+async def unstarted_flow_run(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow,  # : db.Flow,
+    base_time: pendulum.DateTime,
+):
+    flow_run = db.FlowRun(
+        id=uuid4(),
+        flow_id=flow.id,
+        state_type=StateType.COMPLETED,
+        state_name="Irrelevant",
+        expected_start_time=base_time.subtract(seconds=1),
+        start_time=None,
+        end_time=None,
+    )
+    session.add(flow_run)
+    await session.commit()
+    return flow_run
+
+
+async def test_reading_graph_for_unstarted_flow_run_uses_expected_start_time(
+    session: AsyncSession,
+    unstarted_flow_run,  # db.FlowRun,
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=unstarted_flow_run.id,
+    )
+
+    assert graph.start_time == unstarted_flow_run.expected_start_time
+    assert graph.end_time == unstarted_flow_run.end_time
+    assert graph.root_node_ids == []
+    assert graph.nodes == []
+
+    assert_graph_is_connected(graph)
+
+
+@pytest.fixture
 async def flow_run(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -98,6 +136,7 @@ async def flow_run(
         flow_id=flow.id,
         state_type=StateType.COMPLETED,
         state_name="Irrelevant",
+        expected_start_time=base_time.subtract(seconds=1),
         start_time=base_time,
         end_time=base_time.add(minutes=5),
     )
@@ -139,6 +178,7 @@ async def flat_tasks(
             dynamic_key=f"task-{i}",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=i).subtract(microseconds=1),
             start_time=base_time.add(seconds=i),
             end_time=base_time.add(minutes=1, seconds=i),
         )
@@ -161,6 +201,30 @@ async def flat_tasks(
             end_time=base_time.add(minutes=1, seconds=3),
         )
     )
+
+    # mix in a RUNNING task with no start_time to show that it is excluded
+    session.add(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-running",
+            task_key="task-running",
+            dynamic_key="task-running",
+            state_type=StateType.RUNNING,
+            state_name="Irrelevant",
+            expected_start_time=None,
+            start_time=None,
+            end_time=None,
+        )
+    )
+
+    # turn the 3rd task into a Cached task, which needs to be treated specially
+    # because Cached tasks are COMPLETED, but don't have start/end times, only
+    # an expected_start_time
+    task_runs[2].start_time = None
+    task_runs[2].end_time = None
+    task_runs[2].state_type = StateType.COMPLETED
+    task_runs[2].state_name = "Cached"
 
     await session.commit()
     return task_runs
@@ -188,8 +252,22 @@ async def test_reading_graph_for_flow_run_with_flat_tasks(
                 id=task_run.id,
                 label=task_run.name,
                 state_type=task_run.state_type,
-                start_time=task_run.start_time,
-                end_time=task_run.end_time,
+                start_time=(
+                    task_run.expected_start_time
+                    if (
+                        task_run.state_type == StateType.COMPLETED
+                        and not task_run.start_time
+                    )
+                    else task_run.start_time
+                ),
+                end_time=(
+                    task_run.expected_start_time
+                    if (
+                        task_run.state_type == StateType.COMPLETED
+                        and not task_run.end_time
+                    )
+                    else task_run.end_time
+                ),
                 parents=[],
                 children=[],
             ),

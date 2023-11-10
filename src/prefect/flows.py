@@ -38,7 +38,12 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
 from prefect.deployments.runner import DeploymentImage, deploy
-from prefect.runner.storage import RunnerStorage, create_storage_from_url
+from prefect.filesystems import ReadableDeploymentStorage
+from prefect.runner.storage import (
+    BlockStorageAdapter,
+    RunnerStorage,
+    create_storage_from_url,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -758,7 +763,9 @@ class Flow(Generic[P, R]):
     @classmethod
     @sync_compatible
     async def from_source(
-        cls, source: Union[str, RunnerStorage], entrypoint: str
+        cls,
+        source: Union[str, RunnerStorage, ReadableDeploymentStorage],
+        entrypoint: str,
     ) -> "Flow":
         """
         Loads a flow from a remote s ource.
@@ -808,8 +815,15 @@ class Flow(Generic[P, R]):
         """
         if isinstance(source, str):
             storage = create_storage_from_url(source)
-        else:
+        elif isinstance(source, RunnerStorage):
             storage = source
+        elif hasattr(source, "get_directory"):
+            storage = BlockStorageAdapter(source)
+        else:
+            raise TypeError(
+                f"Unsupported source type {type(source).__name__!r}. Please provide a"
+                " URL to remote storage or a storage object."
+            )
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
@@ -828,7 +842,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: str,
-        image: Union[str, DeploymentImage],
+        image: Optional[Union[str, DeploymentImage]] = None,
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
@@ -902,7 +916,7 @@ class Flow(Generic[P, R]):
             if __name__ == "__main__":
                 my_flow.deploy(
                     "example-deployment",
-                    work_pool="my-work-pool",
+                    work_pool_name="my-work-pool",
                     image="my-repository/my-image:dev",
                 )
             ```
@@ -918,7 +932,7 @@ class Flow(Generic[P, R]):
                     entrypoint="flows.py:my_flow",
                 ).deploy(
                     "example-deployment",
-                    work_pool="my-work-pool",
+                    work_pool_name="my-work-pool",
                     image="my-repository/my-image:dev",
                 )
             ```
@@ -959,7 +973,7 @@ class Flow(Generic[P, R]):
 
         if print_next_steps:
             console = Console()
-            if not work_pool.is_push_pool:
+            if not work_pool.is_push_pool and not work_pool.is_managed_pool:
                 console.print(
                     "\nTo execute flow runs from this deployment, start a worker in a"
                     " separate terminal that pulls work from the"

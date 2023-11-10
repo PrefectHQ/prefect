@@ -2,11 +2,13 @@ import datetime
 import os
 import re
 import signal
+import sys
 import time
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
+from typing import List
 from unittest.mock import MagicMock
 
 import anyio
@@ -173,6 +175,36 @@ class TestServe:
         assert "dummy-flow-1/test_runner" in captured.out
         assert "dummy-flow-2/test_runner" in captured.out
         assert "tired-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
+    is_python_38 = sys.version_info[:2] == (3, 8)
+
+    async def test_serve_typed_container_inputs_flow(self, capsys):
+        if self.is_python_38:
+
+            @flow
+            def type_container_input_flow(arg1: List[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        else:
+
+            @flow
+            def type_container_input_flow(arg1: list[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        await serve(
+            await type_container_input_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "type-container-input-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
     async def test_serve_can_create_multiple_deployments(
@@ -1078,6 +1110,34 @@ class TestDeploy:
                 image="test-registry/test-image",
             )
 
+    async def test_deployment_image_tag_handling(self):
+        # test image tag has default
+        image = DeploymentImage(
+            name="test-registry/test-image",
+        )
+        assert image.name == "test-registry/test-image"
+        assert image.tag.startswith(str(pendulum.now("utc").year))
+
+        # test image tag can be inferred
+        image = DeploymentImage(
+            name="test-registry/test-image:test-tag",
+        )
+        assert image.name == "test-registry/test-image"
+        assert image.tag == "test-tag"
+        assert image.reference == "test-registry/test-image:test-tag"
+
+        # test image tag can be provided
+        image = DeploymentImage(name="test-registry/test-image", tag="test-tag")
+        assert image.name == "test-registry/test-image"
+        assert image.tag == "test-tag"
+        assert image.reference == "test-registry/test-image:test-tag"
+
+        # test both can't be provided
+        with pytest.raises(
+            ValueError, match="both 'test-tag' and 'bad-tag' were provided"
+        ):
+            DeploymentImage(name="test-registry/test-image:test-tag", tag="bad-tag")
+
     async def test_deploy_custom_dockerfile(
         self,
         mock_build_image,
@@ -1220,6 +1280,43 @@ class TestDeploy:
         assert "prefect worker start" not in console_output
         assert "prefect deployment run [DEPLOYMENT_NAME]" not in console_output
 
+    async def test_deploy_managed_work_pool_doesnt_prompt_worker_start_or_build_image(
+        self,
+        managed_work_pool,
+        capsys,
+        mock_generate_default_dockerfile,
+        mock_build_image,
+        mock_docker_client,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=managed_work_pool.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+            print_next_steps_message=False,
+        )
+
+        assert len(deployment_ids) == 2
+
+        console_output = capsys.readouterr().out
+        assert "Successfully created/updated all deployments!" in console_output
+
+        assert "Building image" not in capsys.readouterr().out
+        assert "Pushing image" not in capsys.readouterr().out
+        assert "prefect worker start" not in console_output
+        assert "prefect deployment run [DEPLOYMENT_NAME]" not in console_output
+
+        mock_generate_default_dockerfile.assert_not_called()
+        mock_build_image.assert_not_called()
+        mock_docker_client.api.push.assert_not_called()
+
     async def test_deploy_with_image_string(
         self,
         mock_build_image,
@@ -1244,6 +1341,61 @@ class TestDeploy:
             context=Path.cwd(),
             pull=True,
         )
+
+    async def test_deploy_without_image_with_flow_stored_remotely(
+        self,
+        work_pool_with_image_variable,
+    ):
+        deployment_id = await deploy(
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+        )
+
+        assert len(deployment_id) == 1
+
+    async def test_deploy_without_image_or_flow_storage_raises(
+        self,
+        work_pool_with_image_variable,
+    ):
+        with pytest.raises(ValueError):
+            await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                work_pool_name=work_pool_with_image_variable.name,
+            )
+
+    async def test_deploy_with_image_and_flow_stored_remotely_raises(
+        self,
+        work_pool_with_image_variable,
+    ):
+        with pytest.raises(RuntimeError, match="Failed to generate Dockerfile"):
+            await deploy(
+                await (
+                    await flow.from_source(
+                        source=MockStorage(), entrypoint="flows.py:test_flow"
+                    )
+                ).to_deployment(__file__),
+                work_pool_name=work_pool_with_image_variable.name,
+                image="test-registry/test-image:test-tag",
+            )
+
+    async def test_deploy_multiple_flows_one_using_storage_one_without_raises_with_no_image(
+        self,
+        work_pool_with_image_variable,
+    ):
+        with pytest.raises(ValueError):
+            await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                await (
+                    await flow.from_source(
+                        source=MockStorage(), entrypoint="flows.py:test_flow"
+                    )
+                ).to_deployment(__file__),
+                work_pool_name=work_pool_with_image_variable.name,
+            )
 
     async def test_deploy_with_image_string_no_tag(
         self,

@@ -704,7 +704,10 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
         result = await session.execute(
-            sa.select(db.FlowRun.start_time, db.FlowRun.end_time).where(
+            sa.select(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
+                db.FlowRun.end_time,
+            ).where(
                 db.FlowRun.id == flow_run_id,
             )
         )
@@ -730,7 +733,15 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                             task_run.start_time,
                             task_run.expected_start_time
                         ) as start_time,
-                        COALESCE(subflow.end_time, task_run.end_time) as end_time,
+                        COALESCE(
+                            subflow.end_time,
+                            task_run.end_time,
+                            CASE
+                                WHEN task_run.state_type = 'COMPLETED'
+                                    THEN task_run.expected_start_time
+                                ELSE NULL
+                            END
+                        ) as end_time,
                         (argument->>'id')::uuid as parent
                 FROM    task_run
                         LEFT JOIN jsonb_each(task_run.task_inputs) as input ON true
@@ -740,7 +751,13 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
                 WHERE   task_run.flow_run_id = :flow_run_id AND
-                        task_run.state_type <> 'PENDING'
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
@@ -1098,7 +1115,10 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
         result = await session.execute(
-            sa.select(db.FlowRun.start_time, db.FlowRun.end_time).where(
+            sa.select(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
+                db.FlowRun.end_time,
+            ).where(
                 db.FlowRun.id == flow_run_id,
             )
         )
@@ -1124,7 +1144,15 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                             task_run.start_time,
                             task_run.expected_start_time
                         ) as start_time,
-                        COALESCE(subflow.end_time, task_run.end_time) as end_time,
+                        COALESCE(
+                            subflow.end_time,
+                            task_run.end_time,
+                            CASE
+                                WHEN task_run.state_type = 'COMPLETED'
+                                    THEN task_run.expected_start_time
+                                ELSE NULL
+                            END
+                        ) as end_time,
                         json_extract(argument.value, '$.id') as parent
                 FROM    task_run
                         LEFT JOIN json_each(task_run.task_inputs) as input ON true
@@ -1134,7 +1162,13 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         LEFT JOIN flow
                                 ON flow.id = subflow.flow_id
                 WHERE   task_run.flow_run_id = :flow_run_id AND
-                        task_run.state_type <> 'PENDING'
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
 
                 -- the order here is important to speed up building the two sets of
                 -- edges in the with_parents and with_children CTEs below
