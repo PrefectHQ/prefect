@@ -1,4 +1,5 @@
 import subprocess
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
 from urllib.parse import urlparse, urlsplit, urlunparse
@@ -151,7 +152,7 @@ class GitRepository:
         credentials = (
             self._credentials.dict()
             if isinstance(self._credentials, Block)
-            else self._credentials
+            else deepcopy(self._credentials)
         )
         if isinstance(credentials.get("access_token"), Secret):
             credentials["access_token"] = credentials["access_token"].get()
