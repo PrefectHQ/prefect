@@ -842,6 +842,10 @@ class ORMDeployment:
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
     work_queue_name = sa.Column(sa.String, nullable=True, index=True)
+    last_polled = sa.Column(
+        Timestamp(),
+        nullable=True,
+    )
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)
     entrypoint = sa.Column(sa.String, nullable=True)
@@ -1069,6 +1073,8 @@ class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
+
+    block_type_name = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def block_type_id(cls):

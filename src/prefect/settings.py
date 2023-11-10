@@ -765,7 +765,13 @@ PREFECT_LOCAL_STORAGE_PATH = Setting(
     default=Path("${PREFECT_HOME}") / "storage",
     value_callback=template_with_settings(PREFECT_HOME),
 )
-"""The path to a directory to store things in."""
+"""The path to a block storage directory to store things in."""
+
+PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
+    str,
+    default=None,
+)
+"""The `block-type/block-document` slug of a block to use as the default result storage."""
 
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
@@ -920,6 +926,20 @@ This allows styles to be conveniently added to log messages, e.g.
 if enabled, strings that contain square brackets may be inaccurately
 interpreted and lead to incomplete output, e.g.
 `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
+
+PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
+    float,
+    default=10.0,
+)
+"""
+Threshold time in seconds for logging a warning if task parameter introspection 
+exceeds this duration. Parameter introspection can be a significant performance hit
+when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
+and each element needs to be inspected. See `prefect.utilities.annotations.quote` 
+for more details.
+Defaults to `10.0`. 
+Set to `0` to disable logging the warning.
 """
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
@@ -1252,6 +1272,11 @@ application. If disabled, task runs and subflow runs belonging to cancelled flow
 remain in non-terminal states.
 """
 
+PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
+"""
+The maximum size of a flow run graph on the v2 API
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1285,6 +1310,26 @@ Whether or not to warn when experimental Prefect workers are used.
 PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect visualize is used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=False)
+"""
+Whether or not to enable experimental enhanced flow run cancellation.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental enhanced flow run cancellation is used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_DEPLOYMENT_STATUS = Setting(bool, default=True)
+"""
+Whether or not to enable deployment status in the UI
+"""
+
+PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
+"""
+Whether or not to warn when deployment status is used.
 """
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
@@ -1352,7 +1397,6 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
-
 
 # Deprecated settings ------------------------------------------------------------------
 

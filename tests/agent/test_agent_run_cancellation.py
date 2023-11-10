@@ -11,6 +11,11 @@ from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFoun
 from prefect.infrastructure.base import Infrastructure
 from prefect.server.database.orm_models import ORMDeployment
 from prefect.server.schemas.core import Deployment
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    temporary_settings,
+)
 from prefect.states import (
     Cancelled,
     Cancelling,
@@ -22,6 +27,17 @@ from prefect.states import (
 )
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
+
+
+@pytest.fixture
+def enable_enhanced_cancellation():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: True,
+            PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: False,
+        }
+    ):
+        yield
 
 
 def legacy_named_cancelling_state(**kwargs):
@@ -42,6 +58,7 @@ async def _create_test_deployment_from_orm(
                     "created_by",
                     "updated_by",
                     "work_queue_id",
+                    "last_polled",
                 }
             )
         )
@@ -707,3 +724,35 @@ async def test_agent_started_with_nondefault_work_pool_does_not_cancel_flow_run_
     assert "Found 1 flow runs awaiting cancellation" not in caplog.text
     post_flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert post_flow_run.state.name == "Cancelling"
+
+
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
+async def test_agent_skips_cancellation_when_enhanced_cancellation_is_enabled(
+    prefect_client: PrefectClient,
+    deployment_2: ORMDeployment,
+    cancelling_constructor,
+    enable_enhanced_cancellation,
+    caplog,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_2.id,
+        state=cancelling_constructor(),
+    )
+
+    await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test")
+
+    async with PrefectAgent(
+        work_queues=[deployment_2.work_queue_name],
+        work_pool_name=flow_run.work_pool_name,
+        prefetch_seconds=10,
+    ) as agent:
+        await agent.check_for_cancelled_flow_runs()
+
+    post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    # state type shouldn't change
+    assert post_flow_run.state.type == cancelling_constructor().type
+
+    assert "Skipping cancellation because flow run" in caplog.text
+    assert "is using enhanced cancellation" in caplog.text

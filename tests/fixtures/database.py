@@ -363,6 +363,41 @@ async def deployment(
 
 
 @pytest.fixture
+async def deployment_2(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id_2,
+    storage_document_id,
+    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id_2,
+            work_queue_name=work_queue_1.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
 async def deployment_in_default_work_pool(
     session,
     flow,
@@ -476,13 +511,53 @@ async def work_pool(session):
             name="test-work-pool",
             type="test-type",
             base_job_template={
-                "job_configuration": {"command": "{{ command }}"},
+                "job_configuration": {
+                    "command": "{{ command }}",
+                },
                 "variables": {
                     "properties": {
                         "command": {
-                            "type": "array",
+                            "type": "string",
                             "title": "Command",
-                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_pool_with_image_variable(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="test-work-pool",
+            type="test-type",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                    "image_pull_policy": "{{ image_pull_policy }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                        "image_pull_policy": {
+                            "enum": ["IfNotPresent", "Always", "Never"],
+                            "type": "string",
+                            "title": "Image Pull Policy",
+                            "default": "IfNotPresent",
                         },
                     },
                     "required": [],
@@ -515,7 +590,57 @@ async def push_work_pool(session):
         work_pool=schemas.actions.WorkPoolCreate(
             name="push-work-pool",
             type="push-work-pool:push",
-            base_job_template={},
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def managed_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="mex-work-pool",
+            type="mex-work-pool:managed",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
         ),
     )
     await session.commit()

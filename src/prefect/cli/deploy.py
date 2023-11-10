@@ -542,7 +542,7 @@ async def _run_single_deploy(
     if (
         is_interactive()
         and not ci
-        and not deploy_config.get("pull")
+        and not (deploy_config.get("pull") or actions.get("pull"))
         and not docker_push_step_exists
         and confirm(
             (
@@ -709,7 +709,7 @@ async def _run_single_deploy(
                         " prefect.yaml file."
                     ),
                 )
-    if not work_pool.is_push_pool:
+    if not work_pool.is_push_pool and not work_pool.is_managed_pool:
         app.console.print(
             "\nTo execute flow runs from this deployment, start a worker in a"
             " separate terminal that pulls work from the"

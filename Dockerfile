@@ -105,7 +105,7 @@ RUN apt-get update && \
 RUN python -m pip install --no-cache-dir pip==22.3.1
 
 # Install the base requirements separately so they cache
-COPY requirements.txt ./
+COPY requirements-client.txt requirements.txt ./
 RUN pip install --upgrade --upgrade-strategy eager --no-cache-dir -r requirements.txt
 
 # Install prefect from the sdist

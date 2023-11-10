@@ -167,8 +167,8 @@ def flow_run_logger(
         get_logger("prefect.flow_runs"),
         extra={
             **{
-                "flow_run_name": flow_run.name,
-                "flow_run_id": str(flow_run.id),
+                "flow_run_name": flow_run.name if flow_run else "<unknown>",
+                "flow_run_id": str(flow_run.id) if flow_run else "<unknown>",
                 "flow_name": flow.name if flow else "<unknown>",
             },
             **kwargs,

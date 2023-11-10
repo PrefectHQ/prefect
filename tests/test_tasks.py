@@ -3,6 +3,7 @@ import inspect
 import time
 import warnings
 from asyncio import Event, sleep
+from functools import partial
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -3421,6 +3422,46 @@ def create_async_hook(mock_obj):
         mock_obj()
 
     return my_hook
+
+
+class TestTaskHooksWithKwargs:
+    def test_hook_with_extra_default_arg(self):
+        data = {}
+
+        def hook(task, task_run, state, foo=42):
+            data.update(name=hook.__name__, state=state, foo=foo)
+
+        @task(on_completion=[hook])
+        def foo_task():
+            pass
+
+        @flow
+        def foo_flow():
+            return foo_task(return_state=True)
+
+        state = foo_flow()
+
+        assert data == dict(name="hook", state=state, foo=42)
+
+    def test_hook_with_bound_kwargs(self):
+        data = {}
+
+        def hook(task, task_run, state, **kwargs):
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
+
+        hook_with_kwargs = partial(hook, foo=42)
+
+        @task(on_completion=[hook_with_kwargs])
+        def foo_task():
+            pass
+
+        @flow
+        def foo_flow():
+            return foo_task(return_state=True)
+
+        state = foo_flow()
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42})
 
 
 class TestTaskHooksOnCompletion:

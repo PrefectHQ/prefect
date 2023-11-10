@@ -945,9 +945,9 @@ async def longrunning():
 ```
 
 !!! tip "Pausing flow runs is blocking by default"
-    By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
+    By default, pausing a flow run blocks the worker &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
 
-    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via an agent and you want the agent to be able to pick up other flows while the paused flow is paused.
+    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via a worker and you want the worker to be able to pick up other flows while the paused flow is paused.
 
     Non-blocking pause can be accomplished by setting the `reschedule` flag to `True`. In order to use this feature, flows that pause with the `reschedule` flag must have:
 
@@ -958,7 +958,7 @@ async def longrunning():
 
 You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
 
-When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
+When cancellation is requested, the flow run is moved to a "Cancelling" state. The worker monitors the state of flow runs and detects that cancellation has been requested. The worker then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
 !!! warning "A deployment is required"
     Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow). A monitoring process must be running to enforce the cancellation. Inline subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
@@ -969,12 +969,12 @@ Support for cancellation is included for all core library infrastructure types:
 - Kubernetes Jobs
 - Processes
 
-Cancellation is robust to restarts of the agent. To enable this, we attach metadata about the created infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts:
+Cancellation is robust to restarts of the worker. To enable this, we attach metadata about the created infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts:
 
 1. Scope: identifying where the infrastructure is running.
 2. ID: a unique identifier for the infrastructure within the scope.
 
-The scope is used to ensure that Prefect does not kill the wrong infrastructure. For example, agents running on multiple machines may have overlapping process IDs but should not have a matching scope.
+The scope is used to ensure that Prefect does not kill the wrong infrastructure. For example, workers running on multiple machines may have overlapping process IDs but should not have a matching scope.
 
 The identifiers for the primary infrastructure types are as follows:
 
@@ -986,11 +986,21 @@ While the cancellation process is robust, there are a few issues than can occur:
 
 - If the infrastructure block for the flow run has been removed or altered, cancellation may not work.
 - If the infrastructure block for the flow run does not have support for cancellation, cancellation will not work.
-- If the identifier scope does not match when attempting to cancel a flow run the agent will be unable to cancel the flow run. Another agent may attempt cancellation.
-- If the infrastructure associated with the run cannot be found or has already been killed, the agent will mark the flow run as cancelled.
+- If the identifier scope does not match when attempting to cancel a flow run the worker will be unable to cancel the flow run. Another worker may attempt cancellation.
+- If the infrastructure associated with the run cannot be found or has already been killed, the worker will mark the flow run as cancelled.
 - If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
-- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
+- If the worker runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The worker will try again to cancel the flow run. Another worker may attempt cancellation.
 
+!!! tip "Enhanced cancellation"
+    We are working on improving cases where cancellation can fail. You can try the improved cancellation experience by enabling the `PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION` setting on your worker or agents:
+
+    <div class="terminal">
+    ```bash
+    prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
+    ```
+    </div>
+
+    If you encounter any issues, please let us know in Slack or with a Github issue.
 ### Cancel via the CLI
 
 From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run.

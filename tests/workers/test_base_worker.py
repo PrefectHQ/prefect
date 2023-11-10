@@ -32,7 +32,13 @@ from prefect.server import models
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_WORKER_PREFETCH_SECONDS,
+    get_current_settings,
+    temporary_settings,
+)
 from prefect.states import Cancelled, Cancelling, Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
@@ -80,6 +86,17 @@ async def variables(prefect_client: PrefectClient):
     await prefect_client._client.post(
         "/variables/", json={"name": "test_variable_2", "value": "test_value_2"}
     )
+
+
+@pytest.fixture
+def enable_enhanced_cancellation():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: True,
+            PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: False,
+        }
+    ):
+        yield
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(
@@ -362,9 +379,8 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
 
     assert (
         f"Flow run {flow_run.id!r} was created from deployment"
-        f" {deployment.name!r} which is configured with a storage block. Workers"
-        " currently only support local storage. Please use an agent to execute this"
-        " flow run."
+        f" {deployment.name!r} which is configured with a storage block. Please use an"
+        + " agent to execute this flow run."
         in caplog.text
     )
 
@@ -1336,6 +1352,26 @@ class TestPrepareForFlowRun:
         assert job_config.name == "my-job-name"
         assert job_config.command == "python -m prefect.engine"
 
+    def test_prepare_for_flow_run_with_enhanced_cancellation(
+        self, job_config, flow_run, enable_enhanced_cancellation
+    ):
+        job_config.prepare_for_flow_run(flow_run)
+
+        assert job_config.env == {
+            **get_current_settings().to_environment_variables(exclude_unset=True),
+            "MY_VAR": "foo",
+            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+        }
+        assert job_config.labels == {
+            "my-label": "foo",
+            "prefect.io/flow-run-id": str(flow_run.id),
+            "prefect.io/flow-run-name": flow_run.name,
+            "prefect.io/version": prefect.__version__,
+        }
+        assert job_config.name == "my-job-name"
+        # only thing that changes is the command
+        assert job_config.command == "prefect flow-run execute"
+
     def test_prepare_for_flow_run_with_deployment_and_flow(
         self, job_config, flow_run, deployment, flow
     ):
@@ -1740,6 +1776,7 @@ class TestCancellation:
         # No need for state message update
         assert post_flow_run.state.message is None
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
@@ -1829,6 +1866,34 @@ class TestCancellation:
             in caplog.text
         )
         assert "Cancellation cannot be guaranteed." in caplog.text
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_skips_with_runner(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        caplog,
+        cancelling_constructor,
+        enable_enhanced_cancellation,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            await worker.sync_with_backend()
+            await worker.check_for_cancelled_flow_runs()
+
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        # shouldn't change state
+        assert post_flow_run.state.type == cancelling_constructor().type
+
+        assert "Skipping cancellation because flow run" in caplog.text
+        assert "is using enhanced cancellation" in caplog.text
 
 
 async def test_get_flow_run_logger(

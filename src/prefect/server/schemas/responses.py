@@ -232,6 +232,9 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
+DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 60
+
+
 @copy_model_fields
 class DeploymentResponse(ORMBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
@@ -246,6 +249,7 @@ class DeploymentResponse(ORMBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.Deployment)
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
         schemas.core.Deployment
     )
@@ -261,6 +265,10 @@ class DeploymentResponse(ORMBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+    status: Optional[schemas.statuses.DeploymentStatus] = Field(
+        default=schemas.statuses.DeploymentStatus.NOT_READY,
+        description="Whether the deployment is ready to run flows.",
+    )
     enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
 
     @classmethod
@@ -268,10 +276,24 @@ class DeploymentResponse(ORMBaseModel):
         cls, orm_deployment: "prefect.server.database.orm_models.ORMDeployment"
     ):
         response = super().from_orm(orm_deployment)
+
         if orm_deployment.work_queue:
             response.work_queue_name = orm_deployment.work_queue.name
             if orm_deployment.work_queue.work_pool:
                 response.work_pool_name = orm_deployment.work_queue.work_pool.name
+
+        not_ready_horizon = datetime.datetime.now(
+            tz=datetime.timezone.utc
+        ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS)
+
+        if response.last_polled and response.last_polled > not_ready_horizon:
+            response.status = schemas.statuses.DeploymentStatus.READY
+        elif (
+            orm_deployment.work_queue
+            and orm_deployment.work_queue.last_polled
+            and orm_deployment.work_queue.last_polled > not_ready_horizon
+        ):
+            response.status = schemas.statuses.DeploymentStatus.READY
 
         return response
 
