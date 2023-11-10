@@ -486,8 +486,12 @@ class BlockStorageAdapter:
         self._block = block
         self._pull_interval = pull_interval
         self._storage_base_path = Path.cwd()
+        if not isinstance(block, Block):
+            raise TypeError(
+                f"Expected a block object. Received a {type(block).__name__!r} object."
+            )
         if not hasattr(block, "get_directory"):
-            raise ValueError("Provided block must have a get_directory method.")
+            raise ValueError("Provided block must have a `get_directory` method.")
 
         self._name = (
             f"{block.get_block_type_slug()}-{block._block_document_name}"
@@ -523,7 +527,7 @@ class BlockStorageAdapter:
                 )
             return {
                 "prefect.deployments.steps.pull_with_block": {
-                    "block_type": self._block.get_block_type_slug(),
+                    "block_type_slug": self._block.get_block_type_slug(),
                     "block_document_name": self._block._block_document_name,
                 }
             }
