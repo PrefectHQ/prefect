@@ -94,7 +94,7 @@ This will be the initial role for the user within the workspace. A workspace Own
 Select **Send** to initiate the invitation.
 
 To add a service account to a workspace, select the Service Accounts **+** icon.
-You can select from a list of existing service accounts configured for the organization.
+You can select from a list of configured service accounts.
 Select a Workspace Role for the service account. This will be the initial role for the service account within the workspace.
 A workspace Owner can change this role at any time. Select **Share** to finalize adding the service account.
 
@@ -103,14 +103,11 @@ To remove a workspace member or service account, select **Remove** from the menu
 ## Workspace transfer
 
 Workspace transfer enables you to move an existing workspace from one account to another.
-For example, you may transfer a workspace from a personal account to an organization.
 
 Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work pools, and logs.
 
 !!! note "Workspace transfer permissions"
     Workspace transfer must be initiated or approved by a user with admin privileges for the workspace to be transferred.
-
-    For example, if you are transferring a personal workspace to an organization, the owner of the personal account is the default admin for that account and must initiate or approve the transfer.
 
     To initiate a workspace transfer between personal accounts, contact [support@prefect.io](mailto:support@prefect.io).
 
@@ -122,10 +119,10 @@ Then, from the three dot menu in the upper right of the page, select **Transfer*
 ![Initiating a workspace transfer in the Prefect Cloud UI.](/img/ui/workspace-transfer.png)
 
 The **Transfer Workspace** page shows the workspace to be transferred on the left.
-Select the target account or organization for the workspace on the right.
+Select the target account for the workspace on the right.
 
 !!! tip "Workspace transfer impact on accounts"
-    Workspace transfer may impact resource usage and costs for source and target account or organization.
+    Workspace transfer may impact resource usage and costs for source and target accounts.
 
     When you transfer a workspace, users, API keys, and service accounts may lose access to the workspace. 
     Audit log will no longer track activity on the workspace. 

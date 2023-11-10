@@ -35,7 +35,7 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
     - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
     - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
     - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's server based on automation triggers.
-    - [Pro & Enterprise Accounts](/cloud/pro-enterprise/) &mdash; user and workspace management features that enable collaboration for organizations.
+    - [Pro & Enterprise Accounts](/cloud/pro-enterprise/) &mdash; user and workspace management features that enable collaboration for teams.
     - [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
     - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an account or a workspace.
     - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.
@@ -98,23 +98,23 @@ To enable this feature and others powered by Marvin AI, visit the **Settings** p
 Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account.
 Service accounts are typically used to configure API access for running workers or executing flow runs on remote infrastructure.
 
-See the [service accounts](/cloud/users/service-accounts/) documentation for more information about creating and managing service accounts in a Prefect Cloud organization.
+See the [service accounts](/cloud/users/service-accounts/) documentation for more information about creating and managing service accounts.
 
 ## Roles and custom permissions <span class="badge pro"> </span><span class="badge enterprise"></span>
 
-Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.
+Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an account or a workspace.
 
-See the [role-based access controls (RBAC)](../cloud/users/roles/) documentation for more information about managing user roles in a Prefect Cloud organization.
+See the [role-based access controls (RBAC)](../cloud/users/roles/) documentation for more information about managing user roles in a Prefect Cloud account.
 
 ## Single Sign-on (SSO) <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/cloud/users/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
+Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/cloud/users/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
 SCIM provisioning is also available with Enterprise plans.
 
 ## Audit log <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/cloud/users/audit-log/) compliance and transparency tools.
-Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes.
+Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/cloud/users/audit-log/) compliance and transparency tools.
+Audit logs provide a chronological record of activities performed by users in your account, allowing you to monitor detailed actions for security and compliance purposes.
 
 ## Prefect Cloud REST API
 

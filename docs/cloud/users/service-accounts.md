@@ -22,7 +22,7 @@ Service accounts are non-user accounts that have the following features:
 Using service account credentials, you can [configure an execution environment](/cloud/connecting/#configure-a-local-execution-environment) to interact with your Prefect Cloud workspaces without a user having to manually log in from that environment.
 Service accounts may be created, added to workspaces, have their roles changed, or deleted without affecting other user accounts.
 
-Select **Service Accounts** to view, create, or edit service accounts for your organization.
+Select **Service Accounts** to view, create, or edit service accounts.
 
 ![Viewing service accounts in Prefect Cloud.](/img/ui/service-accounts.png)
 
@@ -35,21 +35,21 @@ See [workspace sharing](/cloud/workspaces/#workspace-sharing) for more informati
     If the access credentials are lost or compromised, you should regenerate the credentials from the service account page.
 
 !!! note "Service account roles"
-    Service accounts are created at the organization level, and may then become members of workspaces within the organization.
+    Service accounts are created at the account level, and can then be added to workspaces within the account.
 
-    A service account may only be a Member of an organization. 
-    It can never be an organization Admin. 
+    A service account may only be a Member of an account. 
+    It can never be an account Admin. 
     You may apply any valid _workspace-level_ role to a service account.
 
 ## Create a service account
 
-Within your organization, on the **Service Accounts** page, select the **+** icon to create a new service account. You'll be prompted to configure:
+Within your account, on the **Service Accounts** page, select the **+** icon to create a new service account. You'll be prompted to configure:
 
-- The service account name. This name must be unique within your account or organization.
+- The service account name. This name must be unique within your account.
 - An expiration date, or the **Never Expire** option.
 
 !!! note "Service account roles"
-    A service account may only be a Member of an organization.
+    A service account may only be a Member of an account.
     You may apply any valid _workspace-level_ role to a service account when it is [added to a workspace](/cloud/workspaces/#workspace-sharing).
 
 Select **Create** to create the new service account.

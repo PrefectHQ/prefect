@@ -44,11 +44,11 @@ Using the provided link navigate to the Identity Provider Configuration dashboar
 
 ![Opening the Identity Provider Configuration dashboard.](/img/ui/cloud-sso-dashboard.png)
 
-Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing organization resources, giving you full control over application access.
+Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing account resources, giving you full control over application access.
 
 ## Directory sync
 
-**Directory sync** automatically provisions and de-provisions users for your organization.
+**Directory sync** automatically provisions and de-provisions users for your account.
 
 Provisioned users are given basic “Member” roles and will have access to any resources that role entails.
 
