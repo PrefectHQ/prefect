@@ -16,17 +16,40 @@ tags:
 search:
   boost: 2
 ---
-# Deploying flows to work pools and workers
+
+# Deploying Flows to Work Pools and Workers
 
 In this guide, we will dive deep into configuring a deployment for a worker and work pool.
 
-## Deployments overview
+All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
+With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
 
-All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
+A deployment turns your workflow into an application that can be interacted with and managed via the Prefect API. A deployment enables you to:
 
-Creating a _deployment_ for a Prefect workflow means packaging workflow code, settings, and infrastructure configuration so that the workflow can be managed via the Prefect API and run remotely by a Prefect worker. A deployment turns your workflow into an application.
+- Schedule flow runs.
+- Specify event triggers for flow runs.
+- Assign one or more tags to organize your deployments and flow runs. You can use those tags as filters in the Prefect UI.
+- Assign custom parameter values for flow runs based on the deployment.
+- Create ad-hoc flow runs from the API or Prefect UI.
+- Upload flow files to a defined storage location for retrieval at run time.
 
-The following diagram provides a high-level overview of the conceptual elements involved in defining a deployment and executing a flow run based on that deployment.
+A deployment created with the Python `flow.serve` method or the `serve` function runs flows in a subprocess on the same machine where the deployment is created.
+
+## Work pool-based deployments
+
+A work pool-based deployment is useful when you want to dynamically scale the infrastructure where your flow code runs.
+Work pool-based deployment contain information about infrastructure type and configuration for your workflow execution.
+
+Work pool-based deployment infrastructure options include the following:
+
+- Process - runs flow in a subprocess. Generally better off using `.serve`
+- [Docker](/guides/deployment/docker/) - runs flows in an ephemeral Docker container.
+- [Kubernetes](/guides/deployment/kubernetes/) - runs flows as a Kubernetes Job.
+- [Serverless Cloud Provider options] TK - Jeff PR in progress - runs flows in a Docker container in a serverless cloud provider environment, such as AWS ECS, Azure Container Instance, Google Cloud Run, or Vertex AI.
+
+Work pool-based deployments also allow you to assign a work queue name to prioritize work and allow you to limit concurrent runs at the work pool level.
+
+The following diagram provides a high-level overview of the conceptual elements involved in defining a work-pool based deployment that is polled by a worker and executing a flow run based on that deployment.
 
 ```mermaid
 %%{
@@ -65,24 +88,23 @@ flowchart LR
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
 
-When creating a deployment, we must answer _two_ basic questions:
+The work pool types above require a worker to be running on your infrastructure to poll a work pool for scheduled flow runs.
 
-- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow?
-For example, a flow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
+!!!note "Additional work pool options available with Prefect Cloud"
+
+    Prefect Cloud offers two other flavors of work pools:
+
+    - [Push Work Pools](/guides/deployment/push-work-pools) - serverless cloud options that don't require a worker because Prefect Cloud  submits them to the cloud provider on your behalf.
+    - [Managed Execution]() - where Prefect Cloud submits and runs your deployment on its own serverless infrastructure TK - Jake PR in progress
+
+In this guide we focus on deployments that require a worker.
+
+When creating a deployment with a work pool that uses a worker, we must answer _two_ basic questions:
+
+- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow? For example, a flow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
-A deployment additionally enables you to:
-
-- Schedule flow runs.
-- Specify event triggers for flow runs.
-- Assign a work queue name to delegate deployment flow runs to work queues.
-- Assign one or more tags to organize your deployments and flow runs. You can use those tags as filters in the Prefect UI.
-- Assign custom parameter values for flow runs based on the deployment.
-- Create ad-hoc flow runs from the API or Prefect UI.
-- Upload flow files to a defined storage location for retrieval at run time.
-- Specify run time infrastructure for flow runs, such as Docker or Kubernetes configuration.
-
-## Creating deployments
+## Creating work pool-based deployments
 
 The [tutorial](/tutorial/deployments/) shows how to create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`. See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools) if needed.
 
