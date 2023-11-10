@@ -15,22 +15,24 @@ search:
   boost: 2
 ---
 
-# Single Sign-on (SSO) <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>
+# Single Sign-on (SSO) <span class="badge cloud"></span>  <span class="badge pro"> </span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider. SSO integration can bet set up with any identity provider that supports:
+Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider.
+SSO integration can bet set up with any identity provider that supports:
 
 - OIDC
 - SAML 2.0
 
-When using SSO, Prefect Cloud won't store passwords for any accounts managed by your identity provider. Members of your Prefect Cloud organization will instead log in to the organization and authenticate using your identity provider.
+When using SSO, Prefect Cloud won't store passwords for any accounts managed by your identity provider.
+Members of your Prefect Cloud account will instead log in and authenticate using your identity provider.
 
-Once your SSO integration has been set up, non-admins will be required to authenticate through the SSO provider when accessing organization resources.
+Once your SSO integration has been set up, non-admins will be required to authenticate through the SSO provider when accessing account resources.
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users and workspaces, service accounts, and SSO.
 
 ## Configuring SSO
 
-Within your organization, select the **SSO** page to enable SSO for users.
+Within your account, select the **SSO** page to enable SSO for users.
 
 If you haven't enabled SSO for a domain yet, enter the email domains for which you want to configure SSO in Prefect Cloud and save it.
 
@@ -42,11 +44,11 @@ Using the provided link navigate to the Identity Provider Configuration dashboar
 
 ![Opening the Identity Provider Configuration dashboard.](/img/ui/cloud-sso-dashboard.png)
 
-Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing organization resources, giving you full control over application access.
+Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing account resources, giving you full control over application access.
 
 ## Directory sync
 
-**Directory sync** automatically provisions and de-provisions users for your organization.
+**Directory sync** automatically provisions and de-provisions users for your account.
 
 Provisioned users are given basic “Member” roles and will have access to any resources that role entails.
 
