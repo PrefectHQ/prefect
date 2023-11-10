@@ -39,7 +39,7 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
     - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an account or a workspace.
     - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.
     - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
-    - Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [account](/cloud/) TK.
+    - Collaboration &mdash; invite other people to your account.
     - Error summaries  &mdash; (enabled by Marvin AI) distill the error logs of `Failed` and `Crashed` flow runs into actionable information.
     - [Push work pools](/guides/deployment/push-work-pools/) &mdash; run flows on your serverless infrastructure without running a worker.
 

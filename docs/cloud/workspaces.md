@@ -73,7 +73,7 @@ On this page you can edit workspace details or delete the workspace.
 
 ## Workspace access <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Within a Prefect Cloud account, Workspace Owners can invite other people to be members and provision [service accounts](/ui/service-accounts/) to a workspace.
+Within a Prefect Cloud Pro or Enterprise tier account, Workspace Owners can invite other people to be members and provision [service accounts](/ui/service-accounts/) to a workspace.
 In addition to giving the user access to the workspace, a Workspace Owner assigns a [workspace role](/ui/roles/) to the user.
 The role specifies the scope of permissions for the user within the workspace.
 
@@ -82,10 +82,6 @@ As a Workspace Owner, select **Workspaces -> Sharing** to manage members and ser
 If you've previously invited individuals to your account or provisioned service accounts, you'll see them listed here.
 
 ![Managing sharing in a workspace in the Prefect Cloud UI.](/img/ui/workspace-sharing.png)
-
-To more easily manage users, you can use a team to group users with similar permissions. TK
-
-If your plan has custom RBAC you can create custom roles to assign to users or teams. TK
 
 To invite someone to an account, select the Members **+** icon. You can select from a list of existing account members.
 
