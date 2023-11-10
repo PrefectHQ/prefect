@@ -7,11 +7,14 @@ search:
   boost: 2
 ---
 
-# Users <span class="badge cloud"></span>
+# Accounts <span class="badge cloud"></span>
 
-*Users* of Prefect Cloud are accounts for individuals created by signing up at [app.prefect.cloud](https://app.prefect.cloud). Users can also be added as a Member of other [Organizations](/cloud/organizations/) and [Workspaces](/cloud/workspaces/).
+Sign up for a Prefect Cloud account at [app.prefect.cloud](https://app.prefect.cloud).
 
-## User Settings
+An individual can be invited to become a Member of other [Accounts](/cloud/pro-enterprise/).
+
+## User settings TK -still use term user, changed a bit on this page
+
 Users can access their account in the [profile menu](https://app.prefect.cloud/my/profile), including:
 
 - Profile: Viewing and editing basic information, such as name.
@@ -21,5 +24,8 @@ Users can access their account in the [profile menu](https://app.prefect.cloud/m
 
 ## Roles
 
-Users can be granted [roles](/cloud/users/roles/) with their respective permission sets at the *Account* and *Workspace* levels. 
+Users can be granted [roles](/cloud/users/roles/) with their respective permission sets at the *Account* and *Workspace* levels.
 
+## Teams
+
+Users can be added to [Teams](/cloud/users/teams/) to simplify access control governance.

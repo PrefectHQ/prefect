@@ -37,6 +37,26 @@ When you select an account, the **Account** page provides an overview of that ac
 
 ## Account members
 
+TK work in next section copied from adjusted other section
+
+## Account membership
+
+You can send an email invitation to invite a user to become a member of your account.
+
+In your account select **Members**.
+Any members will be listed with their handle, organizational role, and most recent login date.
+On the **Invitations** tab you'll see any previously invited individuals and information about the invitation status.
+
+![Managing members in a workspace in the Prefect Cloud UI.](/img/ui/workspace-collaborators.png)
+
+To invite someone to become an account member, select the **+** icon.
+You'll be prompted for the email address of the person you'd like to invite.
+Add the email address, then select **Send** to initiate the invitation.
+
+If the user does not already have a Prefect Cloud account, they will be able to create one when accepting the invitation.
+
+To delete a member from an account, select **Remove** from the menu on the left side of the user's information on this page.
+
 You can control granular access to workspaces by setting default access for all account members, inviting specific members to collaborate in a workspace, or adding service account permissions.
 
 To invite new members to an account in Prefect Cloud, select the **+** icon.

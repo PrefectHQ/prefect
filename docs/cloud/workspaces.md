@@ -61,47 +61,34 @@ See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces
 
 ## Workspace settings
 
-Within a workspace, select **Workspace Settings** to view or edit workspace details.  
+Within a workspace, select **Settings -> General** to view or edit workspace details.  
 
 ![Managing a workspace in the Prefect Cloud UI.](/img/ui/workspace-settings.png)
 
-The options menu enables you to edit workspace details or delete the workspace.
+On this page you can edit workspace details or delete the workspace.
 
 !!! warning "Deleting a workspace"
     Deleting a workspace deletes all deployments, flow run history, work pools, and notifications configured in workspace.
 
-## Account membership
-
-You can send an email invitation to invite a user to become a member of your account.
-
-In your account select **Members**.
-Any members will be listed with their handle, organizational role, and most recent login date.
-On the **Invitiations** tab you'll see any previously invited individuals and information about the invitation status.
-
-![Managing members in a workspace in the Prefect Cloud UI.](/img/ui/workspace-collaborators.png)
-
-To invite a user to become an account member, select the **+** icon.
-You'll be prompted for the email address of the person you'd like to invite.
-Add the email address, then select **Send** to initiate the invitation.
-
-If the user does not already have a Prefect Cloud account, they will be able to create one when accepting the invitation.
-
-To delete a member from an account, select **Remove** from the menu on the left side of the user's information on this page.
-
 ## Workspace access <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Within a Prefect Cloud account, Admins can invite other users and provision [service accounts](/ui/service-accounts/) to a workspace.
-In addition to giving the user access to the workspace, the Admin assigns a [workspace role](/ui/roles/) to the user.
+Within a Prefect Cloud account, Workspace Owners can invite other people to be members and provision [service accounts](/ui/service-accounts/) to a workspace.
+In addition to giving the user access to the workspace, a Workspace Owner assigns a [workspace role](/ui/roles/) to the user.
 The role specifies the scope of permissions for the user within the workspace.
 
-As an Admin in workspace, select **Workspaces** to manage individuals and service accounts for the workspace.
-If you've previously invited other individuals and service accounts, you'll see them listed.
+As a Workspace Owner, select **Workspaces -> Sharing** to manage members and service accounts for the workspace.
+
+If you've previously invited individuals to your account or provisioned service accounts, you'll see them listed here.
 
 ![Managing sharing in a workspace in the Prefect Cloud UI.](/img/ui/workspace-sharing.png)
 
-To invite someone a workspace, select the Members **+** icon. You can select from a list of existing account members.
+To more easily manage users, you can use a team to group users with similar permissions. TK
 
-Select a Workspace Role for the user.
+If your plan has custom RBAC you can create custom roles to assign to users or teams. TK
+
+To invite someone to an account, select the Members **+** icon. You can select from a list of existing account members.
+
+Select a Role for the user.
 This will be the initial role for the user within the workspace. A workspace Owner can change this role at any time.
 
 Select **Send** to initiate the invitation.
@@ -111,7 +98,7 @@ You can select from a list of existing service accounts configured for the organ
 Select a Workspace Role for the service account. This will be the initial role for the service account within the workspace.
 A workspace Owner can change this role at any time. Select **Share** to finalize adding the service account.
 
-To delete a workspace collaborator or service account, select **Remove** from the menu on the right side of the user or service account information on this page.
+To remove a workspace member or service account, select **Remove** from the menu on the right side of the user or service account information on this page.
 
 ## Workspace transfer
 
