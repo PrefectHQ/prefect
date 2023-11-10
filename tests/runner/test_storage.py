@@ -253,6 +253,22 @@ class TestGitRepository:
         assert "super-secret-42".upper() not in console_output.err
 
     class TestCredentialFormatting:
+        async def test_credential_formatting_maintains_secrets(
+            self, mock_run_process: AsyncMock
+        ):
+            """Regression test for https://github.com/PrefectHQ/prefect/issues/11135"""
+            access_token = Secret(value="testtoken")
+            await access_token.save("test-token")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"access_token": access_token},
+            )
+
+            await repo.pull_code()
+
+            assert repo._credentials == {"access_token": access_token}
+
         async def test_git_clone_with_credentials_block(
             self, mock_run_process: AsyncMock
         ):
