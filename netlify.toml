@@ -440,7 +440,6 @@ from = "/cloud/cloud-quickstart/"
 to = "/getting-started/quickstart/"
 status = 301
 
-
 [[redirects]]
 from = "/cloud/organizations/*"
 to = "/cloud/"

@@ -18,7 +18,7 @@ Microsoft Azure Container Instances (ACI) provides a convenient and simple servi
 To follow this quickstart, you'll need the following:
 
 - A [Prefect Cloud account](/ui/cloud-quickstart/)
-- A Prefect Cloud [API key](/ui/cloud-api-keys/) (Prefect Cloud organizations may use a [service account](/ui/service-accounts/) API key)
+- A Prefect Cloud [API key](/ui/cloud-api-keys/) (Prefect Cloud Pro and Enterprise tier accounts can use a [service account](/ui/service-accounts/) API key)
 - A [Microsoft Azure account](https://portal.azure.com/)
 - Azure CLI [installed](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticated](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli)
 
