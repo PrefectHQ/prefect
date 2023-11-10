@@ -38,7 +38,12 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
 from prefect.deployments.runner import DeploymentImage, deploy
-from prefect.runner.storage import RunnerStorage, create_storage_from_url
+from prefect.filesystems import ReadableDeploymentStorage
+from prefect.runner.storage import (
+    BlockStorageAdapter,
+    RunnerStorage,
+    create_storage_from_url,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -758,7 +763,9 @@ class Flow(Generic[P, R]):
     @classmethod
     @sync_compatible
     async def from_source(
-        cls, source: Union[str, RunnerStorage], entrypoint: str
+        cls,
+        source: Union[str, RunnerStorage, ReadableDeploymentStorage],
+        entrypoint: str,
     ) -> "Flow":
         """
         Loads a flow from a remote s ource.
@@ -808,8 +815,15 @@ class Flow(Generic[P, R]):
         """
         if isinstance(source, str):
             storage = create_storage_from_url(source)
-        else:
+        elif isinstance(source, RunnerStorage):
             storage = source
+        elif hasattr(source, "get_directory"):
+            storage = BlockStorageAdapter(source)
+        else:
+            raise TypeError(
+                f"Unsupported source type {type(source).__name__!r}. Please provide a"
+                " URL to remote storage or a storage object."
+            )
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
