@@ -28,7 +28,7 @@ Select a workspace name in the navigation menu to see all workspaces you can acc
 
 Your list of available workspaces may include:
 
-- Your own account workspace.
+- Your own account's workspace.
 - Workspaces in an account to which you've been invited and have been given access as an Admin or Member.
 
 !!! cloud-ad "Workspace-specific features"
