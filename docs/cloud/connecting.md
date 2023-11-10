@@ -169,7 +169,6 @@ If you're having difficulty logging in to Prefect Cloud, the following troublesh
 - Are you logging into Prefect Cloud 2? Prefect Cloud 1 and Prefect Cloud 2 use separate accounts. Make sure to use the right Prefect Cloud 2 URL: <https://app.prefect.cloud/>
 - Do you already have a Prefect Cloud account? If you’re having difficulty accepting an invitation, try creating an account first using the email associated with the invitation, then accept the invitation.
 - Are you using a single sign-on (SSO) provider (Google or Microsoft) or just using a username and password login?
-- Did you utilize the “having trouble/forgot password” link on the login page? If so, did you receive the password reset email? Occasionally the password reset email can get filtered into your spam folder.
 
 Other tips to help with login difficulties:
 
@@ -180,26 +179,6 @@ Other tips to help with login difficulties:
   - Firefox
   - Safari
 - Clear recent browser history/cookies
-
-In some cases, logging in to Prefect Cloud results in a "404 Page Not Found" page or fails with the error: "Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of “text/html”. Strict MIME type checking is enforced for module scripts per HTML spec."
-
-This error may be caused by a bad service worker.
-
-To resolve the problem, we recommend unregistering service workers.
-
-In your browser, start by opening the developer console.
-
-- In Chrome: **View > Developer > Developer Tools**
-- In Firefox: **Tools > Browser Tools > Web Developer Tools**
-
-Once the developer console is open:
-
-1. Go to the **Application** tab in the developer console.
-1. Select **Storage**.
-1. Make sure **Unregister service workers** is selected.
-1. Select **Clear site data**, then hard refresh the page with CMD+Shift+R (CTRL+Shift+R on Windows).
-
-See the [Login to Prefect Cloud fails...](https://discourse.prefect.io/t/login-to-prefect-cloud-fails-with-an-error-failed-to-load-module-script-expected-a-javascript-module-script-but-the-server-responded-with-a-mime-type-of-text-html-strict-mime-type-checking-is-enforced-for-module-scripts-per-html-spec/1722/1) topic in Prefect Discourse for a video demonstrating these steps.
 
 None of this worked?
 

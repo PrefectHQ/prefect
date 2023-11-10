@@ -231,9 +231,9 @@ to force column width */
     content: "Prefect Cloud";
 }
 
-.orgs::before {
+.pro::before {
     background-color: #5f79c2;
-    content: "Organizations";
+    content: "Pro";
 }
 
 .enterprise::before {

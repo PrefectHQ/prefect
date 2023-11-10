@@ -192,13 +192,12 @@ nav:
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
-          - Organizations: cloud/organizations.md
           - Users:
                 - cloud/users/index.md
                 - Roles (RBAC): cloud/users/roles.md
                 - API Keys: cloud/users/api-keys.md
                 - Service Accounts: cloud/users/service-accounts.md
-                - Single Sign-on (SSO): cloud/users/sso.md
+                - Single Sign-On (SSO): cloud/users/sso.md
                 - Audit Log: cloud/users/audit-log.md
                 - Object-Level Access Control Lists: cloud/users/object-access-control-lists.md
                 - Teams: cloud/users/teams.md

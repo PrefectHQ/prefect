@@ -116,7 +116,7 @@ You can view more information about an event by clicking into it, where you can 
 
 ## Reacting to events
 
-From an event page, you can configure an [automation](concepts/automations) to trigger on the observation of matching events or a lack of matching events by clicking the automate button in the overflow menu:
+From an event page, you can configure an [automation](/concepts/automations) to trigger on the observation of matching events or a lack of matching events by clicking the automate button in the overflow menu:
 
 ![Automation from event](/img/ui/automation-from-event.png)
 
