@@ -11,7 +11,7 @@ search:
 
 # Workspaces <span class="badge cloud"></span>
 
-A workspace is a discrete environment within Prefect Cloud for your flows and deployments.
+A workspace is a discrete environment within Prefect Cloud for your workflows and blocks.
 Workspaces are available to Prefect Cloud accounts only.
 
 Workspaces can be used to organize and compartmentalize your workflows.
@@ -41,7 +41,8 @@ Your list of available workspaces may include:
     - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
     - [Automations](/concepts/automations/)
 
-Your user permissions within workspaces may vary. Account admins can assign roles and permissions at the workspace level.
+Your user permissions within workspaces may vary.
+Account admins can assign roles and permissions at the workspace level.
 
 ## Create a workspace
 
