@@ -9,6 +9,7 @@ import pytest
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.deployments.steps.core import run_step
+from prefect.filesystems import ReadableDeploymentStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
     GitRepository,
@@ -707,12 +708,16 @@ class TestBlockStorageAdapter:
         assert storage.destination == Path.cwd() / storage._name
 
     async def test_pull_code_existing_destination(self, test_block: Block):
-        storage = BlockStorageAdapter(block=test_block)
-        storage.destination.mkdir(
-            parents=True, exist_ok=True
-        )  # Ensure the destination exists
-        await storage.pull_code()
-        assert (storage.destination / "flows.py").read_text() == test_block.code
+        try:
+            storage = BlockStorageAdapter(block=test_block)
+            storage.destination.mkdir(
+                parents=True, exist_ok=True
+            )  # Ensure the destination exists
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
 
     async def test_eq_method_same_block(self, test_block: Block):
         storage1 = BlockStorageAdapter(block=test_block)
@@ -721,7 +726,7 @@ class TestBlockStorageAdapter:
 
     async def test_eq_method_different_block(self, test_block: Block):
         storage1 = BlockStorageAdapter(block=test_block)
-        different_block = MagicMock(spec=Block)
+        different_block = MagicMock(spec=ReadableDeploymentStorage)
         storage2 = BlockStorageAdapter(block=different_block)
         assert storage1 != storage2
 
