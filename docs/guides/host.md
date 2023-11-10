@@ -45,7 +45,7 @@ A self-hosted Prefect server and Prefect Cloud share a common set of features. P
 - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
 - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.
 - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
-- Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
+- Menu &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
 
 You can read more about Prefect Cloud in the [Cloud](/cloud/) section.
 
