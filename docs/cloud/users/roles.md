@@ -16,24 +16,24 @@ search:
 
 # User and Service Account Roles <span class="badge cloud"></span> <span class="badge pro"> </span><span class="badge enterprise"></span>
 
-[Organizations](/cloud/organizations/) in Prefect Cloud let you give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces.
+Prefect Cloud's [Pro and Enterprise tiers](https://www.prefect.io/pricing) allow you to set team member access to the appropriate level within specific workspaces.
 
-Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.  
+Role-based access controls (RBAC) enable you to assign users granular permissions to perform certain activities.
 
-To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, you may also create custom roles for users.
+To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, Enterprise account Admins can create custom roles for users.
 
 ## Built-in roles
 
-Roles give users abilities at either the organization level or at the individual workspace level.
+Roles give users abilities at either the account level or at the individual workspace level.
 
-- An _organization-level role_ defines a user's default permissions within an organization.
+- An _account-level role_ defines a user's default permissions within an account.
 - A _workspace-level role_ defines a user's permissions within a specific workspace.
 
-The following sections outline the abilities of the built-in, Prefect-defined organizational and workspace roles.
+The following sections outline the abilities of the built-in, Prefect-defined ac and workspace roles.
 
-### Organization-level roles
+### Account-level roles
 
-The following built-in roles have permissions across an organization in Prefect Cloud.
+The following built-in roles have permissions across an account in Prefect Cloud.
 
 | Role   | Abilities                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
