@@ -10,7 +10,7 @@ from anyio import run_process
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
-from prefect.filesystems import ReadableDeploymentStorage
+from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
 
@@ -480,7 +480,7 @@ class BlockStorageAdapter:
 
     def __init__(
         self,
-        block: ReadableDeploymentStorage,
+        block: Union[ReadableDeploymentStorage, WritableDeploymentStorage],
         pull_interval: Optional[int] = 60,
     ):
         self._block = block
