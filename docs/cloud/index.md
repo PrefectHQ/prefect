@@ -45,20 +45,27 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
 
 ## User accounts
 
-When you sign up for Prefect Cloud, an account is automatically provisioned for you.
-An account gives you access to profile settings where you can view and administer your:
+When you sign up for Prefect Cloud, an account and a user profile are automatically provisioned for you.
+
+Your profile is the place where you'll manage settings related to yourself as a user, including:
 
 - Profile, including profile handle and image
 - API keys
 - Preferences, including timezone and color mode
-- Feature previews, if available
 
-As an account owner, you can create a [workspace](#workspaces) and invite other individuals to your workspace.
+As an account Admin, you will also have access to account settings from the Account Settings page, such as:
 
-Upgrading from Prefect Cloud Free tier to a Pro or Enterprise tier plan enables additional functionality for adding workspaces, managing teams, and running higher volume workloads.
+- Members
+- Workspaces
+- Roles
 
-Workspace Admins have the ability to use, [single sign-on (SSO)](#single-sign-on-(sso)), set [role-based access controls (RBAC)](#roles-and-custom-permissions), and configure [service accounts](#service-accounts).
-Enterprise plans add [Audit Logs](#audit-log), [custom roles](/cloud/users/roles/), [object-level access control lists](/cloud/users/object-access-control-lists/), [teams](/cloud/users/teams/), and [Directory Sync/SCIM provisioning](/cloud/users/sso/#scim-provisioning) for SSO.
+As an account Admin you can create a [workspace](#workspaces) and invite other individuals to your workspace.
+
+Upgrading from a Prefect Cloud Free tier plan to a Pro or Enterprise tier plan enables additional functionality for adding workspaces, managing teams, and running higher volume workloads.
+
+Workspace Admins have the ability to use [single sign-on (SSO)](#single-sign-on-(sso)), set [role-based access controls (RBAC)](#roles-and-custom-permissions), view [Audit Logs](#audit-log), and configure [service accounts](#service-accounts).
+
+Enterprise add [custom roles](/cloud/users/roles/), [object-level access control lists](/cloud/users/object-access-control-lists/), [teams](/cloud/users/teams/), and [Directory Sync/SCIM provisioning](/cloud/users/sso/#scim-provisioning) for SSO.
 
 !!! cloud-ad "Prefect Cloud plans for teams of every size"
     See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on Pro and Enterprise account tiers.
