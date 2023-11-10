@@ -1,5 +1,5 @@
 ---
-description: Observe and orchestrate your workflows with the hosted Prefect Cloud platform.
+description: Observe and orchestrate your workflow applications with the hosted Prefect Cloud platform.
 tags:
     - UI
     - dashboard
@@ -16,9 +16,9 @@ search:
 
 # Welcome to Prefect Cloud <span class="badge cloud"></span>
 
-Prefect Cloud is a workflow orchestration platform that provides all the capabilities of Prefect server plus additional features, such as:
+Prefect Cloud is a hosted workflow application framework that provides all the capabilities of Prefect server plus additional features, such as:
 
-- automations, events, and webhooks so you can create for event-driven workflows
+- automations, events, and webhooks so you can create event-driven workflows
 - workspaces, RBAC, SSO, audit logs and related user management tools for collaboration
 - push work pools for running flows on serverless infrastructure without a worker
 - error summaries powered by Marvin AI to help you resolve errors faster
@@ -41,7 +41,7 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
     - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
     - Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [account](/cloud/) TK.
     - Error summaries  &mdash; (enabled by Marvin AI) distill the error logs of `Failed` and `Crashed` flow runs into actionable information.
-    - [Push work pool](/guides/deployment/push-work-pools/) &mdash; run flows on your serverless infrastructure without running a worker.
+    - [Push work pools](/guides/deployment/push-work-pools/) &mdash; run flows on your serverless infrastructure without running a worker.
 
 ## User accounts
 
@@ -53,13 +53,15 @@ An account gives you access to profile settings where you can view and administe
 - Preferences, including timezone and color mode
 - Feature previews, if available
 
-As an account owner, you can create a [workspace](#workspaces) and invite collaborators to your workspace.
+As an account owner, you can create a [workspace](#workspaces) and invite other individuals to your workspace.
 
-Upgrading from a Prefect Cloud Free tier plan to a Pro tier or Enterprise tier plan enables additional functionality for adding workspaces and managing teams.
-As an administrator you then have the ability to set [role-based access controls (RBAC)](#roles-and-custom-permissions) and configure [service accounts](#service-accounts).
+Upgrading from Prefect Cloud Free tier to a Pro or Enterprise tier plan enables additional functionality for adding workspaces, managing teams, and running higher volume workloads.
+
+Workspace Admins have the ability to use, [single sign-on (SSO)](#single-sign-on-(sso)), set [role-based access controls (RBAC)](#roles-and-custom-permissions), and configure [service accounts](#service-accounts).
+Enterprise plans add [Audit Logs](#audit-log), [custom roles](/cloud/users/roles/), [object-level access control lists](/cloud/users/object-access-control-lists/), [teams](/cloud/users/teams/), and [Directory Sync/SCIM provisioning](/cloud/users/sso/#scim-provisioning) for SSO.
 
 !!! cloud-ad "Prefect Cloud plans for teams of every size"
-    See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details enhancements for Pro and Enterprise tiers.
+    See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on Pro and Enterprise account tiers.
 
 ## Workspaces
 
@@ -68,7 +70,7 @@ See the [Workspaces](/cloud/workspaces/) documentation for more information abou
 
 Each workspace keeps track of its own:
 
-- [Flow runs](/concepts/flows/) and task runs executed in an environment that is [syncing with the workspace](/cloud/#workspaces)
+- [Flow runs](/concepts/flows/) and task runs executed in an environment that is [syncing with the workspace](/cloud/workspaces/)
 - [Flows](/concepts/flows/) associated with flow runs and deployments observed by the Prefect Cloud API
 - [Deployments](/concepts/deployments/)
 - [Work pools](/concepts/work-pools/)
@@ -79,13 +81,14 @@ Each workspace keeps track of its own:
 
 ## Events
 
-Prefect Cloud allows you to see your [events](/cloud/events/).
+Prefect Cloud allows you to see your [events](/cloud/events/). Events provide information about the state of your workflows, and can be used to trigger [automations](/cloud/automations/).
+
 ![Prefect UI](/img/ui/event-feed.png)
 
 ## Automations
 
-Prefect Cloud [automations](/cloud/automations/) provide additional notification capabilities beyond those in the open-source Prefect server.
-Automations enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
+Prefect Cloud [automations](/cloud/automations/) provide additional notification capabilities beyond those in a self-hosted open-source Prefect server.
+Automations also enable you to create event-driven workflows.
 
 ## Error summaries
 
@@ -94,30 +97,29 @@ To enable this feature and others powered by Marvin AI, visit the **Settings** p
 
 ## Service accounts <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account.
+Service accounts enable you to create Prefect Cloud API keys that are not associated with a user account.
 Service accounts are typically used to configure API access for running workers or executing flow runs on remote infrastructure.
-
 See the [service accounts](/cloud/users/service-accounts/) documentation for more information about creating and managing service accounts.
 
 ## Roles and custom permissions <span class="badge pro"> </span><span class="badge enterprise"></span>
 
-Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an account or a workspace.
-
+Role-based access controls (RBAC) enable you to assign users a role with permissions to perform certain activities within an account or a workspace.
 See the [role-based access controls (RBAC)](../cloud/users/roles/) documentation for more information about managing user roles in a Prefect Cloud account.
 
 ## Single Sign-on (SSO) <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/cloud/users/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
-SCIM provisioning is also available with Enterprise plans.
+Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/cloud/users/sso/) authentication integration with your team’s identity provider.
+SSO integration can bet set up with identity providers that support OIDC and SAML.
+Directory Sync and SCIM provisioning is also available with Enterprise plans.
 
 ## Audit log <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/cloud/users/audit-log/) compliance and transparency tools.
-Audit logs provide a chronological record of activities performed by users in your account, allowing you to monitor detailed actions for security and compliance purposes.
+Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Logs](/cloud/users/audit-log/) for compliance and security.
+Audit logs provide a chronological record of activities performed by users in an account.
 
 ## Prefect Cloud REST API
 
-The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Prefect clients to Prefect Cloud or a local Prefect server so that orchestration can be performed.
+The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Prefect clients to Prefect Cloud or a local Prefect server for orchestration and monitoring.
 This API is mainly consumed by Prefect clients like the Prefect Python Client or the Prefect UI.
 
 !!! note "Prefect Cloud REST API interactive documentation"
