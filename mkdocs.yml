@@ -192,7 +192,6 @@ nav:
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
-          - Organizations: cloud/organizations.md
           - Users:
                 - cloud/users/index.md
                 - Roles (RBAC): cloud/users/roles.md

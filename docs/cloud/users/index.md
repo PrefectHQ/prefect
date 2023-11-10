@@ -11,7 +11,7 @@ search:
 
 Sign up for a Prefect Cloud account at [app.prefect.cloud](https://app.prefect.cloud).
 
-An individual user can be invited to become a member of other [Accounts](/cloud/pro-enterprise/).
+An individual user can be invited to become a member of other accounts.
 
 ## User settings
 

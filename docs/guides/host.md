@@ -40,7 +40,6 @@ A self-hosted Prefect server and Prefect Cloud share a common set of features. P
 - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
 - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
 - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's servers based on automation triggers.
-- [Team management](/cloud/pro-enterprise/) &mdash; tools that enable collaboration for teams.
 - [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
 - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform activities within an account or workspace.
 - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.

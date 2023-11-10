@@ -41,7 +41,7 @@ Your list of available workspaces may include:
     - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
     - [Automations](/concepts/automations/)
 
-Your user permissions within workspaces may vary. [Account Admins](/ui/pro-enterprise/) can assign roles and permissions at the workspace level.
+Your user permissions within workspaces may vary. Account admins can assign roles and permissions at the workspace level.
 
 ## Create a workspace
 
