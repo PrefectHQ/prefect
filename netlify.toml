@@ -564,7 +564,7 @@ Referrer-Policy = "same-origin"
 X-Permitted-Cross-Domain-Policies = "none"
 
 # Permissions-Policy controls the features that the site can request.
-#
+
 # https://developer.chrome.com/en/docs/privacy-sandbox/permissions-policy/
 # https://github.com/w3c/webappsec-permissions-policy/blob/main/features.md
 Permissions-Policy = """\

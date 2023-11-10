@@ -32,7 +32,7 @@ Custom roles are available on Enterprise tier accounts.
 
 ## API keys
 
-[API keys](cloud/users/api-keys/) enable you to authenticate an environment to work with Prefect Cloud.
+[API keys](/cloud/users/api-keys/) enable you to authenticate an environment to work with Prefect Cloud.
 
 ## Service accounts <span class="badge pro"></span> <span class="badge enterprise"></span>
 
@@ -40,11 +40,11 @@ Custom roles are available on Enterprise tier accounts.
 
 ## Single sign-on (SSO) <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Organization and Enterprise plans offer [single sign-on (SSO)](cloud/users/sso/) integration with your team’s identity provider. Enterprise tier accounts provide additional options with [directory sync and SCIM provisioning](cloud/users/sso/#directory-sync).
+Organization and Enterprise plans offer [single sign-on (SSO)](/cloud/users/sso/) integration with your team’s identity provider. Enterprise tier accounts provide additional options with [directory sync and SCIM provisioning](/cloud/users/sso/#directory-sync).
 
 ## Audit log <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-[Audit logs](cloud/users/audit-log/) provide a chronological record of activities performed by Prefect Cloud users who are members of an account.
+[Audit logs](/cloud/users/audit-log/) provide a chronological record of activities performed by Prefect Cloud users who are members of an account.
 
 ## Object-level access control lists (ACLs) <span class="badge enterprise"></span>
 
