@@ -2,11 +2,13 @@ import datetime
 import os
 import re
 import signal
+import sys
 import time
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
+from typing import List
 from unittest.mock import MagicMock
 
 import anyio
@@ -173,6 +175,36 @@ class TestServe:
         assert "dummy-flow-1/test_runner" in captured.out
         assert "dummy-flow-2/test_runner" in captured.out
         assert "tired-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
+    is_python_38 = sys.version_info[:2] == (3, 8)
+
+    async def test_serve_typed_container_inputs_flow(self, capsys):
+        if self.is_python_38:
+
+            @flow
+            def type_container_input_flow(arg1: List[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        else:
+
+            @flow
+            def type_container_input_flow(arg1: list[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        await serve(
+            await type_container_input_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "type-container-input-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
     async def test_serve_can_create_multiple_deployments(
