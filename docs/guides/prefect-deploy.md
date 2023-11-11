@@ -206,7 +206,6 @@ Let's explore both options.
     demo of building totally custom image (move from tutorial note)
 
 
-
   
     ### Creating multiple deployments with `deploy`
 
@@ -589,6 +588,8 @@ These deployments can be managed independently of one another, allowing you to d
 
 === ".deploy"
 
+    You can create multiple deployments with the `deploy` function passing multiple deployment objects. TK
+
     ```python
     from prefect import deploy, flow
 
@@ -605,6 +606,12 @@ These deployments can be managed independently of one another, allowing you to d
             push=False,
         )
     ```
+
+    Note that in the example above we creating two deployments from the same flow, but with different work pools.
+    Alternatively, we could have created two deployments from different flows.
+    In that case, the the code for both flows would be baked into the same image.
+
+    You could specify that one or more flows should be pulled from a remote location at runtime by using the `from_source` method.
 
 === "prefect.yaml"
 
