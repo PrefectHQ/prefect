@@ -115,11 +115,9 @@ Let's explore both options.
 
 === ".deploy"
 
-    You can create a deployment entirely from Python code by calling the `.deploy` method on a flow. Here's our example from the [tutorial](/tutorial/workers/).
+    You can create a deployment entirely from Python code by calling the `.deploy` method on a flow. 
 
     ```python hl_lines="17-22" title="repo_info.py"
-
-    import httpx
     from prefect import flow
 
 
@@ -130,70 +128,87 @@ Let's explore both options.
 
     if __name__ == "__main__":
         buy.deploy(
-            name="my-first-deployment", 
+            name="my-code-baked-in-an-image-deployment", 
             work_pool_name="my-docker-pool", 
-            image="my-first-deployment-image:0.0.1"
-            push=False
+            image="my_registry/my_image:my_image_tag"
         )
     ```
 
-    Note that an image will be built and the environment where you are creating this deployment from needs to have Docker installed and running. 
-    You also need to have a Docker registry set up to push to. 
-    Note that the registry needs
+    By default, `.deploy` will build a Docker image and push it to the [Docker Hub](https://hub.docker.com/) registry specified in the `image` argument`. 
+    You need your environment to be authenticated to the Docker registry to push an image to it.
 
-    In the examples below we will just show the `if __name__ == "__main__"` block for brevity, where appropriate.
+    You can specify a registry other than Docker Hub by providing the full registry path in the `image` argument. TK
+
+    !!! warning
+        If building a Docker image, the environment in which you are creating a deployment needs to have Docker installed and running.
+        The `prefect-docker` package also needs to be installed.
+
+    To avoid pushing to a registry, set `push=False` in the `.deploy` method.
+
+    To avoid building an image, set `build=False` in the `.deploy` method.
+
+    If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from at runtime with the `from_source` method.
+
+    ```python hl_line="4-6" title="no-image.py" 
+    from prefect import flow
+
+    if __name__ == "__main__":
+        flow.from_source(
+            "https://github.com/my_github_account/my_repo/my_file.git",
+            entrypoint="flows/no-image.py:hello_world",
+        ).deploy(
+            name="no-image-deployment",
+            work_pool_name="my_pool",
+        )
+    ```
+
+    You can specify a git-based cloud storage option such as GitHub, Bitbucket, or Gitlab. 
+    Alternatively, you can specify an [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Storage Blobs.
+    Finally, you can specify a storage [block](/concepts/block/).
+
+    demo from git-based storage with auth needed
+
+    demo from fsspec storage - s3
+
+    TK later demo from block storage with auth needed maybe
+
+    If you don't bake your code into an image, the image specified in the work pool will be used to run your flow.
+
+    If you are familiar with the deployment creation mechanics with `.serve`, you will notice that `.deploy` is very similar. `.deploy` just requires a work pool name. 
+    Additionally, if you don't specify an image to use for your flow, you must to specify where to pull the flow code from at runtime with the `from_source` method.
 
 
+    ### Additional configuration with `.deploy`
 
-    
-    demo of passing params
+    To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method.
 
-    demo of changing base job template
+    ```python hl_lines="4-6" title="pass-params.py"
+    from prefect import flow
+
+    @flow
+    def hello_world(name: str):
+        print(f"Hello, {name}!")
+
+    if __name__ == "__main__":
+        hello_world.deploy(
+            name="pass-params-deployment",
+            work_pool_name="my_pool",
+            parameters=dict(name="Prefect"),
+            image="my_registry/my_image:my_image_tag",
+        )
+    ```
 
     demo of adding an environment variable
 
+    demo of adding an additional package
 
-    Also like `.serve()` you can chain together the `.from_source` method and the `.deploy` method to create a deployment that pulls your flow code from a remote source.
 
-    demo of using custom image (move from tutorial note)
-
-    ## Not baking your flow code in your image
-
-    You can choose to pull your flow code from a remote source instead of baking it into your image.
-
-    You can chain the `flow.from_source` method to `.deploy` method and speciy a git-based cloud storage option such as GitHub, Bitbucket, or Gitlab. 
-
-    ```python
-    if __name__ == "__main__":
-        get_repo_info.from_source().deploy(
-            name="my-first-deployment", 
-            work_pool_name="my-docker-pool", 
-            image="discdiver/my-image:0.1",
-            build=False,
-            push=False))
-
-    ```
-
-    You can also use [fsspec](https://filesystem-spec.readthedocs.io/en/latest/) storage, which supports S3, GCS, Azure Blobs, and more.
-
-    demo from git-based storage
-    demo from git-based storage with auth needed
-
-    demo of from fsspec storage - s3
+    demo of building totally custom image (move from tutorial note)
 
 
 
-    You can specify that you don't want to build an image by setting `build=False` in the `.deploy` method. 
-
-    ```python 
-    if __name__ == "__main__":
-        get_repo_info.deploy(
-            name="my-first-deployment", 
-            work_pool_name="my-docker-pool", 
-            image="discdiver/my-image:0.1",
-            build=False,
-            push=False)
-    ```
+  
+    ### Creating multiple deployments with `deploy`
 
     For multiple deployments you can use the `deploy` function, analogous to the `serve` function. 
 
@@ -220,8 +235,6 @@ Let's explore both options.
             image="my-registry/my-image:dev",
         )
     ```
-
-    You can specify different work pools for each deployment by 
 
 === "prefect.yaml"
 
