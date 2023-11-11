@@ -33,7 +33,8 @@ A deployment turns your workflow into an application that can be interacted with
 - Create ad-hoc flow runs from the API or Prefect UI.
 - Upload flow files to a defined storage location for retrieval at run time.
 
-A deployment created with the Python `flow.serve` method or the `serve` function runs flows in a subprocess on the same machine where the deployment is created.
+!!! note "Deployments created with `.serve`"
+    A deployment created with the Python `flow.serve` method or the `serve` function runs flows in a subprocess on the same machine where the deployment is created. It does not use a work pool or worker.
 
 ## Work pool-based deployments
 
@@ -99,22 +100,25 @@ The work pool types above require a worker to be running on your infrastructure 
 
 In this guide we focus on deployments that require a worker.
 
-When creating a deployment with a work pool that uses a worker, we must answer _two_ basic questions:
+When creating a deployment that uses a work pool, we must answer _two_ basic questions:
 
-- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow? For example, a flow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
+- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow? For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
 ## Creating work pool-based deployments
 
-The [tutorial](/tutorial/deployments/) shows how to create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`. See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools) if needed.
+The [tutorial](/tutorial/deployments/) shows how to create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`.
+See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools), if desired.
 
-In this guide, we will explore how to use `.deploy` in more depth and see a YAML-based alternative for managing deployments. Let's explore both options.
+In this guide, we will explore how to use `.deploy` in more depth and see a YAML-based alternative for managing deployments.
+Let's explore both options.
 
 === ".deploy"
 
     You can create a deployment entirely from Python code by calling the `.deploy` method on a flow. Here's our example from the [tutorial](/tutorial/workers/).
 
     ```python hl_lines="17-22" title="repo_info.py"
+
     import httpx
     from prefect import flow
 
@@ -133,9 +137,13 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
         )
     ```
 
-    Note that an image will be built and the environment where you are creating this deployment from needs to have Docker installed and running. You also need to have a Docker registry set up to push to. 
-
+    Note that an image will be built and the environment where you are creating this deployment from needs to have Docker installed and running. 
+    You also need to have a Docker registry set up to push to. 
     Note that the registry needs
+
+    In the examples below we will just show the `if __name__ == "__main__"` block for brevity, where appropriate.
+
+
 
     
     demo of passing params
@@ -145,9 +153,9 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
     demo of adding an environment variable
 
 
-    Also like ``.serve()` you can chain together the `.from_source` method and the `.deploy` method to create a deployment that pulls your flow code from a remote source.
+    Also like `.serve()` you can chain together the `.from_source` method and the `.deploy` method to create a deployment that pulls your flow code from a remote source.
 
-   demo of using custom image (move from tutorial note)
+    demo of using custom image (move from tutorial note)
 
     ## Not baking your flow code in your image
 
@@ -156,7 +164,6 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
     You can chain the `flow.from_source` method to `.deploy` method and speciy a git-based cloud storage option such as GitHub, Bitbucket, or Gitlab. 
 
     ```python
-    ... 
     if __name__ == "__main__":
         get_repo_info.from_source().deploy(
             name="my-first-deployment", 
@@ -167,20 +174,18 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     ```
 
-   You can also use [fsspec](https://filesystem-spec.readthedocs.io/en/latest/) storage, which supports S3, GCS, Azure Blobs, and more.
-    ```
+    You can also use [fsspec](https://filesystem-spec.readthedocs.io/en/latest/) storage, which supports S3, GCS, Azure Blobs, and more.
 
     demo from git-based storage
     demo from git-based storage with auth needed
 
     demo of from fsspec storage - s3
 
-   
+
 
     You can specify that you don't want to build an image by setting `build=False` in the `.deploy` method. 
 
     ```python 
-    ... 
     if __name__ == "__main__":
         get_repo_info.deploy(
             name="my-first-deployment", 
@@ -218,7 +223,7 @@ In this guide, we will explore how to use `.deploy` in more depth and see a YAML
 
     You can specify different work pools for each deployment by 
 
-=== "`prefect.yaml`"
+=== "prefect.yaml"
 
     The `prefect.yaml` file is a YAML file describing base settings for your deployments, procedural steps for preparing deployments, and instructions for preparing the execution environment for a deployment run.
 
@@ -569,7 +574,7 @@ These deployments can be managed independently of one another, allowing you to d
 
 ### Working with multiple deployments
 
-=== "`.deploy`"
+=== ".deploy"
 
     ```python
     from prefect import deploy, flow
@@ -588,7 +593,7 @@ These deployments can be managed independently of one another, allowing you to d
         )
     ```
 
-=== "`prefect.yaml`"
+=== "prefect.yaml"
 
     Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments to be version controlled and deployed with a single command.
 
