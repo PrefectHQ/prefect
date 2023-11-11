@@ -14,7 +14,7 @@ search:
   boost: 2
 ---
 
-# Audit Log <span class="badge cloud"></span> <span class="pro"></span> <span class="badge enterprise"></span>
+# Audit Log <span class="badge cloud"></span> <span class="badge pro"></span> <span class="badge enterprise"></span>
 
 Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer enhanced compliance and transparency tools with Audit Log.
 Audit logs provide a chronological record of activities performed by members in your account, allowing you to monitor detailed Prefect Cloud actions for security and compliance purposes.
