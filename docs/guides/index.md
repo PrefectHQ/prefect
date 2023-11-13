@@ -22,7 +22,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Global Concurrency Limits](/guides/global-concurrency-limits/) | Limit flow runs. |
 | [Runtime Context](/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
 | [Variables](/guides/variables/) | Store and retrieve configuration data. |
-| [Prefect Client](/guides/using-the-client/) | Use `PrefectClient`` to interact with the API server. |
+| [Prefect Client](/guides/using-the-client/) | Use `PrefectClient` to interact with the API server. |
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [Terraform Provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) | Use the Terraform Provider for Prefect Cloud for infrastructure as code. |
 | [Prefect Recipes](/recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
