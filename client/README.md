@@ -21,7 +21,7 @@ tests to ensure that the built `prefect-client` is functional.
 
 In general, these builds, smoke tests, and publish steps should be transparent. 
 It these automated steps fail, use the `client/build_client.sh` script to run 
-the build and smoke test locally and interate on a fix. The failures will likely 
+the build and smoke test locally and iterate on a fix. The failures will likely 
 be from:
 
 - including a new dependency that is not installed in `prefect-client`
