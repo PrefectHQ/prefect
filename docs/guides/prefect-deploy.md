@@ -117,7 +117,7 @@ Let's explore both deployment creation options.
 
     ### Automatically bake your code into a Docker image 
 
-    You can create a deployment entirely from Python code by calling the `.deploy` method on a flow.
+    You can create a deployment from Python code by calling the `.deploy` method on a flow.
 
     ```python hl_lines="17-22" title="buy.py"
     from prefect import flow
@@ -135,6 +135,19 @@ Let's explore both deployment creation options.
             image="my_registry/my_image:my_image_tag"
         )
     ```
+
+    Make sure you have the [work pool](/concepts/work-pools/) created on the Prefect Cloud workspace your are authenticated to or on your running self-hosted server instance connected to.  
+    Then run the script to create a deployment:
+
+    <div class="terminal">
+    ```bash
+    python buy.py
+    ```
+    </div>
+
+    You should see messages in your terminal that Docker is building your image.
+    When the deployment build succeeds you will see helpful information in your terminal showing you how to start a worker for your deployment and how to run your deployment.
+    Your deployment will be visible on the `Deployments` page in the UI.
 
     By default, `.deploy` will build a Docker image with your flow code baked into it and push the image to the [Docker Hub](https://hub.docker.com/) registry specified in the `image` argument`. 
     
