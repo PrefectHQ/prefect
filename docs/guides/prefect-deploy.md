@@ -115,7 +115,7 @@ Let's explore both deployment creation options.
 
 === ".deploy"
 
-    ### Automatically bake your code into a Docker image and push it to a registry
+    ### Automatically bake your code into a Docker image 
 
     You can create a deployment entirely from Python code by calling the `.deploy` method on a flow.
 
@@ -175,9 +175,71 @@ Let's explore both deployment creation options.
 
     At runtime, the specified image will need to be available to access your flow code.
 
+    ### Automatically build a custom Docker image based on a local Dockerfile
+
+    ```python hl_lines="17-22" title="buy.py"
+    
+    TK
+    ```
+
+    If present, a `requirements.txt` with listed Python packages will be copied into the image automatically.
+
+    ### Further customizations for Docker images
+    
+    By passing a DeploymentImage object to the `image` parameter you can customize many of settings on the deployment.
+    
+    For example, to install a private Python package from GCP's artifact registry you can do the following.
+    Create a custom base Dockerfile like this:
+
+    ```dockerfile
+    FROM python:3.10
+
+    ARG AUTHED_ARTIFACT_REG_URL
+    COPY ./requirements.txt /requirements.txt
+
+    RUN pip install --extra-index-url ${AUTHED_ARTIFACT_REG_URL} -r /requirements.txt
+    ```
+
+    Create our deployment by leveraging the DeploymentImage class. 
+
+    ```python hl_lines="2, 18-22" title="private-package.py"
+    from prefect import flow
+    from prefect.deployments.runner import DeploymentImage
+    from prefect.blocks.system import Secret
+    from my_private_package import do_something_cool
+
+
+    @flow(log_prints=True)
+    def my_flow():
+        do_something_cool()
+
+
+    if __name__ == "__main__":
+        artifact_reg_url: Secret = Secret.load("artifact-reg-url")
+        
+        my_flow.deploy(
+            name="my-deployment",
+            work_pool_name="k8s-demo",
+            image=DeploymentImage(
+                name="my-image",
+                tag="test",
+                dockerfile="Dockerfile",
+                buildargs={"AUTHED_ARTIFACT_REG_URL": artifact_reg_url.get()},
+            ),
+        )
+    ```
+
+    Note that we used a [Prefect Secret block](/concepts/blocks/) to load the URL configuration for the artifact registry above.
+
+    See all the optional keyword arguments for the DeploymentImage class [here](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build). 
+
+    Many organizations like to store their code in git-based storage, such as GitHub, Bitbucket, or Gitlab, let's see how to do that next.
+
     ### Pull your code from git-based storage at runtime
 
     If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from with the `from_source` method.
+
+    In the example below, we pull the flow code from a GitHub repository.
 
     ```python hl_line="4-6" title="no-image.py" 
     from prefect import flow
@@ -193,13 +255,17 @@ Let's explore both deployment creation options.
         )
     ```
 
-    You can specify a git-based cloud storage URL to GitHub, Bitbucket, or Gitlab. 
+    You can specify a git-based cloud storage URL for a Bitbucket or Gitlab repository. 
 
-    !!! Note
+    !!! note 
     
-    If you don't bake your code into an image, the image specified in the work pool will be used to run your flow.
+        If you don't specify an image as part of your deployment creation, the image specified in the work pool will be used to run your flow.
 
-    demo from git-based storage with auth needed TK
+    If you change your flow code and push it to GitHub, you generally don't need to rebuild your deployment. 
+    The exception is if something that the server needs to know about changes, such as the flow entrypoint parameters. 
+    Rerunning the Python script with `.deploy` will update the deployment with the new flow code.
+
+    If your you want to pull your flow code from private git-based storage,
 
     ### Pull your code from fsspec-based storage at runtime
 
