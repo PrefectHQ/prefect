@@ -4,7 +4,7 @@ import sys
 import warnings
 from pathlib import Path
 from textwrap import dedent
-from unittest.mock import ANY
+from unittest.mock import ANY, call
 
 import pytest
 
@@ -148,6 +148,36 @@ class TestRunStep:
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
             [sys.executable, "-m", "pip", "install", "test-package>=1.0.0"]
+        )
+
+    async def test_install_multiple_requirements(self, monkeypatch):
+        """
+        Test that passing multiple requirements installs all of them.
+        """
+        import_module_mock = MagicMock(side_effect=[None, ImportError])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step(
+            {
+                "test_module.test_function": {
+                    "requires": ["test-package>=1.0.0", "another"],
+                    "x": 1,
+                }
+            }
+        )
+
+        import_module_mock.assert_has_calls([call("test_package"), call("another")])
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0,another"]
         )
 
     async def test_requirement_installation_failure(self, monkeypatch, caplog):
