@@ -115,9 +115,11 @@ Let's explore both deployment creation options.
 
 === ".deploy"
 
-    You can create a deployment entirely from Python code by calling the `.deploy` method on a flow. 
+    ### Automatically bake your code into a Docker image and push it to a registry
 
-    ```python hl_lines="17-22" title="repo_info.py"
+    You can create a deployment entirely from Python code by calling the `.deploy` method on a flow.
+
+    ```python hl_lines="17-22" title="buy.py"
     from prefect import flow
 
 
@@ -134,20 +136,48 @@ Let's explore both deployment creation options.
         )
     ```
 
-    By default, `.deploy` will build a Docker image and push it to the [Docker Hub](https://hub.docker.com/) registry specified in the `image` argument`. 
-    You need your environment to be authenticated to the Docker registry to push an image to it.
+    By default, `.deploy` will build a Docker image with your flow code baked into it and push the image to the [Docker Hub](https://hub.docker.com/) registry specified in the `image` argument`. 
+    
+    !!! note "Authentication to Docker Hub"
+        You need your environment to be authenticated to your Docker registry to push an image to it.
 
-    You can specify a registry other than Docker Hub by providing the full registry path in the `image` argument. TK
+    You can specify a registry other than Docker Hub by providing the full registry path in the `image` argument.
 
     !!! warning
-        If building a Docker image, the environment in which you are creating a deployment needs to have Docker installed and running.
-        The `prefect-docker` package also needs to be installed.
+        If building a Docker image, the environment in which you are creating the deployment needs to have Docker installed and running.
+        The [`prefect-docker` package](https://prefecthq.github.io/prefect-docker/) also needs to be installed.
 
     To avoid pushing to a registry, set `push=False` in the `.deploy` method.
+    
+    ```python hl_lines="6"
+
+    if __name__ == "__main__":
+        buy.deploy(
+            name="my-code-baked-into-an-image-deployment", 
+            work_pool_name="my-docker-pool", 
+            image="my_registry/my_image:my_image_tag",
+            push=False
+        )
+    ```
 
     To avoid building an image, set `build=False` in the `.deploy` method.
 
-    If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from at runtime with the `from_source` method.
+    ```python hl_lines="6"
+
+    if __name__ == "__main__":
+        buy.deploy(
+            name="my-code-baked-into-an-image-deployment", 
+            work_pool_name="my-docker-pool", 
+            image="discdiver/no-build-image:1.0",
+            build=False
+        )
+    ```
+
+    At runtime, the specified image will need to be available to access your flow code.
+
+    ### Pull your code from git-based storage at runtime
+
+    If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from with the `from_source` method.
 
     ```python hl_line="4-6" title="no-image.py" 
     from prefect import flow
@@ -159,25 +189,32 @@ Let's explore both deployment creation options.
         ).deploy(
             name="no-image-deployment",
             work_pool_name="my_pool",
+            build=False
         )
     ```
 
-    You can specify a git-based cloud storage option such as GitHub, Bitbucket, or Gitlab. 
-    Alternatively, you can specify an [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Storage Blobs.
-    Finally, you can specify a storage [block](/concepts/block/).
+    You can specify a git-based cloud storage URL to GitHub, Bitbucket, or Gitlab. 
 
-    demo from git-based storage with auth needed
+    !!! Note
+    
+    If you don't bake your code into an image, the image specified in the work pool will be used to run your flow.
 
-    demo from fsspec storage - s3
+    demo from git-based storage with auth needed TK
+
+    ### Pull your code from fsspec-based storage at runtime
+
+    Alternatively, you can specify an [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Storage Blob.
+
+        demo from fsspec storage - s3 TK
 
     demo from fsspec with private repo?
 
-    TK later demo from block storage with auth needed maybe
+    <!-- Finally, you can specify a storage [block](/concepts/block/). TK in process, but not done, show demo with and without auth -->
 
-    If you don't bake your code into an image, the image specified in the work pool will be used to run your flow.
+    
+    If you are familiar with the deployment creation mechanics with `.serve`, you will notice that `.deploy` is very similar. `.deploy` just requires a work pool name and has a number of parameters dealing with flow-code storage for Docker images. 
 
-    If you are familiar with the deployment creation mechanics with `.serve`, you will notice that `.deploy` is very similar. `.deploy` just requires a work pool name. 
-    Additionally, if you don't specify an image to use for your flow, you must to specify where to pull the flow code from at runtime with the `from_source` method.
+    Additionally, if you don't specify an image to use for your flow, you must to specify where to pull the flow code from at runtime with the `from_source` method, whereas `from_source` is optional with `.serve`.
 
 
     ### Additional configuration with `.deploy`
@@ -199,12 +236,9 @@ Let's explore both deployment creation options.
             image="my_registry/my_image:my_image_tag",
         )
     ```
-    demo of adding an environment variable
+    demo of adding an environment variable TK
 
-    demo of adding an additional package
-
-
-    demo of building totally custom image (move from tutorial note)
+    demo of adding an additional package TK
 
 
   
