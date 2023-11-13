@@ -19,7 +19,7 @@ search:
 
 # Deploying Flows to Work Pools and Workers
 
-In this guide, we will dive deep into configuring a deployment for a worker and work pool.
+In this guide, we will dive into configuring a deployment that uses a work pool for for dynamic infrastructure.
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
 With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
@@ -39,7 +39,7 @@ A deployment turns your workflow into an application that can be interacted with
 ## Work pool-based deployments
 
 A work pool-based deployment is useful when you want to dynamically scale the infrastructure where your flow code runs.
-Work pool-based deployment contain information about infrastructure type and configuration for your workflow execution.
+Work pool-based deployments contain information about the infrastructure type and configuration for your workflow execution.
 
 Work pool-based deployment infrastructure options include the following:
 
@@ -50,7 +50,7 @@ Work pool-based deployment infrastructure options include the following:
 
 Work pool-based deployments also allow you to assign a work queue name to prioritize work and allow you to limit concurrent runs at the work pool level.
 
-The following diagram provides a high-level overview of the conceptual elements involved in defining a work-pool based deployment that is polled by a worker and executing a flow run based on that deployment.
+The following diagram provides a high-level overview of the conceptual elements involved in defining a work-pool based deployment that is polled by a worker and executes a flow run based on that deployment.
 
 ```mermaid
 %%{
@@ -93,10 +93,10 @@ The work pool types above require a worker to be running on your infrastructure 
 
 !!!note "Additional work pool options available with Prefect Cloud"
 
-    Prefect Cloud offers two other flavors of work pools:
+    Prefect Cloud offers two other flavors of work pools that don't require a worker:
 
-    - [Push Work Pools](/guides/deployment/push-work-pools) - serverless cloud options that don't require a worker because Prefect Cloud  submits them to the cloud provider on your behalf.
-    - [Managed Execution]() - where Prefect Cloud submits and runs your deployment on its own serverless infrastructure TK - Jake PR in progress
+    - [Push Work Pools](/guides/deployment/push-work-pools) - serverless cloud options that don't require a worker because Prefect Cloud submits them to your cloud provider on your behalf.
+    - [Managed Execution]() TK - Prefect Cloud submits and runs your deployment on serverless infrastructure TK - Jake PR in progress
 
 In this guide we focus on deployments that require a worker.
 
@@ -107,11 +107,11 @@ When creating a deployment that uses a work pool, we must answer _two_ basic que
 
 ## Creating work pool-based deployments
 
-The [tutorial](/tutorial/deployments/) shows how to create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`.
-See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools), if desired.
+The [tutorial](/tutorial/deployments/) shows how you can create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`.
+See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools).
 
 In this guide, we will explore how to use `.deploy` in more depth and see a YAML-based alternative for managing deployments.
-Let's explore both options.
+Let's explore both deployment creation options.
 
 === ".deploy"
 
@@ -128,7 +128,7 @@ Let's explore both options.
 
     if __name__ == "__main__":
         buy.deploy(
-            name="my-code-baked-in-an-image-deployment", 
+            name="my-code-baked-into-an-image-deployment", 
             work_pool_name="my-docker-pool", 
             image="my_registry/my_image:my_image_tag"
         )
