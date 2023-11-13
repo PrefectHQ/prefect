@@ -346,9 +346,12 @@ Let's explore both deployment creation options.
 
     ### Additional configuration with `.deploy`
 
-    To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method.
+    Most of our examples thus far have shown options for where to store your flow code. 
+    Let's turn attention to other configuration option for our deployment.
 
-    ```python hl_lines="4-6" title="pass_params.py"
+    To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method. Just pass in a dictionary of key-value pairs.
+
+    ```python hl_lines="11" title="pass_params.py"
     from prefect import flow
 
     @flow
@@ -363,14 +366,43 @@ Let's explore both deployment creation options.
             image="my_registry/my_image:my_image_tag",
         )
     ```
-    demo of adding an environment variable TK
 
+    The `job_variables` parameter allows you to fine-tune the infrastructure settings for a deployment. 
+    The values passed in override default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template).
+    
+    You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables` argument. 
 
+    ```python hl_lines="5" title="job_var_image_pull.py"
+    if __name__ == "__main__":
+        get_repo_info.deploy(
+            name="my-deployment-never-pull", 
+            work_pool_name="my-docker-pool", 
+            job_variables={"image_pull_policy": "Never"},
+            image="my-image:my-tag"",
+            push=False
+        )
+    ```
+
+    Similarly, you can override the environment variables for a work pool like this:
+
+    ```python hl_lines="5" title="job_var_env_vars.py"
+    if __name__ == "__main__":
+        get_repo_info.deploy(
+            name="my-deployment-never-pull", 
+            work_pool_name="my-docker-pool", 
+            job_variables={"env": {"EXTRA_PIP_PACKAGES": "boto3"} },
+            image="my-image:my-tag"",
+            push=False
+        )
+    ```
+
+    The key "EXTRA_PIP_PACKAGES" denotes a special environment variable that Prefect will use to install additional Python packages at runtime. 
+    This approach is an alternative to building an image with a custom `requirements.txt` copied into it.
 
   
     ### Creating multiple deployments with `deploy`
 
-    For multiple deployments you can use the `deploy` function, analogous to the `serve` function. 
+    To create multiple work pool-based deployments at once you can use the `deploy` function, analogous to the `serve` function. 
 
     Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
@@ -395,6 +427,9 @@ Let's explore both deployment creation options.
             image="my-registry/my-image:dev",
         )
     ```
+
+    You could pass any number of flows to the `deploy` function.
+    This behavior is useful if using a monorepo approach to your workflows.
 
 === "prefect.yaml"
 
