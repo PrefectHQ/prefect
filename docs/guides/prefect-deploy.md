@@ -224,7 +224,7 @@ Let's explore both deployment creation options.
    
     Create a custom base Dockerfile.
 
-    ```dockerfile
+    ```
     FROM python:3.10
 
     ARG AUTHED_ARTIFACT_REG_URL
@@ -235,7 +235,7 @@ Let's explore both deployment creation options.
 
     Create our deployment by leveraging the DeploymentImage class. 
 
-    ```python hl_lines="2, 18-22" title="private-package.py"
+    ```python hl_lines="2 18-22" title="private-package.py"
     from prefect import flow
     from prefect.deployments.runner import DeploymentImage
     from prefect.blocks.system import Secret
