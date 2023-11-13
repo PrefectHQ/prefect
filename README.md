@@ -72,7 +72,7 @@ prefect server start
 
 ![Prefect UI dashboard](/docs/img/ui/cloud-dashboard.png)
 
-To run your worfklow on a schedule, turn it into a deployment and schedule it to run every minute by changing the last line of your script to the following:
+To run your workflow on a schedule, turn it into a deployment and schedule it to run every minute by changing the last line of your script to the following:
 
 ```python
     github_stars.serve(name="first-deployment", cron="* * * * *")
