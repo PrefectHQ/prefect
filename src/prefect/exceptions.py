@@ -204,7 +204,9 @@ class ParameterBindError(TypeError, PrefectException):
 
         base = f"Error binding parameters for function '{fn.__name__}': {exc}"
         signature = f"Function '{fn.__name__}' has signature '{fn_signature}'"
-        received = f"received args: {call_args} and kwargs: {list(call_kwargs.keys())}"
+        received = (
+            f"received {len(call_args)} args and kwargs: {list(call_kwargs.keys())}"
+        )
         msg = f"{base}.\n{signature} but {received}."
         return cls(msg)
 
