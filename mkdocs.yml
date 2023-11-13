@@ -148,11 +148,12 @@ nav:
                 - Profiles & Settings: guides/settings.md
                 - Logging: guides/logs.md
                 - Testing: guides/testing.md
-                - Runtime Context: guides/runtime-context.md
                 - Global Concurrency Limits: guides/global-concurrency-limits.md
+                - Runtime Context: guides/runtime-context.md
                 - Variables: guides/variables.md
-                - Using the Client: guides/using-the-client.md
+                - Prefect Client: guides/using-the-client.md
                 - Webhooks: guides/webhooks.md
+                - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
           - Execution:
                 - Docker: guides/docker.md
                 - State Change Hooks: guides/state-change-hooks.md

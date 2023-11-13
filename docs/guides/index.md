@@ -20,9 +20,12 @@ This section of the documentation contains guides for common workflows and use c
 | [Profiles & Settings](/guides/settings/) | Configure Prefect and save your settings. |
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Testing](/guides/testing/) | Easily test your workflows. |
+| [Global Concurrency Limits](/guides/global-concurrency-limits/) | Limit flow runs. |
 | [Runtime Context](/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
 | [Variables](/guides/variables/) | Store and retrieve configuration data. |
+| [Prefect Client](/guides/using-the-client/) | Use `PrefectClient`` to interact with the API server. |
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
+| [Terraform Provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) | Use the Terraform Provider for Prefect Cloud for infrastructure as code. |
 
 ## Execution
 
@@ -37,7 +40,7 @@ This section of the documentation contains guides for common workflows and use c
 
 | Title                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) | Learn how to easily manage your code and deployments. |
+| [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) | Learn how to deployments with Work Pools. |
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from Agents to Workers. |
 | [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
