@@ -30,6 +30,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
+from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.utilities.math import clamped_poisson_interval
 
 
@@ -92,7 +93,8 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     This rule checks if concurrency limits have been set on the tags associated with a
     TaskRun. If so, a concurrency slot will be secured against each concurrency limit
     before being allowed to transition into a running state. If a concurrency limit has
-    been reached, the client will be instructed to delay the transition for 30 seconds
+    been reached, the client will be instructed to delay the transition for the duration
+    specified by the "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS" setting
     before trying again. If the concurrency limit set on a tag is 0, the transition will
     be aborted to prevent deadlocks.
     """
@@ -138,7 +140,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                     stale_limit.active_slots = list(active_slots)
 
                 await self.delay_transition(
-                    30,
+                    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
                     f"Concurrency limit for the {tag} tag has been reached",
                 )
             else:
