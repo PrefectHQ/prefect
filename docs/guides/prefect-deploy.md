@@ -274,7 +274,7 @@ Let's explore both deployment creation options.
 
     Here's how we can pull our flow code from a GitHub repository.
 
-    ```python hl_line="4-6" title="no-image.py" 
+    ```python hl_lines="4-6" title="no-image.py" 
     from prefect import flow
 
     if __name__ == "__main__":
@@ -306,7 +306,7 @@ Let's explore both deployment creation options.
 
     Here's an example of storing a flow in an S3 bucket:
 
-    ```python hl_lines="4-6" title="s3_storage.py"```
+    ```python hl_lines="4-6" title="s3_storage.py"
     from prefect import flow
 
     if __name__ == "__main__":
@@ -317,6 +317,7 @@ Let's explore both deployment creation options.
             name="deployment-from-aws-flow",
             work_pool="my_pool",
         )
+    ```
 
     If you need additional configuration for your storage location, use the `RemoteStorage` class.
 
