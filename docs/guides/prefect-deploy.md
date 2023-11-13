@@ -170,6 +170,8 @@ Let's explore both options.
 
     demo from fsspec storage - s3
 
+    demo from fsspec with private repo?
+
     TK later demo from block storage with auth needed maybe
 
     If you don't bake your code into an image, the image specified in the work pool will be used to run your flow.
@@ -197,7 +199,6 @@ Let's explore both options.
             image="my_registry/my_image:my_image_tag",
         )
     ```
-
     demo of adding an environment variable
 
     demo of adding an additional package
@@ -609,9 +610,39 @@ These deployments can be managed independently of one another, allowing you to d
 
     Note that in the example above we creating two deployments from the same flow, but with different work pools.
     Alternatively, we could have created two deployments from different flows.
-    In that case, the the code for both flows would be baked into the same image.
 
-    You could specify that one or more flows should be pulled from a remote location at runtime by using the `from_source` method.
+    ```python
+    from prefect import deploy, flow
+
+    @flow(log_prints=True)
+    def buy():
+        print("Buying securities.")
+
+    @flow(log_prints=True)
+    def sell():
+        print("Selling securities.")
+    
+    
+    if __name__ == "__main__":
+        deploy(
+            buy.to_deployment(name="buy-deploy", work_pool_name="my-dev-work-pool"),
+            sell.to_deployment(name="sell-deploy", work_pool_name="my-dev-work-pool"),
+            image="my-registry/my-image:dev",
+            push=False,
+        )
+    ```
+
+    Note that in the example above the code for both flows gets baked into the same image.
+
+    We can specify that one or more flows should be pulled from a remote location at runtime by using the `from_source` method.
+
+    ```python
+    from prefect import deploy, flow
+
+    if __name__ == "__main__":
+        deploy(
+            flow.from_source(
+                "
 
 === "prefect.yaml"
 
