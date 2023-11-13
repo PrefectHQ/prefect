@@ -175,21 +175,41 @@ Let's explore both deployment creation options.
 
     At runtime, the specified image will need to be available to access your flow code.
 
-    ### Automatically build a custom Docker image based on a local Dockerfile
+    Prefect generates a Dockerfile for you that will build an image based off of one of Prefect's published images. The generated Dockerfile will copy the current directory into the Docker image and install any dependencies listed in a `requirements.txt` file.
 
-    ```python hl_lines="17-22" title="buy.py"
-    
-    TK
+    ### Automatically build a custom Docker image with a local Dockerfile
+
+    If you want to use a custom Dockerfile, you can specify the path to the Dockerfile with the `DeploymentImage` class:
+
+    ```python hl_lines="14-17" title="custom_dockerfile.py"
+    from prefect import flow
+    from prefect.deployments import DeploymentImage
+
+
+    @flow(log_prints=True)
+    def buy():
+        print("Selling securities")
+
+
+    if __name__ == "__main__":
+        buy.deploy(
+            name="my-custom-dockerfile-deployment",", 
+            work_pool_name="my-docker-pool", 
+            image=DeploymentImage(
+                name="my_image",
+                tag="deploy-guide",
+                dockerfile="Dockerfile"
+        ),
+        push=False
+    )
+
     ```
-
-    If present, a `requirements.txt` with listed Python packages will be copied into the image automatically.
-
-    ### Further customizations for Docker images
     
-    By passing a DeploymentImage object to the `image` parameter you can customize many of settings on the deployment.
+    The `DeploymentImage` object allows for a great deal of image customization.
     
-    For example, to install a private Python package from GCP's artifact registry you can do the following.
-    Create a custom base Dockerfile like this:
+    For example, you can install a private Python package from GCP's artifact registry like this:
+   
+    Create a custom base Dockerfile.
 
     ```dockerfile
     FROM python:3.10
@@ -233,13 +253,13 @@ Let's explore both deployment creation options.
 
     See all the optional keyword arguments for the DeploymentImage class [here](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build). 
 
-    Many organizations like to store their code in git-based storage, such as GitHub, Bitbucket, or Gitlab, let's see how to do that next.
+    While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
     ### Pull your code from git-based storage at runtime
 
-    If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from with the `from_source` method.
+    If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from with the `from_source` method. 
 
-    In the example below, we pull the flow code from a GitHub repository.
+    Here's how we can pull our flow code from a GitHub repository.
 
     ```python hl_line="4-6" title="no-image.py" 
     from prefect import flow
@@ -255,25 +275,53 @@ Let's explore both deployment creation options.
         )
     ```
 
-    You can specify a git-based cloud storage URL for a Bitbucket or Gitlab repository. 
+    Alternatively, you could specify a git-based cloud storage URL for a Bitbucket or Gitlab repository. 
 
     !!! note 
-    
         If you don't specify an image as part of your deployment creation, the image specified in the work pool will be used to run your flow.
 
-    If you change your flow code and push it to GitHub, you generally don't need to rebuild your deployment. 
+    After creating a deployment you might change your flow code. 
+    Generally, you can just push your code to GitHub, without rebuilding your deployment. 
     The exception is if something that the server needs to know about changes, such as the flow entrypoint parameters. 
-    Rerunning the Python script with `.deploy` will update the deployment with the new flow code.
+    Rerunning the Python script with `.deploy` will update your deployment on the server with the new flow code.
 
     If your you want to pull your flow code from private git-based storage,
 
-    ### Pull your code from fsspec-based storage at runtime
+    ### Store your code in fsspec-based storage 
 
     Alternatively, you can specify an [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Storage Blob.
 
-        demo from fsspec storage - s3 TK
+    Here's an example of storing a flow in an S3 bucket:
 
-    demo from fsspec with private repo?
+    ```python hl_lines="4-6" title="s3_storage.py"```
+    from prefect import flow
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source="s3://my-bucket/my-folder",
+            entrypoint="flows.py:my_flow",
+        ).deploy(
+            name="deployment-from-aws-flow",
+            work_pool="my_pool",
+        )
+
+    If you need additional configuration for your storage location, use the `RemoteStorage` class.
+
+    Here's an example of loading a flow from Azure Blob Storage with a custom account name:
+
+    ```python hl_lines="1, 6" title="azure_storage.py"
+    from prefect import flow
+    from prefect.runner.storage import RemoteStorage
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source=RemoteStorage(url="az://my-container/my-folder", account_name="my-account-name"),
+            entrypoint="flows.py:my_flow",
+        ).deploy(
+            name="deployment-from-aws-flow",
+            work_pool="my_pool",
+        )
+    ```
 
     <!-- Finally, you can specify a storage [block](/concepts/block/). TK in process, but not done, show demo with and without auth -->
 
@@ -287,7 +335,7 @@ Let's explore both deployment creation options.
 
     To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method.
 
-    ```python hl_lines="4-6" title="pass-params.py"
+    ```python hl_lines="4-6" title="pass_params.py"
     from prefect import flow
 
     @flow
@@ -304,7 +352,6 @@ Let's explore both deployment creation options.
     ```
     demo of adding an environment variable TK
 
-    demo of adding an additional package TK
 
 
   
