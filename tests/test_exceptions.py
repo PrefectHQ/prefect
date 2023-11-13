@@ -85,7 +85,7 @@ class TestParameterBindError:
         type_error = TypeError("Demo TypeError")
         expected_str = (
             "Error binding parameters for function 'fn': Demo TypeError.\nFunction 'fn'"
-            " has signature 'a: int, b: str' but received args: () and kwargs: ['c',"
+            " has signature 'a: int, b: str' but received 0 args and kwargs: ['c',"
             " 'd']."
         )
         pbe = ParameterBindError.from_bind_failure(
