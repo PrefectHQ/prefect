@@ -22,13 +22,13 @@ This section of the documentation contains guides for common workflows and use c
 | [Testing](/guides/testing/) | Easily test your workflows. |
 | [Runtime Context](/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
 | [Variables](/guides/variables/) | Store and retrieve configuration data. |
+| [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 
 ## Execution
 
 | Title                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Docker](/guides/docker/) | Deploy flows with Docker containers. |
-| [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [State Change Hooks](/guides/state-change-hooks/) | Execute code in response to state changes. |
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks. |
 | [Moving Data](/guides/moving-data/) | Move data to and from cloud providers.  |
@@ -44,6 +44,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Run flows on serverless infrastructure without a worker. |
 | [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) |  Run flows on AWS ECS. |
 | [Azure Container Instances](/guides/deployment/aci/) |  Deploy flows to Azure Container Instances. |
+| [Daemonize Processes](/guides/deployment/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
 
 ## Other guides

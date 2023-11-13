@@ -1,6 +1,8 @@
+import shutil
 import sys
 import warnings
 from pathlib import Path
+from textwrap import dedent
 from unittest.mock import ANY
 
 import pytest
@@ -379,6 +381,63 @@ class TestGitCloneStep:
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
 
+class TestPullFromRemoteStorage:
+    @pytest.fixture
+    def remote_storage_mock(self, monkeypatch):
+        remote_storage_mock = MagicMock()
+        pull_code_mock = AsyncMock()
+        remote_storage_mock.return_value.pull_code = pull_code_mock
+        remote_storage_mock.return_value.destination = Path.cwd() / "bucket" / "folder"
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.RemoteStorage",
+            remote_storage_mock,
+        )
+        return remote_storage_mock
+
+    @pytest.fixture
+    def subprocess_mock(self, monkeypatch):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.subprocess",
+            subprocess_mock,
+        )
+        return subprocess_mock
+
+    @pytest.fixture
+    def import_module_mock(self, monkeypatch):
+        import_module_mock = MagicMock(side_effect=ImportError())
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module",
+            import_module_mock,
+        )
+        return import_module_mock
+
+    async def test_pull_from_remote_storage(
+        self, remote_storage_mock, subprocess_mock, import_module_mock
+    ):
+        output = await run_step(
+            {
+                "prefect.deployments.steps.pull_from_remote_storage": {
+                    "requires": "s3fs<3.0",
+                    "url": "s3://bucket/folder",
+                    "key": "my-access-key-id",
+                    "secret": "my-secret-access-key",
+                }
+            }
+        )
+        assert output["directory"] == "bucket/folder"
+        import_module_mock.assert_called_once_with("s3fs")
+        subprocess_mock.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "s3fs<3.0"]
+        )
+        remote_storage_mock.assert_called_once_with(
+            "s3://bucket/folder",
+            key="my-access-key-id",
+            secret="my-secret-access-key",
+        )
+        remote_storage_mock.return_value.pull_code.assert_awaited_once()
+
+
 class TestRunShellScript:
     async def test_run_shell_script_single_command(self, capsys):
         result = await run_shell_script("echo Hello World", stream_output=True)
@@ -648,4 +707,104 @@ class TestPipInstallRequirements:
             "requirements file: [Errno 2] No such file or directory: "
             "'doesnt-exist.txt'"
             in str(exc.value)
+        )
+
+
+class TestPullWithBlock:
+    @pytest.fixture
+    async def test_block(self):
+        class FakeStorageBlock(Block):
+            _block_type_slug = "fake-storage-block"
+
+            code: str = dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+
+            async def get_directory(self, local_path: str):
+                (Path(local_path) / "flows.py").write_text(self.code)
+
+        block = FakeStorageBlock()
+        await block.save("test-block")
+        return block
+
+    async def test_normal_operation(self, test_block: Block):
+        """
+        A block type slug and a block document name corresponding
+        to a block with the get_directory method can be used
+        to pull code into the current working path.
+        """
+        try:
+            output = await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": test_block.get_block_type_slug(),
+                        "block_document_name": test_block._block_document_name,
+                    }
+                }
+            )
+            assert "directory" in output
+            assert Path(f"{output['directory']}/flows.py").read_text() == dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+        finally:
+            if "output" in locals() and "directory" in output:
+                shutil.rmtree(f"{output['directory']}")
+
+    async def test_block_not_found(self, caplog):
+        """
+        When a `pull_with_block` step is run with a block type slug
+        and block document name that can't be resolved, `run_step`
+        should raise and log a message.
+        """
+        with pytest.raises(ValueError):
+            await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": "in-the",
+                        "block_document_name": "wind",
+                    }
+                }
+            )
+
+        assert "Unable to load block 'in-the/wind'" in caplog.text
+
+    async def test_incorrect_type_of_block(self, caplog):
+        """
+        When a `pull_with_block` step is run with a block that doesn't
+        have a `get_directory` method, `run_step` should raise and log
+        a message.
+        """
+
+        class Wrong(Block):
+            square_peg = "round_hole"
+
+        block = Wrong()
+        await block.save("test-block")
+
+        with pytest.raises(ValueError):
+            await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": block.get_block_type_slug(),
+                        "block_document_name": block._block_document_name,
+                    }
+                }
+            )
+
+        assert (
+            "Unable to create storage adapter for block"
+            f" '{block.get_block_type_slug()}/{block._block_document_name}"
+            in caplog.text
         )

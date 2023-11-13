@@ -13,19 +13,20 @@ from typing import (
     Union,
 )
 
+from typing_extensions import Self
+
+import prefect
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+
 else:
     import pydantic
 
-from typing_extensions import Self
-
-import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingContextError, MissingResult
+from prefect.exceptions import MissingResult
 from prefect.filesystems import (
     LocalFileSystem,
     ReadableFileSystem,
@@ -103,7 +104,7 @@ def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     Returns `True` if the given flow uses features that require child flow and task
     runs to persist their results.
     """
-    if flow.retries:
+    if flow and flow.retries:
         return True
     return False
 
@@ -229,13 +230,17 @@ class ResultFactory(pydantic.BaseModel):
         from prefect.context import FlowRunContext
 
         ctx = FlowRunContext.get()
-        if not ctx:
-            raise MissingContextError(
-                "A flow run context is required to create a result factory for a task."
-            )
 
-        result_storage = task.result_storage or ctx.result_factory.storage_block
-        result_serializer = task.result_serializer or ctx.result_factory.serializer
+        result_storage = task.result_storage or (
+            ctx.result_factory.storage_block
+            if ctx and ctx.result_factory
+            else await get_default_result_storage()
+        )
+        result_serializer = task.result_serializer or (
+            ctx.result_factory.serializer
+            if ctx and ctx.result_factory
+            else get_default_result_serializer()
+        )
         persist_result = (
             task.persist_result
             if task.persist_result is not None
@@ -243,11 +248,16 @@ class ResultFactory(pydantic.BaseModel):
             # !! Tasks persist their result by default if their parent flow uses a
             #    feature that requires it or the task uses a feature that requires it
             (
-                flow_features_require_child_result_persistence(ctx.flow)
+                (
+                    flow_features_require_child_result_persistence(ctx.flow)
+                    if ctx
+                    else False
+                )
                 or task_features_require_result_persistence(task)
                 or get_default_persist_setting()
             )
         )
+
         cache_result_in_memory = task.cache_result_in_memory
 
         return await cls.from_settings(
@@ -552,7 +562,6 @@ class PersistedResult(BaseResult):
         assert (
             storage_block_id is not None
         ), "Unexpected storage block ID. Was it persisted?"
-
         data = serializer.dumps(obj)
         blob = PersistedResultBlob(serializer=serializer, data=data)
 

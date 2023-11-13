@@ -152,20 +152,21 @@ nav:
                 - Global Concurrency Limits: guides/global-concurrency-limits.md
                 - Variables: guides/variables.md
                 - Using the Client: guides/using-the-client.md
+                - Webhooks: guides/webhooks.md
           - Execution:
                 - Docker: guides/docker.md
-                - Webhooks: guides/webhooks.md
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
                 - Moving data: guides/moving-data.md
-          - Workers and agents:
-                - Deploying flows to work pools and workers: guides/prefect-deploy.md
+          - Workers and Agents:
+                - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
                 - Storage: guides/deployment/storage-guide.md
                 - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
-                - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
+                - Run a Flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
+                - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
           - Troubleshooting: guides/troubleshooting.md
           - Recipes: recipes/recipes.md
@@ -191,15 +192,15 @@ nav:
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
-          - Organizations: cloud/organizations.md
           - Users:
                 - cloud/users/index.md
                 - Roles (RBAC): cloud/users/roles.md
                 - API Keys: cloud/users/api-keys.md
                 - Service Accounts: cloud/users/service-accounts.md
-                - Single Sign-on (SSO): cloud/users/sso.md
+                - Single Sign-On (SSO): cloud/users/sso.md
                 - Audit Log: cloud/users/audit-log.md
                 - Object-Level Access Control Lists: cloud/users/object-access-control-lists.md
+                - Teams: cloud/users/teams.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
     - Integrations:

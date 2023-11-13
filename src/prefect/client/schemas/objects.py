@@ -842,6 +842,7 @@ class BlockDocument(ObjectBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
+    block_type_name: Optional[str] = Field(None, description="A block type name")
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
@@ -1363,6 +1364,10 @@ class WorkPool(ObjectBaseModel):
     @property
     def is_push_pool(self) -> bool:
         return self.type.endswith(":push")
+
+    @property
+    def is_managed_pool(self) -> bool:
+        return self.type.endswith(":managed")
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
