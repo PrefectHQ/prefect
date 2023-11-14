@@ -354,7 +354,7 @@ Use the tabs below to explore both deployment creation options.
 
     Here's an example that uses an `S3Bucket` block.
 
-    ```python hl_lines="2 5-7" title="s3_storage_auth.py
+    ```python hl_lines="2 5-7" title="s3_storage_auth.py"
     from prefect import flow
     from prefect_aws.s3 import S3Bucket
 
