@@ -331,11 +331,11 @@ Use the tabs below to explore both deployment creation options.
     Note the use of the Secret block to load the GitHub access token. 
     Alternatively, you could provide a password to the `password` field of the `credentials` argument.
 
-    ### Store your code in fsspec-based storage 
+    ### Store your code in cloud provider storage 
 
     Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Blob Storage.
 
-    Here's an example of storing a flow in an S3 bucket:
+    For example, you can pass the S3 bucket path to `source`.
 
     ```python hl_lines="4-6" title="s3_storage.py"
     from prefect import flow
@@ -350,26 +350,19 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    If you need additional configuration for your fsspec-based storage, use the `RemoteStorage` class.
+    If you need additional configuration for your cloud-based storage - for example, with a private S3 Bucket -  we recommend using a [storage block](/concepts/blocks/).
 
-    For example, here's how you can load a flow from Azure Blob Storage with a custom account name:
+    Here's an example that uses an `S3Bucket` block.
 
-    ```python hl_lines="1 6" title="azure_storage.py"
+    ```python hl_lines="2 5-7" title="s3_storage_auth.py
     from prefect import flow
-    from prefect.runner.storage import RemoteStorage
+    from prefect_aws.s3 import S3Bucket
 
     if __name__ == "__main__":
         flow.from_source(
-            source=RemoteStorage(url="az://my-container/my-folder", account_name="my-account-name"),
-            entrypoint="flows.py:my_flow",
-        ).deploy(
-            name="deployment-from-aws-flow",
-            work_pool="my_pool",
-        )
+            source=S3Bucket.load("my-code-storage"), entrypoint="my_file.py:my_flow"
+        ).deploy(name="test-s3", work_pool="my_pool")
     ```
-
-    <!-- Finally, you can specify a storage [block](/concepts/block/). TK in process, but not done, show demo with and without auth -->
-
     
     If you are familiar with the deployment creation mechanics with `.serve`, you will notice that `.deploy` is very similar. `.deploy` just requires a work pool name and has a number of parameters dealing with flow-code storage for Docker images. 
 
@@ -784,7 +777,7 @@ These deployments can be managed independently of one another, allowing you to d
 
 === ".deploy"
 
-    To create multiple work pool-based deployments at once you can use the `deploy` function, analogous to the `serve` function. 
+    To create multiple work pool-based deployments at once you can use the `deploy` function, which is analogous to the `serve` function.
 
     ```python
     from prefect import deploy, flow
