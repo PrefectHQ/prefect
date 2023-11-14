@@ -87,7 +87,7 @@ class Infrastructure(Block, abc.ABC):
                 " `.save()` on your block before publishing."
             )
 
-        work_pool_name = work_pool_name or self.name
+        work_pool_name = work_pool_name or self._block_document_name
 
         block_schema = self.__class__.schema()
         console = Console()
