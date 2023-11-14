@@ -1229,9 +1229,9 @@ class TestFlowRunNotificationPolicy:
             await prefect_client.create_flow_run_notification_policy(
                 block_document_id=block_document.id,
                 is_active=True,
-                tags=["tag_for_delete"],
-                state_names=["TO_DELETE"],
-                message_template="To delete",
+                tags=["tag-for-delete"],
+                state_names=["COMPLETED"],
+                message_template="i await my fate",
             )
         )
         await prefect_client.delete_flow_run_notification_policy(notification_policy_id)
