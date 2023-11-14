@@ -1384,6 +1384,16 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
+PREFECT_WORKER_WEBSERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the worker's webserver should bind to.
+"""
+
+PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
+"""
+The port the worker's webserver should bind to.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect artifacts.
