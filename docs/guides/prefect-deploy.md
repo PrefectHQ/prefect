@@ -268,13 +268,13 @@ Let's explore both deployment creation options.
 
     While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
-    ### Pull your code from git-based storage at runtime
+    ### Store you code in git-based cloud storage 
 
-    If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from with the `from_source` method. 
+    If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from at runtime with the `from_source` method. 
 
     Here's how we can pull our flow code from a GitHub repository.
 
-    ```python hl_lines="4-6" title="no-image.py" 
+    ```python hl_lines="4-6" title="git_storage.py" 
     from prefect import flow
 
     if __name__ == "__main__":
@@ -288,6 +288,8 @@ Let's explore both deployment creation options.
         )
     ```
 
+    The `entrypoint`` is the path to the file the flow is located in and the function name, separated by a colon.
+
     Alternatively, you could specify a git-based cloud storage URL for a Bitbucket or Gitlab repository. 
 
     !!! note 
@@ -298,11 +300,38 @@ Let's explore both deployment creation options.
     The exception is if something that the server needs to know about changes, such as the flow entrypoint parameters. 
     Rerunning the Python script with `.deploy` will update your deployment on the server with the new flow code.
 
-    If your you want to pull your flow code from private git-based storage,
+    If you want to pull your flow code from private git-based storage,
+
+    If you need to provide additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
+
+    ```python hl_lines="2-3 7-12" title="private_git_storage.py"
+    from prefect import flow
+    from prefect.runner.storage import GitRepository
+    from prefect.blocks.system import Secret
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source=GitRepository(
+            url="https://github.com/org/private-repo.git",
+            branch="dev",
+            credentials={
+                "access_token": Secret.load("github-access-token").get()
+            }
+        ),
+        entrypoint="flows/no-image.py:hello_world",
+        ).deploy(
+            name="private-git-storage-deployment",
+            work_pool_name="my_pool",
+            build=False
+        )
+    ```
+
+    Note the use of the Secret block to load the GitHub access token. 
+    Alternatively, you could provide a password to the `password` field of the `credentials` argument.
 
     ### Store your code in fsspec-based storage 
 
-    Alternatively, you can specify an [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Storage Blob.
+    Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Blob Storage.
 
     Here's an example of storing a flow in an S3 bucket:
 
@@ -319,9 +348,9 @@ Let's explore both deployment creation options.
         )
     ```
 
-    If you need additional configuration for your storage location, use the `RemoteStorage` class.
+    If you need additional configuration for your fsspec-based storage, use the `RemoteStorage` class.
 
-    Here's an example of loading a flow from Azure Blob Storage with a custom account name:
+    For example, here's how you can load a flow from Azure Blob Storage with a custom account name:
 
     ```python hl_lines="1, 6" title="azure_storage.py"
     from prefect import flow
@@ -342,13 +371,13 @@ Let's explore both deployment creation options.
     
     If you are familiar with the deployment creation mechanics with `.serve`, you will notice that `.deploy` is very similar. `.deploy` just requires a work pool name and has a number of parameters dealing with flow-code storage for Docker images. 
 
-    Additionally, if you don't specify an image to use for your flow, you must to specify where to pull the flow code from at runtime with the `from_source` method, whereas `from_source` is optional with `.serve`.
+    Unlike `.serve`, if you don't specify an image to use for your flow, you must to specify where to pull the flow code from at runtime with the `from_source` method, whereas `from_source` is optional with `.serve`.
 
 
     ### Additional configuration with `.deploy`
 
-    Most of our examples thus far have shown options for where to store your flow code. 
-    Let's turn attention to other configuration option for our deployment.
+    Our examples thus far have explored options for where to store flow code. 
+    Let's turn our attention to other deployment configuration options.
 
     To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method. Just pass in a dictionary of key-value pairs.
 
@@ -384,7 +413,7 @@ Let's explore both deployment creation options.
         )
     ```
 
-    Similarly, you can override the environment variables for a work pool like this:
+    Similarly, you can override the environment variables specified in a work pool through the `job_variables` parameter:
 
     ```python hl_lines="5" title="job_var_env_vars.py"
     if __name__ == "__main__":
@@ -397,40 +426,8 @@ Let's explore both deployment creation options.
         )
     ```
 
-    The key "EXTRA_PIP_PACKAGES" denotes a special environment variable that Prefect will use to install additional Python packages at runtime. 
+    The dictionary key "EXTRA_PIP_PACKAGES" denotes a special environment variable that Prefect will use to install additional Python packages at runtime. 
     This approach is an alternative to building an image with a custom `requirements.txt` copied into it.
-
-  
-    ### Creating multiple deployments with `deploy`
-
-    To create multiple work pool-based deployments at once you can use the `deploy` function, analogous to the `serve` function. 
-
-    Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
-
-    ```python hl_lines="9-19"
-    from prefect import deploy, flow
-
-
-    @flow(log_prints=True)
-    def local_flow():
-        print("I'm a flow!")
-
-    if __name__ == "__main__":
-        deploy(
-            local_flow.to_deployment(name="example-deploy-local-flow"),
-            flow.from_source(
-                source="https://github.com/org/repo.git",
-                entrypoint="flows.py:my_flow",
-            ).to_deployment(
-                name="example-deploy-remote-flow",
-            ),
-            work_pool_name="my-work-pool",
-            image="my-registry/my-image:dev",
-        )
-    ```
-
-    You could pass any number of flows to the `deploy` function.
-    This behavior is useful if using a monorepo approach to your workflows.
 
 === "prefect.yaml"
 
@@ -785,7 +782,7 @@ These deployments can be managed independently of one another, allowing you to d
 
 === ".deploy"
 
-    You can create multiple deployments with the `deploy` function passing multiple deployment objects. TK
+    To create multiple work pool-based deployments at once you can use the `deploy` function, analogous to the `serve` function. 
 
     ```python
     from prefect import deploy, flow
@@ -804,7 +801,7 @@ These deployments can be managed independently of one another, allowing you to d
         )
     ```
 
-    Note that in the example above we creating two deployments from the same flow, but with different work pools.
+    Note that in the example above we created two deployments from the same flow, but with different work pools.
     Alternatively, we could have created two deployments from different flows.
 
     ```python
@@ -828,17 +825,35 @@ These deployments can be managed independently of one another, allowing you to d
         )
     ```
 
-    Note that in the example above the code for both flows gets baked into the same image.
+    In the example above the code for both flows gets baked into the same image.
 
     We can specify that one or more flows should be pulled from a remote location at runtime by using the `from_source` method.
+    Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
-    ```python
+    ```python hl_lines="9-19"
     from prefect import deploy, flow
+
+
+    @flow(log_prints=True)
+    def local_flow():
+        print("I'm a flow!")
 
     if __name__ == "__main__":
         deploy(
+            local_flow.to_deployment(name="example-deploy-local-flow"),
             flow.from_source(
-                "
+                source="https://github.com/org/repo.git",
+                entrypoint="flows.py:my_flow",
+            ).to_deployment(
+                name="example-deploy-remote-flow",
+            ),
+            work_pool_name="my-work-pool",
+            image="my-registry/my-image:dev",
+        )
+    ```
+
+    You could pass any number of flows to the `deploy` function.
+    This behavior is useful if using a monorepo approach to your workflows.
 
 === "prefect.yaml"
 
