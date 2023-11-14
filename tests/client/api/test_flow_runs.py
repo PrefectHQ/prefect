@@ -1,12 +1,5 @@
 from uuid import uuid4
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    pass
-else:
-    pass
-
 import pytest
 
 from prefect.client.schemas import filters
