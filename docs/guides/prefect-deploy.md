@@ -99,7 +99,7 @@ The work pool types above require a worker to be running on your infrastructure 
     
     <!-- - [Managed Execution]() TK - Prefect Cloud submits and runs your deployment on serverless infrastructure TK - Jake PR in progress -->
 
-In this guide we focus on deployments that require a worker.
+In this guide, we focus on deployments that require a worker.
 
 When creating a deployment that uses a work pool, we must answer _two_ basic questions:
 
