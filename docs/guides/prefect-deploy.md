@@ -46,7 +46,7 @@ Work pool-based deployment infrastructure options include the following:
 - Process - runs flow in a subprocess. Generally better off using `.serve`
 - [Docker](/guides/deployment/docker/) - runs flows in an ephemeral Docker container.
 - [Kubernetes](/guides/deployment/kubernetes/) - runs flows as a Kubernetes Job.
-- [Serverless Cloud Provider options] TK - Jeff PR in progress - runs flows in a Docker container in a serverless cloud provider environment, such as AWS ECS, Azure Container Instance, Google Cloud Run, or Vertex AI.
+<!-- - [Serverless Cloud Provider options] TK - Jeff PR in progress, awaiting ACI PR in progress - runs flows in a Docker container in a serverless cloud provider environment, such as AWS ECS, Azure Container Instance, Google Cloud Run, or Vertex AI. -->
 
 Work pool-based deployments also allow you to assign a work queue name to prioritize work and allow you to limit concurrent runs at the work pool level.
 
@@ -93,10 +93,11 @@ The work pool types above require a worker to be running on your infrastructure 
 
 !!!note "Additional work pool options available with Prefect Cloud"
 
-    Prefect Cloud offers two other flavors of work pools that don't require a worker:
+    Prefect Cloud offers other flavors of work pools that don't require a worker:
 
     - [Push Work Pools](/guides/deployment/push-work-pools) - serverless cloud options that don't require a worker because Prefect Cloud submits them to your cloud provider on your behalf.
-    - [Managed Execution]() TK - Prefect Cloud submits and runs your deployment on serverless infrastructure TK - Jake PR in progress
+    
+    <!-- - [Managed Execution]() TK - Prefect Cloud submits and runs your deployment on serverless infrastructure TK - Jake PR in progress -->
 
 In this guide we focus on deployments that require a worker.
 
