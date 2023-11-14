@@ -4,6 +4,10 @@ import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, status
 from prefect._vendor.fastapi.responses import JSONResponse
 
+from prefect.settings import (
+    PREFECT_WORKER_WEBSERVER_HOST,
+    PREFECT_WORKER_WEBSERVER_PORT,
+)
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 
@@ -39,4 +43,9 @@ def start_healthcheck_server(
 
     webserver.include_router(router)
 
-    uvicorn.run(webserver, host="0.0.0.0", port=8080, log_level=log_level)
+    uvicorn.run(
+        webserver,
+        host=PREFECT_WORKER_WEBSERVER_HOST.value(),
+        port=PREFECT_WORKER_WEBSERVER_PORT.value(),
+        log_level=log_level,
+    )
