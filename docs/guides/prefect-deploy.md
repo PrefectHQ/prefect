@@ -110,8 +110,9 @@ When creating a deployment that uses a work pool, we must answer _two_ basic que
 The [tutorial](/tutorial/deployments/) shows how you can create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`.
 See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools).
 
-In this guide, we will explore how to use `.deploy` in more depth and see a YAML-based alternative for managing deployments.
-Let's explore both deployment creation options.
+In this guide, we will explore how to use `.deploy` in more depth and discuss `prefect.yaml`, a YAML-based alternative for managing deployments.
+
+Use the tabs below to explore both deployment creation options.
 
 === ".deploy"
 
@@ -136,8 +137,8 @@ Let's explore both deployment creation options.
         )
     ```
 
-    Make sure you have the [work pool](/concepts/work-pools/) created on the Prefect Cloud workspace your are authenticated to or on your running self-hosted server instance connected to.  
-    Then run the script to create a deployment:
+    Make sure you have the [work pool](/concepts/work-pools/) created in the Prefect Cloud workspace your are authenticated to or on your running self-hosted server instance connected to.  
+    Then run the script to create a deployment (in future examples this step will be omitted for brevity):
 
     <div class="terminal">
     ```bash
@@ -352,7 +353,7 @@ Let's explore both deployment creation options.
 
     For example, here's how you can load a flow from Azure Blob Storage with a custom account name:
 
-    ```python hl_lines="1, 6" title="azure_storage.py"
+    ```python hl_lines="1 6" title="azure_storage.py"
     from prefect import flow
     from prefect.runner.storage import RemoteStorage
 
