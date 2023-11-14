@@ -760,6 +760,12 @@ This value sets the default retry delay seconds for all tasks.
 This value does not overwrite individually set retry delay seconds
 """
 
+PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(int, default=30)
+"""
+The number of seconds to wait before retrying when a task run
+cannot secure a concurrency slot from the server.
+"""
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
