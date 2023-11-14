@@ -47,6 +47,7 @@ from prefect.client.schemas.actions import (
     FlowCreate,
     FlowRunCreate,
     FlowRunNotificationPolicyCreate,
+    FlowRunNotificationPolicyUpdate,
     FlowRunUpdate,
     LogCreate,
     TaskRunCreate,
@@ -2174,6 +2175,44 @@ class PrefectClient:
             "/flow_run_notification_policies/filter", json=body
         )
         return pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
+
+    async def update_flow_run_notification_policy(
+        self,
+        flow_run_notification_policy_id: UUID,
+        flow_run_notification_policy_update: FlowRunNotificationPolicyUpdate,
+    ):
+        """
+        Update a flow run notification policy in the Prefect API.
+        """
+        try:
+            await self._client.patch(
+                f"/flow_run_notification_policies/{flow_run_notification_policy_id}",
+                json=flow_run_notification_policy_update.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def delete_flow_run_notification_policy(
+        self, flow_run_notification_policy_id: UUID
+    ):
+        """
+        Delete a flow run notification policy from the Prefect API.
+        """
+        try:
+            await self._client.delete(
+                f"/flow_run_notification_policies/{flow_run_notification_policy_id}"
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_logs(
         self,

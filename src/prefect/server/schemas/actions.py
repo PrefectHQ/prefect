@@ -65,7 +65,7 @@ class ActionBaseModel(PrefectBaseModel):
 
     def __iter__(self):
         # By default, `pydantic.BaseModel.__iter__` yields from `self.__dict__` directly
-        # instead  of going through `_iter`. We want tor retain our custom logic in
+        # instead  of going through `_iter`. We want to retain our custom logic in
         # `_iter` during `dict(model)` calls which is what Pydantic uses for
         # `parse_obj(model)`
         yield from self._iter(to_dict=True)

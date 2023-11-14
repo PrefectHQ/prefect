@@ -34,6 +34,7 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
     ArtifactCreate,
+    FlowRunNotificationPolicyUpdate,
     LogCreate,
     VariableCreate,
     WorkPoolCreate,
@@ -1164,33 +1165,80 @@ async def test_set_then_read_task_run_state(prefect_client):
     assert run.state.message == "Test!"
 
 
-async def test_create_then_read_flow_run_notification_policy(
-    prefect_client, block_document
-):
-    message_template = "Test message template!"
-    state_names = ["COMPLETED"]
+class TestFlowRunNotificationPolicy:
+    async def test_create_then_read_flow_run_notification_policy(
+        self, prefect_client, block_document
+    ):
+        message_template = "Test message template!"
+        state_names = ["COMPLETED"]
 
-    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
-        block_document_id=block_document.id,
-        is_active=True,
-        tags=[],
-        state_names=state_names,
-        message_template=message_template,
-    )
-
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+        notification_policy_id = (
+            await prefect_client.create_flow_run_notification_policy(
+                block_document_id=block_document.id,
+                is_active=True,
+                tags=[],
+                state_names=state_names,
+                message_template=message_template,
+            )
         )
-    )
 
-    assert len(response) == 1
-    assert response[0].id == notification_policy_id
-    assert response[0].block_document_id == block_document.id
-    assert response[0].message_template == message_template
-    assert response[0].is_active
-    assert response[0].tags == []
-    assert response[0].state_names == state_names
+        response: List[FlowRunNotificationPolicy] = (
+            await prefect_client.read_flow_run_notification_policies(
+                FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+            )
+        )
+
+        assert len(response) == 1
+        assert response[0].id == notification_policy_id
+        assert response[0].block_document_id == block_document.id
+        assert response[0].message_template == message_template
+        assert response[0].is_active
+        assert response[0].tags == []
+        assert response[0].state_names == state_names
+
+    async def test_update_then_read_flow_run_notification_policy(
+        self, prefect_client, block_document
+    ):
+        notification_policy_id = (
+            await prefect_client.create_flow_run_notification_policy(
+                block_document_id=block_document.id,
+                is_active=True,
+                tags=["original-tag"],
+                state_names=["LATE", "FAILED"],
+                message_template="template before",
+            )
+        )
+        await prefect_client.update_flow_run_notification_policy(
+            notification_policy_id,
+            FlowRunNotificationPolicyUpdate(message_template="template after"),
+        )
+        response = await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": True})
+        )
+        updated_policy = next(
+            policy for policy in response if policy.id == notification_policy_id
+        )
+        assert updated_policy.message_template == "template after"
+        assert updated_policy.tags == ["original-tag"]
+        assert updated_policy.state_names == ["LATE", "FAILED"]
+
+    async def test_delete_flow_run_notification_policy(
+        self, prefect_client, block_document
+    ):
+        notification_policy_id = (
+            await prefect_client.create_flow_run_notification_policy(
+                block_document_id=block_document.id,
+                is_active=True,
+                tags=["tag_for_delete"],
+                state_names=["TO_DELETE"],
+                message_template="To delete",
+            )
+        )
+        await prefect_client.delete_flow_run_notification_policy(notification_policy_id)
+        response = await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": True})
+        )
+        assert not any(policy.id == notification_policy_id for policy in response)
 
 
 async def test_read_filtered_logs(session, prefect_client, deployment):
