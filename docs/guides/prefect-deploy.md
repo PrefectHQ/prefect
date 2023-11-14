@@ -19,7 +19,7 @@ search:
 
 # Deploying Flows to Work Pools and Workers
 
-In this guide, we will dive into configuring a deployment that uses a work pool for for dynamic infrastructure.
+In this guide, we will configure a deployment that uses a work pool for for dynamically provisioned infrastructure.
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
 With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
@@ -99,7 +99,7 @@ The work pool types above require a worker to be running on your infrastructure 
     
     <!-- - [Managed Execution]() TK - Prefect Cloud submits and runs your deployment on serverless infrastructure TK - Jake PR in progress -->
 
-In this guide we focus on deployments that require a worker.
+In this guide, we focus on deployments that require a worker.
 
 When creating a deployment that uses a work pool, we must answer _two_ basic questions:
 
