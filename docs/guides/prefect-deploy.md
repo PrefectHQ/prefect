@@ -138,7 +138,7 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    Make sure you have the [work pool](/concepts/work-pools/) created in the Prefect Cloud workspace your are authenticated to or on your running self-hosted server instance connected to.  
+    Make sure you have the [work pool](/concepts/work-pools/) created in the Prefect Cloud workspace you are authenticated to or on your running self-hosted server instance.  
     Then run the script to create a deployment (in future examples this step will be omitted for brevity):
 
     <div class="terminal">
