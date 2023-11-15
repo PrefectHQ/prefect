@@ -760,6 +760,12 @@ This value sets the default retry delay seconds for all tasks.
 This value does not overwrite individually set retry delay seconds
 """
 
+PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(int, default=30)
+"""
+The number of seconds to wait before retrying when a task run
+cannot secure a concurrency slot from the server.
+"""
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
@@ -1322,6 +1328,16 @@ PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
 Whether or not to warn when experimental enhanced flow run cancellation is used.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_DEPLOYMENT_STATUS = Setting(bool, default=True)
+"""
+Whether or not to enable deployment status in the UI
+"""
+
+PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
+"""
+Whether or not to warn when deployment status is used.
+"""
+
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
@@ -1366,6 +1382,16 @@ PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
 """
 The number of seconds into the future a worker should query for scheduled flow runs.
 Can be used to compensate for infrastructure start up time for a worker.
+"""
+
+PREFECT_WORKER_WEBSERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the worker's webserver should bind to.
+"""
+
+PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
+"""
+The port the worker's webserver should bind to.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)

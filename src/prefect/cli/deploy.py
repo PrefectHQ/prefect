@@ -709,7 +709,7 @@ async def _run_single_deploy(
                         " prefect.yaml file."
                     ),
                 )
-    if not work_pool.is_push_pool:
+    if not work_pool.is_push_pool and not work_pool.is_managed_pool:
         app.console.print(
             "\nTo execute flow runs from this deployment, start a worker in a"
             " separate terminal that pulls work from the"
