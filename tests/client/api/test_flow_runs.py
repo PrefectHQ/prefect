@@ -79,11 +79,42 @@ class TestReadFlowRuns:
             )
         return children
 
+    @pytest.fixture
+    async def grandchild_runs(self, flow, child_runs, session):
+        grandchildren = []
+        for child in child_runs:
+            for i in range(3):
+                dummy_task = await models.task_runs.create_task_run(
+                    session=session,
+                    task_run=schemas.core.TaskRun(
+                        flow_run_id=child.id,
+                        name=f"dummy-{i}",
+                        task_key=f"dummy-{i}",
+                        dynamic_key=f"dummy-{i}",
+                    ),
+                )
+                grandchildren.append(
+                    await models.flow_runs.create_flow_run(
+                        session=session,
+                        flow_run=schemas.core.FlowRun(
+                            flow_id=flow.id,
+                            flow_version="1.0",
+                            state=schemas.states.Pending(),
+                            parent_task_run_id=dummy_task.id,
+                        ),
+                    )
+                )
+        return grandchildren
+
     async def test_read_subflow_runs(
         self,
         prefect_client,
         parent_flow_run,
         child_runs,
+        # included to make sure we're only going 1 level deep
+        grandchild_runs,
+        # included to make sure we're not bringing in extra flow runs
+        flow_runs,
     ):
         """We should be able to find all subflow runs of a given flow run."""
         subflow_filter = filters.FlowRunFilter(
