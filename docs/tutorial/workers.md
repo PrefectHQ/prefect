@@ -153,7 +153,7 @@ if __name__ == "__main__":
     get_repo_info.deploy(
         name="my-first-deployment", 
         work_pool_name="my-docker-pool", 
-        image="my-first-deployment-image:tutorial"
+        image="my-first-deployment-image:tutorial",
         push=False
     )
 ```
