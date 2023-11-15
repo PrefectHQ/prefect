@@ -11,7 +11,7 @@ search:
 
 # Using Automations for Dynamic Responses
 
-From the [Automations tutorial](https://docs.prefect.io/2.14.2/concepts/automations/), we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
+From the [Automations concept page](/concepts/automations/), we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
 
 In this guide, we will showcase common usecases where automations can come in handy by:
 - Creating a simple notification automation in just a few UI clicks
