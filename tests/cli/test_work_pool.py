@@ -8,7 +8,9 @@ from typer import Exit
 
 from prefect.client.schemas.actions import WorkPoolUpdate
 from prefect.client.schemas.objects import WorkPool
+from prefect.context import get_settings_context
 from prefect.exceptions import ObjectNotFound
+from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME, load_profile
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.base import BaseWorker
@@ -113,7 +115,7 @@ class TestCreate:
                 Path(__file__).parent / "base-job-templates" / "process-worker.json",
             ],
             expected_code=0,
-            expected_output="Created work pool 'my-olympic-pool'.",
+            expected_output_contains="Created work pool 'my-olympic-pool'",
         )
 
         client_res = await prefect_client.read_work_pool(pool_name)
@@ -283,6 +285,34 @@ class TestCreate:
         assert client_res.name == work_pool_name
         assert client_res.type == "fake"
         assert isinstance(client_res, WorkPool)
+
+    async def test_create_set_as_default(self, prefect_client):
+        settings_context = get_settings_context()
+        assert (
+            settings_context.profile.settings.get(PREFECT_DEFAULT_WORK_POOL_NAME)
+            is None
+        )
+        pool_name = "my-pool"
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} -t process --set-as-default",
+            expected_output_contains=[
+                f"Created work pool {pool_name!r}",
+                (
+                    f"Set {pool_name!r} as default work pool for profile"
+                    f" {settings_context.profile.name!r}\n"
+                ),
+            ],
+        )
+        assert res.exit_code == 0
+        assert f"Created work pool {pool_name!r}" in res.output
+        client_res = await prefect_client.read_work_pool(pool_name)
+        assert client_res.name == pool_name
+        assert isinstance(client_res, WorkPool)
+
+        # reload the profile to pick up change
+        profile = load_profile(settings_context.profile.name)
+        assert profile.settings.get(PREFECT_DEFAULT_WORK_POOL_NAME) == pool_name
 
 
 class TestInspect:

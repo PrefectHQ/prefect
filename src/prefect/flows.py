@@ -83,6 +83,7 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_UI_URL,
@@ -841,7 +842,7 @@ class Flow(Generic[P, R]):
     async def deploy(
         self,
         name: str,
-        work_pool_name: str,
+        work_pool_name: Optional[str] = None,
         image: Optional[Union[str, DeploymentImage]] = None,
         build: bool = True,
         push: bool = True,
@@ -870,7 +871,8 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            work_pool_name: The name of the work pool to use for this deployment.
+            work_pool_name: The name of the work pool to use for this deployment. Defaults to
+                the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
             image: The name of the Docker image to build, including the registry and
                 repository. Pass a DeploymentImage instance to customize the Dockerfile used
                 and build arguments.
@@ -937,6 +939,8 @@ class Flow(Generic[P, R]):
                 )
             ```
         """
+        work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+
         try:
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
