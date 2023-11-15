@@ -188,7 +188,7 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    At runtime, the specified image will need to be available to access your flow code.
+    The specified image will need to be available in your deployment's execution environment for your flow code to be accessible.
 
     Prefect generates a Dockerfile for you that will build an image based off of one of Prefect's published images. The generated Dockerfile will copy the current directory into the Docker image and install any dependencies listed in a `requirements.txt` file.
 
