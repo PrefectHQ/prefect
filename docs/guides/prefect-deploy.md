@@ -290,7 +290,7 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    The `entrypoint`` is the path to the file the flow is located in and the function name, separated by a colon.
+    The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
 
     Alternatively, you could specify a git-based cloud storage URL for a Bitbucket or Gitlab repository. 
 
