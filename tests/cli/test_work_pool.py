@@ -115,7 +115,7 @@ class TestCreate:
                 Path(__file__).parent / "base-job-templates" / "process-worker.json",
             ],
             expected_code=0,
-            expected_output="Created work pool 'my-olympic-pool'.",
+            expected_output="Created work pool 'my-olympic-pool'",
         )
 
         client_res = await prefect_client.read_work_pool(pool_name)
