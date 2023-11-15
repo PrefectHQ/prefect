@@ -871,7 +871,8 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            work_pool_name: The name of the work pool to use for this deployment.
+            work_pool_name: The name of the work pool to use for this deployment. Defaults to
+                the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
             image: The name of the Docker image to build, including the registry and
                 repository. Pass a DeploymentImage instance to customize the Dockerfile used
                 and build arguments.
