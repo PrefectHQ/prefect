@@ -124,6 +124,8 @@ URLs that should be whitelisted for outbound-communication in a secure environme
 - app.prefect.cloud
 - api.prefect.cloud
 - auth.workos.com
+- api.github.com
+- github.com
 - ocsp.pki.goog/s/gts1d4/OxYEb8XcYmo
 
 ## Prefect Cloud access via API
@@ -168,7 +170,7 @@ If you're having difficulty logging in to Prefect Cloud, the following troublesh
 
 - Are you logging into Prefect Cloud 2? Prefect Cloud 1 and Prefect Cloud 2 use separate accounts. Make sure to use the right Prefect Cloud 2 URL: <https://app.prefect.cloud/>
 - Do you already have a Prefect Cloud account? If you’re having difficulty accepting an invitation, try creating an account first using the email associated with the invitation, then accept the invitation.
-- Are you using a single sign-on (SSO) provider (Google or Microsoft) or just using a username and password login?
+- Are you using a single sign-on (SSO) provider, social authentication (Google, Microsoft, or GitHub) or just using an emailed link?
 
 Other tips to help with login difficulties:
 

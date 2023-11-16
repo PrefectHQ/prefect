@@ -138,7 +138,7 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    Make sure you have the [work pool](/concepts/work-pools/) created in the Prefect Cloud workspace your are authenticated to or on your running self-hosted server instance connected to.  
+    Make sure you have the [work pool](/concepts/work-pools/) created in the Prefect Cloud workspace you are authenticated to or on your running self-hosted server instance.  
     Then run the script to create a deployment (in future examples this step will be omitted for brevity):
 
     <div class="terminal">
@@ -188,7 +188,7 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    At runtime, the specified image will need to be available to access your flow code.
+    The specified image will need to be available in your deployment's execution environment for your flow code to be accessible.
 
     Prefect generates a Dockerfile for you that will build an image based off of one of Prefect's published images. The generated Dockerfile will copy the current directory into the Docker image and install any dependencies listed in a `requirements.txt` file.
 
@@ -290,7 +290,7 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    The `entrypoint`` is the path to the file the flow is located in and the function name, separated by a colon.
+    The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
 
     Alternatively, you could specify a git-based cloud storage URL for a Bitbucket or Gitlab repository. 
 
@@ -317,7 +317,7 @@ Use the tabs below to explore both deployment creation options.
             url="https://github.com/org/private-repo.git",
             branch="dev",
             credentials={
-                "access_token": Secret.load("github-access-token").get()
+                "access_token": Secret.load("github-access-token")
             }
         ),
         entrypoint="flows/no-image.py:hello_world",
@@ -329,7 +329,7 @@ Use the tabs below to explore both deployment creation options.
     ```
 
     Note the use of the Secret block to load the GitHub access token. 
-    Alternatively, you could provide a password to the `password` field of the `credentials` argument.
+    Alternatively, you could provide a username and password to the `username` and `password` fields of the `credentials` argument.
 
     ### Store your code in cloud provider storage 
 
@@ -816,8 +816,9 @@ These deployments can be managed independently of one another, allowing you to d
     
     if __name__ == "__main__":
         deploy(
-            buy.to_deployment(name="buy-deploy", work_pool_name="my-dev-work-pool"),
-            sell.to_deployment(name="sell-deploy", work_pool_name="my-dev-work-pool"),
+            buy.to_deployment(name="buy-deploy"),
+            sell.to_deployment(name="sell-deploy"),
+            work_pool_name=""my-dev-work-pool"
             image="my-registry/my-image:dev",
             push=False,
         )
