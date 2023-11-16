@@ -160,7 +160,6 @@ Use the tabs below to explore both deployment creation options.
 
     !!! warning
         If building a Docker image, the environment in which you are creating the deployment needs to have Docker installed and running.
-        The [`prefect-docker` package](https://prefecthq.github.io/prefect-docker/) also needs to be installed.
 
     To avoid pushing to a registry, set `push=False` in the `.deploy` method.
     
