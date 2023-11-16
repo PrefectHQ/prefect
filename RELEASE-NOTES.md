@@ -4,7 +4,7 @@
 
 ### Storage block compatibility with `flow.from_source`
 
-You can now use all your existing storage blocks with `flow.from_source`! Using storage blocks with `from_source` is great when you need to synchronize your credentials and configuration for your code storage location with your flow run execution environments. Plus, because block configuration is stored serverside and pulled at execution time, you can update your code storage credentials and configuration without redeploying your flows!
+You can now use all your existing storage blocks with `flow.from_source`! Using storage blocks with `from_source` is great when you need to synchronize your credentials and configuration for your code storage location with your flow run execution environments. Plus, because block configuration is stored server-side and pulled at execution time, you can update your code storage credentials and configuration without re-deploying your flows!
 
 Here's an example of loading and serving a flow from an S3 bucket:
 
