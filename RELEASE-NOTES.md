@@ -38,7 +38,7 @@ if __name__ == "__main__":
     ).deploy(name="my-deployment", work_pool_name="above-ground")
 ```
 
-Note that a storage block must be saved before deploying a flow, but it doesn't need to be saved if you're serving a remotely stored flow.
+Note that a storage block must be saved before deploying a flow, but not if you're serving a remotely stored flow.
 
 See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11092
