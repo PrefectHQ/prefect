@@ -79,7 +79,7 @@ Using the **Docker** work pool type means that all work sent to this work pool w
 
 ### Create a work pool
 
-In your terminal run the following command to set up a **Docker** type work pool.
+In your terminal, run the following command to set up a **Docker** type work pool.
 
 <div class="terminal">
 ```bash
@@ -94,7 +94,9 @@ Let’s confirm that the work pool was successfully created by running the follo
 prefect work-pool ls
 ```
 </div>
+
 Finally, let’s double check that you can see this work pool in your Prefect UI.
+
 Navigate to the Work Pools tab and verify that you see `my-docker-pool` listed.
 
 When you click into `my-docker-pool` you should see a red status icon signifying that this work pool is not ready to submit work.
@@ -107,13 +109,16 @@ Workers are a lightweight polling process that kick off scheduled flow runs on a
 To start a worker on your laptop, open a new terminal and confirm that your virtual environment has `prefect` installed.
 
 Run the following command in this new terminal to start the worker:
+
 <div class="terminal">
 ```bash
 prefect worker start --pool my-docker-pool
 ```
 </div>
-You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution.
+
+You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution. 
 You’ll see your new worker listed in the UI under the Workers tab of the Work Pools page with a recent last polled date.
+
 You should also be able to see a `Ready` status indicator on your work pool - progress!
 
 You will need to keep this terminal session active in order for the worker to continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. Therefore, in a production setting this worker should run as a daemonized or managed process. See next steps for more information on this.
@@ -227,7 +232,6 @@ Here's how you can easily set the `image_pull_policy` to be `Never` for this tut
 ```python hl_lines="21" title="repo_info.py"
 import httpx
 from prefect import flow
-from prefect.deployments import DeploymentImage
 
 
 @flow(log_prints=True)
@@ -267,9 +271,9 @@ prefect deployment run 'get_repo_info/my-deployment'
 ```
 </div>
 
-!!! danger "Common Pitfalls"
+!!! danger "Common Pitfall"
     - Store and run your deploy scripts at the **root of your repo**, otherwise the built Docker file may be missing files that it needs to execute!
-    - Ensure that you have pushed any changes to your flow script to your GitHub repo - at any given time, your worker will pull the code that exists there!
+
 
 !!! tip "Did you know?"
     A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple schedules.
