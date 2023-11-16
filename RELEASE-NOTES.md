@@ -9,11 +9,13 @@
 - add settings for worker webserver host and port — https://github.com/PrefectHQ/prefect/pull/11175
 - Safely retrieve `flow_run_id` in `EventsWorker` — https://github.com/PrefectHQ/prefect/pull/11182
 - Add client-side setting for default work pool — https://github.com/PrefectHQ/prefect/pull/11137
+- Add task run tag concurrency slot wait setting — https://github.com/PrefectHQ/prefect/pull/11020
 
 ### Fixes
 - Fix errors when using `GitRepository` with a private repo — https://github.com/PrefectHQ/prefect/pull/11156
 - Fix bug where check for required packages fails incorrectly — https://github.com/PrefectHQ/prefect/pull/11111
 - Fix routing to the flow page from a flow run — https://github.com/PrefectHQ/prefect/pull/11190
+- Forgetting the `args/kwargs` to a Prefect `Call` after they are used — https://github.com/PrefectHQ/prefect/pull/11153
 - Only run tests for Python changes — https://github.com/PrefectHQ/prefect/pull/11159
 - Add codespell config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
 
@@ -27,10 +29,6 @@
 - Update Deploy work pool guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
 - Update tutorial workers.md — https://github.com/PrefectHQ/prefect/pull/11185
 - Adding cloud section to readme — https://github.com/PrefectHQ/prefect/pull/11167
-
-### Uncategorized
-- Forgetting the `args/kwargs` to a Prefect `Call` after they are used — https://github.com/PrefectHQ/prefect/pull/11153
-- Add task run tag concurrency slot wait setting — https://github.com/PrefectHQ/prefect/pull/11020
 
 ### Contributors
 - @yarikoptic made their first contribution in https://github.com/PrefectHQ/prefect/pull/10893
