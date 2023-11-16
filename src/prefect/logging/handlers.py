@@ -214,7 +214,9 @@ class APILogHandler(logging.Handler):
         # from the standard lib `handleError` method if something goes wrong and
         # prevents malformed logs from entering the queue
         try:
-            is_uuid_like = isinstance(flow_run_id, str) and uuid.UUID(flow_run_id)
+            is_uuid_like = isinstance(flow_run_id, uuid.UUID) or (
+                isinstance(flow_run_id, str) and uuid.UUID(flow_run_id)
+            )
         except ValueError:
             is_uuid_like = False
 
