@@ -14,21 +14,22 @@
 ### Fixes
 - Fix access token retrieval when using `GitRepository` with a private repo and `.deploy` — https://github.com/PrefectHQ/prefect/pull/11156
 - Fix bug where check for required packages fails incorrectly during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11111
-- Fix routing to the Flows page from a flow run — https://github.com/PrefectHQ/prefect/pull/11190
-- Optimize memory usage by clearing `args/kwargs`` in a Prefect `Call` post-execution -  https://github.com/PrefectHQ/prefect/pull/11153
+- Fix routing to the Flows page from a flow run in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11190
+- Ensure Flow Runs page reacts to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
+- Optimize memory usage by clearing `args/kwargs` in a Prefect `Call` post-execution -  https://github.com/PrefectHQ/prefect/pull/11153
 - Only run unit tests for Python file changes — https://github.com/PrefectHQ/prefect/pull/11159
 - Add codespell config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
 
 ### Documentation
-- Update Cloud documentation to reflect product changes — https://github.com/PrefectHQ/prefect/pull/11157
-- Fix css class typo in audit-log.md — https://github.com/PrefectHQ/prefect/pull/11161
-- Update mkdocs material pin — https://github.com/PrefectHQ/prefect/pull/11160
-- Add Terraform Provider to guides and cleanup guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
-- Add github information to auth related cloud docs — https://github.com/PrefectHQ/prefect/pull/11178
-- Small typo — https://github.com/PrefectHQ/prefect/pull/11183
-- Update Deploy work pool guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
+- Add Terraform Provider to guides, tidy guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
+- Update Prefect Cloud documentation to reflect product changes — https://github.com/PrefectHQ/prefect/pull/11157
+- Adding Prefect Cloud section to README — https://github.com/PrefectHQ/prefect/pull/11167
+- Update work pool-based deployment guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
+- Add Github information to auth-related Prefect Cloud documentation — https://github.com/PrefectHQ/prefect/pull/11178
 - Update tutorial workers.md — https://github.com/PrefectHQ/prefect/pull/11185
-- Adding cloud section to readme — https://github.com/PrefectHQ/prefect/pull/11167
+- Update mkdocs material pin — https://github.com/PrefectHQ/prefect/pull/11160
+- Fix typo in audit log documentation — https://github.com/PrefectHQ/prefect/pull/11161
+- Fix typo in workers tutorial example — https://github.com/PrefectHQ/prefect/pull/11183
 
 ### Contributors
 - @yarikoptic made their first contribution in https://github.com/PrefectHQ/prefect/pull/10893
