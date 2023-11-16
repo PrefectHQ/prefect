@@ -48,7 +48,7 @@ See the following pull request for implementation details:
 - Safely retrieve `flow_run_id` in `EventsWorker` for finding related events — https://github.com/PrefectHQ/prefect/pull/11182
 - Add client-side setting for specifying a default work pool — https://github.com/PrefectHQ/prefect/pull/11137
 - Allow configuration of task run tag concurrency slot delay transition time via setting — https://github.com/PrefectHQ/prefect/pull/11020
-- Enable enhanced cancellation by default - https://github.com/PrefectHQ/prefect/pull/11192
+- Enable enhanced flow run cancellation by default - https://github.com/PrefectHQ/prefect/pull/11192
 
 ### Fixes
 - Fix access token retrieval when using `GitRepository` with a private repo and `.deploy` — https://github.com/PrefectHQ/prefect/pull/11156
