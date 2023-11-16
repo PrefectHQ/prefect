@@ -13,10 +13,9 @@ search:
   boost: 2
 ---
 
-
 # Run Deployments on Serverless Computing Infrastructure
 
-Prefect provides work pools for workers to run serverless flows on cloud provider platforms.
+Prefect provides work pools for workers to run serverless workflows on cloud provider platforms.
 The following options are available:
 
 - AWS ECS
@@ -31,15 +30,18 @@ In this guide you will:
 - Create a work pool that sends work to your chosen serverless infrastructure
 - Deploy a flow to that work pool
 - Start a worker that will poll its matched work pool for scheduled runs
-- Schedule a deployment run that a worker will pick up from the work pool
+- Schedule a deployment run that a worker will pick up from the work pool and run on your serverless infrastructure
 
 !!! note "Serverless push work pools don't require a worker"
     Options for push work pool versions of AWS ECS, Azure Container Instances, and Google Cloud Run that do not require a worker are available with Prefect Cloud.
-    These options don't require a worker.
+    These options don't require a worker, but they do require connection configuration information to be stored on Prefect Cloud.
     Read more in the [Serverless Push Work Pool Guide](/guides/deployments/serverless/).
 
-To see an example of running flows in AWS ECS and a worker in AWS ECS see the [guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
-To see an example of running flows in Google Cloud Run and a worker in Google Cloud Run see the guide in the [`prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/).
+This guide is a brief overview of the steps required.
+For more in depth discussion of the finer points of running on serverless infrastructure see the respective guides in the Prefect integration libraries:
+
+[AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
+[Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
 
 !!! note "Choosing between Google Cloud Run and Google Vertex AI"
     Google Vertex AI is well-suited for machine learning model training applications in which GPUs or TPUs and high resource levels are desired.
@@ -58,14 +60,14 @@ TK make sure that permissions are correct
 
 === "Azure Container Instances"
 
-    To run a deployment on ACI, an Azure subscription, resource worker and tenant secret are required. 
+    To run a deployment on ACI, an Azure subscription, resource worker, and tenant secret are required. 
 
-    ##### Create Subscription and Resource Worker
+    Create subscription and resource worker
 
     1. In the Azure portal, create a subscription.
     2. Create a resource group within your subscription.
 
-    ### Create App Registration
+    *Create app registration*
 
     1. In the Azure portal, create an app registration.
     2. In the app registration, create a client secret. Copy the value and store it somewhere safe.
