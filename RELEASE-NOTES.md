@@ -54,7 +54,7 @@ See the following pull request for implementation details:
 - Fix access token retrieval when using `GitRepository` with a private repo and `.deploy` — https://github.com/PrefectHQ/prefect/pull/11156
 - Fix bug where check for required packages fails incorrectly during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11111
 - Fix routing to the Flows page from a flow run in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11190
-- Ensure Flow Runs page reacts to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
+- Ensure the Prefect UI Flow Runs page reacts to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
 - Optimize memory usage by clearing `args/kwargs` in a Prefect `Call` post-execution -  https://github.com/PrefectHQ/prefect/pull/11153
 - Allow logs to handle un-`uuid`-like flow_run_ids - https://github.com/PrefectHQ/prefect/pull/11191
 - Only run unit tests for Python file changes — https://github.com/PrefectHQ/prefect/pull/11159
