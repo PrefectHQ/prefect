@@ -2,6 +2,7 @@ import shlex
 import subprocess
 
 from anyio import run_process
+from rich.panel import Panel
 
 
 class CloudRunPushProvisioner:
@@ -98,7 +99,15 @@ class CloudRunPushProvisioner:
         return default_region or "us-central1"
 
     async def provision(self):
-        self._printer("Provisioning Cloud Run Push infrastructure...")
         await self._check_for_gcloud()
         self._project = await self._get_current_project()
         self._region = await self._get_default_region()
+
+        panel = Panel(
+            "foo",
+            title=(
+                f"Resources to be provisioned in project [blue]{self._project}[/] in"
+                f" region [blue]{self._region}[/]"
+            ),
+        )
+        self._printer(panel)
