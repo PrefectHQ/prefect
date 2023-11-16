@@ -350,9 +350,12 @@ Use the tabs below to explore both deployment creation options.
         )
     ```
 
-    If you need additional configuration for your cloud-based storage - for example, with a private S3 Bucket -  we recommend using a [storage block](/concepts/blocks/).
+    In the example above your credentials will be auto-discovered from your deployment creation environment and credentials will need to be available in your runtime environment.
 
-    Here's an example that uses an `S3Bucket` block.
+    If you need additional configuration for your cloud-based storage - for example, with a private S3 Bucket -  we recommend using a [storage block](/concepts/blocks/). 
+    A storage block also ensures your credentials will be available in both your deployment creation environment and your execution environment.
+
+    Here's an example that uses an `S3Bucket` block from the [prefect-aws library](https://prefecthq.github.io/prefect-aws/).
 
     ```python hl_lines="2 5-7" title="s3_storage_auth.py"
     from prefect import flow
