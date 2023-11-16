@@ -56,9 +56,9 @@ See the following pull request for implementation details:
 - Fix routing to the Flows page from a flow run in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11190
 - Ensure Flow Runs page reacts to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
 - Optimize memory usage by clearing `args/kwargs` in a Prefect `Call` post-execution -  https://github.com/PrefectHQ/prefect/pull/11153
-- Allow logs to handle un-uuid-like flow_run_ids - https://github.com/PrefectHQ/prefect/pull/11191
+- Allow logs to handle un-`uuid`-like flow_run_ids - https://github.com/PrefectHQ/prefect/pull/11191
 - Only run unit tests for Python file changes — https://github.com/PrefectHQ/prefect/pull/11159
-- Add codespell config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
+- Add `codespell` config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
 - Update token regex in release notes generation script for VSCode compatibility - https://github.com/PrefectHQ/prefect/pull/11195
 
 ### Documentation
