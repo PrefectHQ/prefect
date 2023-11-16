@@ -15,6 +15,7 @@
 - Fix errors when using `GitRepository` with a private repo — https://github.com/PrefectHQ/prefect/pull/11156
 - Fix bug where check for required packages fails incorrectly — https://github.com/PrefectHQ/prefect/pull/11111
 - Fix routing to the flow page from a flow run — https://github.com/PrefectHQ/prefect/pull/11190
+- Fix issue where flow runs page wasn't reacting to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
 - Forgetting the `args/kwargs` to a Prefect `Call` after they are used — https://github.com/PrefectHQ/prefect/pull/11153
 - Only run tests for Python changes — https://github.com/PrefectHQ/prefect/pull/11159
 - Add codespell config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
