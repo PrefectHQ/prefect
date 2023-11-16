@@ -67,7 +67,7 @@ See the following pull request for implementation details:
 - Add Prefect Cloud section to README — https://github.com/PrefectHQ/prefect/pull/11167
 - Update work pool-based deployment guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
 - Add Github information to auth-related Prefect Cloud documentation — https://github.com/PrefectHQ/prefect/pull/11178
-- Update tutorial workers.md — https://github.com/PrefectHQ/prefect/pull/11185
+- Update workers tutorial — https://github.com/PrefectHQ/prefect/pull/11185
 - Update mkdocs material pin — https://github.com/PrefectHQ/prefect/pull/11160
 - Fix typo in audit log documentation — https://github.com/PrefectHQ/prefect/pull/11161
 - Fix typo in workers tutorial example — https://github.com/PrefectHQ/prefect/pull/11183
