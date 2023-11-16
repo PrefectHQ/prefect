@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 import traceback
+import uuid
 import warnings
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Type, Union
@@ -212,8 +213,15 @@ class APILogHandler(logging.Handler):
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
         # from the standard lib `handleError` method if something goes wrong and
         # prevents malformed logs from entering the queue
+        try:
+            is_uuid_like = isinstance(flow_run_id, uuid.UUID) or (
+                isinstance(flow_run_id, str) and uuid.UUID(flow_run_id)
+            )
+        except ValueError:
+            is_uuid_like = False
+
         log = LogCreate(
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run_id if is_uuid_like else None,
             task_run_id=task_run_id,
             name=record.name,
             level=record.levelno,
