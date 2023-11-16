@@ -94,61 +94,78 @@ async def create(
     """
     if not name.lower().strip("'\" "):
         exit_with_error("Work pool name cannot be empty.")
-
-    if type is None:
-        async with get_collections_metadata_client() as collections_client:
-            if not is_interactive():
-                exit_with_error(
-                    "When not using an interactive terminal, you must supply a `--type`"
-                    " value."
-                )
-            worker_metadata = await collections_client.read_worker_metadata()
-            worker = prompt_select_from_table(
-                app.console,
-                "What infrastructure type would you like to use for this work pool?",
-                columns=[
-                    {"header": "Infrastructure Type", "key": "display_name"},
-                    {"header": "Description", "key": "description"},
-                ],
-                data=[
-                    worker
-                    for collection in worker_metadata.values()
-                    for worker in collection.values()
-                ],
-                table_kwargs={"show_lines": True},
-            )
-            type = worker["type"]
-
-    available_work_pool_types = await get_available_work_pool_types()
-    if type not in available_work_pool_types:
-        exit_with_error(
-            f"Unknown work pool type {type!r}. "
-            "Please choose from"
-            f" {', '.join(available_work_pool_types)}."
-        )
-
-    if base_job_template is None:
-        template_contents = await get_default_base_job_template_for_infrastructure_type(
-            type
-        )
-    else:
-        template_contents = json.load(base_job_template)
-
-    if provision_infrastructure:
-        try:
-            provisioner = get_infrastructure_provisioner_for_work_pool_type(type)
-            provisioner.printer = app.console.print
-            await provisioner.provision()
-        except ValueError:
-            app.console.print(
-                (
-                    "Automatic infrastructure provisioning is not supported for"
-                    f" {type!r} work pools."
-                ),
-                style="yellow",
-            )
-
     async with get_client() as client:
+        try:
+            await client.read_work_pool(work_pool_name=name)
+        except ObjectNotFound:
+            pass
+        else:
+            exit_with_error(
+                f"Work pool named {name!r} already exists. Please try creating your"
+                " work pool again with a different name."
+            )
+
+        if type is None:
+            async with get_collections_metadata_client() as collections_client:
+                if not is_interactive():
+                    exit_with_error(
+                        "When not using an interactive terminal, you must supply a"
+                        " `--type` value."
+                    )
+                worker_metadata = await collections_client.read_worker_metadata()
+                worker = prompt_select_from_table(
+                    app.console,
+                    (
+                        "What infrastructure type would you like to use for this work"
+                        " pool?"
+                    ),
+                    columns=[
+                        {"header": "Infrastructure Type", "key": "display_name"},
+                        {"header": "Description", "key": "description"},
+                    ],
+                    data=[
+                        worker
+                        for collection in worker_metadata.values()
+                        for worker in collection.values()
+                    ],
+                    table_kwargs={"show_lines": True},
+                )
+                type = worker["type"]
+
+        available_work_pool_types = await get_available_work_pool_types()
+        if type not in available_work_pool_types:
+            exit_with_error(
+                f"Unknown work pool type {type!r}. "
+                "Please choose from"
+                f" {', '.join(available_work_pool_types)}."
+            )
+
+        if base_job_template is None:
+            template_contents = (
+                await get_default_base_job_template_for_infrastructure_type(type)
+            )
+        else:
+            template_contents = json.load(base_job_template)
+
+        if provision_infrastructure:
+            try:
+                provisioner = get_infrastructure_provisioner_for_work_pool_type(type)
+                provisioner.console = app.console
+                template_contents = await provisioner.provision(
+                    work_pool_name=name, base_job_template=template_contents
+                )
+            except ValueError as exc:
+                print(exc)
+                app.console.print(
+                    (
+                        "Automatic infrastructure provisioning is not supported for"
+                        f" {type!r} work pools."
+                    ),
+                    style="yellow",
+                )
+            except RuntimeError as exc:
+                exit_with_error(f"Failed to provision infrastructure: {exc}")
+
         try:
             wp = WorkPoolCreate(
                 name=name,
