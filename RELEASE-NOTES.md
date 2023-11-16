@@ -44,29 +44,32 @@ See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11092
 
 ### Enhancements
-- add settings for worker webserver host and port — https://github.com/PrefectHQ/prefect/pull/11175
-- Safely retrieve `flow_run_id` in `EventsWorker` — https://github.com/PrefectHQ/prefect/pull/11182
-- Add client-side setting for default work pool — https://github.com/PrefectHQ/prefect/pull/11137
-- Add task run tag concurrency slot wait setting — https://github.com/PrefectHQ/prefect/pull/11020
+- Add customizable host and port settings for worker webserver — https://github.com/PrefectHQ/prefect/pull/11175
+- Safely retrieve `flow_run_id` in `EventsWorker` for finding related events — https://github.com/PrefectHQ/prefect/pull/11182
+- Add client-side setting for specifying a default work pool — https://github.com/PrefectHQ/prefect/pull/11137
+- Allow configuration of task run tag concurrency slot delay transition time via setting — https://github.com/PrefectHQ/prefect/pull/11020
 
 ### Fixes
-- Fix errors when using `GitRepository` with a private repo — https://github.com/PrefectHQ/prefect/pull/11156
-- Fix bug where check for required packages fails incorrectly — https://github.com/PrefectHQ/prefect/pull/11111
-- Fix routing to the flow page from a flow run — https://github.com/PrefectHQ/prefect/pull/11190
-- Forgetting the `args/kwargs` to a Prefect `Call` after they are used — https://github.com/PrefectHQ/prefect/pull/11153
-- Only run tests for Python changes — https://github.com/PrefectHQ/prefect/pull/11159
+- Fix access token retrieval when using `GitRepository` with a private repo and `.deploy` — https://github.com/PrefectHQ/prefect/pull/11156
+- Fix bug where check for required packages fails incorrectly during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11111
+- Fix routing to the Flows page from a flow run in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11190
+- Ensure Flow Runs page reacts to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
+- Optimize memory usage by clearing `args/kwargs` in a Prefect `Call` post-execution -  https://github.com/PrefectHQ/prefect/pull/11153
+- Allow logs to handle un-uuid-like flow_run_ids - https://github.com/PrefectHQ/prefect/pull/11191
+- Only run unit tests for Python file changes — https://github.com/PrefectHQ/prefect/pull/11159
 - Add codespell config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
+- Update token regex in release notes generation script for VSCode compatibility - https://github.com/PrefectHQ/prefect/pull/11195
 
 ### Documentation
-- Update Cloud documentation to reflect product changes — https://github.com/PrefectHQ/prefect/pull/11157
-- Fix css class typo in audit-log.md — https://github.com/PrefectHQ/prefect/pull/11161
-- Update mkdocs material pin — https://github.com/PrefectHQ/prefect/pull/11160
-- Add Terraform Provider to guides and cleanup guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
-- Add github information to auth related cloud docs — https://github.com/PrefectHQ/prefect/pull/11178
-- Small typo — https://github.com/PrefectHQ/prefect/pull/11183
-- Update Deploy work pool guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
+- Add Terraform Provider to guides, tidy guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
+- Update Prefect Cloud documentation to reflect product changes — https://github.com/PrefectHQ/prefect/pull/11157
+- Adding Prefect Cloud section to README — https://github.com/PrefectHQ/prefect/pull/11167
+- Update work pool-based deployment guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
+- Add Github information to auth-related Prefect Cloud documentation — https://github.com/PrefectHQ/prefect/pull/11178
 - Update tutorial workers.md — https://github.com/PrefectHQ/prefect/pull/11185
-- Adding cloud section to readme — https://github.com/PrefectHQ/prefect/pull/11167
+- Update mkdocs material pin — https://github.com/PrefectHQ/prefect/pull/11160
+- Fix typo in audit log documentation — https://github.com/PrefectHQ/prefect/pull/11161
+- Fix typo in workers tutorial example — https://github.com/PrefectHQ/prefect/pull/11183
 
 ### Contributors
 - @yarikoptic made their first contribution in https://github.com/PrefectHQ/prefect/pull/10893
