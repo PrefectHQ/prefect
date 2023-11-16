@@ -62,7 +62,7 @@ See the following pull request for implementation details:
 - Update token regex in release notes generation script for VSCode compatibility - https://github.com/PrefectHQ/prefect/pull/11195
 
 ### Documentation
-- Add Terraform Provider to guides, tidy guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
+- Add Terraform Provider guide, update and simplify guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
 - Update Prefect Cloud documentation to reflect product changes — https://github.com/PrefectHQ/prefect/pull/11157
 - Add information on Prefect Cloud to README — https://github.com/PrefectHQ/prefect/pull/11167
 - Update work pool-based deployment guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
