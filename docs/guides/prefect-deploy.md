@@ -329,7 +329,7 @@ Use the tabs below to explore both deployment creation options.
     ```
 
     Note the use of the Secret block to load the GitHub access token. 
-    Alternatively, you could provide a password to the `password` field of the `credentials` argument.
+    Alternatively, you could provide a username and password to the `username` and `password` fields of the `credentials` argument.
 
     ### Store your code in cloud provider storage 
 
