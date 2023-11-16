@@ -3,21 +3,20 @@
 ## Release 2.14.5
 
 ### Highlight TBD
+- Add support for storage blocks to `flow.from_source` — https://github.com/PrefectHQ/prefect/pull/11092
 
 ### Enhancements
-- Add support for storage blocks to `flow.from_source` — https://github.com/PrefectHQ/prefect/pull/11092
-- add settings for worker webserver host and port — https://github.com/PrefectHQ/prefect/pull/11175
-- Safely retrieve `flow_run_id` in `EventsWorker` — https://github.com/PrefectHQ/prefect/pull/11182
-- Add client-side setting for default work pool — https://github.com/PrefectHQ/prefect/pull/11137
-- Add task run tag concurrency slot wait setting — https://github.com/PrefectHQ/prefect/pull/11020
+- Add customizable host and port settings for worker webserver — https://github.com/PrefectHQ/prefect/pull/11175
+- Safely retrieve `flow_run_id` in `EventsWorker` for finding related events — https://github.com/PrefectHQ/prefect/pull/11182
+- Add client-side setting for specifying a default work pool — https://github.com/PrefectHQ/prefect/pull/11137
+- Allow configuration of task run tag concurrency slot delay transition time via setting — https://github.com/PrefectHQ/prefect/pull/11020
 
 ### Fixes
-- Fix errors when using `GitRepository` with a private repo — https://github.com/PrefectHQ/prefect/pull/11156
-- Fix bug where check for required packages fails incorrectly — https://github.com/PrefectHQ/prefect/pull/11111
-- Fix routing to the flow page from a flow run — https://github.com/PrefectHQ/prefect/pull/11190
-- Fix issue where flow runs page wasn't reacting to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
-- Forgetting the `args/kwargs` to a Prefect `Call` after they are used — https://github.com/PrefectHQ/prefect/pull/11153
-- Only run tests for Python changes — https://github.com/PrefectHQ/prefect/pull/11159
+- Fix access token retrieval when using `GitRepository` with a private repo and `.deploy` — https://github.com/PrefectHQ/prefect/pull/11156
+- Fix bug where check for required packages fails incorrectly during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11111
+- Fix routing to the Flows page from a flow run — https://github.com/PrefectHQ/prefect/pull/11190
+- Optimize memory usage by clearing `args/kwargs`` in a Prefect `Call` post-execution -  https://github.com/PrefectHQ/prefect/pull/11153
+- Only run unit tests for Python file changes — https://github.com/PrefectHQ/prefect/pull/11159
 - Add codespell config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
 
 ### Documentation
