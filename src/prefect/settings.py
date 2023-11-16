@@ -1414,6 +1414,13 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
+# Defaults -----------------------------------------------------------------------------
+
+PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
+"""
+The default work pool to deploy to.
+"""
+
 # Deprecated settings ------------------------------------------------------------------
 
 
