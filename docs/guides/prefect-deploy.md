@@ -317,7 +317,7 @@ Use the tabs below to explore both deployment creation options.
             url="https://github.com/org/private-repo.git",
             branch="dev",
             credentials={
-                "access_token": Secret.load("github-access-token").get()
+                "access_token": Secret.load("github-access-token")
             }
         ),
         entrypoint="flows/no-image.py:hello_world",
