@@ -19,6 +19,9 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.infrastructure.provisioners import (
+    get_infrastructure_provisioner_for_work_pool_type,
+)
 from prefect.settings import update_current_profile
 from prefect.workers.utilities import (
     get_available_work_pool_types,
@@ -73,6 +76,14 @@ async def create(
             " deployment."
         ),
     ),
+    provision_infrastructure: bool = typer.Option(
+        False,
+        "--provision-infrastructure",
+        help=(
+            "Whether or not to provision infrastructure for the work pool if supported"
+            " for the given work pool type."
+        ),
+    ),
 ):
     """
     Create a new work pool.
@@ -122,6 +133,20 @@ async def create(
         )
     else:
         template_contents = json.load(base_job_template)
+
+    if provision_infrastructure:
+        try:
+            provisioner = get_infrastructure_provisioner_for_work_pool_type(type)
+            provisioner.printer = app.console.print
+            await provisioner.provision()
+        except ValueError:
+            app.console.print(
+                (
+                    "Automatic infrastructure provisioning is not supported for"
+                    f" {type!r} work pools."
+                ),
+                style="yellow",
+            )
 
     async with get_client() as client:
         try:
