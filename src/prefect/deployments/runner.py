@@ -44,7 +44,7 @@ from rich.table import Table
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME, PREFECT_UI_URL
 from prefect.utilities.collections import get_from_dict
 
 if HAS_PYDANTIC_V2:
@@ -647,8 +647,14 @@ class DeploymentImage:
     """
 
     def __init__(self, name, tag=None, dockerfile="auto", **build_kwargs):
-        self.name = name
-        self.tag = tag or slugify(pendulum.now("utc").isoformat())
+        image_name, image_tag = parse_image_tag(name)
+        if tag and image_tag:
+            raise ValueError(
+                f"Only one tag can be provided - both {image_tag!r} and {tag!r} were"
+                " provided as tags."
+            )
+        self.name = image_name
+        self.tag = tag or image_tag or slugify(pendulum.now("utc").isoformat())
         self.dockerfile = dockerfile
         self.build_kwargs = build_kwargs
 
@@ -683,8 +689,9 @@ class DeploymentImage:
 @sync_compatible
 async def deploy(
     *deployments: RunnerDeployment,
-    work_pool_name: str,
-    image: Union[str, DeploymentImage],
+    work_pool_name: Optional[str] = None,
+    image: Optional[Union[str, DeploymentImage]] = None,
+    build: bool = True,
     push: bool = True,
     print_next_steps_message: bool = True,
 ) -> List[UUID]:
@@ -692,16 +699,22 @@ async def deploy(
     Deploy the provided list of deployments to dynamic infrastructure via a
     work pool.
 
-    Calling this function will build a Docker image for the deployments, push it to a
+    By default, calling this function will build a Docker image for the deployments, push it to a
     registry, and create each deployment via the Prefect API that will run the corresponding
     flow on the given schedule.
 
+    If you want to use an existing image, you can pass `build=False` to skip building and pushing
+    an image.
+
     Args:
         *deployments: A list of deployments to deploy.
-        work_pool_name: The name of the work pool to use for these deployments.
+        work_pool_name: The name of the work pool to use for these deployments. Defaults to
+            the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DeploymentImage instance to customize the Dockerfile used
             and build arguments.
+        build: Whether or not to build a new image for the flow. If False, the provided
+            image will be used as-is and pulled at runtime.
         push: Whether or not to skip pushing the built image to a registry.
         print_next_steps_message: Whether or not to print a message with next steps
             after deploying the deployments.
@@ -733,7 +746,22 @@ async def deploy(
             )
         ```
     """
-    if isinstance(image, str):
+    work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+
+    if not image and not all(d.storage for d in deployments):
+        raise ValueError(
+            "Either an image or remote storage location must be provided when deploying"
+            " a deployment."
+        )
+
+    if not work_pool_name:
+        raise ValueError(
+            "A work pool name must be provided when deploying a deployment. Either"
+            " provide a work pool name when calling `deploy` or set"
+            " `PREFECT_DEFAULT_WORK_POOL_NAME` in your profile."
+        )
+
+    if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
         image = DeploymentImage(name=image_name, tag=image_tag)
 
@@ -755,20 +783,28 @@ async def deploy(
             "Please use a work pool with an `image` variable in its base job template."
         )
 
+    is_managed_pool = work_pool.is_managed_pool
+    if is_managed_pool:
+        build = False
+        push = False
+
     console = Console()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn(f"Building image {image.reference}..."),
-        transient=True,
-        console=console,
-    ) as progress:
-        docker_build_task = progress.add_task("docker_build", total=1)
-        image.build()
+    if image and build:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn(f"Building image {image.reference}..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_build_task = progress.add_task("docker_build", total=1)
+            image.build()
 
-        progress.update(docker_build_task, completed=1)
-        console.print(f"Successfully built image {image.reference!r}", style="green")
+            progress.update(docker_build_task, completed=1)
+            console.print(
+                f"Successfully built image {image.reference!r}", style="green"
+            )
 
-    if push:
+    if image and build and push:
         with Progress(
             SpinnerColumn(),
             TextColumn("Pushing image..."),
@@ -785,6 +821,7 @@ async def deploy(
 
     deployment_exceptions = []
     deployment_ids = []
+    image_ref = image.reference if image else None
     for deployment in track(
         deployments,
         description="Creating/updating deployments...",
@@ -793,9 +830,7 @@ async def deploy(
     ):
         try:
             deployment_ids.append(
-                await deployment.apply(
-                    image=image.reference, work_pool_name=work_pool_name
-                )
+                await deployment.apply(image=image_ref, work_pool_name=work_pool_name)
             )
         except Exception as exc:
             if len(deployments) == 1:
@@ -838,7 +873,7 @@ async def deploy(
     console.print(table)
 
     if print_next_steps_message and not complete_failure:
-        if not work_pool.is_push_pool:
+        if not work_pool.is_push_pool and not work_pool.is_managed_pool:
             console.print(
                 "\nTo execute flow runs from these deployments, start a worker in a"
                 " separate terminal that pulls work from the"

@@ -616,6 +616,38 @@ async def push_work_pool(session):
 
 
 @pytest.fixture
+async def managed_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="mex-work-pool",
+            type="mex-work-pool:managed",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def prefect_agent_work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,

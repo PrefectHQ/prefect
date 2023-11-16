@@ -760,6 +760,12 @@ This value sets the default retry delay seconds for all tasks.
 This value does not overwrite individually set retry delay seconds
 """
 
+PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(int, default=30)
+"""
+The number of seconds to wait before retrying when a task run
+cannot secure a concurrency slot from the server.
+"""
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
@@ -926,6 +932,20 @@ This allows styles to be conveniently added to log messages, e.g.
 if enabled, strings that contain square brackets may be inaccurately
 interpreted and lead to incomplete output, e.g.
 `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
+
+PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
+    float,
+    default=10.0,
+)
+"""
+Threshold time in seconds for logging a warning if task parameter introspection 
+exceeds this duration. Parameter introspection can be a significant performance hit
+when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
+and each element needs to be inspected. See `prefect.utilities.annotations.quote` 
+for more details.
+Defaults to `10.0`. 
+Set to `0` to disable logging the warning.
 """
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
@@ -1263,7 +1283,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 The maximum size of a flow run graph on the v2 API
 """
 
-
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1307,6 +1326,16 @@ Whether or not to enable experimental enhanced flow run cancellation.
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to warn when experimental enhanced flow run cancellation is used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_DEPLOYMENT_STATUS = Setting(bool, default=True)
+"""
+Whether or not to enable deployment status in the UI
+"""
+
+PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
+"""
+Whether or not to warn when deployment status is used.
 """
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
@@ -1355,6 +1384,16 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
+PREFECT_WORKER_WEBSERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the worker's webserver should bind to.
+"""
+
+PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
+"""
+The port the worker's webserver should bind to.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect artifacts.
@@ -1375,6 +1414,12 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
+# Defaults -----------------------------------------------------------------------------
+
+PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
+"""
+The default work pool to deploy to.
+"""
 
 # Deprecated settings ------------------------------------------------------------------
 

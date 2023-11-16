@@ -90,7 +90,18 @@ import threading
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
-from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TypeVar,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -152,6 +163,7 @@ from prefect.results import BaseResult, ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
+    PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
 )
@@ -1631,7 +1643,7 @@ async def orchestrate_task_run(
         result_factory=result_factory,
         log_prints=log_prints,
     )
-
+    task_introspection_start_time = time.perf_counter()
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
@@ -1645,6 +1657,21 @@ async def orchestrate_task_run(
             # if orchestrating a run already in a pending state, force orchestration to
             # update the state name
             force=task_run.state.is_pending(),
+        )
+    task_introspection_end_time = time.perf_counter()
+
+    introspection_time = round(
+        task_introspection_end_time - task_introspection_start_time, 3
+    )
+    threshold = PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
+    if threshold and introspection_time > threshold:
+        logger.warning(
+            f"Task parameter introspection took {introspection_time} seconds "
+            f", exceeding `PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD` of {threshold}. "
+            "Try wrapping large task parameters with "
+            "`prefect.utilities.annotations.quote` for increased performance, "
+            "e.g. `my_task(quote(param))`. To disable this message set "
+            "`PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD=0`."
         )
 
     # Generate the cache key to attach to proposed states
@@ -2324,6 +2351,16 @@ def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str
     return task_run_name
 
 
+def _get_hook_name(hook: Callable) -> str:
+    return (
+        hook.__name__
+        if hasattr(hook, "__name__")
+        else (
+            hook.func.__name__ if isinstance(hook, partial) else hook.__class__.__name__
+        )
+    )
+
+
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     """Run the on_failure and on_completion hooks for a task, making sure to
     catch and log any errors that occur.
@@ -2337,9 +2374,10 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     if hooks:
         logger = task_run_logger(task_run)
         for hook in hooks:
+            hook_name = _get_hook_name(hook)
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
                 if is_async_fn(hook):
@@ -2350,11 +2388,11 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     )
             except Exception:
                 logger.error(
-                    f"An error was encountered while running hook {hook.__name__!r}",
+                    f"An error was encountered while running hook {hook_name!r}",
                     exc_info=True,
                 )
             else:
-                logger.info(f"Hook {hook.__name__!r} finished running successfully")
+                logger.info(f"Hook {hook_name!r} finished running successfully")
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
@@ -2362,21 +2400,32 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
+    enable_cancellation_and_crashed_hooks = (
+        os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
+        == "true"
+    )
     if state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
-    elif state.is_cancelling() and flow.on_cancellation:
+    elif (
+        enable_cancellation_and_crashed_hooks
+        and state.is_cancelling()
+        and flow.on_cancellation
+    ):
         hooks = flow.on_cancellation
-    elif state.is_crashed() and flow.on_crashed:
+    elif (
+        enable_cancellation_and_crashed_hooks and state.is_crashed() and flow.on_crashed
+    ):
         hooks = flow.on_crashed
 
     if hooks:
         logger = flow_run_logger(flow_run)
         for hook in hooks:
+            hook_name = _get_hook_name(hook)
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
                 if is_async_fn(hook):
@@ -2387,11 +2436,11 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     )
             except Exception:
                 logger.error(
-                    f"An error was encountered while running hook {hook.__name__!r}",
+                    f"An error was encountered while running hook {hook_name!r}",
                     exc_info=True,
                 )
             else:
-                logger.info(f"Hook {hook.__name__!r} finished running successfully")
+                logger.info(f"Hook {hook_name!r} finished running successfully")
 
 
 async def check_api_reachable(client: PrefectClient, fail_message: str):
