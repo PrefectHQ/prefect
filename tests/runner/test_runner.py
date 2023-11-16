@@ -907,7 +907,6 @@ class TestRunnerDeployment:
         assert deployment.work_pool_name == work_pool.name
         assert deployment.infra_overrides == {
             "image": "my-repo/my-image:latest",
-            "command": "prefect flow-run execute",
         }
         assert deployment.work_queue_name == "default"
 

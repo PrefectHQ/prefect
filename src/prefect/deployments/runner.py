@@ -259,10 +259,7 @@ class RunnerDeployment(BaseModel):
             )
 
             if work_pool_name:
-                create_payload["infra_overrides"] = {
-                    **self.job_variables,
-                    "command": "prefect flow-run execute",
-                }
+                create_payload["infra_overrides"] = self.job_variables
                 if image:
                     create_payload["infra_overrides"]["image"] = image
                 create_payload["path"] = None if self.storage else self._path
