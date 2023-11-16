@@ -813,8 +813,9 @@ These deployments can be managed independently of one another, allowing you to d
     
     if __name__ == "__main__":
         deploy(
-            buy.to_deployment(name="buy-deploy", work_pool_name="my-dev-work-pool"),
-            sell.to_deployment(name="sell-deploy", work_pool_name="my-dev-work-pool"),
+            buy.to_deployment(name="buy-deploy"),
+            sell.to_deployment(name="sell-deploy"),
+            work_pool_name=""my-dev-work-pool"
             image="my-registry/my-image:dev",
             push=False,
         )
