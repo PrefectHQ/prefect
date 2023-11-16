@@ -127,7 +127,7 @@ async def test_submission_adds_flow_run_metadata(
                 "prefect.io/version": prefect.__version__,
             },
             "name": flow_run.name,
-            "command": ["python", "-m", "prefect.engine"],
+            "command": ["prefect", "flow-run", "execute"],
         }
     )
 
@@ -170,7 +170,7 @@ async def test_submission_adds_deployment_metadata(
                 **expected_labels,
             },
             "name": flow_run.name,
-            "command": ["python", "-m", "prefect.engine"],
+            "command": ["prefect", "flow-run", "execute"],
         }
     )
 
@@ -194,7 +194,7 @@ async def test_submission_adds_flow_metadata(
                 "prefect.io/flow-name": flow.name,
             },
             "name": flow_run.name,
-            "command": ["python", "-m", "prefect.engine"],
+            "command": ["prefect", "flow-run", "execute"],
         }
     )
 
