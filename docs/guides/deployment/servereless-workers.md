@@ -185,6 +185,7 @@ You can create a deployment using any of the methods outlined below:
 1. Deploy an existing `prefect.yaml` file with `prefect deploy`. The `prefect.yaml` file will contain:
 
 ```yaml
+
   work_pool:
     name: my-serverless-pool
 ```
@@ -212,4 +213,3 @@ More in-depth versions of guides for these serverless work pool options are avai
 
 Options for push versions of AWS ECS, Azure Container Instances, and Google Cloud Run work pools that do not require a worker are available with Prefect Cloud.
     Read more in the [Serverless Push Work Pool Guide](/guides/deployments/serverless/).
-I
