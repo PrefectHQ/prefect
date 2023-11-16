@@ -63,7 +63,7 @@ See the following pull request for implementation details:
 
 ### Documentation
 - Add Terraform Provider guide, update and simplify guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
-- Update Prefect Cloud documentation to reflect product changes — https://github.com/PrefectHQ/prefect/pull/11157
+- Clarify and harmonize Prefect Cloud documentation to reflect nomenclature and UX changes — https://github.com/PrefectHQ/prefect/pull/11157
 - Add information on Prefect Cloud to README — https://github.com/PrefectHQ/prefect/pull/11167
 - Update work pool-based deployment guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
 - Add Github information to auth-related Prefect Cloud documentation — https://github.com/PrefectHQ/prefect/pull/11178
