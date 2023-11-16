@@ -38,7 +38,7 @@ In this guide you will:
     Read more in the [Serverless Push Work Pool Guide](/guides/deployments/serverless/).
 
 This guide is a brief overview of the steps required.
-For more in depth discussion of the finer points of running on serverless infrastructure see the respective guides in the Prefect integration libraries:
+For more in-depth discussion of running workflows on serverless infrastructure see the respective guides in the Prefect integration libraries:
 
 [AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
 [Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
@@ -48,31 +48,32 @@ For more in depth discussion of the finer points of running on serverless infras
 
 ## Setup
 
-TK make sure that permissions are correct
+Make sure you have an entity on your chosen cloud provider with the necessary permissions to run serverless jobs.
 
 === "AWS ECS"
 
     To run a deployment on ECS, AWS credentials are required.
 
-    Create a user and attach the *AmazonECS_FullAccess* permissions.
-
+    One option is to create a user and attach the *AmazonECS_FullAccess* permissions.
     From that user's page create credentials and store them somewhere safe for use in the next section.
+
+    A second option for creating a role for the ECS task with lower privileges is outlined in the [ECS guide](https://prefecthq.github.io/prefect-aws/ecs_guide/).
 
 === "Azure Container Instances"
 
-    To run a deployment on ACI, an Azure subscription, resource worker, and tenant secret are required. 
+    To run a deployment on ACI an Azure subscription, resource worker, and tenant secret are required. 
 
-    Create subscription and resource worker
+    **Create a subscription and resource worker**
 
     1. In the Azure portal, create a subscription.
     2. Create a resource group within your subscription.
 
-    *Create app registration*
+    **Create app registration**
 
     1. In the Azure portal, create an app registration.
     2. In the app registration, create a client secret. Copy the value and store it somewhere safe.
     
-    ### Add App Registration to Subscription
+    **Add App Registration to Subscription**
 
     1. Navigate to the resource group you created earlier.
     2. Click on "Access control (IAM)" and then "Role assignments".
@@ -82,29 +83,31 @@ TK make sure that permissions are correct
 
     To run a deployment on Google Cloud Run, a GCP service account and an API Key are required.
 
-    Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, and click *continue* to configure permissions.
+    Create a service account by navigating to the service accounts page and clicking *Create*. 
+    Name and describe your service account, and click *continue* to configure permissions.
 
-    The service account must have two roles at a minimum, *Cloud Run Developer*, and *Service Account User*.
+    The service account must have two roles at a minimum, *Cloud Run Developer* and *Service Account User*.
 
     ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
 
-    Once the Service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
+    Once the service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
 
 === "Google Vertex AI"
 
     To run a deployment on Google Vertex AI, a GCP service account and an API Key are required.
 
-    Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, and click *continue* to configure permissions.
+    Create a service account by navigating to the service accounts page and clicking **Create**. 
+    Name and describe your service account and click *continue* to configure permissions.
 
-    The service account must have two roles at a minimum, *Cloud Run Developer*, and *Service Account User*.
+    The service account must have two roles at a minimum, *Cloud Run Developer* and *Service Account User*.
 
     ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
 
-    Once the Service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
+    Once the Service account is created, navigate to its **Keys** page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
 
 ## Create a work pool
 
-Choose a work pool type that corresponds to your cloud provider infrastructure.
+Choose the work pool type that corresponds to your cloud provider infrastructure.
 The work pool will contain default values to provide to compute jobs and any other important execution environment parameters.
 Because the work pool needs to integrate securely with the serverless infrastructure, let's store our credentials in a server-side block.
 
@@ -138,11 +141,13 @@ Navigate to the **Blocks** page.
 
     Provide any other optional information and create your block.
 
+    Note that the ability to infer credentials from the running environment was recently added. TK - Kevin, Bianca
+
 === "Google Vertex AI"
 
     Select **GCP Credentials** for the block type.
 
-    For use in a push work pool, this block must have the contents of the JSON key stored in the Service Account Info field, as such:
+   This block must have the contents of the JSON key stored in the Service Account Info field, like this:
 
     ![Configuring GCP Credentials block for use in GCP work pools](/img/guides/gcp-creds-block-setup.png)
 
@@ -175,13 +180,13 @@ Navigate to **Work Pools** in the Prefect UI and select the serverless cloud wor
 Specify any customizations needed for your work pool.
 You can override individual work pool fields when you create your deployment.
 
+Alternatively, you could create your work pool from the CLI.
+
 ## Create a deployment
 
-You can create a deployment using any of the methods outlined below:
+Create a deployment using one of the methods outlined below:
 
 1. Python script with `flow.deploy()` or `deploy`. Specify your newly created work pool name.
-    Note that running a Python file with `flow.serve()` or `serve` creates a long-running server that does not use a work pool.
-    Use a work pool when you want fine-grained infrastructure customizability, have expensive infrastructure, or need to dynamically scale infrastructure.
 1. Interactive CLI experience with `prefect deploy`.
     Choose the work pool you just created.
 1. Deploy an existing `prefect.yaml` file with `prefect deploy`. The `prefect.yaml` file will contain:
@@ -192,13 +197,15 @@ You can create a deployment using any of the methods outlined below:
     name: my-serverless-pool
 ```
 
-See the [deployments concept page](/concepts/deployments/) for more details.
+See the [deployments guide](/guides/deployments/) for more details.
 
 ## Start a worker
 
 On your local machine or on the cloud infrastructure of your choice, start a worker in an environment with Prefect installed.
 
-```prefect worker start my_worker```
+```bash
+prefect worker start my_worker
+```
 
 TK does worker need to have relevant Prefect integration library installed or not if the library is specified in the Docker image on the serverless infrastructure.
 
