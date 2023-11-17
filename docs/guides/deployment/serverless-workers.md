@@ -34,11 +34,12 @@ In this guide you will:
 
 !!! note "Serverless push work pools don't require a worker"
     Options for push work pool versions of AWS ECS, Azure Container Instances, and Google Cloud Run that do not require a worker are available with Prefect Cloud.
-    These options don't require a worker, but they do require connection configuration information to be stored on Prefect Cloud.
+    These options don't require a worker.
+    They do require connection configuration information to be stored on Prefect Cloud.
     Read more in the [Serverless Push Work Pool Guide](/guides/deployments/serverless/).
 
-This guide is a brief overview of the steps required.
-For more in-depth discussion of running workflows on serverless infrastructure see the respective guides in the Prefect integration libraries:
+This guide is a brief overview of the steps required to run workflows on serverless infrastructure.
+For a more in-depth discussion see the respective guides in the Prefect integration libraries:
 
 - [AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
 - [Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
@@ -54,14 +55,14 @@ Make sure you have an entity on your chosen cloud provider with the necessary pe
 
     To run a deployment on ECS, AWS credentials are required.
 
-    One option is to create a user and attach the *AmazonECS_FullAccess* permissions.
+    One option is to create a user or service account and attach the *AmazonECS_FullAccess* permissions.
     From that user's page create credentials and store them somewhere safe for use in the next section.
-
-    A second option for creating a role for the ECS task with lower privileges is outlined in the [ECS guide](https://prefecthq.github.io/prefect-aws/ecs_guide/).
+    This user will be able to pull images from ECR and run tasks on ECS.
+    Note that depending on the services your flow uses, you may need to attach additional permissions.
 
 === "Azure Container Instances"
 
-    To run a deployment on ACI an Azure subscription, resource worker, and tenant secret are required. 
+    To run a deployment on ACI, an Azure subscription, resource worker, and tenant secret are required. 
 
     **Create a subscription and resource worker**
 
@@ -90,7 +91,8 @@ Make sure you have an entity on your chosen cloud provider with the necessary pe
 
     ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
 
-    Once the service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
+    Once the service account is created, navigate to its *Keys* page to add an API key. 
+    Create a JSON type key, download it, and store it somewhere safe for use in the next section.
 
 === "Google Vertex AI"
 
@@ -103,17 +105,18 @@ Make sure you have an entity on your chosen cloud provider with the necessary pe
 
     ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
 
-    Once the Service account is created, navigate to its **Keys** page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
+    Once the Service account is created, navigate to its **Keys** page to add an API key. 
+    Create a JSON type key, download it, and store it somewhere safe for use in the next section.
 
 ## Create a work pool
 
 Choose the work pool type that corresponds to your cloud provider infrastructure.
 The work pool will contain default values to provide to compute jobs and any other important execution environment parameters.
-Because the work pool needs to integrate securely with the serverless infrastructure, let's store our credentials in a server-side block.
+Because the work pool needs to integrate securely with the serverless infrastructure, you can store your credentials in a server-side block.
 
-Navigate to the **Blocks** page.
+Navigate to the **Blocks** page in Prefect Cloud.
 
-### Create a Credentials block
+### Create a credentials block
 
 === "AWS ECS"
 
@@ -153,6 +156,8 @@ Navigate to the **Blocks** page.
 
     Provide any other optional information and create your block.
 
+    Note that the ability to infer credentials from the running environment was recently added. TK - Kevin, Bianca - does this apply here?
+
 ### Create serverless work pool
 
 Navigate to **Work Pools** in the Prefect UI and select the serverless cloud work pool type you plan to use.
@@ -180,15 +185,14 @@ Navigate to **Work Pools** in the Prefect UI and select the serverless cloud wor
 Specify any customizations needed for your work pool.
 You can override individual work pool fields when you create your deployment.
 
-Alternatively, you could create your work pool from the CLI.
+Instead of creating your work pool and credentials block from the UI you have the option to create blocks in code and create your work pool from the CLI.
 
 ## Create a deployment
 
 Create a deployment using one of the methods outlined below:
 
 1. Python script with `flow.deploy()` or `deploy`. Specify your newly created work pool name.
-1. Interactive CLI experience with `prefect deploy`.
-    Choose the work pool you just created.
+1. Interactive CLI experience with `prefect deploy`. Choose the work pool you just created.
 1. Deploy an existing `prefect.yaml` file with `prefect deploy`. The `prefect.yaml` file will contain:
 
 ```yaml
@@ -196,11 +200,11 @@ Create a deployment using one of the methods outlined below:
     name: my-serverless-pool
 ```
 
-See the [deployments guide](/guides/deployments/) for more details.
+See the [deployments guide](/guides/prefect-deploy/) for more details on creating deployments.
 
 ## Start a worker
 
-On your local machine or on the cloud infrastructure of your choice, start a worker in an environment with Prefect installed.
+In the serverless cloud infrastructure you plan to use, start a worker in an environment with Prefect installed. TK
 
 <div class="termina">
 ```bash
