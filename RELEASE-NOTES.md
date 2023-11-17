@@ -26,7 +26,7 @@ if __name__ == "__main__":
     ).serve(name="my-deployment")
 ```
 
-Here's an example of loading and deploying a flow from a public S3 bucket:
+Here's an example of loading and deploying a flow from an S3 bucket:
 
 ```python
 from prefect import flow
