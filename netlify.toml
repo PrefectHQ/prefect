@@ -377,7 +377,7 @@ status = 301
 
 [[redirects]]
 from = "/guides/cloud-run-push-work-pools/"
-to = "/guides/push-work-pools/"
+to = "/guides/deployment/push-work-pools/"
 status = 301
 
 [[redirects]]
