@@ -34,7 +34,7 @@
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :flow-run-filter="deploymentFilter" />
+        <FlowRunFilteredList :filter="deploymentFilter" prefix="runs" />
       </template>
     </p-tabs>
 
