@@ -28,7 +28,7 @@ Prefect also allows you to standardize workflow development and deployment acros
 With Prefect, you can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes.
 With just a few decorators, Prefect supercharges your code with features like automatic retries, distributed execution, scheduling, caching, and much more.
 
-Every activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/guides/host/) instance or managed [Prefect Cloud](https://docs.prefect.io/latest/cloud/) dashboard.
+Every activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/guides/host/) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
 
 ## Getting started
 
