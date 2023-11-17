@@ -6,7 +6,7 @@
 
 You can now use all your existing storage blocks with `flow.from_source`! Using storage blocks with `from_source` is great when you need to synchronize your credentials and configuration for your code storage location with your flow run execution environments. Plus, because block configuration is stored server-side and pulled at execution time, you can update your code storage credentials and configuration without re-deploying your flows!
 
-Here's an example of loading a flow from a private S3 bucket:
+Here's an example of loading a flow from a private S3 bucket and serving it:
 
 ```python
 from prefect import flow
@@ -23,7 +23,7 @@ if __name__ == "__main__":
             ),
         ),
         entrypoint="flows.py:my_flow",
-    ).deploy(name="my-deployment", work_pool_name="above-ground")
+    ).serve(name="my-deployment")
 ```
 
 Here's an example of loading and deploying a flow from a public S3 bucket:
