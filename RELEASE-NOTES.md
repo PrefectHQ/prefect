@@ -1,5 +1,83 @@
 # Prefect Release Notes
 
+## Release 2.14.5
+
+### Storage block compatibility with `flow.from_source`
+
+You can now use all your existing storage blocks with `flow.from_source`! Using storage blocks with `from_source` is great when you need to synchronize your credentials and configuration for your code storage location with your flow run execution environments. Plus, because block configuration is stored server-side and pulled at execution time, you can update your code storage credentials and configuration without re-deploying your flows!
+
+Here's an example of loading a flow from a private S3 bucket and serving it:
+
+```python
+from prefect import flow
+from prefect_aws import AwsCredentials
+from prefect_aws.s3 import S3Bucket
+
+if __name__ == "__main__":
+    flow.from_source(
+        source=S3Bucket(
+            bucket_name="my-code-storage-bucket",
+            credentials=AwsCredentials(
+                aws_access_key_id="my-access-key-id",
+                aws_secret_access_key="my-secret-access-key",
+            ),
+        ),
+        entrypoint="flows.py:my_flow",
+    ).serve(name="my-deployment")
+```
+
+Here's an example of loading and deploying a flow from an S3 bucket:
+
+```python
+from prefect import flow
+from prefect_aws.s3 import S3Bucket
+
+if __name__ == "__main__":
+    flow.from_source(
+        source=S3Bucket.load("my-code-storage-bucket"), entrypoint="flows.py:my_flow"
+    ).deploy(name="my-deployment", work_pool_name="above-ground")
+```
+
+Note that a storage block must be saved before deploying a flow, but not if you're serving a remotely stored flow.
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11092
+
+### Enhancements
+- Add customizable host and port settings for worker webserver — https://github.com/PrefectHQ/prefect/pull/11175
+- Safely retrieve `flow_run_id` in `EventsWorker` while finding related events — https://github.com/PrefectHQ/prefect/pull/11182
+- Add client-side setting for specifying a default work pool — https://github.com/PrefectHQ/prefect/pull/11137
+- Allow configuration of task run tag concurrency slot delay transition time via setting — https://github.com/PrefectHQ/prefect/pull/11020
+- Enable enhanced flow run cancellation by default - https://github.com/PrefectHQ/prefect/pull/11192
+
+### Fixes
+- Fix access token retrieval when using `GitRepository` with a private repo and `.deploy` — https://github.com/PrefectHQ/prefect/pull/11156
+- Fix bug where check for required packages fails incorrectly during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11111
+- Fix routing to the Flows page from a flow run in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11190
+- Ensure the Prefect UI Flow Runs page reacts to filter changes - https://github.com/PrefectHQ/prefect-ui-library/pull/1874
+- Optimize memory usage by clearing `args/kwargs` in a Prefect `Call` post-execution -  https://github.com/PrefectHQ/prefect/pull/11153
+- Allow logs to handle un-`uuid`-like flow_run_ids - https://github.com/PrefectHQ/prefect/pull/11191
+- Only run unit tests for Python file changes — https://github.com/PrefectHQ/prefect/pull/11159
+- Add `codespell` config and add to pre-commit  — https://github.com/PrefectHQ/prefect/pull/10893
+- Update token regex in release notes generation script for VSCode compatibility - https://github.com/PrefectHQ/prefect/pull/11195
+
+### Documentation
+- Add Terraform Provider guide, update and simplify guides navigation — https://github.com/PrefectHQ/prefect/pull/11170
+- Clarify and harmonize Prefect Cloud documentation to reflect nomenclature and UX changes — https://github.com/PrefectHQ/prefect/pull/11157
+- Add information on Prefect Cloud to README — https://github.com/PrefectHQ/prefect/pull/11167
+- Update work pool-based deployment guide to include `.deploy` — https://github.com/PrefectHQ/prefect/pull/11174
+- Add Github information to auth-related Prefect Cloud documentation — https://github.com/PrefectHQ/prefect/pull/11178
+- Update workers tutorial — https://github.com/PrefectHQ/prefect/pull/11185
+- Update mkdocs material pin — https://github.com/PrefectHQ/prefect/pull/11160
+- Fix typo in audit log documentation — https://github.com/PrefectHQ/prefect/pull/11161
+- Fix typo in workers tutorial example — https://github.com/PrefectHQ/prefect/pull/11183
+
+### Contributors
+- @yarikoptic made their first contribution in https://github.com/PrefectHQ/prefect/pull/10893
+- @taljaards
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.4...2.14.5
+
 ## Release 2.14.4
 
 ### New improved flow run graph with dependency layout
