@@ -33,7 +33,7 @@ REPO_ORG = "PrefectHQ"
 REPO_NAME = "prefect"
 DEFAULT_TAG = "preview"
 
-TOKEN_REGEX = re.compile(r"Token:\s(.*)")
+TOKEN_REGEX = re.compile(r"\s*✓ Token:\s(.*)")
 ENTRY_REGEX = re.compile(r"^\* (.*) by @(.*) in (.*)$", re.MULTILINE)
 
 

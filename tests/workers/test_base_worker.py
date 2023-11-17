@@ -1350,7 +1350,7 @@ class TestPrepareForFlowRun:
             "prefect.io/version": prefect.__version__,
         }
         assert job_config.name == "my-job-name"
-        assert job_config.command == "python -m prefect.engine"
+        assert job_config.command == "prefect flow-run execute"
 
     def test_prepare_for_flow_run_with_enhanced_cancellation(
         self, job_config, flow_run, enable_enhanced_cancellation
@@ -1393,7 +1393,7 @@ class TestPrepareForFlowRun:
             "prefect.io/flow-name": flow.name,
         }
         assert job_config.name == "my-job-name"
-        assert job_config.command == "python -m prefect.engine"
+        assert job_config.command == "prefect flow-run execute"
 
 
 def legacy_named_cancelling_state(**kwargs):
@@ -1401,6 +1401,13 @@ def legacy_named_cancelling_state(**kwargs):
 
 
 class TestCancellation:
+    @pytest.fixture(autouse=True)
+    def disable_enhanced_cancellation(self, disable_enhanced_cancellation):
+        """
+        Workers only cancel flow runs when enhanced cancellation is disabled.
+        These tests are for the legacy cancellation behavior.
+        """
+
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
