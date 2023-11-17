@@ -31,7 +31,7 @@
         </template>
 
         <template #runs>
-          <FlowRunFilteredList v-model:states="states" :flow-run-filter="flowRunFilter" />
+          <FlowRunFilteredList :filter="flowRunFilter" prefix="runs" />
         </template>
       </p-tabs>
 
@@ -45,7 +45,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useFlowRunsFilter, PrefectStateNames } from '@prefecthq/prefect-ui-library'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useFlowRunsFilter, PrefectStateNames, useFlowRunsFilterFromRoute } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -70,12 +70,7 @@
   const workQueueId = useRouteParam('workQueueId')
   const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
 
-  const states = ref<PrefectStateNames[]>([])
   const selectedTab = ref<string | undefined>()
-  const showActiveRuns = (): void => {
-    states.value = ['Running', 'Pending']
-    selectedTab.value = 'Runs'
-  }
 
   const subscriptionOptions = {
     interval: 300000,
@@ -88,12 +83,16 @@
   const activeRunsBuildUp = computed(() => !!(workQueueConcurrency.value && workQueueConcurrency.value <= activeFlowRunsCount.value && !workQueuePaused.value))
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
 
-  const { filter: flowRunFilter } = useFlowRunsFilter({
+  const { filter: flowRunFilter } = useFlowRunsFilterFromRoute({
     flowRuns: {
       workQueueName: workQueueName,
     },
-  })
+  }, 'runs')
 
+  const showActiveRuns = (): void => {
+    selectedTab.value = 'runs'
+    flowRunFilter.flowRuns.state.name = ['Running', 'Pending']
+  }
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
   }
