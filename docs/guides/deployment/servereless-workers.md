@@ -40,8 +40,8 @@ In this guide you will:
 This guide is a brief overview of the steps required.
 For more in-depth discussion of running workflows on serverless infrastructure see the respective guides in the Prefect integration libraries:
 
-[AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
-[Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
+- [AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
+- [Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
 
 !!! note "Choosing between Google Cloud Run and Google Vertex AI"
     Google Vertex AI is well-suited for machine learning model training applications in which GPUs or TPUs and high resource levels are desired.
@@ -192,7 +192,6 @@ Create a deployment using one of the methods outlined below:
 1. Deploy an existing `prefect.yaml` file with `prefect deploy`. The `prefect.yaml` file will contain:
 
 ```yaml
-
   work_pool:
     name: my-serverless-pool
 ```
@@ -203,9 +202,11 @@ See the [deployments guide](/guides/deployments/) for more details.
 
 On your local machine or on the cloud infrastructure of your choice, start a worker in an environment with Prefect installed.
 
+<div class="termina">
 ```bash
 prefect worker start my_worker
 ```
+</div>
 
 TK does worker need to have relevant Prefect integration library installed or not if the library is specified in the Docker image on the serverless infrastructure.
 
@@ -214,11 +215,16 @@ If your worker has the necessary credentials to run workflows on your serverless
 ## Run a deployment
 
 Navigate to your deployment page in the UI and schedule a run or schedule a run from the CLI.
-Watch your serverless infrastructure spin up and your flow run logs in the UI or your worker's CLI.
+Watch your serverless infrastructure spin up and your flow run logs.
+
+TK maybe image of logs
 
 ## Next steps
 
-More in-depth versions of guides for these serverless work pool options are available in the respective Prefect integration libraries.
+More in-depth versions of the following guides are available in the Prefect integration libraries:
+
+- [AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
+- [Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
 
 Options for push versions of AWS ECS, Azure Container Instances, and Google Cloud Run work pools that do not require a worker are available with Prefect Cloud.
-    Read more in the [Serverless Push Work Pool Guide](/guides/deployments/serverless/).
+Read more in the [Serverless Push Work Pool Guide](/guides/deployments/serverless/).
