@@ -23,7 +23,7 @@
 Prefect is a workflow application framework. It's the simplest way to deploy Python code as an interactive workflow application that can be observed and orchestrated.
 Prefect sits at the center of the many systems you interact with every day.
 It provides you an API that makes it possible to understand and react to events.
-Prefect also allows you to standardize your workflows across your organization.
+Prefect also allows you to standardize workflow development and deployment across your organization.
 
 With Prefect, you can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes.
 With just a few decorators, Prefect supercharges your code with features like automatic retries, distributed execution, scheduling, caching, and much more.
