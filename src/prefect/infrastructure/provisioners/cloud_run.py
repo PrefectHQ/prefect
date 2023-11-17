@@ -155,7 +155,7 @@ class CloudRunPushProvisioner:
             block_doc = await client.create_block_document(
                 block_document=BlockDocumentCreate(
                     name=f"{work_pool_name}-push-pool-credentials",
-                    data={"service_account_details": key},
+                    data={"service_account_info": key},
                     block_type_id=credentials_block_type.id,
                     block_schema_id=credentials_block_schema.id,
                 )

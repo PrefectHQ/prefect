@@ -175,7 +175,11 @@ async def create(
             )
             work_pool = await client.create_work_pool(work_pool=wp)
             app.console.print(f"Created work pool {work_pool.name!r}!\n", style="green")
-            if not work_pool.is_paused and not work_pool.is_managed_pool:
+            if (
+                not work_pool.is_paused
+                and not work_pool.is_managed_pool
+                and not work_pool.is_push_pool
+            ):
                 app.console.print("To start a worker for this work pool, run:\n")
                 app.console.print(
                     f"\t[blue]prefect worker start --pool {work_pool.name}[/]\n"
