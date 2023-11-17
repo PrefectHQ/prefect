@@ -79,7 +79,7 @@ To run your workflow on a schedule, turn it into a deployment and schedule it to
 ```
 
 You now have a server running locally that is looking for scheduled deployments!
-Additionally you can run your workflow manually from the UI or CLI - and if you're using Prefect Cloud, you can even run deployments in response to an [events](https://docs.prefect.io/latest/concepts/automations/).
+Additionally you can run your workflow manually from the UI or CLI - and if you're using Prefect Cloud, you can even run deployments in response to [events](https://docs.prefect.io/latest/concepts/automations/).
 
 ## Prefect Cloud
 
