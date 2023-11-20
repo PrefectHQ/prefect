@@ -99,7 +99,6 @@ from typing import (
     List,
     Optional,
     Set,
-    Type,
     TypeVar,
     Union,
 )
@@ -182,7 +181,6 @@ from prefect.states import (
 from prefect.task_runners import (
     CONCURRENCY_MESSAGES,
     BaseTaskRunner,
-    SequentialTaskRunner,
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
@@ -1114,48 +1112,6 @@ async def resume_flow_run(flow_run_id):
             raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
 
 
-@sync_compatible
-async def run_autonomous_task(
-    task: Task,
-    parameters: Optional[Dict] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
-    mapped: bool = False,
-    return_type: EngineReturnType = "state",
-    task_runner: Type[BaseTaskRunner] = SequentialTaskRunner,
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-    async with AsyncExitStack() as stack:
-        with FlowRunContext(
-            flow=None,
-            flow_run=None,
-            task_runner=await stack.enter_async_context(
-                (task_runner if task_runner else SequentialTaskRunner()).start()
-            ),
-            client=await stack.enter_async_context(get_client()),
-            parameters=parameters,
-            result_factory=await ResultFactory.from_task(task),
-            background_tasks=await stack.enter_async_context(anyio.create_task_group()),
-            sync_portal=(
-                stack.enter_context(start_blocking_portal()) if task.isasync else None
-            ),
-        ) as flow_run_context:
-            begin_run = create_call(
-                begin_task_map if mapped else get_task_call_return_value,
-                task=task,
-                flow_run_context=flow_run_context,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-                task_runner=task_runner,
-            )
-            if task.isasync:
-                # TODO: revisit awaiting `from_async.wait_for_call_in_loop_thread`
-                # we await this call and run_autonomous_task is sync_compatible
-                # so the user will await it if they are in an async context
-                return await from_async.wait_for_call_in_loop_thread(begin_run)
-            else:
-                return from_sync.wait_for_call_in_loop_thread(begin_run)
-
-
 def enter_task_run_engine(
     task: Task,
     parameters: Dict[str, Any],
@@ -1167,17 +1123,7 @@ def enter_task_run_engine(
     """
     Sync entrypoint for task calls
     """
-
     flow_run_context = FlowRunContext.get()
-    if not flow_run_context:
-        return run_autonomous_task(
-            task=task,
-            parameters=parameters,
-            wait_for=wait_for,
-            mapped=mapped,
-            return_type=return_type,
-            task_runner=task_runner,
-        )
 
     if TaskRunContext.get():
         raise RuntimeError(

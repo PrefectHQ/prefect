@@ -30,10 +30,11 @@ from typing import (
 from typing_extensions import Literal, ParamSpec
 
 from prefect.client.schemas import TaskRun
-from prefect.context import PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -554,14 +555,31 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            task_runner=SequentialTaskRunner(),
-            return_type=return_type,
-            mapped=False,
-        )
+        if FlowRunContext.get():
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                task_runner=SequentialTaskRunner(),
+                return_type=return_type,
+                mapped=False,
+            )
+        elif PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY.value():
+            from prefect.task_engine import run_autonomous_task
+
+            return run_autonomous_task(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=SequentialTaskRunner(),
+            )
+        else:
+            raise RuntimeError(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+                " To allow this, set the `PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY`"
+                " to `True`."
+            )
 
     @overload
     def _run(
@@ -757,14 +775,31 @@ class Task(Generic[P, R]):
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type=return_type,
-            task_runner=None,
-            mapped=False,
-        )
+        if FlowRunContext.get():
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+                mapped=False,
+            )
+        elif PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY.value():
+            from prefect.task_engine import run_autonomous_task
+
+            return run_autonomous_task(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+            )
+        else:
+            raise RuntimeError(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+                " To allow this, set the `PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY`"
+                " to `True`."
+            )
 
     @overload
     def map(
@@ -934,14 +969,32 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type=return_type,
-            task_runner=None,
-            mapped=True,
-        )
+        if FlowRunContext.get():
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+                mapped=True,
+            )
+        elif PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY.value():
+            from prefect.task_engine import run_autonomous_task
+
+            return run_autonomous_task(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+                mapped=True,
+            )
+        else:
+            raise RuntimeError(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+                " To allow this, set the `PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY`"
+                " to `True`."
+            )
 
 
 @overload
