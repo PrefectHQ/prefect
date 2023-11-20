@@ -7,7 +7,6 @@
     "build": "vite build",
     "lint": "eslint src --ext .js,.ts,.vue",
     "lint:fix": "eslint src --fix --debug",
-    "test": "playwright test",
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -23,7 +22,6 @@
     "vue-router": "4.2.5"
   },
   "devDependencies": {
-    "@playwright/test": "1.39.0",
     "@prefecthq/eslint-config": "1.0.31",
     "@vitejs/plugin-vue": "4.4.1",
     "autoprefixer": "10.4.16",

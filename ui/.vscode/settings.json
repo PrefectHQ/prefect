@@ -37,7 +37,6 @@
   "files.exclude": {
     "node_modules": true,
     "dist": true,
-    "playwright-report": true,
     "test-results": true,
   },
   "css.customData": [
