@@ -18,24 +18,6 @@ npm run serve
 npm run build
 ```
 
-### Run all tests
-
-```
-npm run test
-```
-
-### Run your unit tests
-
-```
-npm run test:unit
-```
-
-### Run your integration tests
-
-```
-npm run test:integration
-```
-
 ### Lints and fixes files
 
 ```
