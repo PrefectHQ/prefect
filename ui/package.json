@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.31",
-    "@vitejs/plugin-vue": "4.4.1",
+    "@vitejs/plugin-vue": "4.5.0",
     "autoprefixer": "10.4.16",
     "dotenv": "16.3.1",
     "eslint": "^8.54.0",
