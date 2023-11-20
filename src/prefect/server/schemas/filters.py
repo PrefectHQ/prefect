@@ -1311,11 +1311,21 @@ class BlockDocumentFilterName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None, description="A list of block names to include"
     )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match block names against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my-block%",
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.BlockDocument.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.BlockDocument.name.ilike(f"%{self.like_}%"))
         return filters
 
 

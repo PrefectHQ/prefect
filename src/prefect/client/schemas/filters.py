@@ -723,6 +723,14 @@ class BlockDocumentFilterName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None, description="A list of block names to include"
     )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match block names against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my-block%",
+    )
 
 
 class BlockDocumentFilter(PrefectBaseModel, OperatorMixin):
