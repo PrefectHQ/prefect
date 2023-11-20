@@ -25,7 +25,14 @@ This behavior makes running tasks fast for small data, but can be problematic fo
 For each task run Prefect introspects the arguments. TK also return value.
 This add overhead for large data.
 
-Let's use this as an example:
+Let's use this NYC taxi data as an example.
+Note that we don't recommend running this example.
+
+### Prerequisites
+
+1. The Python packages prefect, parquet, pandas installed
+1. CLI connected to Prefect Cloud or a self-hosted Prefect server instance
+1. Ability to fetch data from the internet (unless switch to random data TK)
 
 ```python
 from prefect import task, flow
@@ -51,3 +58,10 @@ def etl():
 if __name__ == "__main__":
     etl()
 ```
+
+## Options for optimizing flows for large data
+
+1. Remove task introspection
+1. Use caching of task results
+1. Write results to cloud storage such as S3
+1. Use a distributed executor
