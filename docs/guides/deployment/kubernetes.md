@@ -10,7 +10,7 @@ search:
   boost: 2
 ---
 
-# Running flows with Kubernetes
+# Running Flows with Kubernetes
 
 This guide will walk you through running your flows on Kubernetes.
 Though much of the guide is general to any Kubernetes cluster, there are differences between the managed Kubernetes offerings between cloud providers, especially when it comes to container registries and access management.

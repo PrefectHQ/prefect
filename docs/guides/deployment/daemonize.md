@@ -8,10 +8,10 @@ search:
   boost: 2
 ---
 
-# Daemonize Processes for Prefect deployment runs
+# Daemonize Processes for Prefect Deployments
 
 When running workflow applications, it can be helpful to create long-running processes that run at startup and are robust to failure.
-In this guide you'll learn how to set up a systemd service to create long-running Prefect processes that poll for scheduled deployment runs.
+In this guide you'll learn how to set up a systemd service to create long-running Prefect processes that poll for scheduled flow runs.
 
 A systemd service is ideal for running a long-lived process on a Linux VM or physical Linux server.
 We will leverage systemd and see how to automatically start a [Prefect worker](/concepts/work-pools/#worker-overview) or long-lived [`serve` process](concepts/flows/#serving-a-flow) when Linux starts.
