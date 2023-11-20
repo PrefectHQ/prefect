@@ -33,7 +33,7 @@ Note that we don't recommend running this example.
 1. CLI connected to Prefect Cloud or a self-hosted Prefect server instance
 1. Ability to fetch data from the internet (unless switch to random data TK)
 
-```python title="basic_etl.py"
+```python title="etl.py"
 from prefect import task, flow
 import pandas as pd
 
@@ -88,7 +88,17 @@ if __name__ == "__main__":
 When a task is called from a flow, each argument is introspected by Prefect, by default.
 You can disable this behavior for a task by wrapping the argument using [`quote`](https://docs.prefect.io/latest/api-ref/prefect/utilities/annotations/#prefect.utilities.annotations.quote) like this:
 
-```python
+```python hl="9" title="etl_quote.py"
+...
+from prefect.utilities.annotations import quote
+...
+
+@flow(log_prints=True)
+def etl(url: str):
+    """ETL pipeline"""
+    df_raw = extract(url)
+    df = transform(quote(df_raw))  # quote to avoid introspection
+    load(df)
 
 
 ```
