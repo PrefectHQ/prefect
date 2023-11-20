@@ -12,7 +12,6 @@ import anyio
 import pytest
 import regex as re
 
-from prefect import __version__ as PREFECT_VERSION
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -164,13 +163,17 @@ class TestTaskRunName:
 
 
 class TestTaskCall:
-    @pytest.mark.skipif(PREFECT_VERSION < "2.15.0", reason="now allowed")
     def test_task_called_outside_flow_raises(self):
         @task
         def foo():
             pass
 
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+            ),
+        ):
             foo()
 
     def test_sync_task_called_inside_sync_flow(self):
@@ -333,13 +336,17 @@ class TestTaskCall:
 
 
 class TestTaskRun:
-    @pytest.mark.skipif(PREFECT_VERSION < "2.15.0", reason="now allowed")
     def test_task_run_outside_flow_raises(self):
         @task
         def foo():
             pass
 
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+            ),
+        ):
             foo()
 
     def test_sync_task_run_inside_sync_flow(self):
@@ -433,13 +440,17 @@ class TestTaskRun:
 
 
 class TestTaskSubmit:
-    @pytest.mark.skipif(PREFECT_VERSION < "2.15.0", reason="now allowed")
     def test_task_submitted_outside_flow_raises(self):
         @task
         def foo():
             pass
 
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+            ),
+        ):
             foo()
 
     def test_sync_task_submitted_inside_sync_flow(self):

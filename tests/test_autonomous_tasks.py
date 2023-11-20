@@ -2,8 +2,18 @@ import pytest
 
 from prefect import task
 from prefect.client.schemas.objects import TaskRunResult
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY,
+    temporary_settings,
+)
 from prefect.tasks import task_input_hash
 from prefect.utilities.asyncutils import sync_compatible
+
+
+@pytest.fixture(autouse=True)
+def allow_task_autonomy():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY: True}):
+        yield
 
 
 @pytest.fixture
