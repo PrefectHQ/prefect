@@ -704,7 +704,10 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
         result = await session.execute(
-            sa.select(db.FlowRun.start_time, db.FlowRun.end_time).where(
+            sa.select(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
+                db.FlowRun.end_time,
+            ).where(
                 db.FlowRun.id == flow_run_id,
             )
         )
@@ -1112,7 +1115,10 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
         result = await session.execute(
-            sa.select(db.FlowRun.start_time, db.FlowRun.end_time).where(
+            sa.select(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
+                db.FlowRun.end_time,
+            ).where(
                 db.FlowRun.id == flow_run_id,
             )
         )

@@ -39,7 +39,11 @@ from prefect.server.schemas.actions import (
     WorkPoolCreate,
 )
 from prefect.server.schemas.schedules import CronSchedule
-from prefect.settings import PREFECT_UI_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -683,6 +687,36 @@ class TestProjectDeploy:
                 "prefect worker start --pool 'test-pool'",
             ],
         )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-pool"
+        assert deployment.version == "1.0.0"
+        assert deployment.tags == ["foo-bar"]
+        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.enforce_parameter_schema is False
+
+    async def test_project_deploy_with_default_work_pool(
+        self, project_dir, prefect_client
+    ):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        with temporary_settings(updates={PREFECT_DEFAULT_WORK_POOL_NAME: "test-pool"}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --version"
+                    " 1.0.0 -v env=prod -t foo-bar"
+                ),
+                expected_code=0,
+                expected_output_contains=[
+                    "An important name/test-name",
+                    "prefect worker start --pool 'test-pool'",
+                ],
+            )
 
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"

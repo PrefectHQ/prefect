@@ -1,7 +1,10 @@
+import shutil
+import subprocess
 import sys
 import warnings
 from pathlib import Path
-from unittest.mock import ANY
+from textwrap import dedent
+from unittest.mock import ANY, call
 
 import pytest
 
@@ -118,6 +121,102 @@ class TestRunStep:
         )
         assert output.returncode == 0
         assert output.stdout.decode().strip() == "hello world"
+
+    async def test_requirement_installation_successful(self, monkeypatch):
+        """
+        Test that the function attempts to install the package and succeeds.
+        """
+        import_module_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[ImportError, lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step(
+            {"test_module.test_function": {"requires": "test-package>=1.0.0", "x": 1}}
+        )
+
+        import_module_mock.assert_called_once_with("test_package")
+        assert (
+            import_object_mock.call_count == 2
+        )  # once before and once after installation
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0"]
+        )
+
+    async def test_install_multiple_requirements(self, monkeypatch):
+        """
+        Test that passing multiple requirements installs all of them.
+        """
+        import_module_mock = MagicMock(side_effect=[None, ImportError])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step(
+            {
+                "test_module.test_function": {
+                    "requires": ["test-package>=1.0.0", "another"],
+                    "x": 1,
+                }
+            }
+        )
+
+        import_module_mock.assert_has_calls([call("test_package"), call("another")])
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0,another"]
+        )
+
+    async def test_requirement_installation_failure(self, monkeypatch, caplog):
+        """
+        Test that the function logs a warning if it fails to install the package.
+        """
+        # Mocking the import_module function to always raise ImportError
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module",
+            MagicMock(side_effect=ImportError),
+        )
+
+        # Mock subprocess.check_call to simulate failed package installation
+        monkeypatch.setattr(
+            subprocess,
+            "check_call",
+            MagicMock(side_effect=subprocess.CalledProcessError(1, ["pip"])),
+        )
+
+        with pytest.raises(ImportError):
+            await run_step(
+                {
+                    "test_module.test_function": {
+                        "requires": "nonexistent-package>=1.0.0"
+                    }
+                }
+            )
+
+        assert subprocess.check_call.called
+        record = next(
+            (
+                record
+                for record in caplog.records
+                if "Unable to install required packages" in record.message
+            ),
+            None,
+        )
+        assert record is not None, "No warning was logged"
+        assert record.levelname == "WARNING"
 
 
 class TestRunSteps:
@@ -705,4 +804,104 @@ class TestPipInstallRequirements:
             "requirements file: [Errno 2] No such file or directory: "
             "'doesnt-exist.txt'"
             in str(exc.value)
+        )
+
+
+class TestPullWithBlock:
+    @pytest.fixture
+    async def test_block(self):
+        class FakeStorageBlock(Block):
+            _block_type_slug = "fake-storage-block"
+
+            code: str = dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+
+            async def get_directory(self, local_path: str):
+                (Path(local_path) / "flows.py").write_text(self.code)
+
+        block = FakeStorageBlock()
+        await block.save("test-block")
+        return block
+
+    async def test_normal_operation(self, test_block: Block):
+        """
+        A block type slug and a block document name corresponding
+        to a block with the get_directory method can be used
+        to pull code into the current working path.
+        """
+        try:
+            output = await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": test_block.get_block_type_slug(),
+                        "block_document_name": test_block._block_document_name,
+                    }
+                }
+            )
+            assert "directory" in output
+            assert Path(f"{output['directory']}/flows.py").read_text() == dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+        finally:
+            if "output" in locals() and "directory" in output:
+                shutil.rmtree(f"{output['directory']}")
+
+    async def test_block_not_found(self, caplog):
+        """
+        When a `pull_with_block` step is run with a block type slug
+        and block document name that can't be resolved, `run_step`
+        should raise and log a message.
+        """
+        with pytest.raises(ValueError):
+            await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": "in-the",
+                        "block_document_name": "wind",
+                    }
+                }
+            )
+
+        assert "Unable to load block 'in-the/wind'" in caplog.text
+
+    async def test_incorrect_type_of_block(self, caplog):
+        """
+        When a `pull_with_block` step is run with a block that doesn't
+        have a `get_directory` method, `run_step` should raise and log
+        a message.
+        """
+
+        class Wrong(Block):
+            square_peg = "round_hole"
+
+        block = Wrong()
+        await block.save("test-block")
+
+        with pytest.raises(ValueError):
+            await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": block.get_block_type_slug(),
+                        "block_document_name": block._block_document_name,
+                    }
+                }
+            )
+
+        assert (
+            "Unable to create storage adapter for block"
+            f" '{block.get_block_type_slug()}/{block._block_document_name}"
+            in caplog.text
         )

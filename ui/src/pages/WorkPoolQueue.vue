@@ -19,7 +19,7 @@
         </template>
 
         <template #runs>
-          <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
+          <FlowRunFilteredList :filter="flowRunFilter" prefix="runs" />
         </template>
       </p-tabs>
 

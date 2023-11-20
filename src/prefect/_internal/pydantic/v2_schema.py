@@ -1,6 +1,7 @@
 # Note: This file should only be imported under a HAS_PYDANTIC_V2 flag
 
 import inspect
+import typing
 import typing as t
 
 import pendulum
@@ -17,13 +18,28 @@ from prefect._internal.pydantic.annotations.pendulum import (
 from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
 
 
+def _is_v2_model(v) -> bool:
+    if isinstance(v, V2BaseModel):
+        return True
+    try:
+        if inspect.isclass(v) and issubclass(v, V2BaseModel):
+            return True
+    except TypeError:
+        pass
+
+
 def has_v2_model_as_param(signature: inspect.Signature) -> bool:
     parameters = signature.parameters.values()
-    return any(
-        isinstance(p, V2BaseModel)
-        or (inspect.isclass(p.annotation) and issubclass(p.annotation, V2BaseModel))
-        for p in parameters
-    )
+    for p in parameters:
+        # check if this parameter is a v2 model
+        if _is_v2_model(p.annotation):
+            return True
+
+        # check if this parameter is a collection of types
+        for v in typing.get_args(p.annotation):
+            if _is_v2_model(v):
+                return True
+    return False
 
 
 def process_v2_params(
@@ -79,7 +95,7 @@ def create_v2_schema(name_: str, model_cfg: ConfigDict, **model_fields):
         ref_template="#/definitions/{model}",
         schema_generator=GenerateEmptySchemaForUserClasses,
     )
-    # ensure backwards compatability by copying $defs into definitions
+    # ensure backwards compatibility by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]
     return schema

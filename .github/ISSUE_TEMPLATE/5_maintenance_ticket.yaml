@@ -1,4 +1,4 @@
-name: 🛠️ Track a maintenence task
+name: 🛠️ Track a maintenance task
 description: These are for changes that are not user or product related for maintenance of this repository.
 labels: ["maintenance"]
 body:

@@ -10,7 +10,7 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@bcad61c278491d58e74c39e164b821cec795c161 \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@706cb730a2efbc1032226af3937207223cb07e05 \
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 """
@@ -440,6 +440,12 @@ from = "/cloud/cloud-quickstart/"
 to = "/getting-started/quickstart/"
 status = 301
 
+[[redirects]]
+from = "/cloud/organizations/*"
+to = "/cloud/"
+status = 301
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"
@@ -558,7 +564,7 @@ Referrer-Policy = "same-origin"
 X-Permitted-Cross-Domain-Policies = "none"
 
 # Permissions-Policy controls the features that the site can request.
-#
+
 # https://developer.chrome.com/en/docs/privacy-sandbox/permissions-policy/
 # https://github.com/w3c/webappsec-permissions-policy/blob/main/features.md
 Permissions-Policy = """\

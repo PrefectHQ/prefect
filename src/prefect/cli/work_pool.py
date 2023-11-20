@@ -19,6 +19,7 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.settings import update_current_profile
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,
@@ -28,6 +29,20 @@ work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."
 )
 app.add_typer(work_pool_app, aliases=["work-pool"])
+
+
+def set_work_pool_as_default(name: str):
+    profile = update_current_profile({"PREFECT_DEFAULT_WORK_POOL_NAME": name})
+    app.console.print(
+        f"Set {name!r} as default work pool for profile {profile.name!r}\n",
+        style="green",
+    )
+    app.console.print(
+        (
+            "To change your default work pool, run:\n\n\t[blue]prefect config set"
+            " PREFECT_DEFAULT_WORK_POOL_NAME=<work-pool-name>[/]\n"
+        ),
+    )
 
 
 @work_pool_app.command()
@@ -49,6 +64,14 @@ async def create(
     ),
     type: str = typer.Option(
         None, "-t", "--type", help="The type of work pool to create."
+    ),
+    set_as_default: bool = typer.Option(
+        False,
+        "--set-as-default",
+        help=(
+            "Whether or not to use the created work pool as the local default for"
+            " deployment."
+        ),
     ),
 ):
     """
@@ -109,7 +132,15 @@ async def create(
                 is_paused=paused,
             )
             work_pool = await client.create_work_pool(work_pool=wp)
-            exit_with_success(f"Created work pool {work_pool.name!r}.")
+            app.console.print(f"Created work pool {work_pool.name!r}!\n", style="green")
+            if not work_pool.is_paused and not work_pool.is_managed_pool:
+                app.console.print("To start a worker for this work pool, run:\n")
+                app.console.print(
+                    f"\t[blue]prefect worker start --pool {work_pool.name}[/]\n"
+                )
+            if set_as_default:
+                set_work_pool_as_default(work_pool.name)
+            exit_with_success("")
         except ObjectAlreadyExists:
             exit_with_error(
                 f"Work pool named {name!r} already exists. Please try creating your"

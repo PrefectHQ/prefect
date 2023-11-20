@@ -20,6 +20,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/python-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-client.txt
+      - requirements-dev.txt
+      - setup.cfg
+      - Dockerfile
 
 permissions:
   contents: read
@@ -59,7 +67,7 @@ jobs:
 
         include:
           # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automaticlly in fixtures
+          # suite from building images automatically in fixtures
           - pytest-options: "--only-services"
             build-docker-images: true
 
@@ -223,10 +231,10 @@ jobs:
           || echo "Ignoring bad exit code"
 
 
-  # Run a smaller subset of tests with pydantic v2 installed, only the oldest and newest
+  # Run a smaller subset of tests with pydantic v1 installed, the
   # Python versions we support, and only on sqlite + postgres 14
-  run-tests-pydantic-v2:
-    name: pydantic v2, python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
+  run-tests-pydantic-v1:
+    name: pydantic v1, python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     strategy:
       matrix:
         database:
@@ -236,6 +244,8 @@ jobs:
           - "oss-test-runner"
         python-version:
           - "3.8"
+          - "3.9"
+          - "3.10"
           - "3.11"
         pytest-options:
           - "--exclude-services"
@@ -243,7 +253,7 @@ jobs:
 
         include:
           # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automaticlly in fixtures
+          # suite from building images automatically in fixtures
           - pytest-options: "--only-services"
             build-docker-images: true
 
@@ -297,7 +307,7 @@ jobs:
       - name: Force install pydantic in docker images
         if: ${{ matrix.build-docker-images }}
         run: |
-          sed -i 's/RUN prefect version/RUN pip install "pydantic>2"\nRUN prefect version/' Dockerfile
+          sed -i 's/RUN prefect version/RUN pip install "pydantic<2"\nRUN prefect version/' Dockerfile
 
       - name: Build test image
         if: ${{ matrix.build-docker-images }}
@@ -351,7 +361,7 @@ jobs:
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Force install pydantic for unit tests
-        run: pip install "pydantic>2"
+        run: pip install "pydantic<2"
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
