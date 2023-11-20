@@ -86,7 +86,7 @@ if __name__ == "__main__":
 ### Remove task introspection
 
 When a task is called from a flow, each argument is introspected by Prefect, by default.
-You can disable this behavior for a task by wrapping the argument using [`quote`](https://docs.prefect.io/latest/api-ref/prefect/utilities/annotations/#prefect.utilities.annotations.quote) like this:
+To speed up your workflow runs can disable this behavior for a task by wrapping the argument using [`quote`](https://docs.prefect.io/latest/api-ref/prefect/utilities/annotations/#prefect.utilities.annotations.quote) like this:
 
 ```python hl="9" title="etl_quote.py"
 ...
@@ -97,11 +97,26 @@ from prefect.utilities.annotations import quote
 def etl(url: str):
     """ETL pipeline"""
     df_raw = extract(url)
-    df = transform(quote(df_raw))  # quote to avoid introspection
+    df = transform(quote(df_raw))
     load(df)
+```
 
+### Write task results to cloud storage
+
+Save memory by writing results to disk.
+You could use write results from a task to cloud provider storage such as AWS S3.
+You could use a storage block from a Prefect cloud integration library such as prefect-aws to save your configuration information.
+
+Intstall the library, register the block, with the server, create your storage block with your configuration information, and then use the block in your flow.
+
+```python hl="" title="etl_s3.py"
+
+
+...
 
 ```
+
+Learn more about blocks here.
 
 ### Cache task results
 
