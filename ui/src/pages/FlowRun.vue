@@ -28,7 +28,7 @@
       </template>
 
       <template #subflow-runs>
-        <FlowRunSubFlows v-if="flowRun" :flow-run-id="flowRun.id" />
+        <FlowRunFilteredList :filter="subflowsFilter" />
       </template>
 
       <template #parameters>
@@ -48,7 +48,7 @@
     FlowRunLogs,
     FlowRunTaskRuns,
     FlowRunResults,
-    FlowRunSubFlows,
+    FlowRunFilteredList,
     useFavicon,
     useWorkspaceApi,
     useDeployment,
@@ -57,7 +57,8 @@
     isPendingStateType,
     useTabs,
     httpStatus,
-    useFlowRun
+    useFlowRun,
+    useFlowRunsFilter
   } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, watchEffect } from 'vue'
@@ -92,6 +93,14 @@
   const flowRunParameters = computed(() => flowRun.value?.parameters ?? {})
   const deploymentSchema = computed(() => deployment.value?.parameterOpenApiSchema ?? {})
   const parameters = computed(() => getSchemaValuesWithDefaultsJson(flowRunParameters.value, deploymentSchema.value))
+
+
+  const parentFlowRunIds = computed(() => [flowRunId.value])
+  const { filter: subflowsFilter } = useFlowRunsFilter({
+    flowRuns: {
+      parentFlowRunId: parentFlowRunIds,
+    },
+  })
 
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())
