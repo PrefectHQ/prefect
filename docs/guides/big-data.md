@@ -41,7 +41,7 @@ To speed up your flow runs, you can disable this behavior for a task by wrapping
 
 To demonstrate, let's use a basic example that extracts and transforms some New York taxi data.
 
-```python hl="2 26" title="et_quote.py"
+```python hl_lines="2 26" title="et_quote.py"
 from prefect import task, flow
 from prefect.utilities.annotations import quote
 import pandas as pd
@@ -90,7 +90,7 @@ Learn more about blocks [here](/concepts/blocks/).
 Install the relevant library, register the block with the server, and create your storage block.
 Then you can reference the block in your flow like this:
 
-```python hl="" title="etl_s3.py"
+```python
 ...
 from prefect_aws.s3 import S3Bucket
 
