@@ -13,28 +13,37 @@ search:
 # Big data with Prefect
 
 In this guide you'll learn tips for working with large amounts of data in Prefect.
-We'll focus on speed and efficiency.
 
-## Accessing data
+## Prerequisites
 
-You want to access data and save intermediate results of your workflows in a way that is fast and efficient.
-In Prefect, results are the name given to the returned objects from a task that is part of a flow.
-By default, each result is stored in memory in the execution environment.
-This behavior makes running tasks fast for small data, but can be problematic for large data.
-For each task run Prefect introspects the arguments. TK also return value.
-This add overhead for large data.
+1. Big data
 
-Let's use this NYC taxi data as an example.
-Note that we don't recommend running this example.
+Big data doesn't have an agreed upon, precise definition.
+For this guide, we're talking about data that's causing you difficulty in terms of time or memory, without you taking steps to optimize your code.
 
-### Prerequisites
+## Optimizing your Python code with Prefect for big data
 
-1. The Python packages prefect, parquet, pandas installed
-1. CLI connected to Prefect Cloud or a self-hosted Prefect server instance
-1. Ability to fetch data from the internet (unless switch to random data TK)
+Depending upon your needs, you may want to optimize your Python code for speed, memory, compute, or disk space.
 
-```python title="etl.py"
+Prefect provides several options that we'll explore in this guide:
+
+1. Remove task introspection with `quote` to save time running your code.
+1. Write task results to cloud storage such as S3 using a block to save memory.
+1. Save data to disk within a flow rather than using results.
+1. Cache task results to save time and compute.
+1. Compress results written to disk to save space.
+1. Use a [task runner](/concepts/task-runners/) for parallelizable operations to save time.
+
+### Remove task introspection
+
+When a task is called from a flow, each argument is introspected by Prefect, by default.
+To speed up your flow runs, you can disable this behavior for a task by wrapping the argument using [`quote`](https://docs.prefect.io/latest/api-ref/prefect/utilities/annotations/#prefect.utilities.annotations.quote).
+
+To demonstrate, let's use a basic example that extracts and transforms some New York taxi data.
+
+```python hl="2 26" title="et_quote.py"
 from prefect import task, flow
+from prefect.utilities.annotations import quote
 import pandas as pd
 
 
@@ -49,65 +58,25 @@ def extract(url: str):
 @task
 def transform(df: pd.DataFrame):
     """Basic transformation"""
-    df_transformed["tip_fraction"] = df["tip_amount"] / df["total_amount"]
-    print(df_transformed.info())
-    return df_transformed
-
-
-@task
-def load(df: pd.DataFrame):
-    """Save data"""
-    df.to_parquet("s3://my-bucket/nyc_yellow_tax_data/2023/09.parquet")
-    print("Data saved")
+    df["tip_fraction"] = df["tip_amount"] / df["total_amount"]
+    print(df.info())
+    return df
 
 
 @flow(log_prints=True)
-def etl(url: str):
-    """ETL pipeline"""
+def et(url: str):
+    """ET pipeline"""
     df_raw = extract(url)
-    df = transform(quote(df_raw))  # quote to avoid introspection
-    load(df)
+    df = transform(quote(df_raw))
 
 
 if __name__ == "__main__":
     url = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-09.parquet"
-    etl(url)
-
+    et(url)
 ```
 
-## Optimizing your Python code with Prefect for big data
-
-Depending upon your needs, you may want to optimize your Python code for speed, memory, compute, or disk space.
-
-Prefect provides several options that we'll explore in this guide:
-
-1. Remove task introspection with `quote` to save time running your code.
-1. Write task results to cloud storage such as S3 using a block to save memory.
-1. Save data to disk within a flow rather than using results.
-1. Cache task results to save time and compute.
-1. Compress results written to disk to save space.
-1. Use a [task runner](/concepts/task-runners/) for operations on big that can be executed in parallel to save time.
-
-### Remove task introspection
-
-When a task is called from a flow, each argument is introspected by Prefect, by default.
-To speed up your flow runs, you can disable this behavior for a task by wrapping the argument using [`quote`](https://docs.prefect.io/latest/api-ref/prefect/utilities/annotations/#prefect.utilities.annotations.quote), like this:
-
-```python hl="9" title="etl_quote.py"
-...
-from prefect.utilities.annotations import quote
-...
-
-@flow(log_prints=True)
-def etl(url: str):
-    """ETL pipeline"""
-    df_raw = extract(url)
-    df = transform(quote(df_raw))
-    load(df)
-...
-```
-
-As the API reference explains, introspection can be a significant performance hit when the object is a large collection, such as a large dictionary or DataFrame, where each element needs to be visited. Using `quote` will disable task dependency tracking for the wrapped object, but likely will increase performance.
+Introspection can take significant time when the object being passed is a large collection, such as dictionary or DataFrame, where each element needs to be visited.
+Note that using `quote` improves performance at the expense of disabling task dependency tracking for the wrapped object.
 
 ### Write task results to cloud storage
 
@@ -137,14 +106,36 @@ Now the result of the task will be written to S3, rather than saved in memory.
 ### Save data to disk within a flow
 
 To save memory and time with big data, you don't need to pass results between tasks at all.
-You can write and read results to disk within a flow.
-Prefect has libraries that integrate with the major cloud providers.
-Each library contains pre-built tasks to save memory and time.
-
-For example, you can use the [prefect-aws](https://prefecthq.github.io/prefect-aws/) library to read and write data to S3.
-
-The [moving data guide](/guides/moving-data/) has examples of how to use these libraries to
+Instead, you can write and read results to disk within a flow.
+Prefect has integration libraries for each of the major cloud providers.
+Each library contains blocks with methods that make it convenient to read and write data.
+The [moving data guide](/guides/moving-data/) has step-by-step examples for each cloud provider.
 
 ### Cache task results
 
-Caching allows you to avoid re-running tasks when not needed. Caching is discussed in detail in the [tasks concept page of the docs](/concepts/tasks.md/#caching), so we won't discuss it in detail here. Caching requires result persistence and can save you time and compute.
+Caching allows you to avoid re-running tasks when rerunning is not needed.
+Caching can save you time and compute.
+Note that caching requires task result persistence.
+Caching is discussed in detail in the [tasks concept page](/concepts/tasks.md/#caching), so we won't rehash it here. 🙂
+
+### Compress results written to disk
+
+If you're using Prefect's task result persistence, you can save disk space by compressing the results.
+You just need to specify the result type with `compressed/` prefixed like this:
+
+```python
+@task(result_serializer="compressed/json")
+```
+
+Read about [compressing results with Prefect](/concepts/results/) for more details.
+The downside of compression is that it takes time to compress and decompress the data.
+
+### Use a task runner for parallelizable operations
+
+Prefect's task runners allow you to use the Dask and Ray Python libraries to run tasks in parallel and distributed across multiple machines.
+This can save you time and compute when operating on large data structures.
+See the [guide to working with Dask and Ray Task Runners](/guides/dask-ray-task-runners/) for details.
+
+## Next steps
+
+In this guide you learned tips for working with large amounts of data in Prefect.
