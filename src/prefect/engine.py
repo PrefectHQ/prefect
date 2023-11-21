@@ -1701,7 +1701,6 @@ async def orchestrate_task_run(
     )
     last_state = task_run.state
 
-    # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
         Running(

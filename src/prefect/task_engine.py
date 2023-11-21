@@ -25,13 +25,13 @@ async def run_autonomous_task(
     return_type: EngineReturnType = "state",
     task_runner: Type[BaseTaskRunner] = SequentialTaskRunner,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    parameters = parameters or {}
+    task_runner = SequentialTaskRunner()
     async with AsyncExitStack() as stack:
         with FlowRunContext(
             flow=flow,
             flow_run=flow_run,
-            task_runner=await stack.enter_async_context(
-                (task_runner if task_runner else SequentialTaskRunner()).start()
-            ),
+            task_runner=await stack.enter_async_context(task_runner.start()),
             client=await stack.enter_async_context(get_client()),
             parameters=parameters,
             result_factory=await ResultFactory.from_task(task),

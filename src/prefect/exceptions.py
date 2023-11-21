@@ -115,6 +115,12 @@ class MissingFlowError(PrefectException):
     """
 
 
+class MissingTaskError(PrefectException):
+    """
+    Raised when a given task name is not found in the expected script.
+    """
+
+
 class UnspecifiedFlowError(PrefectException):
     """
     Raised when multiple flows are found in the expected script and no name is given.

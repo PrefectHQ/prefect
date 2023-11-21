@@ -31,6 +31,7 @@ from typing_extensions import Literal, ParamSpec
 
 from prefect.client.schemas import TaskRun
 from prefect.context import PrefectObjectRegistry
+from prefect.exceptions import MissingTaskError
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
@@ -45,7 +46,7 @@ from prefect.utilities.callables import (
     raise_for_reserved_arguments,
 )
 from prefect.utilities.hashing import hash_objects
-from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.importtools import import_object, to_qualified_name
 from prefect.utilities.visualization import (
     VisualizationUnsupportedError,
     get_task_viz_tracker,
@@ -1165,3 +1166,41 @@ def task(
                 viz_return_value=viz_return_value,
             ),
         )
+
+
+def load_task_from_entrypoint(entrypoint: str) -> Task:
+    """
+    Extract a task object from a script at an entrypoint by running all of the code in the file.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+        task: the name of the task to extract from the script
+
+    Returns:
+        The task object as created within the script
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If the flow function specified in the entrypoint does not exist
+    """
+    with PrefectObjectRegistry(
+        block_code_execution=True,
+        capture_failures=True,
+    ) as registry:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        try:
+            task = import_object(entrypoint)
+        except AttributeError as exc:
+            raise MissingTaskError(
+                f"Task function with name {func_name!r} not found in {path!r}. "
+            ) from exc
+
+        if not isinstance(task, Task):
+            raise MissingTaskError(
+                f"Function with name {func_name!r} is not a task. Make sure that it is "
+                "decorated with '@task'."
+            )
+
+        print(registry.get_instances(Task))
+        return task
