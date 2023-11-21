@@ -91,7 +91,15 @@ async def create(
 
     \b
     Examples:
-        $ prefect work-pool create "my-pool" --paused
+        \b
+        Create a Kubernetes work pool in a paused state:
+            \b
+            $ prefect work-pool create "my-pool" --type kubernetes --paused
+        \b
+        Create a Docker work pool with a custom base job template:
+            \b
+            $ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
+
     """
     if not name.lower().strip("'\" "):
         exit_with_error("Work pool name cannot be empty.")
