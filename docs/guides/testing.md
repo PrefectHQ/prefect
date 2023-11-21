@@ -27,7 +27,7 @@ def my_favorite_flow():
 def test_my_favorite_flow():
   with prefect_test_harness():
       # run the flow against a temporary testing database
-      assert my_favorite_flow() == 42 
+      assert my_favorite_flow() == 42
 ```
 
 For more extensive testing, you can leverage `prefect_test_harness` as a fixture in your unit testing framework. For example, when using `pytest`:
@@ -72,3 +72,13 @@ def my_favorite_flow():
 def test_my_favorite_task():
     assert my_favorite_task.fn() == 42
 ```
+
+!!! tip "Disable logger"
+    If your task makes use of a logger, you can disable the logger in order to avoid the `RuntimeError` raised from a missing flow context.
+    ```python
+    from prefect.logging import disable_run_logger
+
+    def test_my_favorite_task():
+        with disable_run_logger():
+            assert my_favorite_task.fn() == 42
+    ```
