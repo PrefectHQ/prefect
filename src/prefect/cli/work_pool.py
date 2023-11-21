@@ -79,6 +79,7 @@ async def create(
     provision_infrastructure: bool = typer.Option(
         False,
         "--provision-infrastructure",
+        "--provision-infra",
         help=(
             "Whether or not to provision infrastructure for the work pool if supported"
             " for the given work pool type."
