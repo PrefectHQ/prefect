@@ -48,6 +48,7 @@ async def run_autonomous_task(
                 wait_for=wait_for,
                 return_type=return_type,
                 task_runner=task_runner,
+                force=True,
             )
             if task.isasync:
                 # TODO: revisit awaiting `from_async.wait_for_call_in_loop_thread`

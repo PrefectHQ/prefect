@@ -1163,6 +1163,7 @@ async def begin_task_map(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
+    force: bool = False,
 ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
     """Async entrypoint for task mapping"""
     # We need to resolve some futures to map over their data, collect the upstream
@@ -1240,6 +1241,7 @@ async def begin_task_map(
                 return_type=return_type,
                 task_runner=task_runner,
                 extra_task_inputs=task_inputs,
+                force=force,
             )
         )
 
@@ -1305,6 +1307,7 @@ async def get_task_call_return_value(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    force: bool = False,
 ):
     extra_task_inputs = extra_task_inputs or {}
 
@@ -1315,6 +1318,7 @@ async def get_task_call_return_value(
         wait_for=wait_for,
         task_runner=task_runner,
         extra_task_inputs=extra_task_inputs,
+        force=force,
     )
     if return_type == "future":
         return future
@@ -1333,6 +1337,7 @@ async def create_task_run_future(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    force: bool = False,
 ) -> PrefectFuture:
     # Default to the flow run's task runner
     task_runner = task_runner or flow_run_context.task_runner
@@ -1362,6 +1367,7 @@ async def create_task_run_future(
             wait_for=wait_for,
             task_runner=task_runner,
             extra_task_inputs=extra_task_inputs,
+            force=force,
         )
     )
 
@@ -1385,6 +1391,7 @@ async def create_task_run_then_submit(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    force: bool = False,
 ) -> None:
     task_run = await create_task_run(
         task=task,
@@ -1407,6 +1414,7 @@ async def create_task_run_then_submit(
         task_run=task_run,
         wait_for=wait_for,
         task_runner=task_runner,
+        force=force,
     )
 
     future._submitted.set()
@@ -1454,6 +1462,7 @@ async def submit_task_run(
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
+    force: bool = False,
 ) -> PrefectFuture:
     logger = get_run_logger(flow_run_context)
 
@@ -1473,6 +1482,7 @@ async def submit_task_run(
             ),
             log_prints=should_log_prints(task),
             settings=prefect.context.SettingsContext.get().copy(),
+            force=force,
         ),
     )
 
@@ -1490,6 +1500,7 @@ async def begin_task_run(
     result_factory: ResultFactory,
     log_prints: bool,
     settings: prefect.context.SettingsContext,
+    force: bool = False,
 ):
     """
     Entrypoint for task run execution.
@@ -1560,6 +1571,7 @@ async def begin_task_run(
                 log_prints=log_prints,
                 interruptible=interruptible,
                 client=client,
+                force=force,
             )
 
             if not maybe_flow_run_context:
@@ -1602,6 +1614,7 @@ async def orchestrate_task_run(
     log_prints: bool,
     interruptible: bool,
     client: PrefectClient,
+    force: bool = False,
 ) -> State:
     """
     Execute a task run
@@ -1624,6 +1637,9 @@ async def orchestrate_task_run(
     - if rejected and a new final state is provided, it will be returned
     - if rejected and a non-final state is provided, we will attempt to enter a RUNNING
         state again
+
+    If force is True, disregard orchestration logic when setting the state forcing the
+    Prefect API to accept the state
 
     Returns:
         The final state of the run
@@ -1707,6 +1723,7 @@ async def orchestrate_task_run(
             state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
         ),
         task_run_id=task_run.id,
+        force=force,
     )
 
     # Emit an event to capture the result of proposing a `RUNNING` state.
@@ -2140,6 +2157,8 @@ async def propose_state(
         state: a new state for the task or flow run
         task_run_id: an optional task run id, used when proposing task run states
         flow_run_id: an optional flow run id, used when proposing flow run states
+        force: if True, disregard orchestration logic when setting the state,
+            forcing the Prefect API to accept the state
 
     Returns:
         a [State model][prefect.client.schemas.objects.State] representation of the
