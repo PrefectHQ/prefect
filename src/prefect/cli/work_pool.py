@@ -124,10 +124,7 @@ async def create(
                 worker_metadata = await collections_client.read_worker_metadata()
                 worker = prompt_select_from_table(
                     app.console,
-                    (
-                        "What infrastructure type would you like to use for this work"
-                        " pool?"
-                    ),
+                    "What type of work pool infrastructure would you like to use?",
                     columns=[
                         {"header": "Infrastructure Type", "key": "display_name"},
                         {"header": "Description", "key": "description"},
