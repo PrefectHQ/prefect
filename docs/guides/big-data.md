@@ -75,13 +75,15 @@ if __name__ == "__main__":
 
 ```
 
-## Options for optimizing flows for large data
+## Options for optimizing your Python code with Prefect for big data
 
-1. Remove task introspection
-1. Write task results to cloud storage such as S3
-1. Write out data using Prefect cloud library pre-built tasks
-1. Use caching of task results
-1. Use a distributed executor
+1. Remove task introspection - save time
+1. Don't wrap the function in a task - save time - but quote is better b/c can observe and get other benefits such as retries (is there any reason this would be much faster than the one above? No API calls, so should be a bit faster.)
+1. Write task results to cloud storage such as S3 using a block - save memory
+1. Write out data using Prefect cloud library pre-built tasks - save memory
+1. Use caching of task results - save time, compute
+1. Use a distributed executor - save time, compute
+1. Compress results -
 
 ### Remove task introspection
 
@@ -101,23 +103,30 @@ def etl(url: str):
     load(df)
 ```
 
+Introspection can be a significant performance hit when the object is a large collection, such as a large dictionary or data frame, and each element needs to be visited. Using `quote` will disable task dependency tracking for the wrapped object, but likely will increase performance.
+
 ### Write task results to cloud storage
 
 Save memory by writing results to disk.
 You could use write results from a task to cloud provider storage such as AWS S3.
 You could use a storage block from a Prefect cloud integration library such as prefect-aws to save your configuration information.
+Learn more about blocks [here](/concepts/blocks/).
 
-Intstall the library, register the block, with the server, create your storage block with your configuration information, and then use the block in your flow.
+Install the library, register the block with the server, create your storage block, and then use the block in your flow.
 
 ```python hl="" title="etl_s3.py"
+...
+from prefect_aws.s3 import S3Bucket
 
+my_s3_block = S3Bucket.load("MY_BLOCK_NAME")
 
 ...
+@task(result_storage=my_s3_block)
 
 ```
 
-Learn more about blocks here.
+Now the result of the task will be written to S3.
 
 ### Cache task results
 
-Caching is discussed in detail in the [tasks concept page of the docs](/concepts/tasks.md/#caching), so we won't discuss it in detail here. Just know that it requires result persistence and can save you time and compute by avoiding the need to re-run tasks.
+Caching allows you to avoid re-running tasks when not needed. Caching is discussed in detail in the [tasks concept page of the docs](/concepts/tasks.md/#caching), so we won't discuss it in detail here. Caching requires result persistence and can save you time and compute.
