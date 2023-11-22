@@ -13,7 +13,7 @@ search:
   boost: 2
 ---
 
-# Run Deployments on Serverless Computing Infrastructure
+# Run Deployments on Serverless Infrastructure with Prefect Workers
 
 Prefect provides work pools for workers to run workflows on the serverless platforms of major cloud providers.
 The following options are available:
