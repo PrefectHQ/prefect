@@ -101,7 +101,7 @@ my_s3_block = S3Bucket.load("MY_BLOCK_NAME")
 
 ```
 
-Now the result of the task will be written to S3, rather than saved in memory.
+Now the result of the task will be written to S3, rather than stored in memory.
 
 ### Save data to disk within a flow
 
