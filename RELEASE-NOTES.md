@@ -1,5 +1,76 @@
 # Prefect Release Notes
 
+## Release 2.14.6
+
+### Automatic project configuration for Cloud Run push work pools
+
+Push work pools in Prefect Cloud simplify the setup and management of the infrastructure necessary to run your flows, but they still require some setup. With this release, we've enhanced the `prefect work-pool create` CLI command to automatically configure your GCP project and set up your Prefect workspace to use a new Cloud Run push pool immediately.
+
+Note: To take advantage of this feature, you'll need to have the `gcloud` CLI installed and authenticated with your GCP project.
+
+You can create a new Cloud Run push work pool and configure your project with the following command:
+
+```bash
+prefect work-pool create --type cloud-run:push --provision-infra my-pool 
+```
+
+Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run:
+
+```
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool my-pool will require:                                     │
+│                                                                                                          │
+│     Updates in GCP project central-kit-405415 in region us-central1                                      │
+│                                                                                                          │
+│         - Activate the Cloud Run API for your project                                                    │
+│         - Create a service account for managing Cloud Run jobs: prefect-cloud-run                        │
+│             - Service account will be granted the following roles:                                       │
+│                 - Service Account User                                                                   │
+│                 - Cloud Run Developer                                                                    │
+│         - Create a key for service account prefect-cloud-run                                             │
+│                                                                                                          │
+│     Updates in Prefect workspace                                                                         │
+│                                                                                                          │
+│         - Create GCP credentials block my--pool-push-pool-credentials to store the service account key   │
+│                                                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+Activating Cloud Run API
+Creating service account
+Assigning roles to service account
+Creating service account key
+Creating GCP credentials block
+Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Infrastructure successfully provisioned!
+Created work pool 'my-pool'!
+```
+
+If you have yet to try using a Cloud Run run push pool, now is a great time!
+
+If you use another cloud provider, don't fret; we will add support for ECS and Azure Container Instances push work pools in future releases!
+
+See the following pull request for implementation details:
+— https://github.com/PrefectHQ/prefect/pull/11204
+
+### Enhancements
+- Add ability to search for block documents by name — https://github.com/PrefectHQ/prefect/pull/11212
+- Add pagination to the blocks page — https://github.com/PrefectHQ/prefect/pull/11214
+- Include concurrency controls in `prefect-client` — https://github.com/PrefectHQ/prefect/pull/11227
+- Add display to how the next run for a deployment — https://github.com/PrefectHQ/prefect/pull/11230
+
+### Fixes
+- Fix SQLite migration to work with older SQLite versions — https://github.com/PrefectHQ/prefect/pull/11215
+- Fix subflow filters and persist to URL in flow run search — https://github.com/PrefectHQ/prefect/pull/11218
+
+### Documentation
+- Improve formatting in deployment guides — https://github.com/PrefectHQ/prefect/pull/11217
+- Add instructions for turning off the flow run logger in the unit testing guide — https://github.com/PrefectHQ/prefect/pull/11223
+
+### Contributors
+- @ConstantinoSchillebeeckx
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.5...2.14.6
+
 ## Release 2.14.5
 
 ### Storage block compatibility with `flow.from_source`
