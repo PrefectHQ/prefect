@@ -19,6 +19,9 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.infrastructure.provisioners import (
+    get_infrastructure_provisioner_for_work_pool_type,
+)
 from prefect.settings import update_current_profile
 from prefect.workers.utilities import (
     get_available_work_pool_types,
@@ -73,57 +76,102 @@ async def create(
             " deployment."
         ),
     ),
+    provision_infrastructure: bool = typer.Option(
+        False,
+        "--provision-infrastructure",
+        "--provision-infra",
+        help=(
+            "Whether or not to provision infrastructure for the work pool if supported"
+            " for the given work pool type."
+        ),
+    ),
 ):
     """
     Create a new work pool.
 
     \b
     Examples:
-        $ prefect work-pool create "my-pool" --paused
+        \b
+        Create a Kubernetes work pool in a paused state:
+            \b
+            $ prefect work-pool create "my-pool" --type kubernetes --paused
+        \b
+        Create a Docker work pool with a custom base job template:
+            \b
+            $ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
+
     """
     if not name.lower().strip("'\" "):
         exit_with_error("Work pool name cannot be empty.")
-
-    if type is None:
-        async with get_collections_metadata_client() as collections_client:
-            if not is_interactive():
-                exit_with_error(
-                    "When not using an interactive terminal, you must supply a `--type`"
-                    " value."
-                )
-            worker_metadata = await collections_client.read_worker_metadata()
-            worker = prompt_select_from_table(
-                app.console,
-                "What infrastructure type would you like to use for this work pool?",
-                columns=[
-                    {"header": "Infrastructure Type", "key": "display_name"},
-                    {"header": "Description", "key": "description"},
-                ],
-                data=[
-                    worker
-                    for collection in worker_metadata.values()
-                    for worker in collection.values()
-                ],
-                table_kwargs={"show_lines": True},
-            )
-            type = worker["type"]
-
-    available_work_pool_types = await get_available_work_pool_types()
-    if type not in available_work_pool_types:
-        exit_with_error(
-            f"Unknown work pool type {type!r}. "
-            "Please choose from"
-            f" {', '.join(available_work_pool_types)}."
-        )
-
-    if base_job_template is None:
-        template_contents = await get_default_base_job_template_for_infrastructure_type(
-            type
-        )
-    else:
-        template_contents = json.load(base_job_template)
-
     async with get_client() as client:
+        try:
+            await client.read_work_pool(work_pool_name=name)
+        except ObjectNotFound:
+            pass
+        else:
+            exit_with_error(
+                f"Work pool named {name!r} already exists. Please try creating your"
+                " work pool again with a different name."
+            )
+
+        if type is None:
+            async with get_collections_metadata_client() as collections_client:
+                if not is_interactive():
+                    exit_with_error(
+                        "When not using an interactive terminal, you must supply a"
+                        " `--type` value."
+                    )
+                worker_metadata = await collections_client.read_worker_metadata()
+                worker = prompt_select_from_table(
+                    app.console,
+                    "What type of work pool infrastructure would you like to use?",
+                    columns=[
+                        {"header": "Infrastructure Type", "key": "display_name"},
+                        {"header": "Description", "key": "description"},
+                    ],
+                    data=[
+                        worker
+                        for collection in worker_metadata.values()
+                        for worker in collection.values()
+                    ],
+                    table_kwargs={"show_lines": True},
+                )
+                type = worker["type"]
+
+        available_work_pool_types = await get_available_work_pool_types()
+        if type not in available_work_pool_types:
+            exit_with_error(
+                f"Unknown work pool type {type!r}. "
+                "Please choose from"
+                f" {', '.join(available_work_pool_types)}."
+            )
+
+        if base_job_template is None:
+            template_contents = (
+                await get_default_base_job_template_for_infrastructure_type(type)
+            )
+        else:
+            template_contents = json.load(base_job_template)
+
+        if provision_infrastructure:
+            try:
+                provisioner = get_infrastructure_provisioner_for_work_pool_type(type)
+                provisioner.console = app.console
+                template_contents = await provisioner.provision(
+                    work_pool_name=name, base_job_template=template_contents
+                )
+            except ValueError as exc:
+                print(exc)
+                app.console.print(
+                    (
+                        "Automatic infrastructure provisioning is not supported for"
+                        f" {type!r} work pools."
+                    ),
+                    style="yellow",
+                )
+            except RuntimeError as exc:
+                exit_with_error(f"Failed to provision infrastructure: {exc}")
+
         try:
             wp = WorkPoolCreate(
                 name=name,
@@ -133,7 +181,11 @@ async def create(
             )
             work_pool = await client.create_work_pool(work_pool=wp)
             app.console.print(f"Created work pool {work_pool.name!r}!\n", style="green")
-            if not work_pool.is_paused and not work_pool.is_managed_pool:
+            if (
+                not work_pool.is_paused
+                and not work_pool.is_managed_pool
+                and not work_pool.is_push_pool
+            ):
                 app.console.print("To start a worker for this work pool, run:\n")
                 app.console.print(
                     f"\t[blue]prefect worker start --pool {work_pool.name}[/]\n"
