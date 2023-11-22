@@ -206,7 +206,7 @@ class CloudRunPushProvisioner:
         table = Panel(
             dedent(
                 f"""\
-                    Here are the updates necessary to provision infrastructure for your work pool [blue]{work_pool_name}[/]:
+                    Provisioning infrastructure for your work pool [blue]{work_pool_name}[/] will require:
 
                         Updates in GCP project [blue]{self._project}[/] in region [blue]{self._region}[/]
 
