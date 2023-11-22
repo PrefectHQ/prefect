@@ -119,11 +119,9 @@ def health_check_flow():
 
 Now create a deployment for this flow script, making sure that it's configured to use the `test` queue on the `default-agent-pool` work pool.
 
-<div class='terminal'>
 ```bash
 prefect deployment build --infra process --storage-block azure/flowsville/health_test --name health-test --pool default-agent-pool --work-queue test --apply health_flow.py:health_check_flow
 ```
-</div>
 
 Once created, any flow runs for this deployment will be picked up by the agent running on this container instance.
 

@@ -377,7 +377,7 @@ status = 301
 
 [[redirects]]
 from = "/guides/cloud-run-push-work-pools/"
-to = "/guides/push-work-pools/"
+to = "/guides/deployment/push-work-pools/"
 status = 301
 
 [[redirects]]
@@ -444,6 +444,13 @@ status = 301
 from = "/cloud/organizations/*"
 to = "/cloud/"
 status = 301
+
+[[redirects]]
+from = "/guides/deployment/aci/"
+to = "/guides/deployment/serverless-workers/"
+status = 301
+
+
 
 
 [[headers]]
