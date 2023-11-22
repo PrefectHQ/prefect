@@ -78,6 +78,7 @@ plugins:
     mike:
         canonical_version: latest
         version_selector: true
+        alias_type: copy
     autorefs: {}
     mkdocstrings:
         handlers:
