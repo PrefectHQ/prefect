@@ -99,7 +99,7 @@ Our push work pool will store information about what type of infrastructure our 
 
 ### Create push work pool
 
-Now navigate to work pools and click create to start configuring your push work pool by selecting a push option in the infrastructure type step.
+Now navigate to the work pools page. Click create to start configuring your push work pool by selecting a push option in the infrastructure type step.
 
 === "AWS ECS"
 
