@@ -10,6 +10,9 @@ Click below out this video to see it in action!
 [![Demo of next run for a deployment](https://github.com/PrefectHQ/prefect/assets/12350579/c6eee55a-c3c3-47bd-b2c1-9eb04139a376)
 ](https://github.com/PrefectHQ/prefect/assets/12350579/c1658f50-512a-4cd4-9d36-a523d3cc9ef0)
 
+See the following pull request for implementation details:
+— https://github.com/PrefectHQ/prefect/pull/11230
+
 ### Automatic project configuration for Cloud Run push work pools
 
 Push work pools in Prefect Cloud simplify the setup and management of the infrastructure necessary to run your flows, but they still require some setup. With this release, we've enhanced the `prefect work-pool create` CLI command to automatically configure your GCP project and set up your Prefect workspace to use a new Cloud Run push pool immediately.
@@ -61,18 +64,17 @@ See the following pull request for implementation details:
 — https://github.com/PrefectHQ/prefect/pull/11204
 
 ### Enhancements
-- Add ability to search for block documents by name — https://github.com/PrefectHQ/prefect/pull/11212
-- Add pagination to the blocks page — https://github.com/PrefectHQ/prefect/pull/11214
+- Add ability to search for block documents by name in the Prefect UI and API — https://github.com/PrefectHQ/prefect/pull/11212
+- Add pagination to the Blocks page in the Prefect UI for viewing/filtering more than 200 blocks — https://github.com/PrefectHQ/prefect/pull/11214
 - Include concurrency controls in `prefect-client` — https://github.com/PrefectHQ/prefect/pull/11227
-- Add display to how the next run for a deployment — https://github.com/PrefectHQ/prefect/pull/11230
 
 ### Fixes
 - Fix SQLite migration to work with older SQLite versions — https://github.com/PrefectHQ/prefect/pull/11215
-- Fix subflow filters and persist to URL in flow run search — https://github.com/PrefectHQ/prefect/pull/11218
+- Fix Subflow Runs tab filters and persist to URL in the Flow Runs page of the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11218
 
 ### Documentation
 - Improve formatting in deployment guides — https://github.com/PrefectHQ/prefect/pull/11217
-- Add instructions for turning off the flow run logger in the unit testing guide — https://github.com/PrefectHQ/prefect/pull/11223
+- Add instructions for turning off the flow run logger to the unit testing guide — https://github.com/PrefectHQ/prefect/pull/11223
 
 ### Contributors
 - @ConstantinoSchillebeeckx
