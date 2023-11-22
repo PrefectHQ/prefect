@@ -24,7 +24,7 @@ from prefect.settings import (
     PREFECT_UNIT_TEST_MODE,
 )
 
-PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})\Z")
+PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 
 
 def get_cloud_client(

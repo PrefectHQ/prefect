@@ -8,22 +8,20 @@ from respx.patterns import M
 from prefect.client.cloud import get_cloud_client
 from prefect.settings import PREFECT_API_URL, PREFECT_UNIT_TEST_MODE, temporary_settings
 
-mock_work_pool_types_response = (
-    {
-        "prefect": {
-            "prefect-agent": {
-                "type": "prefect-agent",
-                "default_base_job_configuration": {},
-            }
-        },
-        "prefect-kubernetes": {
-            "kubernetes": {
-                "type": "kubernetes",
-                "default_base_job_configuration": {},
-            }
-        },
+mock_work_pool_types_response = {
+    "prefect": {
+        "prefect-agent": {
+            "type": "prefect-agent",
+            "default_base_job_configuration": {},
+        }
     },
-)
+    "prefect-kubernetes": {
+        "kubernetes": {
+            "type": "kubernetes",
+            "default_base_job_configuration": {},
+        }
+    },
+}
 
 
 @pytest.fixture
@@ -44,6 +42,7 @@ async def mock_work_pool_types():
                 json=mock_work_pool_types_response,
             )
         )
+        yield
 
 
 async def test_cloud_client_follow_redirects():
@@ -74,4 +73,5 @@ async def test_get_cloud_work_pool_types(mock_work_pool_types):
         }
     ):
         async with get_cloud_client() as client:
-            assert await client.read_worker_metadata() == mock_work_pool_types_response
+            response = await client.read_worker_metadata()
+            assert response == mock_work_pool_types_response
