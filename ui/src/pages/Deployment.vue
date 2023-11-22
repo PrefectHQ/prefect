@@ -8,6 +8,8 @@
       />
     </template>
 
+    <DeploymentStats v-if="deployment" :deployment-id="deployment.id" />
+
     <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #description>
         <p-content secondary>
@@ -52,6 +54,7 @@
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
+  import DeploymentStats from '@/components/DeploymentStats.vue'
 
   const deploymentId = useRouteParam('deploymentId')
   const deploymentIds = computed(() => [deploymentId.value])
