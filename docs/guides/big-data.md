@@ -14,11 +14,7 @@ search:
 
 In this guide you'll learn tips for working with large amounts of data in Prefect.
 
-## Prerequisites
-
-1. Big data
-
-Big data doesn't have an widely accepted, precise definition.
+Big data doesn't have a widely accepted, precise definition.
 For this guide, we're talking about data that's causing you difficulty in terms of time or memory constraints, without you taking steps to optimize your code.
 
 ## Optimizing your Python code with Prefect for big data
@@ -106,7 +102,7 @@ Now the result of the task will be written to S3, rather than stored in memory.
 ### Save data to disk within a flow
 
 To save memory and time with big data, you don't need to pass results between tasks at all.
-Instead, you can write and read results to disk within a flow.
+Instead, you can write and read data to disk within a flow.
 Prefect has integration libraries for each of the major cloud providers.
 Each library contains blocks with methods that make it convenient to read and write data.
 The [moving data guide](/guides/moving-data/) has step-by-step examples for each cloud provider.
@@ -135,7 +131,3 @@ The tradeoff of using compression is that it takes time to compress and decompre
 Prefect's task runners allow you to use the Dask and Ray Python libraries to run tasks in parallel and distributed across multiple machines.
 This can save you time and compute when operating on large data structures.
 See the [guide to working with Dask and Ray Task Runners](/guides/dask-ray-task-runners/) for details.
-
-## Conclusion
-
-In this guide you learned tips for working with large amounts of data in Prefect.
