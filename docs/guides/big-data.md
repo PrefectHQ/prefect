@@ -18,8 +18,8 @@ In this guide you'll learn tips for working with large amounts of data in Prefec
 
 1. Big data
 
-Big data doesn't have an agreed upon, precise definition.
-For this guide, we're talking about data that's causing you difficulty in terms of time or memory, without you taking steps to optimize your code.
+Big data doesn't have an widely accepted, precise definition.
+For this guide, we're talking about data that's causing you difficulty in terms of time or memory constraints, without you taking steps to optimize your code.
 
 ## Optimizing your Python code with Prefect for big data
 
@@ -101,7 +101,7 @@ my_s3_block = S3Bucket.load("MY_BLOCK_NAME")
 
 ```
 
-Now the result of the task will be written to S3, rather than saved in memory.
+Now the result of the task will be written to S3, rather than stored in memory.
 
 ### Save data to disk within a flow
 
@@ -116,7 +116,7 @@ The [moving data guide](/guides/moving-data/) has step-by-step examples for each
 Caching allows you to avoid re-running tasks when rerunning is not needed.
 Caching can save you time and compute.
 Note that caching requires task result persistence.
-Caching is discussed in detail in the [tasks concept page](/concepts/tasks.md/#caching), so we won't rehash it here. 🙂
+Caching is discussed in detail in the [tasks concept page](/concepts/tasks.md/#caching).
 
 ### Compress results written to disk
 
@@ -128,7 +128,7 @@ You just need to specify the result type with `compressed/` prefixed like this:
 ```
 
 Read about [compressing results with Prefect](/concepts/results/) for more details.
-The downside of compression is that it takes time to compress and decompress the data.
+The tradeoff of using compression is that it takes time to compress and decompress the data.
 
 ### Use a task runner for parallelizable operations
 
