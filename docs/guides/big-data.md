@@ -1,5 +1,5 @@
 ---
-description: Learn tips for using Prefect when you have large amounts of data.
+description: Tips for using Prefect when dealing with big data.
 tags:
     - big data
     - flow configuration
