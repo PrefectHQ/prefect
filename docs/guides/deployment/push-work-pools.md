@@ -55,7 +55,7 @@ In this guide you will:
 
 === "Google Cloud Run"
 
-    To push work to Cloud Run, a GCP service account and an API Key are required.
+    A GCP service account and an API Key are required, to push work to Cloud Run.
 
     Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, and click *continue* to configure permissions.
 
