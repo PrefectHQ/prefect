@@ -1377,7 +1377,7 @@ class PrefectClient:
         name: str,
         block_type_slug: str,
         include_secrets: bool = True,
-    ):
+    ) -> BlockDocument:
         """
         Read the block document with the specified name that corresponds to a
         specific block type name.

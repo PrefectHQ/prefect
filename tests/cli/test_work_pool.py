@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -313,6 +314,52 @@ class TestCreate:
         # reload the profile to pick up change
         profile = load_profile(settings_context.profile.name)
         assert profile.settings.get(PREFECT_DEFAULT_WORK_POOL_NAME) == pool_name
+
+    async def test_create_with_provision_infra(self, monkeypatch):
+        mock_provision = AsyncMock()
+
+        class MockProvisioner:
+            def __init__(self):
+                self._console = None
+
+            @property
+            def console(self):
+                return self._console
+
+            @console.setter
+            def console(self, value):
+                self._console = value
+
+            async def provision(self, *args, **kwargs):
+                await mock_provision(*args, **kwargs)
+                return FAKE_DEFAULT_BASE_JOB_TEMPLATE
+
+        monkeypatch.setattr(
+            "prefect.cli.work_pool.get_infrastructure_provisioner_for_work_pool_type",
+            lambda *args: MockProvisioner(),
+        )
+
+        pool_name = "fake-work"
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} --type fake --provision-infra",
+        )
+        assert res.exit_code == 0
+
+        assert mock_provision.await_count == 1
+
+    async def test_create_with_provision_infra_unsupported(self):
+        pool_name = "fake-work"
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} --type fake --provision-infra",
+        )
+        assert res.exit_code == 0
+        assert (
+            "Automatic infrastructure provisioning is not supported for 'fake' work"
+            " pools."
+            in res.output
+        )
 
 
 class TestInspect:
