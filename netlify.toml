@@ -445,6 +445,13 @@ from = "/cloud/organizations/*"
 to = "/cloud/"
 status = 301
 
+[[redirects]]
+from = "/guides/deployment/aci/"
+to = "/guides/deployment/serverless-workers/"
+status = 301
+
+
+
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.

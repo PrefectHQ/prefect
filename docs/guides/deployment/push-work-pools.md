@@ -19,7 +19,7 @@ Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type o
 
 In this guide you will:
 
-- Create a push work pool that sends work to Google Cloud Run, Amazon Elastic Container Service (AWS ECS) or Azure Contain Instances (ACI)
+- Create a push work pool that sends work to Google Cloud Run, Amazon Elastic Container Service (AWS ECS) or Azure Container Instances (ACI)
 - Deploy a flow to that work pool
 - Execute our flow without having to run a worker or agent process to poll for flow runs
 
@@ -55,7 +55,7 @@ In this guide you will:
 
 === "Google Cloud Run"
 
-    To push work to Cloud Run, a GCP service account and an API Key are required.
+    A GCP service account and an API Key are required, to push work to Cloud Run.
 
     Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, and click *continue* to configure permissions.
 
@@ -67,7 +67,7 @@ In this guide you will:
 
 ## Work pool configuration
 
-Our push work pool will store information about what type of infrastructure we're running on, what default values to provide to compute jobs, and other important execution environment parameters. Because our push work pool needs to integrate securely with your serverless infrastructure, we need to start by storing our credentials in Prefect Cloud, which we'll do by making a block.
+Our push work pool will store information about what type of infrastructure our flow will run on, what default values to provide to compute jobs, and other important execution environment parameters. Because our push work pool needs to integrate securely with your serverless infrastructure, we need to start by storing our credentials in Prefect Cloud, which we'll do by making a block.
 
 ### Creating a Credentials block
 
@@ -99,7 +99,7 @@ Our push work pool will store information about what type of infrastructure we'r
 
 ### Create push work pool
 
-Now navigate to work pools and click create to start configuring your push work pool by selecting a push option in the infrastructure type step.
+Now navigate to the work pools page. Click create to start configuring your push work pool by selecting a push option in the infrastructure type step.
 
 === "AWS ECS"
 
