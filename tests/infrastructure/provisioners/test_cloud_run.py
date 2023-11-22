@@ -317,6 +317,7 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
 
     block_doc = await prefect_client.read_block_document(new_block_doc_id)
     assert block_doc.name == "test-push-pool-credentials"
+    assert block_doc.data == {"service_account_info": {"private_key": "test-key"}}
 
 
 async def test_check_for_gcloud_failure(mock_run_process):
@@ -324,7 +325,7 @@ async def test_check_for_gcloud_failure(mock_run_process):
     provisioner = CloudRunPushProvisioner()
 
     with pytest.raises(RuntimeError):
-        await provisioner._check_for_gcloud()
+        await provisioner._verify_gcloud_ready()
 
 
 async def test_no_active_gcloud_account(mock_run_process):
@@ -335,4 +336,4 @@ async def test_no_active_gcloud_account(mock_run_process):
     provisioner = CloudRunPushProvisioner()
 
     with pytest.raises(RuntimeError):
-        await provisioner._check_for_gcloud()
+        await provisioner._verify_gcloud_ready()

@@ -59,7 +59,7 @@ class CloudRunPushProvisioner:
 
         return result.stdout.decode("utf-8").strip()
 
-    async def _check_for_gcloud(self):
+    async def _verify_gcloud_ready(self):
         try:
             await self._run_command("gcloud --version")
         except subprocess.CalledProcessError as e:
@@ -199,14 +199,14 @@ class CloudRunPushProvisioner:
         client: Optional[PrefectClient] = None,
     ) -> Dict[str, Any]:
         assert client, "Client injection failed"
-        await self._check_for_gcloud()
+        await self._verify_gcloud_ready()
         self._project = await self._get_project()
         self._region = await self._get_default_region()
 
         table = Panel(
             dedent(
                 f"""\
-                    Here's what we'll do to provision infrastructure for this work pool:
+                    Here are the updates necessary to provision infrastructure for your work pool [blue]{work_pool_name}[/]:
 
                         Updates in GCP project [blue]{self._project}[/] in region [blue]{self._region}[/]
 
@@ -226,11 +226,10 @@ class CloudRunPushProvisioner:
         )
         self._console.print(table)
         if self._console.is_interactive:
-            choice = Confirm.ask(
+            if not Confirm.ask(
                 "Proceed with infrastructure provisioning?", console=self._console
-            )
-            if not choice:
-                return
+            ):
+                return base_job_template
 
         with Progress(console=self._console) as progress:
             task = progress.add_task("Provisioning Infrastructure", total=5)
