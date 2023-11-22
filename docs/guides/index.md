@@ -46,9 +46,8 @@ This section of the documentation contains guides for common workflows and use c
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from agents to workers. |
 | [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
-| [Push Work Pools](/guides/deployment/push-work-pools/) | Run flows on serverless infrastructure without a worker. |
-| [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) | Run flows on AWS ECS. |
-| [Azure Container Instances](/guides/deployment/aci/) | Deploy flows to Azure Container Instances. |
+| [Serverless Push Work Pools](/guides/deployment/push-work-pools/) | Run flows on serverless infrastructure without a worker. |
+| [Serverless Work Pools with Workers](/guides/deployment/serverless-workers/) | Run flows on serverless infrastructure with a worker. |
 | [Daemonize Processes](/guides/deployment/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
 
