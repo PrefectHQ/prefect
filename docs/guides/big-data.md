@@ -128,7 +128,7 @@ You just need to specify the result type with `compressed/` prefixed like this:
 ```
 
 Read about [compressing results with Prefect](/concepts/results/) for more details.
-The downside of compression is that it takes time to compress and decompress the data.
+The tradeoff of using compression is that it takes time to compress and decompress the data.
 
 ### Use a task runner for parallelizable operations
 
