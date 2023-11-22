@@ -116,7 +116,7 @@ The [moving data guide](/guides/moving-data/) has step-by-step examples for each
 Caching allows you to avoid re-running tasks when rerunning is not needed.
 Caching can save you time and compute.
 Note that caching requires task result persistence.
-Caching is discussed in detail in the [tasks concept page](/concepts/tasks.md/#caching), so we won't rehash it here. 🙂
+Caching is discussed in detail in the [tasks concept page](/concepts/tasks.md/#caching).
 
 ### Compress results written to disk
 
