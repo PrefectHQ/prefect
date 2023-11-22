@@ -18,7 +18,7 @@ search:
 Prefect provides work pools for workers to run workflows on the serverless platforms of major cloud providers.
 The following options are available:
 
-- AWS ECS
+- AWS Elastic Container Service (ECS)
 - Azure Container Instances (ACI)
 - Google Cloud Run
 - Google Vertex AI
