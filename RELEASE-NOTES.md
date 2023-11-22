@@ -4,7 +4,7 @@
 
 ### View the next run for a deployment at a glance
 
-You can now see the next run for a deployment in the runs tab for a deployment. Upcoming runs are now located in a dedicated tab, making the most relevant running and completed flow runs more visible.
+You can now see the next run for a deployment in the runs tab for a deployment. Upcoming runs are now located in a dedicated tab, making the most relevant running and completed flow runs more apparent.
 
 Click below to see it in action!
 [![Demo of next run for a deployment](https://github.com/PrefectHQ/prefect/assets/12350579/c6eee55a-c3c3-47bd-b2c1-9eb04139a376)
