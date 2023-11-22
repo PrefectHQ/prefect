@@ -19,7 +19,7 @@ In this guide you'll learn tips for working with large amounts of data in Prefec
 1. Big data
 
 Big data doesn't have an widely accepted, precise definition.
-For this guide, we're talking about data that's causing you difficulty in terms of time or memory, without you taking steps to optimize your code.
+For this guide, we're talking about data that's causing you difficulty in terms of time or memory constraints, without you taking steps to optimize your code.
 
 ## Optimizing your Python code with Prefect for big data
 
