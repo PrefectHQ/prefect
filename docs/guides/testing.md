@@ -74,7 +74,7 @@ def test_my_favorite_task():
 ```
 
 !!! tip "Disable logger"
-    If your task makes use of a logger, you can disable the logger in order to avoid the `RuntimeError` raised from a missing flow context.
+    If your task makes uses a logger, you can disable the logger in order to avoid the `RuntimeError` raised from a missing flow context.
     ```python
     from prefect.logging import disable_run_logger
 
