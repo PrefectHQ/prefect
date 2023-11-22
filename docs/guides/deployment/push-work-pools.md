@@ -19,7 +19,7 @@ Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type o
 
 In this guide you will:
 
-- Create a push work pool that sends work to Google Cloud Run, Amazon Elastic Container Service (AWS ECS) or Azure Contain Instances (ACI)
+- Create a push work pool that sends work to Google Cloud Run, Amazon Elastic Container Service (AWS ECS) or Azure Container Instances (ACI)
 - Deploy a flow to that work pool
 - Execute our flow without having to run a worker or agent process to poll for flow runs
 
