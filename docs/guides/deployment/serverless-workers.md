@@ -30,7 +30,7 @@ The following options are available:
 - Start a worker in your serverless cloud provider that will poll its matched work pool for scheduled runs
 - Schedule a deployment run that a worker will pick up from the work pool and run on your serverless infrastructure
 
-!!! note "Serverless push work pools don't require a worker"
+!!! note "Push work pools don't require a worker"
     Options for push work pool versions of AWS ECS, Azure Container Instances, and Google Cloud Run that do not require a worker are available with Prefect Cloud.
     These push work pool options require connection configuration information to be stored on Prefect Cloud.
     Read more in the [Serverless Push Work Pool Guide](/guides/deployment/push-work-pools/).
