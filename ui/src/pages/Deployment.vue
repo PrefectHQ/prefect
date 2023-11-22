@@ -8,6 +8,7 @@
       />
     </template>
 
+
     <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #description>
         <p-content secondary>
@@ -34,7 +35,18 @@
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :filter="deploymentFilter" prefix="runs" />
+        <template v-if="nextRun">
+          <p-heading heading="6" class="workspace-deployment__next-run">
+            Next Run
+          </p-heading>
+          <FlowRunListItem :flow-run="nextRun" />
+          <p-divider />
+        </template>
+        <FlowRunFilteredList :filter="flowRunsFilter" selectable prefix="runs" />
+      </template>
+
+      <template #upcoming>
+        <FlowRunFilteredList :filter="upcomingFlowRunsFilter" selectable prefix="upcoming" />
       </template>
     </p-tabs>
 
@@ -46,12 +58,13 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, useTabs, useWorkspaceApi, useFlowRunsFilter, DeploymentConfiguration } from '@prefecthq/prefect-ui-library'
-  import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
+  import { PrefectStateNames, DeploymentDescription, FlowRunListItem, DeploymentDetails, DeploymentDescriptionEmptyState, PageHeadingDeployment, ParametersTable, DeploymentDeprecatedMessage, useTabs, useWorkspaceApi, useFlowRunsFilter, prefectStateNames, DeploymentConfiguration, useNextFlowRun, FlowRunFilteredList } from '@prefecthq/prefect-ui-library'
+  import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
+
 
   const deploymentId = useRouteParam('deploymentId')
   const deploymentIds = computed(() => [deploymentId.value])
@@ -67,7 +80,8 @@
 
   const computedTabs = computed(() => [
     { label: 'Details', hidden: media.xl },
-    { label: 'Runs' },
+    { label: 'Runs',  },
+    { label: 'Upcoming',  },
     { label: 'Parameters', hidden: deployment.value?.deprecated },
     { label: 'Configuration', hidden: deployment.value?.deprecated },
     { label: 'Description' },
@@ -79,11 +93,34 @@
     router.push(routes.deployments())
   }
 
-  const { filter: deploymentFilter } = useFlowRunsFilter({
+  const { filter: flowRunsFilter } = useFlowRunsFilter({
     deployments: {
       id: deploymentIds,
     },
+    flowRuns: {
+      state: {
+        name: prefectStateNames.filter(stateName => stateName !== 'Scheduled'),
+      },
+    },
   })
+
+  const { filter: upcomingFlowRunsFilter } = useFlowRunsFilter({
+    sort: 'START_TIME_ASC',
+    deployments: {
+      id: deploymentIds,
+    },
+    flowRuns: {
+      state: {
+        name: ['Scheduled'],
+      },
+    },
+  })
+
+  const { flowRun: nextRun } = useNextFlowRun(() => ({
+    deployments: {
+      id: deploymentIds.value,
+    },
+  }))
 
 
   const title = computed(() => {
