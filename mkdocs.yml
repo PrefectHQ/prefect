@@ -165,11 +165,9 @@ nav:
           - Workers and Agents:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
-                - Storage: guides/deployment/storage-guide.md
                 - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
-                - Run a Flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
-                - Azure Container Instance: guides/deployment/aci.md
+                - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
                 - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
     - Concepts:
