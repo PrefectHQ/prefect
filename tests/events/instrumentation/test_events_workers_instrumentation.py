@@ -284,6 +284,7 @@ async def test_worker_emits_cancelled_event(
     prefect_client: PrefectClient,
     worker_deployment_wq1,
     work_pool,
+    disable_enhanced_cancellation,  # workers only cancel flow runs if enhanced cancellation is disabled
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id,
