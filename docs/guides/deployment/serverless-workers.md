@@ -15,7 +15,7 @@ search:
 
 # Run Deployments on Serverless Computing Infrastructure
 
-Prefect provides work pools for workers to run serverless workflows on cloud provider platforms.
+Prefect provides work pools for workers to run workflows on the serverless platforms of major cloud providers.
 The following options are available:
 
 - AWS ECS
