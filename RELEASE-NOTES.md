@@ -2,6 +2,13 @@
 
 ## Release 2.14.6
 
+### View the next run for a deployment at a glance
+
+You can now see the next run for a deployment on the details page for a deployment. Upcoming runs are now located in a dedicated tab, making the most relevant running and completed flow runs more visible.
+
+Check out this video to see it in action!
+https://github.com/PrefectHQ/prefect/assets/12350579/c1658f50-512a-4cd4-9d36-a523d3cc9ef0
+
 ### Automatic project configuration for Cloud Run push work pools
 
 Push work pools in Prefect Cloud simplify the setup and management of the infrastructure necessary to run your flows, but they still require some setup. With this release, we've enhanced the `prefect work-pool create` CLI command to automatically configure your GCP project and set up your Prefect workspace to use a new Cloud Run push pool immediately.
