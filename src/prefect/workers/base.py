@@ -135,6 +135,26 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
+        # resolve environment variables by loading in blocks by name
+        # and using its data as environment values
+        env = {}
+        env_from: List[str] = values.pop("envFrom", None)
+        if env_from:
+            for env_source in env_from:
+                block = await resolve_block_document_references(
+                    template=env_source, client=client
+                )
+
+                if not isinstance(block, Dict):
+                    continue
+
+                env.update(block)
+
+        # variables defined explicitly in env will take priority and
+        # overwrite the envFrom variables
+        env.update(values.get("env", {}))
+        values["env"] = env
+
         job_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(

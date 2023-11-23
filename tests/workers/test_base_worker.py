@@ -948,6 +948,56 @@ async def test_job_configuration_from_template_overrides_with_block():
     }
 
 
+@pytest.mark.flaky(max_runs=3)
+async def test_job_configuration_from_template_overrides_with_envFrom():
+    class ArbitraryBlock(Block):
+        a: int
+        b: str
+
+    template = {
+        "job_configuration": {"env": "{{ env }}"},
+        "variables": {
+            "definitions": {
+                "ArbitraryBlock": {
+                    "title": "ArbitraryBlock",
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "title": "A",
+                            "type": "number",
+                        },
+                        "b": {
+                            "title": "B",
+                            "type": "string",
+                        },
+                    },
+                    "required": ["a", "b"],
+                    "block_type_slug": "arbitrary_block",
+                    "secret_fields": [],
+                    "block_schema_references": {},
+                },
+            }
+        },
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        pass
+
+    await ArbitraryBlock(a=1, b="hello").save(name="arbitrary-block")
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template,
+        values={"envFrom": ["{{ prefect.blocks.arbitraryblock.arbitrary-block }}"]},
+    )
+
+    assert config.dict() == {
+        "command": None,
+        "env": {"a": "1", "b": "hello"},
+        "labels": {},
+        "name": None,
+    }
+
+
 @pytest.mark.usefixtures("variables")
 async def test_job_configuration_from_template_overrides_with_remote_variables():
     template = {
