@@ -1799,7 +1799,7 @@ async def orchestrate_task_run(
                     terminal_state.state_details.cache_key = cache_key
 
             # Defer to user to decide whether failure is retriable
-            terminal_state.state_details.retriable = bool(
+            terminal_state.state_details.retriable = (
                 await _check_task_failure_retriable(task, task_run, terminal_state)
             )
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
@@ -2403,7 +2403,9 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 async def _check_task_failure_retriable(
     task: Task, task_run: TaskRun, state: State
 ) -> bool:
-    """Run the `retry_condition_fn` callable for a task, making sure to catch and log any errors that occur."""
+    """Run the `retry_condition_fn` callable for a task, making sure to catch and log any errors
+    that occur. Defaults to True if no `retry_condition_fn` is set.
+    """
     # By default, a task is retriable if it is in a `Failed` state
     if task.retry_condition_fn is None:
         return True
@@ -2419,9 +2421,14 @@ async def _check_task_failure_retriable(
                 task=task, task_run=task_run, state=state
             )
         else:
-            return await from_async.call_in_new_thread(
-                create_call(
-                    task.retry_condition_fn, task=task, task_run=task_run, state=state
+            return bool(
+                await from_async.call_in_new_thread(
+                    create_call(
+                        task.retry_condition_fn,
+                        task=task,
+                        task_run=task_run,
+                        state=state,
+                    )
                 )
             )
     except Exception:
