@@ -174,7 +174,7 @@ class Task(Generic[P, R]):
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
         retry_condition_fn: An optional callable run when a task run returns a Failed state. Should
-            return `True` if the task should continue to its retry policy, and `False` if the task
+            return `True` if the task should continue to its retry policy (e.g. `retries=3`), and `False` if the task
             should end as failed. Defaults to `None`, indicating the task should always continue
             to its retry policy.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
