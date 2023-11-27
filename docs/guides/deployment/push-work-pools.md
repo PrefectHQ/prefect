@@ -35,9 +35,9 @@ In this guide you will:
 
 === "Azure Container Instances"
 
-    To push work to Azure, an Azure subscription, resource worker and tenant secret are required. 
+    To push work to Azure, an Azure subscription, resource group and tenant secret are required. 
 
-    ##### Create Subscription and Resource Worker
+    ##### Create Subscription and Resource Group
 
     1. In the Azure portal, create a subscription.
     2. Create a resource group within your subscription.
@@ -47,11 +47,13 @@ In this guide you will:
     1. In the Azure portal, create an app registration.
     2. In the app registration, create a client secret. Copy the value and store it somewhere safe.
     
-    ### Add App Registration to Subscription
+    ### Add App Registration to Resource Group
 
     1. Navigate to the resource group you created earlier.
-    2. Click on "Access control (IAM)" and then "Role assignments".
-    3. Search for the app registration and select it. Give it a role that has sufficient privileges to create, run, and delete ACI container groups.
+    2. Choose the "Access control (IAM)" blade in the left-hand side menu. Click "+ Add" button at the top, then "Add role assignment".
+    3. Go to the "Privileged administrator roles" tab, click on "Contributor", then click "Next" at the bottom of the page.
+    4. Click on "+ Select members". Type the name of the app registration (otherwise it may not autopopulate) and click to add it. Then hit "Select" and click "Next". The default permissions associated with a role like "Contributor" might not always be sufficient for all operations related to Azure Container Instances (ACI). The specific permissions required can depend on the operations you need to perform (like creating, running, and deleting ACI container groups) and your organization's security policies. In some cases, additional permissions or custom roles might be necessary.
+    5. Click "Review + assign" to finish.
 
 === "Google Cloud Run"
 
@@ -81,11 +83,11 @@ Our push work pool will store information about what type of infrastructure our 
 
 === "Azure Container Instances"
 
-    Navigate to the blocks page, click create new block, and select Azure Container Instance Credentials for the type.
+    Navigate to the blocks page and click the "+" at the top to create a new block. Find the Azure Container Instance Credentials block and click "Add +".
     
-    Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier.
+    Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier. Be sure to use the value of the secret, not the secret ID!
 
-    Provide any other optional information and create your block.
+    Provide any other optional information and click "Create".
 
 === "Google Cloud Run"
 
