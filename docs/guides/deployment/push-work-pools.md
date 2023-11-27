@@ -52,8 +52,8 @@ In this guide you will:
     1. Navigate to the resource group you created earlier.
     2. Click on "Access control (IAM)" and then the "+ Add" button at the top, then "Add role assignment".
     3. Go to the "Privileged administrator roles" tab, click on "Contributor", then click "Next" at the bottom of the page.
-    3. Click on "+ Select members" and type the name of the app registration (otherwise it may not autopopulate) and click to add it.  Then hit "Select" and click "Next". The default permissions associated with a role like "Contributor" might not always be sufficient for all operations related to Azure Container Instances (ACI). The specific permissions required can depend on the operations you need to perform (like creating, running, and deleting ACI container groups) and your organization's security policies. In some cases, additional permissions or custom roles might be necessary.
-    4. Click "Review + assign" to finish.
+    4. Click on "+ Select members" and type the name of the app registration (otherwise it may not autopopulate) and click to add it.  Then hit "Select" and click "Next". The default permissions associated with a role like "Contributor" might not always be sufficient for all operations related to Azure Container Instances (ACI). The specific permissions required can depend on the operations you need to perform (like creating, running, and deleting ACI container groups) and your organization's security policies. In some cases, additional permissions or custom roles might be necessary.
+    5. Click "Review + assign" to finish.
 
 === "Google Cloud Run"
 
