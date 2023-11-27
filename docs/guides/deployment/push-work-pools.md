@@ -83,7 +83,7 @@ Our push work pool will store information about what type of infrastructure our 
 
 === "Azure Container Instances"
 
-    Navigate to the blocks page and click the "+" at the top to create a new block. Find the Azure Container Instance Credentials and click "Add +".
+    Navigate to the blocks page and click the "+" at the top to create a new block. Find the Azure Container Instance Credentials block and click "Add +".
     
     Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier. Be sure to use the value of the secret, not the secret ID!
 
