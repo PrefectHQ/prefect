@@ -35,9 +35,9 @@ In this guide you will:
 
 === "Azure Container Instances"
 
-    To push work to Azure, an Azure subscription, resource worker and tenant secret are required. 
+    To push work to Azure, an Azure subscription, resource group and tenant secret are required. 
 
-    ##### Create Subscription and Resource Worker
+    ##### Create Subscription and Resource Group
 
     1. In the Azure portal, create a subscription.
     2. Create a resource group within your subscription.
@@ -47,11 +47,13 @@ In this guide you will:
     1. In the Azure portal, create an app registration.
     2. In the app registration, create a client secret. Copy the value and store it somewhere safe.
     
-    ### Add App Registration to Subscription
+    ### Add App Registration to Resource Group
 
     1. Navigate to the resource group you created earlier.
-    2. Click on "Access control (IAM)" and then "Role assignments".
-    3. Search for the app registration and select it. Give it a role that has sufficient privileges to create, run, and delete ACI container groups.
+    2. Click on "Access control (IAM)" and then the "+ Add" button at the top, then "Add role assignment".
+    3. Go to the "Privileged administrator roles" tab, click on "Contributor", then click "Next" at the bottom of the page.
+    3. Click on "+ Select members" and type the name of the App Registration (otherwise it may not autopopulate) and click to add it.  Then hit "Select" and click "Next". Depending on your organization, this may not be enough to create, run, and delete ACI container groups so you *may* need to add additional permissions or scopes.
+    4. Click "Review + assign" to finish.
 
 === "Google Cloud Run"
 
@@ -83,7 +85,7 @@ Our push work pool will store information about what type of infrastructure our 
 
     Navigate to the blocks page, click create new block, and select Azure Container Instance Credentials for the type.
     
-    Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier.
+    Locate the client ID and tenant ID on your app registration and use the client secret value you saved earlier. Be sure to use the value of the secret, not the secret ID!
 
     Provide any other optional information and create your block.
 
