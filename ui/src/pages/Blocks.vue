@@ -8,7 +8,7 @@
         <BlocksPageEmptyState />
       </template>
       <template v-else>
-        <BlockDocumentsTable :block-documents="blockDocuments" @delete="blockDocumentsSubscription.refresh" />
+        <BlockDocumentsTable @delete="subscription.refresh" />
       </template>
     </template>
   </p-layout-default>
@@ -21,10 +21,9 @@
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   const api = useWorkspaceApi()
-  const blockDocumentsSubscription = useSubscription(api.blockDocuments.getBlockDocuments)
-  const blockDocuments = computed(() => blockDocumentsSubscription.response ?? [])
-  const empty = computed(() => blockDocumentsSubscription.executed && blockDocuments.value.length == 0)
-  const loaded = computed(() => blockDocumentsSubscription.executed)
+  const subscription = useSubscription(api.blockDocuments.getBlockDocumentsCount)
+  const empty = computed(() => subscription.executed && subscription.response == 0)
+  const loaded = computed(() => subscription.executed)
 
   usePageTitle('Blocks')
 </script>
