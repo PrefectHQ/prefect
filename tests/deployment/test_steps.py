@@ -177,7 +177,7 @@ class TestRunStep:
 
         import_module_mock.assert_has_calls([call("test_package"), call("another")])
         subprocess.check_call.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0,another"]
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0", "another"]
         )
 
     async def test_requirement_installation_failure(self, monkeypatch, caplog):
