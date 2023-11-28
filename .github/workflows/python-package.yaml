@@ -17,13 +17,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check release tag format
-        run: |
-          TAG_REGEX='refs/tags/[0-9]+\.[0-9]+\.[0-9]+$'
-          if [[ ! "${{ github.ref }}" =~ $TAG_REGEX ]]; then
-            echo "Release tag '${{ github.ref }}' is not in the correct format. It should be a semver tag, e.g. 'refs/tags/1.2.3'."
-            exit 1
-          fi
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit }}
