@@ -1,5 +1,28 @@
 # Prefect Release Notes
 
+## Release 2.14.7
+
+### Enhancements
+- Use new route to read work pool types when connected to Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/11236
+- Add `parent_flow_run_id` to client schema — https://github.com/PrefectHQ/prefect/pull/11089
+
+### Fixes
+- [deploy ux] fix install when `requires` more than one package — https://github.com/PrefectHQ/prefect/pull/11254
+
+### Documentation
+- Add serverless work pool landing page — https://github.com/PrefectHQ/prefect/pull/11004
+- Update Azure Container Instance guide to reflect current Azure Portal interface and Prefect UI — https://github.com/PrefectHQ/prefect/pull/11256
+- update imports — https://github.com/PrefectHQ/prefect/pull/11235
+
+## New Contributors
+* @oakbramble made their first contribution in https://github.com/PrefectHQ/prefect/pull/11089
+
+### Contributors
+- @oakbramble
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.6...2.14.7
+
 ## Release 2.14.6
 
 ### View the next run for a deployment at a glance
