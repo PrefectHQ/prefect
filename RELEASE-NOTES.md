@@ -2,7 +2,7 @@
 
 ## Release 2.14.7
 
-This release fixes a bug introduced in 2.14.6 where deployments with default Docker image builds looked for images tagged `v2.14.6` instead of `2.14.6`.
+This release fixes a bug introduced in 2.14.6 where deployments with default Docker image builds looked for images tagged `v2.14.6` instead of `2.14.6`. Users of `2.14.6` should upgrade if planning to create deployments with an image other than a custom image.
 
 ### Enhancements
 
