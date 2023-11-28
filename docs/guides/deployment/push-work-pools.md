@@ -77,7 +77,7 @@ Our push work pool will store information about what type of infrastructure our 
 
     Navigate to the blocks page, click create new block, and select AWS Credentials for the type.
     
-    For use in a push work pool, this block must have the region and cluster name filled out, in addition to access key and access key secret.
+    For use in a push work pool, this block must have the region filled out, in addition to access key and access key secret.
 
     Provide any other optional information and create your block.
 
@@ -116,10 +116,6 @@ Now navigate to the work pools page. Click create to start configuring your push
     Each step has several optional fields that are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, select the block you created under the GCP Credentials field. This will allow Prefect Cloud to securely interact with your GCP project.
 
 Create your pool and you are ready to deploy flows to your Push work pool.
-
-!!! note "Push work pool concurrency"
-
-    Push work pools do not have a concurrency setting. If you would like to control concurrency at the flow level, you can use [global concurrency limits](/guides/global-concurrency-limits/).
 
 ## Deployment
 
