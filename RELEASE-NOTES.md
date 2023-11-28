@@ -1,5 +1,12 @@
 # Prefect Release Notes
 
+## Release 2.14.8
+
+### Documentation
+- Fix broken docs link in serverless worker documentation — https://github.com/PrefectHQ/prefect/pull/11269
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.7...2.14.8
+
 ## Release 2.14.7
 
 This release fixes a bug introduced in 2.14.6 where deployments with default Docker image builds looked for images tagged `v2.14.6` instead of `2.14.6`. Users of `2.14.6` should upgrade if planning to create deployments with an image other than a custom image.
