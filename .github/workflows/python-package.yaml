@@ -3,6 +3,13 @@ name: Publish Python package
 on:
   release:
     types: [released, prereleased]
+  # ADDED this bit
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit to build from"
+        required: true
+        default: "main"
 
 jobs:
   build-pypi-dists:
@@ -20,6 +27,7 @@ jobs:
           fi
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.commit }}
           # Versioneer only generates correct versions with a full fetch
           fetch-depth: 0
           persist-credentials: false
