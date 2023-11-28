@@ -70,6 +70,38 @@ class Infrastructure(Block, abc.ABC):
         description="The command to run in the infrastructure.",
     )
 
+    def generate_work_pool_base_job_template(self):
+        if self._block_document_id is None:
+            raise BlockNotSavedError(
+                "Cannot publish as work pool, block has not been saved. Please call"
+                " `.save()` on your block before publishing."
+            )
+
+        block_schema = self.__class__.schema()
+        return {
+            "job_configuration": {"block": "{{ block }}"},
+            "variables": {
+                "type": "object",
+                "properties": {
+                    "block": {
+                        "title": "Block",
+                        "description": (
+                            "The infrastructure block to use for job creation."
+                        ),
+                        "allOf": [{"$ref": f"#/definitions/{self.__class__.__name__}"}],
+                        "default": {
+                            "$ref": {"block_document_id": str(self._block_document_id)}
+                        },
+                    }
+                },
+                "required": ["block"],
+                "definitions": {self.__class__.__name__: block_schema},
+            },
+        }
+
+    def get_corresponding_worker_type(self):
+        return "block"
+
     @sync_compatible
     async def publish_as_work_pool(self, work_pool_name: Optional[str] = None):
         """
@@ -81,15 +113,14 @@ class Infrastructure(Block, abc.ABC):
             work_pool_name: The name to give to the created work pool. If not provided, the name of the current
                 block will be used.
         """
-        if self._block_document_id is None:
-            raise BlockNotSavedError(
-                "Cannot publish as work pool, block has not been saved. Please call"
-                " `.save()` on your block before publishing."
-            )
 
         work_pool_name = work_pool_name or self._block_document_name
 
-        block_schema = self.__class__.schema()
+        if work_pool_name is None:
+            raise ValueError(
+                "`work_pool_name` must be provided if the block has not been saved."
+            )
+
         console = Console()
 
         try:
@@ -97,43 +128,15 @@ class Infrastructure(Block, abc.ABC):
                 work_pool = await client.create_work_pool(
                     work_pool=WorkPoolCreate(
                         name=work_pool_name,
-                        type="block",
-                        base_job_template={
-                            "job_configuration": {"block": "{{ block }}"},
-                            "variables": {
-                                "type": "object",
-                                "properties": {
-                                    "block": {
-                                        "title": "Block",
-                                        "description": (
-                                            "The infrastructure block to use for job"
-                                            " creation."
-                                        ),
-                                        "allOf": [
-                                            {
-                                                "$ref": f"#/definitions/{self.__class__.__name__}"
-                                            }
-                                        ],
-                                        "default": {
-                                            "$ref": {
-                                                "block_document_id": str(
-                                                    self._block_document_id
-                                                )
-                                            }
-                                        },
-                                    }
-                                },
-                                "required": ["block"],
-                                "definitions": {self.__class__.__name__: block_schema},
-                            },
-                        },
+                        type=self.get_corresponding_worker_type(),
+                        base_job_template=self.generate_work_pool_base_job_template(),
                     )
                 )
         except ObjectAlreadyExists:
             console.print(
                 (
-                    f"Work pool with name {work_pool_name} already exists, please use a"
-                    " different name."
+                    f"Work pool with name {work_pool_name!r} already exists, please use"
+                    " a different name."
                 ),
                 style="red",
             )
