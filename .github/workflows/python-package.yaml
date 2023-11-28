@@ -3,7 +3,6 @@ name: Publish Python package
 on:
   release:
     types: [released, prereleased]
-  # ADDED this bit
   workflow_dispatch:
     inputs:
       commit:
