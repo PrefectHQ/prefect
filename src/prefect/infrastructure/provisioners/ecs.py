@@ -1,4 +1,5 @@
 import importlib
+import ipaddress
 import shlex
 import sys
 from copy import deepcopy
@@ -289,6 +290,164 @@ class CredentialsResource:
         advance()
 
 
+class VpcResource:
+    def __init__(self, vpc_name: str = "prefect-ecs-vpc"):
+        self._console = Console()
+        self._ec2_client = boto3.client("ec2")
+        self._ec2_resource = boto3.resource("ec2")
+        self._vpc_name = vpc_name
+        self._new_vpc_cidr = self._find_non_overlapping_cidr()
+
+    @property
+    def console(self):
+        return self._console
+
+    @console.setter
+    def console(self, value):
+        self._console = value
+
+    @property
+    def num_tasks(self):
+        return 5
+
+    def _get_existing_vpc_cidrs(self):
+        response = self._ec2_client.describe_vpcs()
+        return [vpc["CidrBlock"] for vpc in response["Vpcs"]]
+
+    def _find_non_overlapping_cidr(self, default_cidr="172.31.0.0/16"):
+        """Find a non-overlapping CIDR block"""
+        response = self._ec2_client.describe_vpcs()
+        existing_cidrs = [vpc["CidrBlock"] for vpc in response["Vpcs"]]
+
+        base_ip = ipaddress.ip_network(default_cidr)
+        new_cidr = base_ip
+        while True:
+            if any(
+                new_cidr.overlaps(ipaddress.ip_network(cidr)) for cidr in existing_cidrs
+            ):
+                # Increase the network address by the size of the network
+                new_network_address = int(new_cidr.network_address) + 2 ** (
+                    32 - new_cidr.prefixlen
+                )
+                try:
+                    new_cidr = ipaddress.ip_network(
+                        f"{ipaddress.IPv4Address(new_network_address)}/{new_cidr.prefixlen}"
+                    )
+                except ValueError:
+                    raise Exception(
+                        "Unable to find a non-overlapping CIDR block in the default"
+                        " range"
+                    )
+            else:
+                return str(new_cidr)
+
+    async def check_if_needs_provisioning(self, work_pool_name: str) -> bool:
+        response = self._ec2_client.describe_vpcs()
+        default_vpc = next(
+            (
+                vpc
+                for vpc in response["Vpcs"]
+                if vpc["IsDefault"] and vpc["State"] == "available"
+            ),
+            None,
+        )
+        if default_vpc:
+            return False
+
+        prefect_created_vpc = next(
+            (
+                vpc
+                for vpc in response["Vpcs"]
+                if vpc["Tags"]
+                and any(
+                    tag["Key"] == "Name" and tag["Value"] == self._vpc_name
+                    for tag in vpc["Tags"]
+                )
+            ),
+            None,
+        )
+        if prefect_created_vpc:
+            return False
+
+        return True
+
+    def get_planned_actions(self) -> str:
+        return (
+            f"Creating a VPC with CIDR [blue]{self._new_vpc_cidr}[/] for running"
+            f" Prefect tasks: [blue]{self._vpc_name}[/]"
+        )
+
+    async def provision(
+        self,
+        work_pool_name: str,
+        base_job_template: Dict[str, Any],
+        advance: Callable[[], None],
+    ):
+        self.console.print("Provisioning VPC")
+        vpc = self._ec2_resource.create_vpc(CidrBlock=self._new_vpc_cidr)
+        vpc.wait_until_available()
+        vpc.create_tags(
+            Resources=[vpc.id],
+            Tags=[
+                {
+                    "Key": "Name",
+                    "Value": self._vpc_name,
+                },
+            ],
+        )
+        advance()
+
+        self.console.print("Creating internet gateway")
+        internet_gateway = self._ec2_resource.create_internet_gateway()
+        vpc.attach_internet_gateway(InternetGatewayId=internet_gateway.id)
+        advance()
+
+        self.console.print("Setting up subnets")
+        vpc_network = ipaddress.ip_network(self._new_vpc_cidr)
+        subnet_cidrs = list(vpc_network.subnets(new_prefix=vpc_network.prefixlen + 2))
+
+        # Create a Public Subnet
+        public_subnet = vpc.create_subnet(CidrBlock=str(subnet_cidrs[0]))
+
+        # Create a Route Table for the public subnet and add a route to the Internet Gateway
+        public_route_table = vpc.create_route_table()
+        public_route_table.create_route(
+            DestinationCidrBlock="0.0.0.0/0", GatewayId=internet_gateway.id
+        )
+        public_route_table.associate_with_subnet(SubnetId=public_subnet.id)
+
+        # Create three Private Subnets
+        private_subnets = [
+            vpc.create_subnet(CidrBlock=str(cidr)) for cidr in subnet_cidrs[1:4]
+        ]
+        advance()
+
+        self.console.print("Setting up NAT Gateway (this may take a few minutes)")
+        # Create a NAT Gateway in the public subnet
+        # Allocate an Elastic IP for the NAT Gateway
+        eip = self._ec2_client.allocate_address(Domain="vpc")
+        nat_gw = self._ec2_client.create_nat_gateway(
+            SubnetId=public_subnet.id, AllocationId=eip["AllocationId"]
+        )
+        waiter = self._ec2_client.get_waiter("nat_gateway_available")
+        waiter.wait(NatGatewayIds=[nat_gw["NatGateway"]["NatGatewayId"]])
+        advance()
+
+        self.console.print("Setting up route tables")
+        # Create a Route Table for the private subnets and add a route to the NAT Gateway
+        private_route_table = vpc.create_route_table()
+        private_route_table.create_route(
+            DestinationCidrBlock="0.0.0.0/0",
+            NatGatewayId=nat_gw["NatGateway"]["NatGatewayId"],
+        )
+        private_route_table.associate_with_subnet(SubnetId=private_subnets[0].id)
+        private_route_table.associate_with_subnet(SubnetId=private_subnets[1].id)
+        private_route_table.associate_with_subnet(SubnetId=private_subnets[2].id)
+        advance()
+
+        base_job_template["variables"]["properties"]["vpc_id"]["default"] = str(vpc.id)
+
+
 class ElasticContainerServiceProvisioner:
     def __init__(self):
         self._console = Console()
@@ -296,7 +455,7 @@ class ElasticContainerServiceProvisioner:
         self._resources = [
             IamUserResource(self._user_name),
             ClusterResource(),
-            # TODO: Add VPC resource here
+            VpcResource(),
             # TODO: Add security group resource here
             CredentialsResource(self._user_name),
         ]
