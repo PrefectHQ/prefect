@@ -6,7 +6,7 @@ This release fixes a bug introduced in 2.14.6 where deployments with default Doc
 
 ### Enhancements
 
-- Use new route to read work pool types when connected to Prefect Cloud — <https://github.com/PrefectHQ/prefect/pull/11236>
+- Use a new route to read work pool types when connected to Prefect Cloud — <https://github.com/PrefectHQ/prefect/pull/11236>
 - Add `parent_flow_run_id` to client schema — <https://github.com/PrefectHQ/prefect/pull/11089>
 
 ### Fixes
