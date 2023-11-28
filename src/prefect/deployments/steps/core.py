@@ -84,7 +84,7 @@ def _get_function_for_step(
 
     try:
         subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", ",".join(packages)]
+            [sys.executable, "-m", "pip", "install", *packages]
         )
     except subprocess.CalledProcessError:
         get_logger("deployments.steps.core").warning(
