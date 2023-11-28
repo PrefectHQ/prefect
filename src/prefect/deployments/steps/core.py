@@ -83,9 +83,7 @@ def _get_function_for_step(
             raise
 
     try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", *packages]
-        )
+        subprocess.check_call([sys.executable, "-m", "pip", "install", *packages])
     except subprocess.CalledProcessError:
         get_logger("deployments.steps.core").warning(
             "Unable to install required packages for %s", fully_qualified_name
