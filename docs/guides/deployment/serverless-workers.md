@@ -57,6 +57,6 @@ For in-depth guides, see the Prefect integration libraries:
 ## Next steps
 
 Options for push versions on AWS ECS, Azure Container Instances, and Google Cloud Run work pools that do not require a worker are available with Prefect Cloud.
-Read more in the [Serverless Push Work Pool Guide](/guides/deployments/push-work-pools/).
+Read more in the [Serverless Push Work Pool Guide](/guides/deployment/push-work-pools/).
 
 Learn more about workers and work pools in the [Prefect concept documentation](/concepts/work-pools/).
