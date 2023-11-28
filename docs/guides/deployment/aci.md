@@ -60,16 +60,9 @@ az container create \
 ```
 </div>
 
-# TODO io107 remove
-az container create \
---resource-group prefect-workers \
---name prefect-worker-example \
---image prefecthq/prefect:2-latest \
---secure-environment-variables PREFECT_API_URL='https://api.prefect.cloud/api/accounts/57e885cb-9468-420b-9dd1-f4907ac08f2a/workspaces/23c97e1c-69df-46e6-b283-aa00f179875e' PREFECT_API_KEY='pnu_2pPAp0uEDGViYjfPvATlTSL9nfYKv94l3ELG' \
---command-line "/bin/bash -c 'pip install adlfs s3fs requests pandas; prefect worker start --install-policy always --with-healthcheck -p my-aci-pool'"
-
 When the container instance is running, go to Prefect Cloud and select the [**Work Pools** page](/ui/work-pools/). Select **my-aci-pool**, then select the **Queues** tab to see work queues configured on this work pool. When the container instance is running and the worker has started, the `default` work queue displays "Healthy" status. This work queue and worker are ready to execute deployments configured to run on the `default` queue.
 
+# TODO io107 update image
 ![Prefect Cloud UI indicates a healthy work queue in the default work pool](/img/ui/healthy-work-queue.png)
 
 !!! info "Workers and queues"
@@ -95,9 +88,10 @@ You can also build custom images and push them to a public container registry so
 
 `--command-line` lets you override the container’s normal entry point and run a command instead. The script above uses this section to install the `adlfs` pip package so it can read flow code from Azure Blob Storage, along with `s3fs`, `pandas`, and `requests`. It then runs the Prefect worker, in this case using the `my-aci-pool` work pool we created above and the `default` work queue. If you want to use a different work pool or queue, make sure to change these values appropriately.
 
+# TODO io107 add ACR and Managed Identity https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/#whats-different
 ## Create a deployment
 
-Following the example of the [Flow deployments](/tutorial/deployments/) tutorial, let's create a deployment that can be executed by the agent on this container instance.
+Following the example of the [Flow deployments](/tutorial/deployments/) tutorial, let's create a deployment that can be executed by the worker on this container instance.
 
 In an environment where you have [installed Prefect](/getting-started/installation/), create a new folder called `health_test`, and within it create a new file called `health_flow.py` containing the following code.
 
@@ -135,21 +129,20 @@ def health_check_flow():
     log_platform_info(wait_for=[hi])
 ```
 
-# TODO io107 https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/#whats-different
-Now create a deployment for this flow script, making sure that it's configured to use the `test` queue on the `default-agent-pool` work pool.
+Now create a deployment for this flow script on the `my-aci-pool` work pool.
 
 ```bash
-prefect deployment build --infra process --storage-block azure/flowsville/health_test --name health-test --pool default-agent-pool --work-queue test --apply health_flow.py:health_check_flow
+prefect deployment build --infra process --storage-block azure/flowsville/health_test --name health-test --pool my-aci-pool --apply health_flow.py:health_check_flow
 ```
 
-Once created, any flow runs for this deployment will be picked up by the agent running on this container instance.
+Once created, any flow runs for this deployment will be picked up by the worker running on this container instance.
 
 !!! note "Infrastructure and storage"
     This Prefect deployment example was built using the [`Process`](/concepts/infrastructure/#process) infrastructure type and Azure Blob Storage. 
 
     You might wonder why your deployment needs process infrastructure rather than [`DockerContainer`](/concepts/infrastructure/#dockercontainer) infrastructure when you are deploying a Docker image to ACI.
 
-    A Prefect deployment’s infrastructure type describes how you want Prefect workers to run flows for the deployment. With `DockerContainer` infrastructure, the agent will try to use Docker to spin up a new container for each flow run. Since you’ll be starting your own container on ACI, you don’t need Prefect to do it for you. Specifying process infrastructure on the deployment tells Prefect you want to agent to run flows by starting a process in your ACI container.
+    A Prefect deployment’s infrastructure type describes how you want Prefect workers to run flows for the deployment. With `DockerContainer` infrastructure, the worker will try to use Docker to spin up a new container for each flow run. Since you’ll be starting your own container on ACI, you don’t need Prefect to do it for you. Specifying process infrastructure on the deployment tells Prefect you want the worker to run flows by starting a _process_ in your ACI container.
 
     You can use any storage type as long as you've configured a block for it before creating the deployment.
 
