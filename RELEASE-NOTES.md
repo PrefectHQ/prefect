@@ -2,7 +2,7 @@
 
 ## Release 2.14.8
 
-This release is a follow to 2.14.7 which never made it to PyPi because of an issue with our Github workflow. 
+This release is a follow-up to 2.14.7 which never made it to PyPI because of an issue with our Github workflow. 
 
 ### Documentation
 - Fix broken docs link in serverless worker documentation — https://github.com/PrefectHQ/prefect/pull/11269
