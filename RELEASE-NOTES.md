@@ -14,12 +14,8 @@
 - Update Azure Container Instance guide to reflect current Azure Portal interface and Prefect UI — https://github.com/PrefectHQ/prefect/pull/11256
 - update imports — https://github.com/PrefectHQ/prefect/pull/11235
 
-## New Contributors
+### New Contributors
 * @oakbramble made their first contribution in https://github.com/PrefectHQ/prefect/pull/11089
-
-### Contributors
-- @oakbramble
-
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.6...2.14.7
 
