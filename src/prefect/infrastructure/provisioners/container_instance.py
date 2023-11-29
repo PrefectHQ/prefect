@@ -741,9 +741,23 @@ class ContainerInstancePushProvisioner:
                 f"Infrastructure provisioning failed: {str(e)}", style="red"
             )
             if self._console.is_interactive:
+                resources_to_delete = [
+                    f"{resource.get('type')} - {resource.get('name')}"
+                    for resource in self.created_resources
+                ]
+
+                confirmation_message = (
+                    "The following resources will be deleted as part of the rollback"
+                    f" process:\n{', '.join(resources_to_delete)}\n\nDo you want to"
+                    " proceed with the rollback? (yes/no): "
+                )
                 if Confirm.ask(
-                    "Do you want to attempt to rollback the changes?",
+                    confirmation_message,
                     console=self._console,
                 ):
                     await self.rollback(client)
+                else:
+                    self._console.print(
+                        "Rollback aborted. No resources were deleted.", style="yellow"
+                    )
             raise
