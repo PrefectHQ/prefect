@@ -1587,9 +1587,6 @@ async def begin_task_run(
             task_run_logger(task_run).info(
                 "Task run encountered a pause signal during orchestration."
             )
-            import traceback
-
-            print(traceback.format_exc())
             state = Paused()
 
         return state
