@@ -33,13 +33,14 @@ from prefect.exceptions import ObjectAlreadyExists
 
 class AzureCLI:
     """
-    A class to handle Azure CLI commands.
+    A class for executing Azure CLI commands and handling their output.
 
-    Attributes:
-        _console (Console): A Rich console object for printing messages.
+    Args:
+        console (Console): A Rich console object for displaying messages.
 
     Methods:
-        run_command: Asynchronously executes a given Azure CLI command and handles success or failure.
+        run_command(command, success_message=None, failure_message=None, ignore_if_exists=False, return_json=False)
+            Execute an Azure CLI command.
     """
 
     def __init__(self, console: Console):
@@ -54,21 +55,23 @@ class AzureCLI:
         return_json: bool = False,
     ):
         """
-        Asynchronously runs an Azure CLI command and processes the output.
+        Runs an Azure CLI command and processes the output.
 
         Args:
             command (str): The Azure CLI command to execute.
-            success_message (Optional[str]): The message to print on success.
-            failure_message (Optional[str]): The message to print on failure.
-            ignore_if_exists (bool): Whether to ignore errors indicating that a resource already exists. Defaults to False.
-            return_json (bool): Whether to return the output as JSON. Defaults to False.
+            success_message (str, optional): Message to print on success.
+            failure_message (str, optional): Message to print on failure.
+            ignore_if_exists (bool): Whether to ignore errors if a resource already exists.
+            return_json (bool): Whether to return the output as JSON.
 
         Returns:
-            str or None: The output of the command, or None if an error occurs and 'ignore_if_exists' is True.
+            tuple: A tuple with two elements:
+                - str: Status, either 'created', 'exists', or 'error'.
+                - str or dict or None: The command output or None if an error occurs (depends on return_json).
 
         Raises:
             subprocess.CalledProcessError: If the command execution fails.
-            json.JSONDecodeError: If the output cannot be decoded as JSON when 'return_json' is True.
+            json.JSONDecodeError: If output cannot be decoded as JSON when return_json is True.
         """
         try:
             result = await run_process(shlex.split(command), check=False)
@@ -340,10 +343,7 @@ class ContainerInstancePushProvisioner:
                 f"App registration '{self.APP_REGISTRATION_NAME}' already exists",
                 style="yellow",
             )
-            # Optionally, retrieve the existing app registration details if necessary
-            # return existing_app_registration_id
         elif result == "error":
-            # Handle error scenario
             raise Exception("Error creating the app registration")
 
     async def _generate_secret_for_app(self, app_id: str) -> tuple:
@@ -384,9 +384,7 @@ class ContainerInstancePushProvisioner:
                 ),
                 style="yellow",
             )
-            # Optionally, handle the scenario where a secret already exists.
         elif result == "error":
-            # Handle error scenario
             raise Exception(
                 "Error generating secret for app registration with client ID"
                 f" '{app_id}'"
@@ -481,7 +479,6 @@ class ContainerInstancePushProvisioner:
                 f"Container instance '{container_name}' already exists", style="yellow"
             )
         elif result == "error":
-            # Handle error scenario
             raise Exception(f"Error creating container instance '{container_name}'")
 
     async def _create_aci_credentials_block(
@@ -599,7 +596,6 @@ class ContainerInstancePushProvisioner:
             block_name (str): The name of the ACI credentials block to delete.
             client (PrefectClient): Instance of PrefectClient to interact with Prefect backend.
         """
-        # Assuming deletion is done via a PrefectClient method
         await client.delete_block_document(block_id)
 
     async def rollback(self, client):
@@ -614,7 +610,6 @@ class ContainerInstancePushProvisioner:
                     await self._delete_container_instance(resource["name"])
                 elif resource["type"] == "aci_credentials_block":
                     await self._delete_aci_credentials_block(resource["id"], client)
-                # Add more elif blocks for other resource types as needed
                 self._console.print(
                     (
                         "Insufficient permissions to delete"
