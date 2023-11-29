@@ -58,28 +58,44 @@ You can install dependencies at runtime by passing `job_variables={"env": {"EXTR
 
 ## Limitations
 
-Prefect 2.14.4 and newer versions are supported.
+Managed execution requires Prefect 2.14.4 or newer.
 
-### Code storage
+All limitations listed below may change without warning during the alpha period.
+We will update this page as we make changes.
 
-Flow code must be stored in an accessible remote location. For example, git-based cloud providers such as GitHub, Bitbucket, or GitLab.
-Block-based storage is also supported for accessing private locations - see the example from recent release notes. TK
+### Concurrency & work pools
+
+Maximum of 10 concurrent flow runs per workspace.
+
+Maximum one managed execution work pool per user.
 
 ### Images
 
-Only one docker image is supported at this time: prefecthq/prefect:2-latest.
+One Docker image is supported at this time: prefecthq/prefect:2-latest.
 We will support additional images with common dependencies soon, and are open to feedback on your image needs.
 Managed execution requires that you run one of the offered Docker images.
 You may not use your own Docker image.
-However, as noted above, you can
+However, as noted above, you can install Python package dependencies at runtime.
 
 If you need to use your own image, we recommend using another type of work pool.
 
+### Code storage
+
+Flow code must be stored in an accessible remote location.
+This means git-based cloud providers such as GitHub, Bitbucket, or GitLab are supported.
+Remote block-based storage is also supported, so S3, GCS, and Azure Blob are also options.
+
 ### Resources
 
-Resources are limited to 200Mb of RAM
+Memory is limited to 1Gb of RAM.
 
-### Concurrency
+Maximum run time is 1 hour.
 
-Currently limited to 10 flow runs at a time per X across all Y.
-How many different work pools per user/workspace?
+## Pricing
+
+Managed execution is free during the alpha period.
+We will announce pricing before the beta period begins.
+
+## Feedback
+
+Please provide any feedback on managed execution via Prefect Community Slack TK.
