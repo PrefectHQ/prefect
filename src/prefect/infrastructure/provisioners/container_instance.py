@@ -97,7 +97,8 @@ class AzureCLI:
                         output=result.stdout,
                         stderr=result.stderr,
                     )
-            self._console.print(success_message, style="green")
+            if success_message:
+                self._console.print(success_message, style="green")
 
             if return_json:
                 try:
@@ -106,7 +107,6 @@ class AzureCLI:
                     self._console.print(f"Failed to decode JSON: {e}", style="red")
                     raise e
 
-            self._console.print(success_message, style="green")
             return ("created", output)
 
         except subprocess.CalledProcessError as e:
@@ -200,9 +200,7 @@ class ContainerInstancePushProvisioner:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
         try:
-            await self.azure_cli.run_command(
-                "az --version", ignore_if_exists=True, return_json=True
-            )
+            await self.azure_cli.run_command("az --version", ignore_if_exists=True)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(
@@ -210,10 +208,8 @@ class ContainerInstancePushProvisioner:
                 " https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
             ) from e
 
-        accounts_unformatted = await self.azure_cli.run_command(
+        _, accounts_unformatted = await self.azure_cli.run_command(
             command="az account list --output json",
-            success_message="Azure accounts found",
-            ignore_if_exists=True,
         )
         if accounts_unformatted:
             accounts = json.loads(accounts_unformatted)
@@ -243,26 +239,27 @@ class ContainerInstancePushProvisioner:
                 list_projects_task = progress.add_task(
                     "Fetching subscriptions...", total=1
                 )
-                subscriptions_raw = await self.azure_cli.run_command(
-                    command="az account list --output json",
-                    success_message="Azure subscriptions found",
-                    failure_message="No Azure subscriptions found",
-                    ignore_if_exists=True,
-                    return_json=True,
+            _, subscriptions_list = await self.azure_cli.run_command(
+                command="az account list --output json",
+                failure_message=(
+                    "No Azure subscriptions found. Please create an Azure subscription"
+                    " and try again."
+                ),
+                ignore_if_exists=True,
+                return_json=True,
+            )
+            progress.update(list_projects_task, completed=1)
+            if subscriptions_list:
+                selected_subscription = prompt_select_from_table(
+                    self._console,
+                    "Please select which Azure subscription to use:",
+                    [
+                        {"header": "Name", "key": "name"},
+                        {"header": "Subscription ID", "key": "id"},
+                    ],
+                    subscriptions_list,
                 )
-                progress.update(list_projects_task, completed=1)
-                if subscriptions_raw:
-                    subscriptions = json.loads(subscriptions_raw)
-                    selected_subscription = prompt_select_from_table(
-                        self._console,
-                        "Please select which Azure subscription to use:",
-                        [
-                            {"header": "Name", "key": "name"},
-                            {"header": "Subscription ID", "key": "id"},
-                        ],
-                        subscriptions,
-                    )
-                    return selected_subscription["id"]
+                return selected_subscription["id"]
         else:
             await self.azure_cli.run_command(
                 command="az account show --output json --query id",
