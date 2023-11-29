@@ -740,5 +740,10 @@ class ContainerInstancePushProvisioner:
             self._console.print(
                 f"Infrastructure provisioning failed: {str(e)}", style="red"
             )
-            await self.rollback(client)
+            if self._console.is_interactive:
+                if Confirm.ask(
+                    "Do you want to attempt to rollback the changes?",
+                    console=self._console,
+                ):
+                    await self.rollback(client)
             raise
