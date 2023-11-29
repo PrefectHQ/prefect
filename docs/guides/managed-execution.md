@@ -94,7 +94,7 @@ We will update this page as we make changes.
 
 ### Concurrency & work pools
 
-- Maximum of 10 concurrent flow runs per workspace.
+- Maximum of 10 concurrent flow runs per workspace across all `prefect:managed` pools
 - Maximum of 5 managed execution work pools per workspace.
 
 ### Images
