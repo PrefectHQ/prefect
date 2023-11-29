@@ -9,11 +9,17 @@ import fsspec
 from anyio import run_process
 
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import SecretStr
+else:
+    from pydantic import SecretStr
 
 
 @runtime_checkable
@@ -156,8 +162,12 @@ class GitRepository:
             if isinstance(self._credentials, Block)
             else deepcopy(self._credentials)
         )
-        if isinstance(credentials.get("access_token"), Secret):
-            credentials["access_token"] = credentials["access_token"].get()
+
+        for k, v in credentials.items():
+            if isinstance(v, Secret):
+                credentials[k] = v.get()
+            elif isinstance(v, SecretStr):
+                credentials[k] = v.get_secret_value()
 
         formatted_credentials = _format_token_from_credentials(
             urlparse(self._url).netloc, credentials
