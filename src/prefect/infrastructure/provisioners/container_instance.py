@@ -1,3 +1,15 @@
+"""
+This module defines the ContainerInstancePushProvisioner class, which is responsible for provisioning
+infrastructure using Azure Container Instances for Prefect work pools.
+
+The ContainerInstancePushProvisioner class provides methods for provisioning infrastructure and
+interacting with Azure Container Instances.
+
+Classes:
+    AzureCLI: A class to handle Azure CLI commands.
+    ContainerInstancePushProvisioner: A class for provisioning infrastructure using Azure Container Instances.
+
+"""
 import json
 import shlex
 import subprocess
