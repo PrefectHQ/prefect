@@ -1,13 +1,13 @@
-from typing import Any, Dict, Optional, Protocol
+from typing import Any, Dict, Optional, Protocol, Type
 
 from prefect.client.orchestration import PrefectClient
 from .cloud_run import CloudRunPushProvisioner
-from .ecs import ElasticContainerServiceProvisioner
+from .ecs import ElasticContainerServicePushProvisioner
 import rich.console
 
 _provisioners = {
     "cloud-run:push": CloudRunPushProvisioner,
-    "ecs:push": ElasticContainerServiceProvisioner,
+    "ecs:push": ElasticContainerServicePushProvisioner,
 }
 
 
@@ -31,7 +31,7 @@ class Provisioner(Protocol):
 
 def get_infrastructure_provisioner_for_work_pool_type(
     work_pool_type: str,
-) -> Provisioner:
+) -> Type[Provisioner]:
     """
     Retrieve an instance of the infrastructure provisioner for the given work pool type.
 
