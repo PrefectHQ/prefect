@@ -2,10 +2,12 @@ from typing import Any, Dict, Optional, Protocol
 
 from prefect.client.orchestration import PrefectClient
 from .cloud_run import CloudRunPushProvisioner
+from .container_instance import ContainerInstancePushProvisioner
 import rich.console
 
 _provisioners = {
     "cloud-run:push": CloudRunPushProvisioner,
+    "container-instance": ContainerInstancePushProvisioner,
 }
 
 

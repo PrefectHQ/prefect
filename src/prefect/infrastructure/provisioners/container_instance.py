@@ -9,7 +9,6 @@ from uuid import UUID
 from anyio import run_process
 from rich.console import Console
 from rich.panel import Panel
-from rich.pretty import Pretty
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
@@ -18,17 +17,124 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectAlreadyExists
-from prefect.settings import PREFECT_DEBUG_MODE
+
+
+class AzureCLI:
+    """
+    A class to handle Azure CLI commands.
+
+    Attributes:
+        _console (Console): A Rich console object for printing messages.
+
+    Methods:
+        run_command: Asynchronously executes a given Azure CLI command and handles success or failure.
+    """
+
+    def __init__(self, console: Console):
+        self._console = console
+
+    async def run_command(
+        self,
+        command: str,
+        success_message: Optional[str] = None,
+        failure_message: Optional[str] = None,
+        ignore_if_exists: bool = False,
+        return_json: bool = False,
+    ):
+        """
+        Asynchronously runs an Azure CLI command and processes the output.
+
+        Args:
+            command (str): The Azure CLI command to execute.
+            success_message (Optional[str]): The message to print on success.
+            failure_message (Optional[str]): The message to print on failure.
+            ignore_if_exists (bool): Whether to ignore errors indicating that a resource already exists. Defaults to False.
+            return_json (bool): Whether to return the output as JSON. Defaults to False.
+
+        Returns:
+            str or None: The output of the command, or None if an error occurs and 'ignore_if_exists' is True.
+
+        Raises:
+            subprocess.CalledProcessError: If the command execution fails.
+            json.JSONDecodeError: If the output cannot be decoded as JSON when 'return_json' is True.
+        """
+        try:
+            result = await run_process(shlex.split(command), check=False)
+            if result.returncode != 0:
+                error_message = result.stderr.decode("utf-8")
+                if ignore_if_exists and "already exists" in error_message:
+                    if success_message:
+                        self._console.print(
+                            f"{success_message} (already exists)", style="yellow"
+                        )
+                    return None
+                else:
+                    if failure_message:
+                        self._console.print(
+                            f"{failure_message}: {result.stderr.decode('utf-8')}",
+                            style="red",
+                        )
+                    raise subprocess.CalledProcessError(
+                        result.returncode,
+                        command,
+                        output=result.stdout,
+                        stderr=result.stderr,
+                    )
+            output = result.stdout.decode("utf-8").strip()
+            self._console.print(success_message, style="green")
+
+            if return_json:
+                try:
+                    return json.loads(output)
+                except json.JSONDecodeError as e:
+                    self._console.print(f"Failed to decode JSON: {e}", style="red")
+                    raise e
+
+            return output
+
+        except subprocess.CalledProcessError as e:
+            self._console.print(f"Command execution failed: {e}", style="red")
+            raise
 
 
 class ContainerInstancePushProvisioner:
+    """
+    A class responsible for provisioning Azure resources and setting up a push work pool.
+
+    Attributes:
+        _console (Console): A Rich console object for displaying messages and progress.
+        _subscription_id (str): Azure subscription ID.
+        _subscription_name (str): Azure subscription name.
+        _resource_group (str): Azure resource group name.
+        _location (str): Azure resource location.
+        _container_image (str): Docker image for the container instance.
+        azure_cli (AzureCLI): An instance of AzureCLI for running Azure commands.
+
+    Methods:
+        set_location: Sets the location for Azure resource deployment.
+        _verify_az_ready: Verifies if Azure CLI is ready and available.
+        _select_subscription: Selects an Azure subscription interactively or automatically.
+        _create_resource_group: Creates a resource group in Azure.
+        _create_app_registration: Creates an app registration in Azure AD.
+        _create_service_principal_for_app: Creates a service principal for the app registration.
+        _generate_secret_for_app: Generates a secret for the app registration.
+        _assign_contributor_role: Assigns the Contributor role to the service account.
+        _create_container_instance: Creates an Azure Container Instance.
+        _create_aci_credentials_block: Creates an Azure Container Instance credentials block.
+        provision: Orchestrates the provisioning of Azure resources and setup for the push work pool.
+    """
+
+    DEFAULT_LOCATION = "eastus"
+    RESOURCE_GROUP_NAME = "prefect-aci-push-pool-rg"
+    CONTAINER_IMAGE = "docker.io/prefecthq/prefect:2-latest"
+    APP_REGISTRATION_NAME = "prefect-aci-push-pool-app"
+
     def __init__(self):
         self._console = Console()
         self._subscription_id = None
         self._subscription_name = None
-        self._resource_group = None
-        self._aci = None
         self._location = None
+        self.azure_cli = AzureCLI(self.console)
 
     @property
     def console(self) -> Console:
@@ -38,43 +144,76 @@ class ContainerInstancePushProvisioner:
     def console(self, value: Console) -> None:
         self._console = value
 
-    async def _run_command(self, command: str, *args, **kwargs):
-        result = await run_process(shlex.split(command), check=False, *args, **kwargs)
+    async def set_location(self):
+        """
+        Sets the Azure resource deployment location. If unable to fetch the default location,
+        sets it to 'eastus'.
 
-        if result.returncode != 0:
-            if PREFECT_DEBUG_MODE:
-                self._console.print(
-                    "Error running command:",
-                    Pretty(
-                        {
-                            "command": command,
-                            "stdout": result.stdout.decode("utf-8"),
-                            "stderr": result.stderr.decode("utf-8"),
-                        }
-                    ),
-                    style="red",
-                )
-            raise subprocess.CalledProcessError(
-                result.returncode, command, output=result.stdout, stderr=result.stderr
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
+        try:
+            get_default_location_command = (
+                'az account list-locations --query "[?isDefault].name\ --output tsv'
             )
-
-        return result.stdout.decode("utf-8").strip()
+            self._location = await self.azure_cli.run_command(
+                command=get_default_location_command,
+                success_message="Default location fetched",
+                failure_message=(
+                    "Failed to get default location. Setting to"
+                    f" '{self.DEFAULT_LOCATION}'"
+                ),
+                ignore_if_exists=True,
+            )
+        except subprocess.CalledProcessError as e:
+            self._location = self.DEFAULT_LOCATION
+            raise RuntimeError(
+                "Failed to get default location. Location set to"
+                f" '{self.DEFAULT_LOCATION}'"
+            ) from e
 
     async def _verify_az_ready(self) -> None:
+        """
+        Verifies if Azure CLI is installed and ready to use.
+
+        Raises:
+            RuntimeError: If Azure CLI is not installed.
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
         try:
-            await self._run_command("az --version")
+            await self.azure_cli.run_command(
+                "az --version", ignore_if_exists=True, return_json=True
+            )
+
         except subprocess.CalledProcessError as e:
             raise RuntimeError(
                 "Azure CLI is not installed. Please see"
                 " https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
             ) from e
-        accounts = json.loads(await self._run_command("az account list --output json"))
-        if not accounts:
-            raise RuntimeError(
-                "No Azure accounts found. Please run `az login` to log in to Azure."
-            )
+
+        accounts_unformatted = await self.azure_cli.run_command(
+            command="az account list --output json",
+            success_message="Azure accounts found",
+            ignore_if_exists=True,
+        )
+        if accounts_unformatted:
+            accounts = json.loads(accounts_unformatted)
+            if not accounts:
+                raise RuntimeError(
+                    "No Azure accounts found. Please run `az login` to log in to Azure."
+                )
 
     async def _select_subscription(self) -> str:
+        """
+        Selects an Azure subscription for use. If running in interactive mode,
+        the user will be prompted to select a subscription. Otherwise, the current subscription is used.
+
+        Returns:
+            str: The ID of the selected Azure subscription.
+
+        Raises:
+            RuntimeError: If no Azure subscriptions are found or the Azure CLI command execution fails.
+        """
         if self._console.is_interactive:
             with Progress(
                 SpinnerColumn(),
@@ -85,97 +224,202 @@ class ContainerInstancePushProvisioner:
                 list_projects_task = progress.add_task(
                     "Fetching subscriptions...", total=1
                 )
-                subscriptions_raw = await self._run_command(
-                    "az account list --output json"
+                subscriptions_raw = await self.azure_cli.run_command(
+                    command="az account list --output json",
+                    success_message="Azure subscriptions found",
+                    failure_message="No Azure subscriptions found",
+                    ignore_if_exists=True,
+                    return_json=True,
                 )
                 progress.update(list_projects_task, completed=1)
-            subscriptions = json.loads(subscriptions_raw)
-            selected_subscription = prompt_select_from_table(
-                self.console,
-                "Please select which Azure subscription to use:",
-                [
-                    {"header": "Name", "key": "name"},
-                    {"header": "Subscription ID", "key": "id"},
-                ],
-                subscriptions,
-            )
-            return selected_subscription["id"]
+                if subscriptions_raw:
+                    subscriptions = json.loads(subscriptions_raw)
+                    selected_subscription = prompt_select_from_table(
+                        self._console,
+                        "Please select which Azure subscription to use:",
+                        [
+                            {"header": "Name", "key": "name"},
+                            {"header": "Subscription ID", "key": "id"},
+                        ],
+                        subscriptions,
+                    )
+                    return selected_subscription["id"]
         else:
-            return await self._run_command("az account show --output json --query id")
+            await self.azure_cli.run_command(
+                command="az account show --output json --query id",
+                success_message="Azure subscription found",
+                failure_message="No Azure subscription found",
+            )
 
-    async def _create_resource_group(self) -> str:
-        self._resource_group = f"prefect-{UUID().hex[:8]}"
-        await self._run_command(
-            f"az group create --name {self._resource_group} --location {self._location}"
+    async def _create_resource_group(self):
+        """
+        Creates a resource group in Azure using predefined names and locations.
+
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
+        resource_group_command = (
+            f"az group create --name {self.RESOURCE_GROUP_NAME} --location"
+            f" {self._location}"
         )
-        return self._resource_group
+        await self.azure_cli.run_command(
+            resource_group_command,
+            success_message=(
+                f"Resource group '{self.RESOURCE_GROUP_NAME}' created in location"
+                f" '{self._location}'"
+            ),
+            failure_message=(
+                f"Failed to create resource group '{self.RESOURCE_GROUP_NAME}' in"
+                f" location '{self._location}'"
+            ),
+            ignore_if_exists=True,
+        )
 
-    async def _create_app_registration(self) -> tuple:
-        app_name = f"prefect-{UUID().hex[:8]}"
+    async def _create_app_registration(self) -> str:
+        """
+        Creates an app registration in Azure Active Directory.
+
+        Returns:
+            str: The client ID of the newly created app registration.
+
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
         description = (
             "App registration created by Prefect for Azure Container Instance push work"
             " pool"
         )
 
-        try:
-            app_registration_command = (
-                f"az ad app create --display-name {app_name} "
-                f"--description '{description}' --output json"
-            )
-            app_registration = json.loads(
-                await self._run_command(app_registration_command)
-            )
+        app_registration_command = (
+            f"az ad app create --display-name {self.APP_REGISTRATION_NAME} "
+            f"--description '{description}' --output json"
+        )
+        result = await self.azure_cli.run_command(
+            app_registration_command,
+            success_message=(
+                f"App registration '{self.APP_REGISTRATION_NAME}' created successfully"
+            ),
+            failure_message=(
+                "Failed to create app registration with name"
+                f" '{self.APP_REGISTRATION_NAME}'"
+            ),
+            ignore_if_exists=True,
+        )
+        if result:
+            app_registration = json.loads(result)
             client_id = app_registration["appId"]
+            return client_id
 
-            service_principal_command = (
-                f"az ad sp create --id {client_id} --output json"
-            )
-            await self._run_command(service_principal_command)
+    async def _generate_secret_for_app(self, app_id: str) -> tuple:
+        """
+        Generates a secret for the app registration.
 
-            secret_command = (
-                f"az ad app credential reset --id {client_id} --append --output json"
-            )
-            app_secret = json.loads(await self._run_command(secret_command))
-            client_secret = app_secret["password"]
+        Args:
+            app_id (str): The client ID of the app registration for which to generate the secret.
 
-            tenant_id = app_secret["tenant"]
-            return client_id, tenant_id, client_secret
+        Returns:
+            tuple: A tuple containing the tenant ID and the generated secret.
 
-        except subprocess.CalledProcessError as e:
-            self._console.log(
-                f"Failed to create app registration: {e.stderr}", style="red"
-            )
-            raise
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
+        secret_command = (
+            f"az ad app credential reset --id {app_id} --append --output json"
+        )
+        result = await self.azure_cli.run_command(
+            secret_command,
+            success_message=(
+                f"Secret generated for app registration with client ID '{app_id}'"
+            ),
+            failure_message=(
+                "Failed to generate secret for app registration with client ID"
+                f" '{app_id}'"
+            ),
+            ignore_if_exists=True,
+        )
+        if result:
+            app_secret = json.loads(result)
+            return app_secret["tenant"], app_secret["password"]
+
+    async def _get_service_principal_object_id(self, app_id: str):
+        """
+        Retrieves the object ID of the service principal associated with the given app registration client ID.
+
+        Args:
+            app_id (str): The client ID of the app registration.
+
+        Returns:
+            str: The object ID of the associated service principal.
+
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
+        command = f"az ad sp show --id {app_id} --query objectId --output tsv"
+        service_principal_object_id = await self.azure_cli.run_command(
+            command,
+            success_message="Service principal object ID retrieved",
+            failure_message="Failed to retrieve service principal object ID",
+            return_json=False,
+        )
+        return service_principal_object_id
 
     async def _assign_contributor_role(self, app_id: str) -> None:
+        """
+        Assigns the 'Contributor' role to the service account associated with a given app ID.
+
+        Args:
+            app_id (str): The client ID of the app registration.
+
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
+        service_principal_object_id = await self._get_service_principal_object_id(
+            app_id
+        )
+
         role = "Contributor"
-        scope = f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}"
+        scope = f"/subscriptions/{self._subscription_id}/resourceGroups/{self.RESOURCE_GROUP_NAME}"
 
-        try:
-            assign_command = (
-                f"az role assignment create --role {role} --assignee {app_id} --scope"
-                f" {scope}"
-            )
-            await self._run_command(assign_command)
-
-        except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to assign role to service principal: {e.stderr}"
-            raise RuntimeError(error_msg) from e
+        assign_command = (
+            f"az role assignment create --role {role} --assignee-object-id"
+            f" {service_principal_object_id} --scope {scope} {scope}"
+        )
+        await self.azure_cli.run_command(
+            assign_command,
+            success_message=(
+                "Contributor role assigned to service principal with object ID"
+                f" '{service_principal_object_id}'"
+            ),
+            failure_message=(
+                "Failed to assign Contributor role to service principal with object ID"
+                f" '{service_principal_object_id}'"
+            ),
+            ignore_if_exists=True,
+        )
 
     async def _create_container_instance(self) -> None:
-        container_group_name = f"prefect-{UUID().hex[:8]}"
-        try:
-            create_command = (
-                f"az container create --name {container_group_name} "
-                f"--resource-group {self._resource_group} "
-                f"--image {container_group_name} "
-                "--restart-policy OnFailure --output json"
-            )
-            await self._run_command(create_command)
+        """
+        Creates an Azure Container Instance using predefined settings.
 
-        except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to create Azure Container Instance: {e.stderr}"
-            raise RuntimeError(error_msg) from e
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
+        container_name = "prefect-acipool-container"
+
+        create_command = (
+            f"az container create --name {container_name} "
+            f"--resource-group {self.RESOURCE_GROUP_NAME} "
+            "--image docker.io/prefecthq/prefect:2-latest "
+            "--restart-policy OnFailure --output json"
+        )
+        await self.azure_cli.run_command(
+            create_command,
+            success_message=(
+                f"Container instance '{container_name}' created successfully"
+            ),
+            failure_message=f"Failed to create container instance '{container_name}'",
+            ignore_if_exists=True,
+        )
 
     async def _create_aci_credentials_block(
         self,
@@ -185,6 +429,22 @@ class ContainerInstancePushProvisioner:
         client_secret: str,
         client: PrefectClient,
     ) -> UUID:
+        """
+        Creates a credentials block for Azure Container Instance.
+
+        Args:
+            work_pool_name (str): The name of the work pool.
+            client_id (str): The client ID obtained from app registration.
+            tenant_id (str): The tenant ID obtained from the secret generation.
+            client_secret (str): The client secret obtained from the secret generation.
+            client (PrefectClient): An instance of PrefectClient.
+
+        Returns:
+            UUID: The ID of the created credentials block.
+
+        Raises:
+            ObjectAlreadyExists: If a credentials block with the same name already exists.
+        """
         credentials_block_type = await client.read_block_type_by_slug(
             "azure-container-instance-credentials"
         )
@@ -225,21 +485,46 @@ class ContainerInstancePushProvisioner:
         base_job_template: Dict[str, Any],
         client: Optional[PrefectClient] = None,
     ) -> Dict[str, Any]:
-        assert client, "Client injection failed"
+        """
+        Orchestrates the provisioning of Azure resources and setup for the push work pool.
+
+        Args:
+            work_pool_name (str): The name of the work pool.
+            base_job_template (Dict[str, Any]): The base template for job creation.
+            client (Optional[PrefectClient]): An instance of PrefectClient. If None, it will be injected.
+
+        Returns:
+            Dict[str, Any]: The updated job template with necessary references and configurations.
+
+        Raises:
+            RuntimeError: If client injection fails or the Azure CLI command execution fails.
+        """
+        if not client:
+            self._console.print(
+                "Client injection failed, cannot proceed with provisioning.",
+                style="red",
+            )
+            return base_job_template
+
         await self._verify_az_ready()
         self._subscription_id, self._subscription_name = (
             await self._select_subscription()
         )
+        self._location = await self.set_location()
 
         table = Panel(
             dedent(
                 f"""\
                     Provisioning infrastructure for your work pool [blue]{work_pool_name}[/] will require:
 
-                        Updates in Azure subscription [blue]{self._subscription_name}[/] in region [blue]{self._location}[/]
+                        Updates in subscription [blue]{self._subscription_name}[/]
 
-                            - Create a resource group: [blue]{self._resource_group}[/]
-                            - Create an Azure Container Instance: [blue]{self._aci}[/]
+                            - Create a resource group in location [blue]{self._location}[/]
+                            - Create an app registration in Azure AD
+                            - Create a service principal for app registration
+                            - Generate a secret for app registration
+                            - Assign Contributor role to service account
+                            - Create Azure Container Instance
 
                         Updates in Prefect workspace
 
@@ -257,26 +542,31 @@ class ContainerInstancePushProvisioner:
 
         with Progress(console=self._console) as progress:
             task = progress.add_task("Provisioning infrastructure...", total=5)
-            progress.console.print("Creating resource group...")
+            progress.console.print("Creating resource group")
             await self._create_resource_group()
             progress.advance(task)
 
-            progress.console.print("Creating app registration...")
-            client_id, tenant_id, client_secret = await self._create_app_registration()
+            progress.console.print("Creating app registration")
+            client_id = await self._create_app_registration()
             progress.advance(task)
 
-            progress.console.print(
-                "Adding app registration contributor role to resource group..."
+            progress.console.print("Generating secret for app registration")
+            tenant_id, client_secret = await self._generate_secret_for_app(
+                app_id=client_id
             )
+
+            progress.advance(task)
+
+            progress.console.print("Assigning Contributor role to service account...")
             await self._assign_contributor_role(app_id=client_id)
             progress.advance(task)
 
-            progress.console.print("Creating container instance...")
+            progress.console.print("Creating Azure Container Instance")
             await self._create_container_instance()
             progress.advance(task)
 
             progress.console.print(
-                "Creating Azure Container Instance credentials block..."
+                "Creating Azure Container Instance credentials block"
             )
             block_doc_id = await self._create_aci_credentials_block(
                 work_pool_name, client_id, tenant_id, client_secret, client
