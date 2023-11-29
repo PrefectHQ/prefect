@@ -33,6 +33,7 @@ from prefect.server.models.flow_runs import (
 )
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.schemas import filters
 from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
@@ -293,6 +294,9 @@ async def resume_flow_run(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
+    task_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.provide_task_policy
+    ),
     orchestration_parameters: dict = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
@@ -337,6 +341,28 @@ async def resume_flow_run(
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
             )
+
+        # Set all Paused tasks to Pending.
+        # TODO: Should this be done in the client, the API, or orchestration policy?
+        #       The API feels like the best place, so that the logic is consistent
+        #       across all clients and so that one orchestration policy doesn't
+        #       jump its boundaries and try to orchestrate using other policies.
+        while paused_task_runs_batch := await models.task_runs.read_task_runs(
+            session,
+            flow_run_filter=filters.FlowRunFilter(id={"any_": [flow_run.id]}),
+            task_run_filter=filters.TaskRunFilter(
+                state={"type": {"any_": [schemas.states.StateType.PAUSED]}}
+            ),
+            limit=100,
+        ):
+            for task_run in paused_task_runs_batch:
+                await models.task_runs.set_task_run_state(
+                    session=session,
+                    task_run_id=task_run.id,
+                    state=schemas.states.Pending(),
+                    task_policy=task_policy,
+                    orchestration_parameters=orchestration_parameters,
+                )
 
         # set the 201 if a new state was created
         if orchestration_result.state and orchestration_result.state.timestamp >= now:

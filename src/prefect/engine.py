@@ -854,7 +854,6 @@ async def orchestrate_flow_run(
                     state=exc.state,
                     flow_run_id=flow_run.id,
                 )
-
                 return state
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
@@ -1038,7 +1037,7 @@ async def _in_process_pause(
 
     if reschedule:
         # If a rescheduled pause, exit this process so the run can be resubmitted later
-        raise Pause()
+        raise Pause(state)
 
     # Otherwise, block and check for completion on an interval
     with anyio.move_on_after(timeout):
@@ -1588,6 +1587,9 @@ async def begin_task_run(
             task_run_logger(task_run).info(
                 "Task run encountered a pause signal during orchestration."
             )
+            import traceback
+
+            print(traceback.format_exc())
             state = Paused()
 
         return state
@@ -1702,13 +1704,64 @@ async def orchestrate_task_run(
     last_state = task_run.state
 
     # Transition from `PENDING` -> `RUNNING`
-    state = await propose_state(
-        client,
-        Running(
-            state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
-        ),
-        task_run_id=task_run.id,
-    )
+    try:
+        state = await propose_state(
+            client,
+            Running(
+                state_details=StateDetails(
+                    cache_key=cache_key, refresh_cache=refresh_cache
+                )
+            ),
+            task_run_id=task_run.id,
+        )
+    except Pause as exc:
+        # If a flow submits tasks and then pauses with the
+        # `pause_reschedule` state, we may reach this point due to
+        # concurrency timing. Task orchestration will stop due to the
+        # raised Pause signal. The engine will check if the flow run is
+        # paused, find that it is, and then exit with a message.
+        if exc.state.state_details.pause_reschedule:
+            raise exc
+
+        state = exc.state
+
+    if state.is_paused():
+        # Enter a loop to wait for the task run to be resumed, i.e.
+        # become Pending, and then propose a Running state again.
+        while state.is_paused():
+            # Retrieve the latest metadata for the task run
+            task_run = await client.read_task_run(task_run.id)
+
+            # Stop the loop if we reach the task's pause timeout.
+            if task_run.state.state_details.pause_timeout:
+                if task_run.state.state_details.pause_timeout < pendulum.now("UTC"):
+                    break
+
+            if task_run.state.is_running():
+                state = task_run.state
+                break
+            elif task_run.state.is_paused():
+                continue
+            elif task_run.state.is_pending():
+                print("IT IS PENDING")
+                try:
+                    new_state = await propose_state(
+                        client,
+                        Running(
+                            state_details=StateDetails(
+                                cache_key=cache_key, refresh_cache=refresh_cache
+                            )
+                        ),
+                        task_run_id=task_run.id,
+                    )
+                except Pause:
+                    print("FLOW RUN STILL PAUSED")
+                    continue
+                else:
+                    print("NEW STATE ", new_state)
+                    if new_state.is_running():
+                        state = new_state
+                        break
 
     # Emit an event to capture the result of proposing a `RUNNING` state.
     last_event = _emit_task_run_state_change_event(
@@ -2207,7 +2260,7 @@ async def propose_state(
 
     elif response.status == SetStateStatus.REJECT:
         if response.state.is_paused():
-            raise Pause(response.details.reason)
+            raise Pause(response.details.reason, state=response.state)
         return response.state
 
     else:
