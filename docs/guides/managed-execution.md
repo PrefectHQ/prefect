@@ -44,7 +44,7 @@ if __name__ == "__main__":
     entrypoint="flow.py:my_flow",
     ).deploy(
         name="test-managed-flow",
-        work_pool_name="prefect-managed",
+        work_pool_name="my-managed-pool",
     )
 ```
 
