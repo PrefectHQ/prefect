@@ -737,8 +737,8 @@ class ContainerInstancePushProvisioner:
             return base_job_template
 
         except Exception as e:
-            await self.rollback(client)
             self._console.print(
                 f"Infrastructure provisioning failed: {str(e)}", style="red"
             )
+            await self.rollback(client)
             raise
