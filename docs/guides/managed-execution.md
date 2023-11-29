@@ -8,7 +8,7 @@ search:
 
 # Managed Execution
 
-Prefect Cloud provides a **prefect-managed** work pool that you can use for your workflow execution environment.
+Prefect Cloud provides a **prefect:managed** work pool that you can use for your workflow execution environment.
 Deployments run with this work pool do not require a worker and do not require a cloud provider account.
 Prefect handles the infrastructure for you.
 
