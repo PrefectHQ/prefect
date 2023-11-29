@@ -24,7 +24,7 @@ Run a flow with managed infrastructure in three steps.
 
 ### Step 1
 
-Create a new work pool of type **prefect-managed**.
+Create a new work pool of type **prefect:managed**.
 
 !!! note
     In the alpha period, you must have the managed execution feature enabled for your account to create a work pool of this type.
