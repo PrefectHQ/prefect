@@ -60,6 +60,8 @@ class AzureCLI:
         """
         try:
             result = await run_process(shlex.split(command), check=False)
+            output = result.stdout.decode("utf-8").strip()
+
             if result.returncode != 0:
                 error_message = result.stderr.decode("utf-8")
                 if ignore_if_exists and "already exists" in error_message:
@@ -67,7 +69,7 @@ class AzureCLI:
                         self._console.print(
                             f"{success_message} (already exists)", style="yellow"
                         )
-                    return None
+                    return ("exists", None)
                 else:
                     if failure_message:
                         self._console.print(
@@ -80,21 +82,21 @@ class AzureCLI:
                         output=result.stdout,
                         stderr=result.stderr,
                     )
-            output = result.stdout.decode("utf-8").strip()
             self._console.print(success_message, style="green")
 
             if return_json:
                 try:
-                    return json.loads(output)
+                    return ("created", json.loads(output))
                 except json.JSONDecodeError as e:
                     self._console.print(f"Failed to decode JSON: {e}", style="red")
                     raise e
 
-            return output
+            self._console.print(success_message, style="green")
+            return ("created", output)
 
         except subprocess.CalledProcessError as e:
             self._console.print(f"Command execution failed: {e}", style="red")
-            raise
+            return ("error", None)
 
 
 class ContainerInstancePushProvisioner:
@@ -135,6 +137,7 @@ class ContainerInstancePushProvisioner:
         self._subscription_name = None
         self._location = None
         self.azure_cli = AzureCLI(self.console)
+        self.created_resources = []
 
     @property
     def console(self) -> Console:
@@ -262,7 +265,7 @@ class ContainerInstancePushProvisioner:
             f"az group create --name {self.RESOURCE_GROUP_NAME} --location"
             f" {self._location}"
         )
-        await self.azure_cli.run_command(
+        result, _ = await self.azure_cli.run_command(
             resource_group_command,
             success_message=(
                 f"Resource group '{self.RESOURCE_GROUP_NAME}' created in location"
@@ -274,6 +277,15 @@ class ContainerInstancePushProvisioner:
             ),
             ignore_if_exists=True,
         )
+        if result == "created":
+            self.created_resources.append(
+                {"type": "resource_group", "name": self.RESOURCE_GROUP_NAME}
+            )
+        elif result == "exists":
+            self._console.print(
+                f"Resource group '{self.RESOURCE_GROUP_NAME}' already exists",
+                style="yellow",
+            )
 
     async def _create_app_registration(self) -> str:
         """
@@ -294,7 +306,7 @@ class ContainerInstancePushProvisioner:
             f"az ad app create --display-name {self.APP_REGISTRATION_NAME} "
             f"--description '{description}' --output json"
         )
-        result = await self.azure_cli.run_command(
+        result, output = await self.azure_cli.run_command(
             app_registration_command,
             success_message=(
                 f"App registration '{self.APP_REGISTRATION_NAME}' created successfully"
@@ -305,10 +317,22 @@ class ContainerInstancePushProvisioner:
             ),
             ignore_if_exists=True,
         )
-        if result:
-            app_registration = json.loads(result)
-            client_id = app_registration["appId"]
-            return client_id
+        if result == "created":
+            self.created_resources.append(
+                {"type": "app_registration", "name": self.APP_REGISTRATION_NAME}
+            )
+            app_registration = json.loads(output)
+            return app_registration["appId"]
+        elif result == "exists":
+            self._console.print(
+                f"App registration '{self.APP_REGISTRATION_NAME}' already exists",
+                style="yellow",
+            )
+            # Optionally, retrieve the existing app registration details if necessary
+            # return existing_app_registration_id
+        elif result == "error":
+            # Handle error scenario
+            raise Exception("Error creating the app registration")
 
     async def _generate_secret_for_app(self, app_id: str) -> tuple:
         """
@@ -326,7 +350,7 @@ class ContainerInstancePushProvisioner:
         secret_command = (
             f"az ad app credential reset --id {app_id} --append --output json"
         )
-        result = await self.azure_cli.run_command(
+        result, output = await self.azure_cli.run_command(
             secret_command,
             success_message=(
                 f"Secret generated for app registration with client ID '{app_id}'"
@@ -337,9 +361,24 @@ class ContainerInstancePushProvisioner:
             ),
             ignore_if_exists=True,
         )
-        if result:
-            app_secret = json.loads(result)
+        if result == "created":
+            app_secret = json.loads(output)
             return app_secret["tenant"], app_secret["password"]
+        elif result == "exists":
+            self._console.print(
+                (
+                    f"A secret for app registration with client ID '{app_id}' already"
+                    " exists"
+                ),
+                style="yellow",
+            )
+            # Optionally, handle the scenario where a secret already exists.
+        elif result == "error":
+            # Handle error scenario
+            raise Exception(
+                "Error generating secret for app registration with client ID"
+                f" '{app_id}'"
+            )
 
     async def _get_service_principal_object_id(self, app_id: str):
         """
@@ -412,7 +451,7 @@ class ContainerInstancePushProvisioner:
             "--image docker.io/prefecthq/prefect:2-latest "
             "--restart-policy OnFailure --output json"
         )
-        await self.azure_cli.run_command(
+        result, _ = await self.azure_cli.run_command(
             create_command,
             success_message=(
                 f"Container instance '{container_name}' created successfully"
@@ -420,6 +459,18 @@ class ContainerInstancePushProvisioner:
             failure_message=f"Failed to create container instance '{container_name}'",
             ignore_if_exists=True,
         )
+
+        if result == "created":
+            self.created_resources.append(
+                {"type": "container_instance", "name": container_name}
+            )
+        elif result == "exists":
+            self._console.print(
+                f"Container instance '{container_name}' already exists", style="yellow"
+            )
+        elif result == "error":
+            # Handle error scenario
+            raise Exception(f"Error creating container instance '{container_name}'")
 
     async def _create_aci_credentials_block(
         self,
@@ -445,6 +496,7 @@ class ContainerInstancePushProvisioner:
         Raises:
             ObjectAlreadyExists: If a credentials block with the same name already exists.
         """
+        credentials_block_name = f"{work_pool_name}-push-pool-credentials"
         credentials_block_type = await client.read_block_type_by_slug(
             "azure-container-instance-credentials"
         )
@@ -458,7 +510,7 @@ class ContainerInstancePushProvisioner:
         try:
             block_doc = await client.create_block_document(
                 block_document=BlockDocumentCreate(
-                    name=f"{work_pool_name}-push-pool-credentials",
+                    name=credentials_block_name,
                     data={
                         "client_id": client_id,
                         "tenant_id": tenant_id,
@@ -468,15 +520,105 @@ class ContainerInstancePushProvisioner:
                     block_schema_id=credentials_block_schema.id,
                 )
             )
-
+            self.created_resources.append(
+                {"type": "aci_credentials_block", "name": credentials_block_name}
+            )
             return block_doc.id
 
         except ObjectAlreadyExists:
+            self._console.print(
+                f"ACI credentials block '{credentials_block_name}' already exists",
+                style="yellow",
+            )
             block_doc = await client.read_block_document_by_name(
-                name=f"{work_pool_name}-push-pool-credentials",
+                name=credentials_block_name,
                 block_type_slug="azure-container-instance-credentials",
             )
             return block_doc.id
+
+    async def _delete_resource_group(self, name: str):
+        """
+        Deletes a specified Azure resource group.
+
+        Args:
+            name (str): The name of the resource group to delete.
+
+        Raises:
+            PermissionError: If the script lacks permissions to delete the resource group.
+            Exception: For other types of failures.
+        """
+        delete_command = f"az group delete --name {name} --yes --no-wait"
+        await self.azure_cli.run_command(delete_command)
+
+    async def _delete_app_registration(self, app_id: str):
+        """
+        Deletes a specified Azure app registration.
+
+        Args:
+            name (str): The name of the app registration to delete.
+
+        Raises:
+            PermissionError: If the script lacks permissions to delete the app registration.
+            Exception: For other types of failures.
+        """
+        delete_command = f"az ad app delete --id {app_id}"
+        await self.azure_cli.run_command(delete_command)
+
+    async def _delete_container_instance(self, container_name: str):
+        """
+        Deletes a specified Azure Container Instance.
+
+        Args:
+            container_name (str): The name of the container instance to delete.
+        """
+        delete_command = (
+            f"az container delete --name {container_name} --resource-group"
+            f" {self.RESOURCE_GROUP_NAME} --yes"
+        )
+        await self.azure_cli.run_command(delete_command)
+
+    async def _delete_aci_credentials_block(
+        self, block_id: UUID, client: PrefectClient
+    ):
+        """
+        Deletes a specified ACI credentials block.
+
+        Args:
+            block_name (str): The name of the ACI credentials block to delete.
+            client (PrefectClient): Instance of PrefectClient to interact with Prefect backend.
+        """
+        # Assuming deletion is done via a PrefectClient method
+        await client.delete_block_document(block_id)
+
+    async def rollback(self, client):
+        self._console.print("Initiating rollback...", style="yellow")
+        for resource in reversed(self.created_resources):
+            try:
+                if resource["type"] == "resource_group":
+                    await self._delete_resource_group(resource["name"])
+                elif resource["type"] == "app_registration":
+                    await self._delete_app_registration(resource["name"])
+                elif resource["type"] == "container_instance":
+                    await self._delete_container_instance(resource["name"])
+                elif resource["type"] == "aci_credentials_block":
+                    await self._delete_aci_credentials_block(resource["id"], client)
+                # Add more elif blocks for other resource types as needed
+                self._console.print(
+                    (
+                        "Insufficient permissions to delete"
+                        f" {resource['type']} '{resource['name']}'. Manual cleanup may"
+                        " be required."
+                    ),
+                    style="red",
+                )
+            except Exception as e:
+                self._console.print(
+                    (
+                        f"Error rolling back {resource['type']} '{resource['name']}':"
+                        f" {str(e)}"
+                    ),
+                    style="red",
+                )
 
     @inject_client
     async def provision(
@@ -540,44 +682,56 @@ class ContainerInstancePushProvisioner:
             ):
                 return base_job_template
 
-        with Progress(console=self._console) as progress:
-            task = progress.add_task("Provisioning infrastructure...", total=5)
-            progress.console.print("Creating resource group")
-            await self._create_resource_group()
-            progress.advance(task)
+        try:
+            with Progress(console=self._console) as progress:
+                task = progress.add_task("Provisioning infrastructure...", total=5)
+                progress.console.print("Creating resource group")
+                await self._create_resource_group()
+                progress.advance(task)
 
-            progress.console.print("Creating app registration")
-            client_id = await self._create_app_registration()
-            progress.advance(task)
+                progress.console.print("Creating app registration")
+                client_id = await self._create_app_registration()
+                progress.advance(task)
 
-            progress.console.print("Generating secret for app registration")
-            tenant_id, client_secret = await self._generate_secret_for_app(
-                app_id=client_id
+                progress.console.print("Generating secret for app registration")
+                tenant_id, client_secret = await self._generate_secret_for_app(
+                    app_id=client_id
+                )
+
+                progress.advance(task)
+
+                progress.console.print(
+                    "Assigning Contributor role to service account..."
+                )
+                await self._assign_contributor_role(app_id=client_id)
+                progress.advance(task)
+
+                progress.console.print("Creating Azure Container Instance")
+                await self._create_container_instance()
+                progress.advance(task)
+
+                progress.console.print(
+                    "Creating Azure Container Instance credentials block"
+                )
+                block_doc_id = await self._create_aci_credentials_block(
+                    work_pool_name, client_id, tenant_id, client_secret, client
+                )
+
+                base_job_template_copy = deepcopy(base_job_template)
+                base_job_template_copy["variables"]["properties"]["credentials"][
+                    "default"
+                ] = {"$ref": {"block_document_id": str(block_doc_id)}}
+                progress.advance(task)
+
+            self._console.print(
+                "Infrastructure successfully provisioned!", style="green"
             )
 
-            progress.advance(task)
+            return base_job_template
 
-            progress.console.print("Assigning Contributor role to service account...")
-            await self._assign_contributor_role(app_id=client_id)
-            progress.advance(task)
-
-            progress.console.print("Creating Azure Container Instance")
-            await self._create_container_instance()
-            progress.advance(task)
-
-            progress.console.print(
-                "Creating Azure Container Instance credentials block"
+        except Exception as e:
+            await self.rollback(client)
+            self._console.print(
+                f"Infrastructure provisioning failed: {str(e)}", style="red"
             )
-            block_doc_id = await self._create_aci_credentials_block(
-                work_pool_name, client_id, tenant_id, client_secret, client
-            )
-
-            base_job_template_copy = deepcopy(base_job_template)
-            base_job_template_copy["variables"]["properties"]["credentials"][
-                "default"
-            ] = {"$ref": {"block_document_id": str(block_doc_id)}}
-            progress.advance(task)
-
-        self._console.print("Infrastructure successfully provisioned!", style="green")
-
-        return base_job_template
+            raise

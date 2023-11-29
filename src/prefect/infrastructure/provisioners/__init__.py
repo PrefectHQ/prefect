@@ -7,7 +7,7 @@ import rich.console
 
 _provisioners = {
     "cloud-run:push": CloudRunPushProvisioner,
-    "container-instance": ContainerInstancePushProvisioner,
+    "azure-container-instance:push": ContainerInstancePushProvisioner,
 }
 
 
