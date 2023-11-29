@@ -133,8 +133,8 @@ class ContainerInstancePushProvisioner:
         _select_subscription: Selects an Azure subscription interactively or automatically.
         _create_resource_group: Creates a resource group in Azure.
         _create_app_registration: Creates an app registration in Azure AD.
-        _create_service_principal_for_app: Creates a service principal for the app registration.
         _generate_secret_for_app: Generates a secret for the app registration.
+        _get_service_principal_object_id: Retrieves the object ID of the service principal associated with the app registration.
         _assign_contributor_role: Assigns the Contributor role to the service account.
         _create_container_instance: Creates an Azure Container Instance.
         _create_aci_credentials_block: Creates an Azure Container Instance credentials block.
@@ -172,8 +172,9 @@ class ContainerInstancePushProvisioner:
         """
         try:
             get_default_location_command = (
-                'az account list-locations --query "[?isDefault].name\ --output tsv'
+                'az account list-locations --query "[?isDefault].name\\ --output tsv'
             )
+
             self._location = await self.azure_cli.run_command(
                 command=get_default_location_command,
                 success_message="Default location fetched",
