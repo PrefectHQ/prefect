@@ -116,7 +116,7 @@ Remote block-based storage is also supported, so S3, GCS, and Azure Blob are add
 
 ### Resources
 
-Memory is limited to 1Gb of RAM.
+Memory is limited to 2GB of RAM, which includes all operations such as dependency installation.
 
 Maximum run time is 1 hour.
 
