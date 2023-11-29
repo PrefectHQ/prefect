@@ -1740,7 +1740,6 @@ async def orchestrate_task_run(
             elif task_run.state.is_paused():
                 continue
             elif task_run.state.is_pending():
-                print("IT IS PENDING")
                 try:
                     new_state = await propose_state(
                         client,
@@ -1752,10 +1751,8 @@ async def orchestrate_task_run(
                         task_run_id=task_run.id,
                     )
                 except Pause:
-                    print("FLOW RUN STILL PAUSED")
                     continue
                 else:
-                    print("NEW STATE ", new_state)
                     if new_state.is_running():
                         state = new_state
                         break
