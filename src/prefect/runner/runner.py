@@ -798,7 +798,20 @@ class Runner:
         try:
             if self._limiter:
                 self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
+                self._logger.debug("Limit slot acquired for flow run '%s'", flow_run_id)
             return True
+        except RuntimeError as exc:
+            if (
+                "this borrower is already holding one of this CapacityLimiter's tokens"
+                in str(exc)
+            ):
+                self._logger.warning(
+                    f"Duplicate submission of flow run '{flow_run_id}' detected. Runner"
+                    " will not re-submit flow run."
+                )
+                return False
+            else:
+                raise
         except anyio.WouldBlock:
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
@@ -813,6 +826,7 @@ class Runner:
         """
         if self._limiter:
             self._limiter.release_on_behalf_of(flow_run_id)
+            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List["FlowRun"]
