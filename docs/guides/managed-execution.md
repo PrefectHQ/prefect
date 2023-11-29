@@ -85,6 +85,8 @@ if __name__ == "__main__":
     )
 ```
 
+Alternatively, you can specify a `requirements.txt` file and reference it in your `pull_step`.
+
 ## Limitations
 
 Managed execution requires Prefect 2.14.4 or newer.
@@ -94,7 +96,7 @@ We will update this page as we make changes.
 
 ### Concurrency & work pools
 
-- Maximum of 10 concurrent flow runs per workspace across all `prefect:managed` pools
+- Maximum of 10 concurrent flow runs per workspace across all `prefect:managed` pools.
 - Maximum of 5 managed execution work pools per workspace.
 
 ### Images
