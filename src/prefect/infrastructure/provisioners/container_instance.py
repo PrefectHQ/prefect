@@ -665,12 +665,18 @@ class ContainerInstancePushProvisioner:
                 "Creating Azure Container Instance credentials block"
             )
 
-            base_job_template_copy = deepcopy(base_job_template)
-            base_job_template_copy["variables"]["properties"]["aci_credentials"][
-                "default"
-            ] = {"$ref": {"block_document_id": str(block_doc_id)}}
+        base_job_template_copy = deepcopy(base_job_template)
+        base_job_template_copy["variables"]["properties"]["aci_credentials"][
+            "default"
+        ] = {"$ref": {"block_document_id": str(block_doc_id)}}
 
-            self._console.print(
-                "Infrastructure successfully provisioned!", style="green"
-            )
-            return base_job_template
+        base_job_template_copy["variables"]["properties"]["resource_group_name"][
+            "default"
+        ] = self.RESOURCE_GROUP_NAME
+
+        base_job_template_copy["variables"]["properties"]["subscription_id"][
+            "default"
+        ] = self._subscription_id
+
+        self._console.print("Infrastructure successfully provisioned!", style="green")
+        return base_job_template_copy
