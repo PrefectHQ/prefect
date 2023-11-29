@@ -48,9 +48,7 @@ class IamPolicyResource:
                             "ec2:DescribeSecurityGroups",
                             "ec2:DescribeSubnets",
                             "ec2:DescribeVpcs",
-                            "ec2:DeleteSecurityGroup",
                             "ecs:CreateCluster",
-                            "ecs:DeleteCluster",
                             "ecs:DeregisterTaskDefinition",
                             "ecs:DescribeClusters",
                             "ecs:DescribeTaskDefinition",
@@ -406,43 +404,26 @@ class VpcResource:
         vpc_network = ipaddress.ip_network(self._new_vpc_cidr)
         subnet_cidrs = list(vpc_network.subnets(new_prefix=vpc_network.prefixlen + 2))
 
-        # Create a Public Subnet
-        public_subnet = vpc.create_subnet(CidrBlock=str(subnet_cidrs[0]))
+        # Create subnets
+        subnets = vpc.create_subnet(CidrBlock=str(subnet_cidrs[0:3]))
 
         # Create a Route Table for the public subnet and add a route to the Internet Gateway
         public_route_table = vpc.create_route_table()
         public_route_table.create_route(
             DestinationCidrBlock="0.0.0.0/0", GatewayId=internet_gateway.id
         )
-        public_route_table.associate_with_subnet(SubnetId=public_subnet.id)
-
-        # Create three Private Subnets
-        private_subnets = [
-            vpc.create_subnet(CidrBlock=str(cidr)) for cidr in subnet_cidrs[1:4]
-        ]
+        public_route_table.associate_with_subnet(SubnetId=subnets[0].id)
+        public_route_table.associate_with_subnet(SubnetId=subnets[1].id)
+        public_route_table.associate_with_subnet(SubnetId=subnets[2].id)
         advance()
 
-        self.console.print("Setting up NAT Gateway (this may take a few minutes)")
-        # Create a NAT Gateway in the public subnet
-        # Allocate an Elastic IP for the NAT Gateway
-        eip = self._ec2_client.allocate_address(Domain="vpc")
-        nat_gw = self._ec2_client.create_nat_gateway(
-            SubnetId=public_subnet.id, AllocationId=eip["AllocationId"]
+        self.console.print("Setting up security group")
+        # Create a security group to block all inbound traffic
+        self._ec2_resource.create_security_group(
+            GroupName="prefect-ecs-security-group",
+            Description="Block all inbound traffic and allow all outbound traffic",
+            VpcId=vpc.id,
         )
-        waiter = self._ec2_client.get_waiter("nat_gateway_available")
-        waiter.wait(NatGatewayIds=[nat_gw["NatGateway"]["NatGatewayId"]])
-        advance()
-
-        self.console.print("Setting up route tables")
-        # Create a Route Table for the private subnets and add a route to the NAT Gateway
-        private_route_table = vpc.create_route_table()
-        private_route_table.create_route(
-            DestinationCidrBlock="0.0.0.0/0",
-            NatGatewayId=nat_gw["NatGateway"]["NatGatewayId"],
-        )
-        private_route_table.associate_with_subnet(SubnetId=private_subnets[0].id)
-        private_route_table.associate_with_subnet(SubnetId=private_subnets[1].id)
-        private_route_table.associate_with_subnet(SubnetId=private_subnets[2].id)
         advance()
 
         base_job_template["variables"]["properties"]["vpc_id"]["default"] = str(vpc.id)
