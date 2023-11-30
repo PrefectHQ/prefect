@@ -112,6 +112,7 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 import prefect.plugins
+from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
@@ -942,6 +943,15 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
+@deprecated_parameter(
+    "flow_run_id", start_date="Dec 2023", help="Use `suspend_flow_run` instead."
+)
+@deprecated_parameter(
+    "reschedule",
+    start_date="Dec 2023",
+    when=lambda p: p is True,
+    help="Use `suspend_flow_run` instead.",
+)
 async def pause_flow_run(
     flow_run_id: UUID = None,
     timeout: int = 300,
