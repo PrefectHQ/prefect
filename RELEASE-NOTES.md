@@ -1,5 +1,18 @@
 # Prefect Release Notes
 
+## Release 2.14.9
+
+### Enhancements
+- Make Flows list a scannable table and standardize list headers throughout the app — https://github.com/PrefectHQ/prefect/pull/11274
+- Add ability to configure an AWS account for use with ECS push pools via the `--provision-infra` flag — https://github.com/PrefectHQ/prefect/pull/11267
+
+### Fixes
+- Fix serve script crashes due to process limiter — https://github.com/PrefectHQ/prefect/pull/11264
+- Fix URL formatting in `GitRepository` when using provider-specific git credentials blocks — https://github.com/PrefectHQ/prefect/pull/11282
+- Prevent excessively escaping the Windows executable — https://github.com/PrefectHQ/prefect/pull/11253
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.8...2.14.9
+
 ## Release 2.14.8
 
 This release is a follow-up to 2.14.7 which never made it to PyPI because of an issue with our Github workflow. 
