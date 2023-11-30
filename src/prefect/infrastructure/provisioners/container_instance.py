@@ -152,7 +152,6 @@ class ContainerInstancePushProvisioner:
         self._subscription_name = None
         self._location = None
         self.azure_cli = AzureCLI(self.console)
-        self.created_resources = []
 
     @property
     def console(self) -> Console:
@@ -262,16 +261,28 @@ class ContainerInstancePushProvisioner:
         Raises:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
+        check_exists_command = f"az group exists --name {self.RESOURCE_GROUP_NAME}"
+        _, exists_result = await self.azure_cli.run_command(
+            check_exists_command, return_json=True
+        )
+        if exists_result is True:
+            self._console.print(
+                (
+                    f"Resource group '{self.RESOURCE_GROUP_NAME}' already exists in"
+                    f" location '{self._location}'."
+                ),
+                style="yellow",
+            )
+            return
+
         resource_group_command = (
             f"az group create --name {self.RESOURCE_GROUP_NAME} --location"
             f" {self._location}"
         )
-        result, _ = await self.azure_cli.run_command(
+        await self.azure_cli.run_command(
             resource_group_command,
-            # I'd prefer the message says "it already exists if it does"
             success_message=(
-                f"Resource group '{self.RESOURCE_GROUP_NAME}' created in location"
-                f" '{self._location}'"
+                f"Resource group '{self.RESOURCE_GROUP_NAME}' created successfully"
             ),
             failure_message=(
                 f"Failed to create resource group '{self.RESOURCE_GROUP_NAME}' in"
@@ -279,15 +290,6 @@ class ContainerInstancePushProvisioner:
             ),
             ignore_if_exists=True,
         )
-        if result == "created":
-            self.created_resources.append(
-                {"type": "resource_group", "name": self.RESOURCE_GROUP_NAME}
-            )
-        elif result == "exists":
-            self._console.print(
-                f"Resource group '{self.RESOURCE_GROUP_NAME}' already exists",
-                style="yellow",
-            )
 
     async def _create_app_registration(self) -> str:
         """
@@ -299,6 +301,29 @@ class ContainerInstancePushProvisioner:
         Raises:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
+        # Check if the app registration already exists
+        check_exists_command = (
+            f"az ad app list --display-name {self.APP_REGISTRATION_NAME} --output json"
+        )
+        _, app_registrations = await self.azure_cli.run_command(
+            check_exists_command,
+        )
+        app_registrations = json.loads(app_registrations)
+        existing_app_registration = next(
+            (
+                app
+                for app in app_registrations
+                if app["displayName"] == self.APP_REGISTRATION_NAME
+            ),
+            None,
+        )
+        if existing_app_registration:
+            self._console.print(
+                f"App registration '{self.APP_REGISTRATION_NAME}' already exists.",
+                style="yellow",
+            )
+            return existing_app_registration["appId"]
+
         app_registration_command = (
             f"az ad app create --display-name {self.APP_REGISTRATION_NAME} "
             "--output json"
@@ -315,9 +340,6 @@ class ContainerInstancePushProvisioner:
             ignore_if_exists=True,
         )
         if result == "created":
-            self.created_resources.append(
-                {"type": "app_registration", "name": self.APP_REGISTRATION_NAME}
-            )
             app_registration = json.loads(output)
             return app_registration["appId"]
 
@@ -454,7 +476,28 @@ class ContainerInstancePushProvisioner:
         Raises:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
-        container_name = "prefect-acipool-container"
+        container_name = "prefect-aci-push-pool-container"
+
+        check_exists_command = (
+            f"az container show --name {container_name} --resource-group"
+            f" {self.RESOURCE_GROUP_NAME} --output json"
+        )
+
+        try:
+            await self.azure_cli.run_command(
+                check_exists_command,
+                return_json=True,
+            )
+            self._console.print(
+                f"Container instance '{container_name}' already exists.", style="yellow"
+            )
+            return
+        except subprocess.CalledProcessError as e:
+            error_message = e.stderr.decode("utf-8").strip()
+            if "ResourceNotFound" in error_message or "not be found" in error_message:
+                pass
+            else:
+                raise e
 
         create_command = (
             f"az container create --name {container_name} "
@@ -464,16 +507,14 @@ class ContainerInstancePushProvisioner:
         )
         result, _ = await self.azure_cli.run_command(
             create_command,
-            success_message=(
-                f"Container instance '{container_name}' created successfully"
-            ),
             failure_message=f"Failed to create container instance '{container_name}'",
             ignore_if_exists=True,
         )
 
         if result == "created":
-            self.created_resources.append(
-                {"type": "container_instance", "name": container_name}
+            self._console.print(
+                f"Container instance '{container_name}' created successfully",
+                style="green",
             )
         elif result == "exists":
             self._console.print(
@@ -644,12 +685,31 @@ class ContainerInstancePushProvisioner:
             progress.advance(task)
 
             progress.console.print("Generating secret for app registration")
-            tenant_id, client_secret = await self._generate_secret_for_app(
-                app_id=client_id,
+            credentials_block_exists = await self._aci_credentials_block_exists(
+                block_name=f"{work_pool_name}-push-pool-credentials", client=client
             )
-            block_doc_id = await self._create_aci_credentials_block(
-                work_pool_name, client_id, tenant_id, client_secret, client
-            )
+
+            if not credentials_block_exists:
+                tenant_id, client_secret = await self._generate_secret_for_app(
+                    app_id=client_id,
+                )
+                block_doc_id = await self._create_aci_credentials_block(
+                    work_pool_name, client_id, tenant_id, client_secret, client
+                )
+            else:
+                block_doc = await client.read_block_document_by_name(
+                    name=f"{work_pool_name}-push-pool-credentials",
+                    block_type_slug="azure-container-instance-credentials",
+                )
+                block_doc_id = block_doc.id
+
+                self._console.print(
+                    (
+                        "ACI credentials block"
+                        f" '{work_pool_name}-push-pool-credentials' already exists."
+                    ),
+                    style="yellow",
+                )
 
             progress.advance(task)
 
