@@ -48,7 +48,7 @@ See the following pull request for implementation details:
 
 
 ### Enhancements
-- Make Flows list a scannable table and standardize list headers throughout the app — https://github.com/PrefectHQ/prefect/pull/11274
+- Make flows list on flows page a scannable table and standardize list headers throughout the app — https://github.com/PrefectHQ/prefect/pull/11274
 
 ### Fixes
 - Fix `.serve` crashes due to process limiter — https://github.com/PrefectHQ/prefect/pull/11264
