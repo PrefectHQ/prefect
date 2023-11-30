@@ -3,6 +3,12 @@ name: Publish Python package
 on:
   release:
     types: [released, prereleased]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit to build from"
+        required: true
+        default: "main"
 
 jobs:
   build-pypi-dists:
@@ -11,15 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check release tag format
-        run: |
-          TAG_REGEX='^[0-9]+\.[0-9]+\.[0-9]+$'
-          if [[ ! "${{ github.ref }}" =~ $TAG_REGEX ]]; then
-            echo "Release tag '${{ github.ref }}' is not in the correct format. It should be a semver tag, e.g. '1.2.3'."
-            exit 1
-          fi
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.commit }}
           # Versioneer only generates correct versions with a full fetch
           fetch-depth: 0
           persist-credentials: false
