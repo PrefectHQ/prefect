@@ -468,7 +468,7 @@ class VpcResource:
             # Create subnets
             subnets = [
                 vpc.create_subnet(CidrBlock=str(subnet_cidr))
-                for subnet_cidr in subnet_cidrs
+                for subnet_cidr in subnet_cidrs[0:3]
             ]
 
             # Create a Route Table for the public subnet and add a route to the Internet Gateway

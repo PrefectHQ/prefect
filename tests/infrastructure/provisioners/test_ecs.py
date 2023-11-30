@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import boto3
 import pytest
-from moto import mock_ecs, mock_iam
+from moto import mock_ec2, mock_ecs, mock_iam
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
@@ -13,6 +13,7 @@ from prefect.infrastructure.provisioners.ecs import (
     CredentialsBlockResource,
     IamPolicyResource,
     IamUserResource,
+    VpcResource,
 )
 from prefect.settings import PREFECT_API_BLOCKS_REGISTER_ON_START, temporary_settings
 
@@ -25,6 +26,26 @@ def iam_policy_resource():
 @pytest.fixture(autouse=True)
 def iam_mock():
     mock = mock_iam()
+    mock.start()
+
+    yield
+
+    mock.stop()
+
+
+@pytest.fixture(autouse=True)
+def ecs_mock():
+    mock = mock_ecs()
+    mock.start()
+
+    yield
+
+    mock.stop()
+
+
+@pytest.fixture(autouse=True)
+def ec2_mock():
+    mock = mock_ec2()
     mock.start()
 
     yield
@@ -429,16 +450,6 @@ def cluster_resource():
     return ClusterResource(cluster_name="prefect-ecs-cluster")
 
 
-@pytest.fixture(autouse=True)
-def ecs_mock():
-    mock = mock_ecs()
-    mock.start()
-
-    yield
-
-    mock.stop()
-
-
 @pytest.fixture
 def existing_cluster():
     ecs_client = boto3.client("ecs")
@@ -514,3 +525,208 @@ class TestClusterResource:
         }
 
         advance_mock.assert_called_once()
+
+
+@pytest.fixture
+def vpc_resource():
+    return VpcResource()
+
+
+@pytest.fixture
+def no_default_vpc():
+    ec2 = boto3.resource("ec2")
+    default_vpc = None
+    for vpc in ec2.vpcs.all():
+        if vpc.is_default:
+            default_vpc = vpc
+            break
+
+    if not default_vpc:
+        return
+
+    default_vpc.delete()
+
+
+@pytest.fixture
+def existing_vpc(no_default_vpc):
+    ec2 = boto3.resource("ec2")
+    ec2.create_vpc(CidrBlock="172.31.0.0/16")
+
+    yield
+
+
+@pytest.fixture
+def existing_prefect_vpc(no_default_vpc):
+    ec2 = boto3.resource("ec2")
+    vpc = ec2.create_vpc(CidrBlock="172.31.0.0/16")
+    vpc.create_tags(Tags=[{"Key": "Name", "Value": "prefect-ecs-vpc"}])
+
+    yield
+
+
+class TestVpcResource:
+    @pytest.mark.usefixtures("no_default_vpc")
+    async def test_get_task_count(self, vpc_resource):
+        count = await vpc_resource.get_task_count()
+
+        assert count == 5
+
+    async def test_get_task_count_default_vpc(self, vpc_resource):
+        count = await vpc_resource.get_task_count()
+
+        assert count == 0
+
+    @pytest.mark.usefixtures("existing_prefect_vpc")
+    async def test_get_task_count_existing_prefect_vpc(self, vpc_resource):
+        count = await vpc_resource.get_task_count()
+
+        assert count == 0
+
+    @pytest.mark.usefixtures("existing_vpc")
+    async def test_get_task_count_existing_vpc(self, vpc_resource):
+        count = await vpc_resource.get_task_count()
+
+        assert count == 5
+
+    async def test_requires_provisioning_default_vpc_exists(self, vpc_resource):
+        requires_provisioning = await vpc_resource.requires_provisioning()
+
+        assert not requires_provisioning
+
+    @pytest.mark.usefixtures("existing_prefect_vpc")
+    async def test_requires_provisioning_prefect_created_vpc_exists(self, vpc_resource):
+        requires_provisioning = await vpc_resource.requires_provisioning()
+
+        assert not requires_provisioning
+
+    @pytest.mark.usefixtures("no_default_vpc")
+    async def test_requires_provisioning_no_default_vpc(self, vpc_resource):
+        requires_provisioning = await vpc_resource.requires_provisioning()
+
+        assert requires_provisioning
+
+    @pytest.mark.usefixtures("existing_vpc")
+    async def test_requires_provisioning_existing_vpc(self, vpc_resource):
+        requires_provisioning = await vpc_resource.requires_provisioning()
+
+        assert requires_provisioning
+
+    @pytest.mark.usefixtures("no_default_vpc")
+    async def test_get_planned_actions_requires_provisioning(self, vpc_resource):
+        actions = await vpc_resource.get_planned_actions()
+
+        assert (
+            actions
+            == "Creating a VPC with CIDR [blue]172.31.0.0/16[/] for running"
+            " ECS tasks: [blue]prefect-ecs-vpc[/]"
+        )
+
+    async def test_get_planned_actions_does_not_require_provisioning(
+        self, vpc_resource
+    ):
+        actions = await vpc_resource.get_planned_actions()
+
+        assert actions is None
+
+    @pytest.mark.usefixtures("no_default_vpc")
+    async def test_provision(self, vpc_resource):
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"vpc_id": {}},
+            }
+        }
+
+        advance_mock = MagicMock()
+
+        await vpc_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+        )
+
+        assert isinstance(
+            base_job_template["variables"]["properties"]["vpc_id"]["default"], str
+        )
+
+        ec2 = boto3.resource("ec2")
+        vpc = ec2.Vpc(base_job_template["variables"]["properties"]["vpc_id"]["default"])
+        assert vpc.cidr_block == "172.31.0.0/16"
+        assert vpc.tags[0]["Key"] == "Name"
+        assert vpc.tags[0]["Value"] == "prefect-ecs-vpc"
+
+        assert len(list(vpc.subnets.all())) == 3
+        assert len(list(vpc.internet_gateways.all())) == 1
+        # One route table is created by default, and the other is created for the internet gateway
+        assert len(list(vpc.route_tables.all())) == 2
+        # One security group is created by default, and the other is created to restrict traffic to the VPC
+        assert len(list(vpc.security_groups.all())) == 2
+
+        advance_mock.assert_called()
+
+    @pytest.mark.usefixtures("existing_prefect_vpc")
+    async def test_provision_existing_prefect_vpc(self, vpc_resource):
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"vpc_id": {}},
+            }
+        }
+
+        advance_mock = MagicMock()
+
+        await vpc_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+        )
+
+        ec2 = boto3.resource("ec2")
+        prefect_vpc = None
+        for vpc in ec2.vpcs.all():
+            if vpc.tags[0]["Value"] == "prefect-ecs-vpc":
+                prefect_vpc = vpc
+                break
+
+        assert (
+            base_job_template["variables"]["properties"]["vpc_id"]["default"]
+            == prefect_vpc.id
+        )
+        advance_mock.assert_not_called()
+
+    @pytest.mark.usefixtures("existing_vpc")
+    async def test_provision_existing_vpc(self, vpc_resource):
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"vpc_id": {}},
+            }
+        }
+
+        advance_mock = MagicMock()
+
+        await vpc_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+        )
+
+        ec2 = boto3.resource("ec2")
+        vpc = ec2.Vpc(base_job_template["variables"]["properties"]["vpc_id"]["default"])
+        # The CIDR block is different to avoid a collision with the existing VPC
+        assert vpc.cidr_block == "172.32.0.0/16"
+
+    async def test_provision_default_vpc(self, vpc_resource):
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"vpc_id": {}},
+            }
+        }
+
+        advance_mock = MagicMock()
+
+        await vpc_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+        )
+
+        assert "default" not in base_job_template["variables"]["properties"]["vpc_id"]
+        advance_mock.assert_not_called()
