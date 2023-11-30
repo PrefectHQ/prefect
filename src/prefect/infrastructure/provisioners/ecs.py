@@ -159,6 +159,7 @@ class IamPolicyResource:
             policy_arn = policy["Policy"]["Arn"]
             advance()
             return policy_arn
+        # TODO: read and return policy arn
 
 
 class IamUserResource:
@@ -657,10 +658,16 @@ class VpcResource:
             )
 
             # Create subnets
-            subnets = [
-                vpc.create_subnet(CidrBlock=str(subnet_cidr))
-                for subnet_cidr in subnet_cidrs[0:3]
-            ]
+            azs = self._ec2_client.describe_availability_zones()["AvailabilityZones"]
+            zones = [az["ZoneName"] for az in azs]
+            subnets = []
+            for i, subnet_cidr in enumerate(subnet_cidrs[0:3]):
+                subnets.append(
+                    vpc.create_subnet(
+                        CidrBlock=str(subnet_cidr),
+                        AvailabilityZone=zones[i],
+                    )
+                )
 
             # Create a Route Table for the public subnet and add a route to the Internet Gateway
             public_route_table = vpc.create_route_table()
@@ -776,7 +783,6 @@ class ElasticContainerServicePushProvisioner:
                 num_tasks = sum(
                     [await resource.get_task_count() for resource in resources]
                 )
-
                 progress.update(inspect_aws_account_task, completed=1)
 
             if num_tasks > 0:
