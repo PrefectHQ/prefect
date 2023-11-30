@@ -3,12 +3,13 @@ from unittest.mock import MagicMock
 
 import boto3
 import pytest
-from moto import mock_iam
+from moto import mock_ecs, mock_iam
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.infrastructure.provisioners.ecs import (
     AuthenticationResource,
+    ClusterResource,
     CredentialsBlockResource,
     IamPolicyResource,
     IamUserResource,
@@ -222,6 +223,7 @@ async def existing_credentials_block(
     block_schema = await prefect_client.get_most_recent_block_schema_for_block_type(
         block_type_id=block_type.id
     )
+    assert block_schema is not None
     block_document = await prefect_client.create_block_document(
         block_document=BlockDocumentCreate(
             name="work-pool-aws-credentials",
@@ -420,3 +422,95 @@ class TestAuthenticationResource:
         }
 
         assert advance_mock.call_count == 4
+
+
+@pytest.fixture
+def cluster_resource():
+    return ClusterResource(cluster_name="prefect-ecs-cluster")
+
+
+@pytest.fixture(autouse=True)
+def ecs_mock():
+    mock = mock_ecs()
+    mock.start()
+
+    yield
+
+    mock.stop()
+
+
+@pytest.fixture
+def existing_cluster():
+    ecs_client = boto3.client("ecs")
+    ecs_client.create_cluster(clusterName="prefect-ecs-cluster")
+
+    yield
+
+    ecs_client.delete_cluster(cluster="prefect-ecs-cluster")
+
+
+class TestClusterResource:
+    async def test_requires_provisioning_no_cluster(self, cluster_resource):
+        needs_provisioning = await cluster_resource.requires_provisioning()
+
+        assert needs_provisioning
+
+    @pytest.mark.usefixtures("existing_cluster")
+    async def test_requires_provisioning_with_cluster(self, cluster_resource):
+        needs_provisioning = await cluster_resource.requires_provisioning()
+
+        assert not needs_provisioning
+
+    async def test_get_task_count(self, cluster_resource):
+        count = await cluster_resource.get_task_count()
+
+        assert count == 1
+
+    @pytest.mark.usefixtures("existing_cluster")
+    async def test_get_task_count_cluster_exists(self, cluster_resource):
+        count = await cluster_resource.get_task_count()
+
+        assert count == 0
+
+    @pytest.mark.usefixtures("existing_cluster")
+    async def test_get_planned_actions_cluster_exists(self, cluster_resource):
+        actions = await cluster_resource.get_planned_actions()
+
+        assert actions is None
+
+    async def test_get_planned_actions_cluster_does_not_exist(self, cluster_resource):
+        actions = await cluster_resource.get_planned_actions()
+
+        assert (
+            actions
+            == "Creating an ECS cluster for running Prefect flows:"
+            " [blue]prefect-ecs-cluster[/]"
+        )
+
+    async def test_provision(self, cluster_resource):
+        advance_mock = MagicMock()
+        ecs_client = boto3.client("ecs")
+
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"cluster": {}},
+            }
+        }
+
+        await cluster_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+        )
+
+        clusters = ecs_client.list_clusters()["clusterArns"]
+        assert (
+            f"arn:aws:ecs:us-east-1:123456789012:cluster/{cluster_resource._cluster_name}"
+            in clusters
+        )
+
+        assert base_job_template["variables"]["properties"]["cluster"] == {
+            "default": "prefect-ecs-cluster",
+        }
+
+        advance_mock.assert_called_once()

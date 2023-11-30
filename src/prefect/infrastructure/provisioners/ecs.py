@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import contextvars
 import importlib
@@ -11,6 +10,7 @@ from functools import partial
 from textwrap import dedent
 from typing import Any, Callable, Dict, Optional
 
+import anyio
 from anyio import run_process
 from rich.console import Console
 from rich.panel import Panel
@@ -139,8 +139,8 @@ class IamUserResource:
     async def requires_provisioning(self) -> bool:
         if self._requires_provisioning is None:
             try:
-                await asyncio.to_thread(
-                    self._iam_client.get_user, UserName=self._user_name
+                await anyio.to_thread.run_sync(
+                    partial(self._iam_client.get_user, UserName=self._user_name)
                 )
                 self._requires_provisioning = False
             except self._iam_client.exceptions.NoSuchEntityException:
