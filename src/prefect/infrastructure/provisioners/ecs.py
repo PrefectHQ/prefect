@@ -526,7 +526,7 @@ class VpcResource:
         Returns:
             int: The number of tasks to be provisioned.
         """
-        return 5 if await self.requires_provisioning() else 0
+        return 4 if await self.requires_provisioning() else 0
 
     def _default_vpc_exists(self):
         response = self._ec2_client.describe_vpcs()
@@ -802,7 +802,8 @@ class ElasticContainerServicePushProvisioner:
                     "No additional infrastructure required for work pool"
                     f" [blue]{work_pool_name}[/]"
                 )
-                # don't return early, we still need to update the job template
+                # don't return early, we still need to update the base job template
+                # provision calls will be no-ops, but update the base job template
 
             base_job_template_copy = deepcopy(base_job_template)
             with Progress(console=self._console, disable=num_tasks == 0) as progress:
@@ -816,6 +817,11 @@ class ElasticContainerServicePushProvisioner:
                             advance=partial(progress.advance, task),
                             base_job_template=base_job_template_copy,
                         )
+
+            if num_tasks > 0:
+                self._console.print(
+                    "Infrastructure successfully provisioned!", style="green"
+                )
 
             return base_job_template_copy
         except Exception as exc:

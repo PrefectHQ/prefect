@@ -573,7 +573,7 @@ class TestVpcResource:
     async def test_get_task_count(self, vpc_resource):
         count = await vpc_resource.get_task_count()
 
-        assert count == 5
+        assert count == 4
 
     async def test_get_task_count_default_vpc(self, vpc_resource):
         count = await vpc_resource.get_task_count()
@@ -590,7 +590,7 @@ class TestVpcResource:
     async def test_get_task_count_existing_vpc(self, vpc_resource):
         count = await vpc_resource.get_task_count()
 
-        assert count == 5
+        assert count == 4
 
     async def test_requires_provisioning_default_vpc_exists(self, vpc_resource):
         requires_provisioning = await vpc_resource.requires_provisioning()
