@@ -4,7 +4,7 @@
 
 ### Automatic infrastructure provisioning for ECS push work pools
 
-Following the introduction of [automatic project configuration for Cloud Run push pools](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#automatic-project-configuration-for-cloud-run-push-work-pools) last week, we've added automatic provision infrastructure in your AWS and set up your Prefect workspace to support a new ECS push pool!
+Following the introduction of [automatic project configuration for Cloud Run push pools](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#automatic-project-configuration-for-cloud-run-push-work-pools) last week, we've added the ability to automatically provision infrastructure in your AWS account and set up your Prefect workspace to support a new ECS push pool!
 
 You can create a new ECS push work pool and provision infrastructure in your AWS account with the following command:
 
