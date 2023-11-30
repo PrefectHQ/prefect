@@ -3,6 +3,7 @@ import statistics
 import sys
 import threading
 import time
+import warnings
 from contextlib import contextmanager
 from typing import List
 from unittest.mock import MagicMock, patch
@@ -38,6 +39,7 @@ from prefect.engine import (
     propose_state,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
+    suspend_flow_run,
 )
 from prefect.exceptions import (
     Abort,
@@ -295,6 +297,12 @@ class TestBlockingPause:
 
 
 class TestNonblockingPause:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
         self, prefect_client, deployment, session
     ):
@@ -327,8 +335,10 @@ class TestNonblockingPause:
             await foo(wait_for=[x, y])
             assert False, "This line should not be reached"
 
-        with pytest.raises(Pause):
-            await pausing_flow_without_blocking(return_state=True)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            with pytest.raises(Pause):
+                await pausing_flow_without_blocking(return_state=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_paused()
@@ -453,6 +463,12 @@ class TestNonblockingPause:
 
 
 class TestOutOfProcessPause:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_flows_can_be_paused_out_of_process(
         self, prefect_client, deployment, session
     ):
@@ -551,6 +567,143 @@ class TestOutOfProcessPause:
         assert state.state_details.pause_timeout == date
         assert state.state_details.pause_reschedule is False
         assert state.state_details.pause_key == "foo"
+
+
+class TestSuspendFlowRun:
+    async def test_suspended_flow_runs_do_not_block_execution(
+        self, prefect_client, deployment, session
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+            flow_run_id = context.flow_run.id
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            await suspend_flow_run()
+            await asyncio.sleep(20)
+
+        start = time.time()
+        with pytest.raises(Pause):
+            await suspending_flow()
+        end = time.time()
+        assert end - start < 20
+
+    async def test_suspended_flow_run_has_correct_state(
+        self, prefect_client, deployment, session
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+            flow_run_id = context.flow_run.id
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            await suspend_flow_run()
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        state = flow_run.state
+        assert state.is_paused()
+        assert state.name == "Suspended"
+
+    async def test_suspending_flow_run_without_deployment_fails(self):
+        @flow()
+        async def suspending_flow():
+            await suspend_flow_run()
+
+        with pytest.raises(
+            RuntimeError, match="Cannot suspend flows without a deployment."
+        ):
+            await suspending_flow()
+
+    async def test_suspending_sub_flow_run_fails(self):
+        @flow()
+        async def suspending_flow():
+            await suspend_flow_run()
+
+        @flow
+        async def main_flow():
+            await suspending_flow()
+
+        with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
+            await main_flow()
+
+    async def test_suspend_flow_run_by_id(self, deployment, session):
+        flow_run_id = None
+        task_completions = 0
+
+        @task
+        async def increment_completions():
+            nonlocal task_completions
+            task_completions += 1
+            await asyncio.sleep(0.1)
+
+        @flow()
+        async def suspendable_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                context.flow_run.id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            for i in range(20):
+                await increment_completions()
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+
+            while flow_run_id is None:
+                await asyncio.sleep(0.1)
+
+            # Sleep for a bit to let some of `suspendable_flow`s tasks complete
+            await asyncio.sleep(0.3)
+
+            await suspend_flow_run(flow_run_id=flow_run_id)
+
+        with pytest.raises(asyncio.exceptions.CancelledError):
+            await asyncio.gather(suspendable_flow(), suspending_flow())
+
+        # When suspending a flow run by id, that flow run must use tasks for
+        # the suspension to take place. This setup allows for `suspendable_flow`
+        # to complete some tasks before `suspending_flow` suspends the flow run.
+        # Here then we check to ensure that some tasks completed but not _all_
+        # of the tasks.
+        assert task_completions > 0 and task_completions < 20
 
 
 class TestOrchestrateTaskRun:

@@ -112,6 +112,7 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 import prefect.plugins
+from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
@@ -172,6 +173,7 @@ from prefect.states import (
     Pending,
     Running,
     State,
+    Suspended,
     exception_to_crashed_state,
     exception_to_failed_state,
     get_state_exception,
@@ -941,6 +943,15 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
+@deprecated_parameter(
+    "flow_run_id", start_date="Dec 2023", help="Use `suspend_flow_run` instead."
+)
+@deprecated_parameter(
+    "reschedule",
+    start_date="Dec 2023",
+    when=lambda p: p is True,
+    help="Use `suspend_flow_run` instead.",
+)
 async def pause_flow_run(
     flow_run_id: UUID = None,
     timeout: int = 300,
@@ -949,7 +960,7 @@ async def pause_flow_run(
     key: str = None,
 ):
     """
-    Pauses the current flow run by stopping execution until resumed.
+    Pauses the current flow run by blocking execution until resumed.
 
     When called within a flow run, execution will block and no downstream tasks will
     run until the flow is resumed. Task runs that have already started will continue
@@ -1086,6 +1097,90 @@ async def _out_of_process_pause(
     )
     if response.status != SetStateStatus.ACCEPT:
         raise RuntimeError(response.details.reason)
+
+
+@sync_compatible
+@inject_client
+async def suspend_flow_run(
+    flow_run_id: Optional[UUID] = None,
+    timeout: Optional[int] = 300,
+    key: Optional[str] = None,
+    client: PrefectClient = None,
+):
+    """
+    Suspends a flow run by stopping code execution until resumed.
+
+    When suspended, the flow run will continue execution until the NEXT task is
+    orchestrated, at which point the flow will exit. Any tasks that have
+    already started will run until completion. When resumed, the flow run will
+    be rescheduled to finish execution. In order suspend a flow run in this
+    way, the flow needs to have an associated deployment and results need to be
+    configured with the `persist_results` option.
+
+    Args:
+        flow_run_id: a flow run id. If supplied, this function will attempt to
+            suspend the specified flow run. If not supplied will attempt to
+            suspend the current flow run.
+        timeout: the number of seconds to wait for the flow to be resumed before
+            failing. Defaults to 5 minutes (300 seconds). If the pause timeout
+            exceeds any configured flow-level timeout, the flow might fail even
+            after resuming.
+        key: An optional key to prevent calling suspend more than once. This
+            defaults to a random string and prevents suspends from running the
+            same suspend twice. A custom key can be supplied for custom
+            suspending behavior.
+    """
+    context = FlowRunContext.get()
+
+    if flow_run_id is None:
+        if TaskRunContext.get():
+            raise RuntimeError("Cannot suspend task runs.")
+
+        if context is None or context.flow_run is None:
+            raise RuntimeError(
+                "Flow runs can only be suspended from within a flow run."
+            )
+
+        logger = get_run_logger(context=context)
+        logger.info(
+            "Suspending flow run, execution will be rescheduled when this flow run is"
+            " resumed."
+        )
+        flow_run_id = context.flow_run.id
+        suspending_current_flow_run = True
+        pause_counter = _observed_flow_pauses(context)
+        pause_key = key or str(pause_counter)
+    else:
+        # Since we're suspending another flow run we need to generate a pause
+        # key that won't conflict with whatever suspends/pauses that flow may
+        # have. Since this method won't be called during that flow run it's
+        # okay that this is non-deterministic.
+        suspending_current_flow_run = False
+        pause_key = key or str(uuid4())
+
+    try:
+        state = await propose_state(
+            client=client,
+            state=Suspended(timeout_seconds=timeout, pause_key=pause_key),
+            flow_run_id=flow_run_id,
+        )
+    except Abort as exc:
+        # Aborted requests mean the suspension is not allowed
+        raise RuntimeError(f"Flow run cannot be suspended: {exc}")
+
+    if state.is_running():
+        # The orchestrator requests that this suspend be ignored
+        return
+
+    if not state.is_paused():
+        # If we receive anything but a PAUSED state, we are unable to continue
+        raise RuntimeError(
+            f"Flow run cannot be suspended. Received unexpected state from API: {state}"
+        )
+
+    if suspending_current_flow_run:
+        # Exit this process so the run can be resubmitted later
+        raise Pause()
 
 
 @sync_compatible
