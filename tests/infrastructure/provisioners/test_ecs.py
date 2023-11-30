@@ -1,10 +1,11 @@
+import json
 from unittest.mock import MagicMock
 
 import boto3
 import pytest
 from moto import mock_iam
 
-from prefect.infrastructure.provisioners.ecs import IamPolicyResource
+from prefect.infrastructure.provisioners.ecs import IamPolicyResource, IamUserResource
 
 
 @pytest.fixture
@@ -22,6 +23,33 @@ def iam_mock():
     mock.stop()
 
 
+@pytest.fixture
+def existing_iam_policy():
+    iam_client = boto3.client("iam")
+    policy = iam_client.create_policy(
+        PolicyName="prefect-ecs-policy",
+        PolicyDocument=json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "PrefectEcsPolicy",
+                        "Effect": "Allow",
+                        "Action": [
+                            "ecs:DescribeTasks",
+                        ],
+                        "Resource": "*",
+                    }
+                ],
+            }
+        ),
+    )
+
+    yield
+
+    iam_client.delete_policy(PolicyArn=policy["Policy"]["Arn"])
+
+
 class TestIamPolicyResource:
     async def test_requires_provisioning_no_policy(self, iam_policy_resource):
         # Check if provisioning is needed
@@ -29,50 +57,8 @@ class TestIamPolicyResource:
 
         assert needs_provisioning
 
+    @pytest.mark.usefixtures("existing_iam_policy")
     async def test_requires_provisioning_with_policy(self, iam_policy_resource):
-        # Create a mock IAM policy
-        iam_client = boto3.client("iam")
-        iam_client.create_policy(
-            PolicyName="prefect-ecs-policy",
-            PolicyDocument="""\
-                {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Sid": "PrefectEcsPolicy",
-                            "Effect": "Allow",
-                            "Action": [
-                                "ec2:AuthorizeSecurityGroupIngress",
-                                "ec2:CreateSecurityGroup",
-                                "ec2:CreateTags",
-                                "ec2:DescribeNetworkInterfaces",
-                                "ec2:DescribeSecurityGroups",
-                                "ec2:DescribeSubnets",
-                                "ec2:DescribeVpcs",
-                                "ecs:CreateCluster",
-                                "ecs:DeregisterTaskDefinition",
-                                "ecs:DescribeClusters",
-                                "ecs:DescribeTaskDefinition",
-                                "ecs:DescribeTasks",
-                                "ecs:ListAccountSettings",
-                                "ecs:ListClusters",
-                                "ecs:ListTaskDefinitions",
-                                "ecs:RegisterTaskDefinition",
-                                "ecs:RunTask",
-                                "ecs:StopTask",
-                                "logs:CreateLogStream",
-                                "logs:PutLogEvents",
-                                "logs:DescribeLogGroups",
-                                "logs:GetLogEvents"
-                            ],
-                            "Resource": "*"
-                        }
-                    ]
-                }
-            """,
-        )
-
-        # Check if provisioning is needed
         needs_provisioning = await iam_policy_resource.requires_provisioning()
 
         assert not needs_provisioning
@@ -83,9 +69,7 @@ class TestIamPolicyResource:
         iam_client.create_user(UserName="prefect-ecs-user")
 
         # Provision IAM policy
-        await iam_policy_resource.provision(
-            "work_pool_name", base_job_template={}, advance=advance_mock
-        )
+        await iam_policy_resource.provision(advance=advance_mock)
 
         # Check if the IAM policy exists
         policies = iam_client.list_policies(Scope="Local")["Policies"]
@@ -93,14 +77,117 @@ class TestIamPolicyResource:
 
         assert "prefect-ecs-policy" in policy_names
 
-        # Check if the IAM policy is attached to the user
-        attached_policies = iam_client.list_attached_user_policies(
-            UserName="prefect-ecs-user"
-        )["AttachedPolicies"]
-        attached_policy_arns = [policy["PolicyArn"] for policy in attached_policies]
+        advance_mock.assert_called_once()
 
-        assert any(
-            policy_arn.endswith(":policy/prefect-ecs-policy")
-            for policy_arn in attached_policy_arns
+    @pytest.mark.usefixtures("existing_iam_policy")
+    async def test_provision_preexisting_policy(self):
+        advance_mock = MagicMock()
+
+        iam_policy_resource = IamPolicyResource()
+        result = await iam_policy_resource.provision(advance=advance_mock)
+        assert result is None
+        advance_mock.assert_not_called()
+
+    @pytest.mark.usefixtures("existing_iam_policy")
+    async def test_get_task_count_policy_exists(self, iam_policy_resource):
+        count = await iam_policy_resource.get_task_count()
+
+        assert count == 0
+
+    async def test_get_task_count_policy_does_not_exist(self, iam_policy_resource):
+        count = await iam_policy_resource.get_task_count()
+
+        assert count == 1
+
+    @pytest.mark.usefixtures("existing_iam_policy")
+    async def test_get_planned_actions_policy_exists(self, iam_policy_resource):
+        actions = await iam_policy_resource.get_planned_actions()
+
+        assert actions is None
+
+    async def test_get_planned_actions_policy_does_not_exist(self, iam_policy_resource):
+        actions = await iam_policy_resource.get_planned_actions()
+
+        assert (
+            actions
+            == "Creating and attaching an IAM policy for managing ECS tasks:"
+            f" [blue]{iam_policy_resource._policy_name}[/]"
         )
-        assert advance_mock.call_count == iam_policy_resource.num_tasks
+
+
+@pytest.fixture
+def iam_user_resource():
+    return IamUserResource(user_name="prefect-ecs-user")
+
+
+@pytest.fixture
+def existing_iam_user():
+    iam_client = boto3.client("iam")
+    iam_client.create_user(UserName="prefect-ecs-user")
+
+    yield
+
+    iam_client.delete_user(UserName="prefect-ecs-user")
+
+
+class TestIamUserResource:
+    async def test_requires_provisioning_no_user(self, iam_user_resource):
+        needs_provisioning = await iam_user_resource.requires_provisioning()
+
+        assert needs_provisioning
+
+    @pytest.mark.usefixtures("existing_iam_user")
+    async def test_requires_provisioning_with_user(self, iam_user_resource):
+        needs_provisioning = await iam_user_resource.requires_provisioning()
+
+        assert not needs_provisioning
+
+    async def test_provision(self, iam_user_resource):
+        advance_mock = MagicMock()
+        iam_client = boto3.client("iam")
+
+        # Provision IAM user
+        await iam_user_resource.provision(advance=advance_mock)
+
+        # Check if the IAM user exists
+        users = iam_client.list_users()["Users"]
+        user_names = [user["UserName"] for user in users]
+
+        assert "prefect-ecs-user" in user_names
+
+        advance_mock.assert_called_once()
+
+    @pytest.mark.usefixtures("existing_iam_user")
+    async def test_provision_preexisting_user(self):
+        advance_mock = MagicMock()
+
+        iam_user_resource = IamUserResource(user_name="prefect-ecs-user")
+        result = await iam_user_resource.provision(advance=advance_mock)
+        assert result is None
+        advance_mock.assert_not_called()
+
+    @pytest.mark.usefixtures("existing_iam_user")
+    async def test_get_task_count_user_exists(self, iam_user_resource):
+        count = await iam_user_resource.get_task_count()
+
+        assert count == 0
+
+    async def test_get_task_count_user_does_not_exist(self, iam_user_resource):
+        count = await iam_user_resource.get_task_count()
+
+        assert count == 1
+
+    @pytest.mark.usefixtures("existing_iam_user")
+    async def test_get_planned_actions_user_exists(self, iam_user_resource):
+        actions = await iam_user_resource.get_planned_actions()
+
+        assert actions is None
+
+    async def test_get_planned_actions_user_does_not_exist(self, iam_user_resource):
+        actions = await iam_user_resource.get_planned_actions()
+
+        assert (
+            actions
+            == "Creating an IAM user for managing ECS tasks:"
+            f" [blue]{iam_user_resource._user_name}[/]"
+        )
