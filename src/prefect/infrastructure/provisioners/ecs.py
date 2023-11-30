@@ -100,6 +100,16 @@ class IamPolicyResource:
         """
         return 1 if await self.requires_provisioning() else 0
 
+    def _get_policy_by_name(self, name):
+        paginator = self._iam_client.get_paginator("list_policies")
+        page_iterator = paginator.paginate(Scope="Local")
+
+        for page in page_iterator:
+            for policy in page["Policies"]:
+                if policy["PolicyName"] == name:
+                    return policy
+        return None
+
     async def requires_provisioning(self) -> bool:
         """
         Check if this resource requires provisioning.
@@ -109,14 +119,12 @@ class IamPolicyResource:
         """
         if self._requires_provisioning is not None:
             return self._requires_provisioning
-        paginator = self._iam_client.get_paginator("list_policies")
-        page_iterator = paginator.paginate(Scope="Local")
-
-        for page in page_iterator:
-            for policy in page["Policies"]:
-                if policy["PolicyName"] == self._policy_name:
-                    self._requires_provisioning = False
-                    return False
+        policy = await anyio.to_thread.run_sync(
+            partial(self._get_policy_by_name, self._policy_name)
+        )
+        if policy is not None:
+            self._requires_provisioning = False
+            return False
 
         self._requires_provisioning = True
         return True
@@ -152,9 +160,12 @@ class IamPolicyResource:
         if await self.requires_provisioning():
             console = current_console.get()
             console.print("Creating IAM policy")
-            policy = self._iam_client.create_policy(
-                PolicyName=self._policy_name,
-                PolicyDocument=self._policy_document,
+            policy = await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.create_policy,
+                    PolicyName=self._policy_name,
+                    PolicyDocument=self._policy_document,
+                )
             )
             policy_arn = policy["Policy"]["Arn"]
             advance()
@@ -230,7 +241,9 @@ class IamUserResource:
         console = current_console.get()
         if await self.requires_provisioning():
             console.print("Provisioning IAM user")
-            self._iam_client.create_user(UserName=self._user_name)
+            await anyio.to_thread.run_sync(
+                partial(self._iam_client.create_user, UserName=self._user_name)
+            )
             advance()
 
 
@@ -303,7 +316,9 @@ class CredentialsBlockResource:
             console = current_console.get()
             console.print("Generating AWS credentials")
             iam_client = boto3.client("iam")
-            access_key_data = iam_client.create_access_key(UserName=self._user_name)
+            access_key_data = await anyio.to_thread.run_sync(
+                partial(iam_client.create_access_key, UserName=self._user_name)
+            )
             access_key = access_key_data["AccessKey"]
             advance()
             console.print("Creating AWS credentials block")
@@ -431,9 +446,12 @@ class AuthenticationResource:
         # Attach the policy to the user
         if policy_arn:
             iam_client = boto3.client("iam")
-            iam_client.attach_user_policy(
-                UserName=self._user_name,
-                PolicyArn=policy_arn,
+            await anyio.to_thread.run_sync(
+                partial(
+                    iam_client.attach_user_policy,
+                    UserName=self._user_name,
+                    PolicyArn=policy_arn,
+                )
             )
         await self._credentials_block_resource.provision(
             base_job_template=base_job_template,
@@ -464,7 +482,11 @@ class ClusterResource:
             bool: True if provisioning is required, False otherwise.
         """
         if self._requires_provisioning is None:
-            response = self._ecs_client.describe_clusters(clusters=[self._cluster_name])
+            response = await anyio.to_thread.run_sync(
+                partial(
+                    self._ecs_client.describe_clusters, clusters=[self._cluster_name]
+                )
+            )
             if response["clusters"] and response["clusters"][0]["status"] == "ACTIVE":
                 self._requires_provisioning = False
             else:
@@ -504,7 +526,9 @@ class ClusterResource:
         if await self.requires_provisioning():
             console = current_console.get()
             console.print("Provisioning ECS cluster")
-            self._ecs_client.create_cluster(clusterName=self._cluster_name)
+            await anyio.to_thread.run_sync(
+                partial(self._ecs_client.create_cluster, clusterName=self._cluster_name)
+            )
             advance()
 
         base_job_template["variables"]["properties"]["cluster"][
@@ -517,7 +541,6 @@ class VpcResource:
         self._ec2_client = boto3.client("ec2")
         self._ec2_resource = boto3.resource("ec2")
         self._vpc_name = vpc_name
-        self._new_vpc_cidr = self._find_non_overlapping_cidr()
         self._requires_provisioning = None
 
     async def get_task_count(self):
@@ -529,8 +552,8 @@ class VpcResource:
         """
         return 4 if await self.requires_provisioning() else 0
 
-    def _default_vpc_exists(self):
-        response = self._ec2_client.describe_vpcs()
+    async def _default_vpc_exists(self):
+        response = await anyio.to_thread.run_sync(self._ec2_client.describe_vpcs)
         default_vpc = next(
             (
                 vpc
@@ -541,19 +564,22 @@ class VpcResource:
         )
         return default_vpc is not None
 
-    def _get_prefect_created_vpc(self):
-        vpcs = self._ec2_resource.vpcs.filter(
-            Filters=[{"Name": "tag:Name", "Values": [self._vpc_name]}]
+    async def _get_prefect_created_vpc(self):
+        vpcs = await anyio.to_thread.run_sync(
+            partial(
+                self._ec2_resource.vpcs.filter,
+                Filters=[{"Name": "tag:Name", "Values": [self._vpc_name]}],
+            )
         )
         return next(iter(vpcs), None)
 
-    def _get_existing_vpc_cidrs(self):
-        response = self._ec2_client.describe_vpcs()
+    async def _get_existing_vpc_cidrs(self):
+        response = await anyio.to_thread.run_sync(self._ec2_client.describe_vpcs)
         return [vpc["CidrBlock"] for vpc in response["Vpcs"]]
 
-    def _find_non_overlapping_cidr(self, default_cidr="172.31.0.0/16"):
+    async def _find_non_overlapping_cidr(self, default_cidr="172.31.0.0/16"):
         """Find a non-overlapping CIDR block"""
-        response = self._ec2_client.describe_vpcs()
+        response = await anyio.to_thread.run_sync(self._ec2_client.describe_vpcs)
         existing_cidrs = [vpc["CidrBlock"] for vpc in response["Vpcs"]]
 
         base_ip = ipaddress.ip_network(default_cidr)
@@ -588,11 +614,11 @@ class VpcResource:
         if self._requires_provisioning is not None:
             return self._requires_provisioning
 
-        if self._default_vpc_exists():
+        if await self._default_vpc_exists():
             self._requires_provisioning = False
             return False
 
-        if self._get_prefect_created_vpc() is not None:
+        if await self._get_prefect_created_vpc() is not None:
             self._requires_provisioning = False
             return False
 
@@ -608,8 +634,9 @@ class VpcResource:
                 or None if provisioning is not required.
         """
         if await self.requires_provisioning():
+            new_vpc_cidr = await self._find_non_overlapping_cidr()
             return [
-                f"Creating a VPC with CIDR [blue]{self._new_vpc_cidr}[/] for running"
+                f"Creating a VPC with CIDR [blue]{new_vpc_cidr}[/] for running"
                 f" ECS tasks: [blue]{self._vpc_name}[/]"
             ]
         return []
@@ -633,62 +660,102 @@ class VpcResource:
         if await self.requires_provisioning():
             console = current_console.get()
             console.print("Provisioning VPC")
-            vpc = self._ec2_resource.create_vpc(CidrBlock=self._new_vpc_cidr)
-            vpc.wait_until_available()
-            vpc.create_tags(
-                Resources=[vpc.id],
-                Tags=[
-                    {
-                        "Key": "Name",
-                        "Value": self._vpc_name,
-                    },
-                ],
+            new_vpc_cidr = await self._find_non_overlapping_cidr()
+            vpc = await anyio.to_thread.run_sync(
+                partial(self._ec2_resource.create_vpc, CidrBlock=new_vpc_cidr)
+            )
+            await anyio.to_thread.run_sync(vpc.wait_until_available)
+            await anyio.to_thread.run_sync(
+                partial(
+                    vpc.create_tags,
+                    Resources=[vpc.id],
+                    Tags=[
+                        {
+                            "Key": "Name",
+                            "Value": self._vpc_name,
+                        },
+                    ],
+                )
             )
             advance()
 
             console.print("Creating internet gateway")
-            internet_gateway = self._ec2_resource.create_internet_gateway()
-            vpc.attach_internet_gateway(InternetGatewayId=internet_gateway.id)
+            internet_gateway = await anyio.to_thread.run_sync(
+                self._ec2_resource.create_internet_gateway
+            )
+            await anyio.to_thread.run_sync(
+                partial(
+                    vpc.attach_internet_gateway, InternetGatewayId=internet_gateway.id
+                )
+            )
             advance()
 
             console.print("Setting up subnets")
-            vpc_network = ipaddress.ip_network(self._new_vpc_cidr)
+            vpc_network = ipaddress.ip_network(new_vpc_cidr)
             subnet_cidrs = list(
                 vpc_network.subnets(new_prefix=vpc_network.prefixlen + 2)
             )
 
             # Create subnets
-            azs = self._ec2_client.describe_availability_zones()["AvailabilityZones"]
+            azs = (
+                await anyio.to_thread.run_sync(
+                    self._ec2_client.describe_availability_zones
+                )
+            )["AvailabilityZones"]
             zones = [az["ZoneName"] for az in azs]
             subnets = []
             for i, subnet_cidr in enumerate(subnet_cidrs[0:3]):
                 subnets.append(
-                    vpc.create_subnet(
-                        CidrBlock=str(subnet_cidr),
-                        AvailabilityZone=zones[i],
+                    await anyio.to_thread.run_sync(
+                        partial(
+                            vpc.create_subnet,
+                            CidrBlock=str(subnet_cidr),
+                            AvailabilityZone=zones[i],
+                        )
                     )
                 )
 
             # Create a Route Table for the public subnet and add a route to the Internet Gateway
-            public_route_table = vpc.create_route_table()
-            public_route_table.create_route(
-                DestinationCidrBlock="0.0.0.0/0", GatewayId=internet_gateway.id
+            public_route_table = await anyio.to_thread.run_sync(vpc.create_route_table)
+            await anyio.to_thread.run_sync(
+                partial(
+                    public_route_table.create_route,
+                    DestinationCidrBlock="0.0.0.0/0",
+                    GatewayId=internet_gateway.id,
+                )
             )
-            public_route_table.associate_with_subnet(SubnetId=subnets[0].id)
-            public_route_table.associate_with_subnet(SubnetId=subnets[1].id)
-            public_route_table.associate_with_subnet(SubnetId=subnets[2].id)
+            await anyio.to_thread.run_sync(
+                partial(
+                    public_route_table.associate_with_subnet, SubnetId=subnets[0].id
+                )
+            )
+            await anyio.to_thread.run_sync(
+                partial(
+                    public_route_table.associate_with_subnet, SubnetId=subnets[1].id
+                )
+            )
+            await anyio.to_thread.run_sync(
+                partial(
+                    public_route_table.associate_with_subnet, SubnetId=subnets[2].id
+                )
+            )
             advance()
 
             console.print("Setting up security group")
             # Create a security group to block all inbound traffic
-            self._ec2_resource.create_security_group(
-                GroupName="prefect-ecs-security-group",
-                Description="Block all inbound traffic and allow all outbound traffic",
-                VpcId=vpc.id,
+            await anyio.to_thread.run_sync(
+                partial(
+                    self._ec2_resource.create_security_group,
+                    GroupName="prefect-ecs-security-group",
+                    Description=(
+                        "Block all inbound traffic and allow all outbound traffic"
+                    ),
+                    VpcId=vpc.id,
+                )
             )
             advance()
         else:
-            vpc = self._get_prefect_created_vpc()
+            vpc = await self._get_prefect_created_vpc()
 
         if vpc is not None:
             base_job_template["variables"]["properties"]["vpc_id"]["default"] = str(
