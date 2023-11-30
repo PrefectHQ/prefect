@@ -9,6 +9,9 @@ from moto import mock_ec2, mock_ecs, mock_iam
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
+from prefect.infrastructure.provisioners import (
+    get_infrastructure_provisioner_for_work_pool_type,
+)
 from prefect.infrastructure.provisioners.ecs import (
     AuthenticationResource,
     ClusterResource,
@@ -924,3 +927,10 @@ class TestElasticContainerServicePushProvisioner:
         )
 
         assert result_1 == result_2
+
+
+def test_resolve_provisoner():
+    assert isinstance(
+        get_infrastructure_provisioner_for_work_pool_type("ecs:push"),
+        ElasticContainerServicePushProvisioner,
+    )

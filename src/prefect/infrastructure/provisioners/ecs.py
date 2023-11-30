@@ -7,7 +7,6 @@ import shlex
 import sys
 from copy import deepcopy
 from functools import partial
-from textwrap import dedent
 from typing import Any, Callable, Dict, Optional
 
 import anyio
@@ -38,58 +37,74 @@ def console_context(value: Console):
 
 
 class IamPolicyResource:
+    """
+    Represents an IAM policy resource for managing ECS tasks.
+
+    Args:
+        policy_name: The name of the IAM policy. Defaults to "prefect-ecs-policy".
+    """
+
     def __init__(
         self,
         policy_name: str = "prefect-ecs-policy",
-        attached_user_name: str = "prefect-ecs-user",
     ):
         self._iam_client = boto3.client("iam")
         self._policy_name = policy_name
-        self._attached_user_name = attached_user_name
-        self._policy_document = dedent(
-            json.dumps(
-                {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Sid": "PrefectEcsPolicy",
-                            "Effect": "Allow",
-                            "Action": [
-                                "ec2:AuthorizeSecurityGroupIngress",
-                                "ec2:CreateSecurityGroup",
-                                "ec2:CreateTags",
-                                "ec2:DescribeNetworkInterfaces",
-                                "ec2:DescribeSecurityGroups",
-                                "ec2:DescribeSubnets",
-                                "ec2:DescribeVpcs",
-                                "ecs:CreateCluster",
-                                "ecs:DeregisterTaskDefinition",
-                                "ecs:DescribeClusters",
-                                "ecs:DescribeTaskDefinition",
-                                "ecs:DescribeTasks",
-                                "ecs:ListAccountSettings",
-                                "ecs:ListClusters",
-                                "ecs:ListTaskDefinitions",
-                                "ecs:RegisterTaskDefinition",
-                                "ecs:RunTask",
-                                "ecs:StopTask",
-                                "logs:CreateLogStream",
-                                "logs:PutLogEvents",
-                                "logs:DescribeLogGroups",
-                                "logs:GetLogEvents",
-                            ],
-                            "Resource": "*",
-                        }
-                    ],
-                }
-            )
+        self._policy_document = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "PrefectEcsPolicy",
+                        "Effect": "Allow",
+                        "Action": [
+                            "ec2:AuthorizeSecurityGroupIngress",
+                            "ec2:CreateSecurityGroup",
+                            "ec2:CreateTags",
+                            "ec2:DescribeNetworkInterfaces",
+                            "ec2:DescribeSecurityGroups",
+                            "ec2:DescribeSubnets",
+                            "ec2:DescribeVpcs",
+                            "ecs:CreateCluster",
+                            "ecs:DeregisterTaskDefinition",
+                            "ecs:DescribeClusters",
+                            "ecs:DescribeTaskDefinition",
+                            "ecs:DescribeTasks",
+                            "ecs:ListAccountSettings",
+                            "ecs:ListClusters",
+                            "ecs:ListTaskDefinitions",
+                            "ecs:RegisterTaskDefinition",
+                            "ecs:RunTask",
+                            "ecs:StopTask",
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents",
+                            "logs:DescribeLogGroups",
+                            "logs:GetLogEvents",
+                        ],
+                        "Resource": "*",
+                    }
+                ],
+            }
         )
+
         self._requires_provisioning = None
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
         return 1 if await self.requires_provisioning() else 0
 
     async def requires_provisioning(self) -> bool:
+        """
+        Check if this resource requires provisioning.
+
+        Returns:
+            bool: True if provisioning is required, False otherwise.
+        """
         if self._requires_provisioning is not None:
             return self._requires_provisioning
         paginator = self._iam_client.get_paginator("list_policies")
@@ -105,6 +120,13 @@ class IamPolicyResource:
         return True
 
     async def get_planned_actions(self) -> Optional[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
         if await self.requires_provisioning():
             return (
                 "Creating and attaching an IAM policy for managing ECS tasks:"
@@ -115,6 +137,15 @@ class IamPolicyResource:
         self,
         advance: Callable[[], None],
     ):
+        """
+        Provisions an IAM policy.
+
+        Args:
+            advance: A callback function to indicate progress.
+
+        Returns:
+            str: The ARN (Amazon Resource Name) of the created IAM policy.
+        """
         if await self.requires_provisioning():
             console = current_console.get()
             console.print("Creating IAM policy")
@@ -128,15 +159,34 @@ class IamPolicyResource:
 
 
 class IamUserResource:
+    """
+    Represents an IAM user resource for managing ECS tasks.
+
+    Args:
+        user_name: The desired name of the IAM user.
+    """
+
     def __init__(self, user_name: str):
         self._iam_client = boto3.client("iam")
         self._user_name = user_name
         self._requires_provisioning = None
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
         return 1 if await self.requires_provisioning() else 0
 
     async def requires_provisioning(self) -> bool:
+        """
+        Check if this resource requires provisioning.
+
+        Returns:
+            bool: True if provisioning is required, False otherwise.
+        """
         if self._requires_provisioning is None:
             try:
                 await anyio.to_thread.run_sync(
@@ -149,6 +199,13 @@ class IamUserResource:
         return self._requires_provisioning
 
     async def get_planned_actions(self) -> Optional[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
         if await self.requires_provisioning():
             return (
                 "Creating an IAM user for managing ECS tasks:"
@@ -159,6 +216,12 @@ class IamUserResource:
         self,
         advance: Callable[[], None],
     ):
+        """
+        Provisions an IAM user.
+
+        Args:
+            advance: A callback function to indicate progress.
+        """
         console = current_console.get()
         if await self.requires_provisioning():
             console.print("Provisioning IAM user")
@@ -173,6 +236,12 @@ class CredentialsBlockResource:
         self._requires_provisioning = None
 
     async def get_task_count(self):
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
         return 2 if await self.requires_provisioning() else 0
 
     @inject_client
@@ -191,6 +260,13 @@ class CredentialsBlockResource:
         return self._requires_provisioning
 
     async def get_planned_actions(self) -> Optional[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
         if await self.requires_provisioning():
             return "Storing generated AWS credentials in a block"
 
@@ -201,6 +277,17 @@ class CredentialsBlockResource:
         advance: Callable[[], None],
         client: Optional[PrefectClient] = None,
     ):
+        """
+        Provisions an AWS credentials block.
+
+        Will generate new credentials if the block does not already exist. Updates
+        the `aws_credentials` variable in the job template to reference the block.
+
+        Args:
+            base_job_template: The base job template.
+            advance: A callback function to indicate progress.
+            client: A Prefect client to use for interacting with the Prefect API.
+        """
         assert client is not None, "Client injection failed"
         if not await self.requires_provisioning():
             block_doc = await client.read_block_document_by_name(
@@ -267,14 +354,33 @@ class AuthenticationResource:
         ]
 
     async def get_task_count(self):
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
         return sum([await resource.get_task_count() for resource in self.resources])
 
     async def requires_provisioning(self) -> bool:
+        """
+        Check if this resource requires provisioning.
+
+        Returns:
+            bool: True if provisioning is required, False otherwise.
+        """
         return any(
             [await resource.requires_provisioning() for resource in self.resources]
         )
 
     async def get_planned_actions(self) -> Optional[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
         planned_actions = [
             await resource.get_planned_actions() for resource in self.resources
         ]
@@ -293,6 +399,14 @@ class AuthenticationResource:
         base_job_template: Dict[str, Any],
         advance: Callable[[], None],
     ):
+        """
+        Provisions the authentication resources.
+
+        Args:
+            base_job_template: The base job template of the work pool to provision
+                infrastructure for.
+            advance: A callback function to indicate progress.
+        """
         # Provision the IAM user
         await self._iam_user_resource.provision(advance=advance)
         # Provision the IAM policy
@@ -317,9 +431,21 @@ class ClusterResource:
         self._requires_provisioning = None
 
     async def get_task_count(self):
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
         return 1 if await self.requires_provisioning() else 0
 
     async def requires_provisioning(self) -> bool:
+        """
+        Check if this resource requires provisioning.
+
+        Returns:
+            bool: True if provisioning is required, False otherwise.
+        """
         if self._requires_provisioning is None:
             response = self._ecs_client.describe_clusters(clusters=[self._cluster_name])
             if response["clusters"] and response["clusters"][0]["status"] == "ACTIVE":
@@ -329,6 +455,13 @@ class ClusterResource:
         return self._requires_provisioning
 
     async def get_planned_actions(self) -> Optional[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
         if await self.requires_provisioning():
             return (
                 "Creating an ECS cluster for running Prefect flows:"
@@ -340,6 +473,16 @@ class ClusterResource:
         base_job_template: Dict[str, Any],
         advance: Callable[[], None],
     ):
+        """
+        Provisions an ECS cluster.
+
+        Will update the `cluster` variable in the job template to reference the cluster.
+
+        Args:
+            base_job_template: The base job template of the work pool to provision
+                infrastructure for.
+            advance: A callback function to indicate progress.
+        """
         if await self.requires_provisioning():
             console = current_console.get()
             console.print("Provisioning ECS cluster")
@@ -360,6 +503,12 @@ class VpcResource:
         self._requires_provisioning = None
 
     async def get_task_count(self):
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
         return 5 if await self.requires_provisioning() else 0
 
     def _default_vpc_exists(self):
@@ -412,6 +561,12 @@ class VpcResource:
                 return str(new_cidr)
 
     async def requires_provisioning(self) -> bool:
+        """
+        Check if this resource requires provisioning.
+
+        Returns:
+            bool: True if provisioning is required, False otherwise.
+        """
         if self._requires_provisioning is not None:
             return self._requires_provisioning
 
@@ -427,6 +582,13 @@ class VpcResource:
         return True
 
     async def get_planned_actions(self) -> Optional[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
         if await self.requires_provisioning():
             return (
                 f"Creating a VPC with CIDR [blue]{self._new_vpc_cidr}[/] for running"
@@ -438,6 +600,17 @@ class VpcResource:
         base_job_template: Dict[str, Any],
         advance: Callable[[], None],
     ):
+        """
+        Provisions a VPC.
+
+        Chooses a CIDR block to avoid conflicting with any existing VPCs. Will update
+        the `vpc_id` variable in the job template to reference the VPC.
+
+        Args:
+            base_job_template: The base job template of the work pool to provision
+                infrastructure for.
+            advance: A callback function to indicate progress.
+        """
         if await self.requires_provisioning():
             console = current_console.get()
             console.print("Provisioning VPC")
@@ -499,9 +672,12 @@ class VpcResource:
 
 
 class ElasticContainerServicePushProvisioner:
+    """
+    An infrastructure provisioner for ECS push work pools.
+    """
+
     def __init__(self):
         self._console = Console()
-        self._user_name = "prefect-ecs-user"
 
     @property
     def console(self):
@@ -520,6 +696,9 @@ class ElasticContainerServicePushProvisioner:
 
     @staticmethod
     def is_boto3_installed():
+        """
+        Check if boto3 is installed.
+        """
         try:
             importlib.import_module("boto3")
             return True
@@ -538,6 +717,17 @@ class ElasticContainerServicePushProvisioner:
         work_pool_name: str,
         base_job_template: dict,
     ) -> Dict[str, Any]:
+        """
+        Provisions the infrastructure for an ECS push work pool.
+
+        Args:
+            work_pool_name: The name of the work pool to provision infrastructure for.
+            base_job_template: The base job template of the work pool to provision
+                infrastructure for.
+
+        Returns:
+            dict: An updated copy base job template.
+        """
         if not self.is_boto3_installed():
             if self.console.is_interactive and Confirm.ask(
                 "boto3 is required to configure your AWS account. Would you like to"
