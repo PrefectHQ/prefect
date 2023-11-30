@@ -3,6 +3,7 @@ import statistics
 import sys
 import threading
 import time
+import warnings
 from contextlib import contextmanager
 from typing import List
 from unittest.mock import MagicMock, patch
@@ -296,6 +297,12 @@ class TestBlockingPause:
 
 
 class TestNonblockingPause:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
         self, prefect_client, deployment, session
     ):
@@ -328,8 +335,10 @@ class TestNonblockingPause:
             await foo(wait_for=[x, y])
             assert False, "This line should not be reached"
 
-        with pytest.raises(Pause):
-            await pausing_flow_without_blocking(return_state=True)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            with pytest.raises(Pause):
+                await pausing_flow_without_blocking(return_state=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_paused()
@@ -454,6 +463,12 @@ class TestNonblockingPause:
 
 
 class TestOutOfProcessPause:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_flows_can_be_paused_out_of_process(
         self, prefect_client, deployment, session
     ):
