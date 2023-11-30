@@ -1,5 +1,7 @@
 import json
-from unittest.mock import MagicMock
+import shlex
+import sys
+from unittest.mock import ANY, MagicMock, call, patch
 
 import boto3
 import pytest
@@ -11,6 +13,7 @@ from prefect.infrastructure.provisioners.ecs import (
     AuthenticationResource,
     ClusterResource,
     CredentialsBlockResource,
+    ElasticContainerServicePushProvisioner,
     IamPolicyResource,
     IamUserResource,
     VpcResource,
@@ -34,7 +37,8 @@ def iam_mock():
 
 
 @pytest.fixture(autouse=True)
-def ecs_mock():
+def ecs_mock(monkeypatch):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     mock = mock_ecs()
     mock.start()
 
@@ -730,3 +734,193 @@ class TestVpcResource:
 
         assert "default" not in base_job_template["variables"]["properties"]["vpc_id"]
         advance_mock.assert_not_called()
+
+
+class TestElasticContainerServicePushProvisioner:
+    @pytest.fixture
+    def provisioner(self):
+        return ElasticContainerServicePushProvisioner()
+
+    @pytest.fixture
+    def mock_console(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_confirm(self):
+        with patch("prefect.infrastructure.provisioners.ecs.Confirm") as mock:
+            yield mock
+
+    @pytest.fixture
+    def mock_run_process(self):
+        with patch("prefect.infrastructure.provisioners.ecs.run_process") as mock:
+            yield mock
+
+    @pytest.fixture
+    def mock_importlib(self):
+        with patch("prefect.infrastructure.provisioners.ecs.importlib") as mock:
+            yield mock
+
+    async def test__prompt_boto3_installation(
+        self, provisioner, mock_confirm, mock_run_process
+    ):
+        await provisioner._prompt_boto3_installation()
+        mock_run_process.assert_called_once_with(
+            [shlex.quote(sys.executable), "-m", "pip", "install", "boto3"]
+        )
+
+    def test_is_boto3_installed(self, provisioner, mock_importlib):
+        assert provisioner.is_boto3_installed()
+        mock_importlib.import_module.assert_called_once()
+
+    @pytest.mark.usefixtures("register_block_types")
+    async def test_provision_boto3_not_installed_interactive(
+        self,
+        provisioner,
+        mock_confirm,
+        mock_run_process,
+        mock_importlib,
+    ):
+        mock_confirm.ask.return_value = True
+
+        mock_importlib.import_module.side_effect = [ModuleNotFoundError, boto3]
+
+        provisioner.console.is_interactive = True
+        await provisioner.provision(
+            work_pool_name="test-work-pool",
+            base_job_template={
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "vpc_id": {},
+                        "cluster": {},
+                        "aws_credentials": {},
+                    },
+                }
+            },
+        )
+
+        mock_confirm.ask.calls = [
+            call(
+                (
+                    "boto3 is required to configure your AWS account. Would you like to"
+                    " install it?"
+                ),
+                console=ANY,
+            ),
+            call(
+                "Proceed with infrastructure provisioning?",
+                console=ANY,
+            ),
+        ]
+        mock_run_process.assert_called_once()
+
+    async def test_provision_boto3_not_installed_non_interactive(
+        self, provisioner, mock_confirm, mock_importlib
+    ):
+        mock_importlib.import_module.side_effect = [ModuleNotFoundError, boto3]
+
+        with pytest.raises(RuntimeError):
+            await provisioner.provision(
+                work_pool_name="test-work-pool",
+                base_job_template={
+                    "variables": {
+                        "type": "object",
+                        "properties": {
+                            "vpc_id": {},
+                            "cluster": {},
+                            "aws_credentials": {},
+                        },
+                    }
+                },
+            )
+
+        mock_confirm.ask.assert_not_called()
+
+    async def test_provision_boto3_installed_interactive(
+        self, provisioner, mock_console, mock_confirm
+    ):
+        mock_console.is_interactive = True
+        mock_confirm.ask.return_value = False
+
+        provisioner.console.is_interactive = True
+        provisioner.is_boto3_installed = MagicMock(return_value=True)
+
+        result = await provisioner.provision("test-work-pool", {})
+
+        assert result == {}
+
+        mock_confirm.ask.assert_called_once_with(
+            "Proceed with infrastructure provisioning?", console=ANY
+        )
+
+    @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
+    async def test_provision(self, provisioner, mock_confirm, prefect_client):
+        provisioner.console.is_interactive = True
+        mock_confirm.ask.return_value = True
+
+        result = await provisioner.provision(
+            "test-work-pool",
+            {
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "vpc_id": {},
+                        "cluster": {},
+                        "aws_credentials": {},
+                    },
+                }
+            },
+        )
+
+        ec2 = boto3.resource("ec2")
+        vpc = ec2.Vpc(result["variables"]["properties"]["vpc_id"]["default"])
+        assert vpc is not None
+
+        ecs = boto3.client("ecs")
+        clusters = ecs.list_clusters()["clusterArns"]
+        assert (
+            f"arn:aws:ecs:us-east-1:123456789012:cluster/{result['variables']['properties']['cluster']['default']}"
+            in clusters
+        )
+
+        block_document = await prefect_client.read_block_document_by_name(
+            "test-work-pool-aws-credentials", "aws-credentials"
+        )
+        assert result["variables"]["properties"]["aws_credentials"] == {
+            "default": {"$ref": {"block_document_id": str(block_document.id)}},
+        }
+
+    @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
+    async def test_provision_idempotent(self, provisioner, mock_confirm):
+        provisioner.console.is_interactive = True
+        mock_confirm.ask.return_value = True
+
+        result_1 = await provisioner.provision(
+            "test-work-pool",
+            {
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "vpc_id": {},
+                        "cluster": {},
+                        "aws_credentials": {},
+                    },
+                }
+            },
+        )
+
+        result_2 = await provisioner.provision(
+            "test-work-pool",
+            {
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "vpc_id": {},
+                        "cluster": {},
+                        "aws_credentials": {},
+                    },
+                }
+            },
+        )
+
+        assert result_1 == result_2

@@ -521,8 +521,9 @@ class ElasticContainerServicePushProvisioner:
     @staticmethod
     def is_boto3_installed():
         try:
+            importlib.import_module("boto3")
             return True
-        except ImportError:
+        except ModuleNotFoundError:
             return False
 
     def _generate_resources(self, work_pool_name: str):
