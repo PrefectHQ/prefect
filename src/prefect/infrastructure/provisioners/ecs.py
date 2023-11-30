@@ -310,11 +310,10 @@ class AuthenticationResource:
                 UserName=self._user_name,
                 PolicyArn=policy_arn,
             )
-        if await self._credentials_block_resource.requires_provisioning():
-            await self._credentials_block_resource.provision(
-                base_job_template=base_job_template,
-                advance=advance,
-            )
+        await self._credentials_block_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance,
+        )
 
 
 class ClusterResource:
@@ -347,14 +346,15 @@ class ClusterResource:
         base_job_template: Dict[str, Any],
         advance: Callable[[], None],
     ):
-        console = current_console.get()
-        console.print("Provisioning ECS cluster")
-        self._ecs_client.create_cluster(clusterName=self._cluster_name)
+        if await self.requires_provisioning():
+            console = current_console.get()
+            console.print("Provisioning ECS cluster")
+            self._ecs_client.create_cluster(clusterName=self._cluster_name)
+            advance()
+
         base_job_template["variables"]["properties"]["cluster"][
             "default"
         ] = self._cluster_name
-
-        advance()
 
 
 class VpcResource:
@@ -367,6 +367,24 @@ class VpcResource:
 
     async def get_task_count(self):
         return 5 if await self.requires_provisioning() else 0
+
+    def _default_vpc_exists(self):
+        response = self._ec2_client.describe_vpcs()
+        default_vpc = next(
+            (
+                vpc
+                for vpc in response["Vpcs"]
+                if vpc["IsDefault"] and vpc["State"] == "available"
+            ),
+            None,
+        )
+        return default_vpc is not None
+
+    def _get_prefect_created_vpc(self):
+        vpcs = self._ec2_resource.vpcs.filter(
+            Filters=[{"Name": "tag:Name", "Values": [self._vpc_name]}]
+        )
+        return next(iter(vpcs), None)
 
     def _get_existing_vpc_cidrs(self):
         response = self._ec2_client.describe_vpcs()
@@ -403,32 +421,11 @@ class VpcResource:
         if self._requires_provisioning is not None:
             return self._requires_provisioning
 
-        response = self._ec2_client.describe_vpcs()
-        default_vpc = next(
-            (
-                vpc
-                for vpc in response["Vpcs"]
-                if vpc["IsDefault"] and vpc["State"] == "available"
-            ),
-            None,
-        )
-        if default_vpc:
+        if self._default_vpc_exists():
             self._requires_provisioning = False
             return False
 
-        prefect_created_vpc = next(
-            (
-                vpc
-                for vpc in response["Vpcs"]
-                if vpc["Tags"]
-                and any(
-                    tag["Key"] == "Name" and tag["Value"] == self._vpc_name
-                    for tag in vpc["Tags"]
-                )
-            ),
-            None,
-        )
-        if prefect_created_vpc:
+        if self._get_prefect_created_vpc() is not None:
             self._requires_provisioning = False
             return False
 
@@ -447,56 +444,64 @@ class VpcResource:
         base_job_template: Dict[str, Any],
         advance: Callable[[], None],
     ):
-        console = current_console.get()
-        console.print("Provisioning VPC")
-        vpc = self._ec2_resource.create_vpc(CidrBlock=self._new_vpc_cidr)
-        vpc.wait_until_available()
-        vpc.create_tags(
-            Resources=[vpc.id],
-            Tags=[
-                {
-                    "Key": "Name",
-                    "Value": self._vpc_name,
-                },
-            ],
-        )
-        advance()
+        if await self.requires_provisioning():
+            console = current_console.get()
+            console.print("Provisioning VPC")
+            vpc = self._ec2_resource.create_vpc(CidrBlock=self._new_vpc_cidr)
+            vpc.wait_until_available()
+            vpc.create_tags(
+                Resources=[vpc.id],
+                Tags=[
+                    {
+                        "Key": "Name",
+                        "Value": self._vpc_name,
+                    },
+                ],
+            )
+            advance()
 
-        console.print("Creating internet gateway")
-        internet_gateway = self._ec2_resource.create_internet_gateway()
-        vpc.attach_internet_gateway(InternetGatewayId=internet_gateway.id)
-        advance()
+            console.print("Creating internet gateway")
+            internet_gateway = self._ec2_resource.create_internet_gateway()
+            vpc.attach_internet_gateway(InternetGatewayId=internet_gateway.id)
+            advance()
 
-        console.print("Setting up subnets")
-        vpc_network = ipaddress.ip_network(self._new_vpc_cidr)
-        subnet_cidrs = list(vpc_network.subnets(new_prefix=vpc_network.prefixlen + 2))
+            console.print("Setting up subnets")
+            vpc_network = ipaddress.ip_network(self._new_vpc_cidr)
+            subnet_cidrs = list(
+                vpc_network.subnets(new_prefix=vpc_network.prefixlen + 2)
+            )
 
-        # Create subnets
-        subnets = [
-            vpc.create_subnet(CidrBlock=str(subnet_cidr))
-            for subnet_cidr in subnet_cidrs
-        ]
+            # Create subnets
+            subnets = [
+                vpc.create_subnet(CidrBlock=str(subnet_cidr))
+                for subnet_cidr in subnet_cidrs
+            ]
 
-        # Create a Route Table for the public subnet and add a route to the Internet Gateway
-        public_route_table = vpc.create_route_table()
-        public_route_table.create_route(
-            DestinationCidrBlock="0.0.0.0/0", GatewayId=internet_gateway.id
-        )
-        public_route_table.associate_with_subnet(SubnetId=subnets[0].id)
-        public_route_table.associate_with_subnet(SubnetId=subnets[1].id)
-        public_route_table.associate_with_subnet(SubnetId=subnets[2].id)
-        advance()
+            # Create a Route Table for the public subnet and add a route to the Internet Gateway
+            public_route_table = vpc.create_route_table()
+            public_route_table.create_route(
+                DestinationCidrBlock="0.0.0.0/0", GatewayId=internet_gateway.id
+            )
+            public_route_table.associate_with_subnet(SubnetId=subnets[0].id)
+            public_route_table.associate_with_subnet(SubnetId=subnets[1].id)
+            public_route_table.associate_with_subnet(SubnetId=subnets[2].id)
+            advance()
 
-        console.print("Setting up security group")
-        # Create a security group to block all inbound traffic
-        self._ec2_resource.create_security_group(
-            GroupName="prefect-ecs-security-group",
-            Description="Block all inbound traffic and allow all outbound traffic",
-            VpcId=vpc.id,
-        )
-        advance()
+            console.print("Setting up security group")
+            # Create a security group to block all inbound traffic
+            self._ec2_resource.create_security_group(
+                GroupName="prefect-ecs-security-group",
+                Description="Block all inbound traffic and allow all outbound traffic",
+                VpcId=vpc.id,
+            )
+            advance()
+        else:
+            vpc = self._get_prefect_created_vpc()
 
-        base_job_template["variables"]["properties"]["vpc_id"]["default"] = str(vpc.id)
+        if vpc is not None:
+            base_job_template["variables"]["properties"]["vpc_id"]["default"] = str(
+                vpc.id
+            )
 
 
 class ElasticContainerServicePushProvisioner:
@@ -552,28 +557,31 @@ class ElasticContainerServicePushProvisioner:
 
         resources = self._generate_resources(work_pool_name=work_pool_name)
 
-        message = (
-            f"Provisioning infrastructure for your work pool [blue]{work_pool_name}[/]"
-            " will require: \n"
-        )
-        for resource in resources:
-            planned_actions = await resource.get_planned_actions()
-            if planned_actions:
-                message += f"\n\t - {planned_actions}"
+        num_tasks = sum([await resource.get_task_count() for resource in resources])
 
-        self.console.print(Panel(message))
+        if num_tasks > 0:
+            message = (
+                "Provisioning infrastructure for your work pool"
+                f" [blue]{work_pool_name}[/] will require: \n"
+            )
+            for resource in resources:
+                planned_actions = await resource.get_planned_actions()
+                if planned_actions:
+                    message += f"\n\t - {planned_actions}"
 
-        if self._console.is_interactive:
-            if not Confirm.ask(
-                "Proceed with infrastructure provisioning?", console=self._console
-            ):
-                return base_job_template
+            self.console.print(Panel(message))
+
+            if self._console.is_interactive:
+                if not Confirm.ask(
+                    "Proceed with infrastructure provisioning?", console=self._console
+                ):
+                    return base_job_template
 
         base_job_template_copy = deepcopy(base_job_template)
-        with Progress(console=self._console) as progress:
+        with Progress(console=self._console, disable=num_tasks == 0) as progress:
             task = progress.add_task(
                 "Provisioning Infrastructure",
-                total=sum([await resource.get_task_count() for resource in resources]),
+                total=num_tasks,
             )
             for resource in resources:
                 with console_context(progress.console):
