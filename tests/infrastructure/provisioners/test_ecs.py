@@ -5,7 +5,15 @@ import boto3
 import pytest
 from moto import mock_iam
 
-from prefect.infrastructure.provisioners.ecs import IamPolicyResource, IamUserResource
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import BlockDocumentCreate
+from prefect.infrastructure.provisioners.ecs import (
+    AuthenticationResource,
+    CredentialsBlockResource,
+    IamPolicyResource,
+    IamUserResource,
+)
+from prefect.settings import PREFECT_API_BLOCKS_REGISTER_ON_START, temporary_settings
 
 
 @pytest.fixture
@@ -191,3 +199,224 @@ class TestIamUserResource:
             == "Creating an IAM user for managing ECS tasks:"
             f" [blue]{iam_user_resource._user_name}[/]"
         )
+
+
+@pytest.fixture
+def credentials_block_resource():
+    return CredentialsBlockResource(
+        user_name="prefect-ecs-user", block_document_name="work-pool-aws-credentials"
+    )
+
+
+@pytest.fixture
+def register_block_types():
+    with temporary_settings({PREFECT_API_BLOCKS_REGISTER_ON_START: True}):
+        yield
+
+
+@pytest.fixture
+async def existing_credentials_block(
+    register_block_types, prefect_client: PrefectClient
+):
+    block_type = await prefect_client.read_block_type_by_slug(slug="aws-credentials")
+    block_schema = await prefect_client.get_most_recent_block_schema_for_block_type(
+        block_type_id=block_type.id
+    )
+    block_document = await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            name="work-pool-aws-credentials",
+            data={
+                "aws_access_key_id": "ACCESS_KEY_ID",
+                "aws_secret_access_key": "SECRET_ACCESS_KEY",
+                "region_name": "us-west-2",
+            },
+            block_type_id=block_type.id,
+            block_schema_id=block_schema.id,
+        )
+    )
+
+    yield
+
+    await prefect_client.delete_block_document(block_document_id=block_document.id)
+
+
+class TestCredentialsBlockResource:
+    async def test_requires_provisioning_no_block(self, credentials_block_resource):
+        needs_provisioning = await credentials_block_resource.requires_provisioning()
+
+        assert needs_provisioning
+
+    @pytest.mark.usefixtures("existing_credentials_block")
+    async def test_requires_provisioning_with_block(self, credentials_block_resource):
+        needs_provisioning = await credentials_block_resource.requires_provisioning()
+
+        assert not needs_provisioning
+
+    @pytest.mark.usefixtures("existing_iam_user", "register_block_types")
+    async def test_provision(self, prefect_client, credentials_block_resource):
+        advance_mock = MagicMock()
+
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"aws_credentials": {}},
+            }
+        }
+
+        # Provision credentials block
+        await credentials_block_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+            client=prefect_client,
+        )
+        # Check if the block document exists
+        block_document = await prefect_client.read_block_document_by_name(
+            "work-pool-aws-credentials", "aws-credentials"
+        )
+
+        assert isinstance(block_document.data["aws_access_key_id"], str)
+        assert isinstance(block_document.data["aws_secret_access_key"], str)
+
+        assert base_job_template["variables"]["properties"]["aws_credentials"] == {
+            "default": {"$ref": {"block_document_id": str(block_document.id)}},
+        }
+
+        advance_mock.assert_called()
+
+    @pytest.mark.usefixtures("existing_credentials_block")
+    async def test_provision_preexisting_block(self, prefect_client):
+        advance_mock = MagicMock()
+
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"aws_credentials": {}},
+            }
+        }
+
+        credentials_block_resource = CredentialsBlockResource(
+            user_name="prefect-ecs-user",
+            block_document_name="work-pool-aws-credentials",
+        )
+        await credentials_block_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+            client=prefect_client,
+        )
+        block_document = await prefect_client.read_block_document_by_name(
+            "work-pool-aws-credentials", "aws-credentials"
+        )
+
+        assert base_job_template["variables"]["properties"]["aws_credentials"] == {
+            "default": {"$ref": {"block_document_id": str(block_document.id)}},
+        }
+
+        advance_mock.assert_not_called()
+
+    @pytest.mark.usefixtures("existing_credentials_block")
+    async def test_get_task_count_block_exists(self, credentials_block_resource):
+        count = await credentials_block_resource.get_task_count()
+
+        assert count == 0
+
+    async def test_get_task_count_block_does_not_exist(
+        self, credentials_block_resource
+    ):
+        count = await credentials_block_resource.get_task_count()
+
+        assert count == 2
+
+    @pytest.mark.usefixtures("existing_credentials_block")
+    async def test_get_planned_actions_block_exists(self, credentials_block_resource):
+        actions = await credentials_block_resource.get_planned_actions()
+
+        assert actions is None
+
+    async def test_get_planned_actions_block_does_not_exist(
+        self, credentials_block_resource
+    ):
+        actions = await credentials_block_resource.get_planned_actions()
+
+        assert actions == "Storing generated AWS credentials in a block"
+
+
+@pytest.fixture
+def authentication_resource():
+    return AuthenticationResource(work_pool_name="work-pool")
+
+
+class TestAuthenticationResource:
+    async def test_requires_provisioning(self, authentication_resource):
+        needs_provisioning = await authentication_resource.requires_provisioning()
+
+        assert needs_provisioning
+
+    @pytest.mark.usefixtures("existing_iam_user", "existing_iam_policy")
+    async def test_needs_provisioning_existing_user_and_policy(
+        self, authentication_resource
+    ):
+        needs_provisioning = await authentication_resource.requires_provisioning()
+
+        assert needs_provisioning
+
+    @pytest.mark.usefixtures(
+        "existing_iam_user", "existing_iam_policy", "existing_credentials_block"
+    )
+    async def test_needs_provisioning_existing_user_policy_and_block(
+        self, authentication_resource
+    ):
+        needs_provisioning = await authentication_resource.requires_provisioning()
+
+        assert not needs_provisioning
+
+    async def test_get_task_count(self, authentication_resource):
+        count = await authentication_resource.get_task_count()
+
+        assert count == 4
+
+    async def test_get_planned_actions(self, authentication_resource):
+        actions = await authentication_resource.get_planned_actions()
+
+        assert (
+            "Creating an IAM user for managing ECS tasks: [blue]prefect-ecs-user[/]"
+            in actions
+        )
+        assert (
+            "Creating and attaching an IAM policy for managing ECS tasks:"
+            " [blue]prefect-ecs-policy[/]"
+            in actions
+        )
+        assert "Storing generated AWS credentials in a block" in actions
+
+    @pytest.mark.usefixtures("existing_iam_user", "existing_iam_policy")
+    async def test_get_planned_actions_existing_user(self, authentication_resource):
+        actions = await authentication_resource.get_planned_actions()
+
+        assert actions == "Storing generated AWS credentials in a block"
+
+    @pytest.mark.usefixtures("register_block_types")
+    async def test_provision(self, authentication_resource, prefect_client):
+        advance_mock = MagicMock()
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"aws_credentials": {}},
+            }
+        }
+
+        await authentication_resource.provision(
+            base_job_template=base_job_template, advance=advance_mock
+        )
+
+        block_document = await prefect_client.read_block_document_by_name(
+            "work-pool-aws-credentials", "aws-credentials"
+        )
+
+        assert isinstance(block_document.data["aws_access_key_id"], str)
+        assert isinstance(block_document.data["aws_secret_access_key"], str)
+
+        assert base_job_template["variables"]["properties"]["aws_credentials"] == {
+            "default": {"$ref": {"block_document_id": str(block_document.id)}},
+        }
+
+        assert advance_mock.call_count == 4

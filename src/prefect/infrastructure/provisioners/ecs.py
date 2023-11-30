@@ -239,7 +239,7 @@ class CredentialsBlockResource:
             )
             advance()
         base_job_template["variables"]["properties"]["aws_credentials"]["default"] = {
-            "$ref": {"block_document_id": block_doc.id}
+            "$ref": {"block_document_id": str(block_doc.id)}
         }
 
 
@@ -267,13 +267,7 @@ class AuthenticationResource:
         ]
 
     async def get_task_count(self):
-        return sum(
-            [
-                await resource.get_task_count()
-                for resource in self.resources
-                if resource != self._credentials_block_resource
-            ]
-        )
+        return sum([await resource.get_task_count() for resource in self.resources])
 
     async def requires_provisioning(self) -> bool:
         return any(
