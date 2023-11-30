@@ -51,7 +51,7 @@ See the following pull request for implementation details:
 - Make Flows list a scannable table and standardize list headers throughout the app — https://github.com/PrefectHQ/prefect/pull/11274
 
 ### Fixes
-- Fix serve script crashes due to process limiter — https://github.com/PrefectHQ/prefect/pull/11264
+- Fix `.serve` crashes due to process limiter — https://github.com/PrefectHQ/prefect/pull/11264
 - Fix URL formatting in `GitRepository` when using provider-specific git credentials blocks — https://github.com/PrefectHQ/prefect/pull/11282
 - Prevent excessively escaping the Windows executable — https://github.com/PrefectHQ/prefect/pull/11253
 
