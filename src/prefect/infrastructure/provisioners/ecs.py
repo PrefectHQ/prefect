@@ -7,19 +7,21 @@ import shlex
 import sys
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Dict, Optional
+from textwrap import dedent
+from typing import Any, Callable, Dict, List, Optional
 
 import anyio
 from anyio import run_process
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
+from prefect.utilities.collections import get_from_dict
 from prefect.utilities.importtools import lazy_import
 
 boto3 = docker = lazy_import("boto3")
@@ -119,7 +121,7 @@ class IamPolicyResource:
         self._requires_provisioning = True
         return True
 
-    async def get_planned_actions(self) -> Optional[str]:
+    async def get_planned_actions(self) -> List[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -128,10 +130,11 @@ class IamPolicyResource:
                 or None if provisioning is not required.
         """
         if await self.requires_provisioning():
-            return (
+            return [
                 "Creating and attaching an IAM policy for managing ECS tasks:"
                 f" [blue]{self._policy_name}[/]"
-            )
+            ]
+        return []
 
     async def provision(
         self,
@@ -198,7 +201,7 @@ class IamUserResource:
 
         return self._requires_provisioning
 
-    async def get_planned_actions(self) -> Optional[str]:
+    async def get_planned_actions(self) -> List[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -207,10 +210,11 @@ class IamUserResource:
                 or None if provisioning is not required.
         """
         if await self.requires_provisioning():
-            return (
+            return [
                 "Creating an IAM user for managing ECS tasks:"
                 f" [blue]{self._user_name}[/]"
-            )
+            ]
+        return []
 
     async def provision(
         self,
@@ -259,7 +263,7 @@ class CredentialsBlockResource:
                 self._requires_provisioning = True
         return self._requires_provisioning
 
-    async def get_planned_actions(self) -> Optional[str]:
+    async def get_planned_actions(self) -> List[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -268,7 +272,8 @@ class CredentialsBlockResource:
                 or None if provisioning is not required.
         """
         if await self.requires_provisioning():
-            return "Storing generated AWS credentials in a block"
+            return ["Storing generated AWS credentials in a block"]
+        return []
 
     @inject_client
     async def provision(
@@ -302,15 +307,33 @@ class CredentialsBlockResource:
             advance()
             console.print("Creating AWS credentials block")
             assert client is not None
-            credentials_block_type = await client.read_block_type_by_slug(
-                "aws-credentials"
-            )
+
+            try:
+                credentials_block_type = await client.read_block_type_by_slug(
+                    "aws-credentials"
+                )
+            except ObjectNotFound as exc:
+                raise RuntimeError(
+                    dedent(
+                        """\
+                    Unable to find block type "aws-credentials".
+                    To register the `aws-credentials` block type, run:
+
+                            pip install prefect-aws
+                            prefect blocks register -m prefect_aws
+
+                    """
+                    )
+                ) from exc
 
             credentials_block_schema = (
                 await client.get_most_recent_block_schema_for_block_type(
                     block_type_id=credentials_block_type.id
                 )
             )
+            assert (
+                credentials_block_schema is not None
+            ), f"Unable to find schema for block type {credentials_block_type.slug}"
 
             block_doc = await client.create_block_document(
                 block_document=BlockDocumentCreate(
@@ -373,7 +396,7 @@ class AuthenticationResource:
             [await resource.requires_provisioning() for resource in self.resources]
         )
 
-    async def get_planned_actions(self) -> Optional[str]:
+    async def get_planned_actions(self) -> List[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -381,18 +404,11 @@ class AuthenticationResource:
             Optional[str]: A description of the planned actions for provisioning the resource,
                 or None if provisioning is not required.
         """
-        planned_actions = [
-            await resource.get_planned_actions() for resource in self.resources
+        return [
+            action
+            for resource in self.resources
+            for action in await resource.get_planned_actions()
         ]
-        if not planned_actions:
-            return None
-        return "\n\t - ".join(
-            [
-                planned_action
-                for planned_action in planned_actions
-                if planned_action is not None
-            ]
-        )
 
     async def provision(
         self,
@@ -454,7 +470,7 @@ class ClusterResource:
                 self._requires_provisioning = True
         return self._requires_provisioning
 
-    async def get_planned_actions(self) -> Optional[str]:
+    async def get_planned_actions(self) -> List[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -463,10 +479,11 @@ class ClusterResource:
                 or None if provisioning is not required.
         """
         if await self.requires_provisioning():
-            return (
+            return [
                 "Creating an ECS cluster for running Prefect flows:"
                 f" [blue]{self._cluster_name}[/]"
-            )
+            ]
+        return []
 
     async def provision(
         self,
@@ -581,7 +598,7 @@ class VpcResource:
         self._requires_provisioning = True
         return True
 
-    async def get_planned_actions(self) -> Optional[str]:
+    async def get_planned_actions(self) -> List[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -590,10 +607,11 @@ class VpcResource:
                 or None if provisioning is not required.
         """
         if await self.requires_provisioning():
-            return (
+            return [
                 f"Creating a VPC with CIDR [blue]{self._new_vpc_cidr}[/] for running"
                 f" ECS tasks: [blue]{self._vpc_name}[/]"
-            )
+            ]
+        return []
 
     async def provision(
         self,
@@ -740,39 +758,71 @@ class ElasticContainerServicePushProvisioner:
                     " and try again."
                 )
 
-        resources = self._generate_resources(work_pool_name=work_pool_name)
+        try:
+            resources = self._generate_resources(work_pool_name=work_pool_name)
 
-        num_tasks = sum([await resource.get_task_count() for resource in resources])
+            with Progress(
+                SpinnerColumn(),
+                TextColumn(
+                    "Checking your AWS account for infrastructure that needs to be"
+                    " provisioned..."
+                ),
+                transient=True,
+                console=self.console,
+            ) as progress:
+                inspect_aws_account_task = progress.add_task(
+                    "inspect_aws_account", total=1
+                )
+                num_tasks = sum(
+                    [await resource.get_task_count() for resource in resources]
+                )
 
-        if num_tasks > 0:
-            message = (
-                "Provisioning infrastructure for your work pool"
-                f" [blue]{work_pool_name}[/] will require: \n"
-            )
-            for resource in resources:
-                planned_actions = await resource.get_planned_actions()
-                if planned_actions:
-                    message += f"\n\t - {planned_actions}"
+                progress.update(inspect_aws_account_task, completed=1)
 
-            self.console.print(Panel(message))
+            if num_tasks > 0:
+                message = (
+                    "Provisioning infrastructure for your work pool"
+                    f" [blue]{work_pool_name}[/] will require: \n"
+                )
+                for resource in resources:
+                    planned_actions = await resource.get_planned_actions()
+                    for action in planned_actions:
+                        message += f"\n\t - {action}"
 
-            if self._console.is_interactive:
-                if not Confirm.ask(
-                    "Proceed with infrastructure provisioning?", console=self._console
-                ):
-                    return base_job_template
+                self.console.print(Panel(message))
 
-        base_job_template_copy = deepcopy(base_job_template)
-        with Progress(console=self._console, disable=num_tasks == 0) as progress:
-            task = progress.add_task(
-                "Provisioning Infrastructure",
-                total=num_tasks,
-            )
-            for resource in resources:
-                with console_context(progress.console):
-                    await resource.provision(
-                        advance=partial(progress.advance, task),
-                        base_job_template=base_job_template_copy,
-                    )
+                if self._console.is_interactive:
+                    if not Confirm.ask(
+                        "Proceed with infrastructure provisioning?",
+                        console=self._console,
+                    ):
+                        return base_job_template
+            else:
+                self.console.print(
+                    "No additional infrastructure required for work pool"
+                    f" [blue]{work_pool_name}[/]"
+                )
+                # don't return early, we still need to update the job template
 
-        return base_job_template_copy
+            base_job_template_copy = deepcopy(base_job_template)
+            with Progress(console=self._console, disable=num_tasks == 0) as progress:
+                task = progress.add_task(
+                    "Provisioning Infrastructure",
+                    total=num_tasks,
+                )
+                for resource in resources:
+                    with console_context(progress.console):
+                        await resource.provision(
+                            advance=partial(progress.advance, task),
+                            base_job_template=base_job_template_copy,
+                        )
+
+            return base_job_template_copy
+        except Exception as exc:
+            if hasattr(exc, "response"):
+                # Catching boto3 ClientError
+                response = getattr(exc, "response", {})
+                error_message = get_from_dict(response, "Error.Message") or str(exc)
+                raise RuntimeError(error_message) from exc
+            # Catching any other exception
+            raise RuntimeError(str(exc)) from exc

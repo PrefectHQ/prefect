@@ -140,16 +140,15 @@ class TestIamPolicyResource:
     async def test_get_planned_actions_policy_exists(self, iam_policy_resource):
         actions = await iam_policy_resource.get_planned_actions()
 
-        assert actions is None
+        assert actions == []
 
     async def test_get_planned_actions_policy_does_not_exist(self, iam_policy_resource):
         actions = await iam_policy_resource.get_planned_actions()
 
-        assert (
-            actions
-            == "Creating and attaching an IAM policy for managing ECS tasks:"
+        assert actions == [
+            "Creating and attaching an IAM policy for managing ECS tasks:"
             f" [blue]{iam_policy_resource._policy_name}[/]"
-        )
+        ]
 
 
 @pytest.fixture
@@ -218,16 +217,15 @@ class TestIamUserResource:
     async def test_get_planned_actions_user_exists(self, iam_user_resource):
         actions = await iam_user_resource.get_planned_actions()
 
-        assert actions is None
+        assert actions == []
 
     async def test_get_planned_actions_user_does_not_exist(self, iam_user_resource):
         actions = await iam_user_resource.get_planned_actions()
 
-        assert (
-            actions
-            == "Creating an IAM user for managing ECS tasks:"
+        assert actions == [
+            "Creating an IAM user for managing ECS tasks:"
             f" [blue]{iam_user_resource._user_name}[/]"
-        )
+        ]
 
 
 @pytest.fixture
@@ -360,14 +358,14 @@ class TestCredentialsBlockResource:
     async def test_get_planned_actions_block_exists(self, credentials_block_resource):
         actions = await credentials_block_resource.get_planned_actions()
 
-        assert actions is None
+        assert actions == []
 
     async def test_get_planned_actions_block_does_not_exist(
         self, credentials_block_resource
     ):
         actions = await credentials_block_resource.get_planned_actions()
 
-        assert actions == "Storing generated AWS credentials in a block"
+        assert actions == ["Storing generated AWS credentials in a block"]
 
 
 @pytest.fixture
@@ -422,7 +420,7 @@ class TestAuthenticationResource:
     async def test_get_planned_actions_existing_user(self, authentication_resource):
         actions = await authentication_resource.get_planned_actions()
 
-        assert actions == "Storing generated AWS credentials in a block"
+        assert actions == ["Storing generated AWS credentials in a block"]
 
     @pytest.mark.usefixtures("register_block_types")
     async def test_provision(self, authentication_resource, prefect_client):
@@ -494,16 +492,15 @@ class TestClusterResource:
     async def test_get_planned_actions_cluster_exists(self, cluster_resource):
         actions = await cluster_resource.get_planned_actions()
 
-        assert actions is None
+        assert actions == []
 
     async def test_get_planned_actions_cluster_does_not_exist(self, cluster_resource):
         actions = await cluster_resource.get_planned_actions()
 
-        assert (
-            actions
-            == "Creating an ECS cluster for running Prefect flows:"
+        assert actions == [
+            "Creating an ECS cluster for running Prefect flows:"
             " [blue]prefect-ecs-cluster[/]"
-        )
+        ]
 
     async def test_provision(self, cluster_resource):
         advance_mock = MagicMock()
@@ -622,18 +619,17 @@ class TestVpcResource:
     async def test_get_planned_actions_requires_provisioning(self, vpc_resource):
         actions = await vpc_resource.get_planned_actions()
 
-        assert (
-            actions
-            == "Creating a VPC with CIDR [blue]172.31.0.0/16[/] for running"
+        assert actions == [
+            "Creating a VPC with CIDR [blue]172.31.0.0/16[/] for running"
             " ECS tasks: [blue]prefect-ecs-vpc[/]"
-        )
+        ]
 
     async def test_get_planned_actions_does_not_require_provisioning(
         self, vpc_resource
     ):
         actions = await vpc_resource.get_planned_actions()
 
-        assert actions is None
+        assert actions == []
 
     @pytest.mark.usefixtures("no_default_vpc")
     async def test_provision(self, vpc_resource):
@@ -927,6 +923,27 @@ class TestElasticContainerServicePushProvisioner:
         )
 
         assert result_1 == result_2
+
+    async def test_raises_runtime_error_on_failure(self, provisioner):
+        """
+        Cause a failure by not registering the block types and ensure that a RuntimeError is raised.
+        """
+        with pytest.raises(
+            RuntimeError, match=r'Unable to find block type "aws-credentials"'
+        ):
+            await provisioner.provision(
+                "test-work-pool",
+                {
+                    "variables": {
+                        "type": "object",
+                        "properties": {
+                            "vpc_id": {},
+                            "cluster": {},
+                            "aws_credentials": {},
+                        },
+                    }
+                },
+            )
 
 
 def test_resolve_provisoner():
