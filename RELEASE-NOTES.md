@@ -41,7 +41,7 @@ Created work pool 'my-pool'!
 
 If you have yet to try using an ECS push pool, now is a great time!
 
-If you use Azure, don't fret; we will add support for Azure Container Instances push work pools in future releases!
+If you use Azure, don't fret; we will add support for Azure Container Instances push work pools in a future release!
 
 See the following pull request for implementation details:
 — https://github.com/PrefectHQ/prefect/pull/11267
