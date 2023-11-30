@@ -447,6 +447,28 @@ class ContainerInstancePushProvisioner:
             role = "Contributor"
             scope = f"/subscriptions/{self._subscription_id}/resourceGroups/{self.RESOURCE_GROUP_NAME}"
 
+            # Check if the role is already assigned
+            check_role_command = (
+                f"az role assignment list --assignee {service_principal_id} --role"
+                f" {role} --scope {scope} --output json"
+            )
+            _, role_assignments = await self.azure_cli.run_command(
+                check_role_command, return_json=True
+            )
+            if any(
+                ra
+                for ra in role_assignments
+                if ra["roleDefinitionName"] == role and ra["scope"] == scope
+            ):
+                self._console.print(
+                    (
+                        f"Service principal with object ID '{service_principal_id}'"
+                        f" already has the '{role}' role assigned in '{scope}'"
+                    ),
+                    style="yellow",
+                )
+                return
+
             assign_command = (
                 f"az role assignment create --role {role} --assignee-object-id"
                 f" {service_principal_id} --scope {scope}"
@@ -462,11 +484,6 @@ class ContainerInstancePushProvisioner:
                     f" object ID '{service_principal_id}'"
                 ),
                 ignore_if_exists=True,
-            )
-        else:
-            self._console.print(
-                f"Failed to retrieve or create service principal for app ID '{app_id}'",
-                style="red",
             )
 
     async def _create_container_instance(self) -> None:
