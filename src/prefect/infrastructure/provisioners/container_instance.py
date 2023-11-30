@@ -246,13 +246,18 @@ class ContainerInstancePushProvisioner:
                     ],
                     subscriptions_list,
                 )
-                return selected_subscription["id"], selected_subscription["name"]
+                self._subscription_id = selected_subscription["id"]
+                self._subscription_name = selected_subscription["name"]
         else:
-            await self.azure_cli.run_command(
+            _, current_subscription = await self.azure_cli.run_command(
                 command="az account show --output json --query id",
                 success_message="Azure subscription found",
                 failure_message="No Azure subscription found",
             )
+
+            if current_subscription:
+                self._subscription_id = current_subscription["id"]
+                self._subscription_name = current_subscription["name"]
 
     async def _create_resource_group(self):
         """
@@ -261,7 +266,10 @@ class ContainerInstancePushProvisioner:
         Raises:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
-        check_exists_command = f"az group exists --name {self.RESOURCE_GROUP_NAME}"
+        check_exists_command = (
+            f"az group exists --name {self.RESOURCE_GROUP_NAME} --subscription"
+            f" {self._subscription_id}"
+        )
         _, exists_result = await self.azure_cli.run_command(
             check_exists_command, return_json=True
         )
@@ -269,15 +277,15 @@ class ContainerInstancePushProvisioner:
             self._console.print(
                 (
                     f"Resource group '{self.RESOURCE_GROUP_NAME}' already exists in"
-                    f" location '{self._location}'."
+                    f" subscription {self._subscription_name}."
                 ),
                 style="yellow",
             )
             return
 
         resource_group_command = (
-            f"az group create --name {self.RESOURCE_GROUP_NAME} --location"
-            f" {self._location}"
+            f"az group create --name '{self.RESOURCE_GROUP_NAME}' --location"
+            f" '{self._location}' --subscription '{self._subscription_id}'"
         )
         await self.azure_cli.run_command(
             resource_group_command,
@@ -286,7 +294,7 @@ class ContainerInstancePushProvisioner:
             ),
             failure_message=(
                 f"Failed to create resource group '{self.RESOURCE_GROUP_NAME}' in"
-                f" location '{self._location}'"
+                f" subscription '{self._subscription_name}'"
             ),
             ignore_if_exists=True,
         )
@@ -345,11 +353,11 @@ class ContainerInstancePushProvisioner:
 
         elif result == "exists":
             self._console.print(
-                f"App registration '{self.APP_REGISTRATION_NAME}' already exists",
+                f"App registration '{self.APP_REGISTRATION_NAME}' already exists.",
                 style="yellow",
             )
         elif result == "error":
-            raise Exception("Error creating the app registration")
+            raise Exception("Error creating the app registration.")
 
     async def _generate_secret_for_app(self, app_id: str) -> tuple:
         """
@@ -395,16 +403,16 @@ class ContainerInstancePushProvisioner:
             str: The object ID of the service principal.
         """
         # Try to retrieve the existing service principal
-        command_get_sp = f"az ad sp show --id {app_id}"
+        command_get_sp = (
+            f"az ad sp list --all --query \"[?appId=='{app_id}']\" --output json"
+        )
         _, service_principal = await self.azure_cli.run_command(
             command_get_sp,
-            failure_message=(
-                f"Failed to retrieve existing service principal for app ID {app_id}"
-            ),
             return_json=True,
         )
+
         if service_principal:
-            return service_principal
+            return service_principal[0]
 
         # Service principal does not exist, create it
         command_create_sp = f"az ad sp create --id {app_id}"
@@ -424,7 +432,7 @@ class ContainerInstancePushProvisioner:
         )
 
         if new_service_principal:
-            return new_service_principal
+            return new_service_principal[0]
         else:
             raise Exception(
                 f"Failed to retrieve new service principal for app ID {app_id}"
@@ -496,49 +504,50 @@ class ContainerInstancePushProvisioner:
         container_name = "prefect-aci-push-pool-container"
 
         check_exists_command = (
-            f"az container show --name {container_name} --resource-group"
-            f" {self.RESOURCE_GROUP_NAME} --output json"
+            "az container list --resource-group"
+            f" {self.RESOURCE_GROUP_NAME} --subscription"
+            f" {self._subscription_id} --query \"[?name=='{container_name}']\" --output"
+            " json"
         )
 
-        try:
-            await self.azure_cli.run_command(
-                check_exists_command,
-                return_json=True,
-            )
+        _, result = await self.azure_cli.run_command(
+            check_exists_command,
+            return_json=True,
+        )
+
+        if result:
             self._console.print(
-                f"Container instance '{container_name}' already exists.", style="yellow"
+                (
+                    f"Container instance '{container_name}' already exists in"
+                    f" subscription '{self._subscription_name}' in location"
+                    f" '{self._location}'."
+                ),
+                style="yellow",
             )
             return
-        except subprocess.CalledProcessError as e:
-            error_message = e.stderr.decode("utf-8").strip()
-            if "ResourceNotFound" in error_message or "not be found" in error_message:
-                pass
-            else:
-                raise e
 
         create_command = (
             f"az container create --name {container_name} "
             f"--resource-group {self.RESOURCE_GROUP_NAME} "
             "--image docker.io/prefecthq/prefect:2-latest "
+            f"--location {self._location} --subscription {self._subscription_id} "
             "--restart-policy OnFailure --output json"
         )
-        result, _ = await self.azure_cli.run_command(
+        await self.azure_cli.run_command(
             create_command,
-            failure_message=f"Failed to create container instance '{container_name}'",
+            success_message=(
+                f"Container instance '{container_name}' created successfully in"
+                f" resource group '{self.RESOURCE_GROUP_NAME}' in location"
+                f" '{self._location}' in subscription '{self._subscription_name}'"
+            ),
+            failure_message=(
+                f"Failed to create container instance '{container_name}' in resource"
+                f" group '{self.RESOURCE_GROUP_NAME}' in location '{self._location}' in"
+                f" subscription '{self._subscription_name}'"
+            ),
             ignore_if_exists=True,
         )
-
-        if result == "created":
-            self._console.print(
-                f"Container instance '{container_name}' created successfully",
-                style="green",
-            )
-        elif result == "exists":
-            self._console.print(
-                f"Container instance '{container_name}' already exists", style="yellow"
-            )
-        elif result == "error":
-            raise Exception(f"Error creating container instance '{container_name}'")
+        return
 
     async def _create_aci_credentials_block(
         self,
@@ -590,7 +599,10 @@ class ContainerInstancePushProvisioner:
             )
 
             self._console.print(
-                f"ACI credentials block '{credentials_block_name}' created",
+                (
+                    f"ACI credentials block '{credentials_block_name}' created in"
+                    " Prefect Cloud"
+                ),
                 style="green",
             )
             return block_doc.id
@@ -657,10 +669,7 @@ class ContainerInstancePushProvisioner:
             return base_job_template
 
         await self._verify_az_ready()
-        self._subscription_id, self._subscription_name = (
-            await self._select_subscription()
-        )
-
+        await self._select_subscription()
         await self.set_location()
 
         table = Panel(
@@ -671,11 +680,11 @@ class ContainerInstancePushProvisioner:
                         Updates in subscription [blue]{self._subscription_name}[/]
 
                             - Create a resource group in location [blue]{self._location}[/]
-                            - Create an app registration in Azure AD
-                            - Create a service principal for app registration
+                            - Create an app registration in Azure AD [blue]{self.APP_REGISTRATION_NAME}[/]
+                            - Create/use a service principal for app registration
                             - Generate a secret for app registration
                             - Assign Contributor role to service account
-                            - Create Azure Container Instance
+                            - Create Azure Container Instance 'aci-push-pool-container' in resource group [blue]{self.RESOURCE_GROUP_NAME}[/]
 
                         Updates in Prefect workspace
 
@@ -692,7 +701,7 @@ class ContainerInstancePushProvisioner:
                 return base_job_template
 
         with Progress(console=self._console) as progress:
-            task = progress.add_task("Provisioning infrastructure...", total=5)
+            task = progress.add_task("Provisioning infrastructure...", total=7)
             progress.console.print("Creating resource group")
             await self._create_resource_group()
             progress.advance(task)
@@ -701,34 +710,30 @@ class ContainerInstancePushProvisioner:
             client_id = await self._create_app_registration()
             progress.advance(task)
 
-            progress.console.print("Generating secret for app registration")
             credentials_block_exists = await self._aci_credentials_block_exists(
                 block_name=f"{work_pool_name}-push-pool-credentials", client=client
             )
 
             if not credentials_block_exists:
+                progress.console.print("Generating secret for app registration")
                 tenant_id, client_secret = await self._generate_secret_for_app(
                     app_id=client_id,
                 )
+                progress.advance(task)
+
+                progress.console.print("Creating ACI credentials block")
                 block_doc_id = await self._create_aci_credentials_block(
                     work_pool_name, client_id, tenant_id, client_secret, client
                 )
+                progress.advance(task)
             else:
+                progress.console.print("ACI credentials block already exists")
                 block_doc = await client.read_block_document_by_name(
                     name=f"{work_pool_name}-push-pool-credentials",
                     block_type_slug="azure-container-instance-credentials",
                 )
                 block_doc_id = block_doc.id
-
-                self._console.print(
-                    (
-                        "ACI credentials block"
-                        f" '{work_pool_name}-push-pool-credentials' already exists."
-                    ),
-                    style="yellow",
-                )
-
-            progress.advance(task)
+                progress.advance(task)
 
             progress.console.print("Assigning Contributor role to service account...")
             await self._assign_contributor_role(app_id=client_id)
@@ -737,10 +742,6 @@ class ContainerInstancePushProvisioner:
             progress.console.print("Creating Azure Container Instance")
             await self._create_container_instance()
             progress.advance(task)
-
-            progress.console.print(
-                "Creating Azure Container Instance credentials block"
-            )
 
         base_job_template_copy = deepcopy(base_job_template)
         base_job_template_copy["variables"]["properties"]["aci_credentials"][
