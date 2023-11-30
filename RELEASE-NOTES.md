@@ -2,9 +2,53 @@
 
 ## Release 2.14.9
 
+### Automatic infrastructure provisioning for ECS push work pools
+
+Following the introduction of [automatic project configuration for Cloud Run push pools](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#automatic-project-configuration-for-cloud-run-push-work-pools) last week, we've added automatic provision infrastructure in your AWS and set up your Prefect workspace to support a new ECS push pool!
+
+You can create a new ECS push work pool and provision infrastructure in your AWS account with the following command:
+
+```bash
+prefect work-pool create --type ecs:push --provision-infra my-pool 
+```
+
+Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks:
+
+```
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool my-work-pool will require:                                         │
+│                                                                                                                   │
+│          - Creating an IAM user for managing ECS tasks: prefect-ecs-user                                          │
+│          - Creating and attaching an IAM policy for managing ECS tasks: prefect-ecs-policy                        │
+│          - Storing generated AWS credentials in a block                                                           │
+│          - Creating an ECS cluster for running Prefect flows: prefect-ecs-cluster                                 │
+│          - Creating a VPC with CIDR 172.31.0.0/16 for running ECS tasks: prefect-ecs-vpc                          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+Provisioning IAM user
+Creating IAM policy
+Generating AWS credentials
+Creating AWS credentials block
+Provisioning ECS cluster
+Provisioning VPC
+Creating internet gateway
+Setting up subnets
+Setting up security group
+Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Infrastructure successfully provisioned!
+Created work pool 'my-pool'!
+```
+
+If you have yet to try using an ECS push pool, now is a great time!
+
+If you use Azure, don't fret; we will add support for Azure Container Instances push work pools in future releases!
+
+See the following pull request for implementation details:
+— https://github.com/PrefectHQ/prefect/pull/11267
+
+
 ### Enhancements
 - Make Flows list a scannable table and standardize list headers throughout the app — https://github.com/PrefectHQ/prefect/pull/11274
-- Add ability to configure an AWS account for use with ECS push pools via the `--provision-infra` flag — https://github.com/PrefectHQ/prefect/pull/11267
 
 ### Fixes
 - Fix serve script crashes due to process limiter — https://github.com/PrefectHQ/prefect/pull/11264
