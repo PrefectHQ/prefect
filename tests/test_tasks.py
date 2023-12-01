@@ -168,7 +168,12 @@ class TestTaskCall:
         def foo():
             pass
 
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+            ),
+        ):
             foo()
 
     def test_sync_task_called_inside_sync_flow(self):
@@ -336,7 +341,12 @@ class TestTaskRun:
         def foo():
             pass
 
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+            ),
+        ):
             foo()
 
     def test_sync_task_run_inside_sync_flow(self):
@@ -435,7 +445,12 @@ class TestTaskSubmit:
         def foo():
             pass
 
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+            ),
+        ):
             foo()
 
     def test_sync_task_submitted_inside_sync_flow(self):

@@ -30,10 +30,11 @@ from typing import (
 from typing_extensions import Literal, ParamSpec
 
 from prefect.client.schemas import TaskRun
-from prefect.context import PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -174,6 +175,8 @@ class Task(Generic[P, R]):
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
+        dynamic_key: An optional string to use as a dynamic key for the task. If not
+            provided, a random uuid will be used.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -211,6 +214,7 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         viz_return_value: Optional[Any] = None,
+        dynamic_key: Optional[str] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -338,6 +342,7 @@ class Task(Generic[P, R]):
         self.on_completion = on_completion
         self.on_failure = on_failure
         self.viz_return_value = viz_return_value
+        self.dynamic_key = dynamic_key
 
     def with_options(
         self,
@@ -369,6 +374,7 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         viz_return_value: Optional[Any] = None,
+        dynamic_key: Optional[str] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -404,6 +410,8 @@ class Task(Generic[P, R]):
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
             viz_return_value: An optional value to return when the task dependency tree is visualized.
+            dynamic_key: An optional string to use as a dynamic key for the task. If not
+                provided, a random uuid will be used.
 
         Returns:
             A new `Task` instance.
@@ -492,6 +500,7 @@ class Task(Generic[P, R]):
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
             viz_return_value=viz_return_value or self.viz_return_value,
+            dynamic_key=dynamic_key or self.dynamic_key,
         )
 
     @overload
@@ -546,14 +555,31 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            task_runner=SequentialTaskRunner(),
-            return_type=return_type,
-            mapped=False,
-        )
+        if FlowRunContext.get():
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                task_runner=SequentialTaskRunner(),
+                return_type=return_type,
+                mapped=False,
+            )
+        elif PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY.value():
+            from prefect.task_engine import run_autonomous_task
+
+            return run_autonomous_task(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=SequentialTaskRunner(),
+            )
+        else:
+            raise RuntimeError(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+                " To allow this, set the `PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY`"
+                " to `True`."
+            )
 
     @overload
     def _run(
@@ -749,14 +775,31 @@ class Task(Generic[P, R]):
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type=return_type,
-            task_runner=None,  # Use the flow's task runner
-            mapped=False,
-        )
+        if FlowRunContext.get():
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+                mapped=False,
+            )
+        elif PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY.value():
+            from prefect.task_engine import run_autonomous_task
+
+            return run_autonomous_task(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+            )
+        else:
+            raise RuntimeError(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+                " To allow this, set the `PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY`"
+                " to `True`."
+            )
 
     @overload
     def map(
@@ -926,14 +969,32 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type=return_type,
-            task_runner=None,
-            mapped=True,
-        )
+        if FlowRunContext.get():
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+                mapped=True,
+            )
+        elif PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY.value():
+            from prefect.task_engine import run_autonomous_task
+
+            return run_autonomous_task(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+                mapped=True,
+            )
+        else:
+            raise RuntimeError(
+                "Tasks are not allowed to be run outside of a Flow context by default."
+                " To allow this, set the `PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY`"
+                " to `True`."
+            )
 
 
 @overload
@@ -970,6 +1031,7 @@ def task(
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     viz_return_value: Any = None,
+    dynamic_key: Optional[str] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -1003,6 +1065,7 @@ def task(
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     viz_return_value: Any = None,
+    dynamic_key: Optional[str] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1059,6 +1122,8 @@ def task(
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
+        dynamic_key: An optional string to use as a dynamic key for the task. If not
+            provided, a random uuid will be used.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1135,6 +1200,7 @@ def task(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 viz_return_value=viz_return_value,
+                dynamic_key=dynamic_key,
             ),
         )
     else:
@@ -1163,5 +1229,6 @@ def task(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 viz_return_value=viz_return_value,
+                dynamic_key=dynamic_key,
             ),
         )

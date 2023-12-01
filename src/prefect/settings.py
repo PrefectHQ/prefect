@@ -1414,6 +1414,10 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
+PREFECT_EXPERIMENTAL_ALLOW_TASK_AUTONOMY = Setting(bool, default=False)
+"""
+Whether or not to allow tasks to run without a parent flow.
+"""
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
