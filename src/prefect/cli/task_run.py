@@ -44,7 +44,7 @@ async def execute(
     task_parameters: Optional[str] = typer.Option(None, "--task-parameters", "-p", help="JSON string of task parameters to pass to the task"),
     pull_step: str = typer.Option("prefect.deployments.steps.git_clone", help="Name of the pull step to execute"),
 ):
-    logger = get_logger("prefect.cli.task_run.execute")
+    logger = get_logger("prefect.task_run.execute")
     
     # TODO: add more pull steps
     if pull_step not in ["prefect.deployments.steps.git_clone"]:
@@ -74,7 +74,7 @@ async def execute(
             task_entrypoint = f"{repo_name}-{branch}/{deployment.entrypoint}"
             task = load_task_from_entrypoint(task_entrypoint, task_to_run)
 
-            logger.info(f"Task {task_to_run!r} retrieved from {deployment.entrypoint.split(':')[0]!r}")
+            logger.info(f"Task {task_to_run!r} retrieved from {repo_url}/{deployment.entrypoint.split(':')[0]!r}")
 
             result = task(**(json.loads(task_parameters) if task_parameters else {}))
             if inspect.isawaitable(result):
