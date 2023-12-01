@@ -423,7 +423,6 @@ async def test_aci_service_principal_creation_handles_existing_principal():
 async def test_aci_service_principal_creation_handles_errors():
     provisioner = ContainerInstancePushProvisioner()
 
-    # Mock Azure CLI command execution
     provisioner.azure_cli = MagicMock()
     provisioner.azure_cli.run_command = AsyncMock()
 

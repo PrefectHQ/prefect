@@ -175,7 +175,6 @@ class ContainerInstancePushProvisioner:
             _, output = await self.azure_cli.run_command(command)
             self._location = output if output else self.DEFAULT_LOCATION
         except subprocess.CalledProcessError as e:
-            self._location = self.DEFAULT_LOCATION
             raise RuntimeError("Failed to get default location.") from e
 
     async def _verify_az_ready(self) -> None:
@@ -476,7 +475,7 @@ class ContainerInstancePushProvisioner:
                 self._console.print(
                     (
                         f"Service principal with object ID '{service_principal_id}'"
-                        f" already has the '{role}' role assigned in '{scope}'"
+                        f" already has the '{role}' role assigned in '{scope}'."
                     ),
                     style="yellow",
                 )
@@ -705,13 +704,24 @@ class ContainerInstancePushProvisioner:
             ):
                 return base_job_template
 
+        credentials_block_exists = await self._aci_credentials_block_exists(
+            block_name=f"{work_pool_name}-push-pool-credentials", client=client
+        )
+
+        if not credentials_block_exists:
+            total_tasks = 6
+        else:
+            total_tasks = 5
+
         with Progress(console=self._console) as progress:
-            task = progress.add_task("Provisioning infrastructure...", total=7)
-            progress.console.print("Creating resource group")
+            task = progress.add_task(
+                "Provisioning infrastructure...", total=total_tasks
+            )
+            progress.console.print("Creating resource group..")
             await self._create_resource_group()
             progress.advance(task)
 
-            progress.console.print("Creating app registration")
+            progress.console.print("Creating app registration..")
             client_id = await self._create_app_registration()
             progress.advance(task)
 
@@ -726,13 +736,15 @@ class ContainerInstancePushProvisioner:
                 )
                 progress.advance(task)
 
-                progress.console.print("Creating ACI credentials block")
+                progress.console.print("Creating ACI credentials block..")
                 block_doc_id = await self._create_aci_credentials_block(
                     work_pool_name, client_id, tenant_id, client_secret, client
                 )
                 progress.advance(task)
             else:
-                progress.console.print("ACI credentials block already exists")
+                progress.console.print(
+                    "ACI credentials block already exists.", style="yellow"
+                )
                 block_doc = await client.read_block_document_by_name(
                     name=f"{work_pool_name}-push-pool-credentials",
                     block_type_slug="azure-container-instance-credentials",
@@ -744,7 +756,7 @@ class ContainerInstancePushProvisioner:
             await self._assign_contributor_role(app_id=client_id)
             progress.advance(task)
 
-            progress.console.print("Creating Azure Container Instance")
+            progress.console.print("Creating Azure Container Instance..")
             await self._create_container_instance()
             progress.advance(task)
 
