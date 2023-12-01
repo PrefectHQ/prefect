@@ -883,7 +883,7 @@ async def inspiring_joke():
     await marvin_punchline()
 ```
 
-Calling this flow will pause after the first task and wait for resumption.
+Calling this flow will block code execution after the first task and wait for resumption.
 
 <div class="terminal">
 ```bash
@@ -906,6 +906,12 @@ The paused flow run will then finish!
 ```
 </div>
 
+### Suspending a flow run
+
+Similar to pausing a flow run, Prefect enables suspending an in-progress flow run. Prefect exposes this functionality via the [`susepend_flow_run`](/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
+
+When called inside of a flow `suspend_flow_run` will immediately suspend execution of the flow run. The flow run will be marked as `Suspended` and will not be resumed until `resume_flow_run` is called.
+
 Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
 
 ```python
@@ -925,34 +931,14 @@ def noblock_pausing():
     omega = foo(wait_for=[x, y])
 ```
 
-This long-running flow can be paused out of process, either by calling `pause_flow_run(flow_run_id=<ID>)` or selecting the **Pause** button in the Prefect UI or Prefect Cloud.
+Flow runs can be suspended out-of-process by calling `suspend_flow_run(flow_run_id=<ID>)` or selecting the **Suspend** button in the Prefect UI or Prefect Cloud.
+
+Suspended flow runs can be resumed by clicking the **Resume** button in the Prefect UI or calling the `resume_flow_run` utility via client code.
 
 ```python
-from prefect import flow, task
-import time
-
-@task(persist_result=True)
-async def foo():
-    return 42
-
-@flow(persist_result=True)
-async def longrunning():
-    res = 0
-    for ii in range(20):
-        time.sleep(5)
-        res += (await foo())
-    return res
+resume_flow_run(FLOW_RUN_ID)
 ```
 
-!!! tip "Pausing flow runs is blocking by default"
-    By default, pausing a flow run blocks the worker &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
-
-    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via a worker and you want the worker to be able to pick up other flows while the paused flow is paused.
-
-    Non-blocking pause can be accomplished by setting the `reschedule` flag to `True`. In order to use this feature, flows that pause with the `reschedule` flag must have:
-
-    - An associated deployment
-    - Results configured with the `persist_results` flag
 
 ## Cancel a flow run
 
