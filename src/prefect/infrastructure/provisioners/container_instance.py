@@ -316,27 +316,30 @@ class ContainerInstancePushProvisioner:
         _, app_registrations = await self.azure_cli.run_command(
             check_exists_command,
         )
-        app_registrations = json.loads(app_registrations)
-        existing_app_registration = next(
-            (
-                app
-                for app in app_registrations
-                if app["displayName"] == self.APP_REGISTRATION_NAME
-            ),
-            None,
-        )
-        if existing_app_registration:
-            self._console.print(
-                f"App registration '{self.APP_REGISTRATION_NAME}' already exists.",
-                style="yellow",
+        if app_registrations:
+            if isinstance(app_registrations, str):
+                app_registrations = json.loads(app_registrations)
+
+            existing_app_registration = next(
+                (
+                    app
+                    for app in app_registrations
+                    if app["displayName"] == self.APP_REGISTRATION_NAME
+                ),
+                None,
             )
-            return existing_app_registration["appId"]
+            if existing_app_registration:
+                self._console.print(
+                    f"App registration '{self.APP_REGISTRATION_NAME}' already exists.",
+                    style="yellow",
+                )
+                return existing_app_registration["appId"]
 
         app_registration_command = (
             f"az ad app create --display-name {self.APP_REGISTRATION_NAME} "
             "--output json"
         )
-        result, output = await self.azure_cli.run_command(
+        result, app_registration = await self.azure_cli.run_command(
             app_registration_command,
             success_message=(
                 f"App registration '{self.APP_REGISTRATION_NAME}' created successfully"
@@ -348,8 +351,10 @@ class ContainerInstancePushProvisioner:
             ignore_if_exists=True,
         )
         if result == "created":
-            app_registration = json.loads(output)
-            return app_registration["appId"]
+            if app_registration:
+                if isinstance(app_registration, str):
+                    app_registration = json.loads(app_registration)
+                return app_registration["appId"]
 
         elif result == "exists":
             self._console.print(
