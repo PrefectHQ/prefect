@@ -1,5 +1,7 @@
 import inspect
 import json
+import os
+import tempfile
 from typing import Optional
 from uuid import UUID
 
@@ -39,7 +41,7 @@ app.add_typer(task_run_app, aliases=["task-runs"])
 async def execute(
     flow_run_id: Optional[UUID] = typer.Argument(None, help="ID of the task run to execute"),
     task_to_run: str = typer.Argument(None, help="Name of the task to execute"),
-    task_parameters: Optional[str] = typer.Option(None, help="Parameters to pass to the task"),
+    task_parameters: Optional[str] = typer.Option(None, "--task-parameters", "-p", help="JSON string of task parameters to pass to the task"),
     pull_step: str = typer.Option("prefect.deployments.steps.git_clone", help="Name of the pull step to execute"),
 ):
     logger = get_logger("prefect.cli.task_run.execute")
@@ -63,10 +65,19 @@ async def execute(
         else:
             raise RuntimeError("Git clone step not found in deployment pull steps.")
 
-        await run_step(fetch_src_step)
-        task = load_task_from_entrypoint(f"{repo_url.split('/')[-1]}-{branch}/{deployment.entrypoint}", task_to_run)
-        logger.info(f"Task {task_to_run!r} retrieved from {deployment.entrypoint.split(':')[0]!r}")
-        result = task(**(json.loads(task_parameters) if task_parameters else {}))
-        if inspect.isawaitable(result):
-            result = await result
-        logger.info(f"Task {task_to_run!r} finished with {result=!r}")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+
+            await run_step(fetch_src_step)
+
+            repo_name = repo_url.split('/')[-1].replace('.git', '')
+            task_entrypoint = f"{repo_name}-{branch}/{deployment.entrypoint}"
+            task = load_task_from_entrypoint(task_entrypoint, task_to_run)
+
+            logger.info(f"Task {task_to_run!r} retrieved from {deployment.entrypoint.split(':')[0]!r}")
+
+            result = task(**(json.loads(task_parameters) if task_parameters else {}))
+            if inspect.isawaitable(result):
+                result = await result
+
+            logger.info(f"Task {task_to_run!r} finished with {result=!r}")
