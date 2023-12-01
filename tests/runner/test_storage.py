@@ -4,8 +4,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
-import pytest
-
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.deployments.steps.core import run_step
@@ -18,6 +17,12 @@ from prefect.runner.storage import (
     create_storage_from_url,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import SecretStr
+else:
+    from pydantic import SecretStr
+import pytest
 
 
 class TestCreateStorageFromUrl:
@@ -72,9 +77,9 @@ def mock_run_process(monkeypatch):
 
 
 class MockCredentials(Block):
-    token: Optional[str] = None
+    token: Optional[SecretStr] = None
     username: Optional[str] = None
-    password: Optional[str] = None
+    password: Optional[SecretStr] = None
 
 
 class TestGitRepository:
