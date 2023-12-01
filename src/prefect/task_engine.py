@@ -10,7 +10,7 @@ from prefect.context import FlowRunContext
 from prefect.engine import EngineReturnType, begin_task_map, get_task_call_return_value
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
+from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncutils import sync_compatible
 
 
@@ -23,17 +23,18 @@ async def run_autonomous_task(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "state",
-    task_runner: Type[BaseTaskRunner] = SequentialTaskRunner,
+    task_runner_cls: Type[BaseTaskRunner] = ConcurrentTaskRunner,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    task_runner = task_runner_cls() if isinstance(task_runner_cls, type) else task_runner_cls
     async with AsyncExitStack() as stack:
         with FlowRunContext(
             flow=flow,
             flow_run=flow_run,
             task_runner=await stack.enter_async_context(
-                (task_runner if task_runner else SequentialTaskRunner()).start()
+                task_runner.start()
             ),
             client=await stack.enter_async_context(get_client()),
-            parameters=parameters,
+            parameters=parameters or {},
             result_factory=await ResultFactory.from_task(task),
             background_tasks=await stack.enter_async_context(create_task_group()),
             sync_portal=(

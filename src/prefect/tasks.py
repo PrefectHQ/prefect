@@ -572,7 +572,7 @@ class Task(Generic[P, R]):
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
-                task_runner=SequentialTaskRunner(),
+                task_runner_cls=SequentialTaskRunner(),
             )
         else:
             raise RuntimeError(
@@ -792,7 +792,7 @@ class Task(Generic[P, R]):
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
-                task_runner=None,
+                task_runner_cls=None,
             )
         else:
             raise RuntimeError(
@@ -986,7 +986,7 @@ class Task(Generic[P, R]):
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
-                task_runner=None,
+                task_runner_cls=None,
                 mapped=True,
             )
         else:
