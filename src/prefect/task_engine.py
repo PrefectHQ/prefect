@@ -26,7 +26,9 @@ async def run_autonomous_task(
     task_runner_cls: Type[BaseTaskRunner] = ConcurrentTaskRunner,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     task_runner = (
-        task_runner_cls() if isinstance(task_runner_cls, type) else task_runner_cls
+        task_runner_cls()
+        if task_runner_cls and isinstance(task_runner_cls, type)
+        else (task_runner_cls if task_runner_cls else ConcurrentTaskRunner)
     )
     async with AsyncExitStack() as stack:
         with FlowRunContext(

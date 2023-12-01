@@ -103,8 +103,14 @@ async def execute(
                 f" {repo_url}/{deployment.entrypoint.split(':')[0]!r}"
             )
 
-            result = task(**(json.loads(task_parameters) if task_parameters else {}))
-            if inspect.isawaitable(result):
-                result = await result
+            task_state = task.with_options(persist_result=True)(
+                **(json.loads(task_parameters) if task_parameters else {}),
+                return_state=True,
+            )
+            state = await task_state if inspect.isawaitable(task_state) else task_state
+            result = state.result()
 
-            logger.info(f"Task {task_to_run!r} finished with {result=!r}")
+            logger.info(
+                f"Task {task_to_run!r} finished in {state.name!r} with result ="
+                f" {await result.get()!r}"
+            )
