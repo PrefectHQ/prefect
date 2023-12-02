@@ -1,4 +1,5 @@
 import asyncio
+import anyio
 import datetime
 import warnings
 from contextlib import AsyncExitStack
@@ -679,7 +680,7 @@ class PrefectClient:
             httpx.RequestError: If requests fails
         """
         try:
-            await self._client.delete(f"/flow_runs/{flow_run_id}"),
+            (await self._client.delete(f"/flow_runs/{flow_run_id}"),)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1779,6 +1780,32 @@ class PrefectClient:
             else:
                 raise
         return FlowRun.parse_obj(response.json())
+
+    async def wait_for_flow_run(
+        self, flow_run_id: UUID, timeout: int = 10800, poll_interval: int = 5
+    ) -> FlowRun:
+        """Waits for the prefect flow run to finish and returns the FlowRun
+
+        Ars:
+            flow_run_id: The flow run ID for the flow run to wait for.
+            timeout: The timeout in seconds, by default 10800 (3 hours).
+            poll_interval: The poll interval in seconds, by default 5.
+        Returns:
+            FlowRun: The finished flow run.
+        Raises:
+            prefect.exceptions.FlowWaitTimeout: If flow run goes over the timeout.
+        """
+        with anyio.move_on_after(timeout):
+            while True:
+                flow_run = await self.read_flow_run(flow_run_id)
+                flow_state = flow_run.state
+                if flow_state and flow_state.is_final():
+                    return flow_run
+                await anyio.sleep(poll_interval)
+
+        raise prefect.exceptions.FlowWaitTimeout(
+            f"FlowRun with ID {flow_run_id} is taking longer than {timeout} seconds"
+        )
 
     async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
         """

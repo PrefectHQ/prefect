@@ -397,3 +397,7 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
+
+
+class FlowWaitTimeout(PrefectException):
+    """Raised when a flow run takes longer than a given timeout"""
