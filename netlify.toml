@@ -450,7 +450,10 @@ from = "/guides/deployment/aci/"
 to = "/guides/deployment/serverless-workers/"
 status = 301
 
-
+[[redirects]]
+from = "/contributing/common-mistakes/"
+to = "/guides/troubleshooting/"
+status = 301
 
 
 [[headers]]
