@@ -860,8 +860,13 @@ my_flow()
 
     When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. This pattern allows you to update your flow code without restarting the serving process.
 
+## Pausing or suspending a flow run
 
-## Pause a flow run
+Prefect provides you with the ability to halt a flow run with two functions that are similar, but slightly different.
+When a flow run is paused, code execution is stopped and the process continues to run. 
+When a flow run is suspended, code execution is stopped and so is the process.
+
+### Pause a flow run
 
 Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
