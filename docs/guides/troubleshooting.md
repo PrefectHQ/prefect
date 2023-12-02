@@ -128,7 +128,7 @@ async def test_nested_example(client):
 
 ## `pytest.PytestUnraisableExceptionWarning` or `ResourceWarning`
 
-As you're working with one of the `FlowRunner` implementations, you may get a surprising
+As you're working with one of the `FlowRunner` implementations, you may get an
 error like this one:
 
 <div class="terminal">
