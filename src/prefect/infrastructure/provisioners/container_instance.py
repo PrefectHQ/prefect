@@ -346,7 +346,7 @@ class ContainerInstancePushProvisioner:
             f"az ad app create --display-name {self.APP_REGISTRATION_NAME} "
             "--output json"
         )
-        result, app_registration = await self.azure_cli.run_command(
+        _, app_registration = await self.azure_cli.run_command(
             app_registration_command,
             success_message=(
                 f"App registration '{self.APP_REGISTRATION_NAME}' created successfully"
@@ -357,18 +357,12 @@ class ContainerInstancePushProvisioner:
             ),
             ignore_if_exists=True,
         )
-        if result == "created":
-            if app_registration:
-                if isinstance(app_registration, str):
-                    app_registration = json.loads(app_registration)
-                return app_registration["appId"]
+        if app_registration:
+            if isinstance(app_registration, str):
+                app_registration = json.loads(app_registration)
+            return app_registration["appId"]
 
-        elif result == "exists":
-            self._console.print(
-                f"App registration '{self.APP_REGISTRATION_NAME}' already exists.",
-                style="yellow",
-            )
-        elif result == "error":
+        else:
             raise Exception("Error creating the app registration.")
 
     async def _generate_secret_for_app(self, app_id: str) -> tuple:
