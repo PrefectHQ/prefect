@@ -252,7 +252,7 @@ nav:
                       - "utilities": api-ref/prefect/client/utilities.md
                 - "prefect.cli":
                       - "agent": api-ref/prefect/cli/agent.md
-                      - "artifact": api-ref/prefect/cli/artifacts.md
+                      - "artifact": api-ref/prefect/cli/artifact.md
                       - "block": api-ref/prefect/cli/block.md
                       - "cloud": api-ref/prefect/cli/cloud.md
                       - "concurrency_limit": api-ref/prefect/cli/concurrency_limit.md
@@ -262,13 +262,12 @@ nav:
                       - "dev": api-ref/prefect/cli/dev.md
                       - "flow": api-ref/prefect/cli/flows.md
                       - "flow_run": api-ref/prefect/cli/flow_run.md
-                      - "init": api-ref/prefect/cli/init.md
                       - "kubernetes": api-ref/prefect/cli/kubernetes.md
                       - "profile": api-ref/prefect/cli/profile.md
                       - "project": api-ref/prefect/cli/project.md
+                      - "root": api-ref/prefect/cli/root.md
                       - "server": api-ref/prefect/cli/server.md
                       - "variable": api-ref/prefect/cli/variable.md
-                      - "version": api-ref/prefect/cli/version.md
                       - "work_pool": api-ref/prefect/cli/work_pool.md
                       - "work_queue": api-ref/prefect/cli/work_queue.md
                       - "worker": api-ref/prefect/cli/worker.md
