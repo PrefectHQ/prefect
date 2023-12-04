@@ -381,7 +381,7 @@ class ContainerInstancePushProvisioner:
         secret_command = (
             f"az ad app credential reset --id {app_id} --append --output json"
         )
-        output = await self.azure_cli.run_command(
+        app_secret = await self.azure_cli.run_command(
             secret_command,
             success_message=(
                 f"Secret generated for app registration with client ID '{app_id}'"
@@ -396,13 +396,12 @@ class ContainerInstancePushProvisioner:
             return_json=True,
         )
 
-        if output:
-            app_secret = json.loads(output)
+        try:
             return app_secret["tenant"], app_secret["password"]
-        else:
+        except Exception as e:
             raise RuntimeError(
                 "Failed to generate a new secret for the app registration."
-            )
+            ) from e
 
     async def _get_or_create_service_principal_object_id(self, app_id: str):
         """

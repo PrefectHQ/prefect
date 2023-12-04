@@ -740,11 +740,11 @@ async def test_aci_provision_no_existing_credentials_block(
         "identifierUris": ["https://prefect-aci-push-pool-app"],
     }
 
-    client_secret = (
-        '{"appId": "5407b48a-a28d-49ea-a740-54504847153f", "password":'
-        ' "<MY_SECRET>", "tenant":'
-        ' "9ee4947a-f114-4939-a5ac-7f0ed786de36"}'
-    )
+    client_secret = {
+        "appId": "5407b48a-a28d-49ea-a740-54504847153f",
+        "password": "<MY_SECRET>",
+        "tenant": "9ee4947a-f114-4939-a5ac-7f0ed786de36",
+    }
 
     new_service_principal = [
         {
