@@ -23,7 +23,6 @@ else:
 
 @pytest.fixture
 async def existing_credentials_block(prefect_client: PrefectClient):
-    # Mock the existing credentials block
     block_type = await prefect_client.read_block_type_by_slug(
         slug="azure-container-instance-credentials"
     )
@@ -82,19 +81,15 @@ async def aci_credentials_block_type_and_schema():
 @pytest.fixture(autouse=True)
 async def provisioner():
     provisioner = ContainerInstancePushProvisioner()
-    yield provisioner
-
-
-@pytest.fixture(autouse=True)
-async def azure_cli(provisioner):
     provisioner.azure_cli = MagicMock()
     provisioner.azure_cli.run_command = AsyncMock()
+    yield provisioner
 
 
 async def test_aci_az_installed(provisioner):
     provisioner.azure_cli.run_command.side_effect = [
-        ("2.0.0", "2.0.0"),  # Azure CLI is installed
-        (None, '{"account_a": "b"}'),
+        "2.0.0",  # Azure CLI is installed
+        '{"account_a": "b"}',
     ]
 
     await provisioner._verify_az_ready()
@@ -119,7 +114,7 @@ async def test_select_subscription(provisioner):
     ]
 
     provisioner.azure_cli.run_command.side_effect = [
-        (None, subscriptions_list),
+        subscriptions_list,
     ]
 
     await provisioner._select_subscription()
@@ -140,7 +135,7 @@ async def test_select_subscription(provisioner):
 
 async def test_set_location(provisioner):
     provisioner.azure_cli.run_command.side_effect = [
-        (None, "westus"),
+        "westus",
     ]
 
     await provisioner.set_location()
@@ -153,8 +148,8 @@ async def test_set_location(provisioner):
 
 async def test_aci_resource_group_creation_creates_new_group(provisioner):
     provisioner.azure_cli.run_command.side_effect = [
-        ("not_exists", False),
-        ("created", "New resource group created"),
+        False,
+        "New resource group created",
     ]
 
     await provisioner._create_resource_group()
@@ -183,7 +178,7 @@ async def test_aci_resource_group_creation_creates_new_group(provisioner):
 
 
 async def test_aci_resource_group_creation_handles_existing_group(provisioner):
-    provisioner.azure_cli.run_command.return_value = ("exists", True)
+    provisioner.azure_cli.run_command.return_value = True
 
     await provisioner._create_resource_group()
 
@@ -203,7 +198,7 @@ async def test_aci_resource_group_creation_handles_existing_group(provisioner):
 
 async def test_aci_resource_group_creation_handles_errors(provisioner):
     error = CalledProcessError(1, "cmd", output="output", stderr="error")
-    provisioner.azure_cli.run_command.side_effect = [("not_exists", None), error]
+    provisioner.azure_cli.run_command.side_effect = [None, error]
 
     with pytest.raises(CalledProcessError):
         await provisioner._create_resource_group()
@@ -233,8 +228,8 @@ async def test_aci_resource_group_creation_handles_errors(provisioner):
 
 async def test_aci_container_instance_creation_creates_new_instance(provisioner):
     provisioner.azure_cli.run_command.side_effect = [
-        (False, None),  # Container instance does not exist
-        ("created", "New container instance created"),  # Successful creation
+        None,  # Container instance does not exist
+        "New container instance created",  # Successful creation
     ]
 
     await provisioner._create_container_instance()
@@ -272,7 +267,7 @@ async def test_aci_container_instance_creation_creates_new_instance(provisioner)
 
 
 async def test_aci_container_instance_creation_handles_existing_instance(provisioner):
-    provisioner.azure_cli.run_command.return_value = (None, "exists")
+    provisioner.azure_cli.run_command.return_value = "exists"
 
     await provisioner._create_container_instance()
 
@@ -299,7 +294,7 @@ async def test_aci_container_instance_creation_handles_existing_instance(provisi
 
 async def test_aci_container_instance_creation_handles_errors(provisioner):
     error = CalledProcessError(1, "cmd", output="output", stderr="error")
-    provisioner.azure_cli.run_command.side_effect = [(False, None), error]
+    provisioner.azure_cli.run_command.side_effect = [None, error]
 
     with pytest.raises(CalledProcessError):
         await provisioner._create_container_instance()
@@ -343,8 +338,8 @@ async def test_aci_app_registration_creates_new_app(provisioner):
         "identifierUris": ["https://prefect-aci-push-pool-app"],
     }
     provisioner.azure_cli.run_command.side_effect = [
-        (None, None),  # App does not exist
-        ("created", app_registration),  # Successful creation
+        None,  # App does not exist
+        app_registration,  # Successful creation
     ]
 
     await provisioner._create_app_registration()
@@ -376,7 +371,7 @@ async def test_aci_app_registration_handles_existing_app(provisioner):
             "identifierUris": ["https://prefect-aci-push-pool-app"],
         }
     ]
-    provisioner.azure_cli.run_command.return_value = (None, app_registration)
+    provisioner.azure_cli.run_command.return_value = app_registration
 
     await provisioner._create_app_registration()
 
@@ -396,7 +391,7 @@ async def test_aci_app_registration_handles_existing_app(provisioner):
 
 async def test_aci_app_registration_handles_errors(provisioner):
     error = CalledProcessError(1, "cmd", output="output", stderr="error")
-    provisioner.azure_cli.run_command.side_effect = [(None, None), error]
+    provisioner.azure_cli.run_command.side_effect = [None, error]
 
     with pytest.raises(CalledProcessError):
         await provisioner._create_app_registration()
@@ -421,8 +416,6 @@ async def test_aci_app_registration_handles_errors(provisioner):
 
 
 async def test_aci_service_principal_creation_creates_new_principal(provisioner):
-    # First call simulates that the principal doesn't exist
-    # Second call simulates successful creation of the principal
     service_principal = [
         {
             "accountEnabled": True,
@@ -435,9 +428,9 @@ async def test_aci_service_principal_creation_creates_new_principal(provisioner)
     ]
 
     provisioner.azure_cli.run_command.side_effect = [
-        (None, []),  # Principal does not exist
-        ("created", service_principal),  # Successful creation
-        (None, ["12345678-1234-1234-1234-123456789012"]),  # Principal object ID
+        [],  # Principal does not exist
+        service_principal,  # Successful creation
+        ["12345678-1234-1234-1234-123456789012"],  # Principal object ID
     ]
 
     await provisioner._get_or_create_service_principal_object_id(
@@ -477,7 +470,7 @@ async def test_aci_service_principal_creation_handles_existing_principal(provisi
             "appId": "bcbeb824-fc3a-41f7-afc0-fc00297c1355",
         }
     ]
-    provisioner.azure_cli.run_command.return_value = (None, service_principal)
+    provisioner.azure_cli.run_command.return_value = service_principal
 
     await provisioner._get_or_create_service_principal_object_id(
         app_id="bcbeb824-fc3a-41f7-afc0-fc00297c1355"
@@ -503,7 +496,7 @@ async def test_aci_service_principal_creation_handles_existing_principal(provisi
 
 async def test_aci_service_principal_creation_handles_errors(provisioner):
     error = CalledProcessError(1, "cmd", output="output", stderr="error")
-    provisioner.azure_cli.run_command.side_effect = [(None, []), error]
+    provisioner.azure_cli.run_command.side_effect = [[], error]
 
     with pytest.raises(CalledProcessError):
         await provisioner._get_or_create_service_principal_object_id(
@@ -546,14 +539,11 @@ async def test_aci_assign_contributor_role(provisioner):
     ]
 
     provisioner.azure_cli.run_command.side_effect = [
-        (None, []),  # Principal does not exist
-        ("created", service_principal),  # Successful creation
-        (None, [{"id": "12345678-1234-1234-1234-123456789012"}]),  # Principal object ID
-        (
-            "created",
-            [{"roleDefinitionName": None, "scope": None}],
-        ),  # Successful creation
-        (None, None),
+        [],  # Principal does not exist
+        service_principal,  # Successful creation
+        [{"id": "12345678-1234-1234-1234-123456789012"}],  # Principal object ID
+        [{"roleDefinitionName": None, "scope": None}],  # Successful creation
+        None,
     ]
 
     await provisioner._assign_contributor_role(
@@ -599,13 +589,10 @@ async def test_aci_assign_contributor_role_handles_existing_role(provisioner):
     scope = "/subscriptions/None/resourceGroups/prefect-aci-push-pool-rg"
 
     provisioner.azure_cli.run_command.side_effect = [
-        (None, []),  # Principal does not exist
-        ("created", service_principal),  # Successful creation
-        (None, [{"id": "12345678-1234-1234-1234-123456789012"}]),  # Principal object ID
-        (
-            "created",
-            [{"roleDefinitionName": role, "scope": scope}],
-        ),  # Successful creation
+        [],  # Principal does not exist
+        service_principal,  # Successful creation
+        [{"id": "12345678-1234-1234-1234-123456789012"}],  # Principal object ID
+        [{"roleDefinitionName": role, "scope": scope}],  # Successful creation
     ]
 
     await provisioner._assign_contributor_role(
@@ -669,9 +656,9 @@ async def test_aci_assign_contributor_role_handles_error(provisioner):
 
     error = CalledProcessError(1, "cmd", output="output", stderr="error")
     provisioner.azure_cli.run_command.side_effect = [
-        (None, []),  # Principal does not exist
-        ("created", service_principal),  # Successful creation
-        (None, [{"id": "12345678-1234-1234-1234-123456789012"}]),  # Principal object ID
+        [],  # Principal does not exist
+        service_principal,  # Successful creation
+        [{"id": "12345678-1234-1234-1234-123456789012"}],  # Principal object ID
         error,
     ]
 
@@ -773,26 +760,25 @@ async def test_aci_provision_no_existing_credentials_block(
 
     role_assignments = {
         "roleDefinitionName": "Contributor",
-        # "scope": "/subscriptions/None/resourceGroups/prefect-aci-push-pool-rg",
     }
 
     provisioner.azure_cli.run_command.side_effect = [
-        ("2.0.0", "2.0.0"),  # Azure CLI is installed
-        (None, subscription_list),  # I don't know what call this is from
-        (None, subscription_list),  # Select subscription
-        (None, "westus"),  # Set location
-        (None, None),  # Resource group does not exist
-        ("created", "New resource group created"),  # Successful creation
-        (None, None),  # App does not exist
-        ("created", app_registration),  # Successful creation
-        (None, client_secret),  # Generate app secret
-        (None, []),  # Principal does not exist
-        ("created", None),  # Successful creation
-        ("created", new_service_principal),  # Successful retrieval
-        (None, []),  # Role does not exist
-        ("created", role_assignments),  # Successful creation
-        (None, []),  # Container instance does not exist
-        (None, None),  # Successful creation
+        "2.0.0",  # Azure CLI is installed
+        subscription_list,  #  Azure login check
+        subscription_list,  # Select subscription
+        "westus",  # Set location
+        None,  # Resource group does not exist
+        "New resource group created",  # Successful creation
+        None,  # App does not exist
+        app_registration,  # Successful creation
+        client_secret,  # Generate app secret
+        [],  # Principal does not exist
+        None,  # Successful creation
+        new_service_principal,  # Successful retrieval
+        [],  # Role does not exist
+        role_assignments,  # Successful creation
+        [],  # Container instance does not exist
+        None,  # Successful creation
     ]
 
     new_base_job_template = await provisioner.provision(
@@ -1024,24 +1010,23 @@ async def test_aci_provision_existing_credentials_block(
     }
 
     provisioner.azure_cli.run_command.side_effect = [
-        ("2.0.0", "2.0.0"),  # Azure CLI is installed
-        (None, subscription_list),  # Login check
-        (None, subscription_list),  # Select subscription
-        (None, "westus"),  # Set location
-        (None, None),  # Resource group does not exist
-        ("created", "New resource group created"),  # Successful creation
-        (None, None),  # App does not exist
-        ("created", app_registration),  # Successful creation
-        (None, []),  # Principal does not exist
-        ("created", None),  # Successful creation
-        ("created", new_service_principal),  # Successful retrieval
-        (None, []),  # Role does not exist
-        ("created", role_assignments),  # Successful creation
-        (None, []),  # Container instance does not exist
-        (None, None),  # Successful creation
+        "2.0.0",  # Azure CLI is installed
+        subscription_list,  # Login check
+        subscription_list,  # Select subscription
+        "westus",  # Set location
+        None,  # Resource group does not exist
+        "New resource group created",  # Successful creation
+        None,  # App does not exist
+        app_registration,  # Successful creation
+        [],  # Principal does not exist
+        None,  # Successful creation
+        new_service_principal,  # Successful retrieval
+        [],  # Role does not exist
+        role_assignments,  # Successful creation
+        [],  # Container instance does not exist
+        None,  # Successful creation
     ]
 
-    # Run the provision method
     new_base_job_template = await provisioner.provision(
         work_pool_name="test-work-pool",
         base_job_template=default_base_job_template,
