@@ -39,7 +39,7 @@ async def existing_credentials_block(prefect_client: PrefectClient):
             data={
                 "client_id": "12345678-1234-1234-1234-123456789012",
                 "tenant_id": "9ee4947a-f114-4939-a5ac-7f0ed786de36",
-                "client_secret": "abc",  # noqa
+                "client_secret": "<MY_SECRET>",  # noqa
             },
             block_type_id=block_type.id,
             block_schema_id=block_schema.id,
@@ -757,7 +757,7 @@ async def test_aci_provision_no_existing_credentials_block(
 
     client_secret = (
         '{"appId": "5407b48a-a28d-49ea-a740-54504847153f", "password":'
-        ' "abc", "tenant":'  # noqa
+        ' "<MY_SECRET>", "tenant":'  # noqa
         ' "9ee4947a-f114-4939-a5ac-7f0ed786de36"}'
     )
 
@@ -974,7 +974,7 @@ async def test_aci_provision_no_existing_credentials_block(
     assert block_doc.data == {
         "client_id": "12345678-1234-1234-1234-123456789012",
         "tenant_id": "9ee4947a-f114-4939-a5ac-7f0ed786de36",
-        "client_secret": "abc",  # noqa
+        "client_secret": "<MY_SECRET>",  # noqa
     }
 
 
