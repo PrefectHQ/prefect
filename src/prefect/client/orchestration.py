@@ -2181,7 +2181,7 @@ class PrefectClient:
         limit: int = None,
         offset: int = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,
-    ) -> None:
+    ) -> List[Log]:
         """
         Read flow and task run logs.
         """
