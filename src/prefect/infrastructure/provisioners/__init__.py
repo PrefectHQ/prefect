@@ -2,11 +2,13 @@ from typing import Any, Dict, Optional, Protocol, Type
 
 from prefect.client.orchestration import PrefectClient
 from .cloud_run import CloudRunPushProvisioner
+from .container_instance import ContainerInstancePushProvisioner
 from .ecs import ElasticContainerServicePushProvisioner
 import rich.console
 
 _provisioners = {
     "cloud-run:push": CloudRunPushProvisioner,
+    "azure-container-instance:push": ContainerInstancePushProvisioner,
     "ecs:push": ElasticContainerServicePushProvisioner,
 }
 
