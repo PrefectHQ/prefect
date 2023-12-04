@@ -15,10 +15,15 @@ search:
 
 # Automatic infrastructure provisioning
 
-You can use Prefect to automatically provision infrastructure on your cloud provider of choice for use with a [push work pool](/guides/deployment/push-work-pools/) on Prefect cloud.
+In this guide, you'll learn how to use Prefect to automatically provision infrastructure on your cloud provider of choice.
+
+Currently, with Prefect Cloud you can provision infrastructure for use with an AWS ECS or Google Cloud Run [push work pool](/guides/deployment/push-work-pools/).
 
 Push work pools in Prefect Cloud simplify the setup and management of the infrastructure necessary to run your flows.
-Use the `prefect work-pool create` CLI command to automatically provision your serverless cloud resources and set up your Prefect workspace and to use a new push pool.
+However, setting up infrastructure on your cloud provider can still be a time-consuming process.
+Prefect can dramatically simplify this process by automatically provisioning the necessary infrastructure for you.
+
+We'll use the `prefect work-pool create` CLI command with the `--provision-infra` flag to automatically provision your serverless cloud resources and set up your Prefect workspace to use a new push pool.
 
 ## Prerequisites
 
@@ -30,11 +35,11 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
 === "Google Cloud Run"
 
-    Install [gcloud CLI](https://cloud.google.com/sdk/docs/install) and authenticate with your GCP project.
+    Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and authenticate with your GCP project.
 
 ## Creating a new push work pool and provisioning infrastructure
 
-Here's the command to create a new push work pool and configure the necessary infrastructure.
+Here's the command to create a new push work pool named `my-pool` and configure the necessary infrastructure.
 
 === "AWS ECS"
 
@@ -44,7 +49,8 @@ Here's the command to create a new push work pool and configure the necessary in
     ```
     </div>
 
-    Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks.
+    Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks. 
+    This command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC in your AWS account.
 
     Here's example output from running the command:
 
@@ -83,7 +89,8 @@ Here's the command to create a new push work pool and configure the necessary in
     ```
     </div>
 
-    Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run:
+    Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
+    This command will activate the Cloud Run API for your project, create a service account, create a key for the service account, and create a GCP credentials block in your Prefect workspace.
 
     <div class="terminal">
     ```
@@ -120,7 +127,7 @@ That's it!
 You're ready to create and schedule deployments that use your new push work pool.
 Reminder that no worker is needed to run flows with a push work pool.
 
-## Making chainges to your work pool
+## Making changes to your work pool
 
 If you'd like to make changes to your work pool, navigate to **Work Pools** in the Prefect Cloud UI and choose **Edit** from the three dot menu for your work pool.
 
