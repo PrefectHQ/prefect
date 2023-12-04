@@ -168,6 +168,7 @@ nav:
                 - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
                 - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
+                - Automatic Infrastructure Provisioning: guides/deployment/auto-infra.md
                 - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
     - Concepts:
