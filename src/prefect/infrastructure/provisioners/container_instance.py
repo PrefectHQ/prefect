@@ -194,15 +194,14 @@ class ContainerInstancePushProvisioner:
                 " https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
             ) from e
 
-        _, accounts_unformatted = await self.azure_cli.run_command(
-            command="az account list --output json",
+        _, accounts = await self.azure_cli.run_command(
+            "az account list --output json",
+            return_json=True,
         )
-        if accounts_unformatted:
-            accounts = json.loads(accounts_unformatted)
-            if not accounts:
-                raise RuntimeError(
-                    "No Azure accounts found. Please run `az login` to log in to Azure."
-                )
+        if not accounts:
+            raise RuntimeError(
+                "No Azure accounts found. Please run `az login` to log in to Azure."
+            )
 
     async def _select_subscription(self) -> str:
         """
@@ -226,7 +225,7 @@ class ContainerInstancePushProvisioner:
                     "Fetching subscriptions...", total=1
                 )
             _, subscriptions_list = await self.azure_cli.run_command(
-                command="az account list --output json",
+                "az account list --output json",
                 failure_message=(
                     "No Azure subscriptions found. Please create an Azure subscription"
                     " and try again."
@@ -247,16 +246,25 @@ class ContainerInstancePushProvisioner:
                 )
                 self._subscription_id = selected_subscription["id"]
                 self._subscription_name = selected_subscription["name"]
-        else:
-            _, current_subscription = await self.azure_cli.run_command(
-                command="az account show --output json --query id",
-                success_message="Azure subscription found",
-                failure_message="No Azure subscription found",
-            )
 
-            if current_subscription:
-                self._subscription_id = current_subscription["id"]
-                self._subscription_name = current_subscription["name"]
+        else:
+            _, subscriptions_list = await self.azure_cli.run_command(
+                "az account list --output json",
+                failure_message=(
+                    "No Azure subscriptions found. Please create an Azure subscription"
+                    " and try again."
+                ),
+                ignore_if_exists=True,
+                return_json=True,
+            )
+            if subscriptions_list:
+                self._subscription_id = subscriptions_list[0]["id"]
+                self._subscription_name = subscriptions_list[0]["name"]
+            else:
+                raise RuntimeError(
+                    "No Azure subscriptions found. Please create an Azure subscription"
+                    " and try again."
+                )
 
     async def _create_resource_group(self):
         """
@@ -379,7 +387,7 @@ class ContainerInstancePushProvisioner:
         secret_command = (
             f"az ad app credential reset --id {app_id} --append --output json"
         )
-        result, output = await self.azure_cli.run_command(
+        _, output = await self.azure_cli.run_command(
             secret_command,
             success_message=(
                 f"Secret generated for app registration with client ID '{app_id}'"
@@ -391,10 +399,11 @@ class ContainerInstancePushProvisioner:
                 " resource and try again."
             ),
             ignore_if_exists=True,
+            return_json=True,
         )
-        if result == "created":
-            app_secret = json.loads(output)
-            return app_secret["tenant"], app_secret["password"]
+
+        app_secret = json.loads(output)
+        return app_secret["tenant"], app_secret["password"]
 
     async def _get_or_create_service_principal_object_id(self, app_id: str):
         """
