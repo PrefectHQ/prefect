@@ -977,6 +977,14 @@ async def test_aci_provision_no_existing_credentials_block(
         "client_secret": "<MY_SECRET>",  # noqa
     }
 
+    new_base_job_template["variables"]["properties"]["subscription_id"][
+        "default"
+    ] = "12345678-1234-1234-1234-123456789012"
+
+    new_base_job_template["variables"]["properties"]["resource_group_name"][
+        "default"
+    ] = "prefect-aci-push-pool-rg"
+
 
 async def test_aci_provision_existing_credentials_block(
     default_base_job_template,
@@ -1213,3 +1221,15 @@ async def test_aci_provision_existing_credentials_block(
     assert (
         unexpected_call not in provisioner.azure_cli.run_command.mock_calls
     ), "Unexpected call made: {call}"
+
+    new_base_job_template["variables"]["properties"]["subscription_id"][
+        "default"
+    ] = "12345678-1234-1234-1234-123456789012"
+
+    new_base_job_template["variables"]["properties"]["resource_group_name"][
+        "default"
+    ] = "prefect-aci-push-pool-rg"
+
+    new_base_job_template["variables"]["properties"]["aci_credentials"]["default"][
+        "block_document_id"
+    ] = str(existing_credentials_block)
