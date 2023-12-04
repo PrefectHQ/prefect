@@ -165,6 +165,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,  # Up to ~1 minute interval during backoff
                 )
             )
             # schedule the sync loop
@@ -176,6 +177,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,
                 )
             )
             tg.start_soon(
@@ -186,6 +188,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,
                 )
             )
 
