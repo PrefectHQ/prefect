@@ -2491,7 +2491,6 @@ class PrefectClient:
             f"/work_pools/{work_pool_name}/get_scheduled_flow_runs",
             json=body,
         )
-
         return pydantic.parse_obj_as(List[WorkerFlowRunResponse], response.json())
 
     async def create_artifact(
