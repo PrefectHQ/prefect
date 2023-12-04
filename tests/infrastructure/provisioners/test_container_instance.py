@@ -32,23 +32,21 @@ async def existing_credentials_block(prefect_client: PrefectClient):
     )
     assert block_schema is not None
 
-    # Create a mock block document representing the existing credentials
     block_document = await prefect_client.create_block_document(
         block_document=BlockDocumentCreate(
             name="test-work-pool-push-pool-credentials",
             data={
                 "client_id": "12345678-1234-1234-1234-123456789012",
                 "tenant_id": "9ee4947a-f114-4939-a5ac-7f0ed786de36",
-                "client_secret": "<MY_SECRET>",  # noqa
+                "client_secret": "<MY_SECRET>",
             },
             block_type_id=block_type.id,
             block_schema_id=block_schema.id,
         )
     )
 
-    yield block_document.id  # This will be used in the tests
+    yield block_document.id
 
-    # Clean up: delete the mock block document after the test
     await prefect_client.delete_block_document(block_document_id=block_document.id)
 
 
@@ -757,7 +755,7 @@ async def test_aci_provision_no_existing_credentials_block(
 
     client_secret = (
         '{"appId": "5407b48a-a28d-49ea-a740-54504847153f", "password":'
-        ' "<MY_SECRET>", "tenant":'  # noqa
+        ' "<MY_SECRET>", "tenant":'
         ' "9ee4947a-f114-4939-a5ac-7f0ed786de36"}'
     )
 
@@ -974,7 +972,7 @@ async def test_aci_provision_no_existing_credentials_block(
     assert block_doc.data == {
         "client_id": "12345678-1234-1234-1234-123456789012",
         "tenant_id": "9ee4947a-f114-4939-a5ac-7f0ed786de36",
-        "client_secret": "<MY_SECRET>",  # noqa
+        "client_secret": "<MY_SECRET>",
     }
 
     new_base_job_template["variables"]["properties"]["subscription_id"][
@@ -1027,7 +1025,7 @@ async def test_aci_provision_existing_credentials_block(
 
     provisioner.azure_cli.run_command.side_effect = [
         ("2.0.0", "2.0.0"),  # Azure CLI is installed
-        (None, subscription_list),  # I don't know what call this is from
+        (None, subscription_list),  # Login check
         (None, subscription_list),  # Select subscription
         (None, "westus"),  # Set location
         (None, None),  # Resource group does not exist
