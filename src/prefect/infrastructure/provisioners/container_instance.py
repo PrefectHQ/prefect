@@ -363,7 +363,7 @@ class ContainerInstancePushProvisioner:
             return app_registration["appId"]
 
         else:
-            raise Exception("Error creating the app registration.")
+            raise RuntimeError("Failed to create app registration.")
 
     async def _generate_secret_for_app(self, app_id: str) -> tuple:
         """
@@ -396,8 +396,13 @@ class ContainerInstancePushProvisioner:
             return_json=True,
         )
 
-        app_secret = json.loads(output)
-        return app_secret["tenant"], app_secret["password"]
+        if output:
+            app_secret = json.loads(output)
+            return app_secret["tenant"], app_secret["password"]
+        else:
+            raise RuntimeError(
+                "Failed to generate a new secret for the app registration."
+            )
 
     async def _get_or_create_service_principal_object_id(self, app_id: str):
         """
@@ -624,6 +629,13 @@ class ContainerInstancePushProvisioner:
                 block_type_slug="azure-container-instance-credentials",
             )
             return block_doc.id
+
+        except Exception as e:
+            self._console.print(
+                f"Failed to create ACI credentials block: {e}",
+                style="red",
+            )
+            raise e
 
     async def _aci_credentials_block_exists(
         self, block_name: str, client: PrefectClient
