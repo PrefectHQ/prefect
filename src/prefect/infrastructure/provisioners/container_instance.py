@@ -102,16 +102,16 @@ class AzureCLI:
 
             if return_json:
                 try:
-                    return ("created", json.loads(output))
+                    return json.loads(output)
                 except json.JSONDecodeError as e:
                     self._console.print(f"Failed to decode JSON: {e}", style="red")
                     raise e
 
-            return ("created", output)
+            return output
 
         except subprocess.CalledProcessError as e:
             self._console.print(f"Command execution failed: {e}", style="red")
-            return ("error", None)
+            return
 
 
 class ContainerInstancePushProvisioner:
@@ -172,7 +172,7 @@ class ContainerInstancePushProvisioner:
             command = (
                 'az account list-locations --query "[?isDefault].name" --output tsv'
             )
-            _, output = await self.azure_cli.run_command(command)
+            output = await self.azure_cli.run_command(command)
             self._location = output if output else self.DEFAULT_LOCATION
         except subprocess.CalledProcessError as e:
             raise RuntimeError("Failed to get default location.") from e
@@ -194,7 +194,7 @@ class ContainerInstancePushProvisioner:
                 " https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
             ) from e
 
-        _, accounts = await self.azure_cli.run_command(
+        accounts = await self.azure_cli.run_command(
             "az account list --output json",
             return_json=True,
         )
@@ -224,7 +224,7 @@ class ContainerInstancePushProvisioner:
                 list_projects_task = progress.add_task(
                     "Fetching subscriptions...", total=1
                 )
-            _, subscriptions_list = await self.azure_cli.run_command(
+            subscriptions_list = await self.azure_cli.run_command(
                 "az account list --output json",
                 failure_message=(
                     "No Azure subscriptions found. Please create an Azure subscription"
@@ -248,7 +248,7 @@ class ContainerInstancePushProvisioner:
                 self._subscription_name = selected_subscription["name"]
 
         else:
-            _, subscriptions_list = await self.azure_cli.run_command(
+            subscriptions_list = await self.azure_cli.run_command(
                 "az account list --output json",
                 failure_message=(
                     "No Azure subscriptions found. Please create an Azure subscription"
@@ -277,7 +277,7 @@ class ContainerInstancePushProvisioner:
             f"az group exists --name {self.RESOURCE_GROUP_NAME} --subscription"
             f" {self._subscription_id}"
         )
-        _, exists_result = await self.azure_cli.run_command(
+        exists_result = await self.azure_cli.run_command(
             check_exists_command, return_json=True
         )
         if exists_result is True:
@@ -320,7 +320,7 @@ class ContainerInstancePushProvisioner:
         check_exists_command = (
             f"az ad app list --display-name {self.APP_REGISTRATION_NAME} --output json"
         )
-        _, app_registrations = await self.azure_cli.run_command(
+        app_registrations = await self.azure_cli.run_command(
             check_exists_command,
         )
         if app_registrations:
@@ -346,7 +346,7 @@ class ContainerInstancePushProvisioner:
             f"az ad app create --display-name {self.APP_REGISTRATION_NAME} "
             "--output json"
         )
-        _, app_registration = await self.azure_cli.run_command(
+        app_registration = await self.azure_cli.run_command(
             app_registration_command,
             success_message=(
                 f"App registration '{self.APP_REGISTRATION_NAME}' created successfully"
@@ -381,7 +381,7 @@ class ContainerInstancePushProvisioner:
         secret_command = (
             f"az ad app credential reset --id {app_id} --append --output json"
         )
-        _, output = await self.azure_cli.run_command(
+        output = await self.azure_cli.run_command(
             secret_command,
             success_message=(
                 f"Secret generated for app registration with client ID '{app_id}'"
@@ -413,7 +413,7 @@ class ContainerInstancePushProvisioner:
         command_get_sp = (
             f"az ad sp list --all --query \"[?appId=='{app_id}']\" --output json"
         )
-        _, service_principal = await self.azure_cli.run_command(
+        service_principal = await self.azure_cli.run_command(
             command_get_sp,
             return_json=True,
         )
@@ -430,7 +430,7 @@ class ContainerInstancePushProvisioner:
         )
 
         # Retrieve the object ID of the newly created service principal
-        _, new_service_principal = await self.azure_cli.run_command(
+        new_service_principal = await self.azure_cli.run_command(
             command_get_sp,
             failure_message=(
                 f"Failed to retrieve new service principal for app ID {app_id}"
@@ -467,7 +467,7 @@ class ContainerInstancePushProvisioner:
                 f"az role assignment list --assignee {service_principal_id} --role"
                 f" {role} --scope {scope} --output json"
             )
-            _, role_assignments = await self.azure_cli.run_command(
+            role_assignments = await self.azure_cli.run_command(
                 check_role_command, return_json=True
             )
             if any(
@@ -517,7 +517,7 @@ class ContainerInstancePushProvisioner:
             " json"
         )
 
-        _, result = await self.azure_cli.run_command(
+        result = await self.azure_cli.run_command(
             check_exists_command,
             return_json=True,
         )
