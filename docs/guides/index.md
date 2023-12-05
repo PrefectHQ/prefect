@@ -25,6 +25,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Prefect Client](/guides/using-the-client/) | Use `PrefectClient` to interact with the API server. |
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [Terraform Provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) | Use the Terraform Provider for Prefect Cloud for infrastructure as code. |
+| [CI/CD](/guides/ci-cd/) | Use CI/CD with Prefect. |
 | [Prefect Recipes](/recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 ## Execution
