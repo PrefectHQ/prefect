@@ -7,8 +7,11 @@ from typing import Callable, Coroutine, Deque, Tuple
 import anyio
 import httpx
 
+from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import distinct
 from prefect.utilities.math import clamped_poisson_interval
+
+logger = get_logger("utilities.services.critical_service_loop")
 
 
 async def critical_service_loop(
@@ -50,6 +53,7 @@ async def critical_service_loop(
 
     while True:
         try:
+            logger.debug(f"Starting run of {workload!r}")
             await workload()
 
             # Reset the backoff count on success; we may want to consider resetting
@@ -69,6 +73,9 @@ async def critical_service_loop(
             # exception clause below)
             track_record.append(False)
             failures.append((exc, sys.exc_info()[-1]))
+            logger.debug(
+                f"Run of {workload!r} failed with TransportError", exc_info=exc
+            )
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code >= 500:
                 # 5XX codes indicate a potential outage of the Prefect API which is
@@ -76,6 +83,9 @@ async def critical_service_loop(
                 # it is prolonged.
                 track_record.append(False)
                 failures.append((exc, sys.exc_info()[-1]))
+                logger.debug(
+                    f"Run of {workload!r} failed with HTTPStatusError", exc_info=exc
+                )
             else:
                 raise
 
