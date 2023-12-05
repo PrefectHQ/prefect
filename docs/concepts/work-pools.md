@@ -59,8 +59,8 @@ Optional configuration parameters you can specify to filter work on the pool inc
 | Option                                             | Description                                                                                                                                                |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--paused`                                         | If provided, the work pool will be created in a paused state.                                                                                              |
-| `--type`                                           | The type of infrastructure that can execute runs from this work pool. [default: None]                                                             |
-| `--set-as-default`                                 | Whether or not to use the created work pool as the local default for deployment.                                                           |
+| `--type`                                           | The type of infrastructure that can execute runs from this work pool.                                                             |
+| `--set-as-default`                                 | Whether to use the created work pool as the local default for deployment.                                         |
 | <span class="no-wrap">`--base-job-template`</span> | The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. |
 
 For example, to create a work pool called `test-pool`, you would run this command:
@@ -77,26 +77,37 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
 
 === "Prefect Cloud"
 
-  | Infrastructure Type            | Description                                                                                                                |
-  | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-  | Prefect Agent                  | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                               |
-  | Local Subprocess               | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                    |
-  | AWS Elastic Container Service  | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.               |
-  | Azure Container Instances      | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                      |
+    | Infrastructure Type                  | Description                                                                                                                |
+    | ------------------------------       | -------------------------------------------------------------------------------------------------------------------------- |
+    | Prefect Agent                        | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                              |
+    | Local Subprocess                     | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                    |
+    | AWS Elastic Container Service        | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.               |
+    | Azure Container Instances            | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                      |
+    | Docker                               | Execute flow runs within Docker containers. Works well for managing flow execution environments via Docker images. Requires  access to a running Docker daemon.  |
+    | Google Cloud Run                     | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account.                          |
+    | Google Cloud Run V2                  | Execute flow runs within containers on Google Cloud Run (V2 API). Requires a Google Cloud Platform account.                 |
+    | Google Vertex AI                     | Execute flow runs within containers on Google Vertex AI. Requires a Google Cloud Platform account.                          |
+    | Kubernetes                           | Execute flow runs within jobs scheduled on a Kubernetes cluster. Requires a Kubernetes cluster.                             |
+    | Google Cloud Run - Push              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.  |
+    | AWS Elastic Container Service - Push | Execute flow runs within containers on AWS ECS. Works with existing ECS clusters and serverless execution via AWS Fargate. Requires an AWS account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.   |
+    | Azure Container Instances - Push     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.    |
+    | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
 
-=== "Self-hosted Prefect server instance"
-  
-  | Infrastructure Type           | Description              |
-  | ----------------------------  | ------------------------ |
-  | Prefect Agent                 | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                                  |
-  | Local Subprocess              | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                       |
-  | AWS Elastic Container Service | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.                  |
-  | Azure Container Instances     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                         |
-  | Docker                        | Execute flow runs within Docker containers. Works well for managing flow execution environments via Docker images. Requires access to a running Docker daemon.    |
-  | Google Cloud Run              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account.                             |
-  | Google Cloud Run V2           | Execute flow runs within containers on Google Cloud Run (V2 API). Requires a Google Cloud Platform account.                    |
-  | Google Vertex AI              | Execute flow runs within containers on Google Vertex AI. Requires a Google Cloud Platform account.                             |
-  | Kubernetes                    | Execute flow runs within jobs scheduled on a Kubernetes cluster. Requires a Kubernetes cluster.                                |
+=== "Prefect server instance"
+
+    Work pools
+    
+    | Infrastructure Type           | Description              |
+    | ----------------------------  | ------------------------ |
+    | Prefect Agent                 | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                                  |
+    | Local Subprocess              | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                       |
+    | AWS Elastic Container Service | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.                  |
+    | Azure Container Instances     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                         |
+    | Docker                        | Execute flow runs within Docker containers. Works well for managing flow execution environments via Docker images. Requires access to a running Docker daemon.    |
+    | Google Cloud Run              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account.                             |
+    | Google Cloud Run V2           | Execute flow runs within containers on Google Cloud Run (V2 API). Requires a Google Cloud Platform account.                    |
+    | Google Vertex AI              | Execute flow runs within containers on Google Vertex AI. Requires a Google Cloud Platform account.                             |
+    | Kubernetes                    | Execute flow runs within jobs scheduled on a Kubernetes cluster. Requires a Kubernetes cluster.                                |
 
 On success, the command returns the details of the newly created work pool.
 
@@ -130,6 +141,8 @@ To change your default work pool, run:
 
         prefect config set PREFECT_DEFAULT_WORK_POOL_NAME=<work-pool-name>
 ```
+
+</div>
 
 To update a work pool via the Prefect CLI, use the `prefect work-pool update` command:
 
