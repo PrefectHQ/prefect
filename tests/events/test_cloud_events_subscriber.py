@@ -33,6 +33,18 @@ async def test_subscriber_can_connect_with_defaults(
         assert recorder.filter == subscriber._filter
 
 
+async def test_subscriber_complains_without_api_url_and_key(
+    events_api_url: str,
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    with temporary_settings(updates={PREFECT_API_KEY: "", PREFECT_API_URL: ""}):
+        with pytest.raises(ValueError, match="must be provided or set"):
+            PrefectCloudEventSubscriber()
+
+
 async def test_subscriber_can_connect_and_receive_one_event(
     events_api_url: str,
     example_event_1: Event,

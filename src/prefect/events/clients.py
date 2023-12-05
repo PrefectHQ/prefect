@@ -109,6 +109,20 @@ class AssertingEventsClient(EventsClient):
         return self
 
 
+def _get_api_url_and_key(
+    api_url: Optional[str], api_key: Optional[str]
+) -> Tuple[str, str]:
+    api_url = api_url or PREFECT_API_URL.value()
+    api_key = api_key or PREFECT_API_KEY.value()
+
+    if not api_url or not api_key:
+        raise ValueError(
+            "api_url and api_key must be provided or set in the Prefect configuration"
+        )
+
+    return api_url, api_key
+
+
 class PrefectCloudEventsClient(EventsClient):
     """A Prefect Events client that streams Events to a Prefect Cloud Workspace"""
 
@@ -131,8 +145,7 @@ class PrefectCloudEventsClient(EventsClient):
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
         """
-        api_url = api_url or PREFECT_API_URL.value()
-        api_key = api_key or PREFECT_API_KEY.value()
+        api_url, api_key = _get_api_url_and_key(api_url, api_key)
 
         socket_url = (
             api_url.replace("https://", "wss://")
@@ -265,8 +278,7 @@ class PrefectCloudEventSubscriber:
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
         """
-        api_url = api_url or PREFECT_API_URL.value()
-        api_key = api_key or PREFECT_API_KEY.value()
+        api_url, api_key = _get_api_url_and_key(api_url, api_key)
 
         from prefect.events.filters import EventFilter
 
