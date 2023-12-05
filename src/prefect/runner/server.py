@@ -101,7 +101,9 @@ def _model_for_function(fn: t.Callable) -> t.Type[BaseModel]:
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = t.Any
         model_fields[name] = (type_, field)
-    return create_model("FunctionModel", __config__=ModelConfig, **model_fields)
+    return create_model(
+        f"{fn.__name__.title()}FunctionModel", __config__=ModelConfig, **model_fields
+    )
 
 
 async def __run_deployment(deployment: "Deployment"):
