@@ -132,7 +132,7 @@ async def get_deployment_router(runner: "Runner") -> APIRouter:
         for deployment_id in runner._deployment_ids:
             deployment = await client.read_deployment(deployment_id)
             router.add_api_route(
-                f"/deployments/{deployment.id}/runs",
+                f"/deployment/{deployment.id}/run",
                 await __run_deployment(deployment),
                 methods=["POST"],
             )
