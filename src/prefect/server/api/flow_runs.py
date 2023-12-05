@@ -342,11 +342,8 @@ async def resume_flow_run(
                 orchestration_parameters=orchestration_parameters,
             )
 
-        # Set all Paused tasks to Pending.
-        # TODO: Should this be done in the client, the API, or orchestration policy?
-        #       The API feels like the best place, so that the logic is consistent
-        #       across all clients and so that one orchestration policy doesn't
-        #       jump its boundaries and try to orchestrate using other policies.
+        # Set all Paused tasks to Pending so that any waiting task runners
+        # can resume execution.
         while paused_task_runs_batch := await models.task_runs.read_task_runs(
             session,
             flow_run_filter=filters.FlowRunFilter(id={"any_": [flow_run.id]}),
