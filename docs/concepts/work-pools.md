@@ -95,8 +95,6 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
 
 === "Prefect server instance"
 
-    Work pools
-    
     | Infrastructure Type           | Description              |
     | ----------------------------  | ------------------------ |
     | Prefect Agent                 | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                                  |
