@@ -7,31 +7,29 @@
     "build": "vite build",
     "lint": "eslint src --ext .js,.ts,.vue",
     "lint:fix": "eslint src --fix --debug",
-    "test": "playwright test",
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "2.0.14",
-    "@prefecthq/prefect-ui-library": "2.2.2",
+    "@prefecthq/prefect-design": "2.1.1",
+    "@prefecthq/prefect-ui-library": "2.4.3",
     "@prefecthq/vue-charts": "2.0.3",
-    "@prefecthq/vue-compositions": "1.6.4",
+    "@prefecthq/vue-compositions": "1.6.7",
     "@types/lodash.debounce": "4.0.9",
-    "axios": "0.27.2",
+    "axios": "1.6.2",
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.3.5",
-    "vue": "3.3.8",
+    "vue": "3.3.9",
     "vue-router": "4.2.5"
   },
   "devDependencies": {
-    "@playwright/test": "1.39.0",
     "@prefecthq/eslint-config": "1.0.31",
-    "@vitejs/plugin-vue": "4.4.1",
+    "@vitejs/plugin-vue": "4.5.1",
     "autoprefixer": "10.4.16",
     "dotenv": "16.3.1",
-    "eslint": "^8.53.0",
+    "eslint": "^8.55.0",
     "ts-node": "10.9.1",
-    "typescript": "^5.2.2",
-    "vite": "4.5.0",
-    "vue-tsc": "^1.8.22"
+    "typescript": "^5.3.2",
+    "vite": "5.0.3",
+    "vue-tsc": "^1.8.24"
   }
 }

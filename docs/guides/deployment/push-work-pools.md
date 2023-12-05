@@ -5,7 +5,7 @@ tags:
     - deployments
     - Cloud Run
     - AWS ECS
-    - Azure Container Instance
+    - Azure Container Instances
     - ACI
     - push work pools
 search:
@@ -19,37 +19,25 @@ Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type o
 
 In this guide you will:
 
-- Create a push work pool that sends work to Google Cloud Run, AWS ECS or Azure ACI
+- Create a push work pool that sends work to Google Cloud Run, Amazon Elastic Container Service (AWS ECS) or Azure Container Instances (ACI)
 - Deploy a flow to that work pool
 - Execute our flow without having to run a worker or agent process to poll for flow runs
 
 ## Setup
 
-=== "Google Cloud Run"
-    
-    To push work to Cloud Run, a GCP service account and an API Key are required.
-
-    Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, and click *continue* to configure permissions.
-
-    The service account must have two roles at a minimum, *Cloud Run Developer*, and *Service Account User*.
-
-    ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
-
-    Once the Service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
-
 === "AWS ECS"
-    
+
     To push work to ECS, AWS credentials are required.
 
     Create a user and attach the *AmazonECS_FullAccess* permissions.
 
     From that user's page create credentials and store them somewhere safe for use in the next section.
 
-=== "Azure Container Instance"
-    
-    To push work to Azure, an Azure subscription, resource worker and tenant secret are required. 
+=== "Azure Container Instances"
 
-    ##### Create Subscription and Resource Worker
+    To push work to Azure, an Azure subscription, resource group and tenant secret are required. 
+
+    ##### Create Subscription and Resource Group
 
     1. In the Azure portal, create a subscription.
     2. Create a resource group within your subscription.
@@ -59,17 +47,47 @@ In this guide you will:
     1. In the Azure portal, create an app registration.
     2. In the app registration, create a client secret. Copy the value and store it somewhere safe.
     
-    ### Add App Registration to Subscription
+    ### Add App Registration to Resource Group
 
     1. Navigate to the resource group you created earlier.
-    2. Click on "Access control (IAM)" and then "Role assignments".
-    3. Search for the app registration and select it. Give it a role that has sufficient privileges to create, run, and delete ACI container groups.
+    2. Choose the "Access control (IAM)" blade in the left-hand side menu. Click "+ Add" button at the top, then "Add role assignment".
+    3. Go to the "Privileged administrator roles" tab, click on "Contributor", then click "Next" at the bottom of the page.
+    4. Click on "+ Select members". Type the name of the app registration (otherwise it may not autopopulate) and click to add it. Then hit "Select" and click "Next". The default permissions associated with a role like "Contributor" might not always be sufficient for all operations related to Azure Container Instances (ACI). The specific permissions required can depend on the operations you need to perform (like creating, running, and deleting ACI container groups) and your organization's security policies. In some cases, additional permissions or custom roles might be necessary.
+    5. Click "Review + assign" to finish.
+
+=== "Google Cloud Run"
+
+    A GCP service account and an API Key are required, to push work to Cloud Run.
+
+    Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, and click *continue* to configure permissions.
+
+    The service account must have two roles at a minimum, *Cloud Run Developer*, and *Service Account User*.
+
+    ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
+
+    Once the Service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
 
 ## Work pool configuration
 
-Our push work pool will store information about what type of infrastructure we're running on, what default values to provide to compute jobs, and other important execution environment parameters. Because our push work pool needs to integrate securely with your serverless infrastructure, we need to start by storing our credentials in Prefect Cloud, which we'll do by making a block.
+Our push work pool will store information about what type of infrastructure our flow will run on, what default values to provide to compute jobs, and other important execution environment parameters. Because our push work pool needs to integrate securely with your serverless infrastructure, we need to start by storing our credentials in Prefect Cloud, which we'll do by making a block.
 
 ### Creating a Credentials block
+
+=== "AWS ECS"
+
+    Navigate to the blocks page, click create new block, and select AWS Credentials for the type.
+    
+    For use in a push work pool, this block must have the region and cluster name filled out, in addition to access key and access key secret.
+
+    Provide any other optional information and create your block.
+
+=== "Azure Container Instances"
+
+    Navigate to the blocks page and click the "+" at the top to create a new block. Find the Azure Container Instance Credentials block and click "Add +".
+    
+    Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier. Be sure to use the value of the secret, not the secret ID!
+
+    Provide any other optional information and click "Create".
 
 === "Google Cloud Run"
 
@@ -81,37 +99,21 @@ Our push work pool will store information about what type of infrastructure we'r
 
     Provide any other optional information and create your block.
 
-=== "AWS ECS"
-    
-    Navigate to the blocks page, click create new block, and select AWS Credentials for the type.
-    
-    For use in a push work pool, this block must have the region and cluster name filled out, in addition to access key and access key secret.
-
-    Provide any other optional information and create your block.
-
-=== "Azure Container Instance"
-    
-    Navigate to the blocks page, click create new block, and select Azure Container Instance Credentials for the type.
-    
-    Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier.
-
-    Provide any other optional information and create your block.
-
 ### Create push work pool
 
-Now navigate to work pools and click create to start configuring your push work pool by selecting a push option in the infrastructure type step.
+Now navigate to the work pools page. Click create to start configuring your push work pool by selecting a push option in the infrastructure type step.
+
+=== "AWS ECS"
+
+    Each step has several optional fields that are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, select the block you created under the AWS Credentials field. This will allow Prefect Cloud to securely interact with your ECS cluster.
+
+=== "Azure Container Instances"
+
+    Fill in the subscription ID and resource group name from the resource group you created.  Add the Azure Container Instance Credentials block you created in the step above. 
 
 === "Google Cloud Run"
 
     Each step has several optional fields that are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, select the block you created under the GCP Credentials field. This will allow Prefect Cloud to securely interact with your GCP project.
-
-=== "AWS ECS"
-      
-    Each step has several optional fields that are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, select the block you created under the AWS Credentials field. This will allow Prefect Cloud to securely interact with your ECS cluster.
-
-=== "Azure Container Instance"
-
-    Fill in the subscription ID and resource group name from the resource group you created.  Add the Azure Container Instance Credentials block you created in the step above. 
 
 Create your pool and you are ready to deploy flows to your Push work pool.
 
@@ -138,5 +140,3 @@ Deploying your flow to the `my-push-pool` work pool will ensure that runs that a
 With your deployment created, navigate to its detail page and create a new flow run. You'll see the flow start running without ever having to poll the work pool, because Prefect Cloud securely connected to your serverless infrastructure, created a job, ran the job, and began reporting on its execution.
 
 ![A flow running on a cloud run push work pool](/img/guides/push-flow-running.png)
-
-

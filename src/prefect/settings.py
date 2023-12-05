@@ -1318,12 +1318,12 @@ PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect visualize is used.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental enhanced flow run cancellation.
 """
 
-PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 """
 Whether or not to warn when experimental enhanced flow run cancellation is used.
 """
@@ -1384,6 +1384,16 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
+PREFECT_WORKER_WEBSERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the worker's webserver should bind to.
+"""
+
+PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
+"""
+The port the worker's webserver should bind to.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect artifacts.
@@ -1402,6 +1412,13 @@ Whether or not to enable the experimental workspace dashboard.
 PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
+"""
+
+# Defaults -----------------------------------------------------------------------------
+
+PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
+"""
+The default work pool to deploy to.
 """
 
 # Deprecated settings ------------------------------------------------------------------

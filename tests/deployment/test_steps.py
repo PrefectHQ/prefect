@@ -1,9 +1,10 @@
 import shutil
+import subprocess
 import sys
 import warnings
 from pathlib import Path
 from textwrap import dedent
-from unittest.mock import ANY
+from unittest.mock import ANY, call
 
 import pytest
 
@@ -120,6 +121,102 @@ class TestRunStep:
         )
         assert output.returncode == 0
         assert output.stdout.decode().strip() == "hello world"
+
+    async def test_requirement_installation_successful(self, monkeypatch):
+        """
+        Test that the function attempts to install the package and succeeds.
+        """
+        import_module_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[ImportError, lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step(
+            {"test_module.test_function": {"requires": "test-package>=1.0.0", "x": 1}}
+        )
+
+        import_module_mock.assert_called_once_with("test_package")
+        assert (
+            import_object_mock.call_count == 2
+        )  # once before and once after installation
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0"]
+        )
+
+    async def test_install_multiple_requirements(self, monkeypatch):
+        """
+        Test that passing multiple requirements installs all of them.
+        """
+        import_module_mock = MagicMock(side_effect=[None, ImportError])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step(
+            {
+                "test_module.test_function": {
+                    "requires": ["test-package>=1.0.0", "another"],
+                    "x": 1,
+                }
+            }
+        )
+
+        import_module_mock.assert_has_calls([call("test_package"), call("another")])
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0", "another"]
+        )
+
+    async def test_requirement_installation_failure(self, monkeypatch, caplog):
+        """
+        Test that the function logs a warning if it fails to install the package.
+        """
+        # Mocking the import_module function to always raise ImportError
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module",
+            MagicMock(side_effect=ImportError),
+        )
+
+        # Mock subprocess.check_call to simulate failed package installation
+        monkeypatch.setattr(
+            subprocess,
+            "check_call",
+            MagicMock(side_effect=subprocess.CalledProcessError(1, ["pip"])),
+        )
+
+        with pytest.raises(ImportError):
+            await run_step(
+                {
+                    "test_module.test_function": {
+                        "requires": "nonexistent-package>=1.0.0"
+                    }
+                }
+            )
+
+        assert subprocess.check_call.called
+        record = next(
+            (
+                record
+                for record in caplog.records
+                if "Unable to install required packages" in record.message
+            ),
+            None,
+        )
+        assert record is not None, "No warning was logged"
+        assert record.levelname == "WARNING"
 
 
 class TestRunSteps:
