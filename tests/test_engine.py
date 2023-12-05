@@ -57,6 +57,7 @@ from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
     SetStateStatus,
     StateAcceptDetails,
+    StateRejectDetails,
     StateWaitDetails,
 )
 from prefect.server.schemas.states import StateDetails, StateType
@@ -759,6 +760,65 @@ class TestOrchestrateTaskRun:
             await propose_state(
                 prefect_client, State(type=StateType.RUNNING), task_run_id=task_run.id
             )
+
+    async def test_propose_state_raises_on_pause_with_reschedule(
+        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run
+    ):
+        paused_state = Paused(reschedule=True)
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=paused_state,
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        delay_seconds = 1
+        num_waits = 3
+        reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                *[
+                    OrchestrationResult(
+                        state=paused_state,  # Same as the flow run's paused state
+                        status=SetStateStatus.REJECT,
+                        details=StateRejectDetails(
+                            type="reject_details", reason=reason
+                        ),
+                    )
+                    for _ in range(num_waits)
+                ],
+                OrchestrationResult(
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(),
+                    state=Running(),
+                ),
+            ]
+        )
+
+        with pytest.raises(Pause, match=reason):
+            with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
+                await propose_state(
+                    prefect_client,
+                    State(type=StateType.RUNNING),
+                    task_run_id=task_run.id,
+                )
 
     async def test_waits_until_scheduled_start_time(
         self,

@@ -857,6 +857,7 @@ async def orchestrate_flow_run(
                     state=exc.state,
                     flow_run_id=flow_run.id,
                 )
+
                 return state
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state

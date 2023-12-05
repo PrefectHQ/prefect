@@ -33,7 +33,6 @@ from prefect.server.models.flow_runs import (
 )
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
-from prefect.server.schemas import filters
 from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
@@ -346,8 +345,8 @@ async def resume_flow_run(
         # can resume execution.
         while paused_task_runs_batch := await models.task_runs.read_task_runs(
             session,
-            flow_run_filter=filters.FlowRunFilter(id={"any_": [flow_run.id]}),
-            task_run_filter=filters.TaskRunFilter(
+            flow_run_filter=schemas.filters.FlowRunFilter(id={"any_": [flow_run.id]}),
+            task_run_filter=schemas.filters.TaskRunFilter(
                 state={"type": {"any_": [schemas.states.StateType.PAUSED]}}
             ),
             limit=100,
