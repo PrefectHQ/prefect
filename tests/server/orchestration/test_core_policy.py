@@ -966,22 +966,22 @@ class TestTaskRetryingRule:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
 
-    async def test_not_retriable(
+    async def test_not_retriable_detail_set(
         self,
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryFailedFlows]
+        retry_policy = [RetryFailedTasks]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
             session,
-            "flow",
+            "task",
             *intended_transition,
         )
         ctx.run.run_count = 1
-        ctx.run_settings.retries = 1
+        ctx.run_settings.retries = 2
         ctx.proposed_state.state_details.retriable = False
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -996,19 +996,19 @@ class TestTaskRetryingRule:
         session,
         initialize_orchestration,
     ):
-        manual_retry_policy = [RetryFailedFlows]
+        manual_retry_policy = [RetryFailedTasks]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
             session,
-            "flow",
+            "task",
             *intended_transition,
             flow_retries=1,
         )
         ctx.proposed_state.name = "AwaitingRetry"
-        ctx.run.deployment_id = uuid4()
         ctx.run.run_count = 1
+        ctx.run_settings.retries = 2
         ctx.proposed_state.state_details.retriable = False
 
         async with contextlib.AsyncExitStack() as stack:
