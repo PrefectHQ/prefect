@@ -3,12 +3,13 @@ from uuid import UUID
 
 import pendulum
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.events.schemas import Event, Resource, ResourceSpecification
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 
-try:
+if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field
-except ImportError:
+else:
     from pydantic import Field
 
 
