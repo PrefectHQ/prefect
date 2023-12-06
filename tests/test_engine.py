@@ -1177,6 +1177,52 @@ class TestOrchestrateTaskRun:
         assert state.is_failed()
         assert mock.call_count == 2
 
+    async def test_no_retry_on_retries_eq_0_even_if_retriable(
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Define a task that fails once and then succeeds
+        mock = MagicMock()
+
+        # Can retry only once
+        def is_retriable(task, task_run, state):
+            return mock.call_count < 5
+
+        # Can retry more than once
+        @task(retries=0, retry_condition_fn=is_retriable)
+        def my_task(x):
+            mock(x)
+            raise ValueError("try again, but only once")
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={"x": quote(1)},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+        )
+
+        # Check that the task completed happily
+        assert state.is_failed()
+        assert mock.call_count == 1
+
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
