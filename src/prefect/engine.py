@@ -1873,7 +1873,6 @@ async def orchestrate_task_run(
                     # Propose a Running state again.
                     continue
             else:
-                print("Proposed state", state)
                 break
 
     # Emit an event to capture the result of proposing a `RUNNING` state.
