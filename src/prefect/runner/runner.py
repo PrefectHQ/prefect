@@ -892,6 +892,9 @@ class Runner:
         run_logger = self._get_flow_run_logger(flow_run)
 
         try:
+            import json
+
+            print(json.dumps(flow_run.dict(json_compatible=True), indent=4))
             status_code = await self._run_process(
                 flow_run=flow_run,
                 task_status=task_status,

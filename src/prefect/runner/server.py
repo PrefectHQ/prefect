@@ -1,16 +1,12 @@
-import inspect
 import typing as t
 
 import pendulum
 import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, status
-from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect._vendor.fastapi.responses import JSONResponse
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, Field, create_model
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
-from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_SERVER_HOST,
@@ -23,16 +19,6 @@ from prefect.utilities.asyncutils import sync_compatible
 if t.TYPE_CHECKING:
     from prefect.deployments import Deployment
     from prefect.runner import Runner
-
-
-if HAS_PYDANTIC_V2:
-    from prefect._internal.pydantic.v2_schema import (
-        create_v2_schema,
-        has_v2_model_as_param,
-        process_v2_params,
-    )
-else:
-    from prefect.utilities.callables import create_v1_schema, process_v1_params
 
 
 def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
@@ -72,46 +58,73 @@ def shutdown(runner) -> int:
     return _shutdown
 
 
-def _model_for_function(fn: t.Callable) -> t.Type[BaseModel]:
-    signature = inspect.signature(fn)
-    model_fields = {}
-    docstrings = fn.__doc__ or {}
-    aliases = {}
+def create_model_from_openapi(
+    schema: dict[str, t.Any], title: str
+) -> t.Type[BaseModel]:
+    definitions = schema.get("definitions", {})
 
-    class ModelConfig:
-        arbitrary_types_allowed = True
+    def _get_python_type(type_name: str) -> t.Type:
+        if type_name == "integer":
+            return int
+        elif type_name == "number":
+            return float
+        elif type_name == "boolean":
+            return bool
+        elif type_name == "string":
+            return str
+        elif type_name == "array":
+            return list
+        elif type_name == "object":
+            return dict
+        else:
+            raise ValueError(f"Unknown type '{type_name}'.")
 
-    if HAS_PYDANTIC_V2 and has_v2_model_as_param(signature):
-        create_schema = create_v2_schema
-        process_params = process_v2_params
-    else:
-        create_schema = create_v1_schema
-        process_params = process_v1_params
+    def resolve_reference(ref: str, definitions: dict[str, t.Any]) -> t.Type[BaseModel]:
+        ref_name = ref.lstrip("#/definitions/")
+        ref_schema = definitions.get(ref_name)
+        if ref_schema is None:
+            raise ValueError(f"Reference {ref!r} not found in definitions.")
+        return create_model_from_schema(ref_schema, ref_name, definitions)
 
-    for position, param in enumerate(signature.parameters.values()):
-        name, type_, field = process_params(
-            param, position=position, docstrings=docstrings, aliases=aliases
-        )
-        # Generate a Pydantic model at each step so we can check if this parameter
-        # type supports schema generation
-        try:
-            create_schema(
-                "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
+    def create_model_from_schema(
+        schema: dict[str, t.Any], model_name: str, definitions: dict[str, t.Any]
+    ) -> t.Type[BaseModel]:
+        model_fields = {}
+
+        for prop_name, prop_info in schema.get("properties", {}).items():
+            field_details = (
+                prop_info.get("allOf")[0] if "allOf" in prop_info else prop_info
             )
-        except ValueError:
-            # This field's type is not valid for schema creation, update it to `Any`
-            type_ = t.Any
-        model_fields[name] = (type_, field)
-    return create_model(
-        f"{fn.__name__.title()}FunctionModel", __config__=ModelConfig, **model_fields
+
+            if "$ref" in field_details:
+                python_type = resolve_reference(field_details["$ref"], definitions)
+            else:
+                python_type = (
+                    t.Any
+                    if "type" not in field_details
+                    else _get_python_type(field_details["type"])
+                )
+
+            model_fields[prop_name] = (
+                (t.Optional[python_type], Field(default=prop_info.get("default", ...)))
+                if prop_name not in schema.get("required", [])
+                else (python_type, Field(...))
+            )
+
+        return create_model(model_name, **model_fields)
+
+    return create_model_from_schema(schema, title, definitions)
+
+
+async def _make_run_deployment_endpoint(
+    deployment: "Deployment",
+) -> t.Callable[..., None]:
+    title = f"{deployment.name.title().replace('_', '')}Parameters_{deployment.id}"
+    Model: t.Type[BaseModel] = create_model_from_openapi(
+        deployment.parameter_openapi_schema, title
     )
 
-
-async def __run_deployment(deployment: "Deployment"):
-    assert deployment.entrypoint is not None
-    _flow = load_flow_from_entrypoint(deployment.entrypoint)
-
-    Model: t.Type[BaseModel] = _model_for_function(_flow.fn)
+    Model.__config__.arbitrary_types_allowed = True
 
     async def _create_flow_run_for_deployment(m: Model):  # type: ignore
         async with get_client() as client:
@@ -124,53 +137,19 @@ async def __run_deployment(deployment: "Deployment"):
 
 
 @sync_compatible
-async def get_deployment_router(
-    runner: "Runner",
-) -> t.Tuple[APIRouter, t.Dict[str, t.Dict]]:
+async def get_deployment_router(runner: "Runner") -> APIRouter:
     from prefect import get_client
 
     router = APIRouter()
-    schemas = {}
     async with get_client() as client:
         for deployment_id in runner._deployment_ids:
             deployment = await client.read_deployment(deployment_id)
             router.add_api_route(
                 f"/deployment/{deployment.id}/run",
-                await __run_deployment(deployment),
+                await _make_run_deployment_endpoint(deployment),
                 methods=["POST"],
             )
-
-            # Used for updating the route schemas later on
-            schemas[deployment.name] = deployment.parameter_openapi_schema
-            schemas[deployment.id] = deployment.name
-    return router, schemas
-
-
-def _inject_schemas_into_generated_openapi(webserver: FastAPI, schemas: t.Dict):
-    openapi_schema = get_openapi(
-        title="FastAPI Prefect Runner", version="2.5.0", routes=webserver.routes
-    )
-
-    # Place the deployment schema into the schema references
-    for name, schema in schemas.items():
-        openapi_schema["components"]["schemas"][name] = schema
-
-    # Update the route schema to reference the deployment schema
-    # Goal
-    # openapi_schema["paths"]['/deployment/5c4a4699-898a-4b9e-8810-916cf6f153bd/run']["post"]["requestBody"]["content"]["application/json"]["schema"]["$ref"] = #/components/schemas/DeplomentNameOrDeploymentId'
-    for path, remainder in openapi_schema["paths"].items():
-        if not path.startswith("/deployment"):
-            continue
-
-        deployment_id = (
-            ...
-        )  # TODO: parse the deployment ID from the path, use that to find the deployment's name
-        deployment_name = deployment_id
-        remainder["post"]["requestBody"]["content"]["application/json"]["schema"][
-            "$ref"
-        ] = f"#/components/schemas/{deployment_name}"
-
-    return openapi_schema
+    return router
 
 
 def start_webserver(
@@ -194,22 +173,11 @@ def start_webserver(
     router.add_api_route("/shutdown", shutdown(runner=runner), methods=["POST"])
     webserver.include_router(router)
 
-    deployments_router, deployment_schemas = get_deployment_router(runner)
+    deployments_router = get_deployment_router(runner)
     webserver.include_router(deployments_router)
 
     host = PREFECT_RUNNER_SERVER_HOST.value()
     port = PREFECT_RUNNER_SERVER_PORT.value()
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
 
-    def customize_openapi():
-        if webserver.openapi_schema:
-            return webserver.openapi_schema
-
-        openapi_schema = _inject_schemas_into_generated_openapi(
-            webserver, deployment_schemas
-        )
-        webserver.openapi_schema = openapi_schema
-        return webserver.openapi_schema
-
-    webserver.openapi = customize_openapi
     uvicorn.run(webserver, host=host, port=port, log_level=log_level)
