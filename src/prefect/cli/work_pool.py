@@ -380,8 +380,8 @@ async def update(
         exit_with_success(f"Updated work pool {name!r}")
 
 
-@work_pool_app.command()
-async def provision_infra(
+@work_pool_app.command(aliases=["provision-infra"])
+async def provision_infrastructure(
     name: str = typer.Argument(
         ..., help="The name of the work pool to provision infrastructure for."
     ),
@@ -394,8 +394,6 @@ async def provision_infra(
         $ prefect work-pool provision-infrastructure "my-pool"
 
     """
-    if not name:
-        exit_with_error("Work pool name cannot be empty.")
     async with get_client() as client:
         try:
             work_pool = await client.read_work_pool(work_pool_name=name)
