@@ -1006,59 +1006,6 @@ class TestOrchestrateTaskRun:
 
         assert state.is_completed()
 
-    async def test_begin_task_run_handles_pause_signal(
-        self, monkeypatch, prefect_client, flow_run, result_factory
-    ):
-        paused_state = Paused(reschedule=True)
-        pause_reason = (
-            "The flow is paused, new tasks can execute after resuming flow run: "
-            f"{flow_run.id}."
-        )
-
-        prefect_client.set_task_run_state = AsyncMock(
-            side_effect=[
-                OrchestrationResult(
-                    state=paused_state,
-                    status=SetStateStatus.REJECT,
-                    details=StateRejectDetails(
-                        type="reject_details", reason=pause_reason
-                    ),
-                ),
-            ]
-        )
-
-        @task
-        async def my_task():
-            return 1
-
-        # the flow run must be running prior to running tasks
-        await prefect_client.set_flow_run_state(
-            flow_run_id=flow_run.id,
-            state=Running(),
-        )
-
-        task_run = await prefect_client.create_task_run(
-            task=my_task,
-            flow_run_id=flow_run.id,
-            dynamic_key="0",
-            state=State(type=StateType.PENDING),
-        )
-
-        with FlowRunContext.construct(client=prefect_client, flow_run=flow_run):
-            state = await begin_task_run(
-                task=my_task,
-                task_run=task_run,
-                parameters={},
-                result_factory=result_factory,
-                wait_for=[],
-                log_prints=False,
-                settings=prefect.context.SettingsContext.get().copy(),
-            )
-
-        assert state
-        assert state.is_paused()
-        assert state.state_details.pause_reschedule
-
     async def test_waits_until_scheduled_start_time(
         self,
         prefect_client,
@@ -1582,6 +1529,62 @@ class TestOrchestrateTaskRun:
                     client=prefect_client,
                     log_prints=False,
                 )
+
+
+class TestBeginTaskRun:
+    async def test_begin_task_run_handles_pause_signal(
+        self, monkeypatch, prefect_client, result_factory, patch_manifest_load
+    ):
+        @task
+        async def my_task():
+            return 1
+
+        @flow
+        async def my_flow():
+            return await my_task()
+
+        await patch_manifest_load(my_flow)
+        flow_id = await prefect_client.create_flow(my_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id,
+            name="test",
+            manifest_path="file.json",
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        # The flow run must be running for us to create Pending task runs.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(type=StateType.PENDING),
+        )
+
+        result = await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Paused(reschedule=True),
+        )
+        print("RESULT ", result)
+
+        with FlowRunContext.construct(client=prefect_client, flow_run=flow_run):
+            state = await begin_task_run(
+                task=my_task,
+                task_run=task_run,
+                parameters={},
+                result_factory=result_factory,
+                wait_for=[],
+                log_prints=False,
+                settings=prefect.context.SettingsContext.get().copy(),
+            )
+
+        assert state
+        assert state.is_paused()
+        assert state.state_details.pause_reschedule
 
 
 class TestOrchestrateFlowRun:
