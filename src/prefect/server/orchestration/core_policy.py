@@ -273,9 +273,8 @@ class RetryFailedFlows(BaseOrchestrationRule):
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
     This rule rejects transitions into a failed state if `retries` has been
-    set, the run count has not reached the specified limit, and the client
-    asserts it is a retriable flow run. The client will be instructed to
-    transition into a scheduled state to retry flow execution.
+    set and the run count has not reached the specified limit. The client will be
+    instructed to transition into a scheduled state to retry flow execution.
     """
 
     FROM_STATES = [StateType.RUNNING]
@@ -290,12 +289,8 @@ class RetryFailedFlows(BaseOrchestrationRule):
         run_settings = context.run_settings
         run_count = context.run.run_count
 
-        if (
-            run_settings.retries is None
-            or run_count > run_settings.retries
-            or proposed_state.state_details.retriable is False
-        ):
-            return  # Retry count exceeded or denied by client, allow transition to failed
+        if run_settings.retries is None or run_count > run_settings.retries:
+            return  # Retry count exceeded, allow transition to failed
 
         scheduled_start_time = pendulum.now("UTC").add(
             seconds=run_settings.retry_delay or 0
