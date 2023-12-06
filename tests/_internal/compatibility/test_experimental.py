@@ -472,6 +472,8 @@ def test_enabled_experiments_with_opt_in():
         "artifacts",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
+        "enhanced_cancellation",
     }
 
 
@@ -482,4 +484,6 @@ def test_enabled_experiments_without_opt_in():
         "artifacts",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
+        "enhanced_cancellation",
     }

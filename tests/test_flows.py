@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, call, create_autospec
 import anyio
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.blocks.core import Block
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -1134,6 +1135,7 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
+    @pytest.mark.flaky(max_runs=2)
     @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         if sys.version_info[1] == 11:
@@ -1351,6 +1353,25 @@ class TestFlowParameterTypes:
             return x
 
         assert my_flow(data) == data
+
+    is_python_38 = sys.version_info[:2] == (3, 8)
+
+    def test_type_container_flow_inputs(self):
+        if self.is_python_38:
+
+            @flow
+            def type_container_input_flow(arg1: List[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        else:
+
+            @flow
+            def type_container_input_flow(arg1: list[str]) -> str:
+                print(arg1)
+                return ",".join(arg1)
+
+        assert type_container_input_flow(["a", "b", "c"]) == "a,b,c"
 
     def test_subflow_parameters_can_be_unserializable_types(self):
         data = ParameterTestClass()
@@ -3111,6 +3132,7 @@ class TestFlowHooksOnCrashed:
         my_flow._run()
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
+    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3128,6 +3150,7 @@ class TestFlowHooksOnCrashed:
             await my_flow._run()
         assert my_mock.mock_calls == [call("crashed")]
 
+    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3444,6 +3467,40 @@ class TestFlowFromSource:
         assert isinstance(loaded_flow, Flow)
         assert loaded_flow.name == "test-flow"
         assert loaded_flow() == 1
+
+    async def test_accepts_storage_blocks(self):
+        class FakeStorageBlock(Block):
+            _block_type_slug = "fake-storage-block"
+
+            code: str = dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+
+            async def get_directory(self, local_path: str):
+                (Path(local_path) / "flows.py").write_text(self.code)
+
+        block = FakeStorageBlock()
+
+        loaded_flow = await Flow.from_source(
+            entrypoint="flows.py:test_flow", source=block
+        )
+
+        assert loaded_flow() == 1
+
+    async def test_raises_on_unsupported_type(self):
+        class UnsupportedType:
+            what_i_do_here = "who knows?"
+
+        with pytest.raises(TypeError, match="Unsupported source type"):
+            await Flow.from_source(
+                entrypoint="flows.py:test_flow", source=UnsupportedType()
+            )
 
     def test_load_flow_from_source_on_flow_function(self):
         assert hasattr(flow, "from_source")

@@ -1,7 +1,7 @@
 """
 Orchestration logic that fires on state transitions.
 
-`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that 
+`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that
 Prefect enforces on a state transition.
 """
 
@@ -30,6 +30,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
+from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.utilities.math import clamped_poisson_interval
 
 
@@ -92,7 +93,8 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     This rule checks if concurrency limits have been set on the tags associated with a
     TaskRun. If so, a concurrency slot will be secured against each concurrency limit
     before being allowed to transition into a running state. If a concurrency limit has
-    been reached, the client will be instructed to delay the transition for 30 seconds
+    been reached, the client will be instructed to delay the transition for the duration
+    specified by the "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS" setting
     before trying again. If the concurrency limit set on a tag is 0, the transition will
     be aborted to prevent deadlocks.
     """
@@ -138,7 +140,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                     stale_limit.active_slots = list(active_slots)
 
                 await self.delay_transition(
-                    30,
+                    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
                     f"Concurrency limit for the {tag} tag has been reached",
                 )
             else:
@@ -470,7 +472,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
 
 class HandlePausingFlows(BaseOrchestrationRule):
     """
-    Governs runs attempting to enter a Paused state
+    Governs runs attempting to enter a Paused/Suspended state
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -482,13 +484,16 @@ class HandlePausingFlows(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
+        verb = "suspend" if proposed_state.name == "Suspended" else "pause"
+
         if initial_state is None:
-            await self.abort_transition("Cannot pause flows with no state.")
+            await self.abort_transition(f"Cannot {verb} flows with no state.")
             return
 
         if not initial_state.is_running():
             await self.reject_transition(
-                state=None, reason="Cannot pause flows that are not currently running."
+                state=None,
+                reason=f"Cannot {verb} flows that are not currently running.",
             )
             return
 
@@ -499,23 +504,20 @@ class HandlePausingFlows(BaseOrchestrationRule):
 
         if self.key in context.run.empirical_policy.pause_keys:
             await self.reject_transition(
-                state=None, reason="This pause has already fired."
+                state=None, reason=f"This {verb} has already fired."
             )
             return
 
         if proposed_state.state_details.pause_reschedule:
             if context.run.parent_task_run_id:
                 await self.abort_transition(
-                    reason="Cannot pause subflows with the reschedule option.",
+                    reason=f"Cannot {verb} subflows.",
                 )
                 return
 
             if context.run.deployment_id is None:
                 await self.abort_transition(
-                    reason=(
-                        "Cannot pause flows without a deployment with the reschedule"
-                        " option."
-                    ),
+                    reason=f"Cannot {verb} flows without a deployment.",
                 )
                 return
 
@@ -558,21 +560,28 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
             )
             return
 
+        verb = "suspend" if proposed_state.name == "Suspended" else "pause"
+
         if initial_state.state_details.pause_reschedule:
             if not context.run.deployment_id:
                 await self.reject_transition(
                     state=None,
-                    reason="Cannot reschedule a paused flow run without a deployment.",
+                    reason=(
+                        f"Cannot reschedule a {proposed_state.name.lower()} flow run"
+                        " without a deployment."
+                    ),
                 )
                 return
         pause_timeout = initial_state.state_details.pause_timeout
         if pause_timeout and pause_timeout < pendulum.now("UTC"):
             pause_timeout_failure = states.Failed(
-                message="The flow was paused and never resumed.",
+                message=(
+                    f"The flow was {proposed_state.name.lower()} and never resumed."
+                ),
             )
             await self.reject_transition(
                 state=pause_timeout_failure,
-                reason="The flow run pause has timed out and can no longer resume.",
+                reason=f"The flow run {verb} has timed out and can no longer resume.",
             )
             return
 

@@ -37,10 +37,11 @@ Prefer to follow this tutorial in a video? We've got exactly what you need. Happ
 
 To sign in with an existing account or register an account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
-You can create an account with:
+You can create an account with any of the following:
 
 - Google account
 - Microsoft account
+- GitHub account
 - Email
 
 ![Creating a new Prefect Cloud account.](/img/ui/cloud-sign-in.png)
@@ -54,7 +55,7 @@ When you register a new account, you'll be prompted to provide a name and descri
 
 ![Creating a new workspace in the Cloud UI.](/img/ui/cloud-workspace-details.png)
 
-Note that the **Owner** setting applies only to users who are members of Prefect Cloud organizations and have permission to create workspaces within the organization.
+Note that the **Owner** setting applies only to users who are members of Prefect Cloud accounts and have permission to create workspaces within account.
 
 Select **Create** to create the workspace.
 If you change your mind, select **Edit** from the options menu to modify the workspace details or to delete it.

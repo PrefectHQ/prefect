@@ -33,7 +33,7 @@ REPO_ORG = "PrefectHQ"
 REPO_NAME = "prefect"
 DEFAULT_TAG = "preview"
 
-TOKEN_REGEX = re.compile(r"Token:\s(.*)")
+TOKEN_REGEX = re.compile(r"\s*✓ Token:\s(.*)")
 ENTRY_REGEX = re.compile(r"^\* (.*) by @(.*) in (.*)$", re.MULTILINE)
 
 
@@ -62,7 +62,7 @@ def generate_release_notes(
     )
     if not response.status_code == 200:
         print(
-            "Received status code {response.status_code} from GitHub API:",
+            f"Received status code {response.status_code} from GitHub API:",
             file=sys.stderr,
         )
         print(response.json(), file=sys.stderr)
@@ -119,7 +119,7 @@ def get_github_token() -> str:
     gh_auth_status = subprocess.run(
         ["gh", "auth", "status", "--show-token"], capture_output=True
     )
-    output = gh_auth_status.stderr.decode()
+    output = gh_auth_status.stdout.decode()
     if not gh_auth_status.returncode == 0:
         print(
             "Failed to retrieve authentication status from GitHub CLI:", file=sys.stderr

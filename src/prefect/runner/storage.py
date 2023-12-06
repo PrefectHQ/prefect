@@ -1,16 +1,25 @@
 import subprocess
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
 from urllib.parse import urlparse, urlsplit, urlunparse
+from uuid import uuid4
 
 import fsspec
 from anyio import run_process
 
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect.blocks.core import Block
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
+from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import SecretStr
+else:
+    from pydantic import SecretStr
 
 
 @runtime_checkable
@@ -151,10 +160,14 @@ class GitRepository:
         credentials = (
             self._credentials.dict()
             if isinstance(self._credentials, Block)
-            else self._credentials
+            else deepcopy(self._credentials)
         )
-        if isinstance(credentials.get("access_token"), Secret):
-            credentials["access_token"] = credentials["access_token"].get()
+
+        for k, v in credentials.items():
+            if isinstance(v, Secret):
+                credentials[k] = v.get()
+            elif isinstance(v, SecretStr):
+                credentials[k] = v.get_secret_value()
 
         formatted_credentials = _format_token_from_credentials(
             urlparse(self._url).netloc, credentials
@@ -468,6 +481,72 @@ class RemoteStorage:
 
     def __repr__(self) -> str:
         return f"RemoteStorage(url={self._url!r})"
+
+
+class BlockStorageAdapter:
+    """
+    A storage adapter for a storage block object to allow it to be used as a
+    runner storage object.
+    """
+
+    def __init__(
+        self,
+        block: Union[ReadableDeploymentStorage, WritableDeploymentStorage],
+        pull_interval: Optional[int] = 60,
+    ):
+        self._block = block
+        self._pull_interval = pull_interval
+        self._storage_base_path = Path.cwd()
+        if not isinstance(block, Block):
+            raise TypeError(
+                f"Expected a block object. Received a {type(block).__name__!r} object."
+            )
+        if not hasattr(block, "get_directory"):
+            raise ValueError("Provided block must have a `get_directory` method.")
+
+        self._name = (
+            f"{block.get_block_type_slug()}-{block._block_document_name}"
+            if block._block_document_name
+            else str(uuid4())
+        )
+
+    def set_base_path(self, path: Path):
+        self._storage_base_path = path
+
+    @property
+    def pull_interval(self) -> Optional[int]:
+        return self._pull_interval
+
+    @property
+    def destination(self) -> Path:
+        return self._storage_base_path / self._name
+
+    async def pull_code(self):
+        if not self.destination.exists():
+            self.destination.mkdir(parents=True, exist_ok=True)
+        await self._block.get_directory(local_path=str(self.destination))
+
+    def to_pull_step(self) -> dict:
+        # Give blocks the change to implement their own pull step
+        if hasattr(self._block, "get_pull_step"):
+            return self._block.get_pull_step()
+        else:
+            if not self._block._block_document_name:
+                raise BlockNotSavedError(
+                    "Block must be saved with `.save()` before it can be converted to a"
+                    " pull step."
+                )
+            return {
+                "prefect.deployments.steps.pull_with_block": {
+                    "block_type_slug": self._block.get_block_type_slug(),
+                    "block_document_name": self._block._block_document_name,
+                }
+            }
+
+    def __eq__(self, __value) -> bool:
+        if isinstance(__value, BlockStorageAdapter):
+            return self._block == __value._block
+        return False
 
 
 def create_storage_from_url(

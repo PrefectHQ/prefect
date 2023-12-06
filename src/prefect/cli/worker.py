@@ -165,6 +165,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,  # Up to ~1 minute interval during backoff
                 )
             )
             # schedule the sync loop
@@ -176,6 +177,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,
                 )
             )
             tg.start_soon(
@@ -186,6 +188,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,
                 )
             )
 
@@ -229,7 +232,7 @@ async def _retrieve_worker_type_from_pool(work_pool_name: Optional[str] = None) 
             f"Discovered type {worker_type!r} for work pool {work_pool.name!r}."
         )
 
-        if work_pool.is_push_pool:
+        if work_pool.is_push_pool or work_pool.is_managed_pool:
             exit_with_error(
                 "Workers are not required for push work pools. "
                 "See https://docs.prefect.io/latest/guides/deployment/push-work-pools/ "

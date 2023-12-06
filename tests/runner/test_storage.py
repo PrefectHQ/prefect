@@ -1,17 +1,28 @@
+import re
+import shutil
 from pathlib import Path
+from textwrap import dedent
 from typing import Optional
 
-import pytest
-
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
+from prefect.deployments.steps.core import run_step
+from prefect.filesystems import ReadableDeploymentStorage
 from prefect.runner.storage import (
+    BlockStorageAdapter,
     GitRepository,
     RemoteStorage,
     RunnerStorage,
     create_storage_from_url,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import SecretStr
+else:
+    from pydantic import SecretStr
+import pytest
 
 
 class TestCreateStorageFromUrl:
@@ -66,9 +77,9 @@ def mock_run_process(monkeypatch):
 
 
 class MockCredentials(Block):
-    token: Optional[str] = None
+    token: Optional[SecretStr] = None
     username: Optional[str] = None
-    password: Optional[str] = None
+    password: Optional[SecretStr] = None
 
 
 class TestGitRepository:
@@ -253,6 +264,22 @@ class TestGitRepository:
         assert "super-secret-42".upper() not in console_output.err
 
     class TestCredentialFormatting:
+        async def test_credential_formatting_maintains_secrets(
+            self, mock_run_process: AsyncMock
+        ):
+            """Regression test for https://github.com/PrefectHQ/prefect/issues/11135"""
+            access_token = Secret(value="testtoken")
+            await access_token.save("test-token")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"access_token": access_token},
+            )
+
+            await repo.pull_code()
+
+            assert repo._credentials == {"access_token": access_token}
+
         async def test_git_clone_with_credentials_block(
             self, mock_run_process: AsyncMock
         ):
@@ -604,3 +631,126 @@ class TestRemoteStorage:
     def test_repr(self):
         rs = RemoteStorage("s3://bucket/path")
         assert repr(rs) == "RemoteStorage(url='s3://bucket/path')"
+
+
+class TestBlockStorageAdapter:
+    @pytest.fixture
+    async def test_block(self):
+        class FakeStorageBlock(Block):
+            _block_type_slug = "fake-storage-block"
+
+            code: str = dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+
+            async def get_directory(self, local_path: str):
+                (Path(local_path) / "flows.py").write_text(self.code)
+
+        return FakeStorageBlock()
+
+    async def test_init_with_not_a_block(self):
+        class NotABlock:
+            looks_around = "nervously"
+
+        with pytest.raises(
+            TypeError, match="Expected a block object. Received a 'NotABlock' object."
+        ):
+            BlockStorageAdapter(block=NotABlock())
+
+    async def test_init_with_wrong_type_of_block(self):
+        class NotAStorageBlock(Block):
+            _block_type_slug = "not-a-storage-block"
+
+        with pytest.raises(
+            ValueError,
+            match="Provided block must have a `get_directory` method.",
+        ):
+            BlockStorageAdapter(block=NotAStorageBlock())
+
+    async def test_pull_code(self, test_block: Block):
+        storage = BlockStorageAdapter(block=test_block)
+        try:
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
+    async def test_to_pull_step(self, test_block: Block):
+        await test_block.save("test-block")
+        storage = BlockStorageAdapter(block=test_block)
+        pull_step = storage.to_pull_step()
+        assert pull_step == {
+            "prefect.deployments.steps.pull_with_block": {
+                "block_document_name": "test-block",
+                "block_type_slug": "fake-storage-block",
+            }
+        }
+        try:
+            # test pull step runs
+            output = await run_step(pull_step)
+
+            assert (
+                Path(output["directory"]) / "flows.py"
+            ).read_text() == test_block.code
+        finally:
+            if "output" in locals() and "directory" in output:
+                shutil.rmtree(f"{output['directory']}")
+
+    async def test_to_pull_step_with_unsaved_block(self, test_block: Block):
+        storage = BlockStorageAdapter(block=test_block)
+        with pytest.raises(
+            BlockNotSavedError,
+            match=re.escape(
+                "Block must be saved with `.save()` before it can be converted to a"
+                " pull step."
+            ),
+        ):
+            storage.to_pull_step()
+
+    async def test_set_base_path(self, test_block: Block):
+        storage = BlockStorageAdapter(block=test_block)
+        new_path = Path("/new/path")
+        storage.set_base_path(new_path)
+        assert storage._storage_base_path == new_path
+
+    def test_pull_interval_property(self, test_block: Block):
+        storage = BlockStorageAdapter(block=test_block, pull_interval=120)
+        assert storage.pull_interval == 120
+
+    async def test_destination_property(self, test_block: Block):
+        storage = BlockStorageAdapter(block=test_block)
+        assert storage.destination == Path.cwd() / storage._name
+
+    async def test_pull_code_existing_destination(self, test_block: Block):
+        try:
+            storage = BlockStorageAdapter(block=test_block)
+            storage.destination.mkdir(
+                parents=True, exist_ok=True
+            )  # Ensure the destination exists
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
+    async def test_eq_method_same_block(self, test_block: Block):
+        storage1 = BlockStorageAdapter(block=test_block)
+        storage2 = BlockStorageAdapter(block=test_block)
+        assert storage1 == storage2
+
+    async def test_eq_method_different_block(self, test_block: Block):
+        storage1 = BlockStorageAdapter(block=test_block)
+        different_block = MagicMock(spec=ReadableDeploymentStorage)
+        storage2 = BlockStorageAdapter(block=different_block)
+        assert storage1 != storage2
+
+    async def test_eq_method_different_type(self, test_block: Block):
+        storage = BlockStorageAdapter(block=test_block)
+        assert storage != "NotABlockStorageAdapter"

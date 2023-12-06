@@ -1366,6 +1366,10 @@ class WorkPool(ObjectBaseModel):
     def is_push_pool(self) -> bool:
         return self.type.endswith(":push")
 
+    @property
+    def is_managed_pool(self) -> bool:
+        return self.type.endswith(":managed")
+
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         raise_on_name_with_banned_characters(v)

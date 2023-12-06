@@ -55,7 +55,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
-from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -283,6 +283,15 @@ class Runner:
         else:
             return next(s for s in self._storage_objs if s == storage)
 
+    def handle_sigterm(self, signum, frame):
+        """
+        Gracefully shuts down the runner when a SIGTERM is received.
+        """
+        self._logger.info("SIGTERM received, initiating graceful shutdown...")
+        from_sync.call_in_loop_thread(create_call(self.stop))
+
+        sys.exit(0)
+
     @sync_compatible
     async def start(
         self, run_once: bool = False, webserver: Optional[bool] = None
@@ -323,6 +332,8 @@ class Runner:
                 runner.start()
             ```
         """
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
+
         webserver = webserver if webserver is not None else self.webserver
 
         if webserver:
@@ -397,6 +408,7 @@ class Runner:
                 " .start()"
             )
 
+        self.started = False
         self.stopping = True
         await self.cancel_all()
         try:
@@ -786,7 +798,20 @@ class Runner:
         try:
             if self._limiter:
                 self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
+                self._logger.debug("Limit slot acquired for flow run '%s'", flow_run_id)
             return True
+        except RuntimeError as exc:
+            if (
+                "this borrower is already holding one of this CapacityLimiter's tokens"
+                in str(exc)
+            ):
+                self._logger.warning(
+                    f"Duplicate submission of flow run '{flow_run_id}' detected. Runner"
+                    " will not re-submit flow run."
+                )
+                return False
+            else:
+                raise
         except anyio.WouldBlock:
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
@@ -801,6 +826,7 @@ class Runner:
         """
         if self._limiter:
             self._limiter.release_on_behalf_of(flow_run_id)
+            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List["FlowRun"]
