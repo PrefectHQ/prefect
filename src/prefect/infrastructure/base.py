@@ -114,6 +114,7 @@ class Infrastructure(Block, abc.ABC):
                 block will be used.
         """
 
+        base_job_template = self.generate_work_pool_base_job_template()
         work_pool_name = work_pool_name or self._block_document_name
 
         if work_pool_name is None:
@@ -129,7 +130,7 @@ class Infrastructure(Block, abc.ABC):
                     work_pool=WorkPoolCreate(
                         name=work_pool_name,
                         type=self.get_corresponding_worker_type(),
-                        base_job_template=self.generate_work_pool_base_job_template(),
+                        base_job_template=base_job_template,
                     )
                 )
         except ObjectAlreadyExists:
