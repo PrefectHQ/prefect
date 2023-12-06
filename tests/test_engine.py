@@ -65,7 +65,7 @@ from prefect.settings import (
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     temporary_settings,
 )
-from prefect.states import Cancelled, Failed, Paused, Pending, Running, State
+from prefect.states import Cancelled, Completed, Failed, Paused, Pending, Running, State
 from prefect.task_runners import (
     BaseTaskRunner,
     SequentialTaskRunner,
@@ -1223,6 +1223,63 @@ class TestOrchestrateTaskRun:
         # Check that the task completed happily
         assert state.is_failed()
         assert mock.call_count == 1
+
+    @pytest.mark.parametrize(
+        "state_constructor_fn",
+        [
+            Completed,
+            Cancelled,
+        ],
+    )
+    async def test_dont_call_retry_condition_fn_on_non_failure_state(
+        self,
+        state_constructor_fn,
+        mock_anyio_sleep,
+        prefect_client,
+        flow_run,
+        result_factory,
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Mock to ensure the retry condition function is never called
+        mock = MagicMock()
+
+        def is_retriable(task, task_run, state):
+            mock()
+            return "this shouldn't run"
+
+        @task(retries=2, retry_condition_fn=is_retriable)
+        def my_task():
+            return state_constructor_fn(
+                message="this shouldn't cause retry_condition_fn to run"
+            )
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+        )
+
+        # Ensure the retry condition function was never called
+        assert mock.call_count == 0
 
 
 class TestOrchestrateFlowRun:
