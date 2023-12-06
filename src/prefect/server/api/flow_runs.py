@@ -341,25 +341,6 @@ async def resume_flow_run(
                 orchestration_parameters=orchestration_parameters,
             )
 
-        # Set all Paused tasks to Pending so that any waiting task runners
-        # can resume execution.
-        while paused_task_runs_batch := await models.task_runs.read_task_runs(
-            session,
-            flow_run_filter=schemas.filters.FlowRunFilter(id={"any_": [flow_run.id]}),
-            task_run_filter=schemas.filters.TaskRunFilter(
-                state={"type": {"any_": [schemas.states.StateType.PAUSED]}}
-            ),
-            limit=100,
-        ):
-            for task_run in paused_task_runs_batch:
-                await models.task_runs.set_task_run_state(
-                    session=session,
-                    task_run_id=task_run.id,
-                    state=schemas.states.Pending(),
-                    task_policy=task_policy,
-                    orchestration_parameters=orchestration_parameters,
-                )
-
         # set the 201 if a new state was created
         if orchestration_result.state and orchestration_result.state.timestamp >= now:
             response.status_code = status.HTTP_201_CREATED
