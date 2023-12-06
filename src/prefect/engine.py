@@ -1843,43 +1843,37 @@ async def orchestrate_task_run(
 
         # Enter a loop to wait for the task run to be resumed, i.e.
         # become Pending, and then propose a Running state again.
-        while state.is_paused():
+        while True:
             await tick()
 
             # Propose a Running state again. We do this instead of reading the
             # task run because if the flow run times out, this lets
             # orchestration fail the task run.
-            state = await propose_state(
-                client,
-                Running(
-                    state_details=StateDetails(
-                        cache_key=cache_key, refresh_cache=refresh_cache
-                    )
-                ),
-                task_run_id=task_run.id,
-            )
+            try:
+                state = await propose_state(
+                    client,
+                    Running(
+                        state_details=StateDetails(
+                            cache_key=cache_key, refresh_cache=refresh_cache
+                        )
+                    ),
+                    task_run_id=task_run.id,
+                )
+            except Pause as exc:
+                if not exc.state:
+                    continue
 
-            if not task_run.state:
-                # This shouldn't be possible because new task runs always start
-                # in a Pending state if no state is given. Try again until we
-                # time out.
-                continue
-
-            if task_run.state.is_paused():
-                if task_run.state.state_details.pause_reschedule:
+                if exc.state.state_details.pause_reschedule:
                     # If the pause state includes pause_reschedule, we should exit the
                     # task and expect to be resumed later. We've already checked for this
                     # above, but we check again here in case the state changed; e.g. the
                     # flow run suspended.
-                    raise Pause(state=task_run.state)
+                    raise Pause(state=exc.state)
                 else:
                     # Propose a Running state again.
                     continue
-            elif task_run.state.is_pending():  # This means the task resumed.
-                # Propose a Running state again.
-                continue
             else:
-                state = task_run.state
+                print("Proposed state", state)
                 break
 
     # Emit an event to capture the result of proposing a `RUNNING` state.
@@ -2364,8 +2358,6 @@ async def propose_state(
             "Neither flow run id or task run id were provided. At least one must "
             "be given."
         )
-
-    print("WTTTTFFFF ", response)
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:

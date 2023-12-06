@@ -69,7 +69,7 @@ from prefect.settings import (
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     temporary_settings,
 )
-from prefect.states import Cancelled, Failed, Paused, Pending, Running, State
+from prefect.states import Cancelled, Completed, Failed, Paused, Pending, Running, State
 from prefect.task_runners import (
     BaseTaskRunner,
     SequentialTaskRunner,
@@ -934,6 +934,77 @@ class TestOrchestrateTaskRun:
                 client=prefect_client,
                 log_prints=False,
             )
+
+    async def test_pending_in_pause_loop_submits_running_state(
+        self, monkeypatch, prefect_client, flow_run, result_factory
+    ):
+        paused_state = Paused()
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        pause_reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(
+                        type="reject_details", reason=pause_reason
+                    ),
+                ),
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(
+                        type="reject_details", reason=pause_reason
+                    ),
+                ),
+                OrchestrationResult(
+                    state=Running(),
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(type="accept_details"),
+                ),
+                OrchestrationResult(
+                    state=Completed(),
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(type="accept_details"),
+                ),
+            ]
+        )
+
+        state = await orchestrate_task_run(
+            task=foo,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+        )
+
+        assert state.is_completed()
 
     async def test_begin_task_run_handles_pause_signal(
         self, monkeypatch, prefect_client, flow_run, result_factory
