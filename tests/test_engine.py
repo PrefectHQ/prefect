@@ -28,6 +28,7 @@ from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
     API_HEALTHCHECKS,
     begin_flow_run,
+    begin_task_run,
     check_api_reachable,
     collect_task_run_inputs,
     create_and_begin_subflow_run,
@@ -56,6 +57,7 @@ from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
     SetStateStatus,
+    StateAbortDetails,
     StateAcceptDetails,
     StateRejectDetails,
     StateWaitDetails,
@@ -761,8 +763,8 @@ class TestOrchestrateTaskRun:
                 prefect_client, State(type=StateType.RUNNING), task_run_id=task_run.id
             )
 
-    async def test_propose_state_raises_on_pause_with_reschedule(
-        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run
+    async def test_raises_on_pause_with_reschedule(
+        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run, result_factory
     ):
         paused_state = Paused(reschedule=True)
 
@@ -785,8 +787,6 @@ class TestOrchestrateTaskRun:
             ),
         )
 
-        delay_seconds = 1
-        num_waits = 3
         reason = (
             "The flow is paused, new tasks can execute after resuming flow run: "
             f"{flow_run.id}."
@@ -794,31 +794,199 @@ class TestOrchestrateTaskRun:
 
         prefect_client.set_task_run_state = AsyncMock(
             side_effect=[
-                *[
-                    OrchestrationResult(
-                        state=paused_state,  # Same as the flow run's paused state
-                        status=SetStateStatus.REJECT,
-                        details=StateRejectDetails(
-                            type="reject_details", reason=reason
-                        ),
-                    )
-                    for _ in range(num_waits)
-                ],
                 OrchestrationResult(
-                    status=SetStateStatus.ACCEPT,
-                    details=StateAcceptDetails(),
-                    state=Running(),
+                    state=paused_state,  # Same as the flow run's paused state
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(type="reject_details", reason=reason),
+                )
+            ]
+        )
+
+        with pytest.raises(Pause, match=reason):
+            await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+            )
+
+    async def test_raises_on_new_pause_state_with_reschedule(
+        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run, result_factory
+    ):
+        paused_state = Paused()
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=paused_state,
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,  # Same as the flow run's paused state
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(type="reject_details", reason=reason),
+                ),
+                OrchestrationResult(
+                    state=Paused(reschedule=True),  # Now we get a pause with reschedule
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(type="reject_details", reason=reason),
                 ),
             ]
         )
 
         with pytest.raises(Pause, match=reason):
-            with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
-                await propose_state(
-                    prefect_client,
-                    State(type=StateType.RUNNING),
-                    task_run_id=task_run.id,
-                )
+            await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+            )
+
+    async def test_abort_breaks_pause_loop(
+        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run, result_factory
+    ):
+        paused_state = Paused(timeout_seconds=1)
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=paused_state,
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        pause_reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+        abort_reason = "The enclosing flow must be running to begin task execution."
+
+        # We could end up in this situation if a flow run was paused and then
+        # failed due to exceeding the pause timeout. Orchestration would return
+        # an Abort when we propose a running state again, which should cause us
+        # to raise an Abort exception, exiting the loop.
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(
+                        type="reject_details", reason=pause_reason
+                    ),
+                ),
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.ABORT,
+                    details=StateAbortDetails(
+                        type="abort_details", reason=abort_reason
+                    ),
+                ),
+            ]
+        )
+
+        with pytest.raises(Abort, match=abort_reason):
+            await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+            )
+
+    async def test_begin_task_run_handles_pause_signal(
+        self, monkeypatch, prefect_client, flow_run, result_factory
+    ):
+        paused_state = Paused(reschedule=True)
+        pause_reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(
+                        type="reject_details", reason=pause_reason
+                    ),
+                ),
+            ]
+        )
+
+        @task
+        async def my_task():
+            return 1
+
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(type=StateType.PENDING),
+        )
+
+        with FlowRunContext.construct(client=prefect_client, flow_run=flow_run):
+            state = await begin_task_run(
+                task=my_task,
+                task_run=task_run,
+                parameters={},
+                result_factory=result_factory,
+                wait_for=[],
+                log_prints=False,
+                settings=prefect.context.SettingsContext.get().copy(),
+            )
+
+        assert state
+        assert state.is_paused()
+        assert state.state_details.pause_reschedule
 
     async def test_waits_until_scheduled_start_time(
         self,
