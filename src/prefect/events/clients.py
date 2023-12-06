@@ -243,6 +243,10 @@ class PrefectCloudEventsClient(EventsClient):
                     await asyncio.sleep(1)
 
 
+SEEN_EVENTS_SIZE = 500_000
+SEEN_EVENTS_TTL = 120
+
+
 class PrefectCloudEventSubscriber:
     """
     Subscribes to a Prefect Cloud event stream, yielding events as they occur.
@@ -262,7 +266,7 @@ class PrefectCloudEventSubscriber:
 
     _websocket: Optional[WebSocketClientProtocol]
     _filter: "EventFilter"
-    _seen_events: "Mapping[UUID, bool]"
+    _seen_events: Mapping[UUID, bool]
 
     def __init__(
         self,
@@ -283,16 +287,7 @@ class PrefectCloudEventSubscriber:
         from prefect.events.filters import EventFilter
 
         self._filter = filter or EventFilter()
-
-        try:
-            self._seen_events = TTLCache(maxsize=500_000, ttl=120)
-        except NameError:
-            logger.warn(
-                "cachetools is not installed, so event deduplication may "
-                "require significant memory.  For long-running subscribers, install "
-                "the cachetools package."
-            )
-            self._seen_events = {}
+        self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
 
         socket_url = (
             api_url.replace("https://", "wss://")
