@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import sys
@@ -9,11 +10,13 @@ import anyio
 import httpx
 import pendulum
 import pytest
+from starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
+from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
 from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
 from prefect.testing.utilities import AsyncMock
@@ -195,6 +198,8 @@ class Recorder:
     connections: int
     path: Optional[str]
     events: List[Event]
+    token: Optional[str]
+    filter: Optional[EventFilter]
 
     def __init__(self):
         self.connections = 0
@@ -203,12 +208,17 @@ class Recorder:
 
 
 class Puppeteer:
+    token: Optional[str]
+
     refuse_any_further_connections: bool
     hard_disconnect_after: Optional[UUID]
+
+    outgoing_events: List[Event]
 
     def __init__(self):
         self.refuse_any_further_connections = False
         self.hard_disconnect_after = None
+        self.outgoing_events = []
 
 
 @pytest.fixture
@@ -234,6 +244,12 @@ async def events_server(
 
         recorder.path = path
 
+        if path.endswith("/events/in"):
+            await incoming_events(socket)
+        elif path.endswith("/events/out"):
+            await outgoing_events(socket)
+
+    async def incoming_events(socket: WebSocketServerProtocol):
         while True:
             try:
                 message = await socket.recv()
@@ -244,6 +260,36 @@ async def events_server(
             recorder.events.append(event)
 
             if puppeteer.hard_disconnect_after == event.id:
+                raise ValueError("zonk")
+
+    async def outgoing_events(socket: WebSocketServerProtocol):
+        # 1. authentication
+        auth_message = json.loads(await socket.recv())
+        assert auth_message["type"] == "auth"
+        recorder.token = auth_message["token"]
+        if puppeteer.token != recorder.token:
+            await socket.close(WS_1008_POLICY_VIOLATION)
+            return
+
+        await socket.send(json.dumps({"type": "auth_success"}))
+
+        # 2. filter
+        filter_message = json.loads(await socket.recv())
+        assert filter_message["type"] == "filter"
+        recorder.filter = EventFilter.parse_obj(filter_message["filter"])
+
+        # 3. send events
+        for event in puppeteer.outgoing_events:
+            await socket.send(
+                json.dumps(
+                    {
+                        "type": "event",
+                        "event": event.dict(json_compatible=True),
+                    }
+                )
+            )
+            if puppeteer.hard_disconnect_after == event.id:
+                puppeteer.hard_disconnect_after = None
                 raise ValueError("zonk")
 
     async with serve(handler, host="localhost", port=unused_tcp_port) as server:
