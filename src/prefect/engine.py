@@ -1798,7 +1798,7 @@ async def orchestrate_task_run(
                     )
                     terminal_state.state_details.cache_key = cache_key
 
-            if not terminal_state.is_completed():
+            if terminal_state.is_failed():
                 # Defer to user to decide whether failure is retriable
                 terminal_state.state_details.retriable = (
                     await _check_task_failure_retriable(task, task_run, terminal_state)
