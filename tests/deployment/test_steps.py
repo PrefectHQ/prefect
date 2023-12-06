@@ -477,6 +477,56 @@ class TestGitCloneStep:
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
+    async def test_git_clone_with_template_name(self, git_repository_mock):
+        template_name = "{{ repository }}-{{ branch }}-foo"
+        expected_name = "repo-main-foo"
+
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "target_directory": template_name,
+                }
+            }
+        )
+
+        assert output["directory"] == expected_name
+
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
+            name=expected_name,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
+
+    async def test_git_clone_with_bad_template_name_falls_back_to_default(
+        self, git_repository_mock
+    ):
+        template_name = "🎶 It's the end of the world as we know it 🎶"
+        expected_name = "repo-main"
+
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "target_directory": template_name,
+                }
+            }
+        )
+
+        assert output["directory"] == expected_name
+
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
+            name=expected_name,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
+
 
 class TestPullFromRemoteStorage:
     @pytest.fixture

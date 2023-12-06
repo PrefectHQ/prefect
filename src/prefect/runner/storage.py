@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import fsspec
 from anyio import run_process
+from jinja2 import Template
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -134,10 +135,24 @@ class GitRepository:
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         default_name = f"{repo_name}-{branch}" if branch else repo_name
-        self._name = name or default_name
-        self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
+
+        if name:
+            try:
+                rendered_name = Template(name).render(
+                    repository=repo_name, branch=branch or "main"
+                )
+                self._name = rendered_name
+            except Exception as e:
+                self._logger.warning(
+                    f"Error rendering template for name: {e} - using {default_name=}"
+                )
+                self._name = default_name
+        else:
+            self._name = default_name
+
+        self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
 
     @property
     def destination(self) -> Path:

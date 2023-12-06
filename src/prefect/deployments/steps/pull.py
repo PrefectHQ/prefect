@@ -36,6 +36,7 @@ async def git_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional[Block] = None,
+    target_directory: Optional[str] = None,
 ) -> dict:
     """
     Clones a git repository into the current working directory.
@@ -114,6 +115,7 @@ async def git_clone(
     credentials = {"access_token": access_token} if access_token else credentials
 
     storage = GitRepository(
+        name=target_directory,
         url=repository,
         credentials=credentials,
         branch=branch,
