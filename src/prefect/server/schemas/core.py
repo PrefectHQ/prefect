@@ -1276,3 +1276,18 @@ class Variable(ORMBaseModel):
         description="A list of variable tags",
         example=["tag-1", "tag-2"],
     )
+
+
+class FlowRunInput(ORMBaseModel):
+    flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
+    key: str = Field(description="The key of the input.")
+    value: Dict[str, Any] = Field(description="The container for the value.")
+
+    @property
+    def first_value(self) -> str:
+        return self.value["items"][0]
+
+    @validator("key", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_with_banned_characters(v)
+        return v

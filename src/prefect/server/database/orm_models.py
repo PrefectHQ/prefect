@@ -1339,6 +1339,21 @@ class ORMVariable:
     __table_args__ = (sa.UniqueConstraint("name"),)
 
 
+@declarative_mixin
+class ORMFlowRunInput:
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(),
+            nullable=False,
+        )
+
+    key = sa.Column(sa.String, nullable=False)
+    value = sa.Column(JSON, nullable=False)
+
+    __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1398,6 +1413,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        flow_run_input_mixin=ORMFlowRunInput,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1451,6 +1467,7 @@ class BaseORMConfiguration(ABC):
             block_document_reference_mixin=block_document_reference_mixin,
             configuration_mixin=configuration_mixin,
             variable_mixin=variable_mixin,
+            flow_run_input_mixin=flow_run_input_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1500,6 +1517,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        flow_run_input_mixin=ORMFlowRunInput,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1584,6 +1602,9 @@ class BaseORMConfiguration(ABC):
         class Variable(variable_mixin, self.Base):
             pass
 
+        class FlowRunInput(flow_run_input_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1610,6 +1631,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
         self.Variable = Variable
+        self.FlowRunInput = FlowRunInput
 
     @property
     @abstractmethod
