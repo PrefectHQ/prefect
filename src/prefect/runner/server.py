@@ -4,6 +4,7 @@ import typing as t
 import pendulum
 import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, status
+from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect._vendor.fastapi.responses import JSONResponse
 from pydantic import BaseModel, create_model
 
@@ -123,11 +124,13 @@ async def __run_deployment(deployment: "Deployment"):
 
 
 @sync_compatible
-async def get_deployment_router(runner: "Runner") -> APIRouter:
+async def get_deployment_router(
+    runner: "Runner",
+) -> t.Tuple[APIRouter, t.Dict[str, t.Dict]]:
     from prefect import get_client
 
     router = APIRouter()
-
+    schemas = {}
     async with get_client() as client:
         for deployment_id in runner._deployment_ids:
             deployment = await client.read_deployment(deployment_id)
@@ -136,7 +139,38 @@ async def get_deployment_router(runner: "Runner") -> APIRouter:
                 await __run_deployment(deployment),
                 methods=["POST"],
             )
-    return router
+
+            # Used for updating the route schemas later on
+            schemas[deployment.name] = deployment.parameter_openapi_schema
+            schemas[deployment.id] = deployment.name
+    return router, schemas
+
+
+def _inject_schemas_into_generated_openapi(webserver: FastAPI, schemas: t.Dict):
+    openapi_schema = get_openapi(
+        title="FastAPI Prefect Runner", version="2.5.0", routes=webserver.routes
+    )
+
+    # Place the deployment schema into the schema references
+    for name, schema in schemas.items():
+        openapi_schema["components"]["schemas"][name] = schema
+
+    # Update the route schema to reference the deployment schema
+    # Goal
+    # openapi_schema["paths"]['/deployment/5c4a4699-898a-4b9e-8810-916cf6f153bd/run']["post"]["requestBody"]["content"]["application/json"]["schema"]["$ref"] = #/components/schemas/DeplomentNameOrDeploymentId'
+    for path, remainder in openapi_schema["paths"].items():
+        if not path.startswith("/deployment"):
+            continue
+
+        deployment_id = (
+            ...
+        )  # TODO: parse the deployment ID from the path, use that to find the deployment's name
+        deployment_name = deployment_id
+        remainder["post"]["requestBody"]["content"]["application/json"]["schema"][
+            "$ref"
+        ] = f"#/components/schemas/{deployment_name}"
+
+    return openapi_schema
 
 
 def start_webserver(
@@ -160,11 +194,22 @@ def start_webserver(
     router.add_api_route("/shutdown", shutdown(runner=runner), methods=["POST"])
     webserver.include_router(router)
 
-    deployments_router = get_deployment_router(runner)
+    deployments_router, deployment_schemas = get_deployment_router(runner)
     webserver.include_router(deployments_router)
 
     host = PREFECT_RUNNER_SERVER_HOST.value()
     port = PREFECT_RUNNER_SERVER_PORT.value()
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
 
+    def customize_openapi():
+        if webserver.openapi_schema:
+            return webserver.openapi_schema
+
+        openapi_schema = _inject_schemas_into_generated_openapi(
+            webserver, deployment_schemas
+        )
+        webserver.openapi_schema = openapi_schema
+        return webserver.openapi_schema
+
+    webserver.openapi = customize_openapi
     uvicorn.run(webserver, host=host, port=port, log_level=log_level)
