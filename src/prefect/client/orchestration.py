@@ -2181,7 +2181,7 @@ class PrefectClient:
         Args:
             id: UUID of the notification policy
             block_document_id: The block document UUID
-            is_active: Wheter the notification policy is active
+            is_active: Whether the notification policy is active
             tags: List of flow tags
             state_names: List of state names
             message_template: Notification message template
