@@ -420,8 +420,11 @@ async def provision_infra(
         except ValueError as exc:
             app.console.print(f"Error: {exc}")
             app.console.print(
-                "Automatic infrastructure provisioning is not supported for"
-                f" {work_pool.type!r} work pools."
+                (
+                    "Automatic infrastructure provisioning is not supported for"
+                    f" {work_pool.type!r} work pools."
+                ),
+                style="yellow",
             )
         except RuntimeError as exc:
             exit_with_error(
