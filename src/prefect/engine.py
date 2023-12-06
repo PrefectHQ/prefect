@@ -1798,7 +1798,7 @@ async def orchestrate_task_run(
                     )
                     terminal_state.state_details.cache_key = cache_key
 
-            if terminal_state.is_failed() and callable(task.retry_condition_fn):
+            if not terminal_state.is_completed():
                 # Defer to user to decide whether failure is retriable
                 terminal_state.state_details.retriable = (
                     await _check_task_failure_retriable(task, task_run, terminal_state)
@@ -2405,16 +2405,24 @@ async def _check_task_failure_retriable(
     task: Task, task_run: TaskRun, state: State
 ) -> bool:
     """Run the `retry_condition_fn` callable for a task, making sure to catch and log any errors
-    that occur.
+    that occur. If None, return True. If not callable, logs an error and returns False.
     """
+    if task.retry_condition_fn is None:
+        return True
 
     logger = task_run_logger(task_run)
+
     try:
         logger.debug(
             f"Running `retry_condition_fn` check {task.retry_condition_fn!r} for task"
             f" {task.name!r}"
         )
-        if is_async_fn(task.retry_condition_fn):
+        if not callable(task.retry_condition_fn):
+            raise TypeError(
+                "Expected `retry_condition_fn` to be callable, got"
+                f" {type(task.retry_condition_fn).__name__} instead."
+            )
+        elif is_async_fn(task.retry_condition_fn):
             return await task.retry_condition_fn(
                 task=task, task_run=task_run, state=state
             )
@@ -2433,7 +2441,7 @@ async def _check_task_failure_retriable(
         logger.error(
             (
                 "An error was encountered while running `retry_condition_fn` check"
-                f" {task.retry_condition_fn.__name__!r} for task {task.name!r}"
+                f" '{task.retry_condition_fn!r}' for task {task.name!r}"
             ),
             exc_info=True,
         )
