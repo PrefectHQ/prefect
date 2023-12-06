@@ -2157,9 +2157,7 @@ class PrefectClient:
             httpx.RequestError: If requests fails
         """
         try:
-            a = await self._client.delete(f"/flow_run_notification_policies/{id}")
-            print(a.status_code)
-            print(a.text)
+            await self._client.delete(f"/flow_run_notification_policies/{id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
