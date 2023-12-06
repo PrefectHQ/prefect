@@ -1798,7 +1798,7 @@ async def orchestrate_task_run(
                     )
                     terminal_state.state_details.cache_key = cache_key
 
-            if terminal_state.is_failed():
+            if terminal_state.is_failed() and callable(task.retry_condition_fn):
                 # Defer to user to decide whether failure is retriable
                 terminal_state.state_details.retriable = (
                     await _check_task_failure_retriable(task, task_run, terminal_state)
@@ -2405,11 +2405,8 @@ async def _check_task_failure_retriable(
     task: Task, task_run: TaskRun, state: State
 ) -> bool:
     """Run the `retry_condition_fn` callable for a task, making sure to catch and log any errors
-    that occur. Defaults to True if no `retry_condition_fn` is set.
+    that occur.
     """
-    # By default, a task is retriable if it is in a `Failed` state
-    if task.retry_condition_fn is None:
-        return True
 
     logger = task_run_logger(task_run)
     try:
