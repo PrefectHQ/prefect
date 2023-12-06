@@ -1868,7 +1868,7 @@ async def orchestrate_task_run(
                     # task and expect to be resumed later. We've already checked for this
                     # above, but we check again here in case the state changed; e.g. the
                     # flow run suspended.
-                    raise Pause(state=exc.state)
+                    raise
                 else:
                     # Propose a Running state again.
                     continue
