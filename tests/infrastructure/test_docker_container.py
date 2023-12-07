@@ -2,14 +2,13 @@ import re
 import uuid
 from copy import deepcopy
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import anyio.abc
 import docker
-import httpx
 import pytest
-import respx
 
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.container import (
     CONTAINER_LABELS,
@@ -17,7 +16,6 @@ from prefect.infrastructure.container import (
     DockerRegistry,
     ImagePullPolicy,
 )
-from prefect.settings import PREFECT_API_URL
 from prefect.testing.utilities import assert_does_not_warn
 from prefect.utilities.dockerutils import get_prefect_image_name
 
@@ -1096,28 +1094,18 @@ base_job_template_with_defaults["variables"]["properties"]["privileged"][
 
 
 @pytest.fixture()
-async def mock_collection_registry(respx_mock):
-    with respx.mock(
-        base_url=PREFECT_API_URL.value(),
-        assert_all_called=False,
-        assert_all_mocked=True,
-    ) as respx_mock:
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect-docker": {
-                        "docker": {
-                            "type": "docker",
-                            "default_base_job_configuration": default_base_job_template,
-                        }
-                    },
-                },
-            )
-        )
-        yield
+async def mock_collection_registry(monkeypatch):
+    mock_body = {
+        "prefect-docker": {
+            "docker": {
+                "type": "docker",
+                "default_base_job_configuration": default_base_job_template,
+            }
+        },
+    }
+    monkeypatch.setattr(
+        PrefectClient, "read_worker_metadata", AsyncMock(return_value=mock_body)
+    )
 
 
 @pytest.mark.usefixtures("mock_collection_registry")
