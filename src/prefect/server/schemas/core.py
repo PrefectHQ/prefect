@@ -24,6 +24,7 @@ from prefect.server.utilities.schemas.bases import (
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
 )
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
@@ -1276,3 +1277,14 @@ class Variable(ORMBaseModel):
         description="A list of variable tags",
         example=["tag-1", "tag-2"],
     )
+
+
+class FlowRunInput(ORMBaseModel):
+    flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
+    key: str = Field(description="The key of the input.")
+    value: str = Field(description="The value of the input.")
+
+    @validator("key", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_alphanumeric_dashes_only(v)
+        return v

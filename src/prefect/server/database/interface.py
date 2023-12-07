@@ -259,6 +259,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.Variable
 
     @property
+    def FlowRunInput(self):
+        """A flow run input model"""
+        return self.orm.FlowRunInput
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
