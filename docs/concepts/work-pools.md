@@ -438,7 +438,7 @@ Workers are lightweight polling services that retrieve scheduled runs from a wor
 
 Workers are similar to agents, but offer greater control over infrastructure configuration and the ability to route work to specific types of execution environments.
 
-Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to pll work pools that match their type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will run.
+Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to poll work pools that match their type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will run.
 
 ### Worker types
 
