@@ -98,7 +98,7 @@ See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11355
 
 ### Enhancements
-- Add a `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
+- Add a `suspend_flow_run` method to suspend a flow run — https://github.com/PrefectHQ/prefect/pull/11291
 - Limit the displayed work pool types when `--provision-infra` is used to only show supported work pool types - https://github.com/PrefectHQ/prefect/pull/11350
 - Add the ability to publish `Infrastructure` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11180
 - Add the ability to publish `Process` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11346
