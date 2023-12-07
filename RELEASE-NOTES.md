@@ -48,6 +48,7 @@ Creating Azure Container Instance
 Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━  80% 0:00:04Container instance 'prefect-acipool-container' created successfully
 Creating Azure Container Instance credentials block
 Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Infrastructure successfully provisioned for 'my-work-pool' work pool!
 Created work pool 'my-work-pool'!
 ```
 
