@@ -31,15 +31,15 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
 === "AWS ECS"
 
-    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and authenticate with your AWS account.
+    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html).
 
 === "Azure Container Instances"
 
-    Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and authenticate with your Azure account.
+    Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticate with your Azure account](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli).
 
 === "Google Cloud Run"
 
-    Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and authenticate with your GCP project.
+    Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
 
 ## Creating a new push work pool and provisioning infrastructure
 
@@ -54,7 +54,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     </div>
 
     Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks. 
-    This command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC in your AWS account.
+    In your AWS account, this command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC, if they don't already exist.
 
     Here's example output from running the command:
 
@@ -93,16 +93,17 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     ```
     </div>
 
-    Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks. 
-    This command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC in your AWS account.
+    Using the `--provision-infra` flag will automatically set up your default Azure account to be ready to execute flows via Azure Container Instances.
+    In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Instance, if they don't already exist.
+    In your Prefect workspace, this command will create an `AzureContainerInstanceCredentials` block for storing the client secret value from the generated secret.
 
     Here's example output from running the command:
 
     <div class="terminal">
     ```
-
+    TK
     ```
-    <div class="terminal">
+    </div>
 
 === "Google Cloud Run"
 
@@ -113,7 +114,10 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     </div>
 
     Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
-    This command will activate the Cloud Run API for your project, create a service account, create a key for the service account, and create a GCP credentials block in your Prefect workspace.
+    In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist..
+    In your Prefect workspace, this command will create a `GCPCredentials` block.
+
+    Here's example output from running the command:
 
     <div class="terminal">
     ```
@@ -156,7 +160,7 @@ If you'd like to make changes to your work pool, navigate to **Work Pools** in t
 
 ## Using existing resources
 
-If you already have the necessary infrastructure set up, Prefect will detect that upon workpool creation and the infrastructure provisioning for that resource will be skipped.
+If you already have the necessary infrastructure set up, Prefect will detect that upon work pool creation and the infrastructure provisioning for that resource will be skipped.
 
 For example, here's how `prefect work-pool create my-work-pool --provision-infra` looks when existing Azure resources are detected:
 
