@@ -5,16 +5,14 @@ from pathlib import Path
 from time import monotonic, sleep
 from typing import Dict
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import anyio
 import anyio.abc
-import httpx
 import kubernetes
 import kubernetes as k8s
 import pendulum
 import pytest
-import respx
 import yaml
 from jsonpatch import JsonPatch
 from kubernetes.client.exceptions import ApiException
@@ -22,7 +20,7 @@ from kubernetes.config import ConfigException
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect.settings import PREFECT_API_URL
+from prefect.client.orchestration import PrefectClient
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import ValidationError
@@ -1965,28 +1963,18 @@ base_job_template_with_defaults["job_configuration"]["job_manifest"]["spec"][
 
 
 @pytest.fixture()
-async def mock_collection_registry():
-    with respx.mock(
-        base_url=PREFECT_API_URL.value(),
-        assert_all_mocked=True,
-        assert_all_called=False,
-    ) as respx_mock:
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect-kubernetes": {
-                        "kubernetes": {
-                            "type": "kubernetes",
-                            "default_base_job_configuration": default_base_job_template,
-                        }
-                    },
-                },
-            )
-        )
+async def mock_collection_registry(monkeypatch):
+    mock_body = {
+        "prefect-kubernetes": {
+            "kubernetes": {
+                "type": "kubernetes",
+                "default_base_job_configuration": default_base_job_template,
+            }
+        },
+    }
+    monkeypatch.setattr(
+        PrefectClient, "read_worker_metadata", AsyncMock(return_value=mock_body)
+    )
 
 
 @pytest.mark.usefixtures("mock_collection_registry")
