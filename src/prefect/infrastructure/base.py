@@ -70,7 +70,7 @@ class Infrastructure(Block, abc.ABC):
         description="The command to run in the infrastructure.",
     )
 
-    def generate_work_pool_base_job_template(self):
+    async def generate_work_pool_base_job_template(self):
         if self._block_document_id is None:
             raise BlockNotSavedError(
                 "Cannot publish as work pool, block has not been saved. Please call"
@@ -114,7 +114,7 @@ class Infrastructure(Block, abc.ABC):
                 block will be used.
         """
 
-        base_job_template = self.generate_work_pool_base_job_template()
+        base_job_template = await self.generate_work_pool_base_job_template()
         work_pool_name = work_pool_name or self._block_document_name
 
         if work_pool_name is None:

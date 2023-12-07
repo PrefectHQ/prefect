@@ -6,7 +6,9 @@ from unittest.mock import MagicMock
 
 import anyio.abc
 import docker
+import httpx
 import pytest
+import respx
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.container import (
@@ -15,6 +17,7 @@ from prefect.infrastructure.container import (
     DockerRegistry,
     ImagePullPolicy,
 )
+from prefect.settings import PREFECT_API_URL
 from prefect.testing.utilities import assert_does_not_warn
 from prefect.utilities.dockerutils import get_prefect_image_name
 
@@ -1092,6 +1095,32 @@ base_job_template_with_defaults["variables"]["properties"]["privileged"][
 ] = False
 
 
+@pytest.fixture()
+async def mock_collection_registry(respx_mock):
+    with respx.mock(
+        base_url=PREFECT_API_URL.value(),
+        assert_all_called=False,
+        assert_all_mocked=True,
+    ) as respx_mock:
+        respx_mock.get(
+            "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "prefect-docker": {
+                        "docker": {
+                            "type": "docker",
+                            "default_base_job_configuration": default_base_job_template,
+                        }
+                    },
+                },
+            )
+        )
+        yield
+
+
+@pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
     "container,expected_template",
     [
@@ -1117,7 +1146,7 @@ base_job_template_with_defaults["variables"]["properties"]["privileged"][
         ),
     ],
 )
-def test_generate_work_pool_base_job_template(container, expected_template):
-    template = container.generate_work_pool_base_job_template()
+async def test_generate_work_pool_base_job_template(container, expected_template):
+    template = await container.generate_work_pool_base_job_template()
 
     assert template == expected_template

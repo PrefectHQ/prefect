@@ -20,7 +20,6 @@ else:
 from typing_extensions import Literal
 
 import prefect
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.blocks.core import Block, SecretStr
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
@@ -387,19 +386,16 @@ class DockerContainer(Infrastructure):
         finally:
             docker_client.close()
 
-    def generate_work_pool_base_job_template(self):
+    async def generate_work_pool_base_job_template(self):
         from prefect.workers.utilities import (
             get_default_base_job_template_for_infrastructure_type,
         )
 
-        base_job_template = from_sync.call_in_loop_thread(
-            create_call(
-                get_default_base_job_template_for_infrastructure_type,
-                self.get_corresponding_worker_type(),
-            )
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            self.get_corresponding_worker_type()
         )
         if base_job_template is None:
-            return super().generate_work_pool_base_job_template()
+            return await super().generate_work_pool_base_job_template()
         for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
             if key == "command":
                 base_job_template["variables"]["properties"]["command"]["default"] = (
