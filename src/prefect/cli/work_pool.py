@@ -20,6 +20,7 @@ from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
+    _provisioners,
     get_infrastructure_provisioner_for_work_pool_type,
 )
 from prefect.settings import update_current_profile
@@ -46,6 +47,19 @@ def set_work_pool_as_default(name: str):
             " PREFECT_DEFAULT_WORK_POOL_NAME=<work-pool-name>[/]\n"
         ),
     )
+
+
+def has_provisioner_for_type(work_pool_type: str) -> bool:
+    """
+    Check if there is a provisioner for the given work pool type.
+
+    Args:
+        work_pool_type (str): The type of the work pool.
+
+    Returns:
+        bool: True if a provisioner exists for the given type, False otherwise.
+    """
+    return work_pool_type in _provisioners
 
 
 @work_pool_app.command()
@@ -122,6 +136,16 @@ async def create(
                         " `--type` value."
                     )
                 worker_metadata = await collections_client.read_worker_metadata()
+
+                # Retrieve only push pools if provisioning infrastructure
+                data = [
+                    worker
+                    for collection in worker_metadata.values()
+                    for worker in collection.values()
+                    if provision_infrastructure
+                    and has_provisioner_for_type(worker["type"])
+                    or not provision_infrastructure
+                ]
                 worker = prompt_select_from_table(
                     app.console,
                     "What type of work pool infrastructure would you like to use?",
@@ -129,11 +153,7 @@ async def create(
                         {"header": "Infrastructure Type", "key": "display_name"},
                         {"header": "Description", "key": "description"},
                     ],
-                    data=[
-                        worker
-                        for collection in worker_metadata.values()
-                        for worker in collection.values()
-                    ],
+                    data=data,
                     table_kwargs={"show_lines": True},
                 )
                 type = worker["type"]
@@ -414,9 +434,17 @@ async def provision_infrastructure(
                 work_pool.type
             )
             provisioner.console = app.console
-            await provisioner.provision(
+            new_base_job_template = await provisioner.provision(
                 work_pool_name=name, base_job_template=work_pool.base_job_template
             )
+
+            await client.update_work_pool(
+                work_pool_name=name,
+                work_pool=WorkPoolUpdate(
+                    base_job_template=new_base_job_template,
+                ),
+            )
+
         except ValueError as exc:
             app.console.print(f"Error: {exc}")
             app.console.print(

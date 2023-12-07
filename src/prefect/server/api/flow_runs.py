@@ -293,6 +293,9 @@ async def resume_flow_run(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
+    task_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.provide_task_policy
+    ),
     orchestration_parameters: dict = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
