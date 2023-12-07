@@ -98,26 +98,26 @@ See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11355
 
 ### Enhancements
-- Added a `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
-- Limited the displayed work pool types when `--provision-infra` is used to only show supported work pool types - https://github.com/PrefectHQ/prefect/pull/11350
-- Added the ability to publish `Infrastructure` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11180
-- Added the ability to publish `Process` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11346
-- Added a Prefect Cloud event stream subscriber — https://github.com/PrefectHQ/prefect/pull/11332
-- Added the data model and methods for `FlowRunInput` — https://github.com/PrefectHQ/prefect/pull/11342
-- Made `FlowRunInput.flow_run_id` a foreign key to `flow_run.id` — https://github.com/PrefectHQ/prefect/pull/11352
+- Add a `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
+- Limit the displayed work pool types when `--provision-infra` is used to only show supported work pool types - https://github.com/PrefectHQ/prefect/pull/11350
+- Add the ability to publish `Infrastructure` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11180
+- Add the ability to publish `Process` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11346
+- Add a Prefect Cloud event stream subscriber — https://github.com/PrefectHQ/prefect/pull/11332
+- Add the data model and methods for `FlowRunInput` — https://github.com/PrefectHQ/prefect/pull/11342
+- Make `FlowRunInput.flow_run_id` a foreign key to `flow_run.id` — https://github.com/PrefectHQ/prefect/pull/11352
 
 ### Fixes
-- Fixed the `read_logs` return type to be `List[Log]` — https://github.com/PrefectHQ/prefect/pull/11303
-- Fixed an issue where submitting a task and then pausing the flow run without using `reschedule=True` would cause the flow run to become stuck in the `Paused` state — https://github.com/PrefectHQ/prefect/pull/11284
+- Fix the `read_logs` return type to be `List[Log]` — https://github.com/PrefectHQ/prefect/pull/11303
+- Fix an issue where submitting a task and then pausing the flow run without using `reschedule=True` would cause the flow run to become stuck in the `Paused` state — https://github.com/PrefectHQ/prefect/pull/11284
 
 ### Documentation
-- Combined troubleshooting pages — https://github.com/PrefectHQ/prefect/pull/11288
-- Added Google Cloud Run V2 option to Serverless guide — https://github.com/PrefectHQ/prefect/pull/11304
-- Added `suspend_flow_run` to flows documentation — https://github.com/PrefectHQ/prefect/pull/11300
-- Added `work queues` tag to work pools concept page — https://github.com/PrefectHQ/prefect/pull/11320
-- Added missing Python SDK CLI items to the docs — https://github.com/PrefectHQ/prefect/pull/11289
-- Clarified SCIM + service accounts handling — https://github.com/PrefectHQ/prefect/pull/11343
-- Updated the work pool concept document — https://github.com/PrefectHQ/prefect/pull/11331
+- Combine troubleshooting pages — https://github.com/PrefectHQ/prefect/pull/11288
+- Add Google Cloud Run V2 option to Serverless guide — https://github.com/PrefectHQ/prefect/pull/11304
+- Add `suspend_flow_run` to flows documentation — https://github.com/PrefectHQ/prefect/pull/11300
+- Add `work queues` tag to work pools concept page — https://github.com/PrefectHQ/prefect/pull/11320
+- Add missing Python SDK CLI items to the docs — https://github.com/PrefectHQ/prefect/pull/11289
+- Clarify SCIM + service accounts handling — https://github.com/PrefectHQ/prefect/pull/11343
+- Update the work pool concept document — https://github.com/PrefectHQ/prefect/pull/11331
 
 ### Contributors
 - @tekumara
