@@ -766,7 +766,7 @@ class TestOrchestrateTaskRun:
     async def test_raises_on_pause_with_reschedule(
         self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run, result_factory
     ):
-        paused_state = Paused(reschedule=True)
+        paused_state = Suspended()
 
         # In this situation, the flow run is paused.
         await prefect_client.set_flow_run_state(
