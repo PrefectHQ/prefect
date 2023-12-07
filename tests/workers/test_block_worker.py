@@ -23,34 +23,28 @@ else:
     from pydantic import Field
 
 
-@pytest.fixture
-def mock_infrastructure():
-    class MockInfrastructure(Infrastructure):
-        type: str = "mock"
-        field: str = Field(
-            default="default", description="A field that can be overridden by the user."
-        )
+class MockInfrastructure(Infrastructure):
+    type: str = "mock"
+    field: str = Field(
+        default="default", description="A field that can be overridden by the user."
+    )
 
-        _run = MagicMock()
-        _kill = MagicMock()
+    _run = MagicMock()
+    _kill = MagicMock()
 
-        async def run(self, task_status=None):
-            if task_status:
-                task_status.started()
-            self._run(**self.dict(exclude={"block_type_slug"}))
+    async def run(self, task_status=None):
+        if task_status:
+            task_status.started()
+        self._run(**self.dict(exclude={"block_type_slug"}))
 
-        async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
-            self._kill(
-                infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
-            )
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
+        self._kill(infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds)
 
-        def preview(self):
-            return self.json()
+    def preview(self):
+        return self.json()
 
-        class Config:
-            arbitrary_types_allowed = True
-
-    return MockInfrastructure
+    class Config:
+        arbitrary_types_allowed = True
 
 
 @pytest.fixture
@@ -59,15 +53,15 @@ def block_worker(block_work_pool):
 
 
 @pytest.fixture
-def mock_infra_block_doc_id(mock_infrastructure):
-    block_doc_id = mock_infrastructure().save("this-is-a-test")
+async def mock_infra_block_doc_id():
+    block_doc_id = await MockInfrastructure().save("this-is-a-test")
     yield block_doc_id
-    mock_infrastructure().delete("this-is-a-test")
+    await MockInfrastructure.delete("this-is-a-test")
 
 
 @pytest.fixture
-async def block_work_pool(prefect_client, mock_infrastructure, mock_infra_block_doc_id):
-    block_schema = mock_infrastructure.schema()
+async def block_work_pool(prefect_client, mock_infra_block_doc_id):
+    block_schema = MockInfrastructure.schema()
     return await prefect_client.create_work_pool(
         WorkPoolCreate(
             name="test",
@@ -83,11 +77,7 @@ async def block_work_pool(prefect_client, mock_infrastructure, mock_infra_block_
                                 "The infrastructure block to use for job creation."
                             ),
                             "allOf": [
-                                {
-                                    "$ref": (
-                                        f"#/definitions/{mock_infrastructure.__name__}"
-                                    )
-                                }
+                                {"$ref": f"#/definitions/{MockInfrastructure.__name__}"}
                             ],
                             "default": {
                                 "$ref": {
@@ -97,7 +87,7 @@ async def block_work_pool(prefect_client, mock_infrastructure, mock_infra_block_
                         }
                     },
                     "required": ["block"],
-                    "definitions": {mock_infrastructure.__name__: block_schema},
+                    "definitions": {MockInfrastructure.__name__: block_schema},
                 },
             },
         )
@@ -155,10 +145,10 @@ async def block_worker_deployment_with_infra_overrides(session, flow, block_work
     return deployment
 
 
-async def test_base_job_configuration_from_template_and_overrides(mock_infrastructure):
+async def test_base_job_configuration_from_template_and_overrides():
     """Test that the job configuration is correctly built from the template and overrides"""
-    block_schema = mock_infrastructure.schema()
-    block = mock_infrastructure()
+    block_schema = MockInfrastructure.schema()
+    block = MockInfrastructure()
     block_document_id = await block.save("test")
     config = await BlockWorkerJobConfiguration.from_template_and_values(
         base_job_template={
@@ -172,7 +162,7 @@ async def test_base_job_configuration_from_template_and_overrides(mock_infrastru
                             "The infrastructure block to use for job creation."
                         ),
                         "allOf": [
-                            {"$ref": f"#/definitions/{mock_infrastructure.__name__}"}
+                            {"$ref": f"#/definitions/{MockInfrastructure.__name__}"}
                         ],
                         "default": {
                             "$ref": {"block_document_id": str(block_document_id)}
@@ -180,7 +170,7 @@ async def test_base_job_configuration_from_template_and_overrides(mock_infrastru
                     }
                 },
                 "required": ["block"],
-                "definitions": {mock_infrastructure.__name__: block_schema},
+                "definitions": {MockInfrastructure.__name__: block_schema},
             },
         },
         values={},
@@ -193,7 +183,6 @@ async def test_block_worker_run(
     block_worker_deployment,
     block_work_pool,
     prefect_client,
-    mock_infrastructure,
     monkeypatch,
 ):
     @flow
@@ -224,7 +213,7 @@ async def test_block_worker_run(
         await prefect_client.create_flow_run(test_flow, state=Scheduled()),
     ]
 
-    test_block = mock_infrastructure()
+    test_block = MockInfrastructure()
     await test_block.save("test-block-worker-run")
     monkeypatch.setattr(
         "prefect.workers.block.Block._from_block_document",
@@ -235,10 +224,10 @@ async def test_block_worker_run(
         worker._work_pool = block_work_pool
         await worker.get_and_submit_flow_runs()
 
-    assert mock_infrastructure._run.call_count == 3
+    assert MockInfrastructure._run.call_count == 3
     assert {
         call.kwargs["env"]["PREFECT__FLOW_RUN_ID"]
-        for call in mock_infrastructure._run.call_args_list
+        for call in MockInfrastructure._run.call_args_list
     } == {str(fr.id) for fr in flow_runs[1:4]}
 
 
