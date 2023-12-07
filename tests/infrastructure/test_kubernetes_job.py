@@ -1725,7 +1725,7 @@ def test_run_requires_command():
 
 
 @pytest.fixture
-def default_base_job_template():
+def k8s_default_base_job_template():
     return {
         "job_configuration": {
             "command": "{{ command }}",
@@ -1922,8 +1922,10 @@ async def cluster_config_block():
 
 
 @pytest.fixture
-def base_job_template_with_defaults(default_base_job_template, cluster_config_block):
-    base_job_template_with_defaults = deepcopy(default_base_job_template)
+def base_job_template_with_defaults(
+    k8s_default_base_job_template, cluster_config_block
+):
+    base_job_template_with_defaults = deepcopy(k8s_default_base_job_template)
     base_job_template_with_defaults["variables"]["properties"]["command"][
         "default"
     ] = "python my_script.py"
@@ -1984,7 +1986,7 @@ async def mock_collection_registry(monkeypatch):
         "prefect-kubernetes": {
             "kubernetes": {
                 "type": "kubernetes",
-                "default_base_job_configuration": default_base_job_template,
+                "default_base_job_configuration": k8s_default_base_job_template,
             }
         },
     }

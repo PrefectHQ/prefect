@@ -373,6 +373,7 @@ class KubernetesJob(Infrastructure):
         )
         if base_job_template is None:
             return super().generate_work_pool_base_job_template()
+        print(base_job_template)
         for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
             if key == "command":
                 base_job_template["variables"]["properties"]["command"]["default"] = (
