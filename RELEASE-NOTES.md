@@ -67,8 +67,8 @@ update the existing work pool base job template with the following command:
 ┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃    ┃ Name                 ┃ Subscription ID                      ┃
 ┡━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│    │ Engineering          │ 13d │
-│ >  │ Azure subscription 1 │ 6h4 │
+│    │ Engineering          │ 13d                                  │
+│ >  │ Azure subscription 1 │ 6h4                                  │
 └────┴──────────────────────┴──────────────────────────────────────┘
 ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ Provisioning infrastructure for your work pool my-work-pool will require:                                      │
