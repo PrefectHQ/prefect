@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 import anyio.abc
 import yaml
 
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -364,16 +363,13 @@ class KubernetesJob(Infrastructure):
     def get_corresponding_worker_type(self):
         return "kubernetes"
 
-    def generate_work_pool_base_job_template(self):
+    async def generate_work_pool_base_job_template(self):
         from prefect.workers.utilities import (
             get_default_base_job_template_for_infrastructure_type,
         )
 
-        base_job_template = from_sync.call_in_loop_thread(
-            create_call(
-                get_default_base_job_template_for_infrastructure_type,
-                self.get_corresponding_worker_type(),
-            )
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            self.get_corresponding_worker_type()
         )
         if base_job_template is None:
             return super().generate_work_pool_base_job_template()
@@ -397,10 +393,13 @@ class KubernetesJob(Infrastructure):
                     "default"
                 ] = value.value
             elif key == "cluster_config":
-                assert isinstance(value, KubernetesClusterConfig)
                 base_job_template["variables"]["properties"]["cluster_config"][
                     "default"
-                ] = {"$ref": {"block_document_id": value._block_document_id}}
+                ] = {
+                    "$ref": {
+                        "block_document_id": str(self.cluster_config._block_document_id)
+                    }
+                }
             elif key in base_job_template["variables"]["properties"]:
                 base_job_template["variables"]["properties"][key]["default"] = value
             else:
