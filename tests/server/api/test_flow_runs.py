@@ -1303,7 +1303,7 @@ class TestFlowRunLateness:
 class TestFlowRunInput:
     @pytest.fixture
     async def flow_run_input(self, session: AsyncSession, flow_run):
-        return await models.flow_run_input.create_flow_run_input(
+        flow_run_input = await models.flow_run_input.create_flow_run_input(
             session=session,
             flow_run_input=schemas.core.FlowRunInput(
                 flow_run_id=flow_run.id,
@@ -1311,6 +1311,10 @@ class TestFlowRunInput:
                 value="really important stuff",
             ),
         )
+
+        await session.commit()
+
+        return flow_run_input
 
     async def test_create_flow_run_input(
         self, flow_run, client: AsyncClient, session: AsyncSession

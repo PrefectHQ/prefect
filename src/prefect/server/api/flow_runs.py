@@ -481,7 +481,7 @@ async def create_flow_run_input(
             await session.commit()
 
         except IntegrityError as exc:
-            if "UNIQUE constraint failed" in str(exc):
+            if "unique constraint" in str(exc).lower():
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="A flow run input with this key already exists.",
