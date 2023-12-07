@@ -88,7 +88,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Created work pool 'my-ecs-pool'!
     ```
 
-    <div class="terminal">
+    </div>
 
 === "Azure Container Instances"
 
@@ -160,7 +160,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Infrastructure successfully provisioned!
     Created work pool 'my-cloud-run-pool'!
     ```
-    
+
     </div>
 
 That's it!
