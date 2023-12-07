@@ -1349,7 +1349,7 @@ class ORMFlowRunInput:
         )
 
     key = sa.Column(sa.String, nullable=False)
-    value = sa.Column(JSON, nullable=False)
+    value = sa.Column(sa.Text(), nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
 

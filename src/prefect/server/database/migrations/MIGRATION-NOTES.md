@@ -9,8 +9,8 @@ Each time a database migration is written, an entry is included here with:
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
 # Add `flow_run_input` table.
-SQLite: `f5c3aaa499e8`
-Postgres: `8f83fc6d55eb`
+SQLite: `a299308852a7`
+Postgres: `733ca1903976`
 
 # Add last_polled to deployment table
 SQLite: `f3165ae0a213`

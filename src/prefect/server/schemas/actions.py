@@ -746,25 +746,3 @@ class VariableUpdate(ActionBaseModel):
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
-
-
-@copy_model_fields
-class FlowRunInputCreate(ActionBaseModel):
-    """Data used by the Prefect REST API to create a FlowRunInput"""
-
-    flow_run_id: UUID = FieldFrom(schemas.core.FlowRunInput)
-    key: str = FieldFrom(schemas.core.FlowRunInput)
-    value: str = Field(
-        description="The JSON value that should be stored for the input."
-    )
-
-
-@copy_model_fields
-class FlowRunInputUpdate(ActionBaseModel):
-    """Data used by the Prefect REST API to update a FlowRunInput"""
-
-    flow_run_id: UUID = FieldFrom(schemas.core.FlowRunInput)
-    key: str = FieldFrom(schemas.core.FlowRunInput)
-    value: str = Field(
-        description="The JSON value that should be stored for the input."
-    )
