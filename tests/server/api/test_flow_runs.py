@@ -3,6 +3,8 @@ from unittest import mock
 from uuid import UUID, uuid4
 
 import pendulum
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -1296,3 +1298,117 @@ class TestFlowRunLateness:
         # lateness is the iteration count of the loop. We're only looking at
         # the last two flow runs in that list so avg(3 + 4) == 3.5
         assert response.content == b"3.5"
+
+
+class TestFlowRunInput:
+    @pytest.fixture
+    async def flow_run_input(self, session: AsyncSession, flow_run):
+        return await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+    async def test_create_flow_run_input(
+        self, flow_run, client: AsyncClient, session: AsyncSession
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 201
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=flow_run.id, key="structured-key-1"
+        )
+        assert flow_run_input.flow_run_id == flow_run.id
+        assert flow_run_input.key == "structured-key-1"
+        assert flow_run_input.value == "really important stuff"
+
+    async def test_404_non_existent_flow_run(
+        self, client: AsyncClient, session: AsyncSession
+    ):
+        not_a_flow_run_id = str(uuid4())
+        response = await client.post(
+            f"/flow_runs/{not_a_flow_run_id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 404
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=not_a_flow_run_id, key="structured-key-1"
+        )
+        assert flow_run_input is None
+
+    async def test_409_key_conflict(
+        self, flow_run, client: AsyncClient, session: AsyncSession
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 201
+
+        # Now try to create the same key again, which should result in a 409
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 409
+
+    async def test_read_flow_run_input(self, client: AsyncClient, flow_run_input):
+        response = await client.get(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",
+        )
+        assert response.status_code == 200
+        assert response.content.decode() == flow_run_input.value
+
+    async def test_404_read_flow_run_input_no_matching_input(
+        self, client: AsyncClient, flow_run
+    ):
+        response = await client.get(
+            f"/flow_runs/{flow_run.id}/input/missing-key",
+        )
+        assert response.status_code == 404
+
+    async def test_delete_flow_run_input(
+        self, client: AsyncClient, session: AsyncSession, flow_run_input
+    ):
+        response = await client.delete(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",
+        )
+        assert response.status_code == 204
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=flow_run_input.flow_run_id,
+            key=flow_run_input.key,
+        )
+        assert flow_run_input is None
+
+    async def test_404_delete_flow_run_input_no_matching_input(
+        self, client: AsyncClient, flow_run_input
+    ):
+        response = await client.delete(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/missing-key",
+        )
+        assert response.status_code == 404

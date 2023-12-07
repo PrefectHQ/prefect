@@ -17,7 +17,8 @@ from prefect._vendor.fastapi import (
     Response,
     status,
 )
-from prefect._vendor.fastapi.responses import ORJSONResponse
+from prefect._vendor.fastapi.responses import ORJSONResponse, PlainTextResponse
+from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -455,3 +456,82 @@ async def set_flow_run_state(
         response.status_code = status.HTTP_200_OK
 
     return orchestration_result
+
+
+@router.post("/{id}/input", status_code=status.HTTP_201_CREATED)
+async def create_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    key: str = Body(..., description="The input key"),
+    value: str = Body(..., description="The value of the input"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    """
+    Create a key/value input for a flow run.
+    """
+    async with db.session_context() as session:
+        try:
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run_id,
+                    key=key,
+                    value=value,
+                ),
+            )
+            await session.commit()
+
+        except IntegrityError as exc:
+            if "UNIQUE constraint failed" in str(exc):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A flow run input with this key already exists.",
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+                )
+
+
+@router.get("/{id}/input/{key}")
+async def read_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    key: str = Path(..., description="The input key", alias="key"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> PlainTextResponse:
+    """
+    Create a value from a flow run input
+    """
+
+    async with db.session_context() as session:
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=flow_run_id, key=key
+        )
+
+    if flow_run_input:
+        return PlainTextResponse(flow_run_input.value)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow run input not found"
+        )
+
+
+@router.delete("/{id}/input/{key}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    key: str = Path(..., description="The input key", alias="key"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    """
+    Delete a flow run input
+    """
+
+    async with db.session_context() as session:
+        deleted = await models.flow_run_input.delete_flow_run_input(
+            session=session, flow_run_id=flow_run_id, key=key
+        )
+        await session.commit()
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Flow run input not found"
+            )
