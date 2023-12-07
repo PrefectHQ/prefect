@@ -3,6 +3,7 @@ import enum
 import json
 import math
 import os
+import shlex
 import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 import anyio.abc
 import yaml
 
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -358,6 +360,68 @@ class KubernetesJob(Infrastructure):
 
     def preview(self):
         return yaml.dump(self.build_job())
+
+    def get_corresponding_worker_type(self):
+        return "kubernetes"
+
+    def generate_work_pool_base_job_template(self):
+        from prefect.workers.utilities import (
+            get_default_base_job_template_for_infrastructure_type,
+        )
+
+        base_job_template = from_sync.call_in_loop_thread(
+            create_call(
+                get_default_base_job_template_for_infrastructure_type,
+                self.get_corresponding_worker_type(),
+            )
+        )
+        if base_job_template is None:
+            return super().generate_work_pool_base_job_template()
+        for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
+            if key == "command":
+                base_job_template["variables"]["properties"]["command"]["default"] = (
+                    shlex.join(value)
+                )
+            elif key in [
+                "type",
+                "block_type_slug",
+                "_block_document_id",
+                "_block_document_name",
+                "_is_anonymous",
+                "job",
+                "customizations",
+            ]:
+                continue
+            elif key == "image_pull_policy":
+                base_job_template["variables"]["properties"]["image_pull_policy"][
+                    "default"
+                ] = value.value
+            elif key == "cluster_config":
+                assert isinstance(value, KubernetesClusterConfig)
+                base_job_template["variables"]["properties"]["cluster_config"][
+                    "default"
+                ] = {"$ref": {"block_document_id": value._block_document_id}}
+            elif key in base_job_template["variables"]["properties"]:
+                base_job_template["variables"]["properties"][key]["default"] = value
+            else:
+                self.logger.warning(
+                    f"Variable {key!r} is not supported by Process work pools."
+                    " Skipping."
+                )
+
+        custom_job_manifest = self.dict(exclude_unset=True, exclude_defaults=True).get(
+            "job"
+        )
+        if custom_job_manifest:
+            job_manifest = self.build_job()
+        else:
+            job_manifest = copy.deepcopy(
+                base_job_template["job_configuration"]["job_manifest"]
+            )
+            job_manifest = self.customizations.apply(job_manifest)
+        base_job_template["job_configuration"]["job_manifest"] = job_manifest
+
+        return base_job_template
 
     def build_job(self) -> KubernetesManifest:
         """Builds the Kubernetes Job Manifest"""
