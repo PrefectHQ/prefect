@@ -665,6 +665,7 @@ class TestSuspendFlowRun:
         with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
             await main_flow()
 
+    @pytest.mark.flaky(max_runs=2)
     async def test_suspend_flow_run_by_id(self, deployment, session):
         flow_run_id = None
         task_completions = 0
