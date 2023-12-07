@@ -404,7 +404,7 @@ class KubernetesJob(Infrastructure):
                 base_job_template["variables"]["properties"][key]["default"] = value
             else:
                 self.logger.warning(
-                    f"Variable {key!r} is not supported by Process work pools."
+                    f"Variable {key!r} is not supported by Kubernetes work pools."
                     " Skipping."
                 )
 
