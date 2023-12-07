@@ -8,9 +8,7 @@ from unittest.mock import MagicMock, call
 
 import anyio
 import anyio.abc
-import httpx
 import pytest
-import respx
 
 import prefect
 import prefect.infrastructure
@@ -490,29 +488,6 @@ base_job_template_with_defaults["variables"]["properties"]["stream_output"][
 ] = False
 
 
-@pytest.fixture()
-async def mock_collection_registry():
-    with respx.mock(assert_all_mocked=True, assert_all_called=False) as respx_mock:
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "process": {
-                            "type": "process",
-                            "default_base_job_configuration": default_base_job_template,
-                        }
-                    },
-                },
-            )
-        )
-        yield
-
-
-@pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
     "process,expected_template",
     [
