@@ -10,6 +10,7 @@ import anyio
 import anyio.abc
 import httpx
 import pytest
+import respx
 
 import prefect
 import prefect.infrastructure
@@ -490,23 +491,25 @@ base_job_template_with_defaults["variables"]["properties"]["stream_output"][
 
 
 @pytest.fixture()
-async def mock_collection_registry(respx_mock):
-    respx_mock.get(
-        "https://raw.githubusercontent.com/PrefectHQ/"
-        "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-    ).mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "prefect": {
-                    "process": {
-                        "type": "process",
-                        "default_base_job_configuration": default_base_job_template,
-                    }
+async def mock_collection_registry():
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as respx_mock:
+        respx_mock.get(
+            "https://raw.githubusercontent.com/PrefectHQ/"
+            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "prefect": {
+                        "process": {
+                            "type": "process",
+                            "default_base_job_configuration": default_base_job_template,
+                        }
+                    },
                 },
-            },
+            )
         )
-    )
+        yield
 
 
 @pytest.mark.usefixtures("mock_collection_registry")
@@ -527,7 +530,7 @@ async def mock_collection_registry(respx_mock):
         ),
     ],
 )
-def test_generate_work_pool_base_job_template(process, expected_template):
-    template = process.generate_work_pool_base_job_template()
+async def test_generate_work_pool_base_job_template(process, expected_template):
+    template = await process.generate_work_pool_base_job_template()
 
     assert template == expected_template

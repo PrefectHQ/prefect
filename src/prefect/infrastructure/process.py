@@ -14,7 +14,6 @@ import anyio
 import anyio.abc
 import sniffio
 
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -252,16 +251,13 @@ class Process(Infrastructure):
     def get_corresponding_worker_type(self):
         return "process"
 
-    def generate_work_pool_base_job_template(self):
+    async def generate_work_pool_base_job_template(self):
         from prefect.workers.utilities import (
             get_default_base_job_template_for_infrastructure_type,
         )
 
-        base_job_template = from_sync.call_in_loop_thread(
-            create_call(
-                get_default_base_job_template_for_infrastructure_type,
-                self.get_corresponding_worker_type(),
-            )
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            self.get_corresponding_worker_type(),
         )
         if base_job_template is None:
             return super().generate_work_pool_base_job_template()
