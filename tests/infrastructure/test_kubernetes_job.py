@@ -5,14 +5,16 @@ from pathlib import Path
 from time import monotonic, sleep
 from typing import Dict
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import anyio
 import anyio.abc
+import httpx
 import kubernetes
 import kubernetes as k8s
 import pendulum
 import pytest
+import respx
 import yaml
 from jsonpatch import JsonPatch
 from kubernetes.client.exceptions import ApiException
@@ -20,7 +22,6 @@ from kubernetes.config import ConfigException
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect.client.orchestration import PrefectClient
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import ValidationError
@@ -1990,9 +1991,13 @@ async def mock_collection_registry(k8s_default_base_job_template):
             }
         },
     }
-    with mock.patch.object(
-        PrefectClient, "read_worker_metadata", AsyncMock(return_value=mock_body)
-    ):
+    with respx.mock(
+        assert_all_mocked=True,
+        assert_all_called=False,
+    ) as respx_mock:
+        respx_mock.get(
+            "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+        ).mock(return_value=httpx.Response(200, json=mock_body))
         yield
 
 
