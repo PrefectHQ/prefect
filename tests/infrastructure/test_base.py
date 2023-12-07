@@ -308,7 +308,7 @@ async def test_enabling_enhanced_cancellation_changes_default_command(
     assert infrastructure.command == ["prefect", "flow-run", "execute"]
 
 
-def test_generate_work_pool_base_job_template():
+async def test_generate_work_pool_base_job_template():
     block = MockInfrastructure()
     block._block_document_id = uuid.uuid4()
 
@@ -331,7 +331,7 @@ def test_generate_work_pool_base_job_template():
         },
     }
 
-    template = block.generate_work_pool_base_job_template()
+    template = await block.generate_work_pool_base_job_template()
 
     assert template == expected_template
 
