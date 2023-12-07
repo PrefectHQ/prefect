@@ -1,5 +1,42 @@
 # Prefect Release Notes
 
+## Release 2.14.10
+
+### [Insert Highlight(s)]
+...
+
+### Enhancements
+- Create `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
+- Add ability to provision infrastructure during Azure Container Instance push work pool creation — https://github.com/PrefectHQ/prefect/pull/11275
+- Add ability to provision infrastructure for an existing work pool — https://github.com/PrefectHQ/prefect/pull/11341
+- Add the ability to publish `Infrastructure` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11180
+- Only display supported work pool types in selection when `--provision-infra` provided — https://github.com/PrefectHQ/prefect/pull/11350
+- Add the ability to publish `Process` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11346
+- A Prefect Cloud event stream subscriber — https://github.com/PrefectHQ/prefect/pull/11332
+
+### Fixes
+- Save updated base job template to work pool in `provision-infra` — https://github.com/PrefectHQ/prefect/pull/11355
+- fix: fix read_logs return type is now List[Log] — https://github.com/PrefectHQ/prefect/pull/11303
+- Fix broken task pause/resume behavior — https://github.com/PrefectHQ/prefect/pull/11284
+
+### Experimental
+- Add data model and methods for FlowRunInput — https://github.com/PrefectHQ/prefect/pull/11342
+- Make `FlowRunInput.flow_run_id` a foreign key to `flow_run.id` — https://github.com/PrefectHQ/prefect/pull/11352
+
+### Documentation
+- Combine troubleshooting pages — https://github.com/PrefectHQ/prefect/pull/11288
+- Add Google Cloud Run V2 option to Serverless guide — https://github.com/PrefectHQ/prefect/pull/11304
+- Add `suspend_flow_run` to flows documentation — https://github.com/PrefectHQ/prefect/pull/11300
+- Add `work queues` tag to work pools concept page — https://github.com/PrefectHQ/prefect/pull/11320
+- Add missing Python SDK CLI items to the docs — https://github.com/PrefectHQ/prefect/pull/11289
+- Clarify SCIM + service accounts handling — https://github.com/PrefectHQ/prefect/pull/11343
+- Update work pool concept doc — https://github.com/PrefectHQ/prefect/pull/11331
+
+### Contributors
+- @tekumara
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.9...2.14.10
+
 ## Release 2.14.9
 
 ### Automatic infrastructure provisioning for ECS push work pools
