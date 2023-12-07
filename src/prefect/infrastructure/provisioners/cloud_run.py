@@ -259,6 +259,12 @@ class CloudRunPushProvisioner:
             ] = {"$ref": {"block_document_id": str(block_doc_id)}}
             progress.advance(task)
 
-        self._console.print("Infrastructure successfully provisioned!", style="green")
+        self._console.print(
+            (
+                f"Infrastructure successfully provisioned for '{work_pool_name}' work"
+                " pool!"
+            ),
+            style="green",
+        )
 
         return base_job_template_copy
