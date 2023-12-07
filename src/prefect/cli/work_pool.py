@@ -393,6 +393,8 @@ async def provision_infrastructure(
     Examples:
         $ prefect work-pool provision-infrastructure "my-pool"
 
+        $ prefect work-pool provision-infra "my-pool"
+
     """
     async with get_client() as client:
         try:
