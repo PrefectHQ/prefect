@@ -59,7 +59,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     In your AWS account, this command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC, if they don't already exist.
     In your Prefect workspace, this command will create an [`AWSCredentials` block](https://prefecthq.github.io/prefect-aws/credentials/) for storing the generated credentials.
 
-    Here's example output from running the command:
+    Here's abbreviated example output from running the command:
 
     <div class="terminal">
 
@@ -95,14 +95,51 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     <div class="terminal">
 
     ```bash
-    prefect work-pool create --type aci:push --provision-infra my-aci-pool
+    prefect work-pool create --type azure-container-instance:push --provision-infra my-aci-pool
     ```
-
     </div>
 
     Using the `--provision-infra` flag will automatically set up your default Azure account to be ready to execute flows via Azure Container Instances.
     In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Instance, if they don't already exist.
     In your Prefect workspace, this command will create an [`AzureContainerInstanceCredentials` block](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) for storing the client secret value from the generated secret.
+
+    Here's abbreviated example output from running the command:
+
+    <div class="terminal">
+
+    ```bash
+    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ Provisioning infrastructure for your work pool my-work-pool will require:                                              │
+    │                                                                                                                │
+    │     Updates in subscription Azure subscription 1                                                               │
+    │                                                                                                                │
+    │         - Create a resource group in location eastus                                                           │
+    │         - Create an app registration in Azure AD prefect-aci-push-pool-app                                     │
+    │         - Create/use a service principal for app registration                                                  │
+    │         - Generate a secret for app registration                                                               │
+    │         - Assign Contributor role to service account                                                           │
+    │         - Create Azure Container Instance 'aci-push-pool-container' in resource group prefect-aci-push-pool-rg │
+    │                                                                                                                │
+    │     Updates in Prefect workspace                                                                               │
+    │                                                                                                                │
+    │         - Create Azure Container Instance credentials block aci-push-pool-credentials                          │
+    │                                                                                                                │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Proceed with infrastructure provisioning? [y/n]: y
+    Creating resource group
+    Provisioning infrastructure
+    Creating app registration
+    Generating secret for app registration
+    Creating ACI credentials block
+    ACI credentials block 'aci-push-pool-credentials' created in Prefect Cloud
+    Assigning Contributor role to service account
+    Creating Azure Container Instance
+    Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+    Infrastructure successfully provisioned for 'my-aci-work-pool' work pool!
+    Created work pool 'my-aci-work-pool'!
+    ```
+
+    </div>
 
 === "Google Cloud Run"
 
@@ -118,7 +155,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist.
     In your Prefect workspace, this command will create a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) for storing the service account key.
 
-    Here's example output from running the command:
+    Here's abbreviated example output from running the command:
 
     <div class="terminal">
 
