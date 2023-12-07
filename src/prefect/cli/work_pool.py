@@ -123,6 +123,7 @@ async def create(
                     )
                 worker_metadata = await collections_client.read_worker_metadata()
 
+                # Retrieve only push pools if provisioning infrastructure
                 data = [
                     worker
                     for collection in worker_metadata.values()
