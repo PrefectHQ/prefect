@@ -48,9 +48,11 @@ Here's the command to create a new push work pool named `my-pool` and configure 
 === "AWS ECS"
 
     <div class="terminal">
+
     ```bash
     prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
     ```
+
     </div>
 
     Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks. 
@@ -60,7 +62,8 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Here's example output from running the command:
 
     <div class="terminal">
-    ```
+
+    ```bash
     ╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
     │ Provisioning infrastructure for your work pool my-ecs-pool will require:                                         │
     │                                                                                                                   │
@@ -84,14 +87,17 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Infrastructure successfully provisioned!
     Created work pool 'my-ecs-pool'!
     ```
+
     <div class="terminal">
 
 === "Azure Container Instances"
 
     <div class="terminal">
+
     ```bash
     prefect work-pool create --type aci:push --provision-infra my-aci-pool
     ```
+
     </div>
 
     Using the `--provision-infra` flag will automatically set up your default Azure account to be ready to execute flows via Azure Container Instances.
@@ -101,17 +107,21 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Here's example output from running the command:
 
     <div class="terminal">
-    ```
+
+    ```bash
     TK
     ```
+
     </div>
 
 === "Google Cloud Run"
 
     <div class="terminal">
+
     ```bash
     prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
     ```
+
     </div>
 
     Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
@@ -121,7 +131,8 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Here's example output from running the command:
 
     <div class="terminal">
-    ```
+
+    ```bash
     ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
     │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                                     │
     │                                                                                                          │
@@ -149,6 +160,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Infrastructure successfully provisioned!
     Created work pool 'my-cloud-run-pool'!
     ```
+    
     </div>
 
 That's it!
