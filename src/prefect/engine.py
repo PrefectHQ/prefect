@@ -1688,7 +1688,7 @@ async def begin_task_run(
             if flow_run.state and flow_run.state.is_paused():
                 state = flow_run.state
             else:
-                state = Paused(reschedule=True)
+                state = Suspended()
 
             task_run_logger(task_run).info(
                 "Task run encountered a pause signal during orchestration."
