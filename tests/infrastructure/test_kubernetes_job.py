@@ -2007,10 +2007,10 @@ async def test_generate_work_pool_base_job_template(
     job_config,
     base_job_template_with_defaults,
     cluster_config_block,
-    default_base_job_template,
+    k8s_default_base_job_template,
 ):
     job = KubernetesJob()
-    expected_template = default_base_job_template
+    expected_template = k8s_default_base_job_template
     if job_config == "custom":
         expected_template = base_job_template_with_defaults
         job = KubernetesJob(
