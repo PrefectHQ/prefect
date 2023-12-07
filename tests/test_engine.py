@@ -69,7 +69,16 @@ from prefect.settings import (
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     temporary_settings,
 )
-from prefect.states import Cancelled, Completed, Failed, Paused, Pending, Running, State
+from prefect.states import (
+    Cancelled,
+    Completed,
+    Failed,
+    Paused,
+    Pending,
+    Running,
+    State,
+    Suspended,
+)
 from prefect.task_runners import (
     BaseTaskRunner,
     SequentialTaskRunner,
