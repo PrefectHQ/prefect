@@ -20,6 +20,7 @@ from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
+    _provisioners,
     get_infrastructure_provisioner_for_work_pool_type,
 )
 from prefect.settings import update_current_profile
@@ -46,6 +47,19 @@ def set_work_pool_as_default(name: str):
             " PREFECT_DEFAULT_WORK_POOL_NAME=<work-pool-name>[/]\n"
         ),
     )
+
+
+def has_provisioner_for_type(work_pool_type: str) -> bool:
+    """
+    Check if there is a provisioner for the given work pool type.
+
+    Args:
+        work_pool_type (str): The type of the work pool.
+
+    Returns:
+        bool: True if a provisioner exists for the given type, False otherwise.
+    """
+    return work_pool_type in _provisioners
 
 
 @work_pool_app.command()
@@ -129,7 +143,7 @@ async def create(
                     for collection in worker_metadata.values()
                     for worker in collection.values()
                     if provision_infrastructure
-                    and worker.get("is_push_pool", False)
+                    and has_provisioner_for_type(worker["type"])
                     or not provision_infrastructure
                 ]
                 worker = prompt_select_from_table(
