@@ -108,8 +108,8 @@ class PrefectTyper(typer.Typer):
 
     def command(
         self,
-        aliases: List[str] = None,
         *args,
+        aliases: List[str] = None,
         **kwargs,
     ):
         """
