@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 
 import anyio.abc
 import docker
-import httpx
 import pytest
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
@@ -1093,27 +1092,6 @@ base_job_template_with_defaults["variables"]["properties"]["privileged"][
 ] = False
 
 
-@pytest.fixture()
-async def mock_collection_registry(respx_mock):
-    respx_mock.get(
-        "https://raw.githubusercontent.com/PrefectHQ/"
-        "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-    ).mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "prefect-docker": {
-                    "docker": {
-                        "type": "docker",
-                        "default_base_job_configuration": default_base_job_template,
-                    }
-                },
-            },
-        )
-    )
-
-
-@pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
     "container,expected_template",
     [
