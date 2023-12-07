@@ -787,5 +787,11 @@ class ContainerInstancePushProvisioner:
             "default"
         ] = self._subscription_id
 
-        self._console.print("Infrastructure successfully provisioned!", style="green")
+        self._console.print(
+            (
+                f"Infrastructure successfully provisioned for '{work_pool_name}' work"
+                " pool!"
+            ),
+            style="green",
+        )
         return base_job_template_copy
