@@ -55,6 +55,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
 
     Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks. 
     In your AWS account, this command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC, if they don't already exist.
+    In your Prefect workspace, this command will create an [`AWSCredentials` block](https://prefecthq.github.io/prefect-aws/credentials/) for storing the generated credentials.
 
     Here's example output from running the command:
 
@@ -95,7 +96,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
 
     Using the `--provision-infra` flag will automatically set up your default Azure account to be ready to execute flows via Azure Container Instances.
     In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Instance, if they don't already exist.
-    In your Prefect workspace, this command will create an `AzureContainerInstanceCredentials` block for storing the client secret value from the generated secret.
+    In your Prefect workspace, this command will create an [`AzureContainerInstanceCredentials` block](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) for storing the client secret value from the generated secret.
 
     Here's example output from running the command:
 
@@ -114,8 +115,8 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     </div>
 
     Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
-    In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist..
-    In your Prefect workspace, this command will create a `GCPCredentials` block.
+    In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist.
+    In your Prefect workspace, this command will create a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) for storing the service account key.
 
     Here's example output from running the command:
 
