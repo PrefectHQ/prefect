@@ -11,22 +11,27 @@ from prefect._internal.compatibility.experimental import (
     experiment_enabled,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.exceptions import ObjectAlreadyExists
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 else:
     import pydantic
 
+from rich.console import Console
 from typing_extensions import Self
 
 import prefect
-from prefect.blocks.core import Block
+from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_UI_URL,
     get_current_settings,
 )
+from prefect.utilities.asyncutils import sync_compatible
 
 MIN_COMPAT_PREFECT_VERSION = "2.0b12"
 
@@ -65,6 +70,99 @@ class Infrastructure(Block, abc.ABC):
         default=None,
         description="The command to run in the infrastructure.",
     )
+
+    async def generate_work_pool_base_job_template(self):
+        if self._block_document_id is None:
+            raise BlockNotSavedError(
+                "Cannot publish as work pool, block has not been saved. Please call"
+                " `.save()` on your block before publishing."
+            )
+
+        block_schema = self.__class__.schema()
+        return {
+            "job_configuration": {"block": "{{ block }}"},
+            "variables": {
+                "type": "object",
+                "properties": {
+                    "block": {
+                        "title": "Block",
+                        "description": (
+                            "The infrastructure block to use for job creation."
+                        ),
+                        "allOf": [{"$ref": f"#/definitions/{self.__class__.__name__}"}],
+                        "default": {
+                            "$ref": {"block_document_id": str(self._block_document_id)}
+                        },
+                    }
+                },
+                "required": ["block"],
+                "definitions": {self.__class__.__name__: block_schema},
+            },
+        }
+
+    def get_corresponding_worker_type(self):
+        return "block"
+
+    @sync_compatible
+    async def publish_as_work_pool(self, work_pool_name: Optional[str] = None):
+        """
+        Creates a work pool configured to use the given block as the job creator.
+
+        Used to migrate from a agents setup to a worker setup.
+
+        Args:
+            work_pool_name: The name to give to the created work pool. If not provided, the name of the current
+                block will be used.
+        """
+
+        base_job_template = await self.generate_work_pool_base_job_template()
+        work_pool_name = work_pool_name or self._block_document_name
+
+        if work_pool_name is None:
+            raise ValueError(
+                "`work_pool_name` must be provided if the block has not been saved."
+            )
+
+        console = Console()
+
+        try:
+            async with prefect.get_client() as client:
+                work_pool = await client.create_work_pool(
+                    work_pool=WorkPoolCreate(
+                        name=work_pool_name,
+                        type=self.get_corresponding_worker_type(),
+                        base_job_template=base_job_template,
+                    )
+                )
+        except ObjectAlreadyExists:
+            console.print(
+                (
+                    f"Work pool with name {work_pool_name!r} already exists, please use"
+                    " a different name."
+                ),
+                style="red",
+            )
+            return
+
+        console.print(
+            f"Work pool {work_pool.name} created!",
+            style="green",
+        )
+        if PREFECT_UI_URL:
+            console.print(
+                "You see your new work pool in the UI at"
+                f" {PREFECT_UI_URL.value()}/work-pools/work-pool/{work_pool.name}"
+            )
+
+        console.print(
+            "\nYou can deploy a flow to this work pool by calling"
+            f" [blue].deploy[/]:\n\n\tmy_flow.deploy(work_pool_name='{work_pool.name}',"
+            " image='my_image:tag')\n"
+        )
+        console.print(
+            "\nTo start a worker to execute flow runs in this work pool run:\n"
+        )
+        console.print(f"\t[blue]prefect worker start --pool {work_pool.name}[/]\n")
 
     @abc.abstractmethod
     async def run(
