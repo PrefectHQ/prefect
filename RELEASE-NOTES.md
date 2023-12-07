@@ -108,7 +108,7 @@ See the following pull request for implementation details:
 
 ### Fixes
 - Fix the `read_logs` return type to be `List[Log]` — https://github.com/PrefectHQ/prefect/pull/11303
-- Fix an issue where submitting a task and then pausing the flow run without using `reschedule=True` would cause the flow run to become stuck in the `Paused` state — https://github.com/PrefectHQ/prefect/pull/11284
+- Fix an issue causing paused flow runs to become stuck in the `Paused` state — https://github.com/PrefectHQ/prefect/pull/11284
 
 ### Documentation
 - Combine troubleshooting pages — https://github.com/PrefectHQ/prefect/pull/11288
