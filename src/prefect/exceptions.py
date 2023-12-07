@@ -296,6 +296,10 @@ class Pause(PrefectSignal):
     Raised when a flow run is PAUSED and needs to exit for resubmission.
     """
 
+    def __init__(self, *args, state=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.state = state
+
 
 class ExternalSignal(BaseException):
     """
