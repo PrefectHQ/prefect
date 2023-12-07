@@ -434,9 +434,17 @@ async def provision_infrastructure(
                 work_pool.type
             )
             provisioner.console = app.console
-            await provisioner.provision(
+            new_base_job_template = await provisioner.provision(
                 work_pool_name=name, base_job_template=work_pool.base_job_template
             )
+
+            await client.update_work_pool(
+                work_pool_name=name,
+                work_pool=WorkPoolUpdate(
+                    base_job_template=new_base_job_template,
+                ),
+            )
+
         except ValueError as exc:
             app.console.print(f"Error: {exc}")
             app.console.print(
