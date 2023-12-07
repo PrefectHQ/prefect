@@ -103,8 +103,8 @@ See the following pull request for implementation details:
 - Add the ability to publish `Infrastructure` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11180
 - Add the ability to publish `Process` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11346
 - Add a Prefect Cloud event stream subscriber — https://github.com/PrefectHQ/prefect/pull/11332
-- Add the data model and methods for `FlowRunInput` — https://github.com/PrefectHQ/prefect/pull/11342
-- Make `FlowRunInput.flow_run_id` a foreign key to `flow_run.id` — https://github.com/PrefectHQ/prefect/pull/11352
+- Enable storage of key/value information associated with a flow run — https://github.com/PrefectHQ/prefect/pull/11342
+- Delete flow run inputs when the corresponding flow run is delete — https://github.com/PrefectHQ/prefect/pull/11352
 
 ### Fixes
 - Fix the `read_logs` return type to be `List[Log]` — https://github.com/PrefectHQ/prefect/pull/11303
