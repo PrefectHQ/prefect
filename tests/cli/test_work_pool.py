@@ -793,3 +793,49 @@ class TestGetDefaultBaseJobTemplate:
         contents = file.read_text()
         assert "job_configuration" in contents
         assert len(contents) == 211
+
+
+class TestProvisionInfrastructure:
+    async def test_provision_infra(self, monkeypatch, push_work_pool, prefect_client):
+        mock_provision = AsyncMock()
+
+        class MockProvisioner:
+            def __init__(self):
+                self._console = None
+
+            @property
+            def console(self):
+                return self._console
+
+            @console.setter
+            def console(self, value):
+                self._console = value
+
+            async def provision(self, *args, **kwargs):
+                await mock_provision(*args, **kwargs)
+                return FAKE_DEFAULT_BASE_JOB_TEMPLATE
+
+        monkeypatch.setattr(
+            "prefect.cli.work_pool.get_infrastructure_provisioner_for_work_pool_type",
+            lambda *args: MockProvisioner(),
+        )
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool provision-infra {push_work_pool.name}",
+        )
+        assert res.exit_code == 0
+
+        assert mock_provision.await_count == 1
+
+    async def test_provision_infra_unsupported(self, push_work_pool):
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool provision-infrastructure {push_work_pool.name}",
+        )
+        assert res.exit_code == 0
+        assert (
+            "Automatic infrastructure provisioning is not supported for"
+            " 'push-work-pool:push' work pools."
+            in res.output
+        )
