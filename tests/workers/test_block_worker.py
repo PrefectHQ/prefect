@@ -25,6 +25,7 @@ else:
 
 class MockInfrastructure(Infrastructure):
     type: str = "mock"
+    _block_type_slug: str = "mock-infrastructure"
     field: str = Field(
         default="default", description="A field that can be overridden by the user."
     )
