@@ -1901,65 +1901,71 @@ default_base_job_template = {
     },
 }
 
-cluster_config_block = KubernetesClusterConfig(
-    config={"key": "value"}, context_name="my_context"
-)
-cluster_config_block_doc_id = cluster_config_block.save(
-    "test-for-publish", overwrite=True
-)
 
-base_job_template_with_defaults = deepcopy(default_base_job_template)
-base_job_template_with_defaults["variables"]["properties"]["command"][
-    "default"
-] = "python my_script.py"
-base_job_template_with_defaults["variables"]["properties"]["env"]["default"] = {
-    "VAR1": "value1",
-    "VAR2": "value2",
-}
-base_job_template_with_defaults["variables"]["properties"]["labels"]["default"] = {
-    "label1": "value1",
-    "label2": "value2",
-}
-base_job_template_with_defaults["variables"]["properties"]["name"][
-    "default"
-] = "prefect-job"
-base_job_template_with_defaults["variables"]["properties"]["namespace"][
-    "default"
-] = "my_namespace"
-base_job_template_with_defaults["variables"]["properties"]["image"][
-    "default"
-] = "docker.io/my_image:latest"
-base_job_template_with_defaults["variables"]["properties"]["service_account_name"][
-    "default"
-] = "my_service_account"
-base_job_template_with_defaults["variables"]["properties"]["image_pull_policy"][
-    "default"
-] = "Always"
-base_job_template_with_defaults["variables"]["properties"]["finished_job_ttl"][
-    "default"
-] = 60
-base_job_template_with_defaults["variables"]["properties"]["job_watch_timeout_seconds"][
-    "default"
-] = 60
-base_job_template_with_defaults["variables"]["properties"]["pod_watch_timeout_seconds"][
-    "default"
-] = 60
-base_job_template_with_defaults["variables"]["properties"]["stream_output"][
-    "default"
-] = False
-base_job_template_with_defaults["variables"]["properties"]["cluster_config"][
-    "default"
-] = {"$ref": {"block_document_id": str(cluster_config_block_doc_id)}}
-base_job_template_with_defaults["job_configuration"]["job_manifest"]["spec"][
-    "template"
-]["spec"]["containers"][0]["resources"] = {
-    "requests": {"cpu": "2000m", "memory": "4gi"},
-    "limits": {
-        "cpu": "4000m",
-        "memory": "8Gi",
-        "nvidia.com/gpu": "1",
-    },
-}
+@pytest.fixture
+async def cluster_config_block():
+    cluster_config_block = KubernetesClusterConfig(
+        config={"key": "value"}, context_name="my_context"
+    )
+    await cluster_config_block.save("test-for-publish", overwrite=True)
+    return cluster_config_block
+
+
+@pytest.fixture
+def base_job_template_with_defaults(cluster_config_block):
+    base_job_template_with_defaults = deepcopy(default_base_job_template)
+    base_job_template_with_defaults["variables"]["properties"]["command"][
+        "default"
+    ] = "python my_script.py"
+    base_job_template_with_defaults["variables"]["properties"]["env"]["default"] = {
+        "VAR1": "value1",
+        "VAR2": "value2",
+    }
+    base_job_template_with_defaults["variables"]["properties"]["labels"]["default"] = {
+        "label1": "value1",
+        "label2": "value2",
+    }
+    base_job_template_with_defaults["variables"]["properties"]["name"][
+        "default"
+    ] = "prefect-job"
+    base_job_template_with_defaults["variables"]["properties"]["namespace"][
+        "default"
+    ] = "my_namespace"
+    base_job_template_with_defaults["variables"]["properties"]["image"][
+        "default"
+    ] = "docker.io/my_image:latest"
+    base_job_template_with_defaults["variables"]["properties"]["service_account_name"][
+        "default"
+    ] = "my_service_account"
+    base_job_template_with_defaults["variables"]["properties"]["image_pull_policy"][
+        "default"
+    ] = "Always"
+    base_job_template_with_defaults["variables"]["properties"]["finished_job_ttl"][
+        "default"
+    ] = 60
+    base_job_template_with_defaults["variables"]["properties"][
+        "job_watch_timeout_seconds"
+    ]["default"] = 60
+    base_job_template_with_defaults["variables"]["properties"][
+        "pod_watch_timeout_seconds"
+    ]["default"] = 60
+    base_job_template_with_defaults["variables"]["properties"]["stream_output"][
+        "default"
+    ] = False
+    base_job_template_with_defaults["variables"]["properties"]["cluster_config"][
+        "default"
+    ] = {"$ref": {"block_document_id": str(cluster_config_block._block_document_id)}}
+    base_job_template_with_defaults["job_configuration"]["job_manifest"]["spec"][
+        "template"
+    ]["spec"]["containers"][0]["resources"] = {
+        "requests": {"cpu": "2000m", "memory": "4gi"},
+        "limits": {
+            "cpu": "4000m",
+            "memory": "8Gi",
+            "nvidia.com/gpu": "1",
+        },
+    }
+    return base_job_template_with_defaults
 
 
 @pytest.fixture()
@@ -1979,44 +1985,49 @@ async def mock_collection_registry(monkeypatch):
 
 @pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
-    "process,expected_template",
+    "job_config",
     [
-        (KubernetesJob(), default_base_job_template),
-        (
-            KubernetesJob(
-                command=["python", "my_script.py"],
-                env={"VAR1": "value1", "VAR2": "value2"},
-                labels={"label1": "value1", "label2": "value2"},
-                name="prefect-job",
-                image="docker.io/my_image:latest",
-                image_pull_policy="Always",
-                service_account_name="my_service_account",
-                namespace="my_namespace",
-                finished_job_ttl=60,
-                job_watch_timeout_seconds=60,
-                pod_watch_timeout_seconds=60,
-                cluster_config=cluster_config_block,
-                stream_output=False,
-                customizations=[
-                    {
-                        "op": "add",
-                        "path": "/spec/template/spec/containers/0/resources",
-                        "value": {
-                            "requests": {"cpu": "2000m", "memory": "4gi"},
-                            "limits": {
-                                "cpu": "4000m",
-                                "memory": "8Gi",
-                                "nvidia.com/gpu": "1",
-                            },
-                        },
-                    }
-                ],
-            ),
-            base_job_template_with_defaults,
-        ),
+        "default",
+        "custom",
     ],
 )
-async def test_generate_work_pool_base_job_template(process, expected_template):
-    template = await process.generate_work_pool_base_job_template()
+async def test_generate_work_pool_base_job_template(
+    job_config, base_job_template_with_defaults, cluster_config_block
+):
+    job = KubernetesJob()
+    expected_template = default_base_job_template
+    if job_config == "custom":
+        expected_template = base_job_template_with_defaults
+        job = KubernetesJob(
+            command=["python", "my_script.py"],
+            env={"VAR1": "value1", "VAR2": "value2"},
+            labels={"label1": "value1", "label2": "value2"},
+            name="prefect-job",
+            image="docker.io/my_image:latest",
+            image_pull_policy="Always",
+            service_account_name="my_service_account",
+            namespace="my_namespace",
+            finished_job_ttl=60,
+            job_watch_timeout_seconds=60,
+            pod_watch_timeout_seconds=60,
+            cluster_config=cluster_config_block,
+            stream_output=False,
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/resources",
+                    "value": {
+                        "requests": {"cpu": "2000m", "memory": "4gi"},
+                        "limits": {
+                            "cpu": "4000m",
+                            "memory": "8Gi",
+                            "nvidia.com/gpu": "1",
+                        },
+                    },
+                }
+            ],
+        )
+
+    template = await job.generate_work_pool_base_job_template()
 
     assert template == expected_template
