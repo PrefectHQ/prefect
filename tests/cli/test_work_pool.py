@@ -797,6 +797,9 @@ class TestGetDefaultBaseJobTemplate:
 
 class TestProvisionInfrastructure:
     async def test_provision_infra(self, monkeypatch, push_work_pool, prefect_client):
+        client_res = await prefect_client.read_work_pool(push_work_pool.name)
+        assert client_res.base_job_template != FAKE_DEFAULT_BASE_JOB_TEMPLATE
+
         mock_provision = AsyncMock()
 
         class MockProvisioner:
@@ -827,6 +830,10 @@ class TestProvisionInfrastructure:
         assert res.exit_code == 0
 
         assert mock_provision.await_count == 1
+
+        # ensure work pool base job template was updated
+        client_res = await prefect_client.read_work_pool(push_work_pool.name)
+        assert client_res.base_job_template == FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
     async def test_provision_infra_unsupported(self, push_work_pool):
         res = await run_sync_in_worker_thread(
