@@ -154,10 +154,17 @@ class Infrastructure(Block, abc.ABC):
                 f" {PREFECT_UI_URL.value()}/work-pools/work-pool/{work_pool.name}"
             )
 
+        deploy_script = (
+            "my_flow.deploy(work_pool_name='{work_pool.name}' image='my_image:tag')"
+        )
+        if not hasattr(self, "image"):
+            deploy_script = (
+                "my_flow.from_source(source='https://github.com/org/repo.git',"
+                f" entrypoint='flow.py:my_flow').deploy(work_pool_name='{work_pool.name}')"
+            )
         console.print(
             "\nYou can deploy a flow to this work pool by calling"
-            f" [blue].deploy[/]:\n\n\tmy_flow.deploy(work_pool_name='{work_pool.name}',"
-            " image='my_image:tag')\n"
+            f" [blue].deploy[/]:\n\n\t{deploy_script}\n"
         )
         console.print(
             "\nTo start a worker to execute flow runs in this work pool run:\n"
