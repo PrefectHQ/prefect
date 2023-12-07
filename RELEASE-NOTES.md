@@ -18,7 +18,7 @@ To provision Azure resources when creating an ACI push pool:
 │ >  │ Azure subscription 1 │ 234 │
 └────┴──────────────────────┴──────────────────────────────────────┘
 ╭───────────────────────────────────────────────────────────────────────────────────────╮
-│ Provisioning infrastructure for your work pool s will require:                        │
+│ Provisioning infrastructure for your work pool my-work-pool will require:             │
 │                                                                                       │
 │     Updates in subscription Azure subscription 1                                      │
 │                                                                                       │
