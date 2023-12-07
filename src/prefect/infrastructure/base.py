@@ -28,6 +28,7 @@ from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_UI_URL,
     get_current_settings,
 )
 from prefect.utilities.asyncutils import sync_compatible
@@ -147,6 +148,12 @@ class Infrastructure(Block, abc.ABC):
             f"Work pool {work_pool.name} created!",
             style="green",
         )
+        if PREFECT_UI_URL:
+            console.print(
+                "You see your new work pool in the UI at"
+                f" {PREFECT_UI_URL.value()}/work-pools/work-pool/{work_pool.name}"
+            )
+
         console.print(
             "\nYou can deploy a flow to this work pool by calling"
             f" [blue].deploy[/]:\n\n\tmy_flow.deploy(work_pool_name='{work_pool.name}',"
