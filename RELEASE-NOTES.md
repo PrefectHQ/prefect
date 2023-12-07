@@ -95,6 +95,7 @@ This PR bolsters support for efficient work pool management across diverse cloud
 
 See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11341
+- https://github.com/PrefectHQ/prefect/pull/11355
 
 ### Enhancements
 - Added a `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
@@ -106,7 +107,6 @@ See the following pull request for implementation details:
 - Made `FlowRunInput.flow_run_id` a foreign key to `flow_run.id` — https://github.com/PrefectHQ/prefect/pull/11352
 
 ### Fixes
-- Writes the updated base job template back to the work pool when using `prefect work-pool provision-infra` — https://github.com/PrefectHQ/prefect/pull/11355
 - Fixed the `read_logs` return type to be `List[Log]` — https://github.com/PrefectHQ/prefect/pull/11303
 - Fixed an issue where submitting a task and then pausing the flow run without using `reschedule=True` would cause the flow run to become stuck in the `Paused` state — https://github.com/PrefectHQ/prefect/pull/11284
 
