@@ -155,7 +155,7 @@ class Infrastructure(Block, abc.ABC):
             )
 
         deploy_script = (
-            "my_flow.deploy(work_pool_name='{work_pool.name}' image='my_image:tag')"
+            "my_flow.deploy(work_pool_name='{work_pool.name}', image='my_image:tag')"
         )
         if not hasattr(self, "image"):
             deploy_script = (
