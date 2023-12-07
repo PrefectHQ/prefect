@@ -1981,7 +1981,7 @@ def base_job_template_with_defaults(
 
 
 @pytest.fixture()
-async def mock_collection_registry(monkeypatch):
+async def mock_collection_registry(monkeypatch, k8s_default_base_job_template):
     mock_body = {
         "prefect-kubernetes": {
             "kubernetes": {
