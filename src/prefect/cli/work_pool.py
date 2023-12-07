@@ -122,6 +122,15 @@ async def create(
                         " `--type` value."
                     )
                 worker_metadata = await collections_client.read_worker_metadata()
+
+                data = [
+                    worker
+                    for collection in worker_metadata.values()
+                    for worker in collection.values()
+                    if provision_infrastructure
+                    and worker.get("is_push_pool", False)
+                    or not provision_infrastructure
+                ]
                 worker = prompt_select_from_table(
                     app.console,
                     "What type of work pool infrastructure would you like to use?",
@@ -129,11 +138,7 @@ async def create(
                         {"header": "Infrastructure Type", "key": "display_name"},
                         {"header": "Description", "key": "description"},
                     ],
-                    data=[
-                        worker
-                        for collection in worker_metadata.values()
-                        for worker in collection.values()
-                    ],
+                    data=data,
                     table_kwargs={"show_lines": True},
                 )
                 type = worker["type"]
