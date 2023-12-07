@@ -33,6 +33,10 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
     Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and authenticate with your AWS account.
 
+=== "Azure Container Instances"
+
+    Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and authenticate with your Azure account.
+
 === "Google Cloud Run"
 
     Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and authenticate with your GCP project.
@@ -45,7 +49,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
 
     <div class="terminal">
     ```bash
-    prefect work-pool create --type ecs:push --provision-infra my-pool
+    prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
     ```
     </div>
 
@@ -57,7 +61,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     <div class="terminal">
     ```
     ╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-work-pool will require:                                         │
+    │ Provisioning infrastructure for your work pool my-ecs-pool will require:                                         │
     │                                                                                                                   │
     │          - Creating an IAM user for managing ECS tasks: prefect-ecs-user                                          │
     │          - Creating and attaching an IAM policy for managing ECS tasks: prefect-ecs-policy                        │
@@ -77,7 +81,26 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Setting up security group
     Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     Infrastructure successfully provisioned!
-    Created work pool 'my-pool'!
+    Created work pool 'my-ecs-pool'!
+    ```
+    <div class="terminal">
+
+=== "Azure Container Instances"
+
+    <div class="terminal">
+    ```bash
+    prefect work-pool create --type aci:push --provision-infra my-aci-pool
+    ```
+    </div>
+
+    Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks. 
+    This command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC in your AWS account.
+
+    Here's example output from running the command:
+
+    <div class="terminal">
+    ```
+
     ```
     <div class="terminal">
 
@@ -85,7 +108,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
 
     <div class="terminal">
     ```bash
-    prefect work-pool create --type cloud-run:push --provision-infra my-pool 
+    prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
     ```
     </div>
 
@@ -95,7 +118,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     <div class="terminal">
     ```
     ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-pool will require:                                     │
+    │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                                     │
     │                                                                                                          │
     │     Updates in GCP project central-kit-405415 in region us-central1                                      │
     │                                                                                                          │
@@ -119,7 +142,7 @@ Here's the command to create a new push work pool named `my-pool` and configure 
     Creating GCP credentials block
     Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     Infrastructure successfully provisioned!
-    Created work pool 'my-pool'!
+    Created work pool 'my-cloud-run-pool'!
     ```
     </div>
 
@@ -133,4 +156,30 @@ If you'd like to make changes to your work pool, navigate to **Work Pools** in t
 
 ## Using existing resources
 
-TK Alex to add
+If you already have the necessary infrastructure set up, Prefect will detect that upon workpool creation and the infrastructure provisioning for that resource will be skipped.
+
+For example, here's how `prefect work-pool create my-work-pool --provision-infra` looks when existing Azure resources are detected:
+
+<div class="terminal">
+
+```bash
+Proceed with infrastructure provisioning? [y/n]: y
+Creating resource group
+Resource group 'prefect-aci-push-pool-rg' already exists in location 'eastus'.
+Creating app registration
+App registration 'prefect-aci-push-pool-app' already exists.
+Generating secret for app registration
+Provisioning infrastructure... ━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━  40% 0:00:02Secret generated for app registration with client ID '1111cb05-3b9e-4d1b-92cc-d897b2d4f337'
+ACI credentials block 'bb-push-pool-credentials' created
+Assigning Contributor role to service account...
+Service principal with object ID '4be6fed7-ecbd-4941-9da8-16af068f2a45' already has the 'Contributor' role assigned in 
+'/subscriptions/2d38d768-2bc9-46b1-af48-5568eeea417c/resourceGroups/prefect-aci-push-pool-rg'
+Creating Azure Container Instance
+Container instance 'prefect-aci-push-pool-container' already exists.
+Creating Azure Container Instance credentials block
+Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Infrastructure successfully provisioned!
+Created work pool 'my-work-pool'!
+```
+
+</div>
