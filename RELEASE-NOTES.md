@@ -2,8 +2,170 @@
 
 ## Release 2.14.10
 
-### [Insert Highlight(s)]
+### Azure Container Instance push pool infrastructure provisioning via the CLI
+
+We're introducing an enhancement to the Azure Container Instance push pool experience. You can now conveniently provision necessary Azure infrastructure with the `--provision-infra` flag during work pool creation, automating the provisioning of various Azure resources essential for ACI push pools, including resource groups, app registrations, service accounts, and more.
+
+To provision Azure resources when creating an ACI push pool:
+
+```bash
+❯ prefect work-pool create my-work-pool --provision-infra --type azure-container-instance:push
+? Please select which Azure subscription to use: [Use arrows to move; enter to select]
+┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃    ┃ Name                 ┃ Subscription ID                      ┃
+┡━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│    │ Engineering          │ 123 │
+│ >  │ Azure subscription 1 │ 234 │
+└────┴──────────────────────┴──────────────────────────────────────┘
+╭───────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool s will require:                        │
+│                                                                                       │
+│     Updates in subscription Azure subscription 1                                      │
+│                                                                                       │
+│         - Create a resource group in location eastus                                  │
+│         - Create an app registration in Azure AD                                      │
+│         - Create a service principal for app registration                             │
+│         - Generate a secret for app registration                                      │
+│         - Assign Contributor role to service account                                  │
+│         - Create Azure Container Instance                                             │
+│                                                                                       │
+│     Updates in Prefect workspace                                                      │
+│                                                                                       │
+│         - Create Azure Container Instance credentials block aci-push-pool-credentials │
+│                                                                                       │
+╰───────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+Creating resource group
+Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   0% -:--:--Resource group 'prefect-aci-push-pool-rg' created in location 'eastus'
+Creating app registration
+Provisioning infrastructure... ━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  20% -:--:--App registration 'prefect-aci-push-pool-app' created successfully
+Generating secret for app registration
+Provisioning infrastructure... ━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━  40% 0:00:06Secret generated for app registration with client ID 'abc'
+ACI credentials block 'aci-push-pool-credentials' created
+Assigning Contributor role to service account...
+Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━  60% 0:00:06Contributor role assigned to service principal with object ID 'xyz'
+Creating Azure Container Instance
+Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━  80% 0:00:04Container instance 'prefect-acipool-container' created successfully
+Creating Azure Container Instance credentials block
+Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Created work pool 'my-work-pool'!
+```
+
+This marks a step forward in Prefect's Azure capabilities, offering users an efficient and streamlined process for leveraging Azure Container Instances in their workflow automation.
+
+See the following pull request for implementation details:
+— https://github.com/PrefectHQ/prefect/pull/11275
+
+### Introducing the `provision-infra` sub-command for enhanced push work pool management
+This enhancement allows you to directly provision infrastructure for existing push work pools. Rather than recreating a work pool, you can provision necessary infrastructure and
+update the existing work pool base job template with the following command:
+
+```bash
+❯ prefect work-pool provision-infra my-work-pool
+? Please select which Azure subscription to use: [Use arrows to move; enter to select]
+┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃    ┃ Name                 ┃ Subscription ID                      ┃
+┡━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│    │ Engineering          │ 13d │
+│ >  │ Azure subscription 1 │ 6h4 │
+└────┴──────────────────────┴──────────────────────────────────────┘
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool my-work-pool will require:                                      │
+│                                                                                                                │
+│     Updates in subscription Azure subscription 1                                                               │
+│                                                                                                                │
+│         - Create a resource group in location eastus                                                           │
+│         - Create an app registration in Azure AD prefect-aci-push-pool-app                                     │
+│         - Create/use a service principal for app registration                                                  │
+│         - Generate a secret for app registration                                                               │
+│         - Assign Contributor role to service account                                                           │
+│         - Create Azure Container Instance 'aci-push-pool-container' in resource group prefect-aci-push-pool-rg │
+│                                                                                                                │
+│     Updates in Prefect workspace                                                                               │
+│                                                                                                                │
+│         - Create Azure Container Instance credentials block aci-push-pool-credentials                          │
+│                                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
 ...
+```
+
+This PR bolsters support for efficient work pool management across diverse cloud environments, delivering a tool for seamless infrastructure setup.
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11341
+
+### Enhancements
+- Create `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
+- Add the ability to publish `Infrastructure` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11180
+- Only display supported work pool types in selection when `--provision-infra` provided — https://github.com/PrefectHQ/prefect/pull/11350
+- Add the ability to publish `Process` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11346
+- A Prefect Cloud event stream subscriber — https://github.com/PrefectHQ/prefect/pull/11332
+
+### Fixes
+- Writes the updated base job template back to the work pool when using `prefect work-pool provision-infra` — https://github.com/PrefectHQ/prefect/pull/11355
+- Fixed the `read_logs` return type to be `List[Log]` — https://github.com/PrefectHQ/prefect/pull/11303
+- Fixed an issue where submitting a task and then pausing the flow run without using `reschedule=True` would cause the flow run to become stuck in the `Paused` state — https://github.com/PrefectHQ/prefect/pull/11284
+
+### Documentation
+- Combined troubleshooting pages — https://github.com/PrefectHQ/prefect/pull/11288
+- Added Google Cloud Run V2 option to Serverless guide — https://github.com/PrefectHQ/prefect/pull/11304
+- Added `suspend_flow_run` to flows documentation — https://github.com/PrefectHQ/prefect/pull/11300
+- Added `work queues` tag to work pools concept page — https://github.com/PrefectHQ/prefect/pull/11320
+- Added missing Python SDK CLI items to the docs — https://github.com/PrefectHQ/prefect/pull/11289
+- Clarified SCIM + service accounts handling — https://github.com/PrefectHQ/prefect/pull/11343
+- Updated the work pool concept document — https://github.com/PrefectHQ/prefect/pull/11331
+
+### Contributors
+- @tekumara
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.9...2.14.10
+
+## Release 2.14.9
+
+### Automatic infrastructure provisioning for ECS push work pools
+
+Following the introduction of [automatic project configuration for Cloud Run push pools](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#automatic-project-configuration-for-cloud-run-push-work-pools) last week, we've added the ability to automatically provision infrastructure in your AWS account and set up your Prefect workspace to support a new ECS push pool!
+
+You can create a new ECS push work pool and provision infrastructure in your AWS account with the following command:
+
+```bash
+prefect work-pool create --type ecs:push --provision-infra my-pool 
+```
+
+Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks:
+
+```
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool my-work-pool will require:                                         │
+│                                                                                                                   │
+│          - Creating an IAM user for managing ECS tasks: prefect-ecs-user                                          │
+│          - Creating and attaching an IAM policy for managing ECS tasks: prefect-ecs-policy                        │
+│          - Storing generated AWS credentials in a block                                                           │
+│          - Creating an ECS cluster for running Prefect flows: prefect-ecs-cluster                                 │
+│          - Creating a VPC with CIDR 172.31.0.0/16 for running ECS tasks: prefect-ecs-vpc                          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+Provisioning IAM user
+Creating IAM policy
+Generating AWS credentials
+Creating AWS credentials block
+Provisioning ECS cluster
+Provisioning VPC
+Creating internet gateway
+Setting up subnets
+Setting up security group
+Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Infrastructure successfully provisioned!
+Created work pool 'my-pool'!
+```
+
+If you have yet to try using an ECS push pool, now is a great time!
+
+If you use Azure, don't fret; we will add support for Azure Container Instances push work pools in a future release!
+
+See the following pull request for implementation details:
+— https://github.com/PrefectHQ/prefect/pull/11267
 
 ### Enhancements
 - Added a `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
