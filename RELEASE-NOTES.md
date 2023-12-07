@@ -98,8 +98,6 @@ See the following pull request for implementation details:
 
 ### Enhancements
 - Added a `suspend_flow_run` method to suspend a flow run. — https://github.com/PrefectHQ/prefect/pull/11291
-- Added the ability to provision Azure cloud infrastructure during Azure Container Instance push work pool creation — https://github.com/PrefectHQ/prefect/pull/11275
-- Added the ability to provision infrastructure for an existing work pool — https://github.com/PrefectHQ/prefect/pull/11341
 - Limited the displayed work pool types when `--provision-infra` is used to only show supported work pool types - https://github.com/PrefectHQ/prefect/pull/11350
 - Added the ability to publish `Infrastructure` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11180
 - Added the ability to publish `Process` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11346
