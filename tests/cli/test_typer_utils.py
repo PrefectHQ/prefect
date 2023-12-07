@@ -35,3 +35,23 @@ class TestPrefectTyper:
             expected_output_contains="hello",
             expected_code=0,
         )
+
+    def test_command_with_alias(self):
+        # Add a command with an alias
+        @self.pluralized_subcommand.command(aliases=["test-cmd-alias"])
+        def test_cmd():
+            print("Test Command Executed")
+
+        # Test invoking with the original command name
+        invoke_and_assert(
+            ["pluralized-subcommand", "test-cmd"],
+            expected_output_contains="Test Command Executed",
+            expected_code=0,
+        )
+
+        # Test invoking with the alias
+        invoke_and_assert(
+            ["pluralized-subcommands", "test-cmd-alias"],
+            expected_output_contains="Test Command Executed",
+            expected_code=0,
+        )

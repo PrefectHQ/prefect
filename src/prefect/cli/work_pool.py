@@ -380,6 +380,58 @@ async def update(
         exit_with_success(f"Updated work pool {name!r}")
 
 
+@work_pool_app.command(aliases=["provision-infra"])
+async def provision_infrastructure(
+    name: str = typer.Argument(
+        ..., help="The name of the work pool to provision infrastructure for."
+    ),
+):
+    """
+    Provision infrastructure for a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool provision-infrastructure "my-pool"
+
+        $ prefect work-pool provision-infra "my-pool"
+
+    """
+    async with get_client() as client:
+        try:
+            work_pool = await client.read_work_pool(work_pool_name=name)
+            if not work_pool.is_push_pool:
+                exit_with_error(
+                    f"Work pool {name!r} is not a push pool type. "
+                    "Please try provisioning infrastructure for a push pool."
+                )
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {name!r} does not exist.")
+        except Exception as exc:
+            exit_with_error(f"Failed to read work pool {name!r}: {exc}")
+
+        try:
+            provisioner = get_infrastructure_provisioner_for_work_pool_type(
+                work_pool.type
+            )
+            provisioner.console = app.console
+            await provisioner.provision(
+                work_pool_name=name, base_job_template=work_pool.base_job_template
+            )
+        except ValueError as exc:
+            app.console.print(f"Error: {exc}")
+            app.console.print(
+                (
+                    "Automatic infrastructure provisioning is not supported for"
+                    f" {work_pool.type!r} work pools."
+                ),
+                style="yellow",
+            )
+        except RuntimeError as exc:
+            exit_with_error(
+                f"Failed to provision infrastructure for '{name}' work pool: {exc}"
+            )
+
+
 @work_pool_app.command()
 async def delete(
     name: str = typer.Argument(..., help="The name of the work pool to delete."),
