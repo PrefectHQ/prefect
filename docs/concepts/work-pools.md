@@ -213,7 +213,7 @@ prefect work-pool get-default-base-job-template --type process
 ```
 </div>
 
-<div class="terminaL">
+<div class="terminal">
 ```bash
 {
   "job_configuration": {
