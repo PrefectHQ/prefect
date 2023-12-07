@@ -1344,8 +1344,7 @@ class ORMFlowRunInput:
     @declared_attr
     def flow_run_id(cls):
         return sa.Column(
-            UUID(),
-            nullable=False,
+            UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
         )
 
     key = sa.Column(sa.String, nullable=False)

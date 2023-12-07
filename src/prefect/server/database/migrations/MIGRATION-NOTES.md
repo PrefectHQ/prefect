@@ -8,7 +8,11 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
-# Add `flow_run_input` table.
+# Make `FlowRunInput.flow_run_id` a foreign key to `flow_run.id`
+SQLite: `a299308852a7`
+Postgres: `7c453555d3a5`
+
+# Add `flow_run_input` table
 SQLite: `a299308852a7`
 Postgres: `733ca1903976`
 
