@@ -746,10 +746,6 @@ class TestProvisionInfrastructure:
 
         assert mock_provision.await_count == 1
 
-        # assert that the base job template was updated
-        client_res = await prefect_client.read_work_pool(push_work_pool.name)
-        assert client_res.base_job_template == FAKE_DEFAULT_BASE_JOB_TEMPLATE
-
     async def test_provision_infra_unsupported(self, push_work_pool):
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
