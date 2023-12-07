@@ -46,6 +46,13 @@ class BlockWorkerJobConfiguration(BaseModel):
 
     _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
+    @property
+    def is_using_a_runner(self):
+        return (
+            self.block.command is not None
+            and "prefect flow-run execute" in shlex.join(self.block.command)
+        )
+
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
         """Get default values from base config for all variables that have them."""
