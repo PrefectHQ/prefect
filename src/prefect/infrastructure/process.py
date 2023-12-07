@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import os
+import shlex
 import signal
 import socket
 import subprocess
@@ -246,6 +247,43 @@ class Process(Infrastructure):
 
     def _base_flow_run_command(self):
         return [get_sys_executable(), "-m", "prefect.engine"]
+
+    def get_corresponding_worker_type(self):
+        return "process"
+
+    async def generate_work_pool_base_job_template(self):
+        from prefect.workers.utilities import (
+            get_default_base_job_template_for_infrastructure_type,
+        )
+
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            self.get_corresponding_worker_type(),
+        )
+        assert (
+            base_job_template is not None
+        ), "Failed to generate default base job template for Process worker."
+        for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
+            if key == "command":
+                base_job_template["variables"]["properties"]["command"]["default"] = (
+                    shlex.join(value)
+                )
+            elif key in [
+                "type",
+                "block_type_slug",
+                "_block_document_id",
+                "_block_document_name",
+                "_is_anonymous",
+            ]:
+                continue
+            elif key in base_job_template["variables"]["properties"]:
+                base_job_template["variables"]["properties"][key]["default"] = value
+            else:
+                self.logger.warning(
+                    f"Variable {key!r} is not supported by Process work pools."
+                    " Skipping."
+                )
+
+        return base_job_template
 
 
 class ProcessResult(InfrastructureResult):
