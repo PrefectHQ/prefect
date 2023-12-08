@@ -1,5 +1,6 @@
 import inspect
 import typing as t
+import uuid
 
 import pendulum
 import uvicorn
@@ -111,9 +112,9 @@ async def __run_deployment(deployment: "Deployment"):
     assert deployment.entrypoint is not None
     _flow = load_flow_from_entrypoint(deployment.entrypoint)
 
-    Model: t.Type[BaseModel] = _model_for_function(_flow.fn)
+    # Model: t.Type[BaseModel] = _model_for_function(_flow.fn)
 
-    async def _create_flow_run_for_deployment(m: Model):  # type: ignore
+    async def _create_flow_run_for_deployment(m):  # type: ignore
         async with get_client() as client:
             await client.create_flow_run_from_deployment(
                 deployment_id=deployment.id,
@@ -153,22 +154,39 @@ def _inject_schemas_into_generated_openapi(webserver: FastAPI, schemas: t.Dict):
 
     # Place the deployment schema into the schema references
     for name, schema in schemas.items():
+        try:
+            if isinstance(name, str):
+                uuid.UUID(name)
+        except ValueError:
+            pass
+        else:
+            continue
+
         openapi_schema["components"]["schemas"][name] = schema
 
     # Update the route schema to reference the deployment schema
-    # Goal
-    # openapi_schema["paths"]['/deployment/5c4a4699-898a-4b9e-8810-916cf6f153bd/run']["post"]["requestBody"]["content"]["application/json"]["schema"]["$ref"] = #/components/schemas/DeplomentNameOrDeploymentId'
     for path, remainder in openapi_schema["paths"].items():
         if not path.startswith("/deployment"):
             continue
 
-        deployment_id = (
-            ...
-        )  # TODO: parse the deployment ID from the path, use that to find the deployment's name
-        deployment_name = deployment_id
-        remainder["post"]["requestBody"]["content"]["application/json"]["schema"][
-            "$ref"
-        ] = f"#/components/schemas/{deployment_name}"
+        deployment_id = uuid.UUID(path.split("/")[2])
+        deployment_name = schemas[deployment_id]
+        path_body = {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": f"#/components/schemas/{deployment_name}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        openapi_schema["paths"][path] = path_body
+
+        # TODO: Need to add nested schemas somehwhere in components.schemas
 
     return openapi_schema
 
