@@ -27,7 +27,7 @@ In this guide you will:
 
 - Create a push work pool that sends work to Google Cloud Run, Amazon Elastic Container Service (AWS ECS), or Azure Container Instances (ACI)
 - Deploy a flow to that work pool
-- Execute the flow without having to run a worker or agent process to poll for flow runs
+- Execute a flow without having to run a worker or agent process to poll for flow runs
 
 You can automatically provision infrastructure and create your push work pool using the `prefect work-pool create` CLI command with the `--provision-infra` flag.
 This approach greatly simplifies the setup process.
