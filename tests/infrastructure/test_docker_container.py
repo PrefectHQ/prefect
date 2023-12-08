@@ -2,13 +2,14 @@ import re
 import uuid
 from copy import deepcopy
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import anyio.abc
 import docker
+import httpx
 import pytest
+import respx
 
-from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.container import (
     CONTAINER_LABELS,
@@ -1094,7 +1095,7 @@ base_job_template_with_defaults["variables"]["properties"]["privileged"][
 
 
 @pytest.fixture()
-async def mock_collection_registry(monkeypatch):
+async def mock_collection_registry():
     mock_body = {
         "prefect-docker": {
             "docker": {
@@ -1103,9 +1104,14 @@ async def mock_collection_registry(monkeypatch):
             }
         },
     }
-    monkeypatch.setattr(
-        PrefectClient, "read_worker_metadata", AsyncMock(return_value=mock_body)
-    )
+    with respx.mock(
+        assert_all_mocked=True,
+        assert_all_called=False,
+    ) as respx_mock:
+        respx_mock.get(
+            "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+        ).mock(return_value=httpx.Response(200, json=mock_body))
+        yield
 
 
 @pytest.mark.usefixtures("mock_collection_registry")
