@@ -2,7 +2,6 @@ import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-import httpx
 import pytest
 import readchar
 from typer import Exit
@@ -60,33 +59,7 @@ def reset_cache():
 
 
 class TestCreate:
-    @pytest.fixture(autouse=True)
-    async def mock_collection_registry(self, respx_mock):
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "prefect-agent": {
-                            "type": "prefect-agent",
-                            "default_base_job_configuration": {},
-                        }
-                    },
-                    "prefect-fake": {
-                        "fake": {
-                            "type": "fake",
-                            "default_base_job_configuration": (
-                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
-                            ),
-                        }
-                    },
-                },
-            )
-        )
-
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_work_pool(self, prefect_client, mock_collection_registry):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
@@ -100,6 +73,7 @@ class TestCreate:
         assert client_res.base_job_template == {}
         assert isinstance(client_res, WorkPool)
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_work_pool_with_base_job_template(
         self, prefect_client, mock_collection_registry
     ):
@@ -141,6 +115,7 @@ class TestCreate:
             },
         }
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_work_pool_with_empty_name(
         self, prefect_client, mock_collection_registry
     ):
@@ -151,6 +126,7 @@ class TestCreate:
             expected_output_contains=["name cannot be empty"],
         )
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_work_pool_name_conflict(
         self, prefect_client, mock_collection_registry
     ):
@@ -171,6 +147,7 @@ class TestCreate:
             ],
         )
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_default_template(self, prefect_client):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
@@ -181,6 +158,7 @@ class TestCreate:
         client_res = await prefect_client.read_work_pool(pool_name)
         assert client_res.base_job_template == dict()
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_default_paused(self, prefect_client):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
@@ -191,6 +169,7 @@ class TestCreate:
         client_res = await prefect_client.read_work_pool(pool_name)
         assert client_res.is_paused is False
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_paused_true(self, prefect_client):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
@@ -201,6 +180,7 @@ class TestCreate:
         client_res = await prefect_client.read_work_pool(pool_name)
         assert client_res.is_paused is True
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_work_pool_from_registry(self, prefect_client):
         pool_name = "fake-work"
         res = await run_sync_in_worker_thread(
@@ -215,6 +195,7 @@ class TestCreate:
         assert client_res.type == "fake"
         assert isinstance(client_res, WorkPool)
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_process_work_pool(self, prefect_client):
         pool_name = "process-work"
         res = await run_sync_in_worker_thread(
@@ -232,6 +213,7 @@ class TestCreate:
         assert client_res.type == "process"
         assert isinstance(client_res, WorkPool)
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     def test_create_with_unsupported_type(self, monkeypatch):
         def available():
             return ["process"]
@@ -247,6 +229,7 @@ class TestCreate:
             ),
         )
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     def test_create_non_interactive_missing_args(self):
         invoke_and_assert(
             ["work-pool", "create", "no-type"],
@@ -257,7 +240,7 @@ class TestCreate:
             ),
         )
 
-    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("interactive_console", "mock_collection_registry")
     async def test_create_interactive_first_type(self, prefect_client):
         work_pool_name = "test-interactive"
         await run_sync_in_worker_thread(
@@ -272,7 +255,7 @@ class TestCreate:
         assert client_res.type == "prefect-agent"
         assert isinstance(client_res, WorkPool)
 
-    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("interactive_console", "mock_collection_registry")
     async def test_create_interactive_second_type(self, prefect_client):
         work_pool_name = "test-interactive"
         await run_sync_in_worker_thread(
@@ -287,6 +270,7 @@ class TestCreate:
         assert client_res.type == "fake"
         assert isinstance(client_res, WorkPool)
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_set_as_default(self, prefect_client):
         settings_context = get_settings_context()
         assert (
@@ -315,6 +299,7 @@ class TestCreate:
         profile = load_profile(settings_context.profile.name)
         assert profile.settings.get(PREFECT_DEFAULT_WORK_POOL_NAME) == pool_name
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_with_provision_infra(self, monkeypatch):
         mock_provision = AsyncMock()
 
@@ -348,6 +333,7 @@ class TestCreate:
 
         assert mock_provision.await_count == 1
 
+    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_with_provision_infra_unsupported(self):
         pool_name = "fake-work"
         res = await run_sync_in_worker_thread(
@@ -361,49 +347,9 @@ class TestCreate:
             in res.output
         )
 
-    @pytest.fixture
-    async def mock_collection_registry_with_push(self, respx_mock):
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "prefect-agent": {
-                            "type": "prefect-agent",
-                            "default_base_job_configuration": {},
-                            "display_name": "Prefect Agent",
-                            "description": "A Prefect Agent pool.",
-                        }
-                    },
-                    "prefect-fake": {
-                        "fake": {
-                            "type": "fake",
-                            "default_base_job_configuration": (
-                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
-                            ),
-                            "display_name": "Prefect Fake",
-                            "description": "A Prefect Fake pool.",
-                        }
-                    },
-                    "prefect-cloud": {
-                        "prefect-cloud:push": {
-                            "type": "cloud-run:push",
-                            "default_base_job_configuration": {},
-                            "is_push_pool": True,
-                            "display_name": "Prefect Cloud Run: Push",
-                            "description": "A Prefect Cloud Run: Push pool.",
-                        }
-                    },
-                },
-            )
-        )
-
-    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("interactive_console", "mock_collection_registry")
     async def test_create_prompt_table_only_displays_push_pool_types_using_provision_infra_flag(
-        self, prefect_client, monkeypatch, mock_collection_registry_with_push
+        self, prefect_client, monkeypatch
     ):
         mock_provision = AsyncMock()
 
@@ -724,34 +670,8 @@ class TestPreview:
 
 
 class TestGetDefaultBaseJobTemplate:
-    @pytest.fixture(autouse=True)
-    async def mock_collection_registry(self, respx_mock):
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "prefect-agent": {
-                            "type": "prefect-agent",
-                            "default_base_job_configuration": {},
-                        }
-                    },
-                    "prefect-fake": {
-                        "fake": {
-                            "type": "fake",
-                            "default_base_job_configuration": (
-                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
-                            ),
-                        }
-                    },
-                },
-            )
-        )
-
-    async def test_unknown_type(self, mock_collection_registry, monkeypatch):
+    @pytest.mark.usefixtures("mock_collection_registry")
+    async def test_unknown_type(self, monkeypatch):
         def available():
             return ["process"]
 
@@ -767,7 +687,8 @@ class TestGetDefaultBaseJobTemplate:
             ),
         )
 
-    async def test_stdout(self, mock_collection_registry):
+    @pytest.mark.usefixtures("mock_collection_registry")
+    async def test_stdout(self):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=["work-pool", "get-default-base-job-template", "--type", "fake"],
@@ -775,7 +696,8 @@ class TestGetDefaultBaseJobTemplate:
             expected_output_contains="fake_var",
         )
 
-    async def test_file(self, mock_collection_registry, tmp_path):
+    @pytest.mark.usefixtures("mock_collection_registry")
+    async def test_file(self, tmp_path):
         file = tmp_path / "out.json"
         await run_sync_in_worker_thread(
             invoke_and_assert,

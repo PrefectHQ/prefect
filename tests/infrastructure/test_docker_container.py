@@ -18,9 +18,6 @@ from prefect.infrastructure.container import (
 from prefect.testing.utilities import assert_does_not_warn
 from prefect.utilities.dockerutils import get_prefect_image_name
 
-# make module level fixtures available
-from .fixtures import *  # noqa
-
 if TYPE_CHECKING:
     from docker import DockerClient
     from docker.models.containers import Container

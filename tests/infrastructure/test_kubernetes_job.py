@@ -33,9 +33,6 @@ from prefect.infrastructure.kubernetes import (
     KubernetesManifest,
 )
 
-# make module level fixtures available
-from .fixtures import *  # noqa
-
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
 

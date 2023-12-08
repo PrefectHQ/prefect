@@ -2,8 +2,23 @@ import httpx
 import pytest
 import respx
 
+FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
+    "job_configuration": {
+        "fake": "{{ fake_var }}",
+    },
+    "variables": {
+        "type": "object",
+        "properties": {
+            "fake_var": {
+                "type": "string",
+                "default": "fake",
+            }
+        },
+    },
+}
 
-@pytest.fixture
+
+@pytest.fixture(scope="session")
 def k8s_default_base_job_template():
     return {
         "job_configuration": {
@@ -191,7 +206,7 @@ def k8s_default_base_job_template():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def docker_default_base_job_template():
     return {
         "job_configuration": {
@@ -364,10 +379,35 @@ def docker_default_base_job_template():
 
 
 @pytest.fixture()
-async def mock_collection_registry(
+def mock_collection_registry(
     docker_default_base_job_template, k8s_default_base_job_template
 ):
     mock_body = {
+        "prefect": {
+            "prefect-agent": {
+                "type": "prefect-agent",
+                "default_base_job_configuration": {},
+                "display_name": "Prefect Agent",
+                "description": "A Prefect Agent pool.",
+            }
+        },
+        "prefect-fake": {
+            "fake": {
+                "type": "fake",
+                "default_base_job_configuration": FAKE_DEFAULT_BASE_JOB_TEMPLATE,
+                "display_name": "Prefect Fake",
+                "description": "A Prefect Fake pool.",
+            }
+        },
+        "prefect-cloud": {
+            "prefect-cloud:push": {
+                "type": "cloud-run:push",
+                "default_base_job_configuration": {},
+                "is_push_pool": True,
+                "display_name": "Prefect Cloud Run: Push",
+                "description": "A Prefect Cloud Run: Push pool.",
+            }
+        },
         "prefect-docker": {
             "docker": {
                 "type": "docker",
@@ -382,7 +422,7 @@ async def mock_collection_registry(
         },
     }
     with respx.mock(
-        assert_all_mocked=True,
+        assert_all_mocked=False,
         assert_all_called=False,
     ) as respx_mock:
         respx_mock.get(
