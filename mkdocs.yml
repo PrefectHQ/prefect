@@ -265,6 +265,7 @@ nav:
                       - "steps.utility": api-ref/prefect/deployments/steps/utility.md
                 - "prefect.engine": api-ref/prefect/engine.md
                 - "prefect.exceptions": api-ref/prefect/exceptions.md
+                - "prefect.events": api-ref/prefect/events.md
                 - "prefect.filesystems": api-ref/prefect/filesystems.md
                 - "prefect.flows": api-ref/prefect/flows.md
                 - "prefect.futures": api-ref/prefect/futures.md
@@ -278,7 +279,7 @@ nav:
                 - "prefect.packaging":
                       - "base": api-ref/prefect/packaging/base.md
                       - "docker": api-ref/prefect/packaging/docker.md
-                      - "file": api-ref/prefect/packaging/orion.md
+                      - "file": api-ref/prefect/packaging/file.md
                       - "serializers": api-ref/prefect/packaging/serializers.md
                 - "prefect.runner":
                       - "runner": api-ref/prefect/runner/runner.md
@@ -296,11 +297,11 @@ nav:
                 - "prefect.utilities":
                       - "annotations": api-ref/prefect/utilities/annotations.md
                       - "asyncutils": api-ref/prefect/utilities/asyncutils.md
-                      - "processutils": api-ref/prefect/utilities/processutils.md
                       - "callables": api-ref/prefect/utilities/callables.md
                       - "collections": api-ref/prefect/utilities/collections.md
                       - "filesystem": api-ref/prefect/utilities/filesystem.md
                       - "hashing": api-ref/prefect/utilities/hashing.md
+                      - "processutils": api-ref/prefect/utilities/processutils.md
                 - "prefect.workers":
                       - "base": api-ref/prefect/workers/base.md
                       - "process": api-ref/prefect/workers/process.md
