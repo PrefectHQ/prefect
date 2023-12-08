@@ -361,6 +361,88 @@ class TestCreate:
             in res.output
         )
 
+    @pytest.fixture
+    async def mock_collection_registry_with_push(self, respx_mock):
+        respx_mock.get(
+            "https://raw.githubusercontent.com/PrefectHQ/"
+            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "prefect": {
+                        "prefect-agent": {
+                            "type": "prefect-agent",
+                            "default_base_job_configuration": {},
+                            "display_name": "Prefect Agent",
+                            "description": "A Prefect Agent pool.",
+                        }
+                    },
+                    "prefect-fake": {
+                        "fake": {
+                            "type": "fake",
+                            "default_base_job_configuration": (
+                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
+                            ),
+                            "display_name": "Prefect Fake",
+                            "description": "A Prefect Fake pool.",
+                        }
+                    },
+                    "prefect-cloud": {
+                        "prefect-cloud:push": {
+                            "type": "cloud-run:push",
+                            "default_base_job_configuration": {},
+                            "is_push_pool": True,
+                            "display_name": "Prefect Cloud Run: Push",
+                            "description": "A Prefect Cloud Run: Push pool.",
+                        }
+                    },
+                },
+            )
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_create_prompt_table_only_displays_push_pool_types_using_provision_infra_flag(
+        self, prefect_client, monkeypatch, mock_collection_registry_with_push
+    ):
+        mock_provision = AsyncMock()
+
+        class MockProvisioner:
+            def __init__(self):
+                self._console = None
+
+            @property
+            def console(self):
+                return self._console
+
+            @console.setter
+            def console(self, value):
+                self._console = value
+
+            async def provision(self, *args, **kwargs):
+                await mock_provision(*args, **kwargs)
+                return FAKE_DEFAULT_BASE_JOB_TEMPLATE
+
+        monkeypatch.setattr(
+            "prefect.cli.work_pool.get_infrastructure_provisioner_for_work_pool_type",
+            lambda *args: MockProvisioner(),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["work-pool", "create", "test-interactive", "--provision-infra"],
+            expected_code=0,
+            user_input=readchar.key.ENTER,
+            expected_output_contains=[
+                "What type of work pool infrastructure would you like to use?",
+                "Prefect Cloud Run: Push",
+            ],
+            expected_output_does_not_contain=[
+                "Prefect Fake",
+                "Prefect Agent",
+            ],
+        )
+
 
 class TestInspect:
     async def test_inspect(self, prefect_client, work_pool):
@@ -715,6 +797,9 @@ class TestGetDefaultBaseJobTemplate:
 
 class TestProvisionInfrastructure:
     async def test_provision_infra(self, monkeypatch, push_work_pool, prefect_client):
+        client_res = await prefect_client.read_work_pool(push_work_pool.name)
+        assert client_res.base_job_template != FAKE_DEFAULT_BASE_JOB_TEMPLATE
+
         mock_provision = AsyncMock()
 
         class MockProvisioner:
@@ -745,6 +830,10 @@ class TestProvisionInfrastructure:
         assert res.exit_code == 0
 
         assert mock_provision.await_count == 1
+
+        # ensure work pool base job template was updated
+        client_res = await prefect_client.read_work_pool(push_work_pool.name)
+        assert client_res.base_job_template == FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
     async def test_provision_infra_unsupported(self, push_work_pool):
         res = await run_sync_in_worker_thread(
