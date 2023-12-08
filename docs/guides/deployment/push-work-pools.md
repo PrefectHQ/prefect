@@ -244,9 +244,8 @@ Created work pool 'my-work-pool'!
 
 ## Manual infrastructure provisioning
 
-If you prefer to set up your infrastructure manually, don't include the `--provision-infra` flag and Prefect will not attempt to provision infrastructure for you.
-However, you will need to manually set up the infrastructure required for your push work pool.
-Let's see how to do that now.
+If you prefer to set up your infrastructure manually, don't include the `--provision-infra` flag in the CLI command.
+In the examples below, we'll create a push work pool via the Prefect Cloud UI.
 
 === "AWS ECS"
 
