@@ -52,7 +52,7 @@ Infrastructure successfully provisioned for 'my-work-pool' work pool!
 Created work pool 'my-work-pool'!
 ```
 
-This marks a step forward in Prefect's Azure capabilities, offering users an efficient and streamlined process for leveraging Azure Container Instances in their workflow automation.
+This marks a step forward in Prefect's Azure capabilities, offering you an efficient and streamlined process for leveraging Azure Container Instances to execute their workflows.
 
 See the following pull request for implementation details:
 — https://github.com/PrefectHQ/prefect/pull/11275
