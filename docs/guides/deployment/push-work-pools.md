@@ -36,7 +36,7 @@ Let's explore automatic infrastructure provisioning for push work pools first, a
 
 ## Automatic infrastructure provisioning
 
-With Prefect Cloud you can provision infrastructure for use with an AWS ECS or Google Cloud Run [push work pool](/guides/deployment/push-work-pools/).
+With Perfect Cloud you can provision infrastructure for use with an AWS ECS, Google Cloud Run, ACI push work pool.
 Push work pools in Prefect Cloud simplify the setup and management of the infrastructure necessary to run your flows.
 However, setting up infrastructure on your cloud provider can still be a time-consuming process.
 Prefect can dramatically simplify this process by automatically provisioning the necessary infrastructure for you.
