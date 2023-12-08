@@ -273,7 +273,7 @@ nav:
                       - "configuration": api-ref/prefect/logging/configuration.md
                       - "formatters": api-ref/prefect/logging/formatters.md
                       - "handlers": api-ref/prefect/logging/handlers.md
-                      - "highlighting": api-ref/prefect/logging/highlighters.md
+                      - "highlighters": api-ref/prefect/logging/highlighters.md
                       - "loggers": api-ref/prefect/logging/loggers.md
                 - "prefect.packaging":
                       - "base": api-ref/prefect/packaging/base.md
