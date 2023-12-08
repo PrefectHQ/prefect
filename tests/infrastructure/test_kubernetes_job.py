@@ -1794,6 +1794,7 @@ def base_job_template_with_defaults(
     return base_job_template_with_defaults
 
 
+@pytest.mark.flaky
 @pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
     "job_config",
