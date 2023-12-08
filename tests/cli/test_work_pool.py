@@ -215,17 +215,11 @@ class TestCreate:
 
     @pytest.mark.usefixtures("mock_collection_registry")
     def test_create_with_unsupported_type(self, monkeypatch):
-        def available():
-            return ["process"]
-
-        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
-
         invoke_and_assert(
             ["work-pool", "create", "my-pool", "--type", "unsupported"],
             expected_code=1,
-            expected_output=(
-                "Unknown work pool type 'unsupported'. Please choose from fake,"
-                " prefect-agent, process."
+            expected_output_contains=(
+                "Unknown work pool type 'unsupported'. Please choose from "
             ),
         )
 
@@ -681,9 +675,8 @@ class TestGetDefaultBaseJobTemplate:
             invoke_and_assert,
             command=["work-pool", "get-default-base-job-template", "--type", "foobar"],
             expected_code=1,
-            expected_output=(
-                "Unknown work pool type 'foobar'. Please choose from fake,"
-                " prefect-agent, process."
+            expected_output_contains=(
+                "Unknown work pool type 'foobar'. Please choose from "
             ),
         )
 

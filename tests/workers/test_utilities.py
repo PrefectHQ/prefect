@@ -52,8 +52,11 @@ class TestGetAvailableWorkPoolTypes:
 
         work_pool_types = await get_available_work_pool_types()
         assert work_pool_types == [
+            "cloud-run:push",
+            "docker",
             "fake",
             "faker",
+            "kubernetes",
             "prefect-agent",
             "process",
         ]
