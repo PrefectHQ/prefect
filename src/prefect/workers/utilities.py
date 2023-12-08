@@ -36,6 +36,8 @@ async def get_default_base_job_template_for_infrastructure_type(
     # from the local type registry first.
     worker_cls = BaseWorker.get_worker_class_from_type(infra_type)
     if worker_cls is not None:
+        print("Got default base job template from local type registry")
+        print(worker_cls.get_default_base_job_template())
         return deepcopy(worker_cls.get_default_base_job_template())
 
     # If the worker type is not found in the local type registry, attempt to
@@ -47,6 +49,8 @@ async def get_default_base_job_template_for_infrastructure_type(
             for collection in worker_metadata.values():
                 for worker in collection.values():
                     if worker.get("type") == infra_type:
+                        print("Got default base job template from collections registry")
+                        print(worker.get("default_base_job_configuration"))
                         return worker.get("default_base_job_configuration")
         except Exception:
             if PREFECT_DEBUG_MODE:
