@@ -59,7 +59,7 @@ def shutdown(runner) -> int:
 
 
 def create_model_from_openapi(
-    schema: dict[str, t.Any], title: str
+    schema: t.Dict[str, t.Any], title: str
 ) -> t.Type[BaseModel]:
     definitions = schema.get("definitions", {})
 
@@ -79,7 +79,9 @@ def create_model_from_openapi(
         else:
             raise ValueError(f"Unknown type '{type_name}'.")
 
-    def resolve_reference(ref: str, definitions: dict[str, t.Any]) -> t.Type[BaseModel]:
+    def resolve_reference(
+        ref: str, definitions: t.Dict[str, t.Any]
+    ) -> t.Type[BaseModel]:
         ref_name = ref.lstrip("#/definitions/")
         ref_schema = definitions.get(ref_name)
         if ref_schema is None:
@@ -87,7 +89,7 @@ def create_model_from_openapi(
         return create_model_from_schema(ref_schema, ref_name, definitions)
 
     def create_model_from_schema(
-        schema: dict[str, t.Any], model_name: str, definitions: dict[str, t.Any]
+        schema: t.Dict[str, t.Any], model_name: str, definitions: t.Dict[str, t.Any]
     ) -> t.Type[BaseModel]:
         model_fields = {}
 
