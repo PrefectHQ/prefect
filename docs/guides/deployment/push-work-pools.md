@@ -173,7 +173,7 @@ Here's the command to create a new push work pool and configure the necessary in
     In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist.
     In your Prefect workspace, this command will create a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) for storing the service account key.
 
-    Here's abbreviated example output from running the command:
+    Here's an abbreviated example output from running the command:
 
     <div class="terminal">
 
