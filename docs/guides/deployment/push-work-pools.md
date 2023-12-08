@@ -121,7 +121,7 @@ Here's the command to create a new push work pool and configure the necessary in
     In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Instance, if they don't already exist.
     In your Prefect workspace, this command will create an [`AzureContainerInstanceCredentials` block](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) for storing the client secret value from the generated secret.
 
-    Here's abbreviated example output from running the command:
+    Here's an abbreviated example output from running the command:
 
     <div class="terminal">
 
