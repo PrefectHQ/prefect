@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 import prefect
 from prefect.cli.dev import dev_app
 from prefect.infrastructure.container import CONTAINER_LABELS
+from prefect.logging import get_logger
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     docker_client,
@@ -19,6 +20,9 @@ with silence_docker_warnings():
     from docker import DockerClient
     from docker.errors import APIError, ImageNotFound, NotFound
     from docker.models.containers import Container
+
+
+logger = get_logger(__name__)
 
 
 def _safe_remove_container(container: Container):
@@ -53,16 +57,19 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
     try:
         yield
     finally:
-        for container in docker.containers.list(all=True):
-            if container.labels.get("io.prefect.test-worker") == worker_id:
-                _safe_remove_container(container)
-            elif container.labels.get("io.prefect.delete-me"):
-                _safe_remove_container(container)
+        try:
+            for container in docker.containers.list(all=True):
+                if container.labels.get("io.prefect.test-worker") == worker_id:
+                    _safe_remove_container(container)
+                elif container.labels.get("io.prefect.delete-me"):
+                    _safe_remove_container(container)
 
-        filters = {"label": f"io.prefect.test-worker={worker_id}"}
-        for image in docker.images.list(filters=filters):
-            for tag in image.tags:
-                docker.images.remove(tag, force=True)
+            filters = {"label": f"io.prefect.test-worker={worker_id}"}
+            for image in docker.images.list(filters=filters):
+                for tag in image.tags:
+                    docker.images.remove(tag, force=True)
+        except docker.errors.NotFound:
+            logger.warning("Failed to clean up Docker objects")
 
 
 @pytest.mark.timeout(120)
