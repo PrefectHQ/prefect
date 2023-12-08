@@ -4,8 +4,8 @@ import pendulum
 import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, status
 from prefect._vendor.fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, create_model
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -15,6 +15,13 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_PORT,
 )
 from prefect.utilities.asyncutils import sync_compatible
+
+# Our vendored version of FastAPI only supports pydantic v1, so the
+# objects we create need to be pydantic v1 objects
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, create_model
+else:
+    from pydantic import BaseModel, Field, create_model
 
 if t.TYPE_CHECKING:
     from prefect.deployments import Deployment
@@ -113,7 +120,10 @@ def create_model_from_openapi(
                 else (python_type, Field(...))
             )
 
-        return create_model(model_name, **model_fields)
+        class ModelConfig:
+            arbitrary_types_allowed = True
+
+        return create_model(model_name, __config__=ModelConfig, **model_fields)
 
     return create_model_from_schema(schema, title, definitions)
 
