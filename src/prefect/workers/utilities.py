@@ -45,7 +45,7 @@ async def get_default_base_job_template_for_infrastructure_type(
     async with get_collections_metadata_client() as collections_client:
         try:
             worker_metadata = await collections_client.read_worker_metadata()
-
+            print(f"Worker metadata: {worker_metadata}")
             for collection in worker_metadata.values():
                 for worker in collection.values():
                     if worker.get("type") == infra_type:
