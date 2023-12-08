@@ -371,8 +371,9 @@ class KubernetesJob(Infrastructure):
         base_job_template = await get_default_base_job_template_for_infrastructure_type(
             self.get_corresponding_worker_type()
         )
-        if base_job_template is None:
-            return super().generate_work_pool_base_job_template()
+        assert (
+            base_job_template is not None
+        ), "Failed to retrieve default base job template."
         for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
             if key == "command":
                 base_job_template["variables"]["properties"]["command"]["default"] = (
