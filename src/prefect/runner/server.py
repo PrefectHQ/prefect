@@ -128,12 +128,15 @@ async def _make_run_deployment_endpoint(
 
     Model.__config__.arbitrary_types_allowed = True
 
-    async def _create_flow_run_for_deployment(m: Model):  # type: ignore
+    async def _create_flow_run_for_deployment(m: Model) -> JSONResponse:
         async with get_client() as client:
             await client.create_flow_run_from_deployment(
                 deployment_id=deployment.id,
                 parameters=m.dict(),
             )
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED, content={"message": "OK"}
+        )
 
     return _create_flow_run_for_deployment
 
