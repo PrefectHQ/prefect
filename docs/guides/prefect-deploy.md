@@ -267,6 +267,9 @@ Use the tabs below to explore both deployment creation options.
 
     See all the optional keyword arguments for the DeploymentImage class [here](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build). 
 
+    !!! tip "Default Docker registry URL"
+        You can use the `PREFECT_DEFAULT_DOCKER_REGISTRY_URL` setting to set a default Docker registry to append to all images you build with `.deploy`. This is great if you use a registry other than Docker Hub to store your images.
+
     While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
     ### Store you code in git-based cloud storage 
