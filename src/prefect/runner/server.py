@@ -67,11 +67,19 @@ def shutdown(runner) -> int:
 
 
 async def __run_deployment(deployment: "Deployment"):
-    async def _create_flow_run_for_deployment(body: t.Dict[t.Any, t.Any]):  # type: ignore
+    # Note that this input body type can only be generic since FastAPI's validation
+    # happens in python code and we only have JSONSchema. We might be able to do
+    # JSONSchema validation against the input
+    async def _create_flow_run_for_deployment(
+        body: t.Dict[t.Any, t.Any]
+    ) -> JSONResponse:
         async with get_client() as client:
             await client.create_flow_run_from_deployment(
                 deployment_id=deployment.id, parameters=body
             )
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED, content={"message": "OK"}
+        )
 
     return _create_flow_run_for_deployment
 
@@ -130,9 +138,6 @@ def _inject_schemas_into_generated_openapi(webserver: FastAPI, schemas: t.Dict):
                 }
             }
         }
-        if "parameters" in remainder["post"]:
-            del remainder["post"]["parameters"]
-
         openapi_schema["paths"][path] = remainder
 
         # TODO: Need to add nested schemas somehwhere in components.schemas
