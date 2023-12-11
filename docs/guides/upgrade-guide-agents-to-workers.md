@@ -29,11 +29,11 @@ This guide provides an overview of the differences between agents and workers. I
 ### Work pools
 
 - Work pools allow greater customization and governance of infrastructure parameters for deployments via their [base job template](/concepts/work-pools/#base-job-template).
-- [Push work pools](/guides/deployment/push-work-pools/) enable flow execution in your environment without needing to host a worker.
+- Prefect Cloud [push work pools](/guides/deployment/push-work-pools/) enable flow execution in your environment without needing to host a worker.
 
 ### Improved deployment APIs
 
-- The new YAML-based and Python deployment APIs are more flexible and easier to use.
+- The new YAML-based and Python deployment APIs are more flexible and easier to use than block and agent-based deployments.
 - Both options allow you to [deploy multiple flows](/concepts/deployments/#working-with-multiple-deployments) with a single command.
 - Both options allow you to build Docker images for your flows to create portable execution environments.
 - The YAML-based API supports [templating](/concepts/deployments/#templating-options) to enable [dryer deployment definitions](/concepts/deployments/#reusing-configuration-across-deployments).
@@ -66,7 +66,7 @@ This guide provides an overview of the differences between agents and workers. I
 
 4. **Managing multiple deployments:**
 
-    Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#working-with-multiple-deployments) file or using the [`deploy`](/api-ref/prefect/deployments/runner/#prefect.deployments.runner.deploy) function.
+    Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#working-with-multiple-deployments) file or use the [`deploy`](/api-ref/prefect/deployments/runner/#prefect.deployments.runner.deploy) function.
 
 ## What's similar
 
@@ -146,7 +146,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         If you aren't using any blocks:
 
-        ```
+        ```python
             from prefect import flow
 
             @flow(log_prints=True)
@@ -179,11 +179,11 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         This will start a process that will serve your flow and execute any flow runs that are scheduled to start.
 
-        <h4>Deploying using a storage block</h4>
+        #### Deploying using a storage block 
 
         If you currently use a storage block to load your flow code but no infrastructure block:
 
-        ```
+        ```python
             from prefect import flow
             from prefect.storage import GitHub
 
@@ -202,7 +202,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
          you can use `flow.from_source` to load your flow from the same location and `flow.serve` to create a deployment:
 
-        ```
+        ```python
             from prefect import flow
             from prefect.storage import GitHub
 
