@@ -1,3 +1,4 @@
+from copy import deepcopy
 from logging import getLogger
 from typing import Any, Dict, List, Optional
 
@@ -35,14 +36,13 @@ async def get_default_base_job_template_for_infrastructure_type(
     # from the local type registry first.
     worker_cls = BaseWorker.get_worker_class_from_type(infra_type)
     if worker_cls is not None:
-        return worker_cls.get_default_base_job_template()
+        return deepcopy(worker_cls.get_default_base_job_template())
 
     # If the worker type is not found in the local type registry, attempt to
     # get the default base job template from the collections registry.
     async with get_collections_metadata_client() as collections_client:
         try:
             worker_metadata = await collections_client.read_worker_metadata()
-
             for collection in worker_metadata.values():
                 for worker in collection.values():
                     if worker.get("type") == infra_type:
