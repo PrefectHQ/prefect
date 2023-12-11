@@ -1426,9 +1426,9 @@ PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
     default=None,
 )
 """
-The Default docker namespace to use when building images.
+The default Docker namespace to use when building images.
 
-Can be either a organization/username or a registry URL with an organization/username.
+Can be either an organization/username or a registry URL with an organization/username.
 """
 
 # Deprecated settings ------------------------------------------------------------------

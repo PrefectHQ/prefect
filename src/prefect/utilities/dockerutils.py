@@ -511,7 +511,7 @@ def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
     Splits a Docker repository path into its namespace and repository components.
 
     Args:
-        repository_pat: The Docker repository path to split.
+        repository_path: The Docker repository path to split.
 
     Returns:
         Tuple[Optional[str], str]: A tuple containing the namespace and repository components.

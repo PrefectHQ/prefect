@@ -656,8 +656,12 @@ class DeploymentImage:
                 " provided as tags."
             )
         namespace, repository = split_repository_path(image_name)
-        if not namespace and PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE:
+        # if the provided image name does not include a namespace (registry URL or user/org name),
+        # use the default namespace
+        if not namespace:
             namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
+        # join the namespace and repository to create the full image name
+        # ignore namespace if it is None
         self.name = "/".join(filter(None, [namespace, repository]))
         self.tag = tag or image_tag or slugify(pendulum.now("utc").isoformat())
         self.dockerfile = dockerfile
