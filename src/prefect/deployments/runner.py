@@ -44,7 +44,11 @@ from rich.table import Table
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage
-from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME, PREFECT_UI_URL
+from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_REGISTRY_URL,
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+)
 from prefect.utilities.collections import get_from_dict
 
 if HAS_PYDANTIC_V2:
@@ -69,7 +73,9 @@ from prefect.utilities.dockerutils import (
     build_image,
     docker_client,
     generate_default_dockerfile,
+    join_repository_path,
     parse_image_tag,
+    split_repository_path,
 )
 from prefect.utilities.slugify import slugify
 
@@ -650,7 +656,10 @@ class DeploymentImage:
                 f"Only one tag can be provided - both {image_tag!r} and {tag!r} were"
                 " provided as tags."
             )
-        self.name = image_name
+        registry, organization, repository = split_repository_path(image_name)
+        if not registry and PREFECT_DEFAULT_DOCKER_REGISTRY_URL:
+            registry = PREFECT_DEFAULT_DOCKER_REGISTRY_URL.value()
+        self.name = join_repository_path(repository, organization, registry)
         self.tag = tag or image_tag or slugify(pendulum.now("utc").isoformat())
         self.dockerfile = dockerfile
         self.build_kwargs = build_kwargs

@@ -773,12 +773,6 @@ PREFECT_LOCAL_STORAGE_PATH = Setting(
 )
 """The path to a block storage directory to store things in."""
 
-PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    str,
-    default=None,
-)
-"""The `block-type/block-document` slug of a block to use as the default result storage."""
-
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "memo_store.toml",
@@ -1416,9 +1410,23 @@ Whether or not to warn when the experimental workspace dashboard is enabled.
 
 # Defaults -----------------------------------------------------------------------------
 
+PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
+    str,
+    default=None,
+)
+"""The `block-type/block-document` slug of a block to use as the default result storage."""
+
 PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
 """
 The default work pool to deploy to.
+"""
+
+PREFECT_DEFAULT_DOCKER_REGISTRY_URL = Setting(
+    str,
+    default=None,
+)
+"""
+The Default docker registry URL to use when pushing images.
 """
 
 # Deprecated settings ------------------------------------------------------------------

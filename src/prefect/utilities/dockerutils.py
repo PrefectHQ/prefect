@@ -506,6 +506,67 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     return image_name, tag
 
 
+def split_repository_path(
+    repository_path: str,
+) -> Tuple[Optional[str], Optional[str], str]:
+    """
+    Splits a Docker repository path into its registry, organization, and repository components.
+
+    Args:
+        repository_path (str): The Docker repository path to split.
+
+    Returns:
+        Tuple[Optional[str], Optional[str], str]: A tuple containing the registry, organization, and repository components.
+            - registry (Optional[str]): The Docker registry. None if not present.
+            - organization (Optional[str]): The organization or username. None if not present.
+            - repository (str): The repository name.
+    """
+    registry = None
+    organization = None
+
+    # Split the image name by '/', starting from the right
+    parts = repository_path.rsplit("/", 2)
+
+    # Determine the number of parts
+    if len(parts) == 3:
+        registry, organization, repository = parts
+    elif len(parts) == 2:
+        # Check if the first part is a registry or organization
+        if "." in parts[0] or ":" in parts[0]:
+            registry, repository = parts
+        else:
+            organization, repository = parts
+    else:
+        repository = parts[0]
+
+    return registry, organization, repository
+
+
+def join_repository_path(
+    repository: str, organization: Optional[str] = None, registry: Optional[str] = None
+):
+    """
+    Join a Docker repository path with optional organization and registry.
+
+    Args:
+        repository: The name of the repository.
+        organization: The name of the organization. Defaults to None.
+        registry: The name of the registry. Defaults to None.
+
+    Returns:
+        str: The joined repository path.
+    """
+    if organization:
+        org_repo = f"{organization}/{repository}"
+    else:
+        org_repo = repository
+
+    if registry:
+        return f"{registry}/{org_repo}"
+    else:
+        return org_repo
+
+
 def format_outlier_version_name(version: str):
     """
     Formats outlier docker version names to pass `packaging.version.parse` validation
