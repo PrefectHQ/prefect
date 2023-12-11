@@ -3,7 +3,7 @@ import uuid
 
 import pendulum
 import uvicorn
-from prefect._vendor.fastapi import APIRouter, FastAPI, status
+from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect._vendor.fastapi.responses import JSONResponse
 
@@ -17,6 +17,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_PORT,
 )
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.validation import validate_values_conform_to_schema
 
 if t.TYPE_CHECKING:
     from prefect.deployments import Deployment
@@ -67,12 +68,20 @@ def shutdown(runner) -> int:
 
 
 async def __run_deployment(deployment: "Deployment"):
-    # Note that this input body type can only be generic since FastAPI's validation
-    # happens in python code and we only have JSONSchema. We might be able to do
-    # JSONSchema validation against the input
     async def _create_flow_run_for_deployment(
         body: t.Dict[t.Any, t.Any]
     ) -> JSONResponse:
+        if deployment.enforce_parameter_schema and deployment.parameter_openapi_schema:
+            try:
+                validate_values_conform_to_schema(
+                    body, deployment.parameter_openapi_schema
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error creating flow run: {exc}",
+                )
+
         async with get_client() as client:
             await client.create_flow_run_from_deployment(
                 deployment_id=deployment.id, parameters=body
