@@ -267,18 +267,20 @@ Use the tabs below to explore both deployment creation options.
 
     See all the optional keyword arguments for the DeploymentImage class [here](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build). 
 
-    !!! tip "Default Docker registry URL"
+    !!! tip "Default Docker namespace"
         You can use the `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to set a default Docker namespace to append to all images you build with `.deploy`. This is great if you use a private registry to store your images.
 
         To set a default Docker namespace for your current profile run:
 
+        <div class="terminal">
         ```bash
         prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
         ```
+        </div>
 
         Once set, you can omit the namespace from your image name when creating a deployment:
 
-        ```python hl_lines="6" title="default_namespace.py"
+        ```python hl_lines="5" title="with_default_docker_namespace.py"
         if __name__ == "__main__":
             buy.deploy(
                 name="my-code-baked-into-an-image-deployment", 
