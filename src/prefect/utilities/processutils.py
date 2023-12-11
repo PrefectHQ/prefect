@@ -6,7 +6,6 @@ import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
-from io import TextIOBase
 from typing import (
     IO,
     Any,
@@ -299,7 +298,11 @@ async def consume_process_output(
 
 async def stream_text(source: TextReceiveStream, *sinks: TextSink):
     wrapped_sinks = [
-        anyio.wrap_file(sink) if isinstance(sink, TextIOBase) else sink
+        (
+            anyio.wrap_file(sink)
+            if hasattr(sink, "write") and hasattr(sink, "flush")
+            else sink
+        )
         for sink in sinks
     ]
     async for item in source:
