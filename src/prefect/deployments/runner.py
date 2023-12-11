@@ -45,7 +45,7 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
-    PREFECT_DEFAULT_DOCKER_NAMESPACE,
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
@@ -656,8 +656,8 @@ class DeploymentImage:
                 " provided as tags."
             )
         namespace, repository = split_repository_path(image_name)
-        if not namespace and PREFECT_DEFAULT_DOCKER_NAMESPACE:
-            namespace = PREFECT_DEFAULT_DOCKER_NAMESPACE.value()
+        if not namespace and PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE:
+            namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
         self.name = "/".join(filter(None, [namespace, repository]))
         self.tag = tag or image_tag or slugify(pendulum.now("utc").isoformat())
         self.dockerfile = dockerfile

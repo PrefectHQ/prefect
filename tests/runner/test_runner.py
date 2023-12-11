@@ -32,7 +32,7 @@ from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check
 from prefect.settings import (
-    PREFECT_DEFAULT_DOCKER_NAMESPACE,
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
@@ -1600,14 +1600,14 @@ class TestDeploy:
 class TestDeploymentImage:
     def test_adds_default_registry_url(self):
         with temporary_settings(
-            {PREFECT_DEFAULT_DOCKER_NAMESPACE: "alltheimages.com/my-org"}
+            {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
         ):
             image = DeploymentImage(name="test-image")
             assert image.name == "alltheimages.com/my-org/test-image"
 
     def test_override_default_registry_url(self):
         with temporary_settings(
-            {PREFECT_DEFAULT_DOCKER_NAMESPACE: "alltheimages.com/my-org"}
+            {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
         ):
             image = DeploymentImage(name="otherimages.com/my-org/test-image")
             assert image.name == "otherimages.com/my-org/test-image"

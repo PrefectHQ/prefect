@@ -1421,12 +1421,12 @@ PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
 The default work pool to deploy to.
 """
 
-PREFECT_DEFAULT_DOCKER_NAMESPACE = Setting(
+PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
     str,
     default=None,
 )
 """
-The Default docker namespace to use when pushing images.
+The Default docker namespace to use when building images.
 
 Can be either a organization/username or a registry URL with an organization/username.
 """
