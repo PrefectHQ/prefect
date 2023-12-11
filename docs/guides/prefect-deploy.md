@@ -276,6 +276,19 @@ Use the tabs below to explore both deployment creation options.
         prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
         ```
 
+        Once set, you can omit the namespace from your image name when creating a deployment:
+
+        ```python hl_lines="6" title="default_namespace.py"
+        if __name__ == "__main__":
+            buy.deploy(
+                name="my-code-baked-into-an-image-deployment", 
+                work_pool_name="my-docker-pool", 
+                image="my_image:my_image_tag"
+            )
+        ```
+
+        The above code will build an image with the format `<docker-registry-url>/<organization-or-username>/my_image:my_image_tag` when `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
+
     While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
     ### Store you code in git-based cloud storage 
