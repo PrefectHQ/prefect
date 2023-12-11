@@ -6,7 +6,6 @@ from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect._vendor.fastapi.responses import JSONResponse
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -21,12 +20,6 @@ from prefect.utilities.validation import validate_values_conform_to_schema
 if t.TYPE_CHECKING:
     from prefect.deployments import Deployment
     from prefect.runner import Runner
-
-
-if HAS_PYDANTIC_V2:
-    pass
-else:
-    pass
 
 
 def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
