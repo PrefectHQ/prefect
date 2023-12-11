@@ -48,6 +48,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
 | [Serverless Push Work Pools](/guides/deployment/push-work-pools/) | Run flows on serverless infrastructure without a worker. |
 | [Serverless Work Pools with Workers](/guides/deployment/serverless-workers/) | Run flows on serverless infrastructure with a worker. |
+| [Automatic infrastructure provisioning](/guides/deployment/auto-infra/) | Automatically provision cloud infrastructure. |
 | [Daemonize Processes](/guides/deployment/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
 
