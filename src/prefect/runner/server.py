@@ -1,5 +1,4 @@
 import typing as t
-import uuid
 
 import pendulum
 import uvicorn
@@ -123,51 +122,49 @@ def _inject_schemas_into_generated_openapi(
         title="FastAPI Prefect Runner", version="2.5.0", routes=webserver.routes
     )
 
-    # Flatten schemas and update the components/schemas section
-    schema_components = openapi_schema.setdefault("components", {}).setdefault(
-        "schemas", {}
-    )
-    _flatten_schemas(schemas, schema_components)
+    # Update the components/schemas with definitions from the deployment schemas
+    _merge_definitions_into_components(schemas, openapi_schema)
 
-    # Update the paths to reference the flattened schemas
-    _update_paths_with_refs(openapi_schema, schema_components)
+    # Update the paths with correct references based on the components
+    _update_paths_with_correct_refs(openapi_schema)
 
     return openapi_schema
 
 
-def _flatten_schemas(
-    input_schemas: t.Dict[str, t.Any], output_schemas: t.Dict[str, t.Any]
+def _merge_definitions_into_components(
+    input_schemas: t.Dict[str, t.Any], openapi_schema: t.Dict[str, t.Any]
 ) -> None:
-    for name, schema in input_schemas.items():
-        # Merge the schema definitions into the output_schemas
+    components_schemas = openapi_schema.setdefault("components", {}).setdefault(
+        "schemas", {}
+    )
+    for schema in input_schemas.values():
         if "definitions" in schema:
-            output_schemas.update(schema["definitions"])
+            for def_name, def_value in schema["definitions"].items():
+                # Recursively update all $ref in the schema definition
+                _recursively_update_refs(def_value, "#/components/schemas/")
+                components_schemas[def_name] = def_value
 
 
-def _update_paths_with_refs(
-    openapi_schema: t.Dict[str, t.Any], schema_components: t.Dict[str, t.Any]
-) -> None:
-    for path, path_item in openapi_schema.get("paths", {}).items():
-        if path.startswith("/deployment"):
-            deployment_id_str = path.split("/")[2]
-            try:
-                deployment_id = uuid.UUID(deployment_id_str)
-                deployment_name = schema_components.get(str(deployment_id))
-                if deployment_name:
-                    _update_path_item_with_ref(path_item, deployment_name)
-            except (ValueError, IndexError):
-                # Handle invalid UUID or path format
-                continue
+def _recursively_update_refs(item: t.Any, new_ref_base: str) -> None:
+    if isinstance(item, dict):
+        if "$ref" in item:
+            item["$ref"] = item["$ref"].replace("#/definitions/", new_ref_base)
+        for value in item.values():
+            _recursively_update_refs(value, new_ref_base)
+    elif isinstance(item, list):
+        for i in item:
+            _recursively_update_refs(i, new_ref_base)
 
 
-def _update_path_item_with_ref(
-    path_item: t.Dict[str, t.Any], deployment_name: str
-) -> None:
-    for method in path_item.values():
-        if "requestBody" in method:
-            method["requestBody"]["content"]["application/json"]["schema"] = {
-                "$ref": f"#/components/schemas/{deployment_name}"
-            }
+def _update_paths_with_correct_refs(openapi_schema: t.Dict[str, t.Any]) -> None:
+    for path_item in openapi_schema.get("paths", {}).values():
+        for method in path_item.values():
+            if "requestBody" in method:
+                content = (
+                    method["requestBody"].get("content", {}).get("application/json", {})
+                )
+                if "schema" in content:
+                    _recursively_update_refs(content["schema"], "#/components/schemas/")
 
 
 def start_webserver(

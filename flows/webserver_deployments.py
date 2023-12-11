@@ -26,13 +26,13 @@ class B(pydantic.BaseModel):
 
 
 class C(pydantic.BaseModel):
-    a: A = pydantic.Field(default_factory=A)
+    b: B = pydantic.Field(default_factory=B)
 
 
 @flow(log_prints=True)
-def my_flow(x: int, y: int = 1, z: str = "hello", a: A = A()) -> int:
+def my_flow(x: int, y: int = 1, z: str = "hello", a: A = A(), b: B = B(), c: C = C()):
     print(f"{python_version()=}", f"{pydantic.__version__=}", f"{__version__}")
-    print(x, y, z, a)
+    print(x, y, z, a, b, c)
     return x + y
 
 
