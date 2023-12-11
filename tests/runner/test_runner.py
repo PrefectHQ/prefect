@@ -748,6 +748,7 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
+        assert deployment.is_schedule_active is None
         assert deployment.enforce_parameter_schema
 
     def test_from_flow_accepts_interval(self):
@@ -768,6 +769,13 @@ class TestRunnerDeployment:
         )
 
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
+
+    def test_from_flow_accepts_is_schedule_active(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, is_schedule_active=False
+        )
+
+        assert deployment.is_schedule_active is False
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -871,6 +879,13 @@ class TestRunnerDeployment:
 
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
 
+    def test_from_entrypoint_accepts_is_schedule_active(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, is_schedule_active=False
+        )
+
+        assert deployment.is_schedule_active is False
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -922,6 +937,7 @@ class TestRunnerDeployment:
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema is False
         assert deployment.infra_overrides == {}
+        assert deployment.is_schedule_active is True
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
@@ -941,6 +957,17 @@ class TestRunnerDeployment:
             "image": "my-repo/my-image:latest",
         }
         assert deployment.work_queue_name == "default"
+
+    async def test_apply_inactive_schedule(self, prefect_client: PrefectClient):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, is_schedule_active=False
+        )
+
+        deployment_id = await deployment.apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.is_schedule_active is False
 
     @pytest.mark.parametrize(
         "from_flow_kwargs, apply_kwargs, expected_message",

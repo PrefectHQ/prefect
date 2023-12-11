@@ -3304,6 +3304,7 @@ class TestFlowServe:
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
+            is_schedule_active=False,
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -3318,6 +3319,7 @@ class TestFlowServe:
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
+        assert not deployment.is_schedule_active
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)
@@ -3547,6 +3549,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             enforce_parameter_schema=True,
+            is_schedule_active=False,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3565,6 +3568,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             print_next_steps_message=False,
+            is_schedule_active=False,
         )
 
         console_output = capsys.readouterr().out
@@ -3592,6 +3596,7 @@ class TestFlowDeploy:
             image=image,
             push=False,
             enforce_parameter_schema=True,
+            is_schedule_active=False,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3610,6 +3615,7 @@ class TestFlowDeploy:
             build=True,
             push=False,
             print_next_steps_message=False,
+            is_schedule_active=False,
         )
 
     async def test_deploy_non_existent_work_pool(
