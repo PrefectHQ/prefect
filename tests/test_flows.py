@@ -3562,13 +3562,13 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
+                is_schedule_active=False,
             ),
             work_pool_name=work_pool.name,
             image=image,
             build=False,
             push=False,
             print_next_steps_message=False,
-            is_schedule_active=False,
         )
 
         console_output = capsys.readouterr().out
@@ -3609,13 +3609,13 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
+                is_schedule_active=False,
             ),
             work_pool_name=work_pool.name,
             image=image,
             build=True,
             push=False,
             print_next_steps_message=False,
-            is_schedule_active=False,
         )
 
     async def test_deploy_non_existent_work_pool(
