@@ -116,42 +116,58 @@ async def get_deployment_router(
     return router, schemas
 
 
-def _inject_schemas_into_generated_openapi(webserver: FastAPI, schemas: t.Dict):
+def _inject_schemas_into_generated_openapi(
+    webserver: FastAPI, schemas: t.Dict[str, t.Any]
+) -> t.Dict[str, t.Any]:
     openapi_schema = get_openapi(
         title="FastAPI Prefect Runner", version="2.5.0", routes=webserver.routes
     )
 
-    # Place the deployment schema into the schema references
-    for name, schema in schemas.items():
-        try:
-            if isinstance(name, str):
-                uuid.UUID(name)
-        except ValueError:
-            pass
-        else:
-            continue
+    # Flatten schemas and update the components/schemas section
+    schema_components = openapi_schema.setdefault("components", {}).setdefault(
+        "schemas", {}
+    )
+    _flatten_schemas(schemas, schema_components)
 
-        openapi_schema["components"]["schemas"][name] = schema
-
-    # Update the route schema to reference the deployment schema
-    for path, remainder in openapi_schema["paths"].items():
-        if not path.startswith("/deployment"):
-            continue
-
-        deployment_id = uuid.UUID(path.split("/")[2])
-        deployment_name = schemas[deployment_id]
-        remainder["post"]["requestBody"] = {
-            "content": {
-                "application/json": {
-                    "schema": {"$ref": f"#/components/schemas/{deployment_name}"}
-                }
-            }
-        }
-        openapi_schema["paths"][path] = remainder
-
-        # TODO: Need to add nested schemas somehwhere in components.schemas
+    # Update the paths to reference the flattened schemas
+    _update_paths_with_refs(openapi_schema, schema_components)
 
     return openapi_schema
+
+
+def _flatten_schemas(
+    input_schemas: t.Dict[str, t.Any], output_schemas: t.Dict[str, t.Any]
+) -> None:
+    for name, schema in input_schemas.items():
+        # Merge the schema definitions into the output_schemas
+        if "definitions" in schema:
+            output_schemas.update(schema["definitions"])
+
+
+def _update_paths_with_refs(
+    openapi_schema: t.Dict[str, t.Any], schema_components: t.Dict[str, t.Any]
+) -> None:
+    for path, path_item in openapi_schema.get("paths", {}).items():
+        if path.startswith("/deployment"):
+            deployment_id_str = path.split("/")[2]
+            try:
+                deployment_id = uuid.UUID(deployment_id_str)
+                deployment_name = schema_components.get(str(deployment_id))
+                if deployment_name:
+                    _update_path_item_with_ref(path_item, deployment_name)
+            except (ValueError, IndexError):
+                # Handle invalid UUID or path format
+                continue
+
+
+def _update_path_item_with_ref(
+    path_item: t.Dict[str, t.Any], deployment_name: str
+) -> None:
+    for method in path_item.values():
+        if "requestBody" in method:
+            method["requestBody"]["content"]["application/json"]["schema"] = {
+                "$ref": f"#/components/schemas/{deployment_name}"
+            }
 
 
 def start_webserver(
