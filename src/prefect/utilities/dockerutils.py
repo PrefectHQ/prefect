@@ -506,65 +506,35 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     return image_name, tag
 
 
-def split_repository_path(
-    repository_path: str,
-) -> Tuple[Optional[str], Optional[str], str]:
+def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
     """
-    Splits a Docker repository path into its registry, organization, and repository components.
+    Splits a Docker repository path into its namespace and repository components.
 
     Args:
-        repository_path (str): The Docker repository path to split.
+        repository_pat: The Docker repository path to split.
 
     Returns:
-        Tuple[Optional[str], Optional[str], str]: A tuple containing the registry, organization, and repository components.
-            - registry (Optional[str]): The Docker registry. None if not present.
-            - organization (Optional[str]): The organization or username. None if not present.
-            - repository (str): The repository name.
+        Tuple[Optional[str], str]: A tuple containing the namespace and repository components.
+            - namespace (Optional[str]): The Docker namespace, combining the registry and organization. None if not present.
+            - repository (Optionals[str]): The repository name.
     """
-    registry = None
-    organization = None
+    parts = repository_path.split("/", 2)
 
-    # Split the image name by '/', starting from the right
-    parts = repository_path.rsplit("/", 2)
-
-    # Determine the number of parts
-    if len(parts) == 3:
-        registry, organization, repository = parts
+    # Check if the path includes a registry and organization or just organization/repository
+    if len(parts) == 3 or (len(parts) == 2 and ("." in parts[0] or ":" in parts[0])):
+        # Namespace includes registry and organization
+        namespace = "/".join(parts[:-1])
+        repository = parts[-1]
     elif len(parts) == 2:
-        # Check if the first part is a registry or organization
-        if "." in parts[0] or ":" in parts[0]:
-            registry, repository = parts
-        else:
-            organization, repository = parts
+        # Only organization/repository provided, so namespace is just the first part
+        namespace = parts[0]
+        repository = parts[1]
     else:
+        # No namespace provided
+        namespace = None
         repository = parts[0]
 
-    return registry, organization, repository
-
-
-def join_repository_path(
-    repository: str, organization: Optional[str] = None, registry: Optional[str] = None
-):
-    """
-    Join a Docker repository path with optional organization and registry.
-
-    Args:
-        repository: The name of the repository.
-        organization: The name of the organization. Defaults to None.
-        registry: The name of the registry. Defaults to None.
-
-    Returns:
-        str: The joined repository path.
-    """
-    if organization:
-        org_repo = f"{organization}/{repository}"
-    else:
-        org_repo = repository
-
-    if registry:
-        return f"{registry}/{org_repo}"
-    else:
-        return org_repo
+    return namespace, repository
 
 
 def format_outlier_version_name(version: str):

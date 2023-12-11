@@ -1421,12 +1421,14 @@ PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
 The default work pool to deploy to.
 """
 
-PREFECT_DEFAULT_DOCKER_REGISTRY_URL = Setting(
+PREFECT_DEFAULT_DOCKER_NAMESPACE = Setting(
     str,
     default=None,
 )
 """
-The Default docker registry URL to use when pushing images.
+The Default docker namespace to use when pushing images.
+
+Can be either a organization/username or a registry URL with an organization/username.
 """
 
 # Deprecated settings ------------------------------------------------------------------
