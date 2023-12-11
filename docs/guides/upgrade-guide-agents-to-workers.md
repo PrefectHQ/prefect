@@ -142,7 +142,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         Below are some examples of how to translate `Deployment.build_from_flow` to `flow.deploy`.
 
-        <h4>Deploying without any blocks</h4>
+        #### Deploying without any blocks
 
         If you aren't using any blocks:
 
@@ -218,7 +218,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         This will allow you to execute scheduled flow runs without starting a worker. Additionally, the process serving your flow will regularly check for updates to your flow code and automatically update the flow if it detects any changes to the code.
 
-        <h4>Deploying using an infrastructure and storage block</h4>
+        #### Deploying using an infrastructure and storage block
 
         For the code below, we'll need to create a work pool from our infrastructure block and pass it to `flow.deploy` as the `work_pool_name` argument. We'll also need to pass our storage block to `flow.from_source` as the `source` argument.
 
@@ -266,7 +266,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         Note that when using `flow.from_source(...).deploy(...)`, the flow you're deploying does not need to be available locally before running your script.
 
-        <h4>Deploying via a Docker image</h4>
+       #### Deploying via a Docker image
 
         If you currently bake your flow code into a Docker image before deploying, you can use the `image` argument of `flow.deploy` to build a Docker image as part of your deployment process:
 
