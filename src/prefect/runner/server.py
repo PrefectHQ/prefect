@@ -1,4 +1,3 @@
-import inspect
 import typing as t
 import uuid
 
@@ -7,11 +6,9 @@ import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, status
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect._vendor.fastapi.responses import JSONResponse
-from pydantic import BaseModel, create_model
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
-from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_SERVER_HOST,
@@ -27,13 +24,9 @@ if t.TYPE_CHECKING:
 
 
 if HAS_PYDANTIC_V2:
-    from prefect._internal.pydantic.v2_schema import (
-        create_v2_schema,
-        has_v2_model_as_param,
-        process_v2_params,
-    )
+    pass
 else:
-    from prefect.utilities.callables import create_v1_schema, process_v1_params
+    pass
 
 
 def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
@@ -73,52 +66,11 @@ def shutdown(runner) -> int:
     return _shutdown
 
 
-def _model_for_function(fn: t.Callable) -> t.Type[BaseModel]:
-    signature = inspect.signature(fn)
-    model_fields = {}
-    docstrings = fn.__doc__ or {}
-    aliases = {}
-
-    class ModelConfig:
-        arbitrary_types_allowed = True
-
-    if HAS_PYDANTIC_V2 and has_v2_model_as_param(signature):
-        create_schema = create_v2_schema
-        process_params = process_v2_params
-    else:
-        create_schema = create_v1_schema
-        process_params = process_v1_params
-
-    for position, param in enumerate(signature.parameters.values()):
-        name, type_, field = process_params(
-            param, position=position, docstrings=docstrings, aliases=aliases
-        )
-        # Generate a Pydantic model at each step so we can check if this parameter
-        # type supports schema generation
-        try:
-            create_schema(
-                "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
-            )
-        except ValueError:
-            # This field's type is not valid for schema creation, update it to `Any`
-            type_ = t.Any
-        model_fields[name] = (type_, field)
-    return create_model(
-        f"{fn.__name__.title()}FunctionModel", __config__=ModelConfig, **model_fields
-    )
-
-
 async def __run_deployment(deployment: "Deployment"):
-    assert deployment.entrypoint is not None
-    _flow = load_flow_from_entrypoint(deployment.entrypoint)
-
-    # Model: t.Type[BaseModel] = _model_for_function(_flow.fn)
-
-    async def _create_flow_run_for_deployment(m):  # type: ignore
+    async def _create_flow_run_for_deployment(body: t.Dict[t.Any, t.Any]):  # type: ignore
         async with get_client() as client:
             await client.create_flow_run_from_deployment(
-                deployment_id=deployment.id,
-                parameters=m.dict(),
+                deployment_id=deployment.id, parameters=body
             )
 
     return _create_flow_run_for_deployment
@@ -171,20 +123,17 @@ def _inject_schemas_into_generated_openapi(webserver: FastAPI, schemas: t.Dict):
 
         deployment_id = uuid.UUID(path.split("/")[2])
         deployment_name = schemas[deployment_id]
-        path_body = {
-            "post": {
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": f"#/components/schemas/{deployment_name}"
-                            }
-                        }
-                    }
+        remainder["post"]["requestBody"] = {
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": f"#/components/schemas/{deployment_name}"}
                 }
             }
         }
-        openapi_schema["paths"][path] = path_body
+        if "parameters" in remainder["post"]:
+            del remainder["post"]["parameters"]
+
+        openapi_schema["paths"][path] = remainder
 
         # TODO: Need to add nested schemas somehwhere in components.schemas
 
