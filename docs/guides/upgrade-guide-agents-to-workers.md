@@ -13,7 +13,7 @@ search:
 
 Upgrading from agents to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment.
 
-A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure and they specify the default configuration for jobs submitted to that infrastructure.
+A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure, and they specify the default configuration for jobs submitted to that infrastructure.
 
 Accordingly, workers are not a drop-in replacement for agents. **Using workers requires deploying flows differently.** In particular, deploying a flow with a worker does not involve specifying an infrastructure block. Instead, infrastructure configuration is specified on the [work pool](/concepts/work-pools/) and passed to each worker that polls work from that pool.
 
@@ -71,8 +71,8 @@ This guide provides an overview of the differences between agents and workers. I
 ## What's similar
 
 - Storage blocks can be set as the pull action in a `prefect.yaml` file.
-- Infrastructure blocks have similar configuration fields as typed work pools.
-- Deployment-level infra-overrides operate in much the same way.
+- Infrastructure blocks have configuration fields similar to typed work pools.
+- Deployment-level infrastructure overrides operate in much the same way.
 
     `infra_override` -> [`job_variable`](/concepts/deployments/#work-pool-fields)
 
@@ -104,7 +104,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     Running this script will create a work pool named 'my-k8s-job' with the same configuration as your infrastructure block.
 
     !!! Tip "Serving flows"
-        If you are using a `Process` infrastructure block and a `LocalFilesystem` storage block (or aren't using a infrastructure and storage block at all), you can use [`flow.serve`](/api-ref/prefect/flows/#prefect.flows.Flow.deploy) to create a deployment without needing to specify a work pool name or start a worker. 
+        If you are using a `Process` infrastructure block and a `LocalFilesystem` storage block (or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/api-ref/prefect/flows/#prefect.flows.Flow.deploy) to create a deployment without needing to specify a work pool name or start a worker. 
         
         This is a quick way to create a deployment for a flow and is a great way to manage your deployments if you don't need dynamic infrastructure creation or configuration offered by workers.
 
@@ -135,10 +135,10 @@ If you have existing deployments that use infrastructure blocks, you can quickly
         Most arguments to `Deployment.build_from_flow` can be translated directly to `flow.deploy`, but here are some changes that you may need to make:
         
         - Replace `infrastructure` with `work_pool_name`. 
-            - If you've used the `.publish_as_work_pool` method on your infrastructure block, you can use the name created work pool.
+            - If you've used the `.publish_as_work_pool` method on your infrastructure block, use the name of the created work pool.
         - Replace `infra_overrides` with `job_variables`.
         - Replace `storage` with a call to [`flow.from_source`](/api-ref/prefect/flows/#prefect.flows.Flow.deploy). 
-            - `flow.from_source` will load your flow from a remote storage location and make it available to deploy. Your existing storage block can be passed to the `source` argument of `flow.from_source`.
+            - `flow.from_source` will load your flow from a remote storage location and make it deployable. Your existing storage block can be passed to the `source` argument of `flow.from_source`.
 
         Below are some examples of how to translate `Deployment.build_from_flow` to `flow.deploy`.
 
@@ -181,7 +181,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         <h4>Deploying using a storage block</h4>
 
-        If you currently use a storage block to load your flow code, but no infrastructure block:
+        If you currently use a storage block to load your flow code but no infrastructure block:
 
         ```
             from prefect import flow
@@ -216,9 +216,9 @@ If you have existing deployments that use infrastructure blocks, you can quickly
                 )
         ```
 
-        This will allow you to execute scheduled flow runs without needing to start a worker. Additionally, the process serving your flow will regularly check for updates to your flow code and automatically update the flow if it detects any changes to the code.
+        This will allow you to execute scheduled flow runs without starting a worker. Additionally, the process serving your flow will regularly check for updates to your flow code and automatically update the flow if it detects any changes to the code.
 
-        <h4>Deploying using a infrastructure and storage block</h4>
+        <h4>Deploying using an infrastructure and storage block</h4>
 
         For the code below, we'll need to create a work pool from our infrastructure block and pass it to `flow.deploy` as the `work_pool_name` argument. We'll also need to pass our storage block to `flow.from_source` as the `source` argument.
 
@@ -268,7 +268,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         <h4>Deploying via a Docker image</h4>
 
-        If you currently bake your flow code into a Docker image prior to deploying, you can use the `image` argument of `flow.deploy` to build a Docker image as part of your deployment process:
+        If you currently bake your flow code into a Docker image before deploying, you can use the `image` argument of `flow.deploy` to build a Docker image as part of your deployment process:
 
         ```python
             from prefect import flow
@@ -293,15 +293,15 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     === "prefect deploy"
 
         !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
-            With agents you might have had multiple `deployment.yaml` files, but under worker deployment patterns, each repo will have a single `prefect.yaml` file located at the **root** of the repo that contains [deployment configuration](/concepts/deployments/#working-with-multiple-deployments) for all flows in that repo.
+            With agents, you might have had multiple `deployment.yaml` files, but under worker deployment patterns, each repo will have a single `prefect.yaml` file located at the **root** of the repo that contains [deployment configuration](/concepts/deployments/#working-with-multiple-deployments) for all flows in that repo.
 
         ```bash
-        prefect deploy
+        perfect deploy
         ```
 
-        !!! Note "For step 4, select `y` on last prompt to save the configuration for the deployment."
+        !!! Note "For step 4, select `y` on the last prompt to save the configuration for the deployment."
             Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments/#working-with-multiple-deployments) for this repo.
 
-        You can add more [deployments](/concepts/deployments/#deployment-declaration-reference) the `deployments` list in the `prefect.yaml` file and/or by continuing to use the deployment creation wizard.
+        You can add more [deployments](/concepts/deployments/#deployment-declaration-reference) to the `deployments` list in your `prefect.yaml` file and/or by continuing to use the deployment creation wizard.
 
 For more information, check out our [in-depth guide for deploying flows to work pools](/guides/prefect-deploy/).
