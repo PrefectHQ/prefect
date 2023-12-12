@@ -267,7 +267,7 @@ class CloudRunPushProvisioner:
                     },
                     {
                         "option": (
-                            "Customize names of service account and GCP credentials"
+                            "Customize resource names?"
                             " block"
                         )
                     },
