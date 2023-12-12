@@ -791,9 +791,7 @@ class TestSuspendFlowRun:
         # of the tasks.
         assert task_completions > 0 and task_completions < 20
 
-    async def test_suspend_can_wait_for_input(
-        self, deployment, session, prefect_client
-    ):
+    async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
         flow_run_id = None
 
         class FlowInput(RunInput):
@@ -805,14 +803,17 @@ class TestSuspendFlowRun:
             context = get_run_context()
             assert context.flow_run
 
-            from prefect.server.models.flow_runs import update_flow_run
+            if not context.flow_run.deployment_id:
+                # Ensure that the flow run has a deployment id so it's
+                # suspendable.
+                from prefect.server.models.flow_runs import update_flow_run
 
-            await update_flow_run(
-                session,
-                context.flow_run.id,
-                FlowRun.construct(deployment_id=deployment.id),
-            )
-            await session.commit()
+                await update_flow_run(
+                    session,
+                    context.flow_run.id,
+                    FlowRun.construct(deployment_id=deployment.id),
+                )
+                await session.commit()
 
             flow_run_id = context.flow_run.id
 
