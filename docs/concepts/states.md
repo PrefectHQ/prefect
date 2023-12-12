@@ -18,7 +18,8 @@ search:
 
 States are rich objects that contain information about the status of a particular [task](/concepts/tasks) run or [flow](/concepts/flows/) run. While you don't need to know the details of the states to use Prefect, you can give your workflows superpowers by taking advantage of it.
 
-At any moment, you can learn anything you need to know about a task or flow by examining its current state or the history of its states. For example, a state could tell you:
+At any moment, you can learn anything you need to know about a task or flow by examining its current state or the history of its states. For example, a state could tell you that a task:
+
 
 - that a task is scheduled to make a third run attempt in an hour
 - that a task succeeded and what data it produced
