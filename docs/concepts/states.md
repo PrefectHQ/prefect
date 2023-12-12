@@ -23,7 +23,8 @@ At any moment, you can learn anything you need to know about a task or flow by e
 
 - is scheduled to make a third run attempt in an hour
 
-- that a task succeeded and what data it produced
+- succeeded and what data it produced
+
 - was scheduled to run, but later cancelled
 
 - that a task used the cached result of a previous run instead of re-running
