@@ -17,6 +17,7 @@ from prefect.infrastructure.provisioners.ecs import (
     ClusterResource,
     CredentialsBlockResource,
     ElasticContainerServicePushProvisioner,
+    ExecutionRoleResource,
     IamPolicyResource,
     IamUserResource,
     VpcResource,
@@ -922,7 +923,7 @@ class TestElasticContainerServicePushProvisioner:
 
     @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
     async def test_provision(
-        self, provisioner, mock_confirm, prefect_client, mock_run_process
+        self, provisioner, mock_confirm, prefect_client, mock_run_process, capsys
     ):
         provisioner.console.is_interactive = True
         mock_confirm.ask.return_value = True
@@ -964,6 +965,9 @@ class TestElasticContainerServicePushProvisioner:
             "docker login -u AWS -p 123456789012-auth-token"
             " https://123456789012.dkr.ecr.us-east-1.amazonaws.com"
         )
+
+        captured = capsys.readouterr()
+        assert "Your default Docker build namespace has been set" in captured.out
 
     @pytest.mark.usefixtures(
         "register_block_types", "no_default_vpc", "mock_run_process"
@@ -1032,3 +1036,91 @@ def test_resolve_provisoner():
         get_infrastructure_provisioner_for_work_pool_type("ecs:push"),
         ElasticContainerServicePushProvisioner,
     )
+
+
+@pytest.fixture
+def execution_role_resource():
+    return ExecutionRoleResource(execution_role_name="PrefectEcsTaskExecutionRole")
+
+
+class TestExecutionRoleResource:
+    async def test_get_task_count_requires_provisioning(self, execution_role_resource):
+        count = await execution_role_resource.get_task_count()
+
+        assert count == 1
+
+    @pytest.mark.usefixtures("existing_execution_role")
+    async def test_get_task_count_does_not_require_provisioning(
+        self, execution_role_resource
+    ):
+        count = await execution_role_resource.get_task_count()
+
+        assert count == 0
+
+    async def test_requires_provisioning_true(self, execution_role_resource):
+        requires_provisioning = await execution_role_resource.requires_provisioning()
+
+        assert requires_provisioning is True
+
+    @pytest.mark.usefixtures("existing_execution_role")
+    async def test_requires_provisioning_false(self, execution_role_resource):
+        requires_provisioning = await execution_role_resource.requires_provisioning()
+
+        assert requires_provisioning is False
+
+    async def test_get_planned_actions_requires_provisioning(
+        self, execution_role_resource
+    ):
+        actions = await execution_role_resource.get_planned_actions()
+
+        assert actions == [
+            "Creating an IAM role assigned to ECS tasks:"
+            " [blue]PrefectEcsTaskExecutionRole[/]"
+        ]
+
+    @pytest.mark.usefixtures("existing_execution_role")
+    async def test_get_planned_actions_does_not_require_provisioning(
+        self, execution_role_resource
+    ):
+        actions = await execution_role_resource.get_planned_actions()
+
+        assert actions == []
+
+    async def test_provision_requires_provisioning(self, execution_role_resource):
+        advance_mock = MagicMock()
+
+        arn = await execution_role_resource.provision(
+            base_job_template={
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "execution_role_arn": {},
+                    },
+                }
+            },
+            advance=advance_mock,
+        )
+
+        assert arn == "arn:aws:iam::123456789012:role/PrefectEcsTaskExecutionRole"
+        advance_mock.assert_called_once()
+
+    @pytest.mark.usefixtures("existing_execution_role")
+    async def test_provision_does_not_require_provisioning(
+        self, execution_role_resource
+    ):
+        advance_mock = MagicMock()
+
+        arn = await execution_role_resource.provision(
+            base_job_template={
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "execution_role_arn": {},
+                    },
+                }
+            },
+            advance=advance_mock,
+        )
+
+        assert arn == "arn:aws:iam::123456789012:role/PrefectEcsTaskExecutionRole"
+        advance_mock.assert_not_called()
