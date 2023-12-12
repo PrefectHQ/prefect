@@ -915,14 +915,9 @@ class ContainerRepositoryResource:
             await run_process(f"docker login -u {user} -p {passwd} {proxy_endpoint}")
             advance()
             console.print("Setting default Docker build namespace")
-            update_current_profile(
-                {
-                    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: response["repository"][
-                        "repositoryUri"
-                    ]
-                }
-            )
-            self._update_next_steps(response["repository"]["repositoryUri"])
+            namespace = response["repository"]["repositoryUri"].split("/")[0]
+            update_current_profile({PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: namespace})
+            self._update_next_steps(namespace)
             advance()
 
     def _update_next_steps(self, repository_uri: str):
@@ -933,10 +928,10 @@ class ContainerRepositoryResource:
 
                     Your default Docker build namespace has been set to [blue]{repository_uri!r}[/].
 
-                    To build and push a Docker image to your newly created repository, use [blue]{self._repository_name!r}[/] and a tag as the image:
+                    To build and push a Docker image to your newly created repository, use [blue]{self._repository_name!r}[/] as your image name:
                     """
                 ),
-                (
+                Panel(
                     Syntax(
                         dedent(
                             f"""\
@@ -959,7 +954,10 @@ class ContainerRepositoryResource:
                                     )"""
                         ),
                         "python",
-                    )
+                        background_color="default",
+                    ),
+                    title="example_deploy_script.py",
+                    expand=False,
                 ),
             ]
         )
