@@ -18,7 +18,7 @@
     "axios": "1.6.2",
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.3.6",
-    "vue": "3.3.10",
+    "vue": "3.3.11",
     "vue-router": "4.2.5"
   },
   "devDependencies": {
@@ -27,9 +27,9 @@
     "autoprefixer": "10.4.16",
     "dotenv": "16.3.1",
     "eslint": "^8.55.0",
-    "ts-node": "10.9.1",
+    "ts-node": "10.9.2",
     "typescript": "^5.3.2",
     "vite": "5.0.7",
-    "vue-tsc": "^1.8.24"
+    "vue-tsc": "^1.8.25"
   }
 }
