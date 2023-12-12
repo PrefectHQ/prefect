@@ -22,6 +22,7 @@ else:
 
 import prefect.flows
 from prefect import engine, flow, task
+from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
@@ -52,6 +53,7 @@ from prefect.exceptions import (
     SignatureMismatchError,
 )
 from prefect.futures import PrefectFuture
+from prefect.input import RunInput, create_flow_run_input, read_flow_run_input
 from prefect.results import ResultFactory
 from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
@@ -149,6 +151,12 @@ async def get_flow_run_context(prefect_client, result_factory, local_filesystem)
 
 
 class TestBlockingPause:
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
     async def test_tasks_cannot_be_paused(self):
         @task
         async def the_little_task_that_pauses():
@@ -306,6 +314,56 @@ class TestBlockingPause:
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
         )
         assert len(task_runs) == 5, "all tasks should finish running"
+
+    async def test_paused_flows_can_receive_input(self, prefect_client):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            flow_input = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=FlowInput
+            )
+            return flow_input
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            await create_flow_run_input(
+                key=keyset["response"], value={"x": 42}, flow_run_id=flow_run_id
+            )
+            await resume_flow_run(flow_run_id)
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        flow_input = await flow_run_state.result()
+        assert isinstance(flow_input, FlowInput)
+        assert flow_input.x == 42
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
 
 
 class TestNonblockingPause:
@@ -481,6 +539,12 @@ class TestOutOfProcessPause:
             warnings.filterwarnings("ignore", category=DeprecationWarning)
             yield
 
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
     async def test_flows_can_be_paused_out_of_process(
         self, prefect_client, deployment, session
     ):
@@ -579,6 +643,15 @@ class TestOutOfProcessPause:
         assert state.state_details.pause_timeout == date
         assert state.state_details.pause_reschedule is False
         assert state.state_details.pause_key == "foo"
+
+    async def test_out_of_process_pause_cannot_wait_for_input(self):
+        class FlowInput(RunInput):
+            x: int
+
+        with pytest.raises(
+            RuntimeError, match="Cannot wait for input when pausing out of process."
+        ):
+            await pause_flow_run(flow_run_id=uuid4(), wait_for_input=FlowInput)
 
 
 class TestSuspendFlowRun:
@@ -717,6 +790,66 @@ class TestSuspendFlowRun:
         # Here then we check to ensure that some tasks completed but not _all_
         # of the tasks.
         assert task_completions > 0 and task_completions < 20
+
+    async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            if not context.flow_run.deployment_id:
+                # Ensure that the flow run has a deployment id so it's
+                # suspendable.
+                from prefect.server.models.flow_runs import update_flow_run
+
+                await update_flow_run(
+                    session,
+                    context.flow_run.id,
+                    FlowRun.construct(deployment_id=deployment.id),
+                )
+                await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            flow_input = await suspend_flow_run(wait_for_input=FlowInput)
+
+            return flow_input
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        assert flow_run_id
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        keyset = flow_run.state.state_details.run_input_keyset
+
+        schema = await read_flow_run_input(
+            key=keyset["schema"], flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+        await create_flow_run_input(
+            key=keyset["response"], value={"x": 42}, flow_run_id=flow_run_id
+        )
+
+        await resume_flow_run(flow_run_id)
+
+        state = await begin_flow_run(
+            flow=suspending_flow,
+            flow_run=flow_run,
+            parameters={},
+            client=prefect_client,
+            user_thread=threading.current_thread(),
+        )
+
+        flow_input = await state.result()
+        assert flow_input.x == 42
 
 
 class TestOrchestrateTaskRun:
