@@ -160,12 +160,9 @@ def _update_paths_with_correct_refs(openapi_schema: t.Dict[str, t.Any]) -> None:
                     _recursively_update_refs(content["schema"], "#/components/schemas/")
 
 
-def start_webserver(
-    runner: "Runner",
-    log_level: str = None,
-) -> None:
+async def build_server(runner: "Runner") -> FastAPI:
     """
-    Run a FastAPI server for a runner.
+    Build a FastAPI server for a runner.
 
     Args:
         runner (Runner): the runner this server interacts with and monitors
@@ -181,12 +178,8 @@ def start_webserver(
     router.add_api_route("/shutdown", shutdown(runner=runner), methods=["POST"])
     webserver.include_router(router)
 
-    deployments_router, deployment_schemas = get_deployment_router(runner)
+    deployments_router, deployment_schemas = await get_deployment_router(runner)
     webserver.include_router(deployments_router)
-
-    host = PREFECT_RUNNER_SERVER_HOST.value()
-    port = PREFECT_RUNNER_SERVER_PORT.value()
-    log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
 
     def customize_openapi():
         if webserver.openapi_schema:
@@ -199,4 +192,19 @@ def start_webserver(
         return webserver.openapi_schema
 
     webserver.openapi = customize_openapi
+    return webserver
+
+
+def start_webserver(runner: "Runner", log_level: t.Optional[str] = None) -> None:
+    """
+    Run a FastAPI server for a runner.
+
+    Args:
+        runner (Runner): the runner this server interacts with and monitors
+        log_level (str): the log level to use for the server
+    """
+    host = PREFECT_RUNNER_SERVER_HOST.value()
+    port = PREFECT_RUNNER_SERVER_PORT.value()
+    log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
+    webserver = build_server(runner, log_level)
     uvicorn.run(webserver, host=host, port=port, log_level=log_level)
