@@ -161,6 +161,7 @@ def _update_paths_with_correct_refs(openapi_schema: t.Dict[str, t.Any]) -> None:
                     _recursively_update_refs(content["schema"], "#/components/schemas/")
 
 
+@sync_compatible
 async def build_server(runner: "Runner") -> FastAPI:
     """
     Build a FastAPI server for a runner.
@@ -207,5 +208,5 @@ def start_webserver(runner: "Runner", log_level: t.Optional[str] = None) -> None
     host = PREFECT_RUNNER_SERVER_HOST.value()
     port = PREFECT_RUNNER_SERVER_PORT.value()
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
-    webserver = build_server(runner, log_level)
+    webserver = build_server(runner)
     uvicorn.run(webserver, host=host, port=port, log_level=log_level)
