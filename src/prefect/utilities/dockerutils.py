@@ -506,6 +506,37 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     return image_name, tag
 
 
+def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
+    """
+    Splits a Docker repository path into its namespace and repository components.
+
+    Args:
+        repository_path: The Docker repository path to split.
+
+    Returns:
+        Tuple[Optional[str], str]: A tuple containing the namespace and repository components.
+            - namespace (Optional[str]): The Docker namespace, combining the registry and organization. None if not present.
+            - repository (Optionals[str]): The repository name.
+    """
+    parts = repository_path.split("/", 2)
+
+    # Check if the path includes a registry and organization or just organization/repository
+    if len(parts) == 3 or (len(parts) == 2 and ("." in parts[0] or ":" in parts[0])):
+        # Namespace includes registry and organization
+        namespace = "/".join(parts[:-1])
+        repository = parts[-1]
+    elif len(parts) == 2:
+        # Only organization/repository provided, so namespace is just the first part
+        namespace = parts[0]
+        repository = parts[1]
+    else:
+        # No namespace provided
+        namespace = None
+        repository = parts[0]
+
+    return namespace, repository
+
+
 def format_outlier_version_name(version: str):
     """
     Formats outlier docker version names to pass `packaging.version.parse` validation
