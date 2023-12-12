@@ -212,7 +212,7 @@ class CloudRunPushProvisioner:
 
                         Updates in Prefect {"workspace" if client.server_type == ServerType.CLOUD else "server"}
 
-                            - Create GCP credentials block to store the service account key [blue]{self._credentials_block_name}[/]
+                            - Create GCP credentials block to store the service account key: [blue]{self._credentials_block_name}[/]
                 """
             ),
             expand=False,
