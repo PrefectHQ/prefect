@@ -540,12 +540,13 @@ class ContainerInstancePushProvisioner:
             dict: Object representing the registry.
         """
         # check to see if there are any registries starting with 'prefect'
-        command_check_name = (
-            f"az acr list --query \"[?starts_with(name, '{registry_name}')]\""
-            f" --subscription {subscription_id} --output json"
+        command_get_registries = (
+            'az acr list --query "[?starts_with(name,'
+            f" '{self.REGISTRY_NAME_PREFIX}')]\" --subscription"
+            f" {subscription_id} --output json"
         )
         response = await self.azure_cli.run_command(
-            command_check_name,
+            command_get_registries,
             return_json=True,
         )
 
@@ -553,8 +554,8 @@ class ContainerInstancePushProvisioner:
         if response:
             self._console.print(
                 (
-                    f"Registry '{registry_name}' already exists in subscription"
-                    f" '{subscription_id}'."
+                    f"Registry with prefix {self.REGISTRY_NAME_PREFIX!r} already exists"
+                    f" in subscription '{subscription_id}'."
                 ),
                 style="yellow",
             )
@@ -649,60 +650,17 @@ class ContainerInstancePushProvisioner:
                 ignore_if_exists=True,
             )
 
-    async def _create_container_instance(self) -> None:
-        """
-        Creates an Azure Container Instance using predefined settings.
-
-        Raises:
-            subprocess.CalledProcessError: If the Azure CLI command execution fails.
-        """
-        container_name = "prefect-aci-push-pool-container"
-
-        check_exists_command = (
-            "az container list --resource-group"
-            f" {self.RESOURCE_GROUP_NAME} --subscription"
-            f" {self._subscription_id} --query \"[?name=='{container_name}']\" --output"
-            " json"
-        )
-
-        result = await self.azure_cli.run_command(
-            check_exists_command,
-            return_json=True,
-        )
-
-        if result:
-            self._console.print(
-                (
-                    f"Container instance '{container_name}' already exists in"
-                    f" subscription '{self._subscription_name}' in location"
-                    f" '{self._location}'."
-                ),
-                style="yellow",
-            )
-            return
-
-        create_command = (
-            f"az container create --name {container_name} "
-            f"--resource-group {self.RESOURCE_GROUP_NAME} "
-            "--image docker.io/prefecthq/prefect:2-latest "
-            f"--location {self._location} --subscription {self._subscription_id} "
-            "--restart-policy OnFailure --output json"
+    async def _assign_acr_pull_role(
+        self, identity: dict[str, Any], registry: dict[str, Any]
+    ) -> None:
+        command = (
+            f"az role assignment create --assignee {identity['principalId']} --scope"
+            f" {registry['id']} --role AcrPull"
         )
         await self.azure_cli.run_command(
-            create_command,
-            success_message=(
-                f"Container instance '{container_name}' created successfully in"
-                f" resource group '{self.RESOURCE_GROUP_NAME}' in location"
-                f" '{self._location}' in subscription '{self._subscription_name}'"
-            ),
-            failure_message=(
-                f"Failed to create container instance '{container_name}' in resource"
-                f" group '{self.RESOURCE_GROUP_NAME}' in location '{self._location}' in"
-                f" subscription '{self._subscription_name}'"
-            ),
+            command,
             ignore_if_exists=True,
         )
-        return
 
     async def _create_aci_credentials_block(
         self,
@@ -869,9 +827,9 @@ class ContainerInstancePushProvisioner:
         )
 
         if not credentials_block_exists:
-            total_tasks = 8
-        else:
             total_tasks = 7
+        else:
+            total_tasks = 6
 
         with Progress(console=self._console) as progress:
             self.azure_cli._console = progress.console
@@ -933,9 +891,7 @@ class ContainerInstancePushProvisioner:
                 identity_name=self._identity_name,
                 resource_group_name=self.RESOURCE_GROUP_NAME,
             )
-            progress.advance(task)
-            progress.console.print("Creating Azure Container Instance")
-            await self._create_container_instance()
+            await self._assign_acr_pull_role(identity=identity, registry=registry)
             progress.advance(task)
 
         base_job_template_copy = deepcopy(base_job_template)
@@ -953,9 +909,12 @@ class ContainerInstancePushProvisioner:
         base_job_template_copy["variables"]["properties"]["image_registry"][
             "default"
         ] = {
-            "server": registry["loginServer"],
-            "registry_url": identity["id"],
+            "registry_url": registry["loginServer"],
+            "identity": identity["id"],
         }
+        base_job_template_copy["variables"]["properties"]["identities"]["default"] = [
+            identity["id"]
+        ]
 
         self._console.print(
             (
