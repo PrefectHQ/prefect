@@ -2,6 +2,7 @@ from typing import List
 from unittest import mock
 from uuid import UUID, uuid4
 
+import orjson
 import pendulum
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,7 @@ import pytest
 import sqlalchemy as sa
 from starlette import status
 
+from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.core import TaskRunResult
@@ -909,6 +911,33 @@ class TestDeleteFlowRuns:
 
 
 class TestResumeFlowrun:
+    @pytest.fixture
+    async def paused_flow_run_waiting_for_input(
+        self,
+        session,
+        flow,
+    ):
+        class SimpleInput(RunInput):
+            approved: bool
+
+        state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(state)
+        state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, flow_version="1.0", state=state
+            ),
+        )
+
+        assert flow_run
+
+        await SimpleInput.save(keyset, flow_run_id=flow_run.id)
+        await session.commit()
+
+        return flow_run
+
     async def test_resuming_blocking_pauses(
         self, blocking_paused_flow_run, client, session
     ):
@@ -972,6 +1001,114 @@ class TestResumeFlowrun:
             session=session, flow_run_id=flow_run_id
         )
         assert resumed_run.state.type == "FAILED"
+
+    async def test_cannot_resume_flow_run_waiting_for_input_without_input(
+        self,
+        client,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert (
+            response.json()["details"]["reason"]
+            == "Flow run was expecting input but none was provided."
+        )
+
+    async def test_cannot_resume_flow_run_waiting_for_input_missing_schema(
+        self,
+        client,
+        session,
+        paused_flow_run_waiting_for_input,
+    ):
+        await models.flow_run_input.delete_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input.id,
+            key="paused-1-schema",
+        )
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": True}},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert response.json()["details"]["reason"] == "Run input schema not found."
+
+    async def test_cannot_resume_flow_run_waiting_for_input_schema_not_json(
+        self,
+        client,
+        session,
+        paused_flow_run_waiting_for_input,
+    ):
+        await models.flow_run_input.delete_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input.id,
+            key="paused-1-schema",
+        )
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=paused_flow_run_waiting_for_input.id,
+                key="paused-1-schema",
+                value="not json",
+            ),
+        )
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": True}},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert (
+            response.json()["details"]["reason"]
+            == "Run input schema is not valid JSON."
+        )
+
+    async def test_cannot_resume_flow_run_waiting_for_input_schema_fails_validation(
+        self,
+        client,
+        session,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": "not a bool!"}},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert (
+            response.json()["details"]["reason"]
+            == "Run input validation failed: 'not a bool!' is not of type 'boolean'"
+        )
+
+    async def test_resume_flow_run_waiting_for_input_valid_data(
+        self,
+        client,
+        session,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": True}},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input.id,
+            key="paused-1-response",
+        )
+
+        assert flow_run_input
+        assert orjson.loads(flow_run_input.value) == {"approved": True}
 
 
 class TestSetFlowRunState:
