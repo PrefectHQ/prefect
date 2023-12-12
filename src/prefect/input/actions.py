@@ -1,13 +1,15 @@
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 import orjson
 
-from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 def _ensure_flow_run_id(flow_run_id: Optional[UUID] = None) -> UUID:
@@ -27,7 +29,7 @@ async def create_flow_run_input(
     key: str,
     value: Any,
     flow_run_id: Optional[UUID] = None,
-    client: PrefectClient = None,
+    client: "PrefectClient" = None,
 ):
     """
     Create a new flow run input. The given `value` will be serialized to JSON
@@ -49,7 +51,7 @@ async def create_flow_run_input(
 @sync_compatible
 @inject_client
 async def read_flow_run_input(
-    key: str, flow_run_id: Optional[UUID] = None, client: PrefectClient = None
+    key: str, flow_run_id: Optional[UUID] = None, client: "PrefectClient" = None
 ) -> Any:
     """Read a flow run input.
 
@@ -72,7 +74,7 @@ async def read_flow_run_input(
 @sync_compatible
 @inject_client
 async def delete_flow_run_input(
-    key: str, flow_run_id: Optional[UUID] = None, client: PrefectClient = None
+    key: str, flow_run_id: Optional[UUID] = None, client: "PrefectClient" = None
 ):
     """Delete a flow run input.
 

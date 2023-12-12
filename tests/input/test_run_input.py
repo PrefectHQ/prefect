@@ -2,7 +2,14 @@ import pydantic
 import pytest
 
 from prefect.context import FlowRunContext
-from prefect.input import RunInput, create_flow_run_input, read_flow_run_input
+from prefect.input import (
+    RunInput,
+    create_flow_run_input,
+    keyset_from_base_key,
+    keyset_from_paused_state,
+    read_flow_run_input,
+)
+from prefect.states import Paused, Running, Suspended
 
 
 @pytest.fixture
@@ -17,9 +24,32 @@ class Person(RunInput):
     human: bool
 
 
+def test_keyset_from_base_key():
+    keyset = keyset_from_base_key("person")
+    assert keyset["response"] == "person-response"
+    assert keyset["schema"] == "person-schema"
+
+
+@pytest.mark.parametrize(
+    "state,expected",
+    [
+        (Paused(pause_key="1"), keyset_from_base_key("paused-1")),
+        (Suspended(pause_key="1"), keyset_from_base_key("suspended-1")),
+    ],
+)
+def test_keyset_from_paused_state(state, expected):
+    assert keyset_from_paused_state(state) == expected
+
+
+def test_keyset_from_paused_state_non_paused_state_raises_exception():
+    with pytest.raises(RuntimeError, match="unsupported"):
+        keyset_from_paused_state(Running())
+
+
 async def test_save_schema(flow_run_context):
-    await Person.save(key="person")
-    schema = await read_flow_run_input(key="person-schema")
+    keyset = keyset_from_base_key("person")
+    await Person.save(keyset)
+    schema = await read_flow_run_input(key=keyset["schema"])
     assert set(schema["properties"].keys()) == {
         "title",
         "description",
@@ -30,8 +60,9 @@ async def test_save_schema(flow_run_context):
 
 
 def test_save_works_sync(flow_run_context):
-    Person.save(key="person")
-    schema = read_flow_run_input(key="person-schema")
+    keyset = keyset_from_base_key("person")
+    Person.save(keyset)
+    schema = read_flow_run_input(key=keyset["schema"])
     assert set(schema["properties"].keys()) == {
         "title",
         "description",
@@ -42,23 +73,20 @@ def test_save_works_sync(flow_run_context):
 
 
 async def test_save_explicit_flow_run(flow_run):
-    await Person.save(key="person", flow_run_id=flow_run.id)
-    schema = await read_flow_run_input(key="person-schema", flow_run_id=flow_run.id)
-    assert schema is not None
-
-
-async def test_save_key_suffix_override(flow_run):
-    await Person.save(key="person", key_suffix="model", flow_run_id=flow_run.id)
-    schema = await read_flow_run_input(key="person-model", flow_run_id=flow_run.id)
+    keyset = keyset_from_base_key("person")
+    await Person.save(keyset, flow_run_id=flow_run.id)
+    schema = await read_flow_run_input(key=keyset["schema"], flow_run_id=flow_run.id)
     assert schema is not None
 
 
 async def test_load(flow_run_context):
+    keyset = keyset_from_base_key("person")
     await create_flow_run_input(
-        "person-response", value={"name": "Bob", "email": "bob@bob.bob", "human": True}
+        keyset["response"],
+        value={"name": "Bob", "email": "bob@bob.bob", "human": True},
     )
 
-    person = await Person.load(key="person")
+    person = await Person.load(keyset)
     assert isinstance(person, Person)
     assert person.name == "Bob"
     assert person.email == "bob@bob.bob"
@@ -66,11 +94,13 @@ async def test_load(flow_run_context):
 
 
 def test_load_works_sync(flow_run_context):
+    keyset = keyset_from_base_key("person")
     create_flow_run_input(
-        "person-response", value={"name": "Bob", "email": "bob@bob.bob", "human": True}
+        keyset["response"],
+        value={"name": "Bob", "email": "bob@bob.bob", "human": True},
     )
 
-    person = Person.load(key="person")
+    person = Person.load(keyset)
     assert isinstance(person, Person)
     assert person.name == "Bob"
     assert person.email == "bob@bob.bob"
@@ -78,28 +108,21 @@ def test_load_works_sync(flow_run_context):
 
 
 async def test_load_explicit_flow_run(flow_run):
+    keyset = keyset_from_base_key("person")
     await create_flow_run_input(
-        "person-response",
+        keyset["response"],
         value={"name": "Bob", "email": "bob@bob.bob", "human": True},
         flow_run_id=flow_run.id,
     )
 
-    person = await Person.load(key="person", flow_run_id=flow_run.id)
-    assert isinstance(person, Person)
-
-
-async def test_load_key_suffix_override(flow_run_context):
-    await create_flow_run_input(
-        "person-data", value={"name": "Bob", "email": "bob@bob.bob", "human": True}
-    )
-
-    person = await Person.load(key="person", key_suffix="data")
+    person = await Person.load(keyset, flow_run_id=flow_run.id)
     assert isinstance(person, Person)
 
 
 async def test_load_fails_validation_raises_exception(flow_run_context):
+    keyset = keyset_from_base_key("person")
     await create_flow_run_input(
-        "person-response",
+        keyset["response"],
         value={
             "name": "Bob",
             "email": "bob@bob.bob",
@@ -108,18 +131,20 @@ async def test_load_fails_validation_raises_exception(flow_run_context):
     )
 
     with pytest.raises(pydantic.ValidationError, match="boolean"):
-        person = await Person.load(key="person")
+        person = await Person.load(keyset)
         assert isinstance(person, Person)
 
 
 async def test_with_initial_data(flow_run_context):
+    keyset = keyset_from_base_key("bob")
+
     name = "Bob"
     new_cls = Person.with_initial_data(
         title=f"Fill in the missing data for {name}", name=name
     )
 
-    await new_cls.save(key="person")
-    schema = await read_flow_run_input(key="person-schema")
+    await new_cls.save(keyset)
+    schema = await read_flow_run_input(key=keyset["schema"])
     assert (
         schema["properties"]["title"]["default"] == "Fill in the missing data for Bob"
     )

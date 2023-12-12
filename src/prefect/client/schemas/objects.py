@@ -108,6 +108,7 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
     pause_key: str = None
+    run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
 
 

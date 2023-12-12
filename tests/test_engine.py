@@ -315,7 +315,7 @@ class TestBlockingPause:
         )
         assert len(task_runs) == 5, "all tasks should finish running"
 
-    async def test_paused_flows_can_receive_input(self):
+    async def test_paused_flows_can_receive_input(self, prefect_client):
         flow_run_id = None
 
         class FlowInput(RunInput):
@@ -333,11 +333,21 @@ class TestBlockingPause:
             return flow_input
 
         async def flow_resumer():
+            # Wait on flow run to start
             while not flow_run_id:
                 await anyio.sleep(0.1)
 
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
             await create_flow_run_input(
-                key="paused-1-response", value={"x": 42}, flow_run_id=flow_run_id
+                key=keyset["response"], value={"x": 42}, flow_run_id=flow_run_id
             )
             await resume_flow_run(flow_run_id)
 
@@ -815,16 +825,17 @@ class TestSuspendFlowRun:
 
         assert flow_run_id
 
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        keyset = flow_run.state.state_details.run_input_keyset
+
         schema = await read_flow_run_input(
-            key="suspended-1-schema", flow_run_id=flow_run_id
+            key=keyset["schema"], flow_run_id=flow_run_id
         )
         assert schema is not None
 
         await create_flow_run_input(
-            key="suspended-1-response", value={"x": 42}, flow_run_id=flow_run_id
+            key=keyset["response"], value={"x": 42}, flow_run_id=flow_run_id
         )
-
-        flow_run = await prefect_client.read_flow_run(flow_run_id)
 
         await resume_flow_run(flow_run_id)
 

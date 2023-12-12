@@ -154,7 +154,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
-from prefect.input import RunInput
+from prefect.input import RunInput, keyset_from_paused_state
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
@@ -1049,6 +1049,11 @@ async def _in_process_pause(
         timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
     )
 
+    run_input_keyset = keyset_from_paused_state(proposed_state)
+
+    if wait_for_input:
+        proposed_state.state_details.run_input_keyset = run_input_keyset
+
     try:
         state = await propose_state(
             client=client,
@@ -1062,7 +1067,7 @@ async def _in_process_pause(
     if state.is_running():
         # The orchestrator requests that this pause be ignored
         if wait_for_input:
-            await wait_for_input.load(f"{proposed_state.name.lower()}-{pause_key}")
+            await wait_for_input.load(run_input_keyset)
 
         return
 
@@ -1073,7 +1078,7 @@ async def _in_process_pause(
         )
 
     if wait_for_input:
-        await wait_for_input.save(f"{proposed_state.name.lower()}-{pause_key}")
+        await wait_for_input.save(run_input_keyset)
 
     if reschedule:
         # If a rescheduled pause, exit this process so the run can be resubmitted later
@@ -1089,9 +1094,7 @@ async def _in_process_pause(
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 if wait_for_input:
-                    return await wait_for_input.load(
-                        f"{proposed_state.name.lower()}-{pause_key}"
-                    )
+                    return await wait_for_input.load(run_input_keyset)
                 return
             await anyio.sleep(poll_interval)
 
@@ -1100,9 +1103,7 @@ async def _in_process_pause(
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
         if wait_for_input:
-            return await wait_for_input.load(
-                f"{proposed_state.name.lower()}-{pause_key}"
-            )
+            return await wait_for_input.load(run_input_keyset)
         return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
@@ -1191,6 +1192,10 @@ async def suspend_flow_run(
         pause_key = key or str(uuid4())
 
     proposed_state = Suspended(timeout_seconds=timeout, pause_key=pause_key)
+    run_input_keyset = keyset_from_paused_state(proposed_state)
+
+    if wait_for_input:
+        proposed_state.state_details.run_input_keyset = run_input_keyset
 
     try:
         state = await propose_state(
@@ -1206,9 +1211,7 @@ async def suspend_flow_run(
         # The orchestrator requests that this suspend be ignored. Likely
         # because the flow was previously suspended and is now being resumed.
         if wait_for_input:
-            return await wait_for_input.load(
-                f"{proposed_state.name.lower()}-{pause_key}"
-            )
+            return await wait_for_input.load(run_input_keyset)
         return
 
     if not state.is_paused():
@@ -1218,7 +1221,7 @@ async def suspend_flow_run(
         )
 
     if wait_for_input:
-        await wait_for_input.save(f"{proposed_state.name.lower()}-{pause_key}")
+        await wait_for_input.save(run_input_keyset)
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later

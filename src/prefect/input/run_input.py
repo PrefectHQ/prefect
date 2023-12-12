@@ -1,4 +1,4 @@
-from typing import Any, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, Union
 from uuid import UUID
 
 import pydantic
@@ -7,8 +7,48 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.input.actions import create_flow_run_input, read_flow_run_input
 from prefect.utilities.asyncutils import sync_compatible
 
+if TYPE_CHECKING:
+    from prefect.states import State
+
+
 if HAS_PYDANTIC_V2:
     from prefect._internal.pydantic.v2_schema import create_v2_schema
+
+
+KeysetNames = Union[Literal["response"], Literal["schema"]]
+Keyset = Dict[KeysetNames, str]
+
+
+def keyset_from_paused_state(state: "State") -> Keyset:
+    """
+    Get the keyset for the given Paused state.
+
+    Args:
+        - state (State): the state to get the keyset for
+    """
+
+    if not state.is_paused():
+        raise RuntimeError(f"{state.type.value!r} is unsupported.")
+
+    return keyset_from_base_key(
+        f"{state.name.lower()}-{str(state.state_details.pause_key)}"
+    )
+
+
+def keyset_from_base_key(base_key: str) -> Keyset:
+    """
+    Get the keyset for the given base key.
+
+    Args:
+        - base_key (str): the base key to get the keyset for
+
+    Returns:
+        - Dict[str, str]: the keyset
+    """
+    return {
+        "response": f"{base_key}-response",
+        "schema": f"{base_key}-schema",
+    }
 
 
 class RunInput(pydantic.BaseModel):
@@ -20,16 +60,13 @@ class RunInput(pydantic.BaseModel):
 
     @classmethod
     @sync_compatible
-    async def save(
-        cls, key: str, key_suffix: str = "schema", flow_run_id: Optional[UUID] = None
-    ):
+    async def save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):
         """
         Save the run input response to the given key.
 
         Args:
-            - key (str): the flow run input key
-            - key_suffix (str): the suffix to append to the key, defaults to
-                "-schema"
+            - keyset (Keyset): the keyset to save the input for
+            - flow_run_id (UUID, optional): the flow run ID to save the input for
         """
 
         if HAS_PYDANTIC_V2:
@@ -37,26 +74,21 @@ class RunInput(pydantic.BaseModel):
         else:
             schema = cls.schema(by_alias=True)
 
-        key = f"{key}-{key_suffix}"
-        return await create_flow_run_input(
-            key=key, value=schema, flow_run_id=flow_run_id
+        await create_flow_run_input(
+            key=keyset["schema"], value=schema, flow_run_id=flow_run_id
         )
 
     @classmethod
     @sync_compatible
-    async def load(
-        cls, key: str, key_suffix: str = "response", flow_run_id: Optional[UUID] = None
-    ):
+    async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):
         """
         Load the run input response from the given key.
 
         Args:
-            - key (str): the flow run input key
-            - key_suffix (str): the suffix to append to the key, defaults to
-                "-response"
+            - keyset (Keyset): the keyset to load the input for
+            - flow_run_id (UUID, optional): the flow run ID to load the input for
         """
-        key = f"{key}-{key_suffix}"
-        value = await read_flow_run_input(key=key, flow_run_id=flow_run_id)
+        value = await read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
         return cls(**value)
 
     @classmethod
