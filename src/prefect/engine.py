@@ -997,7 +997,11 @@ async def pause_flow_run(
             the number of pauses observed by the flow so far, and prevents pauses that
             use the "reschedule" option from running the same pause twice. A custom key
             can be supplied for custom pausing behavior.
-        wait_
+        wait_for_input: a subclass of `RunInput`. If provided when the flow pauses, the
+            flow will wait for the input to be provided before resuming. If the flow is
+            resumed without providing the input, the flow will fail. If the flow is
+            resumed with the input, the flow will resume and the input will be loaded
+            and returned from this function.
     """
     if flow_run_id:
         if wait_for_input is not None:
@@ -1162,6 +1166,12 @@ async def suspend_flow_run(
             defaults to a random string and prevents suspends from running the
             same suspend twice. A custom key can be supplied for custom
             suspending behavior.
+        wait_for_input: a subclass of `RunInput`. If provided when the flow
+            suspends, the flow will wait for the input to be provided before
+            resuming. If the flow is resumed without providing the input, the
+            flow will fail. If the flow is resumed with the input, the flow
+            will resume and the input will be loaded and returned from this
+            function.
     """
     context = FlowRunContext.get()
 
