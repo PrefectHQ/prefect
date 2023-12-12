@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
+from rich.syntax import Syntax
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
@@ -140,7 +141,17 @@ class IamPolicyResource:
             policy_arn = policy["Policy"]["Arn"]
             advance()
             return policy_arn
-        # TODO: read and return policy arn
+        else:
+            policy = await anyio.to_thread.run_sync(
+                partial(self._get_policy_by_name, self._policy_name)
+            )
+            # This should never happen, but just in case
+            assert policy is not None, "Could not find expected policy"
+            return policy["Arn"]
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class IamUserResource:
@@ -215,6 +226,10 @@ class IamUserResource:
                 partial(self._iam_client.create_user, UserName=self._user_name)
             )
             advance()
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class CredentialsBlockResource:
@@ -337,6 +352,10 @@ class CredentialsBlockResource:
         base_job_template["variables"]["properties"]["aws_credentials"]["default"] = {
             "$ref": {"block_document_id": str(block_doc.id)}
         }
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class AuthenticationResource:
@@ -479,6 +498,14 @@ class AuthenticationResource:
             advance=advance,
         )
 
+    @property
+    def next_steps(self):
+        return [
+            next_step
+            for resource in self.resources
+            for next_step in resource.next_steps
+        ]
+
 
 class ClusterResource:
     def __init__(self, cluster_name: str = "prefect-ecs-cluster"):
@@ -555,6 +582,10 @@ class ClusterResource:
         base_job_template["variables"]["properties"]["cluster"][
             "default"
         ] = self._cluster_name
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class VpcResource:
@@ -783,12 +814,17 @@ class VpcResource:
                 vpc.id
             )
 
+    @property
+    def next_steps(self):
+        return []
+
 
 class ContainerRepositoryResource:
     def __init__(self, repository_name: str = "prefect-flows"):
         self._ecr_client = boto3.client("ecr")
         self._repository_name = repository_name
         self._requires_provisioning = None
+        self._next_steps = []
 
     async def get_task_count(self):
         """
@@ -886,7 +922,48 @@ class ContainerRepositoryResource:
                     ]
                 }
             )
+            self._next_steps.extend(
+                [
+                    dedent(
+                        f"""\
+
+                    Your default Docker build namespace has been set to [blue]{response["repository"]["repositoryUri"]!r}[/].
+
+                    To build and push a Docker image to your newly created repository, use [blue]{self._repository_name!r}[/] and a tag as the image:
+                    """
+                    ),
+                    (
+                        Syntax(
+                            dedent(
+                                f"""\
+                                from prefect import flow
+                                from prefect.deployments import DeploymentImage
+
+
+                                @flow(log_prints=True)
+                                def my_flow(name: str = "world"):
+                                    print(f"Hello {{name}}! I'm a flow running on ECS!")
+
+
+                                if __name__ == "__main__":
+                                    my_flow.deploy(
+                                        name="my-deployment",
+                                        image=DeploymentImage(
+                                            name="{self._repository_name}:latest",
+                                            platform="linux/amd64",
+                                        )
+                                    )"""
+                            ),
+                            "python",
+                        )
+                    ),
+                ]
+            )
             advance()
+
+    @property
+    def next_steps(self):
+        return self._next_steps
 
 
 class ExecutionRoleResource:
@@ -992,6 +1069,10 @@ class ExecutionRoleResource:
             "default"
         ] = response["Role"]["Arn"]
         return response["Role"]["Arn"]
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class ElasticContainerServicePushProvisioner:
@@ -1111,6 +1192,7 @@ class ElasticContainerServicePushProvisioner:
                 # provision calls will be no-ops, but update the base job template
 
             base_job_template_copy = deepcopy(base_job_template)
+            next_steps = []
             with Progress(console=self._console, disable=num_tasks == 0) as progress:
                 task = progress.add_task(
                     "Provisioning Infrastructure",
@@ -1122,6 +1204,12 @@ class ElasticContainerServicePushProvisioner:
                             advance=partial(progress.advance, task),
                             base_job_template=base_job_template_copy,
                         )
+                    next_steps.append(resource.next_steps)
+
+            if next_steps:
+                for step in next_steps:
+                    for item in step:
+                        self._console.print(item)
 
             if num_tasks > 0:
                 self._console.print(
