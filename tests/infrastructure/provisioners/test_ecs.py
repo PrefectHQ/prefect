@@ -5,7 +5,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 
 import boto3
 import pytest
-from moto import mock_ec2, mock_ecs, mock_iam
+from moto import mock_ec2, mock_ecr, mock_ecs, mock_iam
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
@@ -26,7 +26,7 @@ from prefect.settings import PREFECT_API_BLOCKS_REGISTER_ON_START, temporary_set
 
 @pytest.fixture
 def iam_policy_resource():
-    return IamPolicyResource()
+    return IamPolicyResource(policy_name="prefect-ecs-policy")
 
 
 @pytest.fixture(autouse=True)
@@ -52,6 +52,16 @@ def ecs_mock(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def ec2_mock():
+    mock = mock_ecr()
+    mock.start()
+
+    yield
+
+    mock.stop()
+
+
+@pytest.fixture(autouse=True)
+def ecr_mock():
     mock = mock_ec2()
     mock.start()
 
@@ -106,7 +116,22 @@ class TestIamPolicyResource:
         iam_client.create_user(UserName="prefect-ecs-user")
 
         # Provision IAM policy
-        await iam_policy_resource.provision(advance=advance_mock)
+        await iam_policy_resource.provision(
+            advance=advance_mock,
+            policy_document={
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "PrefectEcsPolicy",
+                        "Effect": "Allow",
+                        "Action": [
+                            "ec2:AuthorizeSecurityGroupIngress",
+                        ],
+                        "Resource": "*",
+                    }
+                ],
+            },
+        )
 
         # Check if the IAM policy exists
         policies = iam_client.list_policies(Scope="Local")["Policies"]
@@ -120,9 +145,12 @@ class TestIamPolicyResource:
     async def test_provision_preexisting_policy(self):
         advance_mock = MagicMock()
 
-        iam_policy_resource = IamPolicyResource()
-        result = await iam_policy_resource.provision(advance=advance_mock)
-        assert result is None
+        iam_policy_resource = IamPolicyResource(policy_name="prefect-ecs-policy")
+        result = await iam_policy_resource.provision(
+            advance=advance_mock, policy_document={}
+        )
+        # returns existing policy ARN
+        assert result == "arn:aws:iam::123456789012:policy/prefect-ecs-policy"
         advance_mock.assert_not_called()
 
     @pytest.mark.usefixtures("existing_iam_policy")
@@ -164,6 +192,31 @@ def existing_iam_user():
     yield
 
     iam_client.delete_user(UserName="prefect-ecs-user")
+
+
+@pytest.fixture
+def existing_execution_role():
+    iam_client = boto3.client("iam")
+    iam_client.create_role(
+        RoleName="PrefectEcsTaskExecutionRole",
+        AssumeRolePolicyDocument=json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "PrefectEcsExecutionRole",
+                        "Effect": "Allow",
+                        "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+                        "Action": "sts:AssumeRole",
+                    }
+                ],
+            }
+        ),
+    )
+
+    yield
+
+    iam_client.delete_role(RoleName="PrefectEcsTaskExecutionRole")
 
 
 class TestIamUserResource:
@@ -388,11 +441,12 @@ class TestAuthenticationResource:
         assert needs_provisioning
 
     @pytest.mark.usefixtures(
-        "existing_iam_user", "existing_iam_policy", "existing_credentials_block"
+        "existing_iam_user",
+        "existing_iam_policy",
+        "existing_credentials_block",
+        "existing_execution_role",
     )
-    async def test_needs_provisioning_existing_user_policy_and_block(
-        self, authentication_resource
-    ):
+    async def test_needs_provisioning_existing_resources(self, authentication_resource):
         needs_provisioning = await authentication_resource.requires_provisioning()
 
         assert not needs_provisioning
@@ -400,7 +454,7 @@ class TestAuthenticationResource:
     async def test_get_task_count(self, authentication_resource):
         count = await authentication_resource.get_task_count()
 
-        assert count == 4
+        assert count == 5
 
     async def test_get_planned_actions(self, authentication_resource):
         actions = await authentication_resource.get_planned_actions()
@@ -420,7 +474,13 @@ class TestAuthenticationResource:
     async def test_get_planned_actions_existing_user(self, authentication_resource):
         actions = await authentication_resource.get_planned_actions()
 
-        assert actions == ["Storing generated AWS credentials in a block"]
+        assert actions == [
+            (
+                "Creating an IAM role assigned to ECS tasks:"
+                " [blue]PrefectEcsTaskExecutionRole[/]"
+            ),
+            "Storing generated AWS credentials in a block",
+        ]
 
     @pytest.mark.usefixtures("register_block_types")
     async def test_provision(self, authentication_resource, prefect_client):
@@ -428,7 +488,7 @@ class TestAuthenticationResource:
         base_job_template = {
             "variables": {
                 "type": "object",
-                "properties": {"aws_credentials": {}},
+                "properties": {"aws_credentials": {}, "execution_role_arn": {}},
             }
         }
 
@@ -447,7 +507,7 @@ class TestAuthenticationResource:
             "default": {"$ref": {"block_document_id": str(block_document.id)}},
         }
 
-        assert advance_mock.call_count == 4
+        assert advance_mock.call_count == 5
 
 
 @pytest.fixture
@@ -776,7 +836,7 @@ class TestElasticContainerServicePushProvisioner:
         self,
         provisioner,
         mock_confirm,
-        mock_run_process,
+        mock_run_process: MagicMock,
         mock_importlib,
     ):
         mock_confirm.ask.return_value = True
@@ -793,6 +853,7 @@ class TestElasticContainerServicePushProvisioner:
                         "vpc_id": {},
                         "cluster": {},
                         "aws_credentials": {},
+                        "execution_role_arn": {},
                     },
                 }
             },
@@ -811,7 +872,13 @@ class TestElasticContainerServicePushProvisioner:
                 console=ANY,
             ),
         ]
-        mock_run_process.assert_called_once()
+        assert mock_run_process.mock_calls == [
+            call([shlex.quote(sys.executable), "-m", "pip", "install", "boto3"]),
+            call(
+                "docker login -u AWS -p 123456789012-auth-token"
+                " https://123456789012.dkr.ecr.us-east-1.amazonaws.com"
+            ),
+        ]
 
     async def test_provision_boto3_not_installed_non_interactive(
         self, provisioner, mock_confirm, mock_importlib
@@ -828,6 +895,7 @@ class TestElasticContainerServicePushProvisioner:
                             "vpc_id": {},
                             "cluster": {},
                             "aws_credentials": {},
+                            "execution_role_arn": {},
                         },
                     }
                 },
@@ -853,7 +921,9 @@ class TestElasticContainerServicePushProvisioner:
         )
 
     @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
-    async def test_provision(self, provisioner, mock_confirm, prefect_client):
+    async def test_provision(
+        self, provisioner, mock_confirm, prefect_client, mock_run_process
+    ):
         provisioner.console.is_interactive = True
         mock_confirm.ask.return_value = True
 
@@ -866,6 +936,7 @@ class TestElasticContainerServicePushProvisioner:
                         "vpc_id": {},
                         "cluster": {},
                         "aws_credentials": {},
+                        "execution_role_arn": {},
                     },
                 }
             },
@@ -889,7 +960,14 @@ class TestElasticContainerServicePushProvisioner:
             "default": {"$ref": {"block_document_id": str(block_document.id)}},
         }
 
-    @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
+        mock_run_process.assert_called_with(
+            "docker login -u AWS -p 123456789012-auth-token"
+            " https://123456789012.dkr.ecr.us-east-1.amazonaws.com"
+        )
+
+    @pytest.mark.usefixtures(
+        "register_block_types", "no_default_vpc", "mock_run_process"
+    )
     async def test_provision_idempotent(self, provisioner, mock_confirm):
         provisioner.console.is_interactive = True
         mock_confirm.ask.return_value = True
@@ -903,6 +981,7 @@ class TestElasticContainerServicePushProvisioner:
                         "vpc_id": {},
                         "cluster": {},
                         "aws_credentials": {},
+                        "execution_role_arn": {},
                     },
                 }
             },
@@ -917,6 +996,7 @@ class TestElasticContainerServicePushProvisioner:
                         "vpc_id": {},
                         "cluster": {},
                         "aws_credentials": {},
+                        "execution_role_arn": {},
                     },
                 }
             },
@@ -940,6 +1020,7 @@ class TestElasticContainerServicePushProvisioner:
                             "vpc_id": {},
                             "cluster": {},
                             "aws_credentials": {},
+                            "execution_role_arn": {},
                         },
                     }
                 },

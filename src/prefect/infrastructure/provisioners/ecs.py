@@ -922,20 +922,24 @@ class ContainerRepositoryResource:
                     ]
                 }
             )
-            self._next_steps.extend(
-                [
-                    dedent(
-                        f"""\
+            self._update_next_steps(response["repository"]["repositoryUri"])
+            advance()
 
-                    Your default Docker build namespace has been set to [blue]{response["repository"]["repositoryUri"]!r}[/].
+    def _update_next_steps(self, repository_uri: str):
+        self._next_steps.extend(
+            [
+                dedent(
+                    f"""\
+
+                    Your default Docker build namespace has been set to [blue]{repository_uri!r}[/].
 
                     To build and push a Docker image to your newly created repository, use [blue]{self._repository_name!r}[/] and a tag as the image:
                     """
-                    ),
-                    (
-                        Syntax(
-                            dedent(
-                                f"""\
+                ),
+                (
+                    Syntax(
+                        dedent(
+                            f"""\
                                 from prefect import flow
                                 from prefect.deployments import DeploymentImage
 
@@ -953,13 +957,12 @@ class ContainerRepositoryResource:
                                             platform="linux/amd64",
                                         )
                                     )"""
-                            ),
-                            "python",
-                        )
-                    ),
-                ]
-            )
-            advance()
+                        ),
+                        "python",
+                    )
+                ),
+            ]
+        )
 
     @property
     def next_steps(self):
