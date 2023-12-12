@@ -199,7 +199,15 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
 class AddPlaceholderResult(BaseOrchestrationRule):
     """
     Add a result placeholder to task runs that are forced to complete from
-    a failure state.
+    a failed or crashed state, if the previous state used a persisted result.
+
+    When we retry a flow run, we retry any task runs that were in a failed or
+    crashed state, but we also retry completed task runs that didn't use a
+    persisted result. This means that without a placeholder, a task run forced
+    into Completed state will always get rerun if the flow runretries because
+    the task run lacks a persisted result. This placeholder ensures that when we
+    see a completed task run with a placeholder result, we know that it was
+    forced to complete and we shouldn't rerun it.
     """
 
     FROM_STATES = [StateType.CRASHED, StateType.FAILED]
@@ -211,8 +219,9 @@ class AddPlaceholderResult(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        placeholder_result = await PlaceholderResult.create()
-        self.context.proposed_state.data = placeholder_result.dict()
+        if initial_state.data and initial_state.data.get("type") == "reference":
+            placeholder_result = await PlaceholderResult.create()
+            self.context.proposed_state.data = placeholder_result.dict()
 
 
 class CacheInsertion(BaseOrchestrationRule):
