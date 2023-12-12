@@ -100,6 +100,7 @@ from typing import (
     List,
     Optional,
     Set,
+    Type,
     TypeVar,
     Union,
 )
@@ -114,6 +115,7 @@ import prefect
 import prefect.context
 import prefect.plugins
 from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
@@ -152,6 +154,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
+from prefect.input import RunInput, keyset_from_paused_state
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
@@ -953,12 +956,16 @@ async def orchestrate_flow_run(
     when=lambda p: p is True,
     help="Use `suspend_flow_run` instead.",
 )
+@experimental_parameter(
+    "wait_for_input", group="flow_run_input", when=lambda y: y is not None
+)
 async def pause_flow_run(
     flow_run_id: UUID = None,
     timeout: int = 300,
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
+    wait_for_input: Optional[Type[RunInput]] = None,
 ):
     """
     Pauses the current flow run by blocking execution until resumed.
@@ -990,8 +997,16 @@ async def pause_flow_run(
             the number of pauses observed by the flow so far, and prevents pauses that
             use the "reschedule" option from running the same pause twice. A custom key
             can be supplied for custom pausing behavior.
+        wait_for_input: a subclass of `RunInput`. If provided when the flow pauses, the
+            flow will wait for the input to be provided before resuming. If the flow is
+            resumed without providing the input, the flow will fail. If the flow is
+            resumed with the input, the flow will resume and the input will be loaded
+            and returned from this function.
     """
     if flow_run_id:
+        if wait_for_input is not None:
+            raise RuntimeError("Cannot wait for input when pausing out of process.")
+
         return await _out_of_process_pause(
             flow_run_id=flow_run_id,
             timeout=timeout,
@@ -1000,18 +1015,26 @@ async def pause_flow_run(
         )
     else:
         return await _in_process_pause(
-            timeout=timeout, poll_interval=poll_interval, reschedule=reschedule, key=key
+            timeout=timeout,
+            poll_interval=poll_interval,
+            reschedule=reschedule,
+            key=key,
+            wait_for_input=wait_for_input,
         )
 
 
 @inject_client
+@experimental_parameter(
+    "wait_for_input", group="flow_run_input", when=lambda y: y is not None
+)
 async def _in_process_pause(
     timeout: int = 300,
     poll_interval: int = 10,
     reschedule=False,
     key: str = None,
     client=None,
-):
+    wait_for_input: Optional[Type[RunInput]] = None,
+) -> Optional[RunInput]:
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
@@ -1026,12 +1049,18 @@ async def _in_process_pause(
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
 
+    proposed_state = Paused(
+        timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
+    )
+
+    if wait_for_input:
+        run_input_keyset = keyset_from_paused_state(proposed_state)
+        proposed_state.state_details.run_input_keyset = run_input_keyset
+
     try:
         state = await propose_state(
             client=client,
-            state=Paused(
-                timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
-            ),
+            state=proposed_state,
             flow_run_id=context.flow_run.id,
         )
     except Abort as exc:
@@ -1039,7 +1068,14 @@ async def _in_process_pause(
         raise RuntimeError(f"Flow run cannot be paused: {exc}")
 
     if state.is_running():
-        # The orchestrator requests that this pause be ignored
+        # The orchestrator rejected the paused state which means that this
+        # pause has happened before (via reschedule) and the flow run has
+        # been resumed.
+        if wait_for_input:
+            # The flow run wanted input, so we need to load it and return it
+            # to the user.
+            await wait_for_input.load(run_input_keyset)
+
         return
 
     if not state.is_paused():
@@ -1047,6 +1083,13 @@ async def _in_process_pause(
         raise RuntimeError(
             f"Flow run cannot be paused. Received non-paused state from API: {state}"
         )
+
+    if wait_for_input:
+        # We're now in a paused state and the flow run is waiting for input.
+        # Save the schema of the users `RunInput` subclass, stored in
+        # `wait_for_input`, so the UI can display the form and we can validate
+        # the input when the flow is resumed.
+        await wait_for_input.save(run_input_keyset)
 
     if reschedule:
         # If a rescheduled pause, exit this process so the run can be resubmitted later
@@ -1057,22 +1100,21 @@ async def _in_process_pause(
         # attempt to check if a flow has resumed at least once
         initial_sleep = min(timeout / 2, poll_interval)
         await anyio.sleep(initial_sleep)
-        flow_run = await client.read_flow_run(context.flow_run.id)
-        if flow_run.state.is_running():
-            logger.info("Resuming flow run execution!")
-            return
-
         while True:
-            await anyio.sleep(poll_interval)
             flow_run = await client.read_flow_run(context.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
+                if wait_for_input:
+                    return await wait_for_input.load(run_input_keyset)
                 return
+            await anyio.sleep(poll_interval)
 
     # check one last time before failing the flow
     flow_run = await client.read_flow_run(context.flow_run.id)
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
+        if wait_for_input:
+            return await wait_for_input.load(run_input_keyset)
         return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
@@ -1107,6 +1149,7 @@ async def suspend_flow_run(
     timeout: Optional[int] = 300,
     key: Optional[str] = None,
     client: PrefectClient = None,
+    wait_for_input: Optional[Type[RunInput]] = None,
 ):
     """
     Suspends a flow run by stopping code execution until resumed.
@@ -1130,6 +1173,12 @@ async def suspend_flow_run(
             defaults to a random string and prevents suspends from running the
             same suspend twice. A custom key can be supplied for custom
             suspending behavior.
+        wait_for_input: a subclass of `RunInput`. If provided when the flow
+            suspends, the flow will wait for the input to be provided before
+            resuming. If the flow is resumed without providing the input, the
+            flow will fail. If the flow is resumed with the input, the flow
+            will resume and the input will be loaded and returned from this
+            function.
     """
     context = FlowRunContext.get()
 
@@ -1159,10 +1208,16 @@ async def suspend_flow_run(
         suspending_current_flow_run = False
         pause_key = key or str(uuid4())
 
+    proposed_state = Suspended(timeout_seconds=timeout, pause_key=pause_key)
+
+    if wait_for_input:
+        run_input_keyset = keyset_from_paused_state(proposed_state)
+        proposed_state.state_details.run_input_keyset = run_input_keyset
+
     try:
         state = await propose_state(
             client=client,
-            state=Suspended(timeout_seconds=timeout, pause_key=pause_key),
+            state=proposed_state,
             flow_run_id=flow_run_id,
         )
     except Abort as exc:
@@ -1170,7 +1225,12 @@ async def suspend_flow_run(
         raise RuntimeError(f"Flow run cannot be suspended: {exc}")
 
     if state.is_running():
-        # The orchestrator requests that this suspend be ignored
+        # The orchestrator rejected the suspended state which means that this
+        # suspend has happened before and the flow run has been resumed.
+        if wait_for_input:
+            # The flow run wanted input, so we need to load it and return it
+            # to the user.
+            return await wait_for_input.load(run_input_keyset)
         return
 
     if not state.is_paused():
@@ -1178,6 +1238,9 @@ async def suspend_flow_run(
         raise RuntimeError(
             f"Flow run cannot be suspended. Received unexpected state from API: {state}"
         )
+
+    if wait_for_input:
+        await wait_for_input.save(run_input_keyset)
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later
