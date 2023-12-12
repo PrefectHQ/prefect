@@ -29,7 +29,8 @@ At any moment, you can learn anything you need to know about a task or flow by e
 
 - used the cached result of a previous run instead of re-running
 
-- that a task failed because it timed out
+- failed because it timed out
+
 
 By manipulating a relatively small number of task states, Prefect flows can harness the complexity that emerges in workflows.
 
