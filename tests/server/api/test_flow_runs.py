@@ -1019,7 +1019,7 @@ class TestResumeFlowrun:
             f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "REJECT"
+        assert response.json()["status"] == "ABORT"
         assert (
             response.json()["details"]["reason"]
             == "Flow run was expecting input but none was provided."
@@ -1041,7 +1041,7 @@ class TestResumeFlowrun:
         )
 
         assert response.status_code == 200
-        assert response.json()["status"] == "REJECT"
+        assert response.json()["status"] == "ABORT"
         assert response.json()["details"]["reason"] == "Run input schema not found."
 
     async def test_cannot_resume_flow_run_waiting_for_input_schema_not_json(
@@ -1069,7 +1069,7 @@ class TestResumeFlowrun:
         )
 
         assert response.status_code == 200
-        assert response.json()["status"] == "REJECT"
+        assert response.json()["status"] == "ABORT"
         assert (
             response.json()["details"]["reason"]
             == "Run input schema is not valid JSON."
@@ -1085,7 +1085,7 @@ class TestResumeFlowrun:
             json={"run_input": {"approved": "not a bool!"}},
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "REJECT"
+        assert response.json()["status"] == "ABORT"
         assert (
             response.json()["details"]["reason"]
             == "Run input validation failed: 'not a bool!' is not of type 'boolean'"
