@@ -1068,8 +1068,12 @@ async def _in_process_pause(
         raise RuntimeError(f"Flow run cannot be paused: {exc}")
 
     if state.is_running():
-        # The orchestrator requests that this pause be ignored
+        # The orchestrator rejected the paused state which means that this
+        # pause has happened before (via reschedule) and the flow run has
+        # been resumed.
         if wait_for_input:
+            # The flow run wanted input, so we need to load it and return it
+            # to the user.
             await wait_for_input.load(run_input_keyset)
 
         return
@@ -1081,6 +1085,10 @@ async def _in_process_pause(
         )
 
     if wait_for_input:
+        # We're now in a paused state and the flow run is waiting for input.
+        # Save the schema of the users `RunInput` subclass, stored in
+        # `wait_for_input`, so the UI can display the form and we can validate
+        # the input when the flow is resumed.
         await wait_for_input.save(run_input_keyset)
 
     if reschedule:
@@ -1217,9 +1225,11 @@ async def suspend_flow_run(
         raise RuntimeError(f"Flow run cannot be suspended: {exc}")
 
     if state.is_running():
-        # The orchestrator requests that this suspend be ignored. Likely
-        # because the flow was previously suspended and is now being resumed.
+        # The orchestrator rejected the suspended state which means that this
+        # suspend has happened before and the flow run has been resumed.
         if wait_for_input:
+            # The flow run wanted input, so we need to load it and return it
+            # to the user.
             return await wait_for_input.load(run_input_keyset)
         return
 
