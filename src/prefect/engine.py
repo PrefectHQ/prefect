@@ -1053,9 +1053,8 @@ async def _in_process_pause(
         timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
     )
 
-    run_input_keyset = keyset_from_paused_state(proposed_state)
-
     if wait_for_input:
+        run_input_keyset = keyset_from_paused_state(proposed_state)
         proposed_state.state_details.run_input_keyset = run_input_keyset
 
     try:
@@ -1202,9 +1201,9 @@ async def suspend_flow_run(
         pause_key = key or str(uuid4())
 
     proposed_state = Suspended(timeout_seconds=timeout, pause_key=pause_key)
-    run_input_keyset = keyset_from_paused_state(proposed_state)
 
     if wait_for_input:
+        run_input_keyset = keyset_from_paused_state(proposed_state)
         proposed_state.state_details.run_input_keyset = run_input_keyset
 
     try:
