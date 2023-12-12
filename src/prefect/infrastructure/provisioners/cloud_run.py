@@ -208,7 +208,7 @@ class CloudRunPushProvisioner:
                                 - Service account will be granted the following roles:
                                     - Service Account User
                                     - Cloud Run Developer
-                            - Create a key for service account [blue]{self._service_account_name}[/]
+                            - Create a key for service account: [blue]{self._service_account_name}[/]
 
                         Updates in Prefect {"workspace" if client.server_type == ServerType.CLOUD else "server"}
 
