@@ -25,7 +25,10 @@ from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_with_banned_characters,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL
 from prefect.utilities.collections import AutoEnum, listrepr
@@ -105,6 +108,7 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
     pause_key: str = None
+    run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
 
 
@@ -1523,3 +1527,14 @@ class Variable(ObjectBaseModel):
         description="A list of variable tags",
         example=["tag-1", "tag-2"],
     )
+
+
+class FlowRunInput(ObjectBaseModel):
+    flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
+    key: str = Field(description="The key of the input.")
+    value: str = Field(description="The value of the input.")
+
+    @validator("key", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_alphanumeric_dashes_only(v)
+        return v
