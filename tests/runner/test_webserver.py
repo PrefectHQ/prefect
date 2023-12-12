@@ -1,5 +1,6 @@
 import typing as t
 import uuid
+from unittest import mock
 
 import pydantic
 import pytest
@@ -92,3 +93,26 @@ async def test_runners_deployment_run_route_with_complex_args(runner: Runner):
     client = TestClient(webserver)
     response = client.post(f"/deployment/{deployment_id}/run", json={"x": 100})
     assert response.status_code == 201, response.json()
+
+
+@mock.patch("prefect.runner.server.get_client")
+async def test_runners_deployment_run_route_execs_flow_run(
+    mock_get_client: mock.Mock, runner: Runner
+):
+    @flow(version="test")
+    def f(verb: str = "party"):
+        print(f"I'm just here to {verb}")
+
+    mock_client = mock.AsyncMock()
+    mock_get_client.return_value.__aenter__.return_value = mock_client
+
+    deployment_id = await create_deployment(runner, f)
+    webserver = await build_server(runner)
+
+    client = TestClient(webserver)
+    response = client.post(f"/deployment/{deployment_id}/run")
+
+    assert response.status_code == 201, response.json()
+    mock_client.create_flow_run_from_deployment.assert_called_once_with(
+        deployment_id=uuid.UUID(deployment_id), parameters={}
+    )
