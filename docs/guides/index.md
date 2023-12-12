@@ -1,6 +1,6 @@
 ---
 description: Learn how to do common workflows with Prefect.
-title: Guides
+title: How-to Guides
 tags:
     - guides
     - how to
@@ -8,9 +8,9 @@ search:
   boost: 2
 ---
 
-# Guides
+# How-to Guides
 
-This section of the documentation contains guides for common workflows and use cases.
+This section of the documentation contains how-to guides for common workflows and use cases.
 
 ## Development
 
