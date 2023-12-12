@@ -61,8 +61,9 @@ def shutdown(runner) -> int:
 
 async def __run_deployment(deployment: "Deployment"):
     async def _create_flow_run_for_deployment(
-        body: t.Dict[t.Any, t.Any]
+        body: t.Optional[t.Dict[t.Any, t.Any]] = None
     ) -> JSONResponse:
+        body = body or {}
         if deployment.enforce_parameter_schema and deployment.parameter_openapi_schema:
             try:
                 validate_values_conform_to_schema(
