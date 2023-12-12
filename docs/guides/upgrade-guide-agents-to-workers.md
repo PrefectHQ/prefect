@@ -266,7 +266,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
         Note that when using `flow.from_source(...).deploy(...)`, the flow you're deploying does not need to be available locally before running your script.
 
-       #### Deploying via a Docker image
+        #### Deploying via a Docker image
 
         If you currently bake your flow code into a Docker image before deploying, you can use the `image` argument of `flow.deploy` to build a Docker image as part of your deployment process:
 
@@ -295,9 +295,15 @@ If you have existing deployments that use infrastructure blocks, you can quickly
         !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
             With agents, you might have had multiple `deployment.yaml` files, but under worker deployment patterns, each repo will have a single `prefect.yaml` file located at the **root** of the repo that contains [deployment configuration](/concepts/deployments/#working-with-multiple-deployments) for all flows in that repo.
 
+        To set up a new `prefect.yaml` file for your deployments, run the following command from the root level of your repo:
+
+        <div class="terminal">
         ```bash
         perfect deploy
         ```
+        </div>
+
+        This will start a wizard that will guide you through setting up your first deployment.
 
         !!! Note "For step 4, select `y` on the last prompt to save the configuration for the deployment."
             Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments/#working-with-multiple-deployments) for this repo.
