@@ -15,7 +15,7 @@ from rich.pretty import Pretty
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
-from prefect.cli._prompts import prompt_select_from_table
+from prefect.cli._prompts import prompt, prompt_select_from_table
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
@@ -28,6 +28,8 @@ class CloudRunPushProvisioner:
         self._console = Console()
         self._project = None
         self._region = None
+        self._service_account_name = "prefect-cloud-run"
+        self._credentials_block_name = None
 
     @property
     def console(self):
@@ -118,7 +120,7 @@ class CloudRunPushProvisioner:
     async def _create_service_account(self):
         try:
             await self._run_command(
-                "gcloud iam service-accounts create prefect-cloud-run"
+                f"gcloud iam service-accounts create {self._service_account_name}"
                 ' --display-name "Prefect Cloud Run Service Account"'
             )
         except subprocess.CalledProcessError as e:
@@ -134,27 +136,29 @@ class CloudRunPushProvisioner:
             try:
                 await self._run_command(
                     "gcloud iam service-accounts keys create"
-                    f" {tmpdir}/prefect-cloud-run-key.json"
-                    f" --iam-account=prefect-cloud-run@{self._project}.iam.gserviceaccount.com"
+                    f" {tmpdir}/{self._service_account_name}-key.json"
+                    f" --iam-account={self._service_account_name}@{self._project}.iam.gserviceaccount.com"
                 )
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     "Error creating service account key. Please ensure you have the"
                     " necessary permissions."
                 ) from e
-            key = json.loads((Path(tmpdir) / "prefect-cloud-run-key.json").read_text())
+            key = json.loads(
+                (Path(tmpdir) / f"{self._service_account_name}-key.json").read_text()
+            )
         return key
 
     async def _assign_roles(self):
         try:
             await self._run_command(
                 "gcloud projects add-iam-policy-binding"
-                f' {self._project} --member="serviceAccount:prefect-cloud-run@{self._project}.iam.gserviceaccount.com"'
+                f' {self._project} --member="serviceAccount:{self._service_account_name}@{self._project}.iam.gserviceaccount.com"'
                 ' --role="roles/iam.serviceAccountUser"'
             )
             await self._run_command(
                 "gcloud projects add-iam-policy-binding"
-                f' {self._project} --member="serviceAccount:prefect-cloud-run@{self._project}.iam.gserviceaccount.com"'
+                f' {self._project} --member="serviceAccount:{self._service_account_name}@{self._project}.iam.gserviceaccount.com"'
                 ' --role="roles/run.developer"'
             )
         except subprocess.CalledProcessError as e:
@@ -191,6 +195,47 @@ class CloudRunPushProvisioner:
             )
             return block_doc.id
 
+    async def _create_provision_table(self, work_pool_name: str, client: PrefectClient):
+        return Panel(
+            dedent(
+                f"""\
+                    Provisioning infrastructure for your work pool [blue]{work_pool_name}[/] will require:
+
+                        Updates in GCP project [blue]{self._project}[/] in region [blue]{self._region}[/]
+
+                            - Activate the Cloud Run API for your project
+                            - Create a service account for managing Cloud Run jobs: [blue]{self._service_account_name}[/]
+                                - Service account will be granted the following roles:
+                                    - Service Account User
+                                    - Cloud Run Developer
+                            - Create a key for service account [blue]{self._service_account_name}[/]
+
+                        Updates in Prefect {"workspace" if client.server_type == ServerType.CLOUD else "server"}
+
+                            - Create GCP credentials block to store the service account key [blue]{self._credentials_block_name}[/]
+                """
+            ),
+            expand=False,
+        )
+
+    async def _customize_resource_names(
+        self, work_pool_name: str, client: PrefectClient
+    ) -> bool:
+        self._service_account_name = prompt(
+            "Please enter a name for the service account",
+            default=self._service_account_name,
+        )
+        self._credentials_block_name = prompt(
+            "Please enter a name for the GCP credentials block",
+            default=self._credentials_block_name,
+        )
+        table = await self._create_provision_table(work_pool_name, client)
+        self._console.print(table)
+
+        return Confirm.ask(
+            "Proceed with infrastructure provisioning?", console=self._console
+        )
+
     @inject_client
     async def provision(
         self,
@@ -202,33 +247,41 @@ class CloudRunPushProvisioner:
         await self._verify_gcloud_ready()
         self._project = await self._get_project()
         self._region = await self._get_default_region()
+        self._credentials_block_name = f"{work_pool_name}-push-pool-credentials"
 
-        table = Panel(
-            dedent(
-                f"""\
-                    Provisioning infrastructure for your work pool [blue]{work_pool_name}[/] will require:
-
-                        Updates in GCP project [blue]{self._project}[/] in region [blue]{self._region}[/]
-
-                            - Activate the Cloud Run API for your project
-                            - Create a service account for managing Cloud Run jobs: [blue]prefect-cloud-run[/]
-                                - Service account will be granted the following roles:
-                                    - Service Account User
-                                    - Cloud Run Developer
-                            - Create a key for service account [blue]prefect-cloud-run[/]
-
-                        Updates in Prefect {"workspace" if client.server_type == ServerType.CLOUD else "server"}
-
-                            - Create GCP credentials block [blue]{work_pool_name}-push-pool-credentials[/] to store the service account key
-                    """
-            ),
-            expand=False,
-        )
+        table = await self._create_provision_table(work_pool_name, client)
         self._console.print(table)
         if self._console.is_interactive:
-            if not Confirm.ask(
-                "Proceed with infrastructure provisioning?", console=self._console
+            chosen_option = prompt_select_from_table(
+                self._console,
+                "Proceed with infrastructure provisioning with default resource names?",
+                [
+                    {"header": "Options:", "key": "option"},
+                ],
+                [
+                    {
+                        "option": (
+                            "Yes, proceed with infrastructure provisioning with default"
+                            " resource names"
+                        )
+                    },
+                    {
+                        "option": (
+                            "Customize names of service account and GCP credentials"
+                            " block"
+                        )
+                    },
+                    {"option": "Do not provision infrastructure"},
+                ],
+            )
+
+            if (
+                chosen_option["option"]
+                == "Customize names of service account and GCP credentials block"
             ):
+                if not await self._customize_resource_names(work_pool_name, client):
+                    return base_job_template
+            elif chosen_option["option"] == "Do not provision infrastructure":
                 return base_job_template
 
         with Progress(console=self._console) as progress:
