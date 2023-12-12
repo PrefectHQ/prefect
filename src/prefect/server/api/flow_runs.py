@@ -3,7 +3,7 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
 import jsonschema
@@ -292,7 +292,7 @@ async def read_flow_run_graph_v2(
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    run_input: dict | None = Body(default=None, embed=True),
+    run_input: Optional[Dict] = Body(default=None, embed=True),
     response: Response = None,
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
