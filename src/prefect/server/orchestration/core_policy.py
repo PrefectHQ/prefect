@@ -649,11 +649,10 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             return
 
         # Only allow departure from a happily completed state if the result is not persisted
-
         if (
             initial_state.is_completed()
             and initial_state.data
-            and (initial_state.data.get("type") != "unpersisted")
+            and initial_state.data.get("type") != "unpersisted"
         ):
             await self.reject_transition(None, "This run is already completed.")
             return
