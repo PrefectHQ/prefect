@@ -1805,6 +1805,24 @@ async def orchestrate_task_run(
     )
     last_state = task_run.state
 
+    # Forced completed states don't have results. We don't know if this state
+    # was forced, but we'll assume it was and thus we include placeholder result
+    # data. The task will act as if it returned None.
+    if (
+        last_state
+        and last_state.is_completed()
+        and result_factory.persist_result
+        and not last_state.data
+    ):
+        state = await propose_state(
+            client,
+            state=last_state.copy(
+                update={"data": await result_factory.create_result(None)}
+            ),
+            task_run_id=task_run.id,
+            force=True,
+        )
+
     # Transition from `PENDING` -> `RUNNING`
     try:
         state = await propose_state(
