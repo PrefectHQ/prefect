@@ -933,7 +933,15 @@ class TestResumeFlowrun:
 
         assert flow_run
 
-        await SimpleInput.save(keyset, flow_run_id=flow_run.id)
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="paused-1-schema",
+                value=orjson.dumps(SimpleInput.schema()).decode(),
+            ),
+        )
+
         await session.commit()
 
         return flow_run
@@ -1020,14 +1028,12 @@ class TestResumeFlowrun:
     async def test_cannot_resume_flow_run_waiting_for_input_missing_schema(
         self,
         client,
-        session,
         paused_flow_run_waiting_for_input,
     ):
-        await models.flow_run_input.delete_flow_run_input(
-            session=session,
-            flow_run_id=paused_flow_run_waiting_for_input.id,
-            key="paused-1-schema",
+        response = await client.delete(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input/paused-1-schema",
         )
+        assert response.status_code == 204
 
         response = await client.post(
             f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
@@ -1041,22 +1047,21 @@ class TestResumeFlowrun:
     async def test_cannot_resume_flow_run_waiting_for_input_schema_not_json(
         self,
         client,
-        session,
         paused_flow_run_waiting_for_input,
     ):
-        await models.flow_run_input.delete_flow_run_input(
-            session=session,
-            flow_run_id=paused_flow_run_waiting_for_input.id,
-            key="paused-1-schema",
+        response = await client.delete(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input/paused-1-schema",
         )
-        await models.flow_run_input.create_flow_run_input(
-            session=session,
-            flow_run_input=schemas.core.FlowRunInput(
-                flow_run_id=paused_flow_run_waiting_for_input.id,
+        assert response.status_code == 204
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
                 key="paused-1-schema",
                 value="not json",
             ),
         )
+        assert response.status_code == 201
 
         response = await client.post(
             f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
@@ -1073,7 +1078,6 @@ class TestResumeFlowrun:
     async def test_cannot_resume_flow_run_waiting_for_input_schema_fails_validation(
         self,
         client,
-        session,
         paused_flow_run_waiting_for_input,
     ):
         response = await client.post(
