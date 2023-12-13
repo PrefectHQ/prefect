@@ -1177,40 +1177,67 @@ class ElasticContainerServicePushProvisioner:
         try:
             if self.console.is_interactive and Confirm.ask(
                 "Would you like to customize the resource names for your"
-                " infrastructure?"
+                " infrastructure? This includes IAM user, IAM policy, ECS cluster, VPC,"
+                " ECS security group, and ECR repository."
             ):
                 user_name = prompt(
-                    "Enter a name for the IAM user", default="prefect-ecs-user"
+                    (
+                        "Enter a name for the IAM user (managing AWS services and"
+                        " executing ECS tasks)"
+                    ),
+                    default="prefect-ecs-user",
                 )
                 policy_name = prompt(
-                    "Enter a name for the IAM policy", default="prefect-ecs-policy"
+                    (
+                        "Enter a name for the IAM policy (defines ECS task execution"
+                        " and image management permissions)"
+                    ),
+                    default="prefect-ecs-policy",
                 )
                 cluster_name = prompt(
-                    "Enter a name for the ECS cluster", default="prefect-ecs-cluster"
+                    "Enter a name for the ECS cluster (hosts ECS tasks)",
+                    default="prefect-ecs-cluster",
                 )
-                prompt(
-                    "Enter a name for the AWS credentials block",
+                credentials_name = prompt(
+                    (
+                        "Enter a name for the AWS credentials block (stores AWS"
+                        " credentials for ECS tasks))"
+                    ),
                     default=f"{work_pool_name}-aws-credentials",
                 )
-                vpc_name = prompt("Enter a name for the VPC", default="prefect-ecs-vpc")
+                vpc_name = prompt(
+                    (
+                        "Enter a name for the VPC (provides network isolation for ECS"
+                        " tasks)"
+                    ),
+                    default="prefect-ecs-vpc",
+                )
                 ecs_security_group_name = prompt(
-                    "Enter a name for the ECS security group",
+                    (
+                        "Enter a name for the ECS security group (controls task network"
+                        " traffic)"
+                    ),
                     default="prefect-ecs-security-group",
                 )
                 repository_name = prompt(
-                    "Enter a name for the ECR repository", default="prefect-flows"
+                    (
+                        "Enter a name for the ECR repository (store Docker images for"
+                        " ECS tasks)"
+                    ),
+                    default="prefect-flows",
                 )
 
                 def _create_provision_preview(self, work_pool_name: str):
                     return Panel(
                         dedent(
                             f"""\
-                            The following resources will be provisioned for work pool
+                            Custom names for infrastructure resources for
                             [blue]{work_pool_name}[/]:
 
                             - IAM user: [blue]{user_name}[/]
                             - IAM policy: [blue]{policy_name}[/]
                             - ECS cluster: [blue]{cluster_name}[/]
+                            - AWS credentials block: [blue]{credentials_name}[/]
                             - VPC: [blue]{vpc_name}[/]
                             - ECS security group: [blue]{ecs_security_group_name}[/]
                             - ECR repository: [blue]{repository_name}[/]
@@ -1221,20 +1248,16 @@ class ElasticContainerServicePushProvisioner:
 
                 self.console.print(_create_provision_preview(self, work_pool_name))
 
-                if Confirm.ask(
-                    "Proceed with infrastructure provisioning?", console=self.console
-                ):
-                    resources = self._generate_resources(
-                        work_pool_name=work_pool_name,
-                        user_name=user_name,
-                        policy_name=policy_name,
-                        cluster_name=cluster_name,
-                        vpc_name=vpc_name,
-                        ecs_security_group_name=ecs_security_group_name,
-                        repository_name=repository_name,
-                    )
-                else:
-                    return base_job_template
+                resources = self._generate_resources(
+                    work_pool_name=work_pool_name,
+                    user_name=user_name,
+                    policy_name=policy_name,
+                    credentials_block_name=credentials_name,
+                    cluster_name=cluster_name,
+                    vpc_name=vpc_name,
+                    ecs_security_group_name=ecs_security_group_name,
+                    repository_name=repository_name,
+                )
 
             else:
                 resources = self._generate_resources(work_pool_name=work_pool_name)

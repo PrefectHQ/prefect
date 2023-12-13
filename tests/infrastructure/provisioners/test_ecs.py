@@ -926,7 +926,11 @@ class TestElasticContainerServicePushProvisioner:
 
         assert mock_confirm.ask.call_count == 2
         expected_call_1 = call(
-            "Would you like to customize the resource names for your infrastructure?"
+            (
+                "Would you like to customize the resource names for your"
+                " infrastructure? This includes IAM user, IAM policy, ECS cluster, VPC,"
+                " ECS security group, and ECR repository."
+            ),
         )
         expected_call_2 = call("Proceed with infrastructure provisioning?", console=ANY)
         assert mock_confirm.ask.call_args_list[0] == expected_call_1
