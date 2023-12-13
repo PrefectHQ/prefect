@@ -1781,18 +1781,23 @@ class PrefectClient:
                 raise
         return FlowRun.parse_obj(response.json())
 
-    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+    async def resume_flow_run(
+        self, flow_run_id: UUID, run_input: Optional[Dict] = None
+    ) -> OrchestrationResult:
         """
         Resumes a paused flow run.
 
         Args:
             flow_run_id: the flow run ID of interest
+            run_input: the input to resume the flow run with
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
         try:
-            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
+            response = await self._client.post(
+                f"/flow_runs/{flow_run_id}/resume", json={"run_input": run_input}
+            )
         except httpx.HTTPStatusError:
             raise
 
