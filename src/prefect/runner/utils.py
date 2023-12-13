@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any, Dict
 
 from prefect._vendor.fastapi import FastAPI
@@ -23,15 +24,13 @@ def inject_schemas_into_openapi(
         title="FastAPI Prefect Runner", version=PREFECT_VERSION, routes=webserver.routes
     )
 
-    merge_definitions(deployment_schemas, openapi_schema)
-    update_refs_to_components(openapi_schema)
-
-    return openapi_schema
+    augmented_schema = merge_definitions(deployment_schemas, openapi_schema)
+    return update_refs_to_components(augmented_schema)
 
 
 def merge_definitions(
     deployment_schemas: Dict[str, Any], openapi_schema: Dict[str, Any]
-) -> None:
+) -> Dict[str, Any]:
     """
     Integrates definitions from deployment schemas into the OpenAPI components.
 
@@ -39,12 +38,17 @@ def merge_definitions(
         deployment_schemas: A dictionary of deployment-specific schemas.
         openapi_schema: The base OpenAPI schema to update.
     """
-    components = openapi_schema.setdefault("components", {}).setdefault("schemas", {})
+    openapi_schema_copy = deepcopy(openapi_schema)
+    components = openapi_schema_copy.setdefault("components", {}).setdefault(
+        "schemas", {}
+    )
     for definitions in deployment_schemas.values():
         if "definitions" in definitions:
             for def_name, def_schema in definitions["definitions"].items():
-                update_refs_in_schema(def_schema, "#/components/schemas/")
-                components[def_name] = def_schema
+                def_schema_copy = deepcopy(def_schema)
+                update_refs_in_schema(def_schema_copy, "#/components/schemas/")
+                components[def_name] = def_schema_copy
+    return openapi_schema_copy
 
 
 def update_refs_in_schema(schema_item: Any, new_ref: str) -> None:
@@ -56,9 +60,8 @@ def update_refs_in_schema(schema_item: Any, new_ref: str) -> None:
         new_ref: The new base string to replace in `$ref` values.
     """
     if isinstance(schema_item, dict):
-        schema_item["$ref"] = schema_item.get("$ref", "").replace(
-            "#/definitions/", new_ref
-        )
+        if "$ref" in schema_item:
+            schema_item["$ref"] = schema_item["$ref"].replace("#/definitions/", new_ref)
         for value in schema_item.values():
             update_refs_in_schema(value, new_ref)
     elif isinstance(schema_item, list):
@@ -73,7 +76,8 @@ def update_refs_to_components(openapi_schema: Dict[str, Any]) -> None:
     Args:
         openapi_schema: The OpenAPI schema to modify `$ref` fields in.
     """
-    for path_item in openapi_schema.get("paths", {}).values():
+    openapi_schema_copy = deepcopy(openapi_schema)
+    for path_item in openapi_schema_copy.get("paths", {}).values():
         for operation in path_item.values():
             schema = (
                 operation.get("requestBody", {})
@@ -82,3 +86,4 @@ def update_refs_to_components(openapi_schema: Dict[str, Any]) -> None:
                 .get("schema", {})
             )
             update_refs_in_schema(schema, "#/components/schemas/")
+    return openapi_schema_copy

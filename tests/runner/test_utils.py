@@ -2,10 +2,10 @@ from unittest.mock import Mock
 
 import pytest
 
+from prefect import __version__ as PREFECT_VERSION
 from prefect.runner.utils import (
     inject_schemas_into_openapi,
     merge_definitions,
-    update_refs_in_schema,
     update_refs_to_components,
 )
 
@@ -40,18 +40,27 @@ def deployment_schemas():
 
 
 @pytest.fixture
-def schema_item():
-    return {"$ref": "#/definitions/Model1"}
+def openapi_schema():
+    return {
+        "openapi": "3.1.0",
+        "info": {"title": "FastAPI Prefect Runner", "version": PREFECT_VERSION},
+        "components": {"schemas": {}},
+        "paths": {},
+    }
 
 
 @pytest.fixture
-def deployment_openapi_schema(schema_item):
+def schema_with_refs():
     return {
         "paths": {
             "/path": {
                 "get": {
                     "requestBody": {
-                        "content": {"application/json": {"schema": schema_item}}
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/definitions/Model1"}
+                            }
+                        }
                     }
                 }
             }
@@ -60,59 +69,35 @@ def deployment_openapi_schema(schema_item):
 
 
 @pytest.fixture
-def openapi_schema():
-    return {"components": {"schemas": {}}}
+def augmented_openapi_schema(deployment_schemas, openapi_schema):
+    merged_schema = merge_definitions(deployment_schemas, openapi_schema)
+    return update_refs_to_components(merged_schema)
 
 
-def test_inject_schemas_into_openapi(mock_app, deployment_schemas):
-    augmented_schema = inject_schemas_into_openapi(mock_app, deployment_schemas)
-    assert "Model1" in augmented_schema["components"]["schemas"]
-    assert "Model2" in augmented_schema["components"]["schemas"]
-    assert augmented_schema["components"]["schemas"]["Model1"]["type"] == "object"
-    assert augmented_schema["components"]["schemas"]["Model2"]["type"] == "object"
-    assert (
-        augmented_schema["components"]["schemas"]["Model1"]["properties"]["field1"][
-            "type"
-        ]
-        == "string"
-    )
-    assert (
-        augmented_schema["components"]["schemas"]["Model2"]["properties"]["field2"][
-            "type"
-        ]
-        == "integer"
-    )
+def test_inject_schemas_into_openapi(
+    mock_app, deployment_schemas, augmented_openapi_schema
+):
+    result_schema = inject_schemas_into_openapi(mock_app, deployment_schemas)
+    assert result_schema == augmented_openapi_schema
 
 
 def test_merge_definitions(deployment_schemas, openapi_schema):
-    merge_definitions(deployment_schemas, openapi_schema)
-    assert "Model1" in openapi_schema["components"]["schemas"]
-    assert "Model2" in openapi_schema["components"]["schemas"]
-    assert openapi_schema["components"]["schemas"]["Model1"]["type"] == "object"
-    assert openapi_schema["components"]["schemas"]["Model2"]["type"] == "object"
+    result_schema = merge_definitions(deployment_schemas, openapi_schema)
+
+    expected_models = {}
+    for definitions in deployment_schemas.values():
+        if "definitions" in definitions:
+            expected_models.update(definitions["definitions"])
+
+    assert result_schema["components"]["schemas"] == expected_models
+
+
+def test_update_refs_to_components(
+    openapi_schema, deployment_schemas, schema_with_refs
+):
+    result_schema = update_refs_to_components(schema_with_refs)
     assert (
-        openapi_schema["components"]["schemas"]["Model1"]["properties"]["field1"][
-            "type"
-        ]
-        == "string"
-    )
-    assert (
-        openapi_schema["components"]["schemas"]["Model2"]["properties"]["field2"][
-            "type"
-        ]
-        == "integer"
-    )
-
-
-def test_update_refs_in_schema(schema_item):
-    update_refs_in_schema(schema_item, "#/components/schemas/")
-    assert schema_item["$ref"] == "#/components/schemas/Model1"
-
-
-def test_update_refs_to_components(deployment_openapi_schema):
-    update_refs_to_components(deployment_openapi_schema)
-    assert (
-        deployment_openapi_schema["paths"]["/path"]["get"]["requestBody"]["content"][
+        result_schema["paths"]["/path"]["get"]["requestBody"]["content"][
             "application/json"
         ]["schema"]["$ref"]
         == "#/components/schemas/Model1"
