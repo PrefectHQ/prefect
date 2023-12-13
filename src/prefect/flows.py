@@ -556,6 +556,7 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -578,6 +579,9 @@ class Flow(Generic[P, R]):
             timezone: A timezone to use for the schedule. Defaults to UTC.
             triggers: A list of triggers that will kick off runs of this deployment.
             schedule: A schedule object defining when to execute runs of this deployment.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -623,6 +627,7 @@ class Flow(Generic[P, R]):
                 cron=cron,
                 rrule=rrule,
                 schedule=schedule,
+                is_schedule_active=is_schedule_active,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -641,6 +646,7 @@ class Flow(Generic[P, R]):
                 cron=cron,
                 rrule=rrule,
                 schedule=schedule,
+                is_schedule_active=is_schedule_active,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -660,6 +666,7 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -682,6 +689,9 @@ class Flow(Generic[P, R]):
             triggers: A list of triggers that will kick off runs of this deployment.
             schedule: A schedule object defining when to execute runs of this deployment. Used to
                 define additional scheduling options like `timezone`.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -738,6 +748,7 @@ class Flow(Generic[P, R]):
             cron=cron,
             rrule=rrule,
             schedule=schedule,
+            is_schedule_active=is_schedule_active,
             parameters=parameters,
             description=description,
             tags=tags,
@@ -852,6 +863,7 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -891,6 +903,9 @@ class Flow(Generic[P, R]):
             triggers: A list of triggers that will kick off runs of this deployment.
             schedule: A schedule object defining when to execute runs of this deployment. Used to
                 define additional scheduling options like `timezone`.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -956,6 +971,7 @@ class Flow(Generic[P, R]):
             cron=cron,
             rrule=rrule,
             schedule=schedule,
+            is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
             description=description,
