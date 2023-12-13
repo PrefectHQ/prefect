@@ -3,8 +3,8 @@
     <template #header>
       <PageHeading :crumbs="crumbs">
         <template v-if="!empty" #actions>
-          <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
-          <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
+          <FlowRunTagsInput v-model:selected="filter.tags" empty-message="All tags" class="workspace-dashboard__tags" />
+          <DateRangeSelect v-model="filter.range" class="workspace-dashboard__range" />
         </template>
       </PageHeading>
     </template>
@@ -38,9 +38,7 @@
 <script setup lang="ts">
   import { Crumb } from '@prefecthq/prefect-design'
   import {
-    TimeSpanFilter,
     DashboardWorkPoolsCard,
-    WorkspaceDashboardFilter,
     WorkspaceDashboardFlowRunsCard,
     CumulativeTaskRunsCard,
     PageHeading,
@@ -51,10 +49,12 @@
     mapper,
     TaskRunsFilter,
     MarketingBanner,
-    Getter
+    Getter,
+    DateRangeSelect,
+    useWorkspaceDashboardFilterFromRoute
   } from '@prefecthq/prefect-ui-library'
-  import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
-  import { secondsInHour, secondsToMilliseconds } from 'date-fns'
+  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { secondsInWeek, secondsToMilliseconds } from 'date-fns'
   import { computed, provide } from 'vue'
 
   provide(subscriptionIntervalKey, {
@@ -65,24 +65,24 @@
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
-
   const crumbs: Crumb[] = [{ text: 'Dashboard' }]
 
-  const timeSpanInSeconds = useRouteQueryParam('span', NumberRouteParam, secondsInHour * 24)
-  const tags = useRouteQueryParam('tags', [])
+  const filter = useWorkspaceDashboardFilterFromRoute({
+    range: { type: 'span', seconds: -secondsInWeek },
+    tags: [],
+  })
 
-  const filter = computed<WorkspaceDashboardFilter>(() => ({
-    timeSpanInSeconds: timeSpanInSeconds.value,
-    tags: tags.value,
-  }))
-
-  const tasksFilter: Getter<TaskRunsFilter> = () => mapper.map('WorkspaceDashboardFilter', filter.value, 'TaskRunsFilter')
+  const tasksFilter: Getter<TaskRunsFilter> = () => mapper.map('WorkspaceDashboardFilter', filter, 'TaskRunsFilter')
 </script>
 
 <style>
 .workspace-dashboard__tags { @apply
   w-full
   max-w-xs
+}
+
+.workspace-dashboard__range { @apply
+  max-w-lg
 }
 
 .workspace-dashboard__grid { @apply
