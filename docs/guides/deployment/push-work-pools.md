@@ -74,7 +74,7 @@ Here's the command to create a new push work pool and configure the necessary in
     </div>
 
     Using the `--provision-infra` flag will automatically set up your default AWS account to be ready to execute flows via ECS tasks. 
-    In your AWS account, this command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, and VPC, if they don't already exist.
+    In your AWS account, this command will create a new IAM user, IAM policy, ECS cluster that uses AWS Fargate, VPC, and ECR repository if they don't already exist.
     In your Prefect workspace, this command will create an [`AWSCredentials` block](https://prefecthq.github.io/prefect-aws/credentials/) for storing the generated credentials.
 
     Here's an abbreviated example output from running the command:
@@ -83,13 +83,14 @@ Here's the command to create a new push work pool and configure the necessary in
 
     ```bash
     ╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-ecs-pool will require:                                         │
+    │ Provisioning infrastructure for your work pool my-ecs-pool will require:                                          │
     │                                                                                                                   │
     │          - Creating an IAM user for managing ECS tasks: prefect-ecs-user                                          │
     │          - Creating and attaching an IAM policy for managing ECS tasks: prefect-ecs-policy                        │
     │          - Storing generated AWS credentials in a block                                                           │
     │          - Creating an ECS cluster for running Prefect flows: prefect-ecs-cluster                                 │
     │          - Creating a VPC with CIDR 172.31.0.0/16 for running ECS tasks: prefect-ecs-vpc                          │
+    │          - Creating an ECR repository for storing Prefect images: prefect-flows                                   │
     ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
     Proceed with infrastructure provisioning? [y/n]: y
     Provisioning IAM user
@@ -101,12 +102,46 @@ Here's the command to create a new push work pool and configure the necessary in
     Creating internet gateway
     Setting up subnets
     Setting up security group
+    Provisioning ECR repository
+    Authenticating with ECR
+    Setting default Docker build namespace
     Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     Infrastructure successfully provisioned!
     Created work pool 'my-ecs-pool'!
     ```
 
     </div>
+
+    !!! tip "Default Docker build namespace"
+        After infrastructure provisioning completes, you will be logged into your new ECR repository and the default Docker build namespace will be set to the URL of the registry.
+
+        While the default namespace is set, you will not need to provide the registry URL when building images as part of your deployment process.
+
+        To take advantage of this, you can write your deploy scripts like this:
+
+        ```python hl_lines="14" title="example_deploy_script.py"
+        from prefect import flow                                                       
+        from prefect.deployments import DeploymentImage                                
+
+
+        @flow(log_prints=True)                                                         
+        def my_flow(name: str = "world"):                                              
+            print(f"Hello {name}! I'm a flow running in a ECS task!") 
+
+
+        if __name__ == "__main__":                                                     
+            my_flow.deploy(                                                            
+                name="my-deployment",                                                  
+                image=DeploymentImage(                                                 
+                    name="my-repository:latest",                                            
+                    platform="linux/amd64",                                            
+                )                                                                      
+            )       
+        ```
+
+        This will build an image with the tag `<ecr-registry-url>/my-image:latest` and push it to the registry.
+
+        Your image name will need to match the name of the repository created with your work pool. You can create new repositories in the ECR console.
 
 === "Azure Container Instances"
 
