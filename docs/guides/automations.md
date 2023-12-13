@@ -19,11 +19,17 @@ In this guide, we will showcase common usecases where automations can come in ha
 - Combine into a multi-layered responsive deployment pattern
 
 !!! cloud-ad "Available only on Prefect Cloud"
-        Automations are only available on Prefect Cloud, please refer to the [Cloud documentation](https://docs.prefect.io/2.13.4/cloud/#welcome-to-prefect-cloud) to see what 
-        additional features are available such as Events and webhooks!
+        Automations are only available on Prefect Cloud, please refer to the [Cloud documentation](/cloud) to see what 
+        additional features are available
 
+## Prerequisites
+Please have the following before completing the guide:
+- Python installed
+- Prefect installed (follow the installation guide)
+- You can sign up for a forever free Prefect Cloud account
+- Explore deployments so the concepts are familiar
 
-## Creating the test script
+## Creating the example script
 
 Automations are the one stop shop to react to different workflows by responding to specific actions recorded by Prefect. 
 
@@ -207,7 +213,7 @@ In a few quick changes, we are able to programatically create an automation that
 
 ## Using an underlying .yaml file
 
-We can extend this idea one step further by utilizing our own .yaml interpretation of the automation, and registering that file with our UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
+We can extend this idea one step further by utilizing our own .yaml version of the automation, and registering that file with our UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
 
 Let's first start with creating the .yaml file that will house the automation requirements. Here is how it would look like:
 
