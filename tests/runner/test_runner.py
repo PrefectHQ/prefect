@@ -770,12 +770,16 @@ class TestRunnerDeployment:
 
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
 
-    def test_from_flow_accepts_is_schedule_active(self):
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, None)],
+    )
+    def test_from_flow_accepts_is_schedule_active(self, value, expected):
         deployment = RunnerDeployment.from_flow(
-            dummy_flow_1, __file__, is_schedule_active=False
+            dummy_flow_1, __file__, is_schedule_active=value
         )
 
-        assert deployment.is_schedule_active is False
+        assert deployment.is_schedule_active is expected
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -879,11 +883,18 @@ class TestRunnerDeployment:
 
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
 
-    def test_from_entrypoint_accepts_is_schedule_active(self, dummy_flow_1_entrypoint):
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, None)],
+    )
+    def test_from_entrypoint_accepts_is_schedule_active(
+        self, dummy_flow_1_entrypoint, value, expected
+    ):
         deployment = RunnerDeployment.from_entrypoint(
-            dummy_flow_1_entrypoint, __file__, is_schedule_active=False
+            dummy_flow_1_entrypoint, __file__, is_schedule_active=value
         )
 
+        assert deployment.is_schedule_active is expected
         assert deployment.is_schedule_active is False
 
     @pytest.mark.parametrize(
