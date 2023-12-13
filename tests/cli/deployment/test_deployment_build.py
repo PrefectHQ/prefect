@@ -10,6 +10,7 @@ import pytest
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect import flow
+from prefect.client.schemas.schedules import NoSchedule
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
@@ -154,6 +155,48 @@ async def ensure_default_agent_pool_exists(session):
 
 
 class TestSchedules:
+    def test_passing_no_schedule_and_cron_schedules_to_build_exits_with_error(
+        self, patch_import, tmp_path
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--no-schedule",
+                "--cron",
+                "0 4 * * *",
+                "--timezone",
+                "Europe/Berlin",
+            ],
+            expected_code=1,
+            expected_output="Only one schedule type can be provided.",
+            temp_dir=tmp_path,
+        )
+
+    def test_passing_no_schedule_to_build(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--no-schedule",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.schedule == NoSchedule()
+
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
             [
