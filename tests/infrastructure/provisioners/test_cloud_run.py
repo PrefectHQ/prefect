@@ -12,6 +12,10 @@ from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.infrastructure.provisioners.cloud_run import CloudRunPushProvisioner
+from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    load_current_profile,
+)
 from prefect.testing.utilities import AsyncMock
 
 if HAS_PYDANTIC_V2:
@@ -329,6 +333,10 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
     block_doc = await prefect_client.read_block_document(new_block_doc_id)
     assert block_doc.name == "test-push-pool-credentials"
     assert block_doc.data == {"service_account_info": {"private_key": "test-key"}}
+    assert (
+        load_current_profile().settings[PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE]
+        == "us-central1-docker.pkg.dev/test-project/prefect-images"
+    )
 
 
 async def test_check_for_gcloud_failure(mock_run_process):
