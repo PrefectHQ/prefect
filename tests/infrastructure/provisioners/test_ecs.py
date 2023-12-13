@@ -843,7 +843,11 @@ class TestElasticContainerServicePushProvisioner:
         mock_run_process: MagicMock,
         mock_importlib,
     ):
-        mock_confirm.ask.return_value = True
+        mock_confirm.ask.side_effect = [
+            True,
+            False,
+            True,
+        ]  # install boto3, do not customize, proceed with provisioning
 
         mock_importlib.import_module.side_effect = [ModuleNotFoundError, boto3]
 
@@ -911,7 +915,7 @@ class TestElasticContainerServicePushProvisioner:
         self, provisioner, mock_console, mock_confirm
     ):
         mock_console.is_interactive = True
-        mock_confirm.ask.return_value = False
+        mock_confirm.ask.side_effect = [False, False]
 
         provisioner.console.is_interactive = True
         provisioner.is_boto3_installed = MagicMock(return_value=True)
@@ -920,16 +924,23 @@ class TestElasticContainerServicePushProvisioner:
 
         assert result == {}
 
-        mock_confirm.ask.assert_called_once_with(
-            "Proceed with infrastructure provisioning?", console=ANY
+        assert mock_confirm.ask.call_count == 2
+        expected_call_1 = call(
+            "Would you like to customize the resource names for your infrastructure?"
         )
+        expected_call_2 = call("Proceed with infrastructure provisioning?", console=ANY)
+        assert mock_confirm.ask.call_args_list[0] == expected_call_1
+        assert mock_confirm.ask.call_args_list[1] == expected_call_2
 
     @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
     async def test_provision(
         self, provisioner, mock_confirm, prefect_client, mock_run_process, capsys
     ):
         provisioner.console.is_interactive = True
-        mock_confirm.ask.return_value = True
+        mock_confirm.ask.side_effect = [
+            False,
+            True,
+        ]  # do not customize, proceed with provisioning
 
         result = await provisioner.provision(
             "test-work-pool",
@@ -977,7 +988,12 @@ class TestElasticContainerServicePushProvisioner:
     )
     async def test_provision_idempotent(self, provisioner, mock_confirm):
         provisioner.console.is_interactive = True
-        mock_confirm.ask.return_value = True
+        mock_confirm.ask.side_effect = [
+            False,
+            True,
+            False,
+            True,
+        ]  # do not customize, proceed with provisioning (for each)
 
         result_1 = await provisioner.provision(
             "test-work-pool",
