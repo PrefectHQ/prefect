@@ -8,6 +8,7 @@ import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+import signal
 
 import pendulum
 import typer
@@ -1052,47 +1053,53 @@ async def build(
     except Exception as exc:
         exit_with_error(exc)
     app.console.print(f"Found flow {flow.name!r}", style="green")
-    infra_overrides = {}
-    for override in overrides or []:
-        key, value = override.split("=", 1)
-        infra_overrides[key] = value
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(10)
+    try:
+        infra_overrides = {}
+        for override in overrides or []:
+            key, value = override.split("=", 1)
+            infra_overrides[key] = value
 
-    if infra_block:
-        infrastructure = await Block.load(infra_block)
-    elif infra_type:
-        # Create an instance of the given type
-        infrastructure = Block.get_block_class_from_key(infra_type)()
-    else:
-        # will reset to a default of Process is no infra is present on the
-        # server-side definition of this deployment
-        infrastructure = None
+        if infra_block:
+            infrastructure = await Block.load(infra_block)
+        elif infra_type:
+            # Create an instance of the given type
+            infrastructure = Block.get_block_class_from_key(infra_type)()
+        else:
+            # will reset to a default of Process is no infra is present on the
+            # server-side definition of this deployment
+            infrastructure = None
 
-    if interval_anchor and not interval:
-        exit_with_error("An anchor date can only be provided with an interval schedule")
 
-    schedule = None
-    if cron:
-        cron_kwargs = {"cron": cron, "timezone": timezone}
-        schedule = CronSchedule(
-            **{k: v for k, v in cron_kwargs.items() if v is not None}
-        )
-    elif interval:
-        interval_kwargs = {
-            "interval": timedelta(seconds=interval),
-            "anchor_date": interval_anchor,
-            "timezone": timezone,
-        }
-        schedule = IntervalSchedule(
-            **{k: v for k, v in interval_kwargs.items() if v is not None}
-        )
-    elif rrule:
-        try:
-            schedule = RRuleSchedule(**json.loads(rrule))
-            if timezone:
-                # override timezone if specified via CLI argument
-                schedule.timezone = timezone
-        except json.JSONDecodeError:
-            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+        if interval_anchor and not interval:
+            exit_with_error("An anchor date can only be provided with an interval schedule")
+
+        schedule = None
+        if cron:
+            cron_kwargs = {"cron": cron, "timezone": timezone}
+            schedule = CronSchedule(
+                **{k: v for k, v in cron_kwargs.items() if v is not None}
+            )
+        elif interval:
+            interval_kwargs = {
+                "interval": timedelta(seconds=interval),
+                "anchor_date": interval_anchor,
+                "timezone": timezone,
+            }
+            schedule = IntervalSchedule(
+                **{k: v for k, v in interval_kwargs.items() if v is not None}
+            )
+        elif rrule:
+            try:
+                schedule = RRuleSchedule(**json.loads(rrule))
+                if timezone:
+                    # override timezone if specified via CLI argument
+                    schedule.timezone = timezone
+            except json.JSONDecodeError:
+                schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+    except Exception:
+        print("Network not connected, please check connectivity on port 4200")
 
     # parse storage_block
     if storage_block:
@@ -1309,3 +1316,6 @@ def _load_json_key_values(
             )
 
     return parsed
+
+def timeout_handler(signum, frame):
+    raise Exception("Network not connected, please check connectivity on port 4200")
