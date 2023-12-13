@@ -14,6 +14,7 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
+from rich.syntax import Syntax
 
 from prefect.cli._prompts import prompt, prompt_select_from_table
 from prefect.client.orchestration import PrefectClient, ServerType
@@ -277,6 +278,10 @@ class CloudRunPushProvisioner:
             "Please enter a name for the GCP credentials block",
             default=self._credentials_block_name,
         )
+        self._image_repository_name = prompt(
+            "Please enter a name for the Artifact Registry repository",
+            default=self._image_repository_name,
+        )
         table = await self._create_provision_table(work_pool_name, client)
         self._console.print(table)
 
@@ -346,10 +351,9 @@ class CloudRunPushProvisioner:
             progress.advance(task)
 
             progress.console.print("Setting default Docker build namespace")
+            default_docker_build_namespace = f"{self._region}-docker.pkg.dev/{self._project}/{self._image_repository_name}"
             update_current_profile(
-                {
-                    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: f"{self._region}-docker.pkg.dev/{self._project}/{self._image_repository_name}"
-                }
+                {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: default_docker_build_namespace}
             )
             progress.advance(task)
 
@@ -374,6 +378,40 @@ class CloudRunPushProvisioner:
                 "default"
             ] = {"$ref": {"block_document_id": str(block_doc_id)}}
             progress.advance(task)
+
+            self._console.print(
+                dedent(
+                    f"""\
+                    Your default Docker build namespace has been set to [blue]{default_docker_build_namespace!r}[/].
+                    Use any image name to build and push to this registry by default:
+                    """
+                ),
+                Panel(
+                    Syntax(
+                        dedent(
+                            f"""\
+                        from prefect import flow
+                        from prefect.deployments import DeploymentImage
+                        @flow(log_prints=True)
+                        def my_flow(name: str = "world"):
+                            print(f"Hello {{name}}! I'm a flow running in Cloud Run!")
+                        if __name__ == "__main__":
+                            my_flow.deploy(
+                                name="my-deployment",
+                                work_pool_name="{work_pool_name}",
+                                image=DeploymentImage(
+                                    name="my-image:latest",
+                                    platform="linux/amd64",
+                                )
+                            )"""
+                        ),
+                        "python",
+                        background_color="default",
+                    ),
+                    title="example_deploy_script.py",
+                    expand=False,
+                ),
+            )
 
         self._console.print(
             (

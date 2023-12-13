@@ -214,11 +214,13 @@ Here's the command to create a new push work pool and configure the necessary in
 
     ```bash
     ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                                     │
+    │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                           │
     │                                                                                                          │
     │     Updates in GCP project central-kit-405415 in region us-central1                                      │
     │                                                                                                          │
     │         - Activate the Cloud Run API for your project                                                    │
+    │         - Activate the Artifact Registry API for your project                                            │
+    │         - Create an Artifact Registry repository named prefect-images                                    │
     │         - Create a service account for managing Cloud Run jobs: prefect-cloud-run                        │
     │             - Service account will be granted the following roles:                                       │
     │                 - Service Account User                                                                   │
@@ -232,6 +234,10 @@ Here's the command to create a new push work pool and configure the necessary in
     ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
     Proceed with infrastructure provisioning? [y/n]: y
     Activating Cloud Run API
+    Activating Artifact Registry API
+    Creating Artifact Registry repository
+    Configuring authentication to Artifact Registry
+    Setting default Docker build namespace
     Creating service account
     Assigning roles to service account
     Creating service account key
@@ -242,6 +248,36 @@ Here's the command to create a new push work pool and configure the necessary in
     ```
 
     </div>
+
+    !!! tip "Default Docker build namespace"
+        After infrastructure provisioning completes, you will be logged into your new Artifact Registry repository and the default Docker build namespace will be set to the URL of the repository.
+
+        While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the repository.
+
+        To take advantage of this functionality, you can write your deploy scripts like this:
+
+        ```python hl_lines="14" title="example_deploy_script.py"
+        from prefect import flow                                                       
+        from prefect.deployments import DeploymentImage                                
+
+
+        @flow(log_prints=True)
+        def my_flow(name: str = "world"):
+            print(f"Hello {name}! I'm a flow running on Cloud Run!")
+
+
+        if __name__ == "__main__":                                                     
+            my_flow.deploy(                                                            
+                name="my-deployment",
+                image=DeploymentImage(
+                    name="my-image:latest",
+                    work_pool_name="above-ground",
+                    platform="linux/amd64",
+                )
+            )
+        ```
+
+        This will build an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to the repository.
 
 That's it!
 You're ready to create and schedule deployments that use your new push work pool.
