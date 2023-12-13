@@ -14,7 +14,7 @@ When running workflow applications, it can be helpful to create long-running pro
 In this guide you'll learn how to set up a systemd service to create long-running Prefect processes that poll for scheduled flow runs.
 
 A systemd service is ideal for running a long-lived process on a Linux VM or physical Linux server.
-We will leverage systemd and see how to automatically start a [Prefect worker](/concepts/work-pools/#worker-overview) or long-lived [`serve` process](concepts/flows/#serving-a-flow) when Linux starts.
+We will leverage systemd and see how to automatically start a [Prefect worker](/concepts/work-pools/#worker-overview) or long-lived [`serve` process](/concepts/flows/#serving-a-flow) when Linux starts.
 This approach provides resilience by automatically restarting the process if it crashes.
 
 In this guide we will:

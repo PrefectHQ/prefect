@@ -773,12 +773,6 @@ PREFECT_LOCAL_STORAGE_PATH = Setting(
 )
 """The path to a block storage directory to store things in."""
 
-PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    str,
-    default=None,
-)
-"""The `block-type/block-document` slug of a block to use as the default result storage."""
-
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "memo_store.toml",
@@ -939,12 +933,12 @@ PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
     default=10.0,
 )
 """
-Threshold time in seconds for logging a warning if task parameter introspection 
+Threshold time in seconds for logging a warning if task parameter introspection
 exceeds this duration. Parameter introspection can be a significant performance hit
 when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
-and each element needs to be inspected. See `prefect.utilities.annotations.quote` 
+and each element needs to be inspected. See `prefect.utilities.annotations.quote`
 for more details.
-Defaults to `10.0`. 
+Defaults to `10.0`.
 Set to `0` to disable logging the warning.
 """
 
@@ -1338,6 +1332,16 @@ PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
 Whether or not to warn when deployment status is used.
 """
 
+PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT = Setting(bool, default=False)
+"""
+Whether or not to enable flow run input.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
+"""
+Whether or not to enable flow run input.
+"""
+
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
@@ -1416,9 +1420,25 @@ Whether or not to warn when the experimental workspace dashboard is enabled.
 
 # Defaults -----------------------------------------------------------------------------
 
+PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
+    str,
+    default=None,
+)
+"""The `block-type/block-document` slug of a block to use as the default result storage."""
+
 PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
 """
 The default work pool to deploy to.
+"""
+
+PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
+    str,
+    default=None,
+)
+"""
+The default Docker namespace to use when building images.
+
+Can be either an organization/username or a registry URL with an organization/username.
 """
 
 # Deprecated settings ------------------------------------------------------------------
