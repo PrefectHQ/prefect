@@ -245,6 +245,8 @@ def mock_run_process(monkeypatch):
         mock = MagicMock(returncode=0, stdout=b"mock stdout")
         if command == shlex.split("gcloud --version"):
             mock.stdout = b"Google Cloud SDK 123.456.789"
+        elif command == shlex.split("gcloud config get-value run/region"):
+            mock.stdout = b"us-central1"
         elif command == shlex.split("gcloud config get-value project"):
             mock.stdout = b"test-project"
         elif command == shlex.split("gcloud auth list --format=json"):
@@ -290,7 +292,16 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
         "gcloud auth list --format=json",
         "gcloud config get-value project",
         "gcloud config get-value run/region",
-        "gcloud services enable run.googleapis.com",
+        "gcloud services enable run.googleapis.com --project=test-project",
+        "gcloud services enable artifactregistry.googleapis.com --project=test-project",
+        (
+            "gcloud artifacts repositories create prefect-images"
+            " --repository-format=docker --location=us-central1 --project=test-project"
+        ),
+        (
+            "gcloud auth configure-docker us-central1-docker.pkg.dev"
+            " --project=test-project"
+        ),
         (
             "gcloud iam service-accounts create prefect-cloud-run --display-name"
             " 'Prefect Cloud Run Service Account'"
