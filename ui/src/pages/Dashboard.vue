@@ -54,7 +54,7 @@
     useWorkspaceDashboardFilterFromRoute
   } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { secondsInWeek, secondsToMilliseconds } from 'date-fns'
+  import { secondsInDay, secondsToMilliseconds } from 'date-fns'
   import { computed, provide } from 'vue'
 
   provide(subscriptionIntervalKey, {
@@ -68,7 +68,7 @@
   const crumbs: Crumb[] = [{ text: 'Dashboard' }]
 
   const filter = useWorkspaceDashboardFilterFromRoute({
-    range: { type: 'span', seconds: -secondsInWeek },
+    range: { type: 'span', seconds: -secondsInDay },
     tags: [],
   })
 
