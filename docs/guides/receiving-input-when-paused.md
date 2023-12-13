@@ -67,7 +67,7 @@ async def greet_user():
 
 ## Handling custom validation
 
-While Prefect does validate the input that the user provides it can only validate the general structure of the input. If you need to perform more complex validation you can use pydantic's validation methods.
+Prefect uses the fields and type hints on your `RunInput` subclass to validate the general structure of input your flow run receives, but you might require more complex validation. If you do, you can use Pydantic's validation methods.
 
 ```python
 import pydantic
@@ -87,7 +87,7 @@ class UserAgeInput(RunInput):
         return value
 ```
 
-In this case we are using pydantic's `validator` decorator to define a custom validation method for the `age` field. We can use it in a flow like this:
+In this case, we are using Pydantic's `validator` decorator to define a custom validation method for the `age` field. We can use it in a flow like this:
 
 ```python
 import pydantic
@@ -111,7 +111,7 @@ def get_user_age():
     user_age_input = pause_flow_run(wait_for_input=UserAgeInput)
 ```
 
-If a user entered an invalid age of `hello` the flow run would not resume and the user would be given a validation error. However if the user enters a valid integer, but one that is not between 18 and 99, the flow run will resume and `pause_flow_run` will raise a `ValidationError` exception.
+If a user enters an invalid age of `hello`, the flow run will not resume and the user will receive a validation error. However, if the user enters a number that is a valid integer but that is not between 18 and 99, the flow run will resume, and `pause_flow_run` will raise a `ValidationError` exception.
 
 One way to handle this and ensure that the user enters valid input is to use a `while` loop and pause again if the `ValidationError` exception is raised:
 
