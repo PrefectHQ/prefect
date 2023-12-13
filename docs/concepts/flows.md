@@ -947,11 +947,11 @@ resume_flow_run(FLOW_RUN_ID)
 ## Waiting for input when pausing or suspending a flow run
 
 !!! tip "Experimental"
-    The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` methods is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
+    The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
 
     If you encounter any issues, please let us know in Slack or with a Github issue.
 
-When pausing or suspending a flow run you may want to wait for input from a user. Prefect provides a way to do this by leveraging the `pause_flow_run` and `suspend_flow_run` methods. These methods accept a `wait_for_input` argument, the value of which should be a subclass of `prefect.input.RunInput`, a pydantic model. When resuming the flow run, users are required to provide data for this model. Upon successful validation, the flow run resumes, and the return value of the `pause_flow_run` or `suspend_flow_run` is an instance of the model containing the provided data.
+When pausing or suspending a flow run you may want to wait for input from a user. Prefect provides a way to do this by leveraging the `pause_flow_run` and `suspend_flow_run` functions. These functions accept a `wait_for_input` argument, the value of which should be a subclass of `prefect.input.RunInput`, a pydantic model. When resuming the flow run, users are required to provide data for this model. Upon successful validation, the flow run resumes, and the return value of the `pause_flow_run` or `suspend_flow_run` is an instance of the model containing the provided data.
 
 Here is an example of a flow that pauses and waits for input from a user:
 
@@ -974,8 +974,7 @@ async def greet_user():
 
     logger.info(f"Hello, {user_input.name}!")
 ```
-
-Calling this flow will block code execution and wait for resumption. When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
+Calling this flow will create a flow run and move it into a paused state. The flow will then block and wait for resumption. When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
 
 For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [guide](/guides/receiving-input-when-paused.md).
 
