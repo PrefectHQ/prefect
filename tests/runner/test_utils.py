@@ -69,6 +69,31 @@ def schema_with_refs():
 
 
 @pytest.fixture
+def nested_schema_with_refs():
+    return {
+        "definitions": {
+            "NestedModel": {
+                "type": "object",
+                "properties": {"nestedField": {"$ref": "#/definitions/Model1"}},
+            }
+        },
+        "paths": {
+            "/nested": {
+                "get": {
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/definitions/NestedModel"}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    }
+
+
+@pytest.fixture
 def augmented_openapi_schema(deployment_schemas, openapi_schema):
     merged_schema = merge_definitions(deployment_schemas, openapi_schema)
     return update_refs_to_components(merged_schema)
@@ -81,24 +106,58 @@ def test_inject_schemas_into_openapi(
     assert result_schema == augmented_openapi_schema
 
 
-def test_merge_definitions(deployment_schemas, openapi_schema):
-    result_schema = merge_definitions(deployment_schemas, openapi_schema)
+class TestMergeDefinitions:
+    def test_merge_definitions(self, deployment_schemas, openapi_schema):
+        result_schema = merge_definitions(deployment_schemas, openapi_schema)
 
-    expected_models = {}
-    for definitions in deployment_schemas.values():
-        if "definitions" in definitions:
-            expected_models.update(definitions["definitions"])
+        expected_models = {}
+        for definitions in deployment_schemas.values():
+            if "definitions" in definitions:
+                expected_models.update(definitions["definitions"])
 
-    assert result_schema["components"]["schemas"] == expected_models
+        assert result_schema["components"]["schemas"] == expected_models
+
+    def test_merge_definitions_empty_schemas(self, openapi_schema):
+        result_schema = merge_definitions({}, openapi_schema)
+        assert result_schema["components"]["schemas"] == {}
+
+    def test_merge_definitions_preserves_unrelated_schema_parts(
+        self, deployment_schemas, openapi_schema
+    ):
+        original_paths = {"dummy_path": "dummy_value"}
+        openapi_schema["paths"] = original_paths
+        result_schema = merge_definitions(deployment_schemas, openapi_schema)
+        assert result_schema["paths"] == original_paths
 
 
-def test_update_refs_to_components(
-    openapi_schema, deployment_schemas, schema_with_refs
-):
-    result_schema = update_refs_to_components(schema_with_refs)
-    assert (
-        result_schema["paths"]["/path"]["get"]["requestBody"]["content"][
-            "application/json"
-        ]["schema"]["$ref"]
-        == "#/components/schemas/Model1"
-    )
+class TestUpdateRefsToComponents:
+    def test_update_refs_to_components(
+        self, openapi_schema, deployment_schemas, schema_with_refs
+    ):
+        result_schema = update_refs_to_components(schema_with_refs)
+        assert (
+            result_schema["paths"]["/path"]["get"]["requestBody"]["content"][
+                "application/json"
+            ]["schema"]["$ref"]
+            == "#/components/schemas/Model1"
+        )
+
+    def test_update_refs_to_components_empty_schema(self):
+        empty_schema = {"paths": {}}
+        result_schema = update_refs_to_components(empty_schema)
+        assert result_schema == empty_schema
+
+    def test_update_refs_to_components_nested_schema(self, nested_schema_with_refs):
+        result_schema = update_refs_to_components(nested_schema_with_refs)
+        assert (
+            result_schema["paths"]["/nested"]["get"]["requestBody"]["content"][
+                "application/json"
+            ]["schema"]["$ref"]
+            == "#/components/schemas/NestedModel"
+        )
+        assert (
+            result_schema["definitions"]["NestedModel"]["properties"]["nestedField"][
+                "$ref"
+            ]
+            == "#/components/schemas/Model1"
+        )

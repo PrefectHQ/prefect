@@ -69,15 +69,14 @@ def update_refs_in_schema(schema_item: Any, new_ref: str) -> None:
             update_refs_in_schema(item, new_ref)
 
 
-def update_refs_to_components(openapi_schema: Dict[str, Any]) -> None:
+def update_refs_to_components(openapi_schema: Dict[str, Any]) -> Dict[str, Any]:
     """
     Updates all `$ref` fields in the OpenAPI schema to reference the components section.
 
     Args:
         openapi_schema: The OpenAPI schema to modify `$ref` fields in.
     """
-    openapi_schema_copy = deepcopy(openapi_schema)
-    for path_item in openapi_schema_copy.get("paths", {}).values():
+    for path_item in openapi_schema.get("paths", {}).values():
         for operation in path_item.values():
             schema = (
                 operation.get("requestBody", {})
@@ -86,4 +85,8 @@ def update_refs_to_components(openapi_schema: Dict[str, Any]) -> None:
                 .get("schema", {})
             )
             update_refs_in_schema(schema, "#/components/schemas/")
-    return openapi_schema_copy
+
+    for definition in openapi_schema.get("definitions", {}).values():
+        update_refs_in_schema(definition, "#/components/schemas/")
+
+    return openapi_schema
