@@ -814,7 +814,8 @@ class ContainerInstancePushProvisioner:
                             - Create an Azure Container Registry with prefix [blue]{self.REGISTRY_NAME_PREFIX}[/]
                             - Create an identity [blue]{self._identity_name}[/] to allow access to the created registry
                             - Assign Contributor role to service account
-                            - Create Azure Container Instance [blue]'aci-push-pool-container'[/] in resource group [blue]{self.RESOURCE_GROUP_NAME}[/]
+                            - Create an ACR registry for image hosting
+                            - Create an identity for Azure Container Instance to allow access to the registry
 
                         Updates in Prefect workspace
 

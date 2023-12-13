@@ -118,7 +118,7 @@ Here's the command to create a new push work pool and configure the necessary in
     </div>
 
     Using the `--provision-infra` flag will automatically set up your default Azure account to be ready to execute flows via Azure Container Instances.
-    In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Instance, if they don't already exist.
+    In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Registry, if they don't already exist.
     In your Prefect workspace, this command will create an [`AzureContainerInstanceCredentials` block](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) for storing the client secret value from the generated secret.
 
     Here's an abbreviated example output from running the command:
@@ -126,38 +126,70 @@ Here's the command to create a new push work pool and configure the necessary in
     <div class="terminal">
 
     ```bash
-    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-work-pool will require:                                              │
-    │                                                                                                                │
-    │     Updates in subscription Azure subscription 1                                                               │
-    │                                                                                                                │
-    │         - Create a resource group in location eastus                                                           │
-    │         - Create an app registration in Azure AD prefect-aci-push-pool-app                                     │
-    │         - Create/use a service principal for app registration                                                  │
-    │         - Generate a secret for app registration                                                               │
-    │         - Assign Contributor role to service account                                                           │
-    │         - Create Azure Container Instance 'aci-push-pool-container' in resource group prefect-aci-push-pool-rg │
-    │                                                                                                                │
-    │     Updates in Prefect workspace                                                                               │
-    │                                                                                                                │
-    │         - Create Azure Container Instance credentials block aci-push-pool-credentials                          │
-    │                                                                                                                │
-    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    Proceed with infrastructure provisioning? [y/n]: y
+    ╭───────────────────────────────────────────────────────────────────────────────────────────╮
+    │ Provisioning infrastructure for your work pool aci-test will require:                     │
+    │                                                                                           │
+    │     Updates in subscription Azure subscription 1                                          │
+    │                                                                                           │
+    │         - Create a resource group in location eastus                                      │
+    │         - Create an app registration in Azure AD prefect-aci-push-pool-app                │
+    │         - Create/use a service principal for app registration                             │
+    │         - Generate a secret for app registration                                          │
+    │         - Create an Azure Container Registry with prefix prefect                          │
+    │         - Create an identity prefect-acr-identity to allow access to the created registry │
+    │         - Assign Contributor role to service account                                      │
+    │         - Create an ACR registry for image hosting                                        │
+    │         - Create an identity for Azure Container Instance to allow access to the registry │
+    │                                                                                           │
+    │     Updates in Prefect workspace                                                          │
+    │                                                                                           │
+    │         - Create Azure Container Instance credentials block aci-push-pool-credentials     │
+    │                                                                                           │
+    ╰───────────────────────────────────────────────────────────────────────────────────────────╯
+    Proceed with infrastructure provisioning? [y/n]:     
     Creating resource group
-    Provisioning infrastructure
     Creating app registration
     Generating secret for app registration
     Creating ACI credentials block
     ACI credentials block 'aci-push-pool-credentials' created in Prefect Cloud
     Assigning Contributor role to service account
-    Creating Azure Container Instance
+    Creating Azure Container Registry
+    Creating identity
     Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     Infrastructure successfully provisioned for 'my-aci-work-pool' work pool!
     Created work pool 'my-aci-work-pool'!
     ```
 
     </div>
+
+    !!! tip "Default Docker build namespace"
+        After infrastructure provisioning completes, you will be logged into your new Azure Container Registry and the default Docker build namespace will be set to the URL of the registry.
+
+        While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the registry.
+
+        To take advantage of this, you can write your deploy scripts like this:
+
+        ```python hl_lines="14" title="example_deploy_script.py"
+        from prefect import flow                                                       
+        from prefect.deployments import DeploymentImage                                
+
+
+        @flow(log_prints=True)                                                         
+        def my_flow(name: str = "world"):                                              
+            print(f"Hello {name}! I'm a flow running on an Azure Container Instance!") 
+
+
+        if __name__ == "__main__":                                                     
+            my_flow.deploy(                                                            
+                name="my-deployment",                                                  
+                image=DeploymentImage(                                                 
+                    name="my-image:latest",                                            
+                    platform="linux/amd64",                                            
+                )                                                                      
+            )       
+        ```
+
+        This will build an image with the tag `<acr-registry-url>/my-image:latest` and push it to the registry.
 
 === "Google Cloud Run"
 
