@@ -1,6 +1,8 @@
-from unittest.mock import Mock
+from unittest.mock import create_autospec
 
 import pytest
+from prefect._vendor.fastapi import FastAPI
+from prefect._vendor.fastapi.routing import APIRoute
 
 from prefect import __version__ as PREFECT_VERSION
 from prefect.runner.utils import (
@@ -10,10 +12,20 @@ from prefect.runner.utils import (
 )
 
 
+class MockRoute(APIRoute):
+    def __init__(self, path: str, endpoint: callable):
+        super().__init__(path, endpoint)
+
+
+def mock_endpoint():
+    pass
+
+
 @pytest.fixture
 def mock_app():
-    app = Mock()
-    app.routes = [Mock(name="dummy_route", methods=["GET"], path="/dummy")]
+    app = create_autospec(FastAPI, instance=True)
+    mock_route = MockRoute("/dummy", mock_endpoint)
+    app.routes = [mock_route]
     return app
 
 
@@ -94,9 +106,37 @@ def nested_schema_with_refs():
 
 
 @pytest.fixture
-def augmented_openapi_schema(deployment_schemas, openapi_schema):
-    merged_schema = merge_definitions(deployment_schemas, openapi_schema)
-    return update_refs_to_components(merged_schema)
+def augmented_openapi_schema():
+    return {
+        "openapi": "3.1.0",
+        "info": {"title": "FastAPI Prefect Runner", "version": PREFECT_VERSION},
+        "paths": {
+            "/dummy": {
+                "get": {
+                    "summary": "Mock Endpoint",
+                    "operationId": "mock_endpoint_dummy_get",
+                    "responses": {
+                        "200": {
+                            "description": "Successful Response",
+                            "content": {"application/json": {"schema": {}}},
+                        }
+                    },
+                }
+            }
+        },
+        "components": {
+            "schemas": {
+                "Model1": {
+                    "type": "object",
+                    "properties": {"field1": {"type": "string"}},
+                },
+                "Model2": {
+                    "type": "object",
+                    "properties": {"field2": {"type": "integer"}},
+                },
+            }
+        },
+    }
 
 
 def test_inject_schemas_into_openapi(
