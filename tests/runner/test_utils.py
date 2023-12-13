@@ -70,6 +70,18 @@ def test_inject_schemas_into_openapi(mock_app, deployment_schemas):
     assert "Model2" in augmented_schema["components"]["schemas"]
     assert augmented_schema["components"]["schemas"]["Model1"]["type"] == "object"
     assert augmented_schema["components"]["schemas"]["Model2"]["type"] == "object"
+    assert (
+        augmented_schema["components"]["schemas"]["Model1"]["properties"]["field1"][
+            "type"
+        ]
+        == "string"
+    )
+    assert (
+        augmented_schema["components"]["schemas"]["Model2"]["properties"]["field2"][
+            "type"
+        ]
+        == "integer"
+    )
 
 
 def test_merge_definitions(deployment_schemas, openapi_schema):
@@ -78,6 +90,18 @@ def test_merge_definitions(deployment_schemas, openapi_schema):
     assert "Model2" in openapi_schema["components"]["schemas"]
     assert openapi_schema["components"]["schemas"]["Model1"]["type"] == "object"
     assert openapi_schema["components"]["schemas"]["Model2"]["type"] == "object"
+    assert (
+        openapi_schema["components"]["schemas"]["Model1"]["properties"]["field1"][
+            "type"
+        ]
+        == "string"
+    )
+    assert (
+        openapi_schema["components"]["schemas"]["Model2"]["properties"]["field2"][
+            "type"
+        ]
+        == "integer"
+    )
 
 
 def test_update_refs_in_schema(schema_item):
