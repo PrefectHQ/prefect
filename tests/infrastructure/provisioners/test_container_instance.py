@@ -226,111 +226,6 @@ async def test_aci_resource_group_creation_handles_errors(provisioner):
     provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
 
 
-async def test_aci_container_instance_creation_creates_new_instance(provisioner):
-    provisioner.azure_cli.run_command.side_effect = [
-        None,  # Container instance does not exist
-        "New container instance created",  # Successful creation
-    ]
-
-    await provisioner._create_container_instance()
-
-    expected_calls = [
-        call(
-            (
-                "az container list --resource-group prefect-aci-push-pool-rg"
-                " --subscription None --query"
-                " \"[?name=='prefect-aci-push-pool-container']\" --output json"
-            ),
-            return_json=True,
-        ),
-        call(
-            (
-                "az container create --name prefect-aci-push-pool-container"
-                " --resource-group prefect-aci-push-pool-rg --image"
-                " docker.io/prefecthq/prefect:2-latest --location None --subscription"
-                " None --restart-policy OnFailure --output json"
-            ),
-            success_message=(
-                "Container instance 'prefect-aci-push-pool-container' created"
-                " successfully in resource group 'prefect-aci-push-pool-rg' in location"
-                " 'None' in subscription 'None'"
-            ),
-            failure_message=(
-                "Failed to create container instance 'prefect-aci-push-pool-container'"
-                " in resource group 'prefect-aci-push-pool-rg' in location 'None' in"
-                " subscription 'None'"
-            ),
-            ignore_if_exists=True,
-        ),
-    ]
-    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
-
-
-async def test_aci_container_instance_creation_handles_existing_instance(provisioner):
-    provisioner.azure_cli.run_command.return_value = "exists"
-
-    await provisioner._create_container_instance()
-
-    expected_calls = [
-        call(
-            (
-                "az container list --resource-group prefect-aci-push-pool-rg"
-                " --subscription None --query"
-                " \"[?name=='prefect-aci-push-pool-container']\" --output json"
-            ),
-            return_json=True,
-        ),
-    ]
-    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
-
-    assert provisioner.azure_cli.run_command.call_count == 1
-    assert (
-        provisioner.azure_cli.run_command.call_args[0][0].startswith(
-            "az container create"
-        )
-        is False
-    )
-
-
-async def test_aci_container_instance_creation_handles_errors(provisioner):
-    error = CalledProcessError(1, "cmd", output="output", stderr="error")
-    provisioner.azure_cli.run_command.side_effect = [None, error]
-
-    with pytest.raises(CalledProcessError):
-        await provisioner._create_container_instance()
-
-    expected_calls = [
-        call(
-            (
-                "az container list --resource-group prefect-aci-push-pool-rg"
-                " --subscription None --query"
-                " \"[?name=='prefect-aci-push-pool-container']\" --output json"
-            ),
-            return_json=True,
-        ),
-        call(
-            (
-                "az container create --name prefect-aci-push-pool-container"
-                " --resource-group prefect-aci-push-pool-rg --image"
-                " docker.io/prefecthq/prefect:2-latest --location None --subscription"
-                " None --restart-policy OnFailure --output json"
-            ),
-            success_message=(
-                "Container instance 'prefect-aci-push-pool-container' created"
-                " successfully in resource group 'prefect-aci-push-pool-rg' in location"
-                " 'None' in subscription 'None'"
-            ),
-            failure_message=(
-                "Failed to create container instance 'prefect-aci-push-pool-container'"
-                " in resource group 'prefect-aci-push-pool-rg' in location 'None' in"
-                " subscription 'None'"
-            ),
-            ignore_if_exists=True,
-        ),
-    ]
-    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
-
-
 async def test_aci_app_registration_creates_new_app(provisioner):
     app_registration = {
         "appId": "12345678-1234-1234-1234-123456789012",
@@ -718,11 +613,250 @@ async def test_aci_provision_az_not_installed(provisioner):
     provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
 
 
+async def test_get_or_create_registry_new_registry(provisioner):
+    registry_name = "prefect-registry"
+    resource_group_name = "prefect-rg"
+    location = "westus"
+    subscription_id = "12345678-1234-1234-1234-123456789012"
+
+    provisioner.azure_cli.run_command.side_effect = [
+        [],  # No existing registry
+        {"name": "prefect-registry"},  # Successful creation
+    ]
+
+    response = await provisioner._get_or_create_registry(
+        registry_name, resource_group_name, location, subscription_id
+    )
+
+    expected_calls = [
+        call(
+            (
+                "az acr list --query \"[?starts_with(name, 'prefect')]\" --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
+            ),
+            return_json=True,
+        ),
+        call(
+            (
+                "az acr create --name prefect-registry --resource-group prefect-rg"
+                " --location westus --sku Basic"
+            ),
+            success_message="Registry created",
+            failure_message="Failed to create registry",
+            return_json=True,
+        ),
+    ]
+    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
+
+    assert response == {"name": "prefect-registry"}
+
+
+async def test_get_or_create_registry_failed_creation(provisioner):
+    registry_name = "prefect-registry"
+    resource_group_name = "prefect-rg"
+    location = "westus"
+    subscription_id = "12345678-1234-1234-1234-123456789012"
+
+    provisioner.azure_cli.run_command.side_effect = [
+        [],  # No existing registry
+        None,  # Failed creation
+    ]
+
+    with pytest.raises(Exception):
+        await provisioner._get_or_create_registry(
+            registry_name, resource_group_name, location, subscription_id
+        )
+
+    expected_calls = [
+        call(
+            (
+                "az acr list --query \"[?starts_with(name, 'prefect')]\" --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
+            ),
+            return_json=True,
+        ),
+        call(
+            (
+                "az acr create --name prefect-registry --resource-group prefect-rg"
+                " --location westus --sku Basic"
+            ),
+            success_message="Registry created",
+            failure_message="Failed to create registry",
+            return_json=True,
+        ),
+    ]
+    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
+
+
+async def test_get_or_create_registry_existing_registry(provisioner):
+    registry_name = "prefect-registry"
+    resource_group_name = "prefect-rg"
+    location = "westus"
+    subscription_id = "12345678-1234-1234-1234-123456789012"
+
+    provisioner.azure_cli.run_command.side_effect = [
+        [{"name": "prefect-registry"}],  # Existing registry
+    ]
+
+    response = await provisioner._get_or_create_registry(
+        registry_name, resource_group_name, location, subscription_id
+    )
+
+    expected_calls = [
+        call(
+            (
+                "az acr list --query \"[?starts_with(name, 'prefect')]\" --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
+            ),
+            return_json=True,
+        ),
+    ]
+    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
+
+    assert response == {"name": "prefect-registry"}
+
+
+async def test_log_into_registry(provisioner):
+    login_server = "my-registry.azurecr.io"
+    provisioner.azure_cli.run_command.side_effect = None
+
+    await provisioner._log_into_registry(login_server)
+
+    expected_calls = [
+        call(
+            f"az acr login --name {login_server}",
+            success_message=f"Logged into registry {login_server}",
+            failure_message=f"Failed to log into registry {login_server}",
+        ),
+    ]
+    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
+
+
+async def test_assign_acr_pull_role(provisioner):
+    identity = {
+        "principalId": "12345678-1234-1234-1234-123456789012",
+    }
+    registry = {
+        "id": "12345678-1234-1234-1234-123456789012",
+    }
+
+    await provisioner._assign_acr_pull_role(identity, registry)
+
+    expected_command = (
+        "az role assignment create --assignee 12345678-1234-1234-1234-123456789012"
+        " --scope 12345678-1234-1234-1234-123456789012 --role AcrPull"
+    )
+    provisioner.azure_cli.run_command.assert_called_once_with(
+        expected_command,
+        ignore_if_exists=True,
+    )
+
+
+async def test_get_or_create_identity_existing_identity(provisioner):
+    identity_name = "test-identity"
+    resource_group_name = "test-resource-group"
+
+    provisioner.azure_cli.run_command.side_effect = [
+        [{"name": identity_name}],
+    ]
+
+    identity = await provisioner._get_or_create_identity(
+        identity_name, resource_group_name
+    )
+
+    expected_calls = [
+        call(
+            (
+                f"az identity list --query \"[?name=='{identity_name}']\""
+                f" --resource-group {resource_group_name} --output json"
+            ),
+            return_json=True,
+        ),
+    ]
+    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
+
+    assert identity == {"name": identity_name}
+
+
+async def test_get_or_create_identity_new_identity(provisioner):
+    identity_name = "test-identity"
+    resource_group_name = "test-resource-group"
+
+    provisioner.azure_cli.run_command.side_effect = [
+        [],  # Identity does not exist
+        {"name": identity_name},  # Successful creation
+    ]
+
+    identity = await provisioner._get_or_create_identity(
+        identity_name, resource_group_name
+    )
+
+    expected_calls = [
+        call(
+            (
+                f"az identity list --query \"[?name=='{identity_name}']\""
+                f" --resource-group {resource_group_name} --output json"
+            ),
+            return_json=True,
+        ),
+        call(
+            (
+                f"az identity create --name {identity_name} --resource-group"
+                f" {resource_group_name}"
+            ),
+            success_message=f"Identity {identity_name!r} created",
+            failure_message=f"Failed to create identity {identity_name!r}",
+            return_json=True,
+        ),
+    ]
+    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
+
+    assert identity == {"name": identity_name}
+
+
+async def test_get_or_create_identity_error(provisioner):
+    identity_name = "test-identity"
+    resource_group_name = "test-resource-group"
+
+    error = CalledProcessError(1, "cmd", output="output", stderr="error")
+    provisioner.azure_cli.run_command.side_effect = [None, error]
+
+    with pytest.raises(Exception):
+        await provisioner._get_or_create_identity(identity_name, resource_group_name)
+
+    expected_calls = [
+        call(
+            (
+                f"az identity list --query \"[?name=='{identity_name}']\""
+                f" --resource-group {resource_group_name} --output json"
+            ),
+            return_json=True,
+        ),
+        call(
+            (
+                f"az identity create --name {identity_name} --resource-group"
+                f" {resource_group_name}"
+            ),
+            success_message=f"Identity {identity_name!r} created",
+            failure_message=f"Failed to create identity {identity_name!r}",
+            return_json=True,
+        ),
+    ]
+    provisioner.azure_cli.run_command.assert_has_calls(expected_calls)
+
+
 async def test_aci_provision_no_existing_credentials_block(
     default_base_job_template,
     prefect_client: PrefectClient,
     provisioner: ContainerInstancePushProvisioner,
+    monkeypatch,
 ):
+    monkeypatch.setattr(
+        provisioner,
+        "_generate_acr_name",
+        lambda *args, **kwargs: "prefectacipushpoolregistry",
+    )
+
     subscription_list = [
         {
             "cloudName": "AzureCloud",
@@ -762,6 +896,16 @@ async def test_aci_provision_no_existing_credentials_block(
         "roleDefinitionName": "Contributor",
     }
 
+    new_registry = {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry",
+        "loginServer": "prefectacipushpoolregistry.azurecr.io",
+    }
+
+    new_identity = {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/prefect-aci-push-pool-identity",
+        "principalId": "12345678-1234-1234-1234-123456789012",
+    }
+
     provisioner.azure_cli.run_command.side_effect = [
         "2.0.0",  # Azure CLI is installed
         subscription_list,  #  Azure login check
@@ -777,8 +921,12 @@ async def test_aci_provision_no_existing_credentials_block(
         new_service_principal,  # Successful retrieval
         [],  # Role does not exist
         role_assignments,  # Successful creation
-        [],  # Container instance does not exist
-        None,  # Successful creation
+        [],  # Registry does not exist
+        new_registry,  # Successful creation
+        None,  # Log in to registry
+        [],  # Identity does not exist
+        new_identity,  # Successful creation
+        None,  # Assign identity to registry
     ]
 
     new_base_job_template = await provisioner.provision(
@@ -914,32 +1062,57 @@ async def test_aci_provision_no_existing_credentials_block(
             ),
             ignore_if_exists=True,
         ),
-        # _create_container_instance
+        # _get_or_create_registry
         call(
             (
-                "az container list --resource-group prefect-aci-push-pool-rg"
-                " --subscription 12345678-1234-1234-1234-123456789012 --query"
-                " \"[?name=='prefect-aci-push-pool-container']\" --output json"
+                "az acr list --query \"[?starts_with(name, 'prefect')]\" --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
-                "az container create --name prefect-aci-push-pool-container"
-                " --resource-group prefect-aci-push-pool-rg --image"
-                " docker.io/prefecthq/prefect:2-latest --location westus --subscription"
-                " 12345678-1234-1234-1234-123456789012 --restart-policy OnFailure"
-                " --output json"
+                "az acr create --name prefectacipushpoolregistry --resource-group"
+                " prefect-aci-push-pool-rg --location westus --sku Basic"
             ),
+            success_message="Registry created",
+            failure_message="Failed to create registry",
+            return_json=True,
+        ),
+        # _log_into_registry
+        call(
+            "az acr login --name prefectacipushpoolregistry.azurecr.io",
             success_message=(
-                "Container instance 'prefect-aci-push-pool-container' created"
-                " successfully in resource group 'prefect-aci-push-pool-rg' in location"
-                " 'westus' in subscription 'subscription_1'"
+                "Logged into registry prefectacipushpoolregistry.azurecr.io"
             ),
             failure_message=(
-                "Failed to create container instance 'prefect-aci-push-pool-container'"
-                " in resource group 'prefect-aci-push-pool-rg' in location 'westus' in"
-                " subscription 'subscription_1'"
+                "Failed to log into registry prefectacipushpoolregistry.azurecr.io"
+            ),
+        ),
+        # _get_or_create_identity
+        call(
+            (
+                "az identity list --query \"[?name=='prefect-acr-identity']\""
+                " --resource-group prefect-aci-push-pool-rg --output json"
+            ),
+            return_json=True,
+        ),
+        call(
+            (
+                "az identity create --name prefect-acr-identity --resource-group"
+                " prefect-aci-push-pool-rg"
+            ),
+            success_message="Identity 'prefect-acr-identity' created",
+            failure_message="Failed to create identity 'prefect-acr-identity'",
+            return_json=True,
+        ),
+        # _assign_acr_pull_role
+        call(
+            (
+                "az role assignment create --assignee"
+                " 12345678-1234-1234-1234-123456789012 --scope"
+                " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
+                " --role AcrPull"
             ),
             ignore_if_exists=True,
         ),
@@ -969,13 +1142,28 @@ async def test_aci_provision_no_existing_credentials_block(
         "default"
     ] = "prefect-aci-push-pool-rg"
 
+    new_base_job_template["variables"]["properties"]["image_registry"]["default"] = {
+        "registry_url": "prefectacipushpoolregistry.azurecr.io",
+        "identity": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/prefect-aci-push-pool-identity",
+    }
+
+    new_base_job_template["variables"]["properties"]["identities"]["default"] = [
+        "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/prefect-aci-push-pool-identity"
+    ]
+
 
 async def test_aci_provision_existing_credentials_block(
     default_base_job_template,
     prefect_client: PrefectClient,
     existing_credentials_block,
     provisioner: ContainerInstancePushProvisioner,
+    monkeypatch,
 ):
+    monkeypatch.setattr(
+        provisioner,
+        "_generate_acr_name",
+        lambda *args, **kwargs: "prefectacipushpoolregistry",
+    )
     subscription_list = [
         {
             "cloudName": "AzureCloud",
@@ -1009,6 +1197,16 @@ async def test_aci_provision_existing_credentials_block(
         "roleDefinitionName": "Contributor",
     }
 
+    new_registry = {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry",
+        "loginServer": "prefectacipushpoolregistry.azurecr.io",
+    }
+
+    new_identity = {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/prefect-aci-push-pool-identity",
+        "principalId": "12345678-1234-1234-1234-123456789012",
+    }
+
     provisioner.azure_cli.run_command.side_effect = [
         "2.0.0",  # Azure CLI is installed
         subscription_list,  # Login check
@@ -1023,8 +1221,12 @@ async def test_aci_provision_existing_credentials_block(
         new_service_principal,  # Successful retrieval
         [],  # Role does not exist
         role_assignments,  # Successful creation
-        [],  # Container instance does not exist
-        None,  # Successful creation
+        [],  # Registry does not exist
+        new_registry,  # Successful creation
+        None,  # Log in to registry
+        [],  # Identity does not exist
+        new_identity,  # Successful creation
+        None,  # Assign identity to registry
     ]
 
     new_base_job_template = await provisioner.provision(
@@ -1149,32 +1351,57 @@ async def test_aci_provision_existing_credentials_block(
             ),
             ignore_if_exists=True,
         ),
-        # _create_container_instance
+        # _get_or_create_registry
         call(
             (
-                "az container list --resource-group prefect-aci-push-pool-rg"
-                " --subscription 12345678-1234-1234-1234-123456789012 --query"
-                " \"[?name=='prefect-aci-push-pool-container']\" --output json"
+                "az acr list --query \"[?starts_with(name, 'prefect')]\" --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
-                "az container create --name prefect-aci-push-pool-container"
-                " --resource-group prefect-aci-push-pool-rg --image"
-                " docker.io/prefecthq/prefect:2-latest --location westus --subscription"
-                " 12345678-1234-1234-1234-123456789012 --restart-policy OnFailure"
-                " --output json"
+                "az acr create --name prefectacipushpoolregistry --resource-group"
+                " prefect-aci-push-pool-rg --location westus --sku Basic"
             ),
+            success_message="Registry created",
+            failure_message="Failed to create registry",
+            return_json=True,
+        ),
+        # _log_into_registry
+        call(
+            "az acr login --name prefectacipushpoolregistry.azurecr.io",
             success_message=(
-                "Container instance 'prefect-aci-push-pool-container' created"
-                " successfully in resource group 'prefect-aci-push-pool-rg' in location"
-                " 'westus' in subscription 'subscription_1'"
+                "Logged into registry prefectacipushpoolregistry.azurecr.io"
             ),
             failure_message=(
-                "Failed to create container instance 'prefect-aci-push-pool-container'"
-                " in resource group 'prefect-aci-push-pool-rg' in location 'westus' in"
-                " subscription 'subscription_1'"
+                "Failed to log into registry prefectacipushpoolregistry.azurecr.io"
+            ),
+        ),
+        # _get_or_create_identity
+        call(
+            (
+                "az identity list --query \"[?name=='prefect-acr-identity']\""
+                " --resource-group prefect-aci-push-pool-rg --output json"
+            ),
+            return_json=True,
+        ),
+        call(
+            (
+                "az identity create --name prefect-acr-identity --resource-group"
+                " prefect-aci-push-pool-rg"
+            ),
+            success_message="Identity 'prefect-acr-identity' created",
+            failure_message="Failed to create identity 'prefect-acr-identity'",
+            return_json=True,
+        ),
+        # _assign_acr_pull_role
+        call(
+            (
+                "az role assignment create --assignee"
+                " 12345678-1234-1234-1234-123456789012 --scope"
+                " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
+                " --role AcrPull"
             ),
             ignore_if_exists=True,
         ),
@@ -1216,3 +1443,12 @@ async def test_aci_provision_existing_credentials_block(
     new_base_job_template["variables"]["properties"]["aci_credentials"]["default"][
         "block_document_id"
     ] = str(existing_credentials_block)
+
+    new_base_job_template["variables"]["properties"]["image_registry"]["default"] = {
+        "registry_url": "prefectacipushpoolregistry.azurecr.io",
+        "identity": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/prefect-aci-push-pool-identity",
+    }
+
+    new_base_job_template["variables"]["properties"]["identities"]["default"] = [
+        "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/prefect-aci-push-pool-identity"
+    ]

@@ -26,6 +26,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
+from rich.syntax import Syntax
 
 from prefect.cli._prompts import prompt_select_from_table
 from prefect.client.orchestration import PrefectClient
@@ -492,8 +493,8 @@ class ContainerInstancePushProvisioner:
         )
         response = await self.azure_cli.run_command(
             command_create_identity,
-            success_message=f"Identity created for app ID '{identity_name}'",
-            failure_message=f"Failed to create identity for app ID '{identity_name}'",
+            success_message=f"Identity {identity_name!r} created",
+            failure_message=f"Failed to create identity {identity_name!r}",
             return_json=True,
         )
 
@@ -577,7 +578,7 @@ class ContainerInstancePushProvisioner:
         else:
             raise Exception(f"Failed to create registry {registry_name}")
 
-    async def _log_into_registry(self, registry_name: str):
+    async def _log_into_registry(self, login_server: str):
         """
         Logs into the given Azure Container Registry.
 
@@ -587,11 +588,11 @@ class ContainerInstancePushProvisioner:
         Raises:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
-        command_login = f"az acr login --name {registry_name}"
+        command_login = f"az acr login --name {login_server}"
         await self.azure_cli.run_command(
             command_login,
-            success_message=f"Logged into registry {registry_name}",
-            failure_message=f"Failed to log into registry {registry_name}",
+            success_message=f"Logged into registry {login_server}",
+            failure_message=f"Failed to log into registry {login_server}",
         )
 
     async def _assign_contributor_role(self, app_id: str) -> None:
@@ -653,6 +654,13 @@ class ContainerInstancePushProvisioner:
     async def _assign_acr_pull_role(
         self, identity: dict[str, Any], registry: dict[str, Any]
     ) -> None:
+        """
+        Assigns the AcrPull role to the specified identity for the given registry.
+
+        Args:
+            identity: The identity to assign the role to.
+            registry: The registry to grant access to.
+        """
         command = (
             f"az role assignment create --assignee {identity['principalId']} --scope"
             f" {registry['id']} --role AcrPull"
@@ -880,7 +888,7 @@ class ContainerInstancePushProvisioner:
                 location=self._location,
                 subscription_id=self._subscription_id,
             )
-            await self._log_into_registry(registry_name=registry["loginServer"])
+            await self._log_into_registry(login_server=registry["loginServer"])
             update_current_profile(
                 {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: registry["loginServer"]}
             )
@@ -915,6 +923,43 @@ class ContainerInstancePushProvisioner:
         base_job_template_copy["variables"]["properties"]["identities"]["default"] = [
             identity["id"]
         ]
+
+        self._console.print(
+            dedent(
+                f"""\
+                    Your default Docker build namespace has been set to [blue]{registry["loginServer"]!r}[/].
+                    Use any image name to build and push to this registry by default:
+                    """
+            ),
+            Panel(
+                Syntax(
+                    dedent(
+                        """\
+                        from prefect import flow
+                        from prefect.deployments import DeploymentImage
+
+
+                        @flow(log_prints=True)
+                        def my_flow(name: str = "world"):
+                            print(f"Hello {name}! I'm a flow running on an Azure Container Instance!")
+
+
+                        if __name__ == "__main__":
+                            my_flow.deploy(
+                                name="my-deployment",
+                                image=DeploymentImage(
+                                    name="my-image:latest",
+                                    platform="linux/amd64",
+                                )
+                            )"""
+                    ),
+                    "python",
+                    background_color="default",
+                ),
+                title="example_deploy_script.py",
+                expand=False,
+            ),
+        )
 
         self._console.print(
             (
