@@ -215,7 +215,7 @@ class CloudRunPushProvisioner:
             ) from e
 
     async def _create_gcp_credentials_block(
-        self, work_pool_name: str, key: dict, client: PrefectClient
+        self, block_document_name: str, key: dict, client: PrefectClient
     ) -> UUID:
         credentials_block_type = await client.read_block_type_by_slug("gcp-credentials")
 
@@ -228,7 +228,7 @@ class CloudRunPushProvisioner:
         try:
             block_doc = await client.create_block_document(
                 block_document=BlockDocumentCreate(
-                    name=f"{work_pool_name}-push-pool-credentials",
+                    name=block_document_name,
                     data={"service_account_info": key},
                     block_type_id=credentials_block_type.id,
                     block_schema_id=credentials_block_schema.id,
@@ -237,7 +237,7 @@ class CloudRunPushProvisioner:
             return block_doc.id
         except ObjectAlreadyExists:
             block_doc = await client.read_block_document_by_name(
-                name=f"{work_pool_name}-push-pool-credentials",
+                name=block_document_name,
                 block_type_slug="gcp-credentials",
             )
             return block_doc.id
@@ -371,7 +371,7 @@ class CloudRunPushProvisioner:
 
             progress.console.print("Creating GCP credentials block")
             block_doc_id = await self._create_gcp_credentials_block(
-                work_pool_name, key, client
+                self._credentials_block_name, key, client
             )
             base_job_template_copy = deepcopy(base_job_template)
             base_job_template_copy["variables"]["properties"]["credentials"][
