@@ -615,4 +615,9 @@ class RRuleSchedule(PrefectBaseModel):
             counter += 1
 
 
-SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule]
+class NoSchedule(PrefectBaseModel):
+    class Config:
+        extra = "forbid"
+
+
+SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule]

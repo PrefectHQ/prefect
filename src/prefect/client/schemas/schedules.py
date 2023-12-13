@@ -319,7 +319,12 @@ class RRuleSchedule(PrefectBaseModel):
         return v
 
 
-SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule]
+class NoSchedule(PrefectBaseModel):
+    class Config:
+        extra = "forbid"
+
+
+SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule]
 
 
 def construct_schedule(
@@ -328,6 +333,7 @@ def construct_schedule(
     cron: Optional[str] = None,
     rrule: Optional[str] = None,
     timezone: Optional[str] = None,
+    no_schedule: bool = False,
 ) -> SCHEDULE_TYPES:
     """
     Construct a schedule from the provided arguments.
@@ -340,9 +346,13 @@ def construct_schedule(
         rrule: An rrule schedule of when to execute runs of this flow.
         timezone: A timezone to use for the schedule. Defaults to UTC.
     """
-    num_schedules = sum(1 for entry in (interval, cron, rrule) if entry is not None)
+    num_schedules = sum(1 for entry in (interval, cron, rrule) if entry is not None) + (
+        1 if no_schedule else 0
+    )
     if num_schedules > 1:
-        raise ValueError("Only one of interval, cron, or rrule can be provided.")
+        raise ValueError(
+            "Only one of interval, cron, rrule or no_schedule can be provided."
+        )
 
     if anchor_date and not interval:
         raise ValueError(
@@ -365,8 +375,10 @@ def construct_schedule(
         schedule = CronSchedule(cron=cron, timezone=timezone)
     elif rrule:
         schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+    elif no_schedule:
+        schedule = NoSchedule()
 
     if schedule is None:
-        raise ValueError("Either interval, cron, or rrule must be provided")
+        raise ValueError("Either interval, cron, rrule or no_schedule must be provided")
 
     return schedule

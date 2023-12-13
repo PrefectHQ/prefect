@@ -25,6 +25,7 @@ from prefect.client.schemas.filters import FlowFilter
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
+    NoSchedule,
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
@@ -327,15 +328,25 @@ async def set_schedule(
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
+    no_schedule: bool = typer.Option(
+        False,
+        "--no-schedule",
+        help="An optional flag to disable scheduling for this deployment.",
+    ),
 ):
     """
     Set schedule for a given deployment.
     """
     assert_deployment_name_format(name)
 
-    if sum(option is not None for option in [interval, rrule_string, cron_string]) != 1:
+    if (
+        sum(option is not None for option in [interval, rrule_string, cron_string])
+        + (1 if no_schedule else 0)
+        != 1
+    ):
         exit_with_error(
-            "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided."
+            "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule` must"
+            " be provided."
         )
 
     if interval_anchor and not interval:
@@ -382,6 +393,9 @@ async def set_schedule(
                 updated_schedule.timezone = timezone
         except json.JSONDecodeError:
             updated_schedule = RRuleSchedule(rrule=rrule_string, timezone=timezone)
+
+    if no_schedule:
+        updated_schedule = NoSchedule()
 
     async with get_client() as client:
         try:
@@ -1009,6 +1023,11 @@ async def build(
             ' --params=\'{"question": "ultimate", "answer": 42}\''
         ),
     ),
+    no_schedule: bool = typer.Option(
+        False,
+        "--no-schedule",
+        help="An optional flag to disable scheduling for this deployment.",
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -1019,7 +1038,11 @@ async def build(
             "A name for this deployment must be provided with the '--name' flag."
         )
 
-    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+    if (
+        len([value for value in (cron, rrule, interval) if value is not None])
+        + (1 if no_schedule else 0)
+        > 1
+    ):
         exit_with_error("Only one schedule type can be provided.")
 
     if infra_block and infra_type:
@@ -1093,6 +1116,8 @@ async def build(
                 schedule.timezone = timezone
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+    elif no_schedule:
+        schedule = NoSchedule()
 
     # parse storage_block
     if storage_block:

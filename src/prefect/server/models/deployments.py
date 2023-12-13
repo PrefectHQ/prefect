@@ -16,6 +16,7 @@ from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.schemas.schedules import NoSchedule
 from prefect.server.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
@@ -526,7 +527,12 @@ async def _generate_scheduled_flow_runs(
     # retrieve the deployment
     deployment = await session.get(db.Deployment, deployment_id)
 
-    if not deployment or not deployment.schedule or not deployment.is_schedule_active:
+    if (
+        not deployment
+        or not deployment.schedule
+        or isinstance(deployment.schedule, NoSchedule)
+        or not deployment.is_schedule_active
+    ):
         return []
 
     dates = []

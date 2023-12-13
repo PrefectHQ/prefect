@@ -302,7 +302,8 @@ class TestUpdatingDeployments:
             ],
             expected_code=1,
             expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
+                " must be provided"
             ),
         )
 
@@ -315,7 +316,8 @@ class TestUpdatingDeployments:
             ],
             expected_code=1,
             expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
+                " must be provided"
             ),
         )
 
@@ -584,7 +586,8 @@ class TestUpdatingDeployments:
             ],
             expected_code=1,
             expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
+                " must be provided"
             ),
         )
 
