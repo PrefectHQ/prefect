@@ -59,7 +59,7 @@ Note that this deployment uses flow code stored in a GitHub repository.
 
 ### Step 3
 
-Quick run the deployment from the UI or from the CLI.
+Run the deployment from the UI or from the CLI.
 
 That's it! You ran a flow on remote infrastructure without any infrastructure setup, worker, or cloud provider account.
 
