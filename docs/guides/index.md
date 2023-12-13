@@ -37,6 +37,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Moving Data](/guides/moving-data/) | Move data to and from cloud providers.  |
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
+| [Managed Execution](/guides/managed-execution/) | Let prefect run your code. |
 
 ## Work Pools
 
