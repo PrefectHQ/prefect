@@ -937,7 +937,7 @@ class TestElasticContainerServicePushProvisioner:
         assert mock_confirm.ask.call_args_list[1] == expected_call_2
 
     @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
-    async def test_provision(
+    async def test_provision_interactive_with_default_names(
         self, provisioner, mock_confirm, prefect_client, mock_run_process, capsys
     ):
         provisioner.console.is_interactive = True
@@ -986,6 +986,113 @@ class TestElasticContainerServicePushProvisioner:
 
         captured = capsys.readouterr()
         assert "Your default Docker build namespace has been set" in captured.out
+
+    @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
+    async def test_provision_interactive_with_custom_names(
+        self,
+        provisioner,
+        mock_confirm,
+        prefect_client,
+        mock_run_process,
+        capsys,
+        monkeypatch,
+    ):
+        provisioner.console.is_interactive = True
+        mock_confirm.ask.side_effect = [
+            True,  # customize
+            True,  # proceed with provisioning
+        ]
+
+        def prompt_mocks(*args, **kwargs):
+            if "Enter a name for the IAM user" in args[0]:
+                return "custom-iam-user"
+            elif "Enter a name for the IAM policy" in args[0]:
+                return "custom-iam-policy"
+            elif "Enter a name for the ECS cluster" in args[0]:
+                return "custom-ecs-cluster"
+            elif "Enter a name for the AWS credentials block" in args[0]:
+                return "custom-aws-credentials"
+            elif "Enter a name for the VPC" in args[0]:
+                return "custom-vpc"
+            elif "Enter a name for the ECS security group" in args[0]:
+                return "custom-ecs-security-group"
+            elif "Enter a name for the ECR repository" in args[0]:
+                return "custom-ecr-repository"
+            else:
+                raise ValueError(f"Unexpected prompt: {args[0]}")
+
+        mock_prompt = MagicMock(side_effect=prompt_mocks)
+
+        monkeypatch.setattr(
+            "prefect.infrastructure.provisioners.ecs.prompt", mock_prompt
+        )
+
+        result = await provisioner.provision(
+            "test-work-pool",
+            {
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "vpc_id": {},
+                        "cluster": {},
+                        "aws_credentials": {},
+                        "execution_role_arn": {},
+                    },
+                }
+            },
+        )
+
+        ec2 = boto3.resource("ec2")
+        vpc = ec2.Vpc(result["variables"]["properties"]["vpc_id"]["default"])
+        assert vpc is not None
+
+        ecs = boto3.client("ecs")
+        clusters = ecs.list_clusters()["clusterArns"]
+        assert (
+            f"arn:aws:ecs:us-east-1:123456789012:cluster/{result['variables']['properties']['cluster']['default']}"
+            in clusters
+        )
+
+        block_document = await prefect_client.read_block_document_by_name(
+            "custom-aws-credentials", "aws-credentials"
+        )
+        assert result["variables"]["properties"]["aws_credentials"] == {
+            "default": {"$ref": {"block_document_id": str(block_document.id)}},
+        }
+
+        mock_run_process.assert_called_with(
+            "docker login -u AWS -p 123456789012-auth-token"
+            " https://123456789012.dkr.ecr.us-east-1.amazonaws.com"
+        )
+
+        captured = capsys.readouterr()
+        assert "Your default Docker build namespace has been set" in captured.out
+
+    async def test_provision_interactive_reject_provisioning(
+        self, provisioner, mock_confirm
+    ):
+        provisioner.console.is_interactive = True
+        mock_confirm.ask.side_effect = [
+            False,
+            False,
+        ]  # do not customize, do not proceed with provisioning
+
+        original_base_template = {
+            "variables": {
+                "type": "object",
+                "properties": {
+                    "vpc_id": {},
+                    "cluster": {},
+                    "aws_credentials": {},
+                    "execution_role_arn": {},
+                },
+            }
+        }
+        unchanged_base_job_template = await provisioner.provision(
+            "test-work-pool", original_base_template
+        )
+
+        assert unchanged_base_job_template == original_base_template
 
     @pytest.mark.usefixtures(
         "register_block_types", "no_default_vpc", "mock_run_process"
@@ -1164,7 +1271,7 @@ def existing_ecr_repository():
     ecr_client.delete_repository(repositoryName="prefect-flows")
 
 
-class TestContainerRepoistoryResource:
+class TestContainerRepositoryResource:
     async def test_get_task_count_requires_provisioning(
         self, container_repository_resource
     ):
