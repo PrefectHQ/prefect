@@ -329,8 +329,8 @@ async def resume_flow_run(
         keyset = state.state_details.run_input_keyset
         if keyset and not run_input:
             return OrchestrationResult(
-                state=None,
-                status=schemas.responses.SetStateStatus.ABORT,
+                state=state,
+                status=schemas.responses.SetStateStatus.REJECT,
                 details=schemas.responses.StateAbortDetails(
                     reason="Flow run was expecting input but none was provided."
                 ),
@@ -342,8 +342,8 @@ async def resume_flow_run(
 
             if schema_json is None:
                 return OrchestrationResult(
-                    state=None,
-                    status=schemas.responses.SetStateStatus.ABORT,
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
                     details=schemas.responses.StateAbortDetails(
                         reason="Run input schema not found."
                     ),
@@ -353,8 +353,8 @@ async def resume_flow_run(
                 schema = orjson.loads(schema_json.value)
             except orjson.JSONDecodeError:
                 return OrchestrationResult(
-                    state=None,
-                    status=schemas.responses.SetStateStatus.ABORT,
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
                     details=schemas.responses.StateAbortDetails(
                         reason="Run input schema is not valid JSON."
                     ),
@@ -364,8 +364,8 @@ async def resume_flow_run(
                 jsonschema.validate(run_input, schema)
             except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
                 return OrchestrationResult(
-                    state=None,
-                    status=schemas.responses.SetStateStatus.ABORT,
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
                     details=schemas.responses.StateAbortDetails(
                         reason=f"Run input validation failed: {exc.message}"
                     ),

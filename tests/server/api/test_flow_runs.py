@@ -1019,10 +1019,13 @@ class TestResumeFlowrun:
             f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "ABORT"
+        assert response.json()["status"] == "REJECT"
         assert (
             response.json()["details"]["reason"]
             == "Flow run was expecting input but none was provided."
+        )
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
         )
 
     async def test_cannot_resume_flow_run_waiting_for_input_missing_schema(
@@ -1041,8 +1044,11 @@ class TestResumeFlowrun:
         )
 
         assert response.status_code == 200
-        assert response.json()["status"] == "ABORT"
+        assert response.json()["status"] == "REJECT"
         assert response.json()["details"]["reason"] == "Run input schema not found."
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
+        )
 
     async def test_cannot_resume_flow_run_waiting_for_input_schema_not_json(
         self,
@@ -1069,10 +1075,13 @@ class TestResumeFlowrun:
         )
 
         assert response.status_code == 200
-        assert response.json()["status"] == "ABORT"
+        assert response.json()["status"] == "REJECT"
         assert (
             response.json()["details"]["reason"]
             == "Run input schema is not valid JSON."
+        )
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
         )
 
     async def test_cannot_resume_flow_run_waiting_for_input_schema_fails_validation(
@@ -1085,10 +1094,13 @@ class TestResumeFlowrun:
             json={"run_input": {"approved": "not a bool!"}},
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "ABORT"
+        assert response.json()["status"] == "REJECT"
         assert (
             response.json()["details"]["reason"]
             == "Run input validation failed: 'not a bool!' is not of type 'boolean'"
+        )
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
         )
 
     async def test_resume_flow_run_waiting_for_input_valid_data(
