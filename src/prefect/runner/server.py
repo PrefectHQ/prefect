@@ -59,7 +59,7 @@ def shutdown(runner) -> int:
     return _shutdown
 
 
-async def _run_deployment(deployment: "Deployment"):
+async def _build_endpoint_for_deployment(deployment: "Deployment"):
     async def _create_flow_run_for_deployment(
         body: Optional[Dict[Any, Any]] = None
     ) -> JSONResponse:
@@ -100,7 +100,7 @@ async def get_deployment_router(
             deployment = await client.read_deployment(deployment_id)
             router.add_api_route(
                 f"/deployment/{deployment.id}/run",
-                await _run_deployment(deployment),
+                await _build_endpoint_for_deployment(deployment),
                 methods=["POST"],
             )
 
