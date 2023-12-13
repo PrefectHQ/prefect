@@ -348,7 +348,74 @@ async def test_no_active_gcloud_account(mock_run_process):
         await provisioner._verify_gcloud_ready()
 
 
-async def test_provision_with_custom_names(
+async def test_provision_interactive_with_default_names(
+    mock_run_process, prefect_client: PrefectClient, monkeypatch
+):
+    mock_prompt_select_from_table = MagicMock(
+        side_effect=[
+            {"projectId": "test-project"},
+            {
+                "option": (
+                    "Yes, proceed with infrastructure provisioning with default"
+                    " resource names"
+                )
+            },
+        ]
+    )
+    mock_confirm = MagicMock(return_value=True)
+
+    monkeypatch.setattr(
+        "prefect.infrastructure.provisioners.cloud_run.prompt_select_from_table",
+        mock_prompt_select_from_table,
+    )
+    monkeypatch.setattr(
+        "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
+    )
+    provisioner = CloudRunPushProvisioner()
+    monkeypatch.setattr(provisioner._console, "is_interactive", True)
+    new_base_job_template = await provisioner.provision(
+        work_pool_name="test",
+        base_job_template=default_cloud_run_push_base_job_template,
+    )
+    assert new_base_job_template
+    assert_commands(
+        mock_run_process,
+        "gcloud --version",
+        "gcloud auth list --format=json",
+        "gcloud projects list --format=json",
+        "gcloud config get-value run/region",
+        "gcloud services enable run.googleapis.com",
+        (
+            "gcloud iam service-accounts create prefect-cloud-run --display-name"
+            " 'Prefect Cloud Run Service Account'"
+        ),
+        (
+            "gcloud projects add-iam-policy-binding test-project"
+            " --member=serviceAccount:prefect-cloud-run@test-project.iam.gserviceaccount.com"
+            " --role=roles/iam.serviceAccountUser"
+        ),
+        (
+            "gcloud projects add-iam-policy-binding test-project"
+            " --member=serviceAccount:prefect-cloud-run@test-project.iam.gserviceaccount.com"
+            " --role=roles/run.developer"
+        ),
+        re.compile(
+            r"gcloud iam service-accounts keys create"
+            r" .*\/prefect-cloud-run-key\.json"
+            r" --iam-account=prefect-cloud-run@test-project\.iam\.gserviceaccount\.com"
+        ),
+    )
+
+    new_block_doc_id = new_base_job_template["variables"]["properties"]["credentials"][
+        "default"
+    ]["$ref"]["block_document_id"]
+
+    block_doc = await prefect_client.read_block_document(new_block_doc_id)
+
+    assert block_doc.name == "test-push-pool-credentials"
+
+
+async def test_provision_interactive_with_custom_names(
     mock_run_process, prefect_client: PrefectClient, monkeypatch
 ):
     def prompt_mocks(*args, **kwargs):
@@ -361,7 +428,7 @@ async def test_provision_with_custom_names(
     mock_prompt_select_from_table = MagicMock(
         side_effect=[
             {"projectId": "test-project"},
-            {"option": "Customize names of service account and GCP credentials block"},
+            {"option": "Customize resource names"},
         ]
     )
     mock_confirm = MagicMock(return_value=True)
@@ -418,3 +485,31 @@ async def test_provision_with_custom_names(
     block_doc = await prefect_client.read_block_document(new_block_doc_id)
     assert block_doc.name == "custom-credentials"
     assert block_doc.data == {"service_account_info": {"private_key": "test-key"}}
+
+
+async def test_provision_interactive_reject_provisioning(
+    mock_run_process, prefect_client: PrefectClient, monkeypatch
+):
+    mock_prompt_select_from_table = MagicMock(
+        side_effect=[
+            {"projectId": "test-project"},
+            {"option": "Do not proceed with infrastructure provisioning"},
+        ]
+    )
+    mock_confirm = MagicMock(return_value=False)
+
+    monkeypatch.setattr(
+        "prefect.infrastructure.provisioners.cloud_run.prompt_select_from_table",
+        mock_prompt_select_from_table,
+    )
+    monkeypatch.setattr(
+        "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
+    )
+    provisioner = CloudRunPushProvisioner()
+    monkeypatch.setattr(provisioner._console, "is_interactive", True)
+
+    unchanged_base_job_template = await provisioner.provision(
+        work_pool_name="test",
+        base_job_template=default_cloud_run_push_base_job_template,
+    )
+    assert unchanged_base_job_template == default_cloud_run_push_base_job_template
