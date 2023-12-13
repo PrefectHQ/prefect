@@ -20,7 +20,11 @@ from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectAlreadyExists
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    update_current_profile,
+)
 
 
 class CloudRunPushProvisioner:
@@ -30,6 +34,7 @@ class CloudRunPushProvisioner:
         self._region = None
         self._service_account_name = "prefect-cloud-run"
         self._credentials_block_name = None
+        self._image_repository_name = "prefect-images"
 
     @property
     def console(self):
@@ -109,7 +114,9 @@ class CloudRunPushProvisioner:
 
     async def _enable_cloud_run_api(self):
         try:
-            await self._run_command("gcloud services enable run.googleapis.com")
+            await self._run_command(
+                f"gcloud services enable run.googleapis.com --project={self._project}"
+            )
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(
@@ -167,6 +174,45 @@ class CloudRunPushProvisioner:
                 " necessary permissions."
             ) from e
 
+    async def _enable_artifact_registry_api(self):
+        try:
+            await self._run_command(
+                "gcloud services enable artifactregistry.googleapis.com"
+                f" --project={self._project}"
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                "Error enabling Artifact Registry API. Please ensure you have the"
+                " necessary permissions."
+            ) from e
+
+    async def _create_artifact_registry_repository(self, repository_name: str):
+        try:
+            await self._run_command(
+                "gcloud artifacts repositories create"
+                f" {repository_name} --repository-format=docker"
+                f" --location={self._region} --project={self._project}"
+            )
+        except subprocess.CalledProcessError as e:
+            if "already exists" not in e.output.decode("utf-8"):
+                return
+            raise RuntimeError(
+                "Error creating Artifact Registry repository. Please ensure you have"
+                " the necessary permissions."
+            ) from e
+
+    async def _login_to_artifact_registry(self):
+        try:
+            await self._run_command(
+                f"gcloud auth configure-docker {self._region}-docker.pkg.dev"
+                f" --project={self._project}"
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                "Error logging into Artifact Registry. Please ensure you have the"
+                " necessary permissions."
+            ) from e
+
     async def _create_gcp_credentials_block(
         self, work_pool_name: str, key: dict, client: PrefectClient
     ) -> UUID:
@@ -204,6 +250,8 @@ class CloudRunPushProvisioner:
                         Updates in GCP project [blue]{self._project}[/] in region [blue]{self._region}[/]
 
                             - Activate the Cloud Run API for your project
+                            - Activate the Artifact Registry API for your project
+                            - Create an Artifact Registry repository named [blue]{self._image_repository_name}[/]
                             - Create a service account for managing Cloud Run jobs: [blue]{self._service_account_name}[/]
                                 - Service account will be granted the following roles:
                                     - Service Account User
@@ -280,9 +328,29 @@ class CloudRunPushProvisioner:
                 return base_job_template
 
         with Progress(console=self._console) as progress:
-            task = progress.add_task("Provisioning Infrastructure", total=5)
+            task = progress.add_task("Provisioning Infrastructure", total=9)
             progress.console.print("Activating Cloud Run API")
             await self._enable_cloud_run_api()
+            progress.advance(task)
+
+            progress.console.print("Activating Artifact Registry API")
+            await self._enable_artifact_registry_api()
+            progress.advance(task)
+
+            progress.console.print("Creating Artifact Registry repository")
+            await self._create_artifact_registry_repository(self._image_repository_name)
+            progress.advance(task)
+
+            progress.console.print("Configuring authentication to Artifact Registry")
+            await self._login_to_artifact_registry()
+            progress.advance(task)
+
+            progress.console.print("Setting default Docker build namespace")
+            update_current_profile(
+                {
+                    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: f"{self._region}-docker.pkg.dev/{self._project}/{self._image_repository_name}"
+                }
+            )
             progress.advance(task)
 
             progress.console.print("Creating service account")
