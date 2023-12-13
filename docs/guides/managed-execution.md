@@ -97,7 +97,7 @@ We will update this page as we make changes.
 
 ### Images
 
-At this time, managed execution requires that you run the official Prefect docker image: `prefecthq/prefect:2-latest`. However, as noted above, you can install Python package dependencies at runtime. If you need to use your own image, we recommend using another type of work pool.
+At this time, managed execution requires that you run the official Prefect Docker image: `prefecthq/prefect:2-latest`. However, as noted above, you can install Python package dependencies at runtime. If you need to use your own image, we recommend using another type of work pool.
 
 ### Code storage
 
