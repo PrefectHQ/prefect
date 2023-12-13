@@ -167,7 +167,7 @@ Here's the command to create a new push work pool and configure the necessary in
 
         While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the registry.
 
-        To take advantage of this, you can write your deploy scripts like this:
+        To take advantage of this functionality, you can write your deploy scripts like this:
 
         ```python hl_lines="14" title="example_deploy_script.py"
         from prefect import flow                                                       
