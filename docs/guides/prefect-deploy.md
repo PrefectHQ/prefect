@@ -267,6 +267,30 @@ Use the tabs below to explore both deployment creation options.
 
     See all the optional keyword arguments for the DeploymentImage class [here](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build). 
 
+    !!! tip "Default Docker namespace"
+        You can set the `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to append a default Docker namespace to all images you build with `.deploy`. This is great if you use a private registry to store your images.
+
+        To set a default Docker namespace for your current profile run:
+
+        <div class="terminal">
+        ```bash
+        prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
+        ```
+        </div>
+
+        Once set, you can omit the namespace from your image name when creating a deployment:
+
+        ```python hl_lines="5" title="with_default_docker_namespace.py"
+        if __name__ == "__main__":
+            buy.deploy(
+                name="my-code-baked-into-an-image-deployment", 
+                work_pool_name="my-docker-pool", 
+                image="my_image:my_image_tag"
+            )
+        ```
+
+        The above code will build an image with the format `<docker-registry-url>/<organization-or-username>/my_image:my_image_tag` when `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
+
     While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
     ### Store you code in git-based cloud storage 

@@ -44,7 +44,11 @@ from rich.table import Table
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage
-from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME, PREFECT_UI_URL
+from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+)
 from prefect.utilities.collections import get_from_dict
 
 if HAS_PYDANTIC_V2:
@@ -70,6 +74,7 @@ from prefect.utilities.dockerutils import (
     docker_client,
     generate_default_dockerfile,
     parse_image_tag,
+    split_repository_path,
 )
 from prefect.utilities.slugify import slugify
 
@@ -356,6 +361,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -378,6 +384,9 @@ class RunnerDeployment(BaseModel):
             rrule: An rrule schedule of when to execute runs of this flow.
             schedule: A schedule object of when to execute runs of this flow. Used for
                 advanced scheduling options like timezone.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -404,6 +413,7 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
+            is_schedule_active=is_schedule_active,
             tags=tags or [],
             triggers=triggers or [],
             parameters=parameters or {},
@@ -461,6 +471,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -484,6 +495,9 @@ class RunnerDeployment(BaseModel):
             rrule: An rrule schedule of when to execute runs of this flow.
             schedule: A schedule object of when to execute runs of this flow. Used for
                 advanced scheduling options like timezone.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -516,6 +530,7 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
+            is_schedule_active=is_schedule_active,
             tags=tags or [],
             triggers=triggers or [],
             parameters=parameters or {},
@@ -544,6 +559,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -570,6 +586,9 @@ class RunnerDeployment(BaseModel):
             rrule: An rrule schedule of when to execute runs of this flow.
             schedule: A schedule object of when to execute runs of this flow. Used for
                 advanced scheduling options like timezone.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -606,6 +625,7 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
+            is_schedule_active=is_schedule_active,
             tags=tags or [],
             triggers=triggers or [],
             parameters=parameters or {},
@@ -650,7 +670,14 @@ class DeploymentImage:
                 f"Only one tag can be provided - both {image_tag!r} and {tag!r} were"
                 " provided as tags."
             )
-        self.name = image_name
+        namespace, repository = split_repository_path(image_name)
+        # if the provided image name does not include a namespace (registry URL or user/org name),
+        # use the default namespace
+        if not namespace:
+            namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
+        # join the namespace and repository to create the full image name
+        # ignore namespace if it is None
+        self.name = "/".join(filter(None, [namespace, repository]))
         self.tag = tag or image_tag or slugify(pendulum.now("utc").isoformat())
         self.dockerfile = dockerfile
         self.build_kwargs = build_kwargs
@@ -774,7 +801,11 @@ async def deploy(
     is_docker_based_work_pool = get_from_dict(
         work_pool.base_job_template, "variables.properties.image", False
     )
-    if not is_docker_based_work_pool:
+    is_block_based_work_pool = get_from_dict(
+        work_pool.base_job_template, "variables.properties.block", False
+    )
+    # carve out an exception for block based work pools that only have a block in their base job template
+    if not is_docker_based_work_pool and not is_block_based_work_pool:
         raise ValueError(
             f"Work pool {work_pool_name!r} does not support custom Docker images. "
             "Please use a work pool with an `image` variable in its base job template."

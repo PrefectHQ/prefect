@@ -15,12 +15,13 @@ search:
 
 # Run Deployments on Serverless Infrastructure with Prefect Workers
 
-Prefect provides work pools for workers to run workflows on the serverless platforms of major cloud providers.
+Prefect provides work pools for workers to run flows on the serverless platforms of major cloud providers.
 The following options are available:
 
 - AWS Elastic Container Service (ECS)
 - Azure Container Instances (ACI)
 - Google Cloud Run
+- Google Cloud Run V2
 - Google Vertex AI
 
 ![Work pool options](/img/ui/work-pools.png)
@@ -57,6 +58,6 @@ For in-depth guides, see the Prefect integration libraries:
 ## Next steps
 
 Options for push versions on AWS ECS, Azure Container Instances, and Google Cloud Run work pools that do not require a worker are available with Prefect Cloud.
-Read more in the [Serverless Push Work Pool Guide](/guides/deployments/serverless/).
+Read more in the [Serverless Push Work Pool Guide](/guides/deployment/push-work-pools/).
 
 Learn more about workers and work pools in the [Prefect concept documentation](/concepts/work-pools/).

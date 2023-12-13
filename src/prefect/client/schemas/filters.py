@@ -305,6 +305,9 @@ class FlowRunFilter(PrefectBaseModel, OperatorMixin):
         default=None,
         description="Filter criteria for `FlowRun.next_scheduled_start_time`",
     )
+    parent_flow_run_id: Optional[FlowRunFilterParentFlowRunId] = Field(
+        default=None, description="Filter criteria for subflows of the given flow runs"
+    )
     parent_task_run_id: Optional[FlowRunFilterParentTaskRunId] = Field(
         default=None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
