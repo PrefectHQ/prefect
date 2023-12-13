@@ -23,7 +23,7 @@ In this guide, we will showcase common usecases where automations can come in ha
         additional features are available
 
 ## Prerequisites
-Please have the following before completing the guide:
+Please have the following before exploring the guide:
 - Python installed
 - Prefect installed (follow the installation guide)
 - You can sign up for a forever free Prefect Cloud account
@@ -69,7 +69,7 @@ def build_names(num: int = 10):
     while num != 0:
         raw_data = fetch(url)
         df.append(clean(raw_data))
-        num-=1
+        num -= 1
     logger.info(f"Built {copy} names: {df}")
     return df
 
@@ -110,42 +110,57 @@ Additionally, find more information in our [REST API documentation](https://docs
 
 Let's have local deployment created where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking too long to execute, we can kick off a deployment of the same flow `build_names` but replace the count value with something less.
 
-By following the deployment steps, we can get started by creating a local prefect.yaml that looks like this for our flow `build_names`
+=== ".yaml"
 
-```yaml
-# Welcome to your prefect.yaml file! You can use this file for storing and managing
-# configuration for deploying your flows. We recommend committing this file to source
-# control along with your flow code.
+    By following the deployment steps, we can get started by creating a local prefect.yaml that looks like this for our flow `build_names`
 
-# Generic metadata about this project
-name: automations-guide
-prefect-version: 2.13.1
+    ```yaml
+      # Welcome to your prefect.yaml file! You can use this file for storing and managing
+      # configuration for deploying your flows. We recommend committing this file to source
+      # control along with your flow code.
 
-# build section allows you to manage and build docker images
-build: null
+      # Generic metadata about this project
+      name: automations-guide
+      prefect-version: 2.13.1
 
-# push section allows you to manage if and how this project is uploaded to remote locations
-push: null
+      # build section allows you to manage and build docker images
+      build: null
 
-# pull section allows you to provide instructions for cloning this project in remote locations
-pull:
-- prefect.deployments.steps.set_working_directory:
-    directory: /Users/src/prefect/Playground/automations-guide
+      # push section allows you to manage if and how this project is uploaded to remote locations
+      push: null
 
-# the deployments section allows you to provide configuration for deploying flows
-deployments:
-- name: deploy-build-names
-  version: null
-  tags: []
-  description: null
-  entrypoint: test-automations.py:build_names
-  parameters: {}
-  work_pool:
-    name: tutorial-process-pool
-    work_queue_name: null
-    job_variables: {}
-  schedule: null
-```
+      # pull section allows you to provide instructions for cloning this project in remote locations
+      pull:
+      - prefect.deployments.steps.set_working_directory:
+          directory: /Users/src/prefect/Playground/automations-guide
+
+      # the deployments section allows you to provide configuration for deploying flows
+      deployments:
+      - name: deploy-build-names
+        version: null
+        tags: []
+        description: null
+        entrypoint: test-automations.py:build_names
+        parameters: {}
+        work_pool:
+          name: tutorial-process-pool
+          work_queue_name: null
+          job_variables: {}
+        schedule: null
+    ```
+
+=== ".deploy"
+
+    To follow a more python based approach to deploy, you can explore .deploy to expose similar fields
+
+    ```python
+    if __name__ == "__main__":
+    hello_world.deploy(
+        name="deploy-build-names",
+        work_pool_name="tutorial-process-pool"
+        image="my_registry/my_image:my_image_tag",
+    )
+    ``` 
 
 Now let's grab our `deployment_id` from this deployment, and embed it in our automation. There are many ways to obtain the `deployment_id`, but the CLI is a quick way to see all of your deployment ids. 
 
@@ -268,7 +283,15 @@ if __name__ == "__main__":
 
 You can find a complete repo with these examples in our [recipes repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
 
-In this example, we managed to create the automation by registering the .yaml file with a helper function. This offers another experience when trying to create an automation. 
+In this example, we managed to create the automation by registering the .yaml file with a helper function. This offers another experience when trying to create an automation.
+
+## Custom webhook kicking off an automation
+
+We can use webhooks to expose the events API which allows us to extend the functionality of deployments and ways to respond to changes in our workflow through a few easy steps. 
+
+Make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that does uses these pulled parameters
+
+I think showing how to go from custom event with a webhook to to an automation that kicks off a deployment with parameters passed into the flow would be good unless you think it's covered elsewhere in the main docs (outside recipes and blogs).
 
 ## Using triggers, an AI function extension
 
@@ -335,9 +358,7 @@ deployments:
     - enabled: true
       match:
         prefect.resource.id: "prefect.flow-run.*"
-      expect: [
-
-      ],
+      expect: [],
       parameters:
         param_1: 10
   version: null
