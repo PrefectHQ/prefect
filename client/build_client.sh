@@ -29,7 +29,6 @@ rm -rf server/schemas
 rm -rf server/services
 rm -rf testing
 rm -rf server/utilities
-rm utilities/validation.py
 
 # replace old build files with client build files
 cd $TMPDIR
