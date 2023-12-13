@@ -1,5 +1,5 @@
-import typing as t
 import uuid
+from typing import Callable, List
 from unittest import mock
 
 import pydantic
@@ -22,7 +22,7 @@ async def runner(tmp_runner_env) -> Runner:
     return Runner()
 
 
-async def create_deployment(runner: Runner, func: t.Callable):
+async def create_deployment(runner: Runner, func: Callable):
     # Use unique names to force multiple deployments to be created
     deployment_id = await runner.add_flow(
         func, f"{uuid.uuid4()}", enforce_parameter_schema=True
@@ -84,7 +84,7 @@ async def test_runners_deployment_run_route_with_complex_args(runner: Runner):
 
     @flow
     def complex_flow(
-        x: int, y: str = "hello", z: t.List[bool] = [True], a: A = A(), b: B = B()
+        x: int, y: str = "hello", z: List[bool] = [True], a: A = A(), b: B = B()
     ):
         print(x, y, z, a, b)
 

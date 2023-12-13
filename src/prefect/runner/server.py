@@ -6,7 +6,7 @@ from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.responses import JSONResponse
 
 from prefect.client.orchestration import get_client
-from prefect.runner.utils import _inject_schemas_into_generated_openapi
+from prefect.runner.utils import inject_schemas_into_openapi
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_SERVER_HOST,
@@ -59,7 +59,7 @@ def shutdown(runner) -> int:
     return _shutdown
 
 
-async def __run_deployment(deployment: "Deployment"):
+async def _run_deployment(deployment: "Deployment"):
     async def _create_flow_run_for_deployment(
         body: Optional[Dict[Any, Any]] = None
     ) -> JSONResponse:
@@ -100,7 +100,7 @@ async def get_deployment_router(
             deployment = await client.read_deployment(deployment_id)
             router.add_api_route(
                 f"/deployment/{deployment.id}/run",
-                await __run_deployment(deployment),
+                await _run_deployment(deployment),
                 methods=["POST"],
             )
 
@@ -136,9 +136,7 @@ async def build_server(runner: "Runner") -> FastAPI:
         if webserver.openapi_schema:
             return webserver.openapi_schema
 
-        openapi_schema = _inject_schemas_into_generated_openapi(
-            webserver, deployment_schemas
-        )
+        openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
         webserver.openapi_schema = openapi_schema
         return webserver.openapi_schema
 
