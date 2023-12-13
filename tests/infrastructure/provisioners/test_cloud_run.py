@@ -256,6 +256,15 @@ def mock_run_process(monkeypatch):
                     }
                 ]
             ).encode()
+        elif command == shlex.split("gcloud projects list --format=json"):
+            mock.stdout = json.dumps(
+                [
+                    {
+                        "projectId": "test-project",
+                        "name": "Test Project",
+                    }
+                ]
+            ).encode()
         elif "gcloud iam service-accounts keys create" in shlex.join(command):
             with open(command[5], "w") as f:
                 json.dump({"private_key": "test-key"}, f)
@@ -337,3 +346,75 @@ async def test_no_active_gcloud_account(mock_run_process):
 
     with pytest.raises(RuntimeError):
         await provisioner._verify_gcloud_ready()
+
+
+async def test_provision_with_custom_names(
+    mock_run_process, prefect_client: PrefectClient, monkeypatch
+):
+    def prompt_mocks(*args, **kwargs):
+        if args[0] == "Please enter a name for the service account":
+            return "custom-service-account"
+        elif args[0] == "Please enter a name for the GCP credentials block":
+            return "custom-credentials"
+
+    mock_prompt = MagicMock(side_effect=prompt_mocks)
+    mock_prompt_select_from_table = MagicMock(
+        side_effect=[
+            {"projectId": "test-project"},
+            {"option": "Customize names of service account and GCP credentials block"},
+        ]
+    )
+    mock_confirm = MagicMock(return_value=True)
+
+    monkeypatch.setattr(
+        "prefect.infrastructure.provisioners.cloud_run.prompt", mock_prompt
+    )
+    monkeypatch.setattr(
+        "prefect.infrastructure.provisioners.cloud_run.prompt_select_from_table",
+        mock_prompt_select_from_table,
+    )
+    monkeypatch.setattr(
+        "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
+    )
+    provisioner = CloudRunPushProvisioner()
+    monkeypatch.setattr(provisioner._console, "is_interactive", True)
+    new_base_job_template = await provisioner.provision(
+        work_pool_name="test",
+        base_job_template=default_cloud_run_push_base_job_template,
+    )
+    assert new_base_job_template
+    assert_commands(
+        mock_run_process,
+        "gcloud --version",
+        "gcloud auth list --format=json",
+        "gcloud projects list --format=json",
+        "gcloud config get-value run/region",
+        "gcloud services enable run.googleapis.com",
+        (
+            "gcloud iam service-accounts create custom-service-account --display-name"
+            " 'Prefect Cloud Run Service Account'"
+        ),
+        (
+            "gcloud projects add-iam-policy-binding test-project"
+            " --member=serviceAccount:custom-service-account@test-project.iam.gserviceaccount.com"
+            " --role=roles/iam.serviceAccountUser"
+        ),
+        (
+            "gcloud projects add-iam-policy-binding test-project"
+            " --member=serviceAccount:custom-service-account@test-project.iam.gserviceaccount.com"
+            " --role=roles/run.developer"
+        ),
+        re.compile(
+            r"gcloud iam service-accounts keys create"
+            r" .*\/custom-service-account-key\.json"
+            r" --iam-account=custom-service-account@test-project\.iam\.gserviceaccount\.com"
+        ),
+    )
+
+    new_block_doc_id = new_base_job_template["variables"]["properties"]["credentials"][
+        "default"
+    ]["$ref"]["block_document_id"]
+
+    block_doc = await prefect_client.read_block_document(new_block_doc_id)
+    assert block_doc.name == "custom-credentials"
+    assert block_doc.data == {"service_account_info": {"private_key": "test-key"}}
