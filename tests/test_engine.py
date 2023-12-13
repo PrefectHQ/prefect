@@ -53,7 +53,7 @@ from prefect.exceptions import (
     SignatureMismatchError,
 )
 from prefect.futures import PrefectFuture
-from prefect.input import RunInput, create_flow_run_input, read_flow_run_input
+from prefect.input import RunInput, read_flow_run_input
 from prefect.results import ResultFactory
 from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
@@ -346,10 +346,7 @@ class TestBlockingPause:
             keyset = flow_run.state.state_details.run_input_keyset
             assert keyset
 
-            await create_flow_run_input(
-                key=keyset["response"], value={"x": 42}, flow_run_id=flow_run_id
-            )
-            await resume_flow_run(flow_run_id)
+            await resume_flow_run(flow_run_id, run_input={"x": 42})
 
         flow_run_state, the_answer = await asyncio.gather(
             pausing_flow(return_state=True),
@@ -834,11 +831,7 @@ class TestSuspendFlowRun:
         )
         assert schema is not None
 
-        await create_flow_run_input(
-            key=keyset["response"], value={"x": 42}, flow_run_id=flow_run_id
-        )
-
-        await resume_flow_run(flow_run_id)
+        await resume_flow_run(flow_run_id, run_input={"x": 42})
 
         state = await begin_flow_run(
             flow=suspending_flow,
