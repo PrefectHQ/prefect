@@ -855,9 +855,12 @@ def initialize_orchestration(flow):
         flow_retries: int = None,
         flow_run_count: int = None,
         resuming: bool = None,
+        initial_flow_run_state_details=None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
+        if initial_flow_run_state_details is None:
+            initial_flow_run_state_details = {}
         if flow_retries:
             empirical_policy.update({"retries": flow_retries})
         if resuming:
@@ -888,10 +891,11 @@ def initialize_orchestration(flow):
         elif run_type == "task":
             if initial_flow_run_state_type:
                 flow_state_constructor = commit_flow_run_state
+                kwargs = {}
+                if initial_flow_run_state_details:
+                    kwargs["state_details"] = initial_flow_run_state_details
                 await flow_state_constructor(
-                    session,
-                    flow_run,
-                    initial_flow_run_state_type,
+                    session, flow_run, initial_flow_run_state_type, **kwargs
                 )
             task_run = await models.task_runs.create_task_run(
                 session=session,
