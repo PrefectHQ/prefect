@@ -1,12 +1,14 @@
-import typing as t
+from typing import Any, Dict
 
 from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 
+from prefect import __version__ as PREFECT_VERSION
+
 
 def _inject_schemas_into_generated_openapi(
-    webserver: FastAPI, schemas: t.Dict[str, t.Any]
-) -> t.Dict[str, t.Any]:
+    webserver: FastAPI, schemas: Dict[str, Any]
+) -> Dict[str, Any]:
     """Injects the parameter schemas into the Runner's Webserver OpenAPI schema
 
     Args:
@@ -14,7 +16,7 @@ def _inject_schemas_into_generated_openapi(
         - schemas: the schemas to inject
     """
     openapi_schema = get_openapi(
-        title="FastAPI Prefect Runner", version="2.5.0", routes=webserver.routes
+        title="FastAPI Prefect Runner", version=PREFECT_VERSION, routes=webserver.routes
     )
 
     # Update the components/schemas with definitions from the deployment schemas
@@ -27,7 +29,7 @@ def _inject_schemas_into_generated_openapi(
 
 
 def _merge_definitions_into_components(
-    input_schemas: t.Dict[str, t.Any], openapi_schema: t.Dict[str, t.Any]
+    input_schemas: Dict[str, Any], openapi_schema: Dict[str, Any]
 ) -> None:
     """Merges the input schemas into the OpenAPI schema's components/schemas
 
@@ -46,7 +48,7 @@ def _merge_definitions_into_components(
                 components_schemas[def_name] = def_value
 
 
-def _recursively_update_refs(item: t.Any, new_ref_base: str) -> None:
+def _recursively_update_refs(item: Any, new_ref_base: str) -> None:
     """Recursively updates all $ref in the item
 
     Args:
@@ -63,7 +65,7 @@ def _recursively_update_refs(item: t.Any, new_ref_base: str) -> None:
             _recursively_update_refs(i, new_ref_base)
 
 
-def _update_paths_with_correct_refs(openapi_schema: t.Dict[str, t.Any]) -> None:
+def _update_paths_with_correct_refs(openapi_schema: Dict[str, Any]) -> None:
     """Updates the paths with the correct $ref values
 
     Args:

@@ -1,4 +1,4 @@
-import typing as t
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 import pendulum
 import uvicorn
@@ -17,7 +17,7 @@ from prefect.settings import (
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.validation import validate_values_conform_to_schema
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     from prefect.deployments import Deployment
     from prefect.runner import Runner
 
@@ -61,7 +61,7 @@ def shutdown(runner) -> int:
 
 async def __run_deployment(deployment: "Deployment"):
     async def _create_flow_run_for_deployment(
-        body: t.Optional[t.Dict[t.Any, t.Any]] = None
+        body: Optional[Dict[Any, Any]] = None
     ) -> JSONResponse:
         body = body or {}
         if deployment.enforce_parameter_schema and deployment.parameter_openapi_schema:
@@ -76,11 +76,12 @@ async def __run_deployment(deployment: "Deployment"):
                 )
 
         async with get_client() as client:
-            await client.create_flow_run_from_deployment(
+            flow_run = await client.create_flow_run_from_deployment(
                 deployment_id=deployment.id, parameters=body
             )
         return JSONResponse(
-            status_code=status.HTTP_201_CREATED, content={"message": "OK"}
+            status_code=status.HTTP_201_CREATED,
+            content={"flow_run_id": str(flow_run.id)},
         )
 
     return _create_flow_run_for_deployment
@@ -89,7 +90,7 @@ async def __run_deployment(deployment: "Deployment"):
 @sync_compatible
 async def get_deployment_router(
     runner: "Runner",
-) -> t.Tuple[APIRouter, t.Dict[str, t.Dict]]:
+) -> Tuple[APIRouter, Dict[str, Dict]]:
     from prefect import get_client
 
     router = APIRouter()
@@ -145,7 +146,7 @@ async def build_server(runner: "Runner") -> FastAPI:
     return webserver
 
 
-def start_webserver(runner: "Runner", log_level: t.Optional[str] = None) -> None:
+def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
     """
     Run a FastAPI server for a runner.
 
