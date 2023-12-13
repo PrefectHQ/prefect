@@ -4,7 +4,7 @@
       <PageHeading :crumbs="crumbs">
         <template v-if="!empty" #actions>
           <FlowRunTagsInput v-model:selected="filter.tags" empty-message="All tags" class="workspace-dashboard__tags" />
-          <DateRangeSelect v-model="filter.range" class="workspace-dashboard__range" />
+          <DateRangeSelect v-model="filter.range" />
         </template>
       </PageHeading>
     </template>
@@ -79,10 +79,6 @@
 .workspace-dashboard__tags { @apply
   w-full
   max-w-xs
-}
-
-.workspace-dashboard__range { @apply
-  max-w-lg
 }
 
 .workspace-dashboard__grid { @apply
