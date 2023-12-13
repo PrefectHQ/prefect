@@ -987,6 +987,11 @@ class TestElasticContainerServicePushProvisioner:
         captured = capsys.readouterr()
         assert "Your default Docker build namespace has been set" in captured.out
 
+        assert (
+            result["variables"]["properties"]["cluster"]["default"]
+            == "prefect-ecs-cluster"
+        )
+
     @pytest.mark.usefixtures("register_block_types", "no_default_vpc")
     async def test_provision_interactive_with_custom_names(
         self,
@@ -1067,6 +1072,11 @@ class TestElasticContainerServicePushProvisioner:
 
         captured = capsys.readouterr()
         assert "Your default Docker build namespace has been set" in captured.out
+
+        assert (
+            result["variables"]["properties"]["cluster"]["default"]
+            == "custom-ecs-cluster"
+        )
 
     async def test_provision_interactive_reject_provisioning(
         self, provisioner, mock_confirm
