@@ -265,7 +265,7 @@ class CloudRunPushProvisioner:
                             " resource names"
                         )
                     },
-                    {"option": "Customize resource names?"},
+                    {"option": "Customize resource names"},
                     {"option": "Do not provision infrastructure"},
                 ],
             )
