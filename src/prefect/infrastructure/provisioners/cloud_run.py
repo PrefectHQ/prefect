@@ -319,18 +319,26 @@ class CloudRunPushProvisioner:
                         )
                     },
                     {"option": "Customize resource names"},
-                    {"option": "Do not provision infrastructure"},
+                    {"option": "Do not proceed with infrastructure provisioning"},
                 ],
             )
-
-            if (
-                chosen_option["option"]
-                == "Customize names of service account and GCP credentials block"
-            ):
+            if chosen_option["option"] == "Customize resource names":
                 if not await self._customize_resource_names(work_pool_name, client):
                     return base_job_template
-            elif chosen_option["option"] == "Do not provision infrastructure":
+
+            elif (
+                chosen_option["option"]
+                == "Do not proceed with infrastructure provisioning"
+            ):
                 return base_job_template
+            elif (
+                chosen_option["option"]
+                != "Yes, proceed with infrastructure provisioning with default"
+                " resource names"
+            ):
+                # basically, we should never hit this. i'm concerned that we might change
+                # the options in the future and forget to update this check
+                raise ValueError(f"Invalid option selected: {chosen_option['option']}")
 
         with Progress(console=self._console) as progress:
             task = progress.add_task("Provisioning Infrastructure", total=9)
