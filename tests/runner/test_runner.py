@@ -895,7 +895,6 @@ class TestRunnerDeployment:
         )
 
         assert deployment.is_schedule_active is expected
-        assert deployment.is_schedule_active is False
 
     @pytest.mark.parametrize(
         "kwargs",
