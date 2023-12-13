@@ -652,7 +652,7 @@ class ContainerInstancePushProvisioner:
             )
 
     async def _assign_acr_pull_role(
-        self, identity: dict[str, Any], registry: dict[str, Any]
+        self, identity: Dict[str, Any], registry: Dict[str, Any]
     ) -> None:
         """
         Assigns the AcrPull role to the specified identity for the given registry.
