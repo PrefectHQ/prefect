@@ -59,6 +59,18 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
     Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
 
+    You will also need the following permissions in your GCP project:
+
+    - resourcemanager.projects.list
+    - serviceusage.services.enable
+    - iam.serviceAccounts.create
+    - iam.serviceAccountKeys.create
+    - resourcemanager.projects.setIamPolicy
+    - artifactregistry.repositories.create
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
+
 ### Automatically creating a new push work pool and provisioning infrastructure
 
 Here's the command to create a new push work pool and configure the necessary infrastructure.
