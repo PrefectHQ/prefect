@@ -2,6 +2,9 @@
 description: Prefect will run your deployment on our infrastructure.
 tags:
     - managed infrastructure
+    - infrastructure
+search:
+  boost: 2
 ---
 
 # Managed Execution <span class="badge cloud"></span> <span class="badge-api beta"/>
