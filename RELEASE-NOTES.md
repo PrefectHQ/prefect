@@ -76,6 +76,7 @@ Use any image name to build and push to this registry by default:
 │ if __name__ == "__main__":                                                     │
 │     my_flow.deploy(                                                            │
 │         name="my-deployment",                                                  │
+│         work_pool_name="my-work-pool",                                         │
 │         image=DeploymentImage(                                                 │
 │             name="my-image:latest",                                            │
 │             platform="linux/amd64",                                            │
@@ -93,6 +94,7 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11381
 - https://github.com/PrefectHQ/prefect/pull/11412
 
+
 ### Enhancements
 - Add the ability to publish `KubernetesJob` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11347
 - Add setting to configure a default Docker namespace for image builds — https://github.com/PrefectHQ/prefect/pull/11378
@@ -102,10 +104,10 @@ See the following pull requests for implementation details:
 - Add support for `is_schedule_active` to `flow.deploy` and `flow.serve` — https://github.com/PrefectHQ/prefect/pull/11375
 - Allow users to select relative and fixed date ranges to filter the dashboard — https://github.com/PrefectHQ/prefect/pull/11406
 - Add support for arbitrary sink types to `prefect.utilities.processutils.stream_text` — https://github.com/PrefectHQ/prefect/pull/11298
-- Update the deployments table to add run activity and separate out the deployment and flow names — https://github.com/PrefectHQ/prefect/pull/11394
+- Update the UI deployments table to add run activity and separate out the deployment and flow names — https://github.com/PrefectHQ/prefect/pull/11394  
 
 ### Fixes
-- Fiex bug where a pause state reused an existing state ID — https://github.com/PrefectHQ/prefect/pull/11405
+- Fix bug where a pause state reused an existing state ID — https://github.com/PrefectHQ/prefect/pull/11405
 
 ### Experimental
 - Build out API for creating/reading/deleting flow run inputs — https://github.com/PrefectHQ/prefect/pull/11363
