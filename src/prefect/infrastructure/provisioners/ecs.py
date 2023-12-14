@@ -1182,7 +1182,7 @@ class ElasticContainerServicePushProvisioner:
         try:
             if self.console.is_interactive and Confirm.ask(
                 "Would you like to customize the resource names for your"
-                " infrastructure? This includes IAM user, IAM policy, ECS cluster, VPC,"
+                " infrastructure? This includes an IAM user, IAM policy, ECS cluster, VPC,"
                 " ECS security group, and ECR repository."
             ):
                 user_name = prompt(
