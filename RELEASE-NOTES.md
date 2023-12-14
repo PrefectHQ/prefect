@@ -126,7 +126,7 @@ See the following pull requests for implementation details:
 - Build out API for creating/reading/deleting flow run inputs — https://github.com/PrefectHQ/prefect/pull/11363
 - Integrate flow run input and schema/response mechanics into pause/suspend — https://github.com/PrefectHQ/prefect/pull/11376
 - Add typing overloads for pause/suspend methods — https://github.com/PrefectHQ/prefect/pull/11403
-- Use bytes for `value` in `create_flow_run_input` for cloud compatibility — https://github.com/PrefectHQ/prefect/pull/11421
+- Use bytes for `value` in `create_flow_run_input` — https://github.com/PrefectHQ/prefect/pull/11421
 - Validate run input when resuming flow runs — https://github.com/PrefectHQ/prefect/pull/11396
 - Run existing deployments via the `Runner` webserver — https://github.com/PrefectHQ/prefect/pull/11333
 
