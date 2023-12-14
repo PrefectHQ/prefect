@@ -128,8 +128,6 @@ See the following pull requests for implementation details:
 - Add documentation for required permissions for infrastructure provisioning — https://github.com/PrefectHQ/prefect/pull/11417
 - Add docs for managed execution open beta — https://github.com/PrefectHQ/prefect/pull/11397, https://github.com/PrefectHQ/prefect/pull/11426, and https://github.com/PrefectHQ/prefect/pull/11425
 
-### Uncategorized
-
 ### Contributors
 - @j-tr
 
