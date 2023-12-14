@@ -65,7 +65,7 @@ That's it! You ran a flow on remote infrastructure without any infrastructure se
 
 ### Adding dependencies
 
-You can install Python package dependencies at runtime by configuring `job_variables={"env": {"EXTRA_PIP_PACKAGES": ["pandas", "prefect-aws"] }}` like this:
+You can install Python package dependencies at runtime by configuring `job_variables={"pip_packages": ["pandas", "prefect-aws"]}` like this:
 
 ```python hl_lines="10"
 from prefect import flow
@@ -76,8 +76,8 @@ if __name__ == "__main__":
     entrypoint="flow.py:my_flow",
     ).deploy(
         name="test-managed-flow",
-        work_pool_name="prefect-managed",
-        job_variables={"env": {"EXTRA_PIP_PACKAGES": ["pandas", "prefect-aws"] }}
+        work_pool_name="my-managed-pool",
+        job_variables={"pip_packages": ["pandas", "prefect-aws"]}
     )
 ```
 
@@ -91,7 +91,11 @@ All limitations listed below may change without warning during the beta period.
 We will update this page as we make changes.
 
 ### Concurrency & work pools
+Free tier accounts are limited to:
+- Maximum of 1 concurrent flow runs per workspace across all `prefect:managed` pools.
+- Maximum of 1 managed execution work pools per workspace.
 
+Pro tier and above accounts are limited to:
 - Maximum of 10 concurrent flow runs per workspace across all `prefect:managed` pools.
 - Maximum of 5 managed execution work pools per workspace.
 
