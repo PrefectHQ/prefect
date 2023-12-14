@@ -10,7 +10,7 @@ search:
 ---
 
 # Receiving input when pausing or suspending a flow run
-!!! tip "Experimental"
+!!! warning "Experimental"
 
     The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
 

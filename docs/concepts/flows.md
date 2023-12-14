@@ -946,7 +946,7 @@ resume_flow_run(FLOW_RUN_ID)
 
 ## Waiting for input when pausing or suspending a flow run
 
-!!! tip "Experimental"
+!!! warning "Experimental"
     The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
 
     If you encounter any issues, please let us know in Slack or with a Github issue.
@@ -978,7 +978,7 @@ Running this flow will create a flow run. The flow run will advance until code e
 
 When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
 
-For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [guide](/guides/receiving-input-when-paused.md).
+For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [guide](/guides/receiving-input-when-paused/).
 
 ## Cancel a flow run
 
