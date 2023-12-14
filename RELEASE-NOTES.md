@@ -94,6 +94,16 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11381
 - https://github.com/PrefectHQ/prefect/pull/11412
 
+### An updated date time input on the workspace dashboard
+
+We've added a new date and time filter to the workspace dashboard that gives greater control over what the dashboard shows. You can now filter the dashboard by minutes hours, and days. You can also specifiy a specific date and time range to filter by. Once you've chosen your time and date window, you can also go back and forward in time using that time window, for example, you can scroll through by hour.  See our [short loom demo](https://www.loom.com/share/ca099d3792d146d08df6fcd506ff9eb2?sid=70797dda-6dc6-4fe6-bf4a-a9df2a0bf230) for more info. 
+
+<img width="1329" alt="image" src="https://github.com/PrefectHQ/prefect/assets/40272060/045b144f-35ff-4b32-abcd-74eaf16f181c">
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1937
+- https://github.com/PrefectHQ/prefect-design/pull/1048
+
 
 ### Enhancements
 - Add the ability to publish `KubernetesJob` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11347
