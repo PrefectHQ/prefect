@@ -946,7 +946,9 @@ class ContainerInstancePushProvisioner:
             await self._assign_contributor_role(app_id=client_id)
             progress.advance(task)
 
-            progress.console.print("Creating Azure Container Registry")
+            progress.console.print(
+                "Creating Azure Container Registry (this make take a few minutes)"
+            )
 
             registry_name = self._generate_acr_name(self.REGISTRY_NAME_PREFIX)
             registry = await self._get_or_create_registry(

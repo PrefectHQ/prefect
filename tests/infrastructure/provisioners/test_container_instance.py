@@ -2119,7 +2119,10 @@ async def test_aci_provision_interactive_custom_resource_names(
 
 
 async def test_aci_provision_interactive_reject_provisioning(
-    prefect_client: PrefectClient, monkeypatch, default_base_job_template
+    prefect_client: PrefectClient,
+    monkeypatch,
+    default_base_job_template,
+    provisioner: ContainerInstancePushProvisioner,
 ):
     mock_prompt_select_from_table = MagicMock(
         side_effect=[
@@ -2140,7 +2143,13 @@ async def test_aci_provision_interactive_reject_provisioning(
         mock_confirm,
     )
 
-    provisioner = ContainerInstancePushProvisioner()
+    provisioner.azure_cli.run_command.side_effect = [
+        "2.0.0",  # Azure CLI is installed
+        '{"account_a": "b"}',  # Login check
+        '{"account_a": "b"}',  # Select subscription
+        "westus",  # Set location
+    ]
+
     monkeypatch.setattr(provisioner._console, "is_interactive", True)
 
     unchanged_base_job_template = await provisioner.provision(
