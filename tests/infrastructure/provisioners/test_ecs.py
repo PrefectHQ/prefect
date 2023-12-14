@@ -1268,7 +1268,9 @@ class TestExecutionRoleResource:
 
 @pytest.fixture
 def container_repository_resource():
-    return ContainerRepositoryResource(repository_name="prefect-flows")
+    return ContainerRepositoryResource(
+        work_pool_name="test-work-pool", repository_name="prefect-flows"
+    )
 
 
 @pytest.fixture
@@ -1379,6 +1381,7 @@ class TestContainerRepositoryResource:
                 if __name__ == "__main__":
                     my_flow.deploy(
                         name="my-deployment",
+                        work_pool_name="test-work-pool",
                         image=DeploymentImage(
                             name="prefect-flows:latest",
                             platform="linux/amd64",
