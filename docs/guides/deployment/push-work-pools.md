@@ -51,6 +51,8 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
     Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html), and [set a default region](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods).
 
+    If you already have the AWS CLI installed, be sure to [update to the latest version](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions). 
+
     You will need the following permissions in your authenticated AWS account:
 
     IAM Permissions:
@@ -109,6 +111,8 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
     Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticate with your Azure account](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli).
 
+    If you already have the Azure CLI installed, be sure to update to the latest version with `az upgrade`.
+
     You will also need the following roles in your Azure subscription:
 
     - Contributor
@@ -122,6 +126,8 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 === "Google Cloud Run"
 
     Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
+
+    If you already have the gcloud CLI installed, be sure to update to the latest version with `gcloud components update`.
 
     You will also need the following permissions in your GCP project:
 
