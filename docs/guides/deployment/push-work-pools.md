@@ -49,11 +49,66 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
 === "AWS ECS"
 
-    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html).
+    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html), and [set a default region](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods).
+
+    You will also need the following roles in your AWS account:
+
+    IAM Permissions:
+
+    - iam:CreatePolicy
+    - iam:GetPolicy
+    - iam:ListPolicies
+    - iam:CreateUser
+    - iam:GetUser
+    - iam:AttachUserPolicy
+    - iam:CreateRole
+    - iam:GetRole
+    - iam:AttachRolePolicy
+    - iam:ListRoles
+    - iam:PassRole
+
+    Amazon ECS Permissions:
+
+    - ecs:CreateCluster
+    - ecs:DescribeClusters
+
+    Amazon EC2 Permissions:
+
+    - ec2:CreateVpc
+    - ec2:DescribeVpcs
+    - ec2:CreateInternetGateway
+    - ec2:AttachInternetGateway
+    - ec2:CreateRouteTable
+    - ec2:CreateRoute
+    - ec2:CreateSecurityGroup
+    - ec2:DescribeSubnets
+    - ec2:CreateSubnet
+    - ec2:DescribeAvailabilityZones
+    - ec2:AuthorizeSecurityGroupIngress
+    - ec2:AuthorizeSecurityGroupEgress
+
+    Amazon ECR Permissions:
+
+    - ecr:CreateRepository
+    - ecr:DescribeRepositories
+    - ecr:GetAuthorizationToken
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
 
 === "Azure Container Instances"
 
     Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticate with your Azure account](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli).
+
+    You will also need the following roles in your Azure subscription:
+
+    - Contributor
+    - User Access Administrator
+    - Application Administrator
+    - Managed Identity Operator
+    - Azure Container Registry Contributor
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
 
 === "Google Cloud Run"
 
