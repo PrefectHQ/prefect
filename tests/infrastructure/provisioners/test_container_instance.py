@@ -1,5 +1,3 @@
-import json
-import subprocess
 from subprocess import CalledProcessError
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, call
@@ -51,20 +49,395 @@ async def existing_credentials_block(prefect_client: PrefectClient):
 
 @pytest.fixture
 def default_base_job_template():
-    command = [
-        "prefect",
-        "work-pool",
-        "get-default-base-job-template",
-        "--type",
-        "azure-container-instance",
-    ]
-
-    result = subprocess.run(command, capture_output=True, text=True)
-
-    if result.returncode == 0:
-        return json.loads(result.stdout)
-    else:
-        pytest.fail(f"Command failed: {result.stderr}")
+    return {
+        "job_configuration": {
+            "command": "{{ command }}",
+            "env": "{{ env }}",
+            "labels": "{{ labels }}",
+            "name": "{{ name }}",
+            "image": "{{ image }}",
+            "resource_group_name": "{{ resource_group_name }}",
+            "subscription_id": "{{ subscription_id }}",
+            "identities": "{{ identities }}",
+            "entrypoint": "{{ entrypoint }}",
+            "image_registry": "{{ image_registry }}",
+            "cpu": "{{ cpu }}",
+            "gpu_count": "{{ gpu_count }}",
+            "gpu_sku": "{{ gpu_sku }}",
+            "memory": "{{ memory }}",
+            "subnet_ids": "{{ subnet_ids }}",
+            "dns_servers": "{{ dns_servers }}",
+            "stream_output": "{{ stream_output }}",
+            "aci_credentials": "{{ aci_credentials }}",
+            "task_start_timeout_seconds": "{{ task_start_timeout_seconds }}",
+            "task_watch_poll_interval": "{{ task_watch_poll_interval }}",
+            "arm_template": {
+                "$schema": "https://schema.management.azure.com/schemas/2019-08-01/deploymentTemplate.json#",
+                "contentVersion": "1.0.0.0",
+                "parameters": {
+                    "location": {
+                        "type": "string",
+                        "defaultValue": "[resourceGroup().location]",
+                        "metadata": {"description": "Location for all resources."},
+                    },
+                    "container_group_name": {
+                        "type": "string",
+                        "defaultValue": "[uniqueString(resourceGroup().id)]",
+                        "metadata": {
+                            "description": "The name of the container group to create."
+                        },
+                    },
+                    "container_name": {
+                        "type": "string",
+                        "defaultValue": "[uniqueString(resourceGroup().id)]",
+                        "metadata": {
+                            "description": "The name of the container to create."
+                        },
+                    },
+                },
+                "resources": [
+                    {
+                        "type": "Microsoft.ContainerInstance/containerGroups",
+                        "apiVersion": "2022-09-01",
+                        "name": "[parameters('container_group_name')]",
+                        "location": "[parameters('location')]",
+                        "properties": {
+                            "containers": [
+                                {
+                                    "name": "[parameters('container_name')]",
+                                    "properties": {
+                                        "image": "{{ image }}",
+                                        "command": "{{ command }}",
+                                        "resources": {
+                                            "requests": {
+                                                "cpu": "{{ cpu }}",
+                                                "memoryInGB": "{{ memory }}",
+                                            }
+                                        },
+                                        "environmentVariables": [],
+                                    },
+                                }
+                            ],
+                            "osType": "Linux",
+                            "restartPolicy": "Never",
+                        },
+                    }
+                ],
+            },
+        },
+        "variables": {
+            "description": "Variables for an Azure Container Instance flow run.",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "description": "Name given to created infrastructure.",
+                    "type": "string",
+                },
+                "env": {
+                    "title": "Environment Variables",
+                    "description": (
+                        "Environment variables to set when starting a flow run."
+                    ),
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                },
+                "labels": {
+                    "title": "Labels",
+                    "description": "Labels applied to created infrastructure.",
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                },
+                "command": {
+                    "title": "Command",
+                    "description": (
+                        "The command to use when starting a flow run. In most cases,"
+                        " this should be left blank and the command will be"
+                        " automatically generated."
+                    ),
+                    "type": "string",
+                },
+                "image": {
+                    "title": "Image",
+                    "description": (
+                        "The image to use for the Prefect container in the task. This"
+                        " value defaults to a Prefect base image matching your local"
+                        " versions."
+                    ),
+                    "type": "string",
+                },
+                "resource_group_name": {
+                    "title": "Azure Resource Group Name",
+                    "description": (
+                        "The name of the Azure Resource Group in which to run Prefect"
+                        " ACI tasks."
+                    ),
+                    "type": "string",
+                },
+                "subscription_id": {
+                    "title": "Azure Subscription ID",
+                    "description": (
+                        "The ID of the Azure subscription to create containers under."
+                    ),
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "identities": {
+                    "title": "Identities",
+                    "description": (
+                        "A list of user-assigned identities to associate with the"
+                        " container group. The identities should be an ARM resource IDs"
+                        " in the form:"
+                        " '/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{identityName}'."
+                    ),
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "entrypoint": {
+                    "title": "Entrypoint",
+                    "description": (
+                        "The entrypoint of the container you wish you run. This value"
+                        " defaults to the entrypoint used by Prefect images and should"
+                        " only be changed when using a custom image that is not based"
+                        " on an official Prefect image. Any commands set on deployments"
+                        " will be passed to the entrypoint as parameters."
+                    ),
+                    "default": "/opt/prefect/entrypoint.sh",
+                    "type": "string",
+                },
+                "image_registry": {
+                    "title": "Image Registry (Optional)",
+                    "description": (
+                        "To use any private container registry with a username and"
+                        " password, choose DockerRegistry. To use a private Azure"
+                        " Container Registry with a managed identity, choose"
+                        " ACRManagedIdentity."
+                    ),
+                    "anyOf": [
+                        {"$ref": "#/definitions/DockerRegistry"},
+                        {"$ref": "#/definitions/ACRManagedIdentity"},
+                    ],
+                },
+                "cpu": {
+                    "title": "CPU",
+                    "description": (
+                        "The number of virtual CPUs to assign to the task container. If"
+                        " not provided, a default value of 1.0 will be used."
+                    ),
+                    "default": 1,
+                    "type": "number",
+                },
+                "gpu_count": {
+                    "title": "GPU Count",
+                    "description": (
+                        "The number of GPUs to assign to the task container. If not"
+                        " provided, no GPU will be used."
+                    ),
+                    "type": "integer",
+                },
+                "gpu_sku": {
+                    "title": "GPU SKU",
+                    "description": (
+                        "The Azure GPU SKU to use. See the ACI documentation for a list"
+                        " of GPU SKUs available in each Azure region."
+                    ),
+                    "type": "string",
+                },
+                "memory": {
+                    "title": "Memory",
+                    "description": (
+                        "The amount of memory in gigabytes to provide to the ACI task."
+                        " Valid amounts are specified in the Azure documentation. If"
+                        " not provided, a default value of  1.0 will be used unless"
+                        " present on the task definition."
+                    ),
+                    "default": 1,
+                    "type": "number",
+                },
+                "subnet_ids": {
+                    "title": "Subnet IDs",
+                    "description": (
+                        "A list of Azure subnet IDs to use for the ACI task."
+                    ),
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "dns_servers": {
+                    "title": "DNS Servers",
+                    "description": "A list of DNS servers to use for the ACI task.",
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "aci_credentials": {
+                    "title": "Aci Credentials",
+                    "description": "The credentials to use to authenticate with Azure.",
+                    "allOf": [
+                        {"$ref": "#/definitions/AzureContainerInstanceCredentials"}
+                    ],
+                },
+                "stream_output": {
+                    "title": "Stream Output",
+                    "description": (
+                        "If `True`, logs will be streamed from the Prefect container to"
+                        " the local console."
+                    ),
+                    "default": True,
+                    "type": "boolean",
+                },
+                "task_start_timeout_seconds": {
+                    "title": "Task Start Timeout Seconds",
+                    "description": (
+                        "The amount of time to watch for the start of the ACI"
+                        " container. before marking it as failed."
+                    ),
+                    "default": 240,
+                    "type": "integer",
+                },
+                "task_watch_poll_interval": {
+                    "title": "Task Watch Poll Interval",
+                    "description": (
+                        "The number of seconds to wait between Azure API calls while"
+                        " monitoring the state of an Azure Container Instances task."
+                    ),
+                    "default": 5,
+                    "type": "number",
+                },
+            },
+            "required": ["resource_group_name", "subscription_id", "aci_credentials"],
+            "definitions": {
+                "DockerRegistry": {
+                    "title": "DockerRegistry",
+                    "description": (
+                        "Connects to a Docker registry.\n\nRequires a Docker Engine to"
+                        " be connectable."
+                    ),
+                    "type": "object",
+                    "properties": {
+                        "username": {
+                            "title": "Username",
+                            "description": (
+                                "The username to log into the registry with."
+                            ),
+                            "type": "string",
+                        },
+                        "password": {
+                            "title": "Password",
+                            "description": (
+                                "The password to log into the registry with."
+                            ),
+                            "type": "string",
+                            "writeOnly": True,
+                            "format": "password",
+                        },
+                        "registry_url": {
+                            "title": "Registry Url",
+                            "description": (
+                                'The URL to the registry. Generally, "http" or "https"'
+                                " can be omitted."
+                            ),
+                            "type": "string",
+                        },
+                        "reauth": {
+                            "title": "Reauth",
+                            "description": (
+                                "Whether or not to reauthenticate on each interaction."
+                            ),
+                            "default": True,
+                            "type": "boolean",
+                        },
+                    },
+                    "required": ["username", "password", "registry_url"],
+                    "block_type_slug": "docker-registry",
+                    "secret_fields": ["password"],
+                    "block_schema_references": {},
+                },
+                "ACRManagedIdentity": {
+                    "title": "ACRManagedIdentity",
+                    "description": (
+                        "Use a Managed Identity to access Azure Container registry."
+                        " Requires the\nuser-assigned managed identity be available to"
+                        " the ACI container group."
+                    ),
+                    "type": "object",
+                    "properties": {
+                        "registry_url": {
+                            "title": "Registry URL",
+                            "description": (
+                                "The URL to the registry, such as"
+                                " myregistry.azurecr.io. Generally, 'http' or 'https'"
+                                " can be omitted."
+                            ),
+                            "type": "string",
+                        },
+                        "identity": {
+                            "title": "Identity",
+                            "description": (
+                                "The user-assigned Azure managed identity for the"
+                                " private registry."
+                            ),
+                            "type": "string",
+                        },
+                    },
+                    "required": ["registry_url", "identity"],
+                },
+                "AzureContainerInstanceCredentials": {
+                    "title": "AzureContainerInstanceCredentials",
+                    "description": (
+                        "Block used to manage Azure Container Instances authentication."
+                        " Stores Azure Service\nPrincipal authentication data."
+                    ),
+                    "type": "object",
+                    "required": ["client_id", "tenant_id", "client_secret"],
+                    "properties": {
+                        "client_id": {
+                            "title": "Client ID",
+                            "description": (
+                                "The service principal client ID. If none of client_id,"
+                                " tenant_id, and client_secret are provided, will use"
+                                " DefaultAzureCredential; else will need to provide all"
+                                " three to use ClientSecretCredential."
+                            ),
+                            "type": "string",
+                        },
+                        "tenant_id": {
+                            "title": "Tenant ID",
+                            "description": (
+                                "The service principal tenant ID.If none of client_id,"
+                                " tenant_id, and client_secret are provided, will use"
+                                " DefaultAzureCredential; else will need to provide all"
+                                " three to use ClientSecretCredential."
+                            ),
+                            "type": "string",
+                        },
+                        "client_secret": {
+                            "title": "Client Secret",
+                            "description": (
+                                "The service principal client secret.If none of"
+                                " client_id, tenant_id, and client_secret are provided,"
+                                " will use DefaultAzureCredential; else will need to"
+                                " provide all three to use ClientSecretCredential."
+                            ),
+                            "type": "string",
+                            "writeOnly": True,
+                            "format": "password",
+                        },
+                        "credential_kwargs": {
+                            "title": "Additional Credential Keyword Arguments",
+                            "description": (
+                                "Additional keyword arguments to pass to"
+                                " `ClientSecretCredential` or `DefaultAzureCredential`."
+                            ),
+                            "type": "object",
+                        },
+                    },
+                    "block_type_slug": "azure-container-instance-credentials",
+                    "secret_fields": ["client_secret"],
+                    "block_schema_references": {},
+                },
+            },
+        },
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -639,7 +1012,8 @@ async def test_get_or_create_registry_new_registry(provisioner):
         call(
             (
                 "az acr create --name prefect-registry --resource-group prefect-rg"
-                " --location westus --sku Basic"
+                " --subscription 12345678-1234-1234-1234-123456789012 --location westus"
+                " --sku Basic"
             ),
             success_message="Registry created",
             failure_message="Failed to create registry",
@@ -678,7 +1052,8 @@ async def test_get_or_create_registry_failed_creation(provisioner):
         call(
             (
                 "az acr create --name prefect-registry --resource-group prefect-rg"
-                " --location westus --sku Basic"
+                " --subscription 12345678-1234-1234-1234-123456789012 --location westus"
+                " --sku Basic"
             ),
             success_message="Registry created",
             failure_message="Failed to create registry",
@@ -1073,7 +1448,8 @@ async def test_aci_provision_no_existing_credentials_block(
         call(
             (
                 "az acr create --name prefectacipushpoolregistry --resource-group"
-                " prefect-aci-push-pool-rg --location westus --sku Basic"
+                " prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --location westus --sku Basic"
             ),
             success_message="Registry created",
             failure_message="Failed to create registry",
@@ -1362,7 +1738,8 @@ async def test_aci_provision_existing_credentials_block(
         call(
             (
                 "az acr create --name prefectacipushpoolregistry --resource-group"
-                " prefect-aci-push-pool-rg --location westus --sku Basic"
+                " prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --location westus --sku Basic"
             ),
             success_message="Registry created",
             failure_message="Failed to create registry",

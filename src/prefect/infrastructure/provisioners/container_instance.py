@@ -567,7 +567,8 @@ class ContainerInstancePushProvisioner:
 
         command_create_repository = (
             f"az acr create --name {registry_name} --resource-group"
-            f" {resource_group_name} --location {location} --sku Basic"
+            f" {resource_group_name} --subscription {subscription_id} --location"
+            f" {location} --sku Basic"
         )
         response = await self.azure_cli.run_command(
             command_create_repository,
