@@ -120,21 +120,21 @@ Here's the command to create a new push work pool and configure the necessary in
         To take advantage of this, you can write your deploy scripts like this:
 
         ```python hl_lines="14" title="example_deploy_script.py"
-        from prefect import flow                                                       
-        from prefect.deployments import DeploymentImage                                
+        from prefect import flow
+        from prefect.deployments import DeploymentImage
 
-
-        @flow(log_prints=True)                                                         
-        def my_flow(name: str = "world"):                                              
+        @flow(log_prints=True)            
+        def my_flow(name: str = "world"):                          
             print(f"Hello {name}! I'm a flow running in a ECS task!") 
 
 
-        if __name__ == "__main__":                                                     
-            my_flow.deploy(                                                            
-                name="my-deployment",                                                  
+        if __name__ == "__main__":
+            my_flow.deploy(
+                name="my-deployment", 
+                work_pool_name="my-work-pool",
                 image=DeploymentImage(                                                 
-                    name="my-repository:latest",                                            
-                    platform="linux/amd64",                                            
+                    name="my-repository:latest",
+                    platform="linux/amd64",
                 )                                                                      
             )       
         ```

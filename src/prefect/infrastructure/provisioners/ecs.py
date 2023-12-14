@@ -820,10 +820,11 @@ class VpcResource:
 
 
 class ContainerRepositoryResource:
-    def __init__(self, repository_name: str = "prefect-flows"):
+    def __init__(self, work_pool_name: str, repository_name: str = "prefect-flows"):
         self._ecr_client = boto3.client("ecr")
         self._repository_name = repository_name
         self._requires_provisioning = None
+        self._work_pool_name = work_pool_name
         self._next_steps = []
 
     async def get_task_count(self):
@@ -947,6 +948,7 @@ class ContainerRepositoryResource:
                                 if __name__ == "__main__":
                                     my_flow.deploy(
                                         name="my-deployment",
+                                        work_pool_name="{self._work_pool_name}",
                                         image=DeploymentImage(
                                             name="{self._repository_name}:latest",
                                             platform="linux/amd64",
@@ -1115,7 +1117,7 @@ class ElasticContainerServicePushProvisioner:
             AuthenticationResource(work_pool_name=work_pool_name),
             ClusterResource(),
             VpcResource(),
-            ContainerRepositoryResource(),
+            ContainerRepositoryResource(work_pool_name=work_pool_name),
         ]
 
     async def provision(

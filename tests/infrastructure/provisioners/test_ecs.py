@@ -1131,7 +1131,9 @@ class TestExecutionRoleResource:
 
 @pytest.fixture
 def container_repository_resource():
-    return ContainerRepositoryResource(repository_name="prefect-flows")
+    return ContainerRepositoryResource(
+        work_pool_name="test-work-pool", repository_name="prefect-flows"
+    )
 
 
 @pytest.fixture
@@ -1144,7 +1146,7 @@ def existing_ecr_repository():
     ecr_client.delete_repository(repositoryName="prefect-flows")
 
 
-class TestContainerRepoistoryResource:
+class TestContainerRepositoryResource:
     async def test_get_task_count_requires_provisioning(
         self, container_repository_resource
     ):
@@ -1242,6 +1244,7 @@ class TestContainerRepoistoryResource:
                 if __name__ == "__main__":
                     my_flow.deploy(
                         name="my-deployment",
+                        work_pool_name="test-work-pool",
                         image=DeploymentImage(
                             name="prefect-flows:latest",
                             platform="linux/amd64",
