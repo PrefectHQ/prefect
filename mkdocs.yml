@@ -142,7 +142,7 @@ nav:
           - Tasks: tutorial/tasks.md
           - Deploying Flows: tutorial/deployments.md
           - Workers & Work Pools: tutorial/workers.md
-    - Guides:
+    - How-to Guides:
           - guides/index.md
           - Development:
                 - Hosting: guides/host.md
