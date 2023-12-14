@@ -159,17 +159,13 @@ You should spend some time experimenting with this setup; a few next steps for e
 
 Congratulations! You now have your first working deployment. 
 
-### Hosting your served flows
+### Running flows on dynamic or managed infrastructure
 
-If you want a quick way to host your served flows, check out [Coiled's quickstart guide](https://docs.coiled.io/user_guide/labs/prefect-cli.html) for serving flows on their cloud platform. 
+Deploying flows through the `serve` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements or you'd like to use prefect [managed execution](/guides/managed-execution/) an alternative option involves deploying flows to a [work pool](/concepts/work-pools/).
 
-### Running flows on dynamic infrastructure
+### Docker tutorials 📖
 
-Deploying flows through the `serve` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements, an alternative option involves deploying flows to a [worker](/concepts/work-pools/#worker-types).
-
-### A tale of two Docker tutorials 📖
-
-To see how to host your served flow in a Docker container, head to our [Docker guide](/guides/docker/). This should _serve_ 🥁 the needs of most scheduling and orchestration use cases.
+To see how to host your served flow in a Docker container, head to our [Docker guide](/guides/docker/).
 
 Alternatively, to execute each flow run within its own _dedicated_ Docker container (or other ephemeral [infrastructure](/concepts/work-pools/#worker-types)) learn how to use a Prefect worker by heading to the [worker and work pools tutorial page](/tutorial/workers/).
 
