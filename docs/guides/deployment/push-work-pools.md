@@ -49,15 +49,97 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
 === "AWS ECS"
 
-    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html).
+    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html), and [set a default region](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods).
+
+    If you already have the AWS CLI installed, be sure to [update to the latest version](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions). 
+
+    You will need the following permissions in your authenticated AWS account:
+
+    IAM Permissions:
+
+    - iam:CreatePolicy
+    - iam:GetPolicy
+    - iam:ListPolicies
+    - iam:CreateUser
+    - iam:GetUser
+    - iam:AttachUserPolicy
+    - iam:CreateRole
+    - iam:GetRole
+    - iam:AttachRolePolicy
+    - iam:ListRoles
+    - iam:PassRole
+
+    Amazon ECS Permissions:
+
+    - ecs:CreateCluster
+    - ecs:DescribeClusters
+
+    Amazon EC2 Permissions:
+
+    - ec2:CreateVpc
+    - ec2:DescribeVpcs
+    - ec2:CreateInternetGateway
+    - ec2:AttachInternetGateway
+    - ec2:CreateRouteTable
+    - ec2:CreateRoute
+    - ec2:CreateSecurityGroup
+    - ec2:DescribeSubnets
+    - ec2:CreateSubnet
+    - ec2:DescribeAvailabilityZones
+    - ec2:AuthorizeSecurityGroupIngress
+    - ec2:AuthorizeSecurityGroupEgress
+
+    Amazon ECR Permissions:
+
+    - ecr:CreateRepository
+    - ecr:DescribeRepositories
+    - ecr:GetAuthorizationToken
+
+    If you want to use AWS managed policies, you can use the following:
+
+    - AmazonECS_FullAccess
+    - AmazonEC2FullAccess
+    - IAMFullAccess
+    - AmazonEC2ContainerRegistryFullAccess
+
+    Note that the above policies will give you all the permissions needed, but are more permissive than necessary.
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
 
 === "Azure Container Instances"
 
     Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticate with your Azure account](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli).
 
+    If you already have the Azure CLI installed, be sure to update to the latest version with `az upgrade`.
+
+    You will also need the following roles in your Azure subscription:
+
+    - Contributor
+    - User Access Administrator
+    - Application Administrator
+    - Managed Identity Operator
+    - Azure Container Registry Contributor
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
 === "Google Cloud Run"
 
     Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
+
+    If you already have the gcloud CLI installed, be sure to update to the latest version with `gcloud components update`.
+
+    You will also need the following permissions in your GCP project:
+
+    - resourcemanager.projects.list
+    - serviceusage.services.enable
+    - iam.serviceAccounts.create
+    - iam.serviceAccountKeys.create
+    - resourcemanager.projects.setIamPolicy
+    - artifactregistry.repositories.create
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
 
 ### Automatically creating a new push work pool and provisioning infrastructure
 
@@ -120,21 +202,21 @@ Here's the command to create a new push work pool and configure the necessary in
         To take advantage of this, you can write your deploy scripts like this:
 
         ```python hl_lines="14" title="example_deploy_script.py"
-        from prefect import flow                                                       
-        from prefect.deployments import DeploymentImage                                
+        from prefect import flow
+        from prefect.deployments import DeploymentImage
 
-
-        @flow(log_prints=True)                                                         
-        def my_flow(name: str = "world"):                                              
+        @flow(log_prints=True)            
+        def my_flow(name: str = "world"):                          
             print(f"Hello {name}! I'm a flow running in a ECS task!") 
 
 
-        if __name__ == "__main__":                                                     
-            my_flow.deploy(                                                            
-                name="my-deployment",                                                  
+        if __name__ == "__main__":
+            my_flow.deploy(
+                name="my-deployment", 
+                work_pool_name="my-work-pool",
                 image=DeploymentImage(                                                 
-                    name="my-repository:latest",                                            
-                    platform="linux/amd64",                                            
+                    name="my-repository:latest",
+                    platform="linux/amd64",
                 )                                                                      
             )       
         ```
@@ -247,11 +329,13 @@ Here's the command to create a new push work pool and configure the necessary in
 
     ```bash
     ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                                     │
+    │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                           │
     │                                                                                                          │
     │     Updates in GCP project central-kit-405415 in region us-central1                                      │
     │                                                                                                          │
     │         - Activate the Cloud Run API for your project                                                    │
+    │         - Activate the Artifact Registry API for your project                                            │
+    │         - Create an Artifact Registry repository named prefect-images                                    │
     │         - Create a service account for managing Cloud Run jobs: prefect-cloud-run                        │
     │             - Service account will be granted the following roles:                                       │
     │                 - Service Account User                                                                   │
@@ -265,6 +349,10 @@ Here's the command to create a new push work pool and configure the necessary in
     ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
     Proceed with infrastructure provisioning? [y/n]: y
     Activating Cloud Run API
+    Activating Artifact Registry API
+    Creating Artifact Registry repository
+    Configuring authentication to Artifact Registry
+    Setting default Docker build namespace
     Creating service account
     Assigning roles to service account
     Creating service account key
@@ -275,6 +363,36 @@ Here's the command to create a new push work pool and configure the necessary in
     ```
 
     </div>
+
+    !!! tip "Default Docker build namespace"
+        After infrastructure provisioning completes, you will be logged into your new Artifact Registry repository and the default Docker build namespace will be set to the URL of the repository.
+
+        While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the repository.
+
+        To take advantage of this functionality, you can write your deploy scripts like this:
+
+        ```python hl_lines="14" title="example_deploy_script.py"
+        from prefect import flow                                                       
+        from prefect.deployments import DeploymentImage                                
+
+
+        @flow(log_prints=True)
+        def my_flow(name: str = "world"):
+            print(f"Hello {name}! I'm a flow running on Cloud Run!")
+
+
+        if __name__ == "__main__":                                                     
+            my_flow.deploy(                                                            
+                name="my-deployment",
+                work_pool_name="above-ground",
+                image=DeploymentImage(
+                    name="my-image:latest",
+                    platform="linux/amd64",
+                )
+            )
+        ```
+
+        This will build an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to the repository.
 
 That's it!
 You're ready to create and schedule deployments that use your new push work pool.
@@ -309,6 +427,50 @@ Created work pool 'my-work-pool'!
 ```
 
 </div>
+
+## Provisioning infrastructure for an existing push work pool
+
+If you already have a push work pool set up, but haven't configured the necessary infrastructure, you can use the `provision-infra` sub-command to provision the infrastructure for that work pool.
+For example, you can run the following command if you have a work pool named "my-work-pool".
+
+<div class="terminal">
+
+```bash
+prefect work-pool provision-infra my-work-pool
+```
+
+</div>
+
+Prefect will create the necessary infrastructure for the `my-work-pool` work pool and provide you with a summary of the changes to be made:
+
+<div class="terminal">
+
+```bash
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool my-work-pool will require:                                      │
+│                                                                                                                │
+│     Updates in subscription Azure subscription 1                                                               │
+│                                                                                                                │
+│         - Create a resource group in location eastus                                                           │
+│         - Create an app registration in Azure AD prefect-aci-push-pool-app                                     │
+│         - Create/use a service principal for app registration                                                  │
+│         - Generate a secret for app registration                                                               │
+│         - Assign Contributor role to service account                                                           │
+│         - Create Azure Container Instance 'aci-push-pool-container' in resource group prefect-aci-push-pool-rg │
+│                                                                                                                │
+│     Updates in Prefect workspace                                                                               │
+│                                                                                                                │
+│         - Create Azure Container Instance credentials block aci-push-pool-credentials                          │
+│                                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+```
+
+</div>
+
+This command can speed up your infrastructure setup process.
+
+As with the examples above, you will need to have the related cloud CLI library installed and be authenticated with your cloud provider.
 
 ## Manual infrastructure provisioning
 

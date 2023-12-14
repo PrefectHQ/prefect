@@ -468,8 +468,7 @@ class ContainerInstancePushProvisioner:
         # Try to retrieve the existing identity
         command_get_identity = (
             f"az identity list --query \"[?name=='{identity_name}']\" --resource-group"
-            f" {resource_group_name} --subscription {subscription_id} --output"
-            " json"
+            f" {resource_group_name} --subscription {subscription_id} --output json"
         )
         identity = await self.azure_cli.run_command(
             command_get_identity,
@@ -489,8 +488,7 @@ class ContainerInstancePushProvisioner:
         # Identity does not exist, create it
         command_create_identity = (
             f"az identity create --name {identity_name} --resource-group"
-            f" {resource_group_name} --subscription {subscription_id} --output"
-            " json"
+            f" {resource_group_name} --subscription {subscription_id} --output json"
         )
         response = await self.azure_cli.run_command(
             command_create_identity,

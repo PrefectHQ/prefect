@@ -1866,7 +1866,6 @@ async def test_aci_provision_existing_credentials_block(
         "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/prefect-aci-push-pool-identity"
     ]
 
-
 async def test_aci_provision_interactive_default_provisioning(
     prefect_client: PrefectClient,
     monkeypatch,

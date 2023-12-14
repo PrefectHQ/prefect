@@ -8,6 +8,7 @@ from prefect._vendor.fastapi.responses import JSONResponse
 from prefect.client.orchestration import get_client
 from prefect.runner.utils import inject_schemas_into_openapi
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_LOG_LEVEL,
@@ -129,18 +130,20 @@ async def build_server(runner: "Runner") -> FastAPI:
     router.add_api_route("/shutdown", shutdown(runner=runner), methods=["POST"])
     webserver.include_router(router)
 
-    deployments_router, deployment_schemas = await get_deployment_router(runner)
-    webserver.include_router(deployments_router)
+    if PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
+        deployments_router, deployment_schemas = await get_deployment_router(runner)
+        webserver.include_router(deployments_router)
 
-    def customize_openapi():
-        if webserver.openapi_schema:
+        def customize_openapi():
+            if webserver.openapi_schema:
+                return webserver.openapi_schema
+
+            openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
+            webserver.openapi_schema = openapi_schema
             return webserver.openapi_schema
 
-        openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
-        webserver.openapi_schema = openapi_schema
-        return webserver.openapi_schema
+        webserver.openapi = customize_openapi
 
-    webserver.openapi = customize_openapi
     return webserver
 
 

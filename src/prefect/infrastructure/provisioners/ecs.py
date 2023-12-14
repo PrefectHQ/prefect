@@ -19,6 +19,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.syntax import Syntax
 
+from prefect.cli._prompts import prompt
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
@@ -364,8 +365,12 @@ class AuthenticationResource:
         work_pool_name: str,
         user_name: str = "prefect-ecs-user",
         policy_name: str = "prefect-ecs-policy",
+        credentials_block_name: str = None,
     ):
         self._user_name = user_name
+        self._credentials_block_name = (
+            credentials_block_name or f"{work_pool_name}-aws-credentials"
+        )
         self._policy_name = policy_name
         self._policy_document = {
             "Version": "2012-10-17",
@@ -404,7 +409,7 @@ class AuthenticationResource:
         self._iam_user_resource = IamUserResource(user_name=user_name)
         self._iam_policy_resource = IamPolicyResource(policy_name=policy_name)
         self._credentials_block_resource = CredentialsBlockResource(
-            user_name=user_name, block_document_name=f"{work_pool_name}-aws-credentials"
+            user_name=user_name, block_document_name=self._credentials_block_name
         )
         self._execution_role_resource = ExecutionRoleResource()
 
@@ -589,11 +594,16 @@ class ClusterResource:
 
 
 class VpcResource:
-    def __init__(self, vpc_name: str = "prefect-ecs-vpc"):
+    def __init__(
+        self,
+        vpc_name: str = "prefect-ecs-vpc",
+        ecs_security_group_name: str = "prefect-ecs-security-group",
+    ):
         self._ec2_client = boto3.client("ec2")
         self._ec2_resource = boto3.resource("ec2")
         self._vpc_name = vpc_name
         self._requires_provisioning = None
+        self._ecs_security_group_name = ecs_security_group_name
 
     async def get_task_count(self):
         """
@@ -798,7 +808,7 @@ class VpcResource:
             await anyio.to_thread.run_sync(
                 partial(
                     self._ec2_resource.create_security_group,
-                    GroupName="prefect-ecs-security-group",
+                    GroupName=self._ecs_security_group_name,
                     Description=(
                         "Block all inbound traffic and allow all outbound traffic"
                     ),
@@ -820,10 +830,11 @@ class VpcResource:
 
 
 class ContainerRepositoryResource:
-    def __init__(self, repository_name: str = "prefect-flows"):
+    def __init__(self, work_pool_name: str, repository_name: str = "prefect-flows"):
         self._ecr_client = boto3.client("ecr")
         self._repository_name = repository_name
         self._requires_provisioning = None
+        self._work_pool_name = work_pool_name
         self._next_steps = []
 
     async def get_task_count(self):
@@ -947,6 +958,7 @@ class ContainerRepositoryResource:
                                 if __name__ == "__main__":
                                     my_flow.deploy(
                                         name="my-deployment",
+                                        work_pool_name="{self._work_pool_name}",
                                         image=DeploymentImage(
                                             name="{self._repository_name}:latest",
                                             platform="linux/amd64",
@@ -1110,12 +1122,33 @@ class ElasticContainerServicePushProvisioner:
         except ModuleNotFoundError:
             return False
 
-    def _generate_resources(self, work_pool_name: str):
+    def _generate_resources(
+        self,
+        work_pool_name: str,
+        user_name: str = "prefect-ecs-user",
+        policy_name: str = "prefect-ecs-policy",
+        credentials_block_name: str = None,
+        cluster_name: str = "prefect-ecs-cluster",
+        vpc_name: str = "prefect-ecs-vpc",
+        ecs_security_group_name: str = "prefect-ecs-security-group",
+        repository_name: str = "prefect-flows",
+    ):
         return [
-            AuthenticationResource(work_pool_name=work_pool_name),
-            ClusterResource(),
-            VpcResource(),
-            ContainerRepositoryResource(),
+            AuthenticationResource(
+                work_pool_name=work_pool_name,
+                user_name=user_name,
+                policy_name=policy_name,
+                credentials_block_name=credentials_block_name,
+            ),
+            ClusterResource(cluster_name=cluster_name),
+            VpcResource(
+                vpc_name=vpc_name,
+                ecs_security_group_name=ecs_security_group_name,
+            ),
+            ContainerRepositoryResource(
+                work_pool_name=work_pool_name,
+                repository_name=repository_name,
+            ),
         ]
 
     async def provision(
@@ -1147,7 +1180,88 @@ class ElasticContainerServicePushProvisioner:
                 )
 
         try:
-            resources = self._generate_resources(work_pool_name=work_pool_name)
+            if self.console.is_interactive and Confirm.ask(
+                "Would you like to customize the resource names for your"
+                " infrastructure? This includes an IAM user, IAM policy, ECS cluster,"
+                " VPC, ECS security group, and ECR repository."
+            ):
+                user_name = prompt(
+                    "Enter a name for the IAM user (manages ECS tasks)",
+                    default="prefect-ecs-user",
+                )
+                policy_name = prompt(
+                    (
+                        "Enter a name for the IAM policy (defines ECS task execution"
+                        " and image management permissions)"
+                    ),
+                    default="prefect-ecs-policy",
+                )
+                cluster_name = prompt(
+                    "Enter a name for the ECS cluster (hosts ECS tasks)",
+                    default="prefect-ecs-cluster",
+                )
+                credentials_name = prompt(
+                    (
+                        "Enter a name for the AWS credentials block (stores AWS"
+                        " credentials for managing ECS tasks)"
+                    ),
+                    default=f"{work_pool_name}-aws-credentials",
+                )
+                vpc_name = prompt(
+                    (
+                        "Enter a name for the VPC (provides network isolation for ECS"
+                        " tasks)"
+                    ),
+                    default="prefect-ecs-vpc",
+                )
+                ecs_security_group_name = prompt(
+                    (
+                        "Enter a name for the ECS security group (controls task network"
+                        " traffic)"
+                    ),
+                    default="prefect-ecs-security-group",
+                )
+                repository_name = prompt(
+                    (
+                        "Enter a name for the ECR repository (stores Docker images for"
+                        " ECS tasks)"
+                    ),
+                    default="prefect-flows",
+                )
+
+                provision_preview = Panel(
+                    dedent(
+                        f"""\
+                            Custom names for infrastructure resources for
+                            [blue]{work_pool_name}[/]:
+
+                            - IAM user: [blue]{user_name}[/]
+                            - IAM policy: [blue]{policy_name}[/]
+                            - ECS cluster: [blue]{cluster_name}[/]
+                            - AWS credentials block: [blue]{credentials_name}[/]
+                            - VPC: [blue]{vpc_name}[/]
+                            - ECS security group: [blue]{ecs_security_group_name}[/]
+                            - ECR repository: [blue]{repository_name}[/]
+                            """
+                    ),
+                    expand=False,
+                )
+
+                self.console.print(provision_preview)
+
+                resources = self._generate_resources(
+                    work_pool_name=work_pool_name,
+                    user_name=user_name,
+                    policy_name=policy_name,
+                    credentials_block_name=credentials_name,
+                    cluster_name=cluster_name,
+                    vpc_name=vpc_name,
+                    ecs_security_group_name=ecs_security_group_name,
+                    repository_name=repository_name,
+                )
+
+            else:
+                resources = self._generate_resources(work_pool_name=work_pool_name)
 
             with Progress(
                 SpinnerColumn(),
