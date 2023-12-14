@@ -2222,7 +2222,7 @@ async def test_aci_provision_interactive_custom_resource_names(
         if "Please enter a prefix for the Azure Container Registry" in args[0]:
             return "customregistryname"
         if "Please enter a name for the identity" in args[0]:
-            return "custom-identity-name"
+            return "customidentityname"
         if "Please enter a name for the ACI credentials block" in args[0]:
             return "custom-credentials-name"
 
@@ -2296,7 +2296,7 @@ async def test_aci_provision_interactive_custom_resource_names(
     }
 
     new_identity = {
-        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/custom-identity-name",
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/customidentityname",
         "principalId": "12345678-1234-1234-1234-123456789012",
     }
 
@@ -2491,7 +2491,7 @@ async def test_aci_provision_interactive_custom_resource_names(
         # _get_or_create_identity
         call(
             (
-                "az identity list --query \"[?name=='custom-identity-name']\""
+                "az identity list --query \"[?name=='customidentityname']\""
                 " --resource-group custom-rg-name --subscription"
                 " 12345678-1234-1234-1234-123456789012 --output json"
             ),
@@ -2499,12 +2499,12 @@ async def test_aci_provision_interactive_custom_resource_names(
         ),
         call(
             (
-                "az identity create --name custom-identity-name --resource-group"
+                "az identity create --name customidentityname --resource-group"
                 " custom-rg-name --subscription 12345678-1234-1234-1234-123456789012"
                 " --output json"
             ),
-            success_message="Identity 'custom-identity-name' created",
-            failure_message="Failed to create identity 'custom-identity-name'",
+            success_message="Identity 'customidentityname' created",
+            failure_message="Failed to create identity 'customidentityname'",
             return_json=True,
         ),
         # _assign_acr_pull_role
@@ -2547,11 +2547,11 @@ async def test_aci_provision_interactive_custom_resource_names(
 
     new_base_job_template["variables"]["properties"]["image_registry"]["default"] = {
         "registry_url": "custom-app-name.azurecr.io",
-        "identity": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/custom-identity-name",
+        "identity": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/customidentityname",
     }
 
     new_base_job_template["variables"]["properties"]["identities"]["default"] = [
-        "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/custom-identity-name"
+        "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/customidentityname"
     ]
 
 
