@@ -277,6 +277,50 @@ Created work pool 'my-work-pool'!
 
 </div>
 
+## Provisioning infrastructure for an existing push work pool
+
+If you already have a push work pool set up, but haven't configured the necessary infrastructure, you can use the `provision-infra` sub-command to provision the infrastructure for that work pool.
+For example, you can run the following command if you have a work pool named "my-work-pool".
+
+<div class="terminal">
+
+```bash
+prefect work-pool provision-infra my-work-pool
+```
+
+</div>
+
+Prefect will create the necessary infrastructure for the `my-work-pool` work pool and provide you with a summary of the changes to be made:
+
+<div class="terminal">
+
+```bash
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool my-work-pool will require:                                      │
+│                                                                                                                │
+│     Updates in subscription Azure subscription 1                                                               │
+│                                                                                                                │
+│         - Create a resource group in location eastus                                                           │
+│         - Create an app registration in Azure AD prefect-aci-push-pool-app                                     │
+│         - Create/use a service principal for app registration                                                  │
+│         - Generate a secret for app registration                                                               │
+│         - Assign Contributor role to service account                                                           │
+│         - Create Azure Container Instance 'aci-push-pool-container' in resource group prefect-aci-push-pool-rg │
+│                                                                                                                │
+│     Updates in Prefect workspace                                                                               │
+│                                                                                                                │
+│         - Create Azure Container Instance credentials block aci-push-pool-credentials                          │
+│                                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+```
+
+</div>
+
+This command can speed up your infrastructure setup process.
+
+As with the examples above, you will need to have the related cloud CLI library installed and be authenticated with your cloud provider.
+
 ## Manual infrastructure provisioning
 
 If you prefer to set up your infrastructure manually, don't include the `--provision-infra` flag in the CLI command.
