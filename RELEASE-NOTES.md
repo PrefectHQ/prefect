@@ -117,7 +117,7 @@ See the following pull requests for implementation details:
 - Allow users to select relative and fixed date ranges to filter the dashboard — https://github.com/PrefectHQ/prefect/pull/11406
 - Add support for arbitrary sink types to `prefect.utilities.processutils.stream_text` — https://github.com/PrefectHQ/prefect/pull/11298
 - Update the Prefect UI deployments page to add run activity and separate out the deployment and flow names — https://github.com/PrefectHQ/prefect/pull/11394  
-- Update workspace dashboard filters to use new date range component - https://github.com/PrefectHQ/prefect-ui-library/pull/1937
+- Update Prefect UI workspace dashboard filters to use new date range - https://github.com/PrefectHQ/prefect-ui-library/pull/1937
 
 ### Fixes
 - Fix bug where a pause state reused an existing state ID — https://github.com/PrefectHQ/prefect/pull/11405
