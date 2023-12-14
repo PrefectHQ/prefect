@@ -1146,7 +1146,7 @@ class ElasticContainerServicePushProvisioner:
                 ecs_security_group_name=ecs_security_group_name,
             ),
             ContainerRepositoryResource(
-                work_pool_name=work_pool_name, 
+                work_pool_name=work_pool_name,
                 repository_name=repository_name,
             ),
         ]
@@ -1182,13 +1182,11 @@ class ElasticContainerServicePushProvisioner:
         try:
             if self.console.is_interactive and Confirm.ask(
                 "Would you like to customize the resource names for your"
-                " infrastructure? This includes an IAM user, IAM policy, ECS cluster, VPC,"
-                " ECS security group, and ECR repository."
+                " infrastructure? This includes an IAM user, IAM policy, ECS cluster,"
+                " VPC, ECS security group, and ECR repository."
             ):
                 user_name = prompt(
-                    (
-                        "Enter a name for the IAM user (manages ECS tasks)"
-                    ),
+                    "Enter a name for the IAM user (manages ECS tasks)",
                     default="prefect-ecs-user",
                 )
                 policy_name = prompt(
@@ -1231,10 +1229,9 @@ class ElasticContainerServicePushProvisioner:
                     default="prefect-flows",
                 )
 
-                def _create_provision_preview(self, work_pool_name: str):
-                    return Panel(
-                        dedent(
-                            f"""\
+                provision_preview = Panel(
+                    dedent(
+                        f"""\
                             Custom names for infrastructure resources for
                             [blue]{work_pool_name}[/]:
 
@@ -1246,11 +1243,11 @@ class ElasticContainerServicePushProvisioner:
                             - ECS security group: [blue]{ecs_security_group_name}[/]
                             - ECR repository: [blue]{repository_name}[/]
                             """
-                        ),
-                        expand=False,
-                    )
+                    ),
+                    expand=False,
+                )
 
-                self.console.print(_create_provision_preview(self, work_pool_name))
+                self.console.print(provision_preview)
 
                 resources = self._generate_resources(
                     work_pool_name=work_pool_name,
