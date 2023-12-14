@@ -4,7 +4,7 @@
 
 ### Customize resource name when provisioning infrastructure for push work pools
 
-In the past few releases we've added the ability to provision infrastructure for push work pools via the CLI. This release adds the ability to customize the name of the resources created in your cloud environment when provisioning infrastructure for push work pools so you can follow your organization's naming conventions.
+In the past few releases, we've added the ability to provision infrastructure for push work pools via the CLI. This release adds the ability to customize the name of the resources created in your cloud environment when provisioning infrastructure for push work pools so you can follow your organization's naming conventions.
 
 To customize your resource names when provisioning infrastructure for a push work pool, follow the interactive prompts:
 
@@ -96,9 +96,9 @@ See the following pull requests for implementation details:
 
 ### An updated date time input on the workspace dashboard
 
-We've added a new date and time filter to the workspace dashboard that gives greater control over what the dashboard shows. You can now filter the dashboard by minutes, hours, and days. You can also specify a specific date and time range to filter by. Once you've chosen your time and date window, you can also go back and forward in time using that time window, for example, you can scroll through by hour.  
+We've added a new date and time filter to the workspace dashboard that gives greater control over the dashboard. You can now filter by days, hours, and even minutes. You can also specify a specific date and time range to filter by. You can also go backwards and forwards in time using that time window, for example, you can scroll through by hour.  
 
-Click below to see it in action!
+See it in action!
 [![Demo of updated time input in the Prefect UI](https://github.com/PrefectHQ/prefect/assets/40272060/045b144f-35ff-4b32-abcd-74eaf16f181c)
 ](https://www.loom.com/share/ca099d3792d146d08df6fcd506ff9eb2?sid=70797dda-6dc6-4fe6-bf4a-a9df2a0bf230)
 
