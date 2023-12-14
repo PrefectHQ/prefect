@@ -281,9 +281,9 @@ Here's the command to create a new push work pool and configure the necessary in
         if __name__ == "__main__":                                                     
             my_flow.deploy(                                                            
                 name="my-deployment",
+                work_pool_name="above-ground",
                 image=DeploymentImage(
                     name="my-image:latest",
-                    work_pool_name="above-ground",
                     platform="linux/amd64",
                 )
             )
