@@ -1398,6 +1398,11 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
 The port the worker's webserver should bind to.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental worker webserver endpoints.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect artifacts.

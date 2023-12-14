@@ -9,16 +9,28 @@ from prefect._vendor.fastapi.testclient import TestClient
 from prefect import flow
 from prefect.runner import Runner
 from prefect.runner.server import build_server
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
+    PREFECT_RUNNER_SERVER_HOST,
+    PREFECT_RUNNER_SERVER_PORT,
+    temporary_settings,
+)
+
+
+@pytest.fixture(autouse=True)
+def tmp_runner_settings():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: True,
+            PREFECT_RUNNER_SERVER_HOST: "0.0.0.0",
+            PREFECT_RUNNER_SERVER_PORT: 0,
+        }
+    ):
+        yield
 
 
 @pytest.fixture(scope="function")
-def tmp_runner_env(monkeypatch):
-    monkeypatch.setenv("PREFECT_RUNNER_SERVER_HOST", "0.0.0.0")
-    monkeypatch.setenv("PREFECT_RUNNER_SERVER_PORT", "0")
-
-
-@pytest.fixture(scope="function")
-async def runner(tmp_runner_env) -> Runner:
+async def runner(tmp_runner_settings) -> Runner:
     return Runner()
 
 
@@ -28,6 +40,21 @@ async def create_deployment(runner: Runner, func: Callable):
         func, f"{uuid.uuid4()}", enforce_parameter_schema=True
     )
     return str(deployment_id)
+
+
+async def test_deployment_router_not_added_if_experimental_flag_is_false(
+    runner: Runner,
+):
+    with temporary_settings(
+        updates={PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: False}
+    ):
+        webserver = await build_server(runner)
+        deployment_routes = [
+            r
+            for r in webserver.routes
+            if r.path.startswith("/deployment") and r.path.endswith("/run")
+        ]
+        assert len(deployment_routes) == 0
 
 
 async def test_runners_deployment_run_routes_exist(runner: Runner):
