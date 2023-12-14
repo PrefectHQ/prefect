@@ -12,7 +12,7 @@ search:
 # Receiving input when pausing or suspending a flow run
 !!! tip "Experimental"
 
-    The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` methods is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
+    The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
 
     If you encounter any issues, please let us know in Slack or with a Github issue.
 
@@ -21,9 +21,11 @@ When a flow run is paused or suspended, you can receive input from the user. Thi
 
 ## Waiting for input
 
-To receive input you must use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` methods. This parameter accepts a subclass of `prefect.input.RunInput`. `RunInput` is a subclass of `pydantic.BaseModel` and can be used to define the input that you want to receive:
+To receive input you must use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` functions. This parameter accepts a subclass of `prefect.input.RunInput`. `RunInput` is a subclass of `pydantic.BaseModel` and can be used to define the input that you want to receive:
 
 ```python
+from prefect.input import RunInput
+
 class UserNameInput(RunInput):
     name: str
 ```
@@ -46,7 +48,7 @@ When the flow run is paused, the user will be prompted to enter a name. If the u
 
 ## Providing initial data
 
-You can set default values for fields in your model by using the `with_initial_data` method. This is particularly useful when you want to provide default values for fields such as `title` and `description` that are part of the base `RunInput` class and are displayed in the UI when resuming a flow run.
+You can set default values for fields in your model by using the `with_initial_data` method. This is particularly useful when you want to provide default values for fields such as `title` and `description` that are part of the base `RunInput` class and are displayed in the UI when resuming a flow run. But you can also specify defaults for fields that you define in your own `RunInput` subclasses.
 
 Expanding on the example above, you could default the `name` field to something anonymous.
 
@@ -56,7 +58,11 @@ async def greet_user():
     logger = get_run_logger()
 
     user_input = await pause_flow_run(
-        wait_for_input=UserNameInput.with_initial_data(name="anonymous")
+        wait_for_input=UserNameInput.with_initial_data(
+            title="Enter your name",
+            description="If you'd prefer not to enter your name, you can enter 'anonymous' instead.",
+            name="anonymous"
+        )
     )
 
     if user_input.name == "anonymous":
@@ -92,8 +98,9 @@ In this case, we are using Pydantic's `validator` decorator to define a custom v
 ```python
 import pydantic
 from prefect import flow, pause_flow_run
+from prefect.input import RunInput
 
-class UserAgeInput(pydantic.BaseModel):
+class UserAgeInput(RunInput):
     age: int
 
     @pydantic.validator("age")
@@ -117,9 +124,10 @@ One way to handle this and ensure that the user enters valid input is to use a `
 
 ```python
 import pydantic
-from prefect import flow, pause_flow_run
+from prefect import flow, pause_flow_run, get_run_logger
+from prefect.input import RunInput
 
-class UserAgeInput(pydantic.BaseModel):
+class UserAgeInput(RunInput):
     age: int
 
     @pydantic.validator("age")
