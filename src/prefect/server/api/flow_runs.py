@@ -529,7 +529,7 @@ async def set_flow_run_state(
 async def create_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Body(..., description="The input key"),
-    value: str = Body(..., description="The value of the input"),
+    value: bytes = Body(..., description="The value of the input"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
@@ -542,7 +542,7 @@ async def create_flow_run_input(
                 flow_run_input=schemas.core.FlowRunInput(
                     flow_run_id=flow_run_id,
                     key=key,
-                    value=value,
+                    value=value.decode(),
                 ),
             )
             await session.commit()
