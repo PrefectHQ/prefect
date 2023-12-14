@@ -1206,7 +1206,7 @@ class ElasticContainerServicePushProvisioner:
                 credentials_name = prompt(
                     (
                         "Enter a name for the AWS credentials block (stores AWS"
-                        " credentials for ECS tasks))"
+                        " credentials for managing ECS tasks)"
                     ),
                     default=f"{work_pool_name}-aws-credentials",
                 )
