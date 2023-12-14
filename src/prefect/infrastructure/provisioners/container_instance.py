@@ -468,7 +468,7 @@ class ContainerInstancePushProvisioner:
         # Try to retrieve the existing identity
         command_get_identity = (
             f"az identity list --query \"[?name=='{identity_name}']\" --resource-group"
-            f" {self._resource_group_name} --subscription {subscription_id} --output"
+            f" {resource_group_name} --subscription {subscription_id} --output"
             " json"
         )
         identity = await self.azure_cli.run_command(
@@ -489,7 +489,7 @@ class ContainerInstancePushProvisioner:
         # Identity does not exist, create it
         command_create_identity = (
             f"az identity create --name {identity_name} --resource-group"
-            f" {self._resource_group_name} --subscription {subscription_id} --output"
+            f" {resource_group_name} --subscription {subscription_id} --output"
             " json"
         )
         response = await self.azure_cli.run_command(
@@ -528,6 +528,7 @@ class ContainerInstancePushProvisioner:
     async def _get_or_create_registry(
         self,
         registry_name: str,
+        resource_group_name: str,
         location: str,
         subscription_id: str,
     ):
@@ -567,7 +568,7 @@ class ContainerInstancePushProvisioner:
 
         command_create_repository = (
             f"az acr create --name {registry_name} --resource-group"
-            f" {self._resource_group_name} --subscription {subscription_id} --location"
+            f" {resource_group_name} --subscription {subscription_id} --location"
             f" {location} --sku Basic"
         )
         response = await self.azure_cli.run_command(
@@ -963,6 +964,7 @@ class ContainerInstancePushProvisioner:
             registry_name = self._generate_acr_name(self._registry_name_prefix)
             registry = await self._get_or_create_registry(
                 registry_name=registry_name,
+                resource_group_name=self._resource_group_name,
                 location=self._location,
                 subscription_id=self._subscription_id,
             )
@@ -978,7 +980,7 @@ class ContainerInstancePushProvisioner:
             progress.console.print("Creating identity")
             identity = await self._get_or_create_identity(
                 identity_name=self._identity_name,
-                resource_group_name=self.RESOURCE_GROUP_NAME,
+                resource_group_name=self._resource_group_name,
                 subscription_id=self._subscription_id,
             )
             await self._assign_acr_pull_role(

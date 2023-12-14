@@ -534,7 +534,7 @@ async def test_aci_resource_group_creation_creates_new_group(provisioner):
         ),
         call(
             (
-                "az group create --name 'prefect-aci-push-pool-rg' --location 'None'"
+                "az group create --name 'prefect-aci-push-pool-rg' --location 'eastus'"
                 " --subscription 'None'"
             ),
             success_message=(
@@ -583,7 +583,7 @@ async def test_aci_resource_group_creation_handles_errors(provisioner):
         ),
         call(
             (
-                "az group create --name 'prefect-aci-push-pool-rg' --location 'None'"
+                "az group create --name 'prefect-aci-push-pool-rg' --location 'eastus'"
                 " --subscription 'None'"
             ),
             success_message=(
@@ -991,6 +991,7 @@ async def test_aci_provision_az_not_installed(provisioner):
 
 async def test_get_or_create_registry_new_registry(provisioner):
     registry_name = "prefect-registry"
+    resource_group_name = "prefect-rg"
     location = "westus"
     subscription_id = "12345678-1234-1234-1234-123456789012"
 
@@ -1000,7 +1001,7 @@ async def test_get_or_create_registry_new_registry(provisioner):
     ]
 
     response = await provisioner._get_or_create_registry(
-        registry_name, location, subscription_id
+        registry_name, resource_group_name, location, subscription_id
     )
 
     expected_calls = [
@@ -1029,6 +1030,7 @@ async def test_get_or_create_registry_new_registry(provisioner):
 
 async def test_get_or_create_registry_failed_creation(provisioner):
     registry_name = "prefect-registry"
+    resource_group_name = "prefect-rg"
     location = "westus"
     subscription_id = "12345678-1234-1234-1234-123456789012"
 
@@ -1039,7 +1041,7 @@ async def test_get_or_create_registry_failed_creation(provisioner):
 
     with pytest.raises(Exception):
         await provisioner._get_or_create_registry(
-            registry_name, location, subscription_id
+            registry_name, resource_group_name, location, subscription_id
         )
 
     expected_calls = [
@@ -1066,6 +1068,7 @@ async def test_get_or_create_registry_failed_creation(provisioner):
 
 async def test_get_or_create_registry_existing_registry(provisioner):
     registry_name = "prefect-registry"
+    resource_group_name = "prefect-rg"
     location = "westus"
     subscription_id = "12345678-1234-1234-1234-123456789012"
 
@@ -1074,7 +1077,7 @@ async def test_get_or_create_registry_existing_registry(provisioner):
     ]
 
     response = await provisioner._get_or_create_registry(
-        registry_name, location, subscription_id
+        registry_name, resource_group_name, location, subscription_id
     )
 
     expected_calls = [
@@ -1137,6 +1140,7 @@ async def test_assign_acr_pull_role(provisioner):
 
 async def test_get_or_create_identity_existing_identity(provisioner):
     identity_name = "test-identity"
+    resource_group_name = "test-rg"
 
     provisioner.azure_cli.run_command.side_effect = [
         [{"name": identity_name}],
@@ -1165,6 +1169,7 @@ async def test_get_or_create_identity_existing_identity(provisioner):
 
 async def test_get_or_create_identity_new_identity(provisioner):
     identity_name = "test-identity"
+    resource_group_name = "test-rg"
 
     provisioner.azure_cli.run_command.side_effect = [
         [],  # Identity does not exist
@@ -1204,6 +1209,7 @@ async def test_get_or_create_identity_new_identity(provisioner):
 
 async def test_get_or_create_identity_error(provisioner):
     identity_name = "test-identity"
+    resource_group_name = "test-rg"
 
     error = CalledProcessError(1, "cmd", output="output", stderr="error")
     provisioner.azure_cli.run_command.side_effect = [None, error]
@@ -2083,7 +2089,7 @@ async def test_aci_provision_interactive_default_provisioning(
                 "az role assignment list --assignee"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --role Contributor --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg"
-                " --output json"
+                " --subscription 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
@@ -2092,6 +2098,7 @@ async def test_aci_provision_interactive_default_provisioning(
                 "az role assignment create --role Contributor --assignee-object-id"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg"
+                " --subscription 12345678-1234-1234-1234-123456789012"
             ),
             success_message=(
                 "Contributor role assigned to service principal with object ID"
@@ -2114,7 +2121,8 @@ async def test_aci_provision_interactive_default_provisioning(
         call(
             (
                 "az acr create --name prefectacipushpoolregistry --resource-group"
-                " prefect-aci-push-pool-rg --location westus --sku Basic"
+                " prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --location westus --sku Basic"
             ),
             success_message="Registry created",
             failure_message="Failed to create registry",
@@ -2122,7 +2130,10 @@ async def test_aci_provision_interactive_default_provisioning(
         ),
         # _log_into_registry
         call(
-            "az acr login --name prefectacipushpoolregistry.azurecr.io",
+            (
+                "az acr login --name prefectacipushpoolregistry.azurecr.io"
+                " --subscription 12345678-1234-1234-1234-123456789012"
+            ),
             success_message=(
                 "Logged into registry prefectacipushpoolregistry.azurecr.io"
             ),
@@ -2134,14 +2145,16 @@ async def test_aci_provision_interactive_default_provisioning(
         call(
             (
                 "az identity list --query \"[?name=='prefect-acr-identity']\""
-                " --resource-group prefect-aci-push-pool-rg --output json"
+                " --resource-group prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
                 "az identity create --name prefect-acr-identity --resource-group"
-                " prefect-aci-push-pool-rg"
+                " prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             success_message="Identity 'prefect-acr-identity' created",
             failure_message="Failed to create identity 'prefect-acr-identity'",
@@ -2153,7 +2166,7 @@ async def test_aci_provision_interactive_default_provisioning(
                 "az role assignment create --assignee"
                 " 12345678-1234-1234-1234-123456789012 --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
-                " --role AcrPull"
+                " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
             ignore_if_exists=True,
         ),
@@ -2421,13 +2434,13 @@ async def test_aci_provision_interactive_custom_resource_names(
             ),
             return_json=True,
         ),
-        #     # _assign_contributor_role
+        # _assign_contributor_role
         call(
             (
                 "az role assignment list --assignee"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --role Contributor --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name"
-                " --output json"
+                " --subscription 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
@@ -2436,6 +2449,7 @@ async def test_aci_provision_interactive_custom_resource_names(
                 "az role assignment create --role Contributor --assignee-object-id"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name"
+                " --subscription 12345678-1234-1234-1234-123456789012"
             ),
             success_message=(
                 "Contributor role assigned to service principal with object ID"
@@ -2458,7 +2472,8 @@ async def test_aci_provision_interactive_custom_resource_names(
         call(
             (
                 "az acr create --name customregistryname --resource-group"
-                " custom-rg-name --location westus --sku Basic"
+                " custom-rg-name --subscription 12345678-1234-1234-1234-123456789012"
+                " --location westus --sku Basic"
             ),
             success_message="Registry created",
             failure_message="Failed to create registry",
@@ -2466,22 +2481,27 @@ async def test_aci_provision_interactive_custom_resource_names(
         ),
         # _log_into_registry
         call(
-            "az acr login --name customregistryname.azurecr.io",
+            (
+                "az acr login --name customregistryname.azurecr.io --subscription"
+                " 12345678-1234-1234-1234-123456789012"
+            ),
             success_message="Logged into registry customregistryname.azurecr.io",
             failure_message="Failed to log into registry customregistryname.azurecr.io",
         ),
-        #     # _get_or_create_identity
+        # _get_or_create_identity
         call(
             (
                 "az identity list --query \"[?name=='custom-identity-name']\""
-                " --resource-group custom-rg-name --output json"
+                " --resource-group custom-rg-name --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
                 "az identity create --name custom-identity-name --resource-group"
-                " custom-rg-name"
+                " custom-rg-name --subscription 12345678-1234-1234-1234-123456789012"
+                " --output json"
             ),
             success_message="Identity 'custom-identity-name' created",
             failure_message="Failed to create identity 'custom-identity-name'",
@@ -2493,7 +2513,7 @@ async def test_aci_provision_interactive_custom_resource_names(
                 "az role assignment create --assignee"
                 " 12345678-1234-1234-1234-123456789012 --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ContainerRegistry/registries/customregistryname"
-                " --role AcrPull"
+                " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
             ignore_if_exists=True,
         ),
