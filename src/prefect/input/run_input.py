@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pydantic
@@ -15,6 +15,7 @@ if HAS_PYDANTIC_V2:
     from prefect._internal.pydantic.v2_schema import create_v2_schema
 
 
+T = TypeVar("T", bound="RunInput")
 KeysetNames = Union[Literal["response"], Literal["schema"]]
 Keyset = Dict[KeysetNames, str]
 
@@ -92,7 +93,7 @@ class RunInput(pydantic.BaseModel):
         return cls(**value)
 
     @classmethod
-    def with_initial_data(cls, **kwargs: Any) -> Type["RunInput"]:
+    def with_initial_data(cls: Type[T], **kwargs: Any) -> Type[T]:
         """
         Create a new `RunInput` subclass with the given initial data as field
         defaults.
