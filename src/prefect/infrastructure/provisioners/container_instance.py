@@ -459,7 +459,9 @@ class ContainerInstancePushProvisioner:
                 f"Failed to retrieve new service principal for app ID {app_id}"
             )
 
-    async def _get_or_create_identity(self, identity_name: str, resource_group_name):
+    async def _get_or_create_identity(
+        self, identity_name: str, resource_group_name: str, subscription_id: str
+    ):
         """
         Retrieves or creates a managed identity for the given resource group.
 
@@ -469,7 +471,7 @@ class ContainerInstancePushProvisioner:
         # Try to retrieve the existing identity
         command_get_identity = (
             f"az identity list --query \"[?name=='{identity_name}']\" --resource-group"
-            f" {resource_group_name} --output json"
+            f" {resource_group_name} --subscription {subscription_id} --output json"
         )
         identity = await self.azure_cli.run_command(
             command_get_identity,
@@ -489,7 +491,7 @@ class ContainerInstancePushProvisioner:
         # Identity does not exist, create it
         command_create_identity = (
             f"az identity create --name {identity_name} --resource-group"
-            f" {resource_group_name}"
+            f" {resource_group_name} --subscription {subscription_id} --output json"
         )
         response = await self.azure_cli.run_command(
             command_create_identity,
@@ -502,7 +504,7 @@ class ContainerInstancePushProvisioner:
             return response
         else:
             raise Exception(
-                f"Failed to retrieve new identity for app ID {self._identity_name}"
+                f"Failed to retrieve new identity for identity {self._identity_name}"
             )
 
     @staticmethod
@@ -582,7 +584,7 @@ class ContainerInstancePushProvisioner:
         else:
             raise Exception(f"Failed to create registry {registry_name}")
 
-    async def _log_into_registry(self, login_server: str):
+    async def _log_into_registry(self, login_server: str, subscription_id: str):
         """
         Logs into the given Azure Container Registry.
 
@@ -592,14 +594,16 @@ class ContainerInstancePushProvisioner:
         Raises:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
-        command_login = f"az acr login --name {login_server}"
+        command_login = (
+            f"az acr login --name {login_server} --subscription {subscription_id}"
+        )
         await self.azure_cli.run_command(
             command_login,
             success_message=f"Logged into registry {login_server}",
             failure_message=f"Failed to log into registry {login_server}",
         )
 
-    async def _assign_contributor_role(self, app_id: str) -> None:
+    async def _assign_contributor_role(self, app_id: str, subscription_id: str) -> None:
         """
         Assigns the 'Contributor' role to the service principal associated with a given app ID.
 
@@ -619,7 +623,8 @@ class ContainerInstancePushProvisioner:
             # Check if the role is already assigned
             check_role_command = (
                 f"az role assignment list --assignee {service_principal_id} --role"
-                f" {role} --scope {scope} --output json"
+                f" {role} --scope {scope} --subscription {subscription_id} --output"
+                " json"
             )
             role_assignments = await self.azure_cli.run_command(
                 check_role_command, return_json=True
@@ -640,7 +645,8 @@ class ContainerInstancePushProvisioner:
 
             assign_command = (
                 f"az role assignment create --role {role} --assignee-object-id"
-                f" {service_principal_id} --scope {scope}"
+                f" {service_principal_id} --scope {scope} --subscription"
+                f" {subscription_id}"
             )
             await self.azure_cli.run_command(
                 assign_command,
@@ -656,7 +662,7 @@ class ContainerInstancePushProvisioner:
             )
 
     async def _assign_acr_pull_role(
-        self, identity: Dict[str, Any], registry: Dict[str, Any]
+        self, identity: Dict[str, Any], registry: Dict[str, Any], subscription_id: str
     ) -> None:
         """
         Assigns the AcrPull role to the specified identity for the given registry.
@@ -667,7 +673,7 @@ class ContainerInstancePushProvisioner:
         """
         command = (
             f"az role assignment create --assignee {identity['principalId']} --scope"
-            f" {registry['id']} --role AcrPull"
+            f" {registry['id']} --role AcrPull --subscription {subscription_id}"
         )
         await self.azure_cli.run_command(
             command,
@@ -883,7 +889,9 @@ class ContainerInstancePushProvisioner:
                 progress.advance(task)
 
             progress.console.print("Assigning Contributor role to service account")
-            await self._assign_contributor_role(app_id=client_id)
+            await self._assign_contributor_role(
+                app_id=client_id, subscription_id=self._subscription_id
+            )
             progress.advance(task)
 
             progress.console.print("Creating Azure Container Registry")
@@ -893,7 +901,10 @@ class ContainerInstancePushProvisioner:
                 location=self._location,
                 subscription_id=self._subscription_id,
             )
-            await self._log_into_registry(login_server=registry["loginServer"])
+            await self._log_into_registry(
+                login_server=registry["loginServer"],
+                subscription_id=self._subscription_id,
+            )
             update_current_profile(
                 {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: registry["loginServer"]}
             )
@@ -903,8 +914,13 @@ class ContainerInstancePushProvisioner:
             identity = await self._get_or_create_identity(
                 identity_name=self._identity_name,
                 resource_group_name=self.RESOURCE_GROUP_NAME,
+                subscription_id=self._subscription_id,
             )
-            await self._assign_acr_pull_role(identity=identity, registry=registry)
+            await self._assign_acr_pull_role(
+                identity=identity,
+                registry=registry,
+                subscription_id=self._subscription_id,
+            )
             progress.advance(task)
 
         base_job_template_copy = deepcopy(base_job_template)

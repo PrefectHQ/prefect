@@ -815,7 +815,8 @@ async def test_aci_assign_contributor_role(provisioner):
     ]
 
     await provisioner._assign_contributor_role(
-        app_id="bcbeb824-fc3a-41f7-afc0-fc00297c1355"
+        app_id="bcbeb824-fc3a-41f7-afc0-fc00297c1355",
+        subscription_id="12345678-1234-1234-1234-123456789012",
     )
 
     expected_calls = [
@@ -864,7 +865,8 @@ async def test_aci_assign_contributor_role_handles_existing_role(provisioner):
     ]
 
     await provisioner._assign_contributor_role(
-        app_id="bcbeb824-fc3a-41f7-afc0-fc00297c1355"
+        app_id="bcbeb824-fc3a-41f7-afc0-fc00297c1355",
+        subscription_id="12345678-1234-1234-1234-123456789012",
     )
 
     expected_calls = [
@@ -901,8 +903,8 @@ async def test_aci_assign_contributor_role_handles_existing_role(provisioner):
             (
                 "az role assignment list --assignee"
                 " 12345678-1234-1234-1234-123456789012 --role Contributor --scope"
-                " /subscriptions/None/resourceGroups/prefect-aci-push-pool-rg --output"
-                " json"
+                " /subscriptions/None/resourceGroups/prefect-aci-push-pool-rg"
+                " --subscription 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
@@ -932,7 +934,8 @@ async def test_aci_assign_contributor_role_handles_error(provisioner):
 
     with pytest.raises(CalledProcessError):
         await provisioner._assign_contributor_role(
-            app_id="bcbeb824-fc3a-41f7-afc0-fc00297c1355"
+            app_id="bcbeb824-fc3a-41f7-afc0-fc00297c1355",
+            subscription_id="12345678-1234-1234-1234-123456789012",
         )
 
     expected_calls = [
@@ -1095,11 +1098,16 @@ async def test_log_into_registry(provisioner):
     login_server = "my-registry.azurecr.io"
     provisioner.azure_cli.run_command.side_effect = None
 
-    await provisioner._log_into_registry(login_server)
+    await provisioner._log_into_registry(
+        login_server, subscription_id="12345678-1234-1234-1234-123456789012"
+    )
 
     expected_calls = [
         call(
-            f"az acr login --name {login_server}",
+            (
+                f"az acr login --name {login_server} --subscription"
+                " 12345678-1234-1234-1234-123456789012"
+            ),
             success_message=f"Logged into registry {login_server}",
             failure_message=f"Failed to log into registry {login_server}",
         ),
@@ -1115,11 +1123,14 @@ async def test_assign_acr_pull_role(provisioner):
         "id": "12345678-1234-1234-1234-123456789012",
     }
 
-    await provisioner._assign_acr_pull_role(identity, registry)
+    await provisioner._assign_acr_pull_role(
+        identity, registry, subscription_id="12345678-1234-1234-1234-123456789012"
+    )
 
     expected_command = (
         "az role assignment create --assignee 12345678-1234-1234-1234-123456789012"
-        " --scope 12345678-1234-1234-1234-123456789012 --role AcrPull"
+        " --scope 12345678-1234-1234-1234-123456789012 --role AcrPull --subscription"
+        " 12345678-1234-1234-1234-123456789012"
     )
     provisioner.azure_cli.run_command.assert_called_once_with(
         expected_command,
@@ -1136,14 +1147,17 @@ async def test_get_or_create_identity_existing_identity(provisioner):
     ]
 
     identity = await provisioner._get_or_create_identity(
-        identity_name, resource_group_name
+        identity_name,
+        resource_group_name,
+        subscription_id="12345678-1234-1234-1234-123456789012",
     )
 
     expected_calls = [
         call(
             (
                 f"az identity list --query \"[?name=='{identity_name}']\""
-                f" --resource-group {resource_group_name} --output json"
+                f" --resource-group {resource_group_name} --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
@@ -1163,21 +1177,25 @@ async def test_get_or_create_identity_new_identity(provisioner):
     ]
 
     identity = await provisioner._get_or_create_identity(
-        identity_name, resource_group_name
+        identity_name,
+        resource_group_name,
+        subscription_id="12345678-1234-1234-1234-123456789012",
     )
 
     expected_calls = [
         call(
             (
                 f"az identity list --query \"[?name=='{identity_name}']\""
-                f" --resource-group {resource_group_name} --output json"
+                f" --resource-group {resource_group_name} --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
                 f"az identity create --name {identity_name} --resource-group"
-                f" {resource_group_name}"
+                f" {resource_group_name} --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             success_message=f"Identity {identity_name!r} created",
             failure_message=f"Failed to create identity {identity_name!r}",
@@ -1197,20 +1215,26 @@ async def test_get_or_create_identity_error(provisioner):
     provisioner.azure_cli.run_command.side_effect = [None, error]
 
     with pytest.raises(Exception):
-        await provisioner._get_or_create_identity(identity_name, resource_group_name)
+        await provisioner._get_or_create_identity(
+            identity_name,
+            resource_group_name,
+            subscription_id="12345678-1234-1234-1234-123456789012",
+        )
 
     expected_calls = [
         call(
             (
                 f"az identity list --query \"[?name=='{identity_name}']\""
-                f" --resource-group {resource_group_name} --output json"
+                f" --resource-group {resource_group_name} --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
                 f"az identity create --name {identity_name} --resource-group"
-                f" {resource_group_name}"
+                f" {resource_group_name} --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             success_message=f"Identity {identity_name!r} created",
             failure_message=f"Failed to create identity {identity_name!r}",
@@ -1417,7 +1441,7 @@ async def test_aci_provision_no_existing_credentials_block(
                 "az role assignment list --assignee"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --role Contributor --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg"
-                " --output json"
+                " --subscription 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
@@ -1426,6 +1450,7 @@ async def test_aci_provision_no_existing_credentials_block(
                 "az role assignment create --role Contributor --assignee-object-id"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg"
+                " --subscription 12345678-1234-1234-1234-123456789012"
             ),
             success_message=(
                 "Contributor role assigned to service principal with object ID"
@@ -1457,7 +1482,10 @@ async def test_aci_provision_no_existing_credentials_block(
         ),
         # _log_into_registry
         call(
-            "az acr login --name prefectacipushpoolregistry.azurecr.io",
+            (
+                "az acr login --name prefectacipushpoolregistry.azurecr.io"
+                " --subscription 12345678-1234-1234-1234-123456789012"
+            ),
             success_message=(
                 "Logged into registry prefectacipushpoolregistry.azurecr.io"
             ),
@@ -1469,14 +1497,16 @@ async def test_aci_provision_no_existing_credentials_block(
         call(
             (
                 "az identity list --query \"[?name=='prefect-acr-identity']\""
-                " --resource-group prefect-aci-push-pool-rg --output json"
+                " --resource-group prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
                 "az identity create --name prefect-acr-identity --resource-group"
-                " prefect-aci-push-pool-rg"
+                " prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             success_message="Identity 'prefect-acr-identity' created",
             failure_message="Failed to create identity 'prefect-acr-identity'",
@@ -1488,7 +1518,7 @@ async def test_aci_provision_no_existing_credentials_block(
                 "az role assignment create --assignee"
                 " 12345678-1234-1234-1234-123456789012 --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
-                " --role AcrPull"
+                " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
             ignore_if_exists=True,
         ),
@@ -1707,7 +1737,7 @@ async def test_aci_provision_existing_credentials_block(
                 "az role assignment list --assignee"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --role Contributor --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg"
-                " --output json"
+                " --subscription 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
@@ -1716,6 +1746,7 @@ async def test_aci_provision_existing_credentials_block(
                 "az role assignment create --role Contributor --assignee-object-id"
                 " abf1b3a0-1b1b-4c1c-9c9c-1c1c1c1c1c1c --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg"
+                " --subscription 12345678-1234-1234-1234-123456789012"
             ),
             success_message=(
                 "Contributor role assigned to service principal with object ID"
@@ -1747,7 +1778,10 @@ async def test_aci_provision_existing_credentials_block(
         ),
         # _log_into_registry
         call(
-            "az acr login --name prefectacipushpoolregistry.azurecr.io",
+            (
+                "az acr login --name prefectacipushpoolregistry.azurecr.io"
+                " --subscription 12345678-1234-1234-1234-123456789012"
+            ),
             success_message=(
                 "Logged into registry prefectacipushpoolregistry.azurecr.io"
             ),
@@ -1759,14 +1793,16 @@ async def test_aci_provision_existing_credentials_block(
         call(
             (
                 "az identity list --query \"[?name=='prefect-acr-identity']\""
-                " --resource-group prefect-aci-push-pool-rg --output json"
+                " --resource-group prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             return_json=True,
         ),
         call(
             (
                 "az identity create --name prefect-acr-identity --resource-group"
-                " prefect-aci-push-pool-rg"
+                " prefect-aci-push-pool-rg --subscription"
+                " 12345678-1234-1234-1234-123456789012 --output json"
             ),
             success_message="Identity 'prefect-acr-identity' created",
             failure_message="Failed to create identity 'prefect-acr-identity'",
@@ -1778,7 +1814,7 @@ async def test_aci_provision_existing_credentials_block(
                 "az role assignment create --assignee"
                 " 12345678-1234-1234-1234-123456789012 --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
-                " --role AcrPull"
+                " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
             ignore_if_exists=True,
         ),
