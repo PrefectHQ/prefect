@@ -51,7 +51,7 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
     Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html), and [set a default region](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods).
 
-    You will also need the following roles in your AWS account:
+    You will need the following permissions in your authenticated AWS account:
 
     IAM Permissions:
 
