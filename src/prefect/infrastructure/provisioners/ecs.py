@@ -1226,7 +1226,7 @@ class ElasticContainerServicePushProvisioner:
                 )
                 repository_name = prompt(
                     (
-                        "Enter a name for the ECR repository (store Docker images for"
+                        "Enter a name for the ECR repository (stores Docker images for"
                         " ECS tasks)"
                     ),
                     default="prefect-flows",
