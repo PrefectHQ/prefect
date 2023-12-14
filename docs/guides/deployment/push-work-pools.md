@@ -162,7 +162,7 @@ Here's the command to create a new push work pool and configure the necessary in
 
     ```bash
     ╭───────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool aci-test will require:                     │
+    │ Provisioning infrastructure for your work pool my-aci-work-pool will require:                     │
     │                                                                                           │
     │     Updates in subscription Azure subscription 1                                          │
     │                                                                                           │
@@ -216,7 +216,8 @@ Here's the command to create a new push work pool and configure the necessary in
 
         if __name__ == "__main__":                                                     
             my_flow.deploy(                                                            
-                name="my-deployment",                                                  
+                name="my-deployment",
+                work_pool_name="my-work-pool",                                                
                 image=DeploymentImage(                                                 
                     name="my-image:latest",                                            
                     platform="linux/amd64",                                            

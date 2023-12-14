@@ -510,7 +510,10 @@ class ContainerInstancePushProvisioner:
     def _generate_acr_name(base_name: str):
         # Ensure the base name adheres to ACR naming conventions
         if not base_name.isalnum() or len(base_name) > 50:
-            raise ValueError("Base name should be alphanumeric and up to 50 characters")
+            raise ValueError(
+                "ACR registry name prefix should be alphanumeric and up to 50"
+                " characters"
+            )
 
         # Generate a unique string
         timestamp = int(time.time())
@@ -564,7 +567,8 @@ class ContainerInstancePushProvisioner:
 
         command_create_repository = (
             f"az acr create --name {registry_name} --resource-group"
-            f" {self.RESOURCE_GROUP_NAME} --location {location} --sku Basic"
+            f" {self.RESOURCE_GROUP_NAME} --subscription {subscription_id} --location"
+            f" {location} --sku Basic"
         )
         response = await self.azure_cli.run_command(
             command_create_repository,
@@ -1001,19 +1005,20 @@ class ContainerInstancePushProvisioner:
             Panel(
                 Syntax(
                     dedent(
-                        """\
+                        f"""\
                         from prefect import flow
                         from prefect.deployments import DeploymentImage
 
 
                         @flow(log_prints=True)
                         def my_flow(name: str = "world"):
-                            print(f"Hello {name}! I'm a flow running on an Azure Container Instance!")
+                            print(f"Hello {{name}}! I'm a flow running on an Azure Container Instance!")
 
 
                         if __name__ == "__main__":
                             my_flow.deploy(
                                 name="my-deployment",
+                                work_pool_name="{work_pool_name}",
                                 image=DeploymentImage(
                                     name="my-image:latest",
                                     platform="linux/amd64",
