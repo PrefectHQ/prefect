@@ -134,7 +134,7 @@ See the following pull requests for implementation details:
 - Add instructions for automatic infrastructure provisioning to the push work pools guide — https://github.com/PrefectHQ/prefect/pull/11316
 - Fix broken links in states concept doc and daemonize guide — https://github.com/PrefectHQ/prefect/pull/11374
 - Update agent upgrade guide to include `flow.deploy` and examples — https://github.com/PrefectHQ/prefect/pull/11373
-- Update block document names in moving data guide  — https://github.com/PrefectHQ/prefect/pull/11386
+- Update block document names in Moving Data guide  — https://github.com/PrefectHQ/prefect/pull/11386
 - Rename `Guides` to` How-to Guides` — https://github.com/PrefectHQ/prefect/pull/11388
 - Add guide to provision infrastructure for existing push work pools  — https://github.com/PrefectHQ/prefect/pull/11365
 - Add documentation for required permissions for infrastructure provisioning — https://github.com/PrefectHQ/prefect/pull/11417
