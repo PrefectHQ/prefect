@@ -1,5 +1,48 @@
 # Prefect Release Notes
 
+## Release 2.14.11
+
+### Enhancements
+- Add the ability to publish `KubernetesJob` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11347
+- Add setting to configure a default Docker namespace for image builds — https://github.com/PrefectHQ/prefect/pull/11378
+- Add the ability to provision an ECR repository for ECS push work pools — https://github.com/PrefectHQ/prefect/pull/11382
+- Add ability to provision resources with user provided names for ECS push work pools — https://github.com/PrefectHQ/prefect/pull/11407
+- Add ability to provision an Artifact Registry repository for Cloud Run push work pools — https://github.com/PrefectHQ/prefect/pull/11399
+- Add ability to provision resources with user provided names for Cloud Run push work pools — https://github.com/PrefectHQ/prefect/pull/11381
+- Add support for `is_schedule_active` to `flow.deploy` and `flow.serve` — https://github.com/PrefectHQ/prefect/pull/11375
+- Allow users to select relative and fixed date ranges to filter the dashboard — https://github.com/PrefectHQ/prefect/pull/11406
+- Add ability to provision an Azure Container Registry for Azure Container Instance push work pools — https://github.com/PrefectHQ/prefect/pull/11387
+- Add support for arbitrary sink types to `prefect.utilities.processutils.stream_text` — https://github.com/PrefectHQ/prefect/pull/11298
+- Update the deployments table to add run activity and separate out the deployment and flow names — https://github.com/PrefectHQ/prefect/pull/11394
+
+### Fixes
+- Fiex bug where a pause state reused an existing state ID — https://github.com/PrefectHQ/prefect/pull/11405
+
+### Experimental
+- Build out API for creating/reading/deleting flow run inputs — https://github.com/PrefectHQ/prefect/pull/11363
+- Integrate flow run input and schema/response mechanics into pause/suspend — https://github.com/PrefectHQ/prefect/pull/11376
+- Add typing overloads for pause/suspend methods — https://github.com/PrefectHQ/prefect/pull/11403
+- Use bytes for `value` in `create_flow_run_input` for cloud compatibility — https://github.com/PrefectHQ/prefect/pull/11421
+- Validate run input when resuming flow runs — https://github.com/PrefectHQ/prefect/pull/11396
+- Run existing deployments via the `Runner` webserver — https://github.com/PrefectHQ/prefect/pull/11333
+
+### Documentation
+- Add instructions for automatic infrastructure provisioning to the push work pools guide — https://github.com/PrefectHQ/prefect/pull/11316
+- Fix broken links in states concept doc and daemonize guide — https://github.com/PrefectHQ/prefect/pull/11374
+- Update agent upgrade guide to include `flow.deploy` and examples — https://github.com/PrefectHQ/prefect/pull/11373
+- Update block document names in moving data guide  — https://github.com/PrefectHQ/prefect/pull/11386
+- Change `Guides` title to` How-to Guides` — https://github.com/PrefectHQ/prefect/pull/11388
+- Add guide to provision infrastructure for existing push work pools  — https://github.com/PrefectHQ/prefect/pull/11365
+- Add documentation for required permissions for infrastructure provisioning — https://github.com/PrefectHQ/prefect/pull/11417
+- Add docs for managed execution open beta — https://github.com/PrefectHQ/prefect/pull/11397, https://github.com/PrefectHQ/prefect/pull/11426, and https://github.com/PrefectHQ/prefect/pull/11425
+
+### Uncategorized
+
+### Contributors
+- @j-tr
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.10...2.14.11
+
 ## Release 2.14.10
 
 ### Azure Container Instance push pool infrastructure provisioning via the CLI
