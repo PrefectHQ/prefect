@@ -509,7 +509,10 @@ class ContainerInstancePushProvisioner:
     def _generate_acr_name(base_name: str):
         # Ensure the base name adheres to ACR naming conventions
         if not base_name.isalnum() or len(base_name) > 50:
-            raise ValueError("ACR registry name prefix should be alphanumeric and up to 50 characters")
+            raise ValueError(
+                "ACR registry name prefix should be alphanumeric and up to 50"
+                " characters"
+            )
 
         # Generate a unique string
         timestamp = int(time.time())
