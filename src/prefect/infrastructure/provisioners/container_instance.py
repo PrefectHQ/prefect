@@ -776,8 +776,6 @@ class ContainerInstancePushProvisioner:
             return False
 
     def _validate_user_input(self, name):
-        # Implement your validation logic here
-        # Example: Check if the name is alphanumeric and of a certain length
         if 2 < len(name) < 40 and name.isalnum():
             return True
         else:
