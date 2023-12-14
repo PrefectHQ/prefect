@@ -1187,8 +1187,7 @@ class ElasticContainerServicePushProvisioner:
             ):
                 user_name = prompt(
                     (
-                        "Enter a name for the IAM user (managing AWS services and"
-                        " executing ECS tasks)"
+                        "Enter a name for the IAM user (manages ECS tasks)"
                     ),
                     default="prefect-ecs-user",
                 )
