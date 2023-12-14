@@ -2,7 +2,7 @@
 
 ## Release 2.14.11
 
-### Customize resource name when provisioning infrastructure for push work pools
+### Customize resource names when provisioning infrastructure for push work pools
 
 In the past few releases, we've added the ability to provision infrastructure for push work pools via the CLI. This release adds the ability to customize the name of the resources created in your cloud environment when provisioning infrastructure for push work pools so you can follow your organization's naming conventions.
 
