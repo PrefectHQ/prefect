@@ -12,6 +12,10 @@ from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.infrastructure.provisioners.cloud_run import CloudRunPushProvisioner
+from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    load_current_profile,
+)
 from prefect.testing.utilities import AsyncMock
 
 if HAS_PYDANTIC_V2:
@@ -245,6 +249,8 @@ def mock_run_process(monkeypatch):
         mock = MagicMock(returncode=0, stdout=b"mock stdout")
         if command == shlex.split("gcloud --version"):
             mock.stdout = b"Google Cloud SDK 123.456.789"
+        elif command == shlex.split("gcloud config get-value run/region"):
+            mock.stdout = b"us-central1"
         elif command == shlex.split("gcloud config get-value project"):
             mock.stdout = b"test-project"
         elif command == shlex.split("gcloud auth list --format=json"):
@@ -299,7 +305,16 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
         "gcloud auth list --format=json",
         "gcloud config get-value project",
         "gcloud config get-value run/region",
-        "gcloud services enable run.googleapis.com",
+        "gcloud services enable run.googleapis.com --project=test-project",
+        "gcloud services enable artifactregistry.googleapis.com --project=test-project",
+        (
+            "gcloud artifacts repositories create prefect-images"
+            " --repository-format=docker --location=us-central1 --project=test-project"
+        ),
+        (
+            "gcloud auth configure-docker us-central1-docker.pkg.dev"
+            " --project=test-project"
+        ),
         (
             "gcloud iam service-accounts create prefect-cloud-run --display-name"
             " 'Prefect Cloud Run Service Account'"
@@ -327,6 +342,10 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
     block_doc = await prefect_client.read_block_document(new_block_doc_id)
     assert block_doc.name == "test-push-pool-credentials"
     assert block_doc.data == {"service_account_info": {"private_key": "test-key"}}
+    assert (
+        load_current_profile().settings[PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE]
+        == "us-central1-docker.pkg.dev/test-project/prefect-images"
+    )
 
 
 async def test_check_for_gcloud_failure(mock_run_process):
@@ -384,7 +403,16 @@ async def test_provision_interactive_with_default_names(
         "gcloud auth list --format=json",
         "gcloud projects list --format=json",
         "gcloud config get-value run/region",
-        "gcloud services enable run.googleapis.com",
+        "gcloud services enable run.googleapis.com --project=test-project",
+        "gcloud services enable artifactregistry.googleapis.com --project=test-project",
+        (
+            "gcloud artifacts repositories create prefect-images"
+            " --repository-format=docker --location=us-central1 --project=test-project"
+        ),
+        (
+            "gcloud auth configure-docker us-central1-docker.pkg.dev"
+            " --project=test-project"
+        ),
         (
             "gcloud iam service-accounts create prefect-cloud-run --display-name"
             " 'Prefect Cloud Run Service Account'"
@@ -423,6 +451,8 @@ async def test_provision_interactive_with_custom_names(
             return "custom-service-account"
         elif args[0] == "Please enter a name for the GCP credentials block":
             return "custom-credentials"
+        elif args[0] == "Please enter a name for the Artifact Registry repository":
+            return "custom-repository"
 
     mock_prompt = MagicMock(side_effect=prompt_mocks)
     mock_prompt_select_from_table = MagicMock(
@@ -456,7 +486,16 @@ async def test_provision_interactive_with_custom_names(
         "gcloud auth list --format=json",
         "gcloud projects list --format=json",
         "gcloud config get-value run/region",
-        "gcloud services enable run.googleapis.com",
+        "gcloud services enable run.googleapis.com --project=test-project",
+        "gcloud services enable artifactregistry.googleapis.com --project=test-project",
+        (
+            "gcloud artifacts repositories create custom-repository"
+            " --repository-format=docker --location=us-central1 --project=test-project"
+        ),
+        (
+            "gcloud auth configure-docker us-central1-docker.pkg.dev"
+            " --project=test-project"
+        ),
         (
             "gcloud iam service-accounts create custom-service-account --display-name"
             " 'Prefect Cloud Run Service Account'"
