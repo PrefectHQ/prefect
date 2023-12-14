@@ -162,7 +162,7 @@ Here's the command to create a new push work pool and configure the necessary in
 
     ```bash
     ╭───────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool aci-test will require:                     │
+    │ Provisioning infrastructure for your work pool my-aci-work-pool will require:                     │
     │                                                                                           │
     │     Updates in subscription Azure subscription 1                                          │
     │                                                                                           │
