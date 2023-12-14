@@ -775,6 +775,14 @@ class ContainerInstancePushProvisioner:
         except ObjectNotFound:
             return False
 
+    def _validate_user_input(self, name):
+        # Implement your validation logic here
+        # Example: Check if the name is alphanumeric and of a certain length
+        if 2 < len(name) < 40 and name.isalnum():
+            return True
+        else:
+            return False
+
     async def _create_provision_table(self, work_pool_name: str, client: PrefectClient):
         return Panel(
             dedent(
@@ -812,14 +820,30 @@ class ContainerInstancePushProvisioner:
             "Please enter a name for the app registration",
             default=self._app_registration_name,
         )
-        self._registry_name_prefix = prompt(
-            "Please enter a prefix for the Azure Container Registry",
-            default=self._registry_name_prefix,
-        )
-        self._identity_name = prompt(
-            "Please enter a name for the identity (used for ACR access)",
-            default=self._identity_name,
-        )
+        while True:
+            self._registry_name_prefix = prompt(
+                "Please enter a prefix for the Azure Container Registry",
+                default=self._registry_name_prefix,
+            )
+            if self._validate_user_input(self._registry_name_prefix):
+                break
+            else:
+                self._console.print(
+                    "The prefix must be alphanumeric and between 3-50 characters.",
+                    style="red",
+                )
+        while True:
+            self._identity_name = prompt(
+                "Please enter a name for the identity (used for ACR access)",
+                default=self._identity_name,
+            )
+            if self._validate_user_input(self._identity_name):
+                break
+            else:
+                self._console.print(
+                    "The identity name must be alphanumeric and at least 3 characters.",
+                    style="red",
+                )
         self._credentials_block_name = prompt(
             "Please enter a name for the ACI credentials block",
             default=self._credentials_block_name,
