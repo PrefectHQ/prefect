@@ -92,8 +92,8 @@ We will update this page as we make changes.
 
 ### Concurrency & work pools
 Free tier accounts are limited to:
-- Maximum of 1 concurrent flow runs per workspace across all `prefect:managed` pools.
-- Maximum of 1 managed execution work pools per workspace.
+- Maximum of 1 concurrent flow run per workspace across all `prefect:managed` pools.
+- Maximum of 1 managed execution work pool per workspace.
 
 Pro tier and above accounts are limited to:
 - Maximum of 10 concurrent flow runs per workspace across all `prefect:managed` pools.
