@@ -974,7 +974,9 @@ async def greet_user():
 
     logger.info(f"Hello, {user_input.name}!")
 ```
-Calling this flow will create a flow run and move it into a paused state. The flow will then block and wait for resumption. When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
+Running this flow will create a flow run. The flow run will advance until code execution reaches `pause_flow_run`, at which point it will  move it into a `Paused` state. Execution will block and wait for resumption. 
+
+When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
 
 For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [guide](/guides/receiving-input-when-paused.md).
 
