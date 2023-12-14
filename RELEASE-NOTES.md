@@ -135,7 +135,7 @@ See the following pull requests for implementation details:
 - Fix broken links in states concept doc and daemonize guide — https://github.com/PrefectHQ/prefect/pull/11374
 - Update agent upgrade guide to include `flow.deploy` and examples — https://github.com/PrefectHQ/prefect/pull/11373
 - Update block document names in moving data guide  — https://github.com/PrefectHQ/prefect/pull/11386
-- Change `Guides` title to` How-to Guides` — https://github.com/PrefectHQ/prefect/pull/11388
+- Rename `Guides` to` How-to Guides` — https://github.com/PrefectHQ/prefect/pull/11388
 - Add guide to provision infrastructure for existing push work pools  — https://github.com/PrefectHQ/prefect/pull/11365
 - Add documentation for required permissions for infrastructure provisioning — https://github.com/PrefectHQ/prefect/pull/11417
 - Add docs for managed execution open beta — https://github.com/PrefectHQ/prefect/pull/11397, https://github.com/PrefectHQ/prefect/pull/11426, and https://github.com/PrefectHQ/prefect/pull/11425
