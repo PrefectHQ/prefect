@@ -93,6 +93,15 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
     - ecr:DescribeRepositories
     - ecr:GetAuthorizationToken
 
+    If you want to use AWS managed policies, you can use the following:
+
+    - AmazonECS_FullAccess
+    - AmazonEC2FullAccess
+    - IAMFullAccess
+    - AmazonEC2ContainerRegistryFullAccess
+
+    Note that the above policies will give you all the permissions needed, but are more permissive than necessary.
+
     Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
 
 
