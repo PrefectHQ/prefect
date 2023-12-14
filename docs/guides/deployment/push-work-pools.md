@@ -200,7 +200,7 @@ Here's the command to create a new push work pool and configure the necessary in
     !!! tip "Default Docker build namespace"
         After infrastructure provisioning completes, you will be logged into your new Azure Container Registry and the default Docker build namespace will be set to the URL of the registry.
 
-        While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the registry.
+        While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to tha registry.
 
         To take advantage of this functionality, you can write your deploy scripts like this:
 
