@@ -103,6 +103,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -207,6 +208,7 @@ from prefect.utilities.pydantic import PartialModel
 from prefect.utilities.text import truncated_to
 
 R = TypeVar("R")
+T = TypeVar("T", bound=RunInput)
 EngineReturnType = Literal["future", "state", "result"]
 
 
@@ -946,6 +948,30 @@ async def orchestrate_flow_run(
     return state
 
 
+@overload
+async def pause_flow_run(
+    wait_for_input: None = None,
+    flow_run_id: UUID = None,
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule: bool = False,
+    key: str = None,
+) -> None:
+    ...
+
+
+@overload
+async def pause_flow_run(
+    wait_for_input: Type[T],
+    flow_run_id: UUID = None,
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule: bool = False,
+    key: str = None,
+) -> T:
+    ...
+
+
 @sync_compatible
 @deprecated_parameter(
     "flow_run_id", start_date="Dec 2023", help="Use `suspend_flow_run` instead."
@@ -960,12 +986,12 @@ async def orchestrate_flow_run(
     "wait_for_input", group="flow_run_input", when=lambda y: y is not None
 )
 async def pause_flow_run(
+    wait_for_input: Optional[Type[T]] = None,
     flow_run_id: UUID = None,
     timeout: int = 300,
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
-    wait_for_input: Optional[Type[RunInput]] = None,
 ):
     """
     Pauses the current flow run by blocking execution until resumed.
@@ -1142,14 +1168,36 @@ async def _out_of_process_pause(
         raise RuntimeError(response.details.reason)
 
 
-@sync_compatible
-@inject_client
+@overload
 async def suspend_flow_run(
+    wait_for_input: None = None,
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 300,
     key: Optional[str] = None,
     client: PrefectClient = None,
-    wait_for_input: Optional[Type[RunInput]] = None,
+) -> None:
+    ...
+
+
+@overload
+async def suspend_flow_run(
+    wait_for_input: Type[T],
+    flow_run_id: Optional[UUID] = None,
+    timeout: Optional[int] = 300,
+    key: Optional[str] = None,
+    client: PrefectClient = None,
+) -> T:
+    ...
+
+
+@sync_compatible
+@inject_client
+async def suspend_flow_run(
+    wait_for_input: Optional[Type[T]] = None,
+    flow_run_id: Optional[UUID] = None,
+    timeout: Optional[int] = 300,
+    key: Optional[str] = None,
+    client: PrefectClient = None,
 ):
     """
     Suspends a flow run by stopping code execution until resumed.
