@@ -928,8 +928,8 @@ class TestElasticContainerServicePushProvisioner:
         expected_call_1 = call(
             (
                 "Would you like to customize the resource names for your"
-                " infrastructure? This includes an IAM user, IAM policy, ECS cluster, VPC,"
-                " ECS security group, and ECR repository."
+                " infrastructure? This includes an IAM user, IAM policy, ECS cluster,"
+                " VPC, ECS security group, and ECR repository."
             ),
         )
         expected_call_2 = call("Proceed with infrastructure provisioning?", console=ANY)
