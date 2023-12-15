@@ -22,7 +22,8 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 ## Step 2: Connect to Prefect's API
 
 Much of Prefect's functionality is backed by an API.
-If [self-hosting](/guides/host/), you'll need to start the Prefect webserver and related services yourself, or if you'd rather use a hosted version of the API with a bunch of additional features such as automations, collaborators, and error summaries powered by Marvin AI, sign up for a forever free [Prefect Cloud account](/cloud/).
+If [self-hosting](/guides/host/), you'll need to start the Prefect webserver and related services yourself.
+If you'd rather use a hosted version of the API with a bunch of additional features such as automations, collaborators, and error summaries powered by Marvin AI, sign up for a forever free [Prefect Cloud account](/cloud/).
 
 === "Cloud"
 
@@ -45,7 +46,9 @@ If [self-hosting](/guides/host/), you'll need to start the Prefect webserver and
 
 ## Step 3: Write a flow
 
-The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment. [Flows](/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work. [Deployments](/concepts/deployments/) elevate flows to remotely configurable entities that have their own API, as we will see shortly.
+The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment.
+[Flows](/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
+[Deployments](/concepts/deployments/) elevate flows to remotely configurable entities that have their own API, as we will see shortly.
 
 Here is an example flow named "Repo Info" that contains two [tasks](/concepts/tasks/), which are the smallest unit of observed and orchestrated work in Prefect:
 
@@ -95,7 +98,9 @@ Notice that we can write standard Python code within our flow _or_ break it down
 
 ## Step 4: Create a deployment
 
-When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will stay running so that it can listen for scheduled or triggered runs of this flow; once a run is found, it will be executed within a subprocess.
+When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API.
+The script will stay running so that it can listen for scheduled or triggered runs of this flow.
+Once a run is found, it will be executed within a subprocess.
 
 <div class="terminal">
 
@@ -149,7 +154,9 @@ You should see logs from the flow run in the CLI and the UI that look similar to
 
 ## Step 5: Add a schedule
 
-We can now configure our deployment with additional options - for example, let's add a [schedule](/concepts/schedules/) to our deployment.  We could add a schedule via the Prefect UI or by adding an argument to the `serve` method. Let's update the script above to specify a cron schedule:
+We can now configure our deployment with additional options - for example, let's add a [schedule](/concepts/schedules/) to our deployment.  
+We could add a schedule via the Prefect UI or by adding an argument to the `serve` method.
+Let's update the script above to specify a cron schedule:
 
 ```python
 if __name__ == "__main__":
@@ -161,9 +168,67 @@ Running our script will create a cron schedule for our deployment so that it run
 
 ![Deployment schedule](/img/ui/deployment-cron-schedule.png)
 
+## Step 6: Move to remote execution
+
+Thus far, our code has been stored locally and our flow runs have been executed locally.
+However, most users will eventually want to close their computers and have their flows run in the cloud.
+
+Prefect provides [work pools](/concepts/work-pools/) for running flows on your own dynamically provisioned infrastructure.
+Prefect Cloud even provides an option to run your flows on [Prefect-managed infrastructure](/cloud/infrastructure/).
+Let's see how to do that.
+
+!!! note
+    Managed infrastructure is a Cloud-only feature and is currently in beta.
+    If you would like to run your flows on other dynamically provisioned infrastructure, see the [work pools docs](/concepts/work-pools/).
+
+### Create a Prefect Managed work pool
+
+While authenticated to Prefect Cloud from your CLI, create a Prefect Managed work pool with this command:
+
+<div class="terminal">
+
+```bash
+prefect work-pool create my-managed-pool --type prefect:managed
+```
+
+</div>
+
+You should see confirmation that your work pool was created.
+
+### Update your code from `.serve` to `.deploy`
+
+Deployments that use work pools are created with the `.deploy` method instead of `.serve`.
+
+Let's update our script to use the work pool we just created:
+
+```python
+if __name__ == "__main__":
+    flow.from_source(
+    source="https://github.com/desertaxle/demo.git",
+    entrypoint="flow.py:my_flow",
+    ).deploy(
+        name="my-new-deployment",
+        work_pool_name="my-managed-pool",
+    )
+```
+
+Prefect is designed to make it simple for you to store you code in a variety of remote locations.
+In this example, we use a GitHub repository, but you could use a Docker image or cloud provider storage.
+
+!!! note
+    In the example above, we use an existing GitHub repository.
+    If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument to point to your repository.
+
+Run the script again and you should see a message in the CLI that your deployment was created with instructions for how to run it.
+Navigate to your Prefect Cloud UI and view your new deployment.
+Click the "Run" button to trigger a run of your deployment.
+
+Prefect Cloud will run your flow on your behalf and you can view the logs in the UI.
+
 ## Next steps
 
-To learn more, try our [tutorial](/tutorial). Then go deeper with our [how-to guides](/guides) and [concepts](/concepts).
+To learn more, try our [tutorial](/tutorial).
+Then go deeper with our [how-to guides](/guides) and [concepts](/concepts).
 
 !!! tip "Need help?"
     Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
