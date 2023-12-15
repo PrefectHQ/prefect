@@ -93,7 +93,7 @@ Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_sou
 ## Next steps
 
 There's lots more you can do to orchestrate and observe your workflows with Prefect!
-Start with our [friendly tutorial](https://docs.prefect.io/tutorials/first-steps) or explore the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/).
+Start with our [friendly tutorial](https://docs.prefect.io/tutorials) or explore the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/).
 
 ## Join the community
 
