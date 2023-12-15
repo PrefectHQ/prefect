@@ -1128,9 +1128,10 @@ async def test_assign_acr_pull_role(provisioner):
     )
 
     expected_command = (
-        "az role assignment create --assignee 12345678-1234-1234-1234-123456789012"
-        " --scope 12345678-1234-1234-1234-123456789012 --role AcrPull --subscription"
-        " 12345678-1234-1234-1234-123456789012"
+        "az role assignment create --assignee-object-id"
+        " 12345678-1234-1234-1234-123456789012 --assignee-principal-type"
+        " ServicePrincipal --scope 12345678-1234-1234-1234-123456789012 --role AcrPull"
+        " --subscription 12345678-1234-1234-1234-123456789012"
     )
     provisioner.azure_cli.run_command.assert_called_once_with(
         expected_command,
@@ -1515,8 +1516,9 @@ async def test_aci_provision_no_existing_credentials_block(
         # _assign_acr_pull_role
         call(
             (
-                "az role assignment create --assignee"
-                " 12345678-1234-1234-1234-123456789012 --scope"
+                "az role assignment create --assignee-object-id"
+                " 12345678-1234-1234-1234-123456789012 --assignee-principal-type"
+                " ServicePrincipal --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
                 " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
@@ -1811,8 +1813,9 @@ async def test_aci_provision_existing_credentials_block(
         # _assign_acr_pull_role
         call(
             (
-                "az role assignment create --assignee"
-                " 12345678-1234-1234-1234-123456789012 --scope"
+                "az role assignment create --assignee-object-id"
+                " 12345678-1234-1234-1234-123456789012 --assignee-principal-type"
+                " ServicePrincipal --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
                 " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
@@ -2163,8 +2166,9 @@ async def test_aci_provision_interactive_default_provisioning(
         # _assign_acr_pull_role
         call(
             (
-                "az role assignment create --assignee"
-                " 12345678-1234-1234-1234-123456789012 --scope"
+                "az role assignment create --assignee-object-id"
+                " 12345678-1234-1234-1234-123456789012 --assignee-principal-type"
+                " ServicePrincipal --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prefect-aci-push-pool-rg/providers/Microsoft.ContainerRegistry/registries/prefectacipushpoolregistry"
                 " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
@@ -2222,7 +2226,7 @@ async def test_aci_provision_interactive_custom_resource_names(
         if "Please enter a prefix for the Azure Container Registry" in args[0]:
             return "customregistryname"
         if "Please enter a name for the identity" in args[0]:
-            return "customidentityname"
+            return "custom-identity-name"
         if "Please enter a name for the ACI credentials block" in args[0]:
             return "custom-credentials-name"
 
@@ -2296,7 +2300,7 @@ async def test_aci_provision_interactive_custom_resource_names(
     }
 
     new_identity = {
-        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/customidentityname",
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/custom-identity-name",
         "principalId": "12345678-1234-1234-1234-123456789012",
     }
 
@@ -2491,7 +2495,7 @@ async def test_aci_provision_interactive_custom_resource_names(
         # _get_or_create_identity
         call(
             (
-                "az identity list --query \"[?name=='customidentityname']\""
+                "az identity list --query \"[?name=='custom-identity-name']\""
                 " --resource-group custom-rg-name --subscription"
                 " 12345678-1234-1234-1234-123456789012 --output json"
             ),
@@ -2499,19 +2503,20 @@ async def test_aci_provision_interactive_custom_resource_names(
         ),
         call(
             (
-                "az identity create --name customidentityname --resource-group"
+                "az identity create --name custom-identity-name --resource-group"
                 " custom-rg-name --subscription 12345678-1234-1234-1234-123456789012"
                 " --output json"
             ),
-            success_message="Identity 'customidentityname' created",
-            failure_message="Failed to create identity 'customidentityname'",
+            success_message="Identity 'custom-identity-name' created",
+            failure_message="Failed to create identity 'custom-identity-name'",
             return_json=True,
         ),
         # _assign_acr_pull_role
         call(
             (
-                "az role assignment create --assignee"
-                " 12345678-1234-1234-1234-123456789012 --scope"
+                "az role assignment create --assignee-object-id"
+                " 12345678-1234-1234-1234-123456789012 --assignee-principal-type"
+                " ServicePrincipal --scope"
                 " /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ContainerRegistry/registries/customregistryname"
                 " --role AcrPull --subscription 12345678-1234-1234-1234-123456789012"
             ),
@@ -2547,11 +2552,11 @@ async def test_aci_provision_interactive_custom_resource_names(
 
     new_base_job_template["variables"]["properties"]["image_registry"]["default"] = {
         "registry_url": "custom-app-name.azurecr.io",
-        "identity": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/customidentityname",
+        "identity": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/custom-identity-name",
     }
 
     new_base_job_template["variables"]["properties"]["identities"]["default"] = [
-        "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/customidentityname"
+        "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/custom-rg-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/custom-identity-name"
     ]
 
 
