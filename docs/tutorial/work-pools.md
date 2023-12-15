@@ -121,10 +121,11 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
 
+TK repo below
 
 if __name__ == "__main__":
     get_repo_info.from_source(
-        source="TK https://github.com/desertaxle/demo.git", 
+        source="https://github.com/desertaxle/demo.git", 
         entrypoint="flow.py:my_flow")
     .deploy(
         name="my-first-deployment", 
@@ -300,4 +301,6 @@ See the [Push Work Pool guide](/guides/push-work-pools/) for more details and ex
 
 ## Next step
 
-- Learn how to use work pools that rely on a worker and build images so that your flows run in containers in the [next section of the tutorial](/tutorial/workers/).
+Congratulations! You've learned how to use work pools to deploy flows to remote infrastructure.
+
+Learn how to use work pools that rely on a worker and build Docker images so that your flows can run in other container-based infrastructure in the [next section of the tutorial](/tutorial/workers/).
