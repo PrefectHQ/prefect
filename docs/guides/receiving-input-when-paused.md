@@ -48,7 +48,7 @@ When the flow run is paused, the user will be prompted to enter a name. If the u
 
 ## Providing initial data
 
-You can set default values for fields in your model by using the `with_initial_data` method. This is particularly useful when you want to provide default values for fields such as `title` and `description` that are part of the base `RunInput` class and are displayed in the UI when resuming a flow run. You can also specify defaults for fields that you define in your own `RunInput` subclasses.
+You can set default values for fields in your model by using the `with_initial_data` method. This is useful when you want to provide default values for the fields in your own `RunInput` subclasses.
 
 Expanding on the example above, you could default the `name` field to something anonymous.
 
@@ -58,11 +58,7 @@ async def greet_user():
     logger = get_run_logger()
 
     user_input = await pause_flow_run(
-        wait_for_input=UserNameInput.with_initial_data(
-            title="Enter your name",
-            description="If you'd prefer not to enter your name, you can enter 'anonymous' instead.",
-            name="anonymous"
-        )
+        wait_for_input=UserNameInput.with_initial_data(name="anonymous")
     )
 
     if user_input.name == "anonymous":
