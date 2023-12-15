@@ -97,17 +97,25 @@ Notice that we can write standard Python code within our flow _or_ break it down
 
 When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will stay running so that it can listen for scheduled or triggered runs of this flow; once a run is found, it will be executed within a subprocess.
 
+<div class="terminal">
+
 ```bash
 python my_flow.py
 ```
+
+</div>
 
 You should see a link directing you to the deployment page that you can use to begin interacting with your newly created deployment!
 
 For example, you can trigger a run of this deployment by either clicking the "Run" button in the top right of the deployment page in the UI, or by running the following CLI command in your terminal:
 
+<div class="terminal">
+
 ```bash
 prefect deployment run 'Repo Info/my-first-deployment'  
 ```
+
+</div>
 
 This command creates a new run for this deployment that is then picked up by the process running `repo_info.serve`.
 
@@ -115,7 +123,9 @@ This command creates a new run for this deployment that is then picked up by the
 
 You should see logs from the flow run in the CLI and the UI that look similar to this:
 
-```{.output .no-copy}
+<div class="terminal">
+
+```bash
 09:44:37.947 | INFO    | Flow run 'piquant-sawfly' - Downloading flow code from storage at '/my_path'
 09:44:38.900 | INFO    | Flow run 'piquant-sawfly' - Created task run 'get_repo_info-0' for task 'get_repo_info'
 09:44:38.901 | INFO    | Flow run 'piquant-sawfly' - Executing 'get_repo_info-0' immediately...
@@ -128,6 +138,8 @@ You should see logs from the flow run in the CLI and the UI that look similar to
 09:44:40.527 | INFO    | Flow run 'piquant-sawfly' - Finished in state Completed('All states completed.')
 09:44:43.018 | INFO    | prefect.flow_runs.runner - Process 9867 exited cleanly.
 ```
+
+</div>
 
 !!! tip "Getting started tips"
     - You can call your flow function directly like any other Python function and its execution will be registered and monitored with the Prefect API and visible in the UI
@@ -142,7 +154,7 @@ We can now configure our deployment as we like - for example, let's add a [sched
 - use the Prefect UI to create and attach the schedule
 - specify the schedule in code
 
-It's generally best practice to keep your configuration defined within code, so let's update the script above to specify a schedule:
+Let's update the script above to specify a schedule:
 
 ```python
 if __name__ == "__main__":
@@ -156,7 +168,7 @@ Once run, this will create a cron schedule for our deployment that instructs it 
 
 ## Next steps
 
-To learn more, try our [tutorial](/tutorial) and [guides](/guides), or go deeper with [concepts](/concepts).
+To learn more, try our [tutorial](/tutorial). Then go deeper with our [how-to guides](/guides) and [concepts](/concepts).
 
 !!! tip "Need help?"
     Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
