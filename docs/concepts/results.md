@@ -244,7 +244,7 @@ asyncio.run(main())
     Prefect 2.6.0 added automatic retrieval of persisted results.
     Prior to this version, `State.result()` did not require an `await`.
     For backwards compatibility, when used from an asynchronous context, `State.result()` returns a raw result type.
-    
+
     You may opt-in to the new behavior by passing `fetch=True` as shown in the example above.
     If you would like this behavior to be used automatically, you may enable the `PREFECT_ASYNC_FETCH_STATE_RESULT` setting.
     If you do not opt-in to this behavior, you will see a warning.
@@ -272,7 +272,6 @@ result = asyncio.run(my_flow())
 assert result == 2
 ```
 
-
 ## Persisting results
 
 The Prefect API does not store your results [except in special cases](#storage-of-results-in-prefect). Instead, the result is _persisted_ to a storage location in your infrastructure and Prefect stores a _reference_ to the result.
@@ -281,7 +280,6 @@ The following Prefect features require results to be persisted:
 
 - Task cache keys
 - Flow run retries
-- Disabling in-memory caching
 
 If results are not persisted, these features may not be usable.
 
@@ -364,7 +362,7 @@ Toggling persistence manually will always override any behavior that Prefect wou
 You may also change Prefect's default persistence behavior with the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting. To persist results by default, even if they are not needed for a feature change the value to a truthy value:
 
 ```
-$ prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
+prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
 Task and flows with `persist_result=False` will not persist their results even if `PREFECT_RESULTS_PERSIST_BY_DEFAULT` is `true`.
@@ -404,7 +402,6 @@ You can configure this to use a specific storage using one of the following:
 #### Result storage key
 
 The path of the result file in the result storage can be configured with the `result_storage_key`. The `result_storage_key` option defaults to a null value, which generates a unique identifier for each result.
-
 
 ```python
 from prefect import flow, task
@@ -471,7 +468,6 @@ After running this flow, we can see a result file templated with the name of the
 my-flow_industrious-trout_hello.json
 ```
 
-
 If a result exists at a given storage key in the storage location, it will be overwritten.
 
 Result storage keys can only be configured on tasks at this time.
@@ -496,9 +492,8 @@ You may configure compression of results using:
 - A type name, prefixed with `compressed/` e.g. `"compressed/json"` or `"compressed/pickle"`
 - An instance e.g. `CompressedSerializer(serializer="pickle", compressionlib="lzma")`
 
-Note that the `"compressed/<serializer-type>"` shortcut will only work for serializers provided by Prefect. 
+Note that the `"compressed/<serializer-type>"` shortcut will only work for serializers provided by Prefect.
 If you are using custom serializers, you must pass a full instance.
-
 
 ### Storage of results in Prefect
 
@@ -517,12 +512,12 @@ The following data types will be stored by the API without persistence to storag
 
 If `persist_result` is set to `False`, these values will never be stored.
 
-
 ## Tracking results
 
-The Prefect API tracks metadata about your results. The value of your result is only stored in [specific cases](#storage-of-results-in-prefect). Result metadata can be seen in the UI on the "Results" page for flows. 
+The Prefect API tracks metadata about your results. The value of your result is only stored in [specific cases](#storage-of-results-in-prefect). Result metadata can be seen in the UI on the "Results" page for flows.
 
 Prefect tracks the following result metadata:
+
 - Data type
 - Storage location (if persisted)
 
@@ -589,7 +584,6 @@ def foo():
     future.result()
 ```
 
-
 ## Result storage types
 
 Result storage is responsible for reading and writing serialized data to an external location. At this time, any file system block can be used for result storage.
@@ -622,9 +616,7 @@ Drawbacks of the pickle serializer:
 
 ### JSON serializer
 
-
 We supply a custom JSON serializer at `prefect.serializers.JSONSerializer`. Prefect's JSON serializer uses custom hooks by default to support more object types. Specifically, we add support for all types supported by [Pydantic](https://pydantic-docs.helpmanual.io/).
-
 
 By default, we use the standard Python `json` library. Alternative JSON libraries can be specified:
 
@@ -645,7 +637,6 @@ Drawbacks of the JSON serializer:
 - Supported types are limited.
 - Implementing support for additional types must be done at the serializer level.
 
-
 ## Result types
 
 Prefect uses internal result types to capture information about the result attached to a state. The following types are used:
@@ -660,12 +651,12 @@ All result types include a `get()` method that can be called to return the value
 
 Unpersisted results are used to represent results that have not been and will not be persisted beyond the current flow run. The value associated with the result is stored in memory, but will not be available later. Result metadata is attached to this object for storage in the API and representation in the UI.
 
-
 ### Literal results
 
 Literal results are used to represent [results stored in the Prefect database](#storage-of-results-in-prefect). The values contained by these results must always be JSON serializable.
 
 Example:
+
 ```
 result = LiteralResult(value=None)
 result.json()
@@ -674,7 +665,7 @@ result.json()
 
 Literal results reduce the overhead required to persist simple results.
 
-###  Persisted results
+### Persisted results
 
 The persisted result type contains all of the information needed to retrieve the result from storage. This includes:
 

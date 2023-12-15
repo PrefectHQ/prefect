@@ -12,24 +12,24 @@ search:
   boost: 2
 ---
 
-# Dask and Ray task runners
+# Dask and Ray Task Runners
 
 Task runners provide an execution environment for tasks. In a flow decorator, you can specify a task runner to run the tasks called in that flow.
 
-The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner). 
+The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner).
 
 !!! note "Use `.submit` to run your tasks asynchronously"
 
     To run tasks asynchronously use the `.submit` method when you call them. If you call a task as you would normally in Python code it will run synchronously, even if you are calling the task within a flow that uses the `ConcurrentTaskRunner`, `DaskTaskRunner`, or `RayTaskRunner`.
 
-Many real-world data workflows benefit from true parallel, distributed task execution. For these use cases, the following Prefect-developed task runners for parallel task execution may be installed as [Prefect Integrations](/integrations/catalog/). 
+Many real-world data workflows benefit from true parallel, distributed task execution. For these use cases, the following Prefect-developed task runners for parallel task execution may be installed as [Prefect Integrations](/integrations/catalog/).
 
-- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
+- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/).
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
 These task runners can spin up a local Dask cluster or Ray instance on the fly, or let you connect with a Dask or Ray environment you've set up separately. Then you can take advantage of massively parallel computing environments.
 
-Use Dask or Ray in your flows to choose the execution environment that fits your particular needs. 
+Use Dask or Ray in your flows to choose the execution environment that fits your particular needs.
 
 To show you how they work, let's start small.
 
@@ -126,7 +126,7 @@ goodbye marvin
 
 ## Running parallel tasks with Dask
 
-You could argue that this simple flow gains nothing from parallel execution, but let's roll with it so you can see just how simple it is to take advantage of the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/). 
+You could argue that this simple flow gains nothing from parallel execution, but let's roll with it so you can see just how simple it is to take advantage of the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/).
 
 To configure your flow to use the `DaskTaskRunner`:
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
 ```
 
-Note that, because you're using `DaskTaskRunner` in a script, you must use `if __name__ == "__main__":` or you'll see warnings and errors. 
+Note that, because you're using `DaskTaskRunner` in a script, you must use `if __name__ == "__main__":` or you'll see warnings and errors.
 
 Now run `dask_flow.py`. If you get a warning about accepting incoming network connections, that's okay - everything is local in this example.
 
@@ -168,13 +168,13 @@ Now run `dask_flow.py`. If you get a warning about accepting incoming network co
 $ python dask_flow.py
 19:29:03.798 | INFO    | prefect.engine - Created flow run 'fine-bison' for flow 'greetings'
 
-19:29:03.798 | INFO    | Flow run 'fine-bison' - Using task runner 'DaskTaskRunner' 
+19:29:03.798 | INFO    | Flow run 'fine-bison' - Using task runner 'DaskTaskRunner'
 
 19:29:04.080 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
 16:54:18.465 | INFO    | prefect.engine - Created flow run 'radical-finch' for flow 'greetings'
 16:54:18.465 | INFO    | Flow run 'radical-finch' - Starting 'DaskTaskRunner'; submitted tasks will be run concurrently...
 16:54:18.465 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-16:54:19.811 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
+16:54:19.811 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at <http://127.0.0.1:8787/status>
 16:54:19.881 | INFO    | Flow run 'radical-finch' - Created task run 'say_hello-811087cd-0' for task 'say_hello'
 16:54:20.364 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_hello-811087cd-0' for execution.
 16:54:20.379 | INFO    | Flow run 'radical-finch' - Created task run 'say_goodbye-261e56a8-0' for task 'say_goodbye'
@@ -199,6 +199,7 @@ goodbye marvin
 goodbye trillian
 hello trillian
 hello marvin
+
 ```
 </div>
 
@@ -239,7 +240,7 @@ $ python dask_flow.py
 16:57:34.534 | INFO    | prefect.engine - Created flow run 'papaya-honeybee' for flow 'greetings'
 16:57:34.534 | INFO    | Flow run 'papaya-honeybee' - Starting 'DaskTaskRunner'; submitted tasks will be run concurrently...
 16:57:34.535 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-16:57:35.715 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
+16:57:35.715 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at <http://127.0.0.1:8787/status>
 16:57:35.787 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_hello-811087cd-0' for task 'say_hello'
 16:57:35.788 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_hello-811087cd-0' immediately...
 hello arthur
@@ -273,6 +274,7 @@ hello marvin
 goodbye marvin
 16:57:36.004 | INFO    | Task run 'say_goodbye-261e56a8-3' - Finished in state Completed()
 16:57:36.289 | INFO    | Flow run 'papaya-honeybee' - Finished in state Completed('All states completed.')
+
 ```
 </div>
 
@@ -330,7 +332,7 @@ Many workflows include a variety of tasks, and not all of them benefit from para
 
 Because task runners are specified on flows, you can assign different task runners to tasks by using [subflows](/concepts/flows/#composing-flows) to organize those tasks.
 
-This example uses the same tasks as the previous examples, but on the parent flow `greetings()` we use the default `ConcurrentTaskRunner`. Then we call a `ray_greetings()` subflow that uses the `RayTaskRunner` to execute the same tasks in a Ray instance. 
+This example uses the same tasks as the previous examples, but on the parent flow `greetings()` we use the default `ConcurrentTaskRunner`. Then we call a `ray_greetings()` subflow that uses the `RayTaskRunner` to execute the same tasks in a Ray instance.
 
 ```python
 from prefect import flow, task
