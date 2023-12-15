@@ -160,6 +160,7 @@ nav:
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
                 - Moving data: guides/moving-data.md
+                - Big data: guides/big-data.md
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
                 - Managed Execution: guides/managed-execution.md
