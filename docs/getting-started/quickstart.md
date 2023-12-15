@@ -174,7 +174,8 @@ Thus far, our code has been stored locally and our flow runs have been executed 
 However, most users will eventually want to close their computers and have their flows run in the cloud.
 
 Prefect provides [work pools](/concepts/work-pools/) for running flows on your own dynamically provisioned infrastructure.
-Prefect Cloud even provides an option to run your flows on [Prefect-managed infrastructure](/cloud/infrastructure/).
+
+Prefect Cloud even provides a work pool so that you can run your flows on [Prefect-managed infrastructure](/cloud/infrastructure/).
 Let's see how to do that.
 
 !!! note
@@ -212,8 +213,9 @@ if __name__ == "__main__":
     )
 ```
 
-Prefect is designed to make it simple for you to store you code in a variety of remote locations.
+You can store your flow code in a variety of remote locations.
 In this example, we use a GitHub repository, but you could use a Docker image or cloud provider storage.
+Read more [here]/guides/prefect-deploy/#creating-work-pool-based-deployments).
 
 !!! note
     In the example above, we use an existing GitHub repository.
@@ -223,11 +225,12 @@ Run the script again and you should see a message in the CLI that your deploymen
 Navigate to your Prefect Cloud UI and view your new deployment.
 Click the "Run" button to trigger a run of your deployment.
 
-Prefect Cloud will run your flow on your behalf and you can view the logs in the UI.
+Prefect Cloud will run your flow on your behalf.
+View the logs in the UI.
 
 ## Next steps
 
-To learn more, try our [tutorial](/tutorial).
+To learn more, check out our [tutorial](/tutorial).
 Then go deeper with our [how-to guides](/guides) and [concepts](/concepts).
 
 !!! tip "Need help?"
