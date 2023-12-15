@@ -56,9 +56,6 @@ class RunInput(pydantic.BaseModel):
     class Config:
         extra = "forbid"
 
-    title: str = "Run is asking for input"
-    description: Optional[str] = None
-
     @classmethod
     @sync_compatible
     async def save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):

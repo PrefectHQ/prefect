@@ -51,8 +51,6 @@ async def test_save_schema(flow_run_context):
     await Person.save(keyset)
     schema = await read_flow_run_input(key=keyset["schema"])
     assert set(schema["properties"].keys()) == {
-        "title",
-        "description",
         "name",
         "email",
         "human",
@@ -64,8 +62,6 @@ def test_save_works_sync(flow_run_context):
     Person.save(keyset)
     schema = read_flow_run_input(key=keyset["schema"])
     assert set(schema["properties"].keys()) == {
-        "title",
-        "description",
         "name",
         "email",
         "human",
@@ -139,13 +135,8 @@ async def test_with_initial_data(flow_run_context):
     keyset = keyset_from_base_key("bob")
 
     name = "Bob"
-    new_cls = Person.with_initial_data(
-        title=f"Fill in the missing data for {name}", name=name
-    )
+    new_cls = Person.with_initial_data(name=name)
 
     await new_cls.save(keyset)
     schema = await read_flow_run_input(key=keyset["schema"])
-    assert (
-        schema["properties"]["title"]["default"] == "Fill in the missing data for Bob"
-    )
     assert schema["properties"]["name"]["default"] == "Bob"
