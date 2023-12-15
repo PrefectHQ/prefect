@@ -142,7 +142,7 @@ nav:
           - Tasks: tutorial/tasks.md
           - Deploying Flows: tutorial/deployments.md
           - Workers & Work Pools: tutorial/workers.md
-    - Guides:
+    - How-to Guides:
           - guides/index.md
           - Development:
                 - Hosting: guides/host.md
@@ -163,6 +163,7 @@ nav:
                 - Big data: guides/big-data.md
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
+                - Managed Execution: guides/managed-execution.md
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md

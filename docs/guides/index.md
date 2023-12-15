@@ -1,6 +1,6 @@
 ---
 description: Learn how to do common workflows with Prefect.
-title: Guides
+title: How-to Guides
 tags:
     - guides
     - how to
@@ -8,9 +8,9 @@ search:
   boost: 2
 ---
 
-# Guides
+# How-to Guides
 
-This section of the documentation contains guides for common workflows and use cases.
+This section of the documentation contains how-to guides for common workflows and use cases.
 
 ## Development
 
@@ -38,6 +38,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Big Data](/guides/big-data/) | Handle large data with Prefect. |
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
+| [Managed Execution](/guides/managed-execution/) | Let prefect run your code. |
 
 ## Work Pools
 
