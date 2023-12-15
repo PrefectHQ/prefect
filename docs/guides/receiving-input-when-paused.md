@@ -120,8 +120,9 @@ One way to handle this and ensure that the user enters valid input is to use a `
 
 ```python
 import pydantic
-from prefect import flow, pause_flow_run, get_run_logger
+from prefect import flow, suspend_flow_run, get_run_logger
 from prefect.input import RunInput
+
 
 class UserAgeInput(RunInput):
     age: int
@@ -136,19 +137,20 @@ class UserAgeInput(RunInput):
 
         return value
 
+
 @flow
 def get_user_age():
     logger = get_run_logger()
 
-    user_age = None
+    user_age_data = None
 
-    while user_age is None:
+    while user_age_data is None:
         try:
             user_age_data = pause_flow_run(wait_for_input=UserAgeInput)
         except pydantic.ValidationError as exc:
             logger.error(f"Invalid age: {exc}")
-        else:
-            user_age = user_age_data.age
+
+    logger.info(f"User age: {user_age_data.age}")
 ```
 
 This code will cause the flow run to continually pause until the user enters a valid age.
