@@ -2,6 +2,9 @@
 description: Moving data to and from cloud providers
 tags:
     - data
+    - storage
+    - read data
+    - write data
     - cloud providers
     - AWS
     - S3
@@ -16,9 +19,9 @@ search:
   boost: 2
 ---
 
-# How to move data to and from cloud providers
+# Read and Write Data to and From Cloud Provider Storage
 
-Sending data to cloud-based storage and retrieving data from that storage is a common task in data engineering.
+Writing data to cloud-based storage and reading data from that storage is a common task in data engineering.
 In this guide we'll learn how to use Prefect to move data to and from AWS, Azure, and GCP blob storage.
 
 ## Prerequisites
