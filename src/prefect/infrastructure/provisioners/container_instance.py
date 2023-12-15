@@ -669,8 +669,9 @@ class ContainerInstancePushProvisioner:
             registry: The registry to grant access to.
         """
         command = (
-            f"az role assignment create --assignee {identity['principalId']} --scope"
-            f" {registry['id']} --role AcrPull --subscription {subscription_id}"
+            "az role assignment create --assignee-object-id"
+            f" {identity['principalId']} --assignee-principal-type ServicePrincipal"
+            f" --scope {registry['id']} --role AcrPull --subscription {subscription_id}"
         )
         await self.azure_cli.run_command(
             command,
@@ -830,18 +831,10 @@ class ContainerInstancePushProvisioner:
                     "The prefix must be alphanumeric and between 3-50 characters.",
                     style="red",
                 )
-        while True:
-            self._identity_name = prompt(
-                "Please enter a name for the identity (used for ACR access)",
-                default=self._identity_name,
-            )
-            if self._validate_user_input(self._identity_name):
-                break
-            else:
-                self._console.print(
-                    "The identity name must be alphanumeric and at least 3 characters.",
-                    style="red",
-                )
+        self._identity_name = prompt(
+            "Please enter a name for the identity (used for ACR access)",
+            default=self._identity_name,
+        )
         self._credentials_block_name = prompt(
             "Please enter a name for the ACI credentials block",
             default=self._credentials_block_name,
