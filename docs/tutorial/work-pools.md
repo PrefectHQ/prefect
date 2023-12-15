@@ -1,12 +1,11 @@
 ---
-description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution with work pools.
+description: Learn how Prefect deployments can be configured for scheduled and remote execution with work pools.
 tags:
     - work pools
     - orchestration
     - flow runs
     - deployments
     - schedules
-    - triggers
     - tutorial
 search:
   boost: 2
@@ -25,16 +24,16 @@ Work pools are a bridge between the Prefect orchestration layer and infrastructu
 To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
 
 !!! tip "[Choosing Between `flow.deploy()` and `flow.serve()`](/concepts/deployments/#two-approaches-to-deployments)"
-    The earlier section discussed the `serve` approach.
+    Earlier in the tutorial you used `serve` to deploy your flows.
     For many use cases, `serve` is sufficient to meet scheduling and orchestration needs.
     Work pools are **optional**.
-    Just remember, if infrastructure needs escalate, work pools can become a handy tool.
+    If infrastructure needs escalate, work pools can become a handy tool.
     The best part?
     You're not locked into one method.
     You can seamlessly combine approaches as needed.
 
 !!! note "Deployment definition methods differ slightly for work pools"
-    If you choose to use work-pool-based execution, the way you define deployments will be different.
+    When you use work-pool-based execution, you define deployments differently.
     Deployments for workers are configured with `deploy`, which requires additional configuration.
     A deployment created with `serve` cannot be used with a work pool.
 
@@ -49,26 +48,24 @@ Other advantages to using work pools include:
 - Work pools can be used to prioritize (or limit) flow runs through the use of [work queues](/concepts/work-pools/#work-queues).
 
 Prefect provides several [types of work pools](/concepts/work-pools/#work-pool-types).
-Prefect Cloud provides a Prefect Managed work pool option that is the easiest to get started with.
-No cloud-provider account, such as AWS, is required.
-
-The [Managed Execution guide](/guides/managed-execution/) provides more details.
+Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to deploy remote workflows.
+A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
 ## Set up a work pool
 
 ### Create a Prefect Managed work pool
 
-In your terminal, run the following command to set up a **Docker** type work pool.
+In your terminal, run the following command to set up a work pool named `my-managed-pool` of type `prefect:managed`.
 
 <div class="terminal">
 
 ```bash
-prefect work-pool create --type docker my-docker-pool
+prefect work-pool create my-managed-pool --type prefect:managed 
 ```
 
 </div>
 
-Let’s confirm that the work pool was successfully created by running the following command in the same terminal. You should see your new `my-docker-pool` in the output list.
+Let’s confirm that the work pool was successfully created by running the following command.
 
 <div class="terminal">
 
@@ -78,11 +75,13 @@ prefect work-pool ls
 
 </div>
 
-Finally, let’s double check that you can see this work pool in your Prefect UI.
+You should see your new `my-managed-pool` in the output list.
 
-Navigate to the Work Pools tab and verify that you see `my-managed-pool` listed.
+Finally, let’s double check that you can see this work pool in the UI.
 
-Now that you’ve set up your work pool, we have what we need to kick off and execute flow runs of flows deployed to this work pool.
+Navigate to the **Work Pools** tab and verify that you see `my-managed-pool` listed.
+
+Now that you’ve set up your work pool, we can create a deployment that is tied to this work pool.
 Let's deploy your tutorial flow to `my-managed-pool`.
 
 ## Create the deployment
@@ -92,13 +91,13 @@ From our previous steps, we now have:
 1. [A flow](/tutorial/flows/)
 2. A work pool
 
-Now it’s time to put it all together. We're going to update our `repo_info.py` file so it will build a Docker image and update our deployment so our worker can execute it.
+Now it’s time to put it all together.
+We're going to update our `repo_info.py` file to create a deployment in Prefect Cloud.
 
 The updates that you need to make to `repo_info.py` are:
 
 1. Change `flow.serve` to `flow.deploy`.
 2. Tell `flow.deploy` which work pool to deploy to.
-3. Tell `flow.deploy` the name to use for the Docker image it builds.
 
 Here's what the updated `repo_info.py` looks like:
 
@@ -121,9 +120,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
 if __name__ == "__main__":
     get_repo_info.deploy(
         name="my-first-deployment", 
-        work_pool_name="my-docker-pool", 
-        image="my-first-deployment-image:tutorial",
-        push=False
+        work_pool_name="my-managed-pool", 
     )
 ```
 
