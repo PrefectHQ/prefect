@@ -12,7 +12,7 @@ search:
   boost: 2
 ---
 
-# Running flows with Docker
+# Running Flows with Docker
 
 In the [Deployments](/tutorial/deployments/) tutorial, we looked at serving a flow that enables scheduling or creating flow runs via the Prefect API.
 

@@ -4,7 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -63,6 +63,7 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
     pause_key: str = None
+    run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
 
 

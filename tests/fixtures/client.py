@@ -40,7 +40,7 @@ def flow_function_dict_parameter():
     return client_test_flow_dict_parameter
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def test_block():
     class x(Block):
         _block_type_slug = "x-fixture"

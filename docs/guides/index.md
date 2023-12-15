@@ -1,6 +1,6 @@
 ---
 description: Learn how to do common workflows with Prefect.
-title: Guides
+title: How-to Guides
 tags:
     - guides
     - how to
@@ -8,9 +8,9 @@ search:
   boost: 2
 ---
 
-# Guides
+# How-to Guides
 
-This section of the documentation contains guides for common workflows and use cases.
+This section of the documentation contains how-to guides for common workflows and use cases.
 
 ## Development
 
@@ -37,8 +37,9 @@ This section of the documentation contains guides for common workflows and use c
 | [Moving Data](/guides/moving-data/) | Move data to and from cloud providers.  |
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
+| [Managed Execution](/guides/managed-execution/) | Let prefect run your code. |
 
-## Workers and agents
+## Work Pools
 
 | Title                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -46,9 +47,9 @@ This section of the documentation contains guides for common workflows and use c
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from agents to workers. |
 | [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
-| [Push Work Pools](/guides/deployment/push-work-pools/) | Run flows on serverless infrastructure without a worker. |
-| [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) | Run flows on AWS ECS. |
-| [Azure Container Instances](/guides/deployment/aci/) | Deploy flows to Azure Container Instances. |
+| [Serverless Push Work Pools](/guides/deployment/push-work-pools/) | Run flows on serverless infrastructure without a worker. |
+| [Serverless Work Pools with Workers](/guides/deployment/serverless-workers/) | Run flows on serverless infrastructure with a worker. |
+| [Automatic infrastructure provisioning](/guides/deployment/auto-infra/) | Automatically provision cloud infrastructure. |
 | [Daemonize Processes](/guides/deployment/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
 
