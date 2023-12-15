@@ -81,6 +81,12 @@ Finally, let’s double check that you can see this work pool in the UI.
 
 Navigate to the **Work Pools** tab and verify that you see `my-managed-pool` listed.
 
+Feel free to select **Edit** from the three-dot menu on right of the work pool card to view the details of your work pool.
+
+Work pools contain configuration that is used to provision infrastructure for flow runs.
+For example, you can specify additional Python packages or environment variables that should be set for all deployments that use this work pool.
+Note that individual deployments can override the work pool configuration.
+
 Now that you’ve set up your work pool, we can create a deployment that is tied to this work pool.
 Let's deploy your tutorial flow to `my-managed-pool`.
 
@@ -91,17 +97,16 @@ From our previous steps, we now have:
 1. [A flow](/tutorial/flows/)
 2. A work pool
 
-Now it’s time to put it all together.
-We're going to update our `repo_info.py` file to create a deployment in Prefect Cloud.
+Let's update our `repo_info.py` file to create a deployment in Prefect Cloud.
 
-The updates that you need to make to `repo_info.py` are:
+The updates that we need to make to `repo_info.py` are:
 
 1. Change `flow.serve` to `flow.deploy`.
 2. Tell `flow.deploy` which work pool to deploy to.
 
 Here's what the updated `repo_info.py` looks like:
 
-```python hl_lines="17-22" title="repo_info.py"
+```python hl_lines="17-23" title="repo_info.py"
 import httpx
 from prefect import flow
 
@@ -118,18 +123,37 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
 
 
 if __name__ == "__main__":
-    get_repo_info.deploy(
+    get_repo_info.from_source(
+        source="TK https://github.com/desertaxle/demo.git", 
+        entrypoint="flow.py:my_flow")
+    .deploy(
         name="my-first-deployment", 
         work_pool_name="my-managed-pool", 
     )
 ```
 
-!!! note "Why the `push=False`?"
-    For this tutorial, your Docker worker is running on your machine, so we don't need to push the image built by `flow.deploy` to a registry. When your worker is running on a remote machine, you will need to push the image to a registry that the worker can access.
+In the `from_source` method, we specify the source of our flow code.
 
-    Remove the `push=False` argument, include your registry name, and ensure you've [authenticated with the Docker CLI](https://docs.docker.com/engine/reference/commandline/login/) to push the image to a registry.
+You can store your flow code in any of several types of remote storage.
+In this example, we use a GitHub repository, but you could use a Docker image, as you'll see in an upcoming section of the tutorial.
+Alternatively, you could store your flow code in cloud provider storage such as AWS S3, or within a different git-based cloud provider such as GitLab or Bitbucket.
 
-Now that you've updated your script, you can run it to deploy your flow to the work pool:
+!!! note
+    In the example above, we store our code in a GitHub repository.
+    If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
+
+In the `deploy` method, we specify the name of our deployment and the name of the work pool that we created earlier.
+
+Run the script again and you should see a message in the CLI that your deployment was created with instructions for how to run it.
+
+Navigate to your Prefect Cloud UI and view your new deployment.
+Click the "Run" button to trigger a run of your deployment.
+
+Because this deployment was configured with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
+
+View the logs in the UI.
+
+Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
 
 <div class="terminal">
 
@@ -138,43 +162,6 @@ python repo_info.py
 ```
 
 </div>
-
-Prefect will build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run.
-
-!!! note "What Dockerfile?"
-    In this example, Prefect generates a Dockerfile for you that will build an image based off of one of Prefect's published images. The generated Dockerfile will copy the current directory into the Docker image and install any dependencies listed in a `requirements.txt` file.
-
-    If you want to use a custom Dockerfile, you can specify the path to the Dockerfile using the `DeploymentImage` class:
-
-    ```python hl_lines="21-25" title="repo_info.py"
-    import httpx
-    from prefect import flow
-    from prefect.deployments import DeploymentImage
-
-
-    @flow(log_prints=True)
-    def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-        url = f"https://api.github.com/repos/{repo_name}"
-        response = httpx.get(url)
-        response.raise_for_status()
-        repo = response.json()
-        print(f"{repo_name} repository statistics 🤓:")
-        print(f"Stars 🌠 : {repo['stargazers_count']}")
-        print(f"Forks 🍴 : {repo['forks_count']}")
-
-
-    if __name__ == "__main__":
-        get_repo_info.deploy(
-            name="my-first-deployment", 
-            work_pool_name="my-docker-pool", 
-            image=DeploymentImage(
-                name="my-first-deployment-image",
-                tag="tutorial",
-                dockerfile="Dockerfile"
-            ),
-            push=False
-        )
-    ```
 
 Now everything is set up for us to submit a flow-run to the work pool:
 
@@ -186,15 +173,14 @@ prefect deployment run 'get_repo_info/my-deployment'
 
 </div>
 
-!!! danger "Common Pitfall"
-    - Store and run your deploy scripts at the **root of your repo**, otherwise the built Docker file may be missing files that it needs to execute!
+Prefect Managed work pools are a great way to get started with work pools.
 
-If you need additional customization in you Docker image, compute environment, or other infrastructure, you can use a push work pool.
-Serverless push work pools scale infinitely and are a great option for many production workloads.
+Many users will find that they need more control over the infrastructure that their flows run on.
+Prefect Cloud's push work pools are a great option in cases where you need more control over your infrastructure.
 
 ## Push work pools with automatic infrastructure provisioning
 
-Push work pools are great.
+Serverless push work pools scale infinitely and are a great option for many production workloads.
 
 Setting up the cloud provider pieces for infrastructure can be tricky and time consuming.
 
