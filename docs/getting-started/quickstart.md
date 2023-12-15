@@ -142,19 +142,14 @@ You should see logs from the flow run in the CLI and the UI that look similar to
 </div>
 
 !!! tip "Getting started tips"
-    - You can call your flow function directly like any other Python function and its execution will be registered and monitored with the Prefect API and visible in the UI
-    - [Flows](/concepts/flows) can be called inside of other flows (Prefect designates these ["subflows"](/concepts/flows/#composing-flows)) but a task _cannot_ be run inside of another task or from outside the context of a flow
-    - Elevating a flow to a [deployment](/concepts/deployments/) exposes a Prefect-backed API for remotely managing and configuring your workflow with things such as [scheduling rules](/concepts/schedules/), [trigger rules](/cloud/automations/), and cancellation
-    - Deployments require that flow functions are defined in static files, and therefore calling the `serve` method on an interactively defined flow will raise an error
+    - You can call your flow function directly like any other Python function and its execution will be registered and monitored with the Prefect API and visible in the UI.
+    - [Flows](/concepts/flows) can be called inside of other flows (Prefect designates these ["subflows"](/concepts/flows/#composing-flows)), but a task _cannot_ be run inside of another task or from outside the context of a flow.
+    - Elevating a flow to a [deployment](/concepts/deployments/) exposes a Prefect-backed API for remotely managing and configuring your workflow with things such as [scheduling rules](/concepts/schedules/), [trigger rules](/cloud/automations/), and cancellation.
+    - Deployments require that flow functions are defined in static files, and therefore calling the `serve` method on an interactively defined flow will raise an error.
 
 ## Step 5: Add a schedule
 
-We can now configure our deployment as we like - for example, let's add a [schedule](/concepts/schedules/) to our deployment.  We could do this in one of two ways:
-
-- use the Prefect UI to create and attach the schedule
-- specify the schedule in code
-
-Let's update the script above to specify a schedule:
+We can now configure our deployment with additional options - for example, let's add a [schedule](/concepts/schedules/) to our deployment.  We could add a schedule via the Prefect UI or by adding an argument to the `serve` method. Let's update the script above to specify a cron schedule:
 
 ```python
 if __name__ == "__main__":
@@ -162,7 +157,7 @@ if __name__ == "__main__":
     repo_info.serve(name="my-first-deployment", cron="0 0 * * *")
 ```
 
-Once run, this will create a cron schedule for our deployment that instructs it to run at noon every day. When you stop this script, Prefect will automatically pause your deployment's schedule for you.
+Running our script will create a cron schedule for our deployment so that it runs every day at noon. When you stop the running script, Prefect will automatically pause your deployment's schedule.
 
 ![Deployment schedule](/img/ui/deployment-cron-schedule.png)
 
