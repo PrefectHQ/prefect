@@ -104,7 +104,7 @@ Now the result of the task will be written to S3, rather than stored in memory.
 To save memory and time with big data, you don't need to pass results between tasks at all.
 Instead, you can write and read data to disk directly in your flow code.
 Prefect has integration libraries for each of the major cloud providers.
-Each library contains blocks with methods that make it convenient to read and write data.
+Each library contains blocks with methods that make it convenient to read and write data to and from cloud object storage.
 The [moving data guide](/guides/moving-data/) has step-by-step examples for each cloud provider.
 
 ### Cache task results
