@@ -72,7 +72,7 @@ if __name__ == "__main__":
 ```
 
 Introspection can take significant time when the object being passed is a large collection, such as dictionary or DataFrame, where each element needs to be visited.
-Note that using `quote` improves performance at the expense of disabling task dependency tracking for the wrapped object.
+Note that using `quote` reduces execution time at the expense of disabling task dependency tracking for the wrapped object.
 
 ### Write task results to cloud storage
 
