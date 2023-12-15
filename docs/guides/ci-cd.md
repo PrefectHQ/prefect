@@ -199,7 +199,7 @@ The following examples use GitHub Actions and can be adapted to other CI/CD tool
 
 ## Prefect GitHub Actions
 
-Prefect provides its own GitHub Actions for [auth](https://github.com/PrefectHQ/actions-prefect-auth) and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). These actions can simplify deploying with CI/CD when using `prefect.yaml`, especially in cases where a repository contains flows that are used in multiple deployments across multiple Prefect Cloud workspaces. Integrating these actions with the earlier example cloud look as follows:
+Prefect provides its own GitHub Actions for [auth](https://github.com/PrefectHQ/actions-prefect-auth) and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). These actions can simplify deploying with CI/CD when using `prefect.yaml`, especially in cases where a repository contains flows that are used in multiple deployments across multiple Prefect Cloud workspaces. Integrating these actions with the earlier example could look as follows:
 
 ```yaml
 name: Deploy Prefect flow
