@@ -77,7 +77,7 @@ Note that using `quote` reduces execution time at the expense of disabling task 
 ### Write task results to cloud storage
 
 By default, the results of task runs are stored in memory in your execution environment.
-This behavior helps make flow runs fast for small data, but can be problematic for large data.
+This behavior makes flow runs fast for small data, but can be problematic for large data.
 You can save memory by writing results to disk.
 In production, you'll generally want to write results to a cloud provider storage such as AWS S3.
 Prefect lets you to use a storage block from a Prefect cloud integration library such as [prefect-aws](https://prefecthq.github.io/prefect-aws/) to save your configuration information.
