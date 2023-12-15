@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
+import anyio
 import pendulum
 import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
@@ -60,7 +61,9 @@ def shutdown(runner) -> int:
     return _shutdown
 
 
-async def _build_endpoint_for_deployment(deployment: "Deployment"):
+async def _build_endpoint_for_deployment(
+    deployment: "Deployment", runner: "Runner"
+) -> Callable:
     async def _create_flow_run_for_deployment(
         body: Optional[Dict[Any, Any]] = None
     ) -> JSONResponse:
@@ -80,6 +83,9 @@ async def _build_endpoint_for_deployment(deployment: "Deployment"):
             flow_run = await client.create_flow_run_from_deployment(
                 deployment_id=deployment.id, parameters=body
             )
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(runner.execute_flow_run, flow_run.id)
+
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={"flow_run_id": str(flow_run.id)},
@@ -101,7 +107,7 @@ async def get_deployment_router(
             deployment = await client.read_deployment(deployment_id)
             router.add_api_route(
                 f"/deployment/{deployment.id}/run",
-                await _build_endpoint_for_deployment(deployment),
+                await _build_endpoint_for_deployment(deployment, runner),
                 methods=["POST"],
             )
 

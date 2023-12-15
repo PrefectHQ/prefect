@@ -423,6 +423,16 @@ class Runner:
                 "Exception encountered while shutting down", exc_info=True
             )
 
+    async def _test(self, flow_run: "FlowRun") -> None:
+        """
+        Tests a flow run by running it in a subprocess.
+
+        Args:
+            flow_run: The flow run to test.
+        """
+        self._acquire_limit_slot(flow_run.id)
+        self._runs_task_group.start_soon(self._submit_run_and_capture_errors, flow_run)
+
     async def execute_flow_run(self, flow_run_id: UUID):
         """
         Executes a single flow run with the given ID.
@@ -1085,7 +1095,7 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
-        self._tmp_dir.mkdir(parents=True)
+        self._tmp_dir.mkdir(parents=True, exist_ok=True)
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
