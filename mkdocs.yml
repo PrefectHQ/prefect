@@ -274,6 +274,9 @@ nav:
                       - "work_pool": api-ref/prefect/cli/work_pool.md
                       - "work_queue": api-ref/prefect/cli/work_queue.md
                       - "worker": api-ref/prefect/cli/worker.md
+                - "prefect.input":
+                      - "actions": api-ref/prefect/input/actions.md
+                      - "run_input": api-ref/prefect/input/run_input.md
                 - "prefect.utilities":
                       - "annotations": api-ref/prefect/utilities/annotations.md
                       - "asyncutils": api-ref/prefect/utilities/asyncutils.md
