@@ -33,7 +33,7 @@ You can create secrets for GitHub Actions in your repository under **Settings ->
 
 ![Creating a GitHub Actions secret](/img/guides/github-secrets.png)
 
-### Writing a GitHub Workflow
+### Writing a GitHub workflow
 
 To deploy your flow via GitHub Actions, you'll need a workflow YAML file. GitHub will look for workflow YAML files in the `.github/workflows/` directory in the root of your repository. In their simplest form, GitHub workflow files are made up of triggers and jobs.
 
