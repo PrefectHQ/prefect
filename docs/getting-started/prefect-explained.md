@@ -13,16 +13,17 @@ search:
 
 Prefect is a Pythonic framework for orchestrating and observing workflows.
 
-You install the [`prefect` package](/getting-started/installation/) to gain access to the Prefect Python SDK and CLI commands.
+You install the [`prefect` package](/getting-started/installation/) to gain access to the Prefect client that contains the Python SDK and CLI commands.
 
-When you install Prefect you gain the ability to run a [self-hosted server instance](/guides/host/) backed by SQLite or PostgreSQL.
-Alternatively, you can use the [Prefect Cloud platform](/cloud/) that provides additional features and benefits useful for teams and production workloads.
+The Prefect client talks to a Prefect server - either the managed [Prefect Cloud platform](/cloud/) or a [self-hosted server instance](/guides/host/) backed by SQLite or PostgreSQL.
+
+Prefect Cloud provides [free and paid plans](https://www.prefect.io/pricing) with additional features useful for teams and production workloads.
 
 Both a self-hosted server and Prefect Cloud provide a UI for visualizing and managing your workflows.
 
 ![Cloud Dashboard](/img/ui/cloud-dashboard.png)
 
-Here are the three major concepts you need to know to get started building production workflows with Prefect:
+Here are the three major concepts you need to know to build a production workflow with Prefect:
 
 - Flows
 - Deployments
@@ -33,29 +34,36 @@ Here are the three major concepts you need to know to get started building produ
 A Prefect [flow](/concepts/flows/) is a Python function that defines a workflow and is decorated by `@flow`.
 When this function runs, Prefect can track the state of the workflow and visualize it in the UI.
 
+As shown below, when a flow is referenced as the entrypoint in a deployment it can be scheduled.
+
 ![Dependency graph in the UI](/img/ui/dependency-graph.png)
+
+A flow is defined in Python code, stored in the location specified in a deployment, and represented on the server.
 
 ## Work pools
 
 A [work pool](/concepts/work-pools/) provides presets for infrastructure.
 The work pool type could be a local subprocess, a Docker container, a Kubernetes cluster, or serverless cloud infrastructure such as AWS ECS, Google Cloud Run, VertexAI, or Azure Container Instances.
-Prefect Cloud provides two special work pool categories: managed execution and push work pools on serverless cloud infrastructure( ECS, Google Cloud Run, or Azure Container Instances).
+Prefect Cloud provides two special work pool categories: Prefect managed work pools and push work pools on serverless cloud infrastructure (ECS, Google Cloud Run, or Azure Container Instances).
 
-Work pools exist on the server.
+Work pools are created in the UI or CLI and live on the server.
 
 ## Deployments
 
-Creating a [deployment](/concepts/deployments/) makes your flow schedulable. The deployment contains metadata needed to run the flow in production.
+Creating a [deployment](/concepts/deployments/) makes your flow schedulable.
+The deployment contains metadata needed to run the flow in production.
 
-A deployment specifies a single entrypoint flow function, a deployment name, a work pool, and the location of the flow code to be pulled at runtime.
+A [deployment specifies](/guides/prefect-deploy/) a single entrypoint flow function, a deployment name, a work pool, and the location of the flow code to be pulled at runtime.
 
 Flow code storage options include a Docker registry with the flow code baked into an image, git-based storage such as a GitHub repository, or cloud-provider storage such as AWS S3.
 
-Deployments live on the server.
+Deployments are created in Python code with `deploy`, via the CLI interactively with `prefect deploy`, or applied from a `prefect.yaml` file. Deployments live on the server.
 
-To run a deployment, you can create an ad-hoc run from the UI or CLI, add a programmatic schedule (such as cron), or trigger a run via an [automation](#automations).
+To schedule a deployment run, you can create an ad-hoc run from the UI or CLI, add a programmatic schedule (such as cron), or create an [automation](#automations) so that the deployment runs in response to a trigger.
 
-## Other Prefect concepts you might find useful
+## Other Prefect concepts
+
+The following Prefect-specific concepts are very commonly used, but are not essential to understand for all production workflows.
 
 - Tasks
 - Workers
@@ -64,7 +72,7 @@ To run a deployment, you can create an ad-hoc run from the UI or CLI, add a prog
 
 ### Tasks
 
-Functions that are called within a flow can be decorated with `@task` to make them Prefect [tasks](/concepts/tasks/).
+Python functions that are called within a flow can be decorated with `@task` to make them Prefect [tasks](/concepts/tasks/).
 Turning a function into a task unlocks a number of Prefect features, including:
 
 - logging
@@ -73,29 +81,38 @@ Turning a function into a task unlocks a number of Prefect features, including:
 - result persistence
 - simple parallelization and concurrency
 
+Tasks are defined in Python code and represented on the server.
+Tasks currently must be called from a flow.
+
 ### Workers
 
-Some work pool types require a worker to be running on your infrastructure in order to execute flows.
-If you're using Prefect Cloud with a [Prefect managed work pool](/guides/managed-execution/) or a [serverless push work pool](/guides/deployment/push-work-pools/), you don't need to bother with workers.
+Hybrid work pools require a worker to be running on your infrastructure in order to execute flows.
 A worker is a light-weight client-side process that runs on your infrastructure and polls a matching work pool for scheduled deployment runs.
 The worker sets up the infrastructure and monitors the flow run.
 
-Workers live on your infrastructure.
+If you're using Prefect Cloud with a [Prefect managed work pool](/guides/managed-execution/) or a [push work pool](/guides/deployment/push-work-pools/), you don't need a worker.
+
+Workers are started in the CLI and live on your infrastructure.
 
 ### Automations
 
 Prefect Cloud provides [automations](/concepts/automations/) to create event-driven workflows and notifications.
 Automations contain a trigger event and a subsequent action.
-Trigger types include events emitted by webhooks, flow runs states, and custom events defined in Python code.
+Trigger events might be emitted by webhooks, flow runs states, or custom events defined in Python code.
+The absence of an event can also be set as a trigger.
 
-Automations live on Prefect Cloud.
+![Crating an automation form UI](/img/ui/automations-trigger.png)
+
+Automations are created in the UI and live on Prefect Cloud.
 
 ### Blocks
 
 Prefect [block types](/concepts/blocks/) are Python classes that contain configuration and code.
 They provide a pre-build web interface for creation and can be created and used in code.
 
-Blocks live on the server.
+![Create a block UI view](/img/ui/block-library.png)
+
+Blocks can be created from in Python code or in the UI live on the server.
 
 ## Next steps
 

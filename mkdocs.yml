@@ -135,6 +135,7 @@ nav:
     - Getting Started:
           - index.md
           - Installation: getting-started/installation.md
+          - Prefect Explained: getting-started/prefect-explained.md
           - Quickstart: getting-started/quickstart.md
     - Tutorial:
           - tutorial/index.md
