@@ -34,7 +34,7 @@ graph TD
     subgraph flow_run_infra[Flow Run Infra]
      flow_run_a(("Flow Run A"))
     end
-                subgraph flow_run_infra_2[Flow Run Infra]
+    subgraph flow_run_infra_2[Flow Run Infra]
      flow_run_b(("Flow Run B"))
     end      
     end
