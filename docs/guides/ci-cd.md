@@ -15,7 +15,7 @@ Each organization has their own unique setup, but there are some common patterns
 This guide provides links to repositories and resources that may be helpful when setting up Prefect in your CI/CD pipeline.
 This guide is not meant to be exhaustive, but should provide you with jumping off points for your own setup.
 
-Note that Prefect's `.deploy` flow method and `prefect.yaml` configuration file are both designed with building and pushing images to a registry in mind.
+Note that Prefect's `.deploy` flow method and `prefect.yaml` configuration file are both designed with building and pushing images to a Docker registry in mind.
 
 ## Getting started with GitHub Actions and Prefect
 
