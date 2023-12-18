@@ -10,7 +10,7 @@ search:
 
 # CI/CD with Prefect
 
-Prefect is used by many organizations in CI/CD pipelines.
+Prefect is used by many organizations in their CI/CD pipelines.
 Each organization has their own unique setup, but there are some common patterns.
 This guide provides links to repositories and resources that may be helpful when setting up Prefect in your CI/CD pipeline.
 This guide is not meant to be exhaustive, but should provide you with jumping off points for your own setup.
