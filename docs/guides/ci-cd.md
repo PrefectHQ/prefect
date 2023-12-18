@@ -19,7 +19,7 @@ Note that Prefect's `.deploy` flow method and `prefect.yaml` configuration file 
 
 ## Getting started with GitHub Actions and Prefect
 
-In this example, you'll write a GitHub Actions workflow that will run each time you push to your repository's `main` branch. This workflow will build and push a Docker image containing your flow code to DockerHub, then deploy the flow to Prefect Cloud.
+In this example, you'll write a GitHub Actions workflow that will run each time you push to your repository's `main` branch. This workflow will build and push a Docker image containing your flow code to Docker Hub, then deploy the flow to Prefect Cloud.
 
 ### Repository secrets
 
@@ -187,16 +187,6 @@ The `deploy` job is comprised of four `steps`:
               prefect deploy -n my-deployment
     ```
 
-## Additional examples
-
-The following examples use GitHub Actions and can be adapted to other CI/CD tools.
-
-| Description | Link |
-| --- | --- |
-| Deploy an image to AWS ECR when pushing to main. Uses `.deploy`  | [repo_link]()  |
-| Deploy an image to AWS ECR when pushing to main. Uses `prefect.yaml`  | [repo_link]()  |
-
-
 ## Prefect GitHub Actions
 
 Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth) and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). These actions can simplify deploying with CI/CD when using `prefect.yaml`, especially in cases where a repository contains flows that are used in multiple deployments across multiple Prefect Cloud workspaces. 
@@ -243,6 +233,18 @@ jobs:
           deployment-names: my-deployment
           requirements-file-paths: requirements.txt
 ```
+
+## Additional examples
+
+The following examples use GitHub Actions and can be adapted to other CI/CD tools.
+
+| Description | Link |
+| --- | --- |
+| Deploy an image to AWS ECR when pushing to main. Uses `.deploy`  | [repo_link]()  |
+| Deploy an image to AWS ECR when pushing to main. Uses `prefect.yaml`  | [repo_link]()  |
+
+
+
 
 
 
