@@ -14,7 +14,7 @@ search:
 
     The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
 
-    If you encounter any issues, please let us know in Slack or with a Github issue.
+    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/)Slack or with a [Github](https://github.com/PrefectHQ/prefect) issue.
 
 
 When a flow run is paused or suspended, you can receive input from the user. This is useful when you need to ask the user for additional information or feedback before resuming the flow run.

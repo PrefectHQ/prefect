@@ -1026,7 +1026,7 @@ While the cancellation process is robust, there are a few issues than can occur:
     ```
     </div>
 
-    If you encounter any issues, please let us know in Slack or with a Github issue.
+    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/)Slack or with a [Github](https://github.com/PrefectHQ/prefect) issue.
 ### Cancel via the CLI
 
 From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run.
