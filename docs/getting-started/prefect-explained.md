@@ -109,6 +109,8 @@ Blocks can be created in Python code or in the UI live on the server.
 ## Prefect Cloud and a self-hosted server instance
 
 The Prefect client talks to a Prefect server - either the managed [Prefect Cloud platform](/cloud/) or a [self-hosted server instance](/guides/host/) backed by SQLite or PostgreSQL.
+You can interact with the server via the UI, CLI, or Python code.
+See the [API docs](/api-ref/) for more details.
 
 Prefect Cloud provides [free and paid plans](https://www.prefect.io/pricing) with additional features useful for teams and production workloads.
 
