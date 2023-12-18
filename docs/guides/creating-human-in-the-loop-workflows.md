@@ -1,5 +1,5 @@
 ---
-description: Learn how to receive input when a flow run is paused or suspended.
+description: Learn how to create human-in-the-loop workflows with Prefect.
 tags:
     - flow run
     - pause
@@ -9,7 +9,7 @@ search:
   boost: 2
 ---
 
-# Receiving input when pausing or suspending a flow run
+# Creating human in the loop workflows
 !!! warning "Experimental"
 
     The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
