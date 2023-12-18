@@ -14,9 +14,13 @@ search:
 Prefect is a Pythonic framework for orchestrating and observing workflows.
 
 You install the [`prefect` package](/getting-started/installation/) to gain access to the Prefect Python SDK and CLI commands.
-When you install Prefect you gain the ability to run a self-hosted server instance backed by SQLite or PostgreSQL.
+
+When you install Prefect you gain the ability to run a [self-hosted server instance](/guides/host/) backed by SQLite or PostgreSQL.
 Alternatively, you can use the [Prefect Cloud platform](/cloud/) that provides additional features and benefits useful for teams and production workloads.
+
 Both a self-hosted server and Prefect Cloud provide a UI for visualizing and managing your workflows.
+
+![Cloud Dashboard](/img/ui/cloud-dashboard.png)
 
 Here are the three major concepts you need to know to get started building production workflows with Prefect:
 
@@ -26,9 +30,10 @@ Here are the three major concepts you need to know to get started building produ
 
 ## Flows
 
-A Prefect flow is a Python function that defines a workflow and is decorated by `@flow`.
+A Prefect [flow](/concepts/flows/) is a Python function that defines a workflow and is decorated by `@flow`.
 When this function runs, Prefect can track the state of the workflow and visualize it in the UI.
-TK screenshot of a flow run.
+
+![Dependency graph in the UI](/img/ui/dependency-graph.png)
 
 ## Work pools
 
@@ -79,7 +84,7 @@ Workers live on your infrastructure.
 
 ### Automations
 
-Prefect Cloud provides automations to create event-driven workflows and notifications.
+Prefect Cloud provides [automations](/concepts/automations/) to create event-driven workflows and notifications.
 Automations contain a trigger event and a subsequent action.
 Trigger types include events emitted by webhooks, flow runs states, and custom events defined in Python code.
 
@@ -87,7 +92,7 @@ Automations live on Prefect Cloud.
 
 ### Blocks
 
-Prefect block types are Python classes that contain configuration and code.
+Prefect [block types](/concepts/blocks/) are Python classes that contain configuration and code.
 They provide a pre-build web interface for creation and can be created and used in code.
 
 Blocks live on the server.
