@@ -153,7 +153,7 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.logging.configuration import setup_logging
@@ -410,16 +410,28 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
-    try:
-        flow = await load_flow_from_flow_run(flow_run, client=client)
-    except Exception:
-        message = "Flow could not be retrieved from deployment."
-        flow_run_logger(flow_run).exception(message)
-        state = await exception_to_failed_state(message=message)
-        await client.set_flow_run_state(
-            state=state, flow_run_id=flow_run_id, force=True
-        )
-        return state
+    if entrypoint := os.environ.get("PREFECT__FLOW_ENTRYPOINT"):
+        try:
+            flow = load_flow_from_entrypoint(entrypoint)
+        except Exception:
+            message = "Flow could not be retrieved from entrypoint."
+            flow_run_logger(flow_run).exception(message)
+            state = await exception_to_failed_state(message=message)
+            await client.set_flow_run_state(
+                state=state, flow_run_id=flow_run_id, force=True
+            )
+            return state
+    else:
+        try:
+            flow = await load_flow_from_flow_run(flow_run, client=client)
+        except Exception:
+            message = "Flow could not be retrieved from deployment."
+            flow_run_logger(flow_run).exception(message)
+            state = await exception_to_failed_state(message=message)
+            await client.set_flow_run_state(
+                state=state, flow_run_id=flow_run_id, force=True
+            )
+            return state
 
     # Update the flow run policy defaults to match settings on the flow
     # Note: Mutating the flow run object prevents us from performing another read
@@ -2802,6 +2814,8 @@ if __name__ == "__main__":
             f"Invalid flow run id. Received arguments: {sys.argv}", exc_info=True
         )
         exit(1)
+
+    flow_entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
     try:
         enter_flow_run_engine_from_subprocess(flow_run_id)

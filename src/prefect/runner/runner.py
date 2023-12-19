@@ -41,6 +41,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from contextlib import nullcontext
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
@@ -173,6 +174,7 @@ class Runner:
         )
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
+        self.loop = asyncio.get_event_loop()
 
     @sync_compatible
     async def add_deployment(
@@ -423,17 +425,9 @@ class Runner:
                 "Exception encountered while shutting down", exc_info=True
             )
 
-    async def _test(self, flow_run: "FlowRun") -> None:
-        """
-        Tests a flow run by running it in a subprocess.
-
-        Args:
-            flow_run: The flow run to test.
-        """
-        self._acquire_limit_slot(flow_run.id)
-        self._runs_task_group.start_soon(self._submit_run_and_capture_errors, flow_run)
-
-    async def execute_flow_run(self, flow_run_id: UUID):
+    async def execute_flow_run(
+        self, flow_run_id: UUID, entrypoint: Optional[str] = None
+    ):
         """
         Executes a single flow run with the given ID.
 
@@ -441,7 +435,9 @@ class Runner:
         the flow run process has exited.
         """
         self.pause_on_shutdown = False
-        async with self:
+        context = self if not self.started else nullcontext()
+
+        async with context:
             if not self._acquire_limit_slot(flow_run_id):
                 return
 
@@ -451,7 +447,12 @@ class Runner:
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
                     pid = await self._runs_task_group.start(
-                        self._submit_run_and_capture_errors, flow_run
+                        partial(
+                            self._submit_run_and_capture_errors,
+                            flow_run=flow_run,
+                            task_status=None,
+                            entrypoint=entrypoint,
+                        )
                     )
 
                     self._flow_run_process_map[flow_run.id] = dict(
@@ -488,7 +489,9 @@ class Runner:
         self,
         flow_run: "FlowRun",
         task_status: Optional[anyio.abc.TaskStatus] = None,
+        entrypoint: Optional[str] = None,
     ):
+        print(entrypoint)
         """
         Runs the given flow run in a subprocess.
 
@@ -521,6 +524,7 @@ class Runner:
                 "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
             }
+            | ({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {})
         )
         env.update(**os.environ)  # is this really necessary??
 
@@ -902,7 +906,10 @@ class Runner:
         self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
-        self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
+        self,
+        flow_run: "FlowRun",
+        task_status: anyio.abc.TaskStatus = None,
+        entrypoint: Optional[str] = None,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
@@ -910,6 +917,7 @@ class Runner:
             status_code = await self._run_process(
                 flow_run=flow_run,
                 task_status=task_status,
+                entrypoint=entrypoint,
             )
         except Exception as exc:
             if not task_status._future.done():

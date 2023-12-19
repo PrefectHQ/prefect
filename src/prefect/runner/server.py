@@ -1,13 +1,16 @@
+import asyncio
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
-import anyio
 import pendulum
 import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.responses import JSONResponse
 
 from prefect.client.orchestration import get_client
-from prefect.runner.utils import inject_schemas_into_openapi
+from prefect.runner.utils import (
+    _find_subflows_of_deployment,
+    inject_schemas_into_openapi,
+)
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -20,7 +23,8 @@ from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.validation import validate_values_conform_to_schema
 
 if TYPE_CHECKING:
-    from prefect.deployments import Deployment
+    from prefect import Flow
+    from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
 
@@ -62,7 +66,7 @@ def shutdown(runner) -> int:
 
 
 async def _build_endpoint_for_deployment(
-    deployment: "Deployment", runner: "Runner"
+    deployment: "DeploymentResponse", runner: "Runner"
 ) -> Callable:
     async def _create_flow_run_for_deployment(
         body: Optional[Dict[Any, Any]] = None
@@ -83,8 +87,11 @@ async def _build_endpoint_for_deployment(
             flow_run = await client.create_flow_run_from_deployment(
                 deployment_id=deployment.id, parameters=body
             )
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(runner.execute_flow_run, flow_run.id)
+        future = asyncio.run_coroutine_threadsafe(
+            runner.execute_flow_run(flow_run.id), runner.loop
+        )
+
+        future.result()
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -94,7 +101,6 @@ async def _build_endpoint_for_deployment(
     return _create_flow_run_for_deployment
 
 
-@sync_compatible
 async def get_deployment_router(
     runner: "Runner",
 ) -> Tuple[APIRouter, Dict[str, Dict]]:
@@ -114,6 +120,60 @@ async def get_deployment_router(
             # Used for updating the route schemas later on
             schemas[deployment.name] = deployment.parameter_openapi_schema
             schemas[deployment.id] = deployment.name
+    return router, schemas
+
+
+async def _build_endpoint_for_flow(
+    flow: "Flow", runner: "Runner", entrypoint: str
+) -> Callable:
+    async def _create_flow_run_for_flow(
+        body: Optional[Dict[Any, Any]] = None
+    ) -> JSONResponse:
+        body = body or {}
+        if flow.enforce_parameter_schema and flow.parameter_openapi_schema:
+            try:
+                validate_values_conform_to_schema(body, flow.parameter_openapi_schema)
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error creating flow run: {exc}",
+                )
+
+        async with get_client() as client:
+            flow_run = await client.create_flow_run(flow=flow, parameters=body)
+
+        future = asyncio.run_coroutine_threadsafe(
+            runner.execute_flow_run(flow_run.id, entrypoint), runner.loop
+        )
+
+        future.result()
+
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"flow_run_id": str(flow_run.id)},
+        )
+
+    return _create_flow_run_for_flow
+
+
+async def get_subflow_router(
+    runner: "Runner",
+) -> Tuple[APIRouter, Dict[str, Dict]]:
+    from prefect import get_client
+
+    router = APIRouter()
+    schemas = {}
+    async with get_client() as client:
+        for deployment_id in runner._deployment_ids:
+            deployment = await client.read_deployment(deployment_id)
+            for entrypoint, subflow in await _find_subflows_of_deployment(deployment):
+                router.add_api_route(
+                    f"/flow/{subflow.id}/run",
+                    await _build_endpoint_for_flow(subflow, runner, entrypoint),
+                    methods=["POST"],
+                )
+                schemas[subflow.name] = subflow.parameter_openapi_schema
+                schemas[f"{subflow.id}"] = subflow.name
     return router, schemas
 
 
@@ -138,13 +198,16 @@ async def build_server(runner: "Runner") -> FastAPI:
 
     if PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
         deployments_router, deployment_schemas = await get_deployment_router(runner)
+        flows_router, flow_schemas = await get_subflow_router(runner)
         webserver.include_router(deployments_router)
+        webserver.include_router(flows_router)
 
         def customize_openapi():
             if webserver.openapi_schema:
                 return webserver.openapi_schema
 
             openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
+            openapi_schema = inject_schemas_into_openapi(webserver, flow_schemas)
             webserver.openapi_schema = openapi_schema
             return webserver.openapi_schema
 
