@@ -217,7 +217,7 @@ jobs:
 
       - name: Upload failure flag
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.create_failure_flag.outputs.artifact_name }}
           path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
@@ -407,7 +407,7 @@ jobs:
 
       - name: Upload failure flag
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.create_failure_flag.outputs.artifact_name }}
           path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
