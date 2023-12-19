@@ -359,6 +359,20 @@ class TestResolveBlockDocumentReferences:
         ):
             await resolve_block_document_references(template, client=prefect_client)
 
+    async def test_resolve_block_document_raises_on_non_existing_block_property(self):
+        await String(value="hello").save(name="string-block")
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Could not resolve the keypath:"
+                " prefect.blocks.string.string-block.does_not_exist"
+            ),
+        ):
+            await resolve_block_document_references(
+                {"key": "{{ prefect.blocks.string.string-block.does_not_exist }}"}
+            )
+
     async def test_resolve_block_document_references_does_not_change_standard_placeholders(
         self,
     ):
@@ -375,10 +389,10 @@ class TestResolveBlockDocumentReferences:
         await String(value="hello").save(name="string-block")
 
         template = {
-            "json": "{{ prefect.blocks.json.json-block.value }}",
-            "secret": "{{ prefect.blocks.secret.secret-block.value }}",
-            "datetime": "{{ prefect.blocks.date-time.datetime-block.value }}",
-            "string": "{{ prefect.blocks.string.string-block.value }}",
+            "json": "{{ prefect.blocks.json.json-block }}",
+            "secret": "{{ prefect.blocks.secret.secret-block }}",
+            "datetime": "{{ prefect.blocks.date-time.datetime-block }}",
+            "string": "{{ prefect.blocks.string.string-block }}",
         }
 
         result = await resolve_block_document_references(template)
