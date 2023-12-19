@@ -189,7 +189,7 @@ The `deploy` job is comprised of four `steps`:
 
 ### Running a GitHub workflow
 
-After pushing commits to your repository, GitHub will automatically detect and trigger a run of your workflow. The status of running and completed workflows can be monitored from the **Actions** tab of your repository.
+After pushing commits to your repository, GitHub will automatically trigger a run of your workflow. The status of running and completed workflows can be monitored from the **Actions** tab of your repository.
 
 ![A GitHub Action triggered via push](/img/guides/github-actions-trigger.png)
 
@@ -257,11 +257,11 @@ jobs:
           requirements-file-paths: requirements.txt
 ```
 
-## Authenticating to other image registries
+## Authenticating to other Docker image registries
 
 The `docker/login-action` GitHub Action supports pushing images to a wide variety of image registries.
 
-For example, if you are storing Docker images in AWS Elastic Container Registry, you can add your ECS registry information to the `registry` key to the `with:` part of the action and use an `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as your `username` and `password`.
+For example, if you are storing Docker images in AWS Elastic Container Registry, you can add your ECS registry information to the `registry` key in the `with:` part of the action and use an `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as your `username` and `password`.
 
 ```yaml
 - name: Login to ECR
