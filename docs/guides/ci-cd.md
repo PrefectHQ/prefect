@@ -42,7 +42,7 @@ The `on:` trigger is set to run the workflow each time a push occurs on the `mai
 The `deploy` job is comprised of four `steps`:
 
 - **`Checkout`** clones your repository into the GitHub Actions runner so you can reference files or run scripts from your repository in later steps.
-- **`Log in to Docker Hub`** authenticates to DockerHub so your image can be pushed to the Docker registry in your DockerHub account. [docker/login-action](https://github.com/docker/login-action) is an existing GitHub action maintained by Docker and is compatible with a wide range of image registry services. `with:` passes values into the Action, similar to passing parameters to a function.
+- **`Log in to Docker Hub`** authenticates to DockerHub so your image can be pushed to the Docker registry in your DockerHub account. [docker/login-action](https://github.com/docker/login-action) is an existing GitHub action maintained by Docker. `with:` passes values into the Action, similar to passing parameters to a function.
 - **`Setup Python`** installs your selected version of Python.
 - **`Prefect Deploy`** installs the dependencies used in your flow, then deploys your flow. `env:` makes the `PREFECT_API_KEY` and `PREFECT_API_URL` secrets from your repository available as environment variables during this step's execution.
 
@@ -189,7 +189,7 @@ The `deploy` job is comprised of four `steps`:
 
 ### Running a GitHub workflow
 
-After pushing commits to your repository, GitHub will automatically detect and trigger a run of your workflow.
+After pushing commits to your repository, GitHub will automatically detect and trigger a run of your workflow. The status of running and completed workflows can be monitored from the **Actions** tab of your repository.
 
 ![A GitHub Action triggered via push](/img/guides/github-actions-trigger.png)
 
@@ -255,6 +255,21 @@ jobs:
         with:
           deployment-names: my-deployment
           requirements-file-paths: requirements.txt
+```
+
+## Authenticating to other image registries
+
+The `docker/login-action` GitHub Action supports pushing images to a wide variety of image registries.
+
+For example, if you are storing Docker images in AWS Elastic Container Registry, you can add your ECS registry information to the `registry` key to the `with:` part of the action and use an `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as your `username` and `password`.
+
+```yaml
+- name: Login to ECR
+  uses: docker/login-action@v3
+  with:
+    registry: <aws-account-number>.dkr.ecr.<region>.amazonaws.com
+    username: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
 
 ## Other resources
