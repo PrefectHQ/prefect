@@ -359,20 +359,6 @@ class TestResolveBlockDocumentReferences:
         ):
             await resolve_block_document_references(template, client=prefect_client)
 
-    async def test_resolve_block_document_raises_on_non_existing_block_property(self):
-        await String(value="hello").save(name="string-block")
-
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Could not resolve the keypath:"
-                " prefect.blocks.string.string-block.does_not_exist"
-            ),
-        ):
-            await resolve_block_document_references(
-                {"key": "{{ prefect.blocks.string.string-block.does_not_exist }}"}
-            )
-
     async def test_resolve_block_document_references_does_not_change_standard_placeholders(
         self,
     ):
@@ -401,6 +387,25 @@ class TestResolveBlockDocumentReferences:
             "secret": "N1nj4C0d3rP@ssw0rd!",
             "datetime": "2020-01-01T00:00:00",
             "string": "hello",
+        }
+
+    async def test_resolve_block_document_system_block_resolves_dict_keypath(self):
+        # for backwards compatibility system blocks can be referenced directly
+        # they should still be able to access nested keys
+        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
+            name="json-block"
+        )
+        template = {
+            "value": "{{ prefect.blocks.json.json-block}}",
+            "keypath": "{{ prefect.blocks.json.json-block.key }}",
+            "nested_keypath": "{{ prefect.blocks.json.json-block.key.nested-key }}",
+        }
+
+        result = await resolve_block_document_references(template)
+        assert result == {
+            "value": {"key": {"nested-key": "nested_value"}},
+            "keypath": {"nested-key": "nested_value"},
+            "nested_keypath": "nested_value",
         }
 
     async def test_resolve_block_document_resolves_dict_keypath(self):
@@ -457,6 +462,13 @@ class TestResolveBlockDocumentReferences:
         }
         with pytest.raises(ValueError, match="Could not resolve the keypath"):
             await resolve_block_document_references(index_error_template)
+
+        await Webhook(url="https://example.com").save(name="webhook-block")
+        webhook_template = {
+            "webhook": "{{ prefect.blocks.webhook.webhook-block.value }}",
+        }
+        with pytest.raises(ValueError, match="Could not resolve the keypath"):
+            await resolve_block_document_references(webhook_template)
 
     async def test_resolve_block_document_resolves_block_attribute(self):
         await Webhook(url="https://example.com").save(name="webhook-block")

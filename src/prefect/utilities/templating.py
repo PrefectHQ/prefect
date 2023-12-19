@@ -220,6 +220,9 @@ async def resolve_block_document_references(
     <block_doc_prefix>.webhook.<block_name>.url
     ```
 
+    If the block is a system block (e.g. it only has a `value` attribute),
+    the `value` attribute will be resolved by default.
+
     Args:
         template: The template to resolve block documents in
 
@@ -265,6 +268,12 @@ async def resolve_block_document_references(
                 name=block_document_name, block_type_slug=block_type_slug
             )
             value = block_document.data
+
+            # resolving system blocks to their data for backwards compatibility
+            if len(value) == 1 and "value" in value:
+                # only resolve the value if the keypath is not already pointing to "value"
+                if len(value_keypath) == 0 or value_keypath[0][:5] != "value":
+                    value = value["value"]
 
             # resolving keypath/block attributes
             if len(value_keypath) > 0:
