@@ -18,7 +18,7 @@
     "axios": "1.6.2",
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.3.6",
-    "vue": "3.3.11",
+    "vue": "3.3.13",
     "vue-router": "4.2.5"
   },
   "devDependencies": {
