@@ -261,7 +261,7 @@ jobs:
 
 The `docker/login-action` GitHub Action supports pushing images to a wide variety of image registries.
 
-For example, if you are storing Docker images in AWS Elastic Container Registry, you can add your ECS registry information to the `registry` key in the `with:` part of the action and use an `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as your `username` and `password`.
+For example, if you are storing Docker images in AWS Elastic Container Registry, you can add your ECR information to the `registry` key in the `with:` part of the action and use an `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as your `username` and `password`.
 
 ```yaml
 - name: Login to ECR
