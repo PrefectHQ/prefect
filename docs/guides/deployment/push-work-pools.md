@@ -49,15 +49,85 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
 === "AWS ECS"
 
-    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html).
+    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html), and [set a default region](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods).
+
+    If you already have the AWS CLI installed, be sure to [update to the latest version](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions). 
+
+    You will need the following permissions in your authenticated AWS account:
+
+    IAM Permissions:
+
+    - iam:CreatePolicy
+    - iam:GetPolicy
+    - iam:ListPolicies
+    - iam:CreateUser
+    - iam:GetUser
+    - iam:AttachUserPolicy
+    - iam:CreateRole
+    - iam:GetRole
+    - iam:AttachRolePolicy
+    - iam:ListRoles
+    - iam:PassRole
+
+    Amazon ECS Permissions:
+
+    - ecs:CreateCluster
+    - ecs:DescribeClusters
+
+    Amazon EC2 Permissions:
+
+    - ec2:CreateVpc
+    - ec2:DescribeVpcs
+    - ec2:CreateInternetGateway
+    - ec2:AttachInternetGateway
+    - ec2:CreateRouteTable
+    - ec2:CreateRoute
+    - ec2:CreateSecurityGroup
+    - ec2:DescribeSubnets
+    - ec2:CreateSubnet
+    - ec2:DescribeAvailabilityZones
+    - ec2:AuthorizeSecurityGroupIngress
+    - ec2:AuthorizeSecurityGroupEgress
+
+    Amazon ECR Permissions:
+
+    - ecr:CreateRepository
+    - ecr:DescribeRepositories
+    - ecr:GetAuthorizationToken
+
+    If you want to use AWS managed policies, you can use the following:
+
+    - AmazonECS_FullAccess
+    - AmazonEC2FullAccess
+    - IAMFullAccess
+    - AmazonEC2ContainerRegistryFullAccess
+
+    Note that the above policies will give you all the permissions needed, but are more permissive than necessary.
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
 
 === "Azure Container Instances"
 
     Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticate with your Azure account](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli).
 
+    If you already have the Azure CLI installed, be sure to update to the latest version with `az upgrade`.
+
+    You will also need the following roles in your Azure subscription:
+
+    - Contributor
+    - User Access Administrator
+    - Application Administrator
+    - Managed Identity Operator
+    - Azure Container Registry Contributor
+
+    Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
 === "Google Cloud Run"
 
     Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
+
+    If you already have the gcloud CLI installed, be sure to update to the latest version with `gcloud components update`.
 
     You will also need the following permissions in your GCP project:
 
@@ -165,7 +235,7 @@ Here's the command to create a new push work pool and configure the necessary in
     </div>
 
     Using the `--provision-infra` flag will automatically set up your default Azure account to be ready to execute flows via Azure Container Instances.
-    In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Instance, if they don't already exist.
+    In your Azure account, this command will create a resource group, app registration, service account with necessary permission, generate a secret for the app registration, and create an Azure Container Registry, if they don't already exist.
     In your Prefect workspace, this command will create an [`AzureContainerInstanceCredentials` block](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) for storing the client secret value from the generated secret.
 
     Here's an abbreviated example output from running the command:
@@ -173,38 +243,71 @@ Here's the command to create a new push work pool and configure the necessary in
     <div class="terminal">
 
     ```bash
-    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-work-pool will require:                                              │
-    │                                                                                                                │
-    │     Updates in subscription Azure subscription 1                                                               │
-    │                                                                                                                │
-    │         - Create a resource group in location eastus                                                           │
-    │         - Create an app registration in Azure AD prefect-aci-push-pool-app                                     │
-    │         - Create/use a service principal for app registration                                                  │
-    │         - Generate a secret for app registration                                                               │
-    │         - Assign Contributor role to service account                                                           │
-    │         - Create Azure Container Instance 'aci-push-pool-container' in resource group prefect-aci-push-pool-rg │
-    │                                                                                                                │
-    │     Updates in Prefect workspace                                                                               │
-    │                                                                                                                │
-    │         - Create Azure Container Instance credentials block aci-push-pool-credentials                          │
-    │                                                                                                                │
-    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    Proceed with infrastructure provisioning? [y/n]: y
+    ╭───────────────────────────────────────────────────────────────────────────────────────────╮
+    │ Provisioning infrastructure for your work pool my-aci-work-pool will require:                     │
+    │                                                                                           │
+    │     Updates in subscription Azure subscription 1                                          │
+    │                                                                                           │
+    │         - Create a resource group in location eastus                                      │
+    │         - Create an app registration in Azure AD prefect-aci-push-pool-app                │
+    │         - Create/use a service principal for app registration                             │
+    │         - Generate a secret for app registration                                          │
+    │         - Create an Azure Container Registry with prefix prefect                          │
+    │         - Create an identity prefect-acr-identity to allow access to the created registry │
+    │         - Assign Contributor role to service account                                      │
+    │         - Create an ACR registry for image hosting                                        │
+    │         - Create an identity for Azure Container Instance to allow access to the registry │
+    │                                                                                           │
+    │     Updates in Prefect workspace                                                          │
+    │                                                                                           │
+    │         - Create Azure Container Instance credentials block aci-push-pool-credentials     │
+    │                                                                                           │
+    ╰───────────────────────────────────────────────────────────────────────────────────────────╯
+    Proceed with infrastructure provisioning? [y/n]:     
     Creating resource group
-    Provisioning infrastructure
     Creating app registration
     Generating secret for app registration
     Creating ACI credentials block
     ACI credentials block 'aci-push-pool-credentials' created in Prefect Cloud
     Assigning Contributor role to service account
-    Creating Azure Container Instance
+    Creating Azure Container Registry
+    Creating identity
     Provisioning infrastructure... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     Infrastructure successfully provisioned for 'my-aci-work-pool' work pool!
     Created work pool 'my-aci-work-pool'!
     ```
 
     </div>
+
+    !!! tip "Default Docker build namespace"
+        After infrastructure provisioning completes, you will be logged into your new Azure Container Registry and the default Docker build namespace will be set to the URL of the registry.
+
+        While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the registry.
+
+        To take advantage of this functionality, you can write your deploy scripts like this:
+
+        ```python hl_lines="14" title="example_deploy_script.py"
+        from prefect import flow                                                       
+        from prefect.deployments import DeploymentImage                                
+
+
+        @flow(log_prints=True)                                                         
+        def my_flow(name: str = "world"):                                              
+            print(f"Hello {name}! I'm a flow running on an Azure Container Instance!") 
+
+
+        if __name__ == "__main__":                                                     
+            my_flow.deploy(                                                            
+                name="my-deployment",
+                work_pool_name="my-work-pool",                                                
+                image=DeploymentImage(                                                 
+                    name="my-image:latest",                                            
+                    platform="linux/amd64",                                            
+                )                                                                      
+            )       
+        ```
+
+        This will build an image with the tag `<acr-registry-url>/my-image:latest` and push it to the registry.
 
 === "Google Cloud Run"
 

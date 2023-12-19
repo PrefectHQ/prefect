@@ -652,6 +652,12 @@ class TestOutOfProcessPause:
 
 
 class TestSuspendFlowRun:
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
     async def test_suspended_flow_runs_do_not_block_execution(
         self, prefect_client, deployment, session
     ):
