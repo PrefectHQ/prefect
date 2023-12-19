@@ -39,7 +39,6 @@ Other advantages to using workers and work pools include:
 - Work pools can be used to prioritize (or limit) flow runs through the use of [work queues](/concepts/work-pools/#work-queues)
 
 The architecture of a worker/work pool deployment can be summarized with the following diagram:
-
 ```mermaid
 graph TD
     subgraph your_infra["Your Execution Environment"]
@@ -47,7 +46,7 @@ graph TD
     subgraph flow_run_infra[Flow Run Infra]
      flow_run_a(("Flow Run A"))
     end
-                subgraph flow_run_infra_2[Flow Run Infra]
+    subgraph flow_run_infra_2[Flow Run Infra]
      flow_run_b(("Flow Run B"))
     end      
     end
@@ -61,7 +60,6 @@ graph TD
     worker --> |creates| flow_run_infra
     worker --> |creates| flow_run_infra_2
 ```
-
 <sup>Notice above that the worker is in charge of provisioning the _flow run infrastructure_. In context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run. Different [worker types](/concepts/work-pools/#worker-types) create different types of flow run infrastructure.</sup>
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.

@@ -77,7 +77,7 @@ jobs:
       
       - name: Publish build artifacts
         if: ${{ inputs.upload-artifacts }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
           path: "${{ env.TMPDIR }}/dist"
