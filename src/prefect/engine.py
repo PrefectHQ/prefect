@@ -964,7 +964,7 @@ async def orchestrate_flow_run(
 async def pause_flow_run(
     wait_for_input: None = None,
     flow_run_id: UUID = None,
-    timeout: int = 300,
+    timeout: int = 3600,
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
@@ -976,7 +976,7 @@ async def pause_flow_run(
 async def pause_flow_run(
     wait_for_input: Type[T],
     flow_run_id: UUID = None,
-    timeout: int = 300,
+    timeout: int = 3600,
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
@@ -1000,7 +1000,7 @@ async def pause_flow_run(
 async def pause_flow_run(
     wait_for_input: Optional[Type[T]] = None,
     flow_run_id: UUID = None,
-    timeout: int = 300,
+    timeout: int = 3600,
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
@@ -1023,7 +1023,7 @@ async def pause_flow_run(
             have an associated deployment and results need to be configured with the
             `persist_results` option.
         timeout: the number of seconds to wait for the flow to be resumed before
-            failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
+            failing. Defaults to 1 hour (3600 seconds). If the pause timeout exceeds
             any configured flow-level timeout, the flow might fail even after resuming.
         poll_interval: The number of seconds between checking whether the flow has been
             resumed. Defaults to 10 seconds.
@@ -1062,11 +1062,8 @@ async def pause_flow_run(
 
 
 @inject_client
-@experimental_parameter(
-    "wait_for_input", group="flow_run_input", when=lambda y: y is not None
-)
 async def _in_process_pause(
-    timeout: int = 300,
+    timeout: int = 3600,
     poll_interval: int = 10,
     reschedule=False,
     key: str = None,
@@ -1161,7 +1158,7 @@ async def _in_process_pause(
 @inject_client
 async def _out_of_process_pause(
     flow_run_id: UUID,
-    timeout: int = 300,
+    timeout: int = 3600,
     reschedule: bool = True,
     key: str = None,
     client=None,
@@ -1184,7 +1181,7 @@ async def _out_of_process_pause(
 async def suspend_flow_run(
     wait_for_input: None = None,
     flow_run_id: Optional[UUID] = None,
-    timeout: Optional[int] = 300,
+    timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
 ) -> None:
@@ -1195,7 +1192,7 @@ async def suspend_flow_run(
 async def suspend_flow_run(
     wait_for_input: Type[T],
     flow_run_id: Optional[UUID] = None,
-    timeout: Optional[int] = 300,
+    timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
 ) -> T:
@@ -1204,10 +1201,13 @@ async def suspend_flow_run(
 
 @sync_compatible
 @inject_client
+@experimental_parameter(
+    "wait_for_input", group="flow_run_input", when=lambda y: y is not None
+)
 async def suspend_flow_run(
     wait_for_input: Optional[Type[T]] = None,
     flow_run_id: Optional[UUID] = None,
-    timeout: Optional[int] = 300,
+    timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
 ):
@@ -1226,7 +1226,7 @@ async def suspend_flow_run(
             suspend the specified flow run. If not supplied will attempt to
             suspend the current flow run.
         timeout: the number of seconds to wait for the flow to be resumed before
-            failing. Defaults to 5 minutes (300 seconds). If the pause timeout
+            failing. Defaults to 1 hour (3600 seconds). If the pause timeout
             exceeds any configured flow-level timeout, the flow might fail even
             after resuming.
         key: An optional key to prevent calling suspend more than once. This

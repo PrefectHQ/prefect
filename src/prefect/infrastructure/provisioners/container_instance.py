@@ -11,8 +11,11 @@ Classes:
 
 """
 import json
+import random
 import shlex
+import string
 import subprocess
+import time
 from copy import deepcopy
 from textwrap import dedent
 from typing import Any, Dict, Optional
@@ -23,12 +26,17 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
+from rich.syntax import Syntax
 
-from prefect.cli._prompts import prompt_select_from_table
+from prefect.cli._prompts import prompt, prompt_select_from_table
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    update_current_profile,
+)
 
 
 class AzureCLI:
@@ -124,7 +132,6 @@ class ContainerInstancePushProvisioner:
         _subscription_name (str): Azure subscription name.
         _resource_group (str): Azure resource group name.
         _location (str): Azure resource location.
-        _container_image (str): Docker image for the container instance.
         azure_cli (AzureCLI): An instance of AzureCLI for running Azure commands.
 
     Methods:
@@ -136,22 +143,21 @@ class ContainerInstancePushProvisioner:
         _generate_secret_for_app: Generates a secret for the app registration.
         _get_service_principal_object_id: Retrieves the object ID of the service principal associated with the app registration.
         _assign_contributor_role: Assigns the Contributor role to the service account.
-        _create_container_instance: Creates an Azure Container Instance.
         _create_aci_credentials_block: Creates an Azure Container Instance credentials block.
         provision: Orchestrates the provisioning of Azure resources and setup for the push work pool.
     """
-
-    DEFAULT_LOCATION = "eastus"
-    RESOURCE_GROUP_NAME = "prefect-aci-push-pool-rg"
-    CONTAINER_IMAGE = "docker.io/prefecthq/prefect:2-latest"
-    APP_REGISTRATION_NAME = "prefect-aci-push-pool-app"
 
     def __init__(self):
         self._console = Console()
         self._subscription_id = None
         self._subscription_name = None
-        self._location = None
+        self._location = "eastus"
+        self._identity_name = "prefect-acr-identity"
         self.azure_cli = AzureCLI(self.console)
+        self._credentials_block_name = None
+        self._resource_group_name = "prefect-aci-push-pool-rg"
+        self._app_registration_name = "prefect-aci-push-pool-app"
+        self._registry_name_prefix = "prefect"
 
     @property
     def console(self) -> Console:
@@ -173,7 +179,8 @@ class ContainerInstancePushProvisioner:
                 'az account list-locations --query "[?isDefault].name" --output tsv'
             )
             output = await self.azure_cli.run_command(command)
-            self._location = output if output else self.DEFAULT_LOCATION
+            if output:
+                self._location = output
         except subprocess.CalledProcessError as e:
             raise RuntimeError("Failed to get default location.") from e
 
@@ -274,7 +281,7 @@ class ContainerInstancePushProvisioner:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.
         """
         check_exists_command = (
-            f"az group exists --name {self.RESOURCE_GROUP_NAME} --subscription"
+            f"az group exists --name {self._resource_group_name} --subscription"
             f" {self._subscription_id}"
         )
         exists_result = await self.azure_cli.run_command(
@@ -283,7 +290,7 @@ class ContainerInstancePushProvisioner:
         if exists_result is True:
             self._console.print(
                 (
-                    f"Resource group '{self.RESOURCE_GROUP_NAME}' already exists in"
+                    f"Resource group '{self._resource_group_name}' already exists in"
                     f" subscription {self._subscription_name}."
                 ),
                 style="yellow",
@@ -291,16 +298,16 @@ class ContainerInstancePushProvisioner:
             return
 
         resource_group_command = (
-            f"az group create --name '{self.RESOURCE_GROUP_NAME}' --location"
+            f"az group create --name '{self._resource_group_name}' --location"
             f" '{self._location}' --subscription '{self._subscription_id}'"
         )
         await self.azure_cli.run_command(
             resource_group_command,
             success_message=(
-                f"Resource group '{self.RESOURCE_GROUP_NAME}' created successfully"
+                f"Resource group '{self._resource_group_name}' created successfully"
             ),
             failure_message=(
-                f"Failed to create resource group '{self.RESOURCE_GROUP_NAME}' in"
+                f"Failed to create resource group '{self._resource_group_name}' in"
                 f" subscription '{self._subscription_name}'"
             ),
             ignore_if_exists=True,
@@ -318,7 +325,7 @@ class ContainerInstancePushProvisioner:
         """
         # Check if the app registration already exists
         check_exists_command = (
-            f"az ad app list --display-name {self.APP_REGISTRATION_NAME} --output json"
+            f"az ad app list --display-name {self._app_registration_name} --output json"
         )
         app_registrations = await self.azure_cli.run_command(
             check_exists_command,
@@ -331,29 +338,29 @@ class ContainerInstancePushProvisioner:
                 (
                     app
                     for app in app_registrations
-                    if app["displayName"] == self.APP_REGISTRATION_NAME
+                    if app["displayName"] == self._app_registration_name
                 ),
                 None,
             )
             if existing_app_registration:
                 self._console.print(
-                    f"App registration '{self.APP_REGISTRATION_NAME}' already exists.",
+                    f"App registration '{self._app_registration_name}' already exists.",
                     style="yellow",
                 )
                 return existing_app_registration["appId"]
 
         app_registration_command = (
-            f"az ad app create --display-name {self.APP_REGISTRATION_NAME} "
+            f"az ad app create --display-name {self._app_registration_name} "
             "--output json"
         )
         app_registration = await self.azure_cli.run_command(
             app_registration_command,
             success_message=(
-                f"App registration '{self.APP_REGISTRATION_NAME}' created successfully"
+                f"App registration '{self._app_registration_name}' created successfully"
             ),
             failure_message=(
                 "Failed to create app registration with name"
-                f" '{self.APP_REGISTRATION_NAME}'"
+                f" '{self._app_registration_name}'"
             ),
             ignore_if_exists=True,
         )
@@ -389,8 +396,8 @@ class ContainerInstancePushProvisioner:
             failure_message=(
                 "Failed to generate secret for app registration with client ID"
                 f" '{app_id}'. If you have already generated 2 secrets for this app"
-                " registration, please delete one from the `prefect-aci-push-pool-app`"
-                " resource and try again."
+                " registration, please delete one from the"
+                f" `{self._app_registration_name}` resource and try again."
             ),
             ignore_if_exists=True,
             return_json=True,
@@ -449,7 +456,151 @@ class ContainerInstancePushProvisioner:
                 f"Failed to retrieve new service principal for app ID {app_id}"
             )
 
-    async def _assign_contributor_role(self, app_id: str) -> None:
+    async def _get_or_create_identity(
+        self, identity_name: str, resource_group_name: str, subscription_id: str
+    ):
+        """
+        Retrieves or creates a managed identity for the given resource group.
+
+        Returns:
+            dict: Object representing the identity.
+        """
+        # Try to retrieve the existing identity
+        command_get_identity = (
+            f"az identity list --query \"[?name=='{identity_name}']\" --resource-group"
+            f" {resource_group_name} --subscription {subscription_id} --output json"
+        )
+        identity = await self.azure_cli.run_command(
+            command_get_identity,
+            return_json=True,
+        )
+
+        if identity:
+            self._console.print(
+                (
+                    f"Identity '{self._identity_name}' already exists in"
+                    f" subscription '{self._subscription_name}'."
+                ),
+                style="yellow",
+            )
+            return identity[0]
+
+        # Identity does not exist, create it
+        command_create_identity = (
+            f"az identity create --name {identity_name} --resource-group"
+            f" {resource_group_name} --subscription {subscription_id} --output json"
+        )
+        response = await self.azure_cli.run_command(
+            command_create_identity,
+            success_message=f"Identity {identity_name!r} created",
+            failure_message=f"Failed to create identity {identity_name!r}",
+            return_json=True,
+        )
+
+        if response:
+            return response
+        else:
+            raise Exception(
+                f"Failed to retrieve new identity for identity {self._identity_name}"
+            )
+
+    @staticmethod
+    def _generate_acr_name(base_name: str):
+        # Ensure the base name adheres to ACR naming conventions
+        if not base_name.isalnum() or len(base_name) > 50:
+            raise ValueError(
+                "ACR registry name prefix should be alphanumeric and up to 50"
+                " characters"
+            )
+
+        # Generate a unique string
+        timestamp = int(time.time())
+        random_str = "".join(
+            random.choices(string.ascii_lowercase + string.digits, k=4)
+        )
+
+        # Combine to form the ACR name
+        acr_name = f"{base_name}{timestamp}{random_str}"
+        return acr_name
+
+    async def _get_or_create_registry(
+        self,
+        registry_name: str,
+        resource_group_name: str,
+        location: str,
+        subscription_id: str,
+    ):
+        """
+        Retrieves or creates an Azure Container Registry.
+
+        Args:
+            registry_name: The name of the registry.
+            resource_group_name: The name of the resource group to use for the registry.
+            location: Where to create the registry.
+            subscription_id: The ID of the subscription to use for the registry.
+
+        Returns:
+            dict: Object representing the registry.
+        """
+        # check to see if there are any registries starting with 'prefect'
+        command_get_registries = (
+            'az acr list --query "[?starts_with(name,'
+            f" '{self._registry_name_prefix}')]\" --subscription"
+            f" {subscription_id} --output json"
+        )
+        response = await self.azure_cli.run_command(
+            command_get_registries,
+            return_json=True,
+        )
+
+        # acr names must be globally unique, so if there are any matches, use the first one
+        if response:
+            self._console.print(
+                (
+                    f"Registry with prefix {self._registry_name_prefix!r} already"
+                    f" exists in subscription '{subscription_id}'."
+                ),
+                style="yellow",
+            )
+            return response[0]
+
+        command_create_repository = (
+            f"az acr create --name {registry_name} --resource-group"
+            f" {resource_group_name} --subscription {subscription_id} --location"
+            f" {location} --sku Basic"
+        )
+        response = await self.azure_cli.run_command(
+            command_create_repository,
+            success_message="Registry created",
+            failure_message="Failed to create registry",
+            return_json=True,
+        )
+
+        if response:
+            return response
+        else:
+            raise Exception(f"Failed to create registry {registry_name}")
+
+    async def _log_into_registry(self, login_server: str, subscription_id: str):
+        """
+        Logs into the given Azure Container Registry.
+
+        Args:
+            registry_name: The name of the registry to log into.
+
+        Raises:
+            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        """
+        command_login = (
+            f"az acr login --name {login_server} --subscription {subscription_id}"
+        )
+        await self.azure_cli.run_command(
+            command_login,
+            success_message=f"Logged into registry {login_server}",
+            failure_message=f"Failed to log into registry {login_server}",
+        )
+
+    async def _assign_contributor_role(self, app_id: str, subscription_id: str) -> None:
         """
         Assigns the 'Contributor' role to the service principal associated with a given app ID.
 
@@ -464,17 +615,18 @@ class ContainerInstancePushProvisioner:
 
         if service_principal_id:
             role = "Contributor"
-            scope = f"/subscriptions/{self._subscription_id}/resourceGroups/{self.RESOURCE_GROUP_NAME}"
+            scope = f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group_name}"
 
             # Check if the role is already assigned
             check_role_command = (
                 f"az role assignment list --assignee {service_principal_id} --role"
-                f" {role} --scope {scope} --output json"
+                f" {role} --scope {scope} --subscription {subscription_id} --output"
+                " json"
             )
             role_assignments = await self.azure_cli.run_command(
                 check_role_command, return_json=True
             )
-            if any(
+            if role_assignments and any(
                 ra
                 for ra in role_assignments
                 if ra["roleDefinitionName"] == role and ra["scope"] == scope
@@ -490,7 +642,8 @@ class ContainerInstancePushProvisioner:
 
             assign_command = (
                 f"az role assignment create --role {role} --assignee-object-id"
-                f" {service_principal_id} --scope {scope}"
+                f" {service_principal_id} --scope {scope} --subscription"
+                f" {subscription_id}"
             )
             await self.azure_cli.run_command(
                 assign_command,
@@ -505,60 +658,25 @@ class ContainerInstancePushProvisioner:
                 ignore_if_exists=True,
             )
 
-    async def _create_container_instance(self) -> None:
+    async def _assign_acr_pull_role(
+        self, identity: Dict[str, Any], registry: Dict[str, Any], subscription_id: str
+    ) -> None:
         """
-        Creates an Azure Container Instance using predefined settings.
+        Assigns the AcrPull role to the specified identity for the given registry.
 
-        Raises:
-            subprocess.CalledProcessError: If the Azure CLI command execution fails.
+        Args:
+            identity: The identity to assign the role to.
+            registry: The registry to grant access to.
         """
-        container_name = "prefect-aci-push-pool-container"
-
-        check_exists_command = (
-            "az container list --resource-group"
-            f" {self.RESOURCE_GROUP_NAME} --subscription"
-            f" {self._subscription_id} --query \"[?name=='{container_name}']\" --output"
-            " json"
-        )
-
-        result = await self.azure_cli.run_command(
-            check_exists_command,
-            return_json=True,
-        )
-
-        if result:
-            self._console.print(
-                (
-                    f"Container instance '{container_name}' already exists in"
-                    f" subscription '{self._subscription_name}' in location"
-                    f" '{self._location}'."
-                ),
-                style="yellow",
-            )
-            return
-
-        create_command = (
-            f"az container create --name {container_name} "
-            f"--resource-group {self.RESOURCE_GROUP_NAME} "
-            "--image docker.io/prefecthq/prefect:2-latest "
-            f"--location {self._location} --subscription {self._subscription_id} "
-            "--restart-policy OnFailure --output json"
+        command = (
+            "az role assignment create --assignee-object-id"
+            f" {identity['principalId']} --assignee-principal-type ServicePrincipal"
+            f" --scope {registry['id']} --role AcrPull --subscription {subscription_id}"
         )
         await self.azure_cli.run_command(
-            create_command,
-            success_message=(
-                f"Container instance '{container_name}' created successfully in"
-                f" resource group '{self.RESOURCE_GROUP_NAME}' in location"
-                f" '{self._location}' in subscription '{self._subscription_name}'"
-            ),
-            failure_message=(
-                f"Failed to create container instance '{container_name}' in resource"
-                f" group '{self.RESOURCE_GROUP_NAME}' in location '{self._location}' in"
-                f" subscription '{self._subscription_name}'"
-            ),
+            command,
             ignore_if_exists=True,
         )
-        return
 
     async def _create_aci_credentials_block(
         self,
@@ -584,7 +702,7 @@ class ContainerInstancePushProvisioner:
         Raises:
             ObjectAlreadyExists: If a credentials block with the same name already exists.
         """
-        credentials_block_name = f"{work_pool_name}-push-pool-credentials"
+        credentials_block_name = self._credentials_block_name
         credentials_block_type = await client.read_block_type_by_slug(
             "azure-container-instance-credentials"
         )
@@ -658,6 +776,76 @@ class ContainerInstancePushProvisioner:
         except ObjectNotFound:
             return False
 
+    def _validate_user_input(self, name):
+        if 2 < len(name) < 40 and name.isalnum():
+            return True
+        else:
+            return False
+
+    async def _create_provision_table(self, work_pool_name: str, client: PrefectClient):
+        return Panel(
+            dedent(
+                f"""\
+                    Provisioning infrastructure for your work pool [blue]{work_pool_name}[/] will require:
+
+                        Updates in subscription: [blue]{self._subscription_name}[/]
+
+                            - Create a resource group in location: [blue]{self._location}[/]
+                            - Create an app registration in Azure AD: [blue]{self._app_registration_name}[/]
+                            - Create/use a service principal for app registration
+                            - Generate a secret for app registration
+                            - Create an Azure Container Registry with prefix [blue]{self._registry_name_prefix}[/]
+                            - Create an identity [blue]{self._identity_name}[/] to allow access to the created registry
+                            - Assign Contributor role to service account
+                            - Create an ACR registry for image hosting
+                            - Create an identity for Azure Container Instance to allow access to the registry
+
+                        Updates in Prefect workspace
+
+                            - Create Azure Container Instance credentials block: [blue]{self._credentials_block_name}[/]
+                    """
+            ),
+            expand=False,
+        )
+
+    async def _customize_resource_names(
+        self, work_pool_name: str, client: PrefectClient
+    ) -> bool:
+        self._resource_group_name = prompt(
+            "Please enter a name for the resource group",
+            default=self._resource_group_name,
+        )
+        self._app_registration_name = prompt(
+            "Please enter a name for the app registration",
+            default=self._app_registration_name,
+        )
+        while True:
+            self._registry_name_prefix = prompt(
+                "Please enter a prefix for the Azure Container Registry",
+                default=self._registry_name_prefix,
+            )
+            if self._validate_user_input(self._registry_name_prefix):
+                break
+            else:
+                self._console.print(
+                    "The prefix must be alphanumeric and between 3-50 characters.",
+                    style="red",
+                )
+        self._identity_name = prompt(
+            "Please enter a name for the identity (used for ACR access)",
+            default=self._identity_name,
+        )
+        self._credentials_block_name = prompt(
+            "Please enter a name for the ACI credentials block",
+            default=self._credentials_block_name,
+        )
+        table = await self._create_provision_table(work_pool_name, client)
+        self._console.print(table)
+
+        return Confirm.ask(
+            "Proceed with infrastructure provisioning?", console=self._console
+        )
+
     @inject_client
     async def provision(
         self,
@@ -689,58 +877,68 @@ class ContainerInstancePushProvisioner:
         await self._verify_az_ready()
         await self._select_subscription()
         await self.set_location()
+        self._credentials_block_name = f"{work_pool_name}-push-pool-credentials"
 
-        table = Panel(
-            dedent(
-                f"""\
-                    Provisioning infrastructure for your work pool [blue]{work_pool_name}[/] will require:
-
-                        Updates in subscription [blue]{self._subscription_name}[/]
-
-                            - Create a resource group in location [blue]{self._location}[/]
-                            - Create an app registration in Azure AD [blue]{self.APP_REGISTRATION_NAME}[/]
-                            - Create/use a service principal for app registration
-                            - Generate a secret for app registration
-                            - Assign Contributor role to service account
-                            - Create Azure Container Instance 'aci-push-pool-container' in resource group [blue]{self.RESOURCE_GROUP_NAME}[/]
-
-                        Updates in Prefect workspace
-
-                            - Create Azure Container Instance credentials block [blue]aci-push-pool-credentials[/]
-                    """
-            ),
-            expand=False,
-        )
+        table = await self._create_provision_table(work_pool_name, client)
         self._console.print(table)
         if self._console.is_interactive:
-            if not Confirm.ask(
-                "Proceed with infrastructure provisioning?", console=self._console
+            chosen_option = prompt_select_from_table(
+                self._console,
+                "Proceed with infrastructure provisioning with default resource names?",
+                [
+                    {"header": "Options:", "key": "option"},
+                ],
+                [
+                    {
+                        "option": (
+                            "Yes, proceed with infrastructure provisioning with default"
+                            " resource names"
+                        )
+                    },
+                    {"option": "Customize resource names"},
+                    {"option": "Do not proceed with infrastructure provisioning"},
+                ],
+            )
+            if chosen_option["option"] == "Customize resource names":
+                if not await self._customize_resource_names(work_pool_name, client):
+                    return base_job_template
+
+            elif (
+                chosen_option["option"]
+                == "Do not proceed with infrastructure provisioning"
             ):
                 return base_job_template
+            elif (
+                chosen_option["option"]
+                != "Yes, proceed with infrastructure provisioning with default"
+                " resource names"
+            ):
+                # basically, we should never hit this. i'm concerned that we might change
+                # the options in the future and forget to update this check
+                raise ValueError(f"Invalid option selected: {chosen_option['option']}")
 
         credentials_block_exists = await self._aci_credentials_block_exists(
-            block_name=f"{work_pool_name}-push-pool-credentials", client=client
+            block_name=self._credentials_block_name, client=client
         )
 
         if not credentials_block_exists:
-            total_tasks = 6
+            total_tasks = 7
         else:
-            total_tasks = 5
+            total_tasks = 6
 
         with Progress(console=self._console) as progress:
-            task = progress.add_task(
-                "Provisioning infrastructure...", total=total_tasks
-            )
-            progress.console.print("Creating resource group..")
+            self.azure_cli._console = progress.console
+            task = progress.add_task("Provisioning infrastructure.", total=total_tasks)
+            progress.console.print("Creating resource group")
             await self._create_resource_group()
             progress.advance(task)
 
-            progress.console.print("Creating app registration..")
+            progress.console.print("Creating app registration")
             client_id = await self._create_app_registration()
             progress.advance(task)
 
             credentials_block_exists = await self._aci_credentials_block_exists(
-                block_name=f"{work_pool_name}-push-pool-credentials", client=client
+                block_name=self._credentials_block_name, client=client
             )
 
             if not credentials_block_exists:
@@ -750,7 +948,7 @@ class ContainerInstancePushProvisioner:
                 )
                 progress.advance(task)
 
-                progress.console.print("Creating ACI credentials block..")
+                progress.console.print("Creating ACI credentials block")
                 block_doc_id = await self._create_aci_credentials_block(
                     work_pool_name, client_id, tenant_id, client_secret, client
                 )
@@ -760,18 +958,49 @@ class ContainerInstancePushProvisioner:
                     "ACI credentials block already exists.", style="yellow"
                 )
                 block_doc = await client.read_block_document_by_name(
-                    name=f"{work_pool_name}-push-pool-credentials",
+                    name=self._credentials_block_name,
                     block_type_slug="azure-container-instance-credentials",
                 )
                 block_doc_id = block_doc.id
                 progress.advance(task)
 
-            progress.console.print("Assigning Contributor role to service account...")
-            await self._assign_contributor_role(app_id=client_id)
+            progress.console.print("Assigning Contributor role to service account")
+            await self._assign_contributor_role(
+                app_id=client_id, subscription_id=self._subscription_id
+            )
             progress.advance(task)
 
-            progress.console.print("Creating Azure Container Instance..")
-            await self._create_container_instance()
+            progress.console.print(
+                "Creating Azure Container Registry (this make take a few minutes)"
+            )
+
+            registry_name = self._generate_acr_name(self._registry_name_prefix)
+            registry = await self._get_or_create_registry(
+                registry_name=registry_name,
+                resource_group_name=self._resource_group_name,
+                location=self._location,
+                subscription_id=self._subscription_id,
+            )
+            await self._log_into_registry(
+                login_server=registry["loginServer"],
+                subscription_id=self._subscription_id,
+            )
+            update_current_profile(
+                {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: registry["loginServer"]}
+            )
+            progress.advance(task)
+
+            progress.console.print("Creating identity")
+            identity = await self._get_or_create_identity(
+                identity_name=self._identity_name,
+                resource_group_name=self._resource_group_name,
+                subscription_id=self._subscription_id,
+            )
+            await self._assign_acr_pull_role(
+                identity=identity,
+                registry=registry,
+                subscription_id=self._subscription_id,
+            )
             progress.advance(task)
 
         base_job_template_copy = deepcopy(base_job_template)
@@ -781,11 +1010,58 @@ class ContainerInstancePushProvisioner:
 
         base_job_template_copy["variables"]["properties"]["resource_group_name"][
             "default"
-        ] = self.RESOURCE_GROUP_NAME
+        ] = self._resource_group_name
 
         base_job_template_copy["variables"]["properties"]["subscription_id"][
             "default"
         ] = self._subscription_id
+        base_job_template_copy["variables"]["properties"]["image_registry"][
+            "default"
+        ] = {
+            "registry_url": registry["loginServer"],
+            "identity": identity["id"],
+        }
+        base_job_template_copy["variables"]["properties"]["identities"]["default"] = [
+            identity["id"]
+        ]
+
+        self._console.print(
+            dedent(
+                f"""\
+                    Your default Docker build namespace has been set to [blue]{registry["loginServer"]!r}[/].
+                    Use any image name to build and push to this registry by default:
+                    """
+            ),
+            Panel(
+                Syntax(
+                    dedent(
+                        f"""\
+                        from prefect import flow
+                        from prefect.deployments import DeploymentImage
+
+
+                        @flow(log_prints=True)
+                        def my_flow(name: str = "world"):
+                            print(f"Hello {{name}}! I'm a flow running on an Azure Container Instance!")
+
+
+                        if __name__ == "__main__":
+                            my_flow.deploy(
+                                name="my-deployment",
+                                work_pool_name="{work_pool_name}",
+                                image=DeploymentImage(
+                                    name="my-image:latest",
+                                    platform="linux/amd64",
+                                )
+                            )"""
+                    ),
+                    "python",
+                    background_color="default",
+                ),
+                title="example_deploy_script.py",
+                expand=False,
+            ),
+        )
 
         self._console.print(
             (
