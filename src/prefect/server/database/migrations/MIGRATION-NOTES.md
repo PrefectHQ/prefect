@@ -8,6 +8,22 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Make `FlowRunInput.flow_run_id` a foreign key to `flow_run.id`
+SQLite: `a299308852a7`
+Postgres: `7c453555d3a5`
+
+# Add `flow_run_input` table
+SQLite: `a299308852a7`
+Postgres: `733ca1903976`
+
+# Add last_polled to deployment table
+SQLite: `f3165ae0a213`
+Postgres: `bfe653bbf62e`
+
+# Make flow_run_id nullable on task_run and log tables
+SQLite: `05ea6f882b1d`
+Postgres: `05ea6f882b1d`
+
 # Make slot_decay_per_second not nullable
 SQLite: `8167af8df781`
 Postgres: `4e9a6f93eb6c`

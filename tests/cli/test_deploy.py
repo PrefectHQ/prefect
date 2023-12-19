@@ -39,7 +39,11 @@ from prefect.server.schemas.actions import (
     WorkPoolCreate,
 )
 from prefect.server.schemas.schedules import CronSchedule
-from prefect.settings import PREFECT_UI_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -213,6 +217,10 @@ def mock_build_docker_image(monkeypatch):
     monkeypatch.setattr(
         "prefect.deployments.steps.core.import_object",
         lambda x: mock_build,
+    )
+    monkeypatch.setattr(
+        "prefect.deployments.steps.core.import_module",
+        lambda x: None,
     )
 
     return mock_build
@@ -690,6 +698,36 @@ class TestProjectDeploy:
         assert deployment.infra_overrides == {"env": "prod"}
         assert deployment.enforce_parameter_schema is False
 
+    async def test_project_deploy_with_default_work_pool(
+        self, project_dir, prefect_client
+    ):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        with temporary_settings(updates={PREFECT_DEFAULT_WORK_POOL_NAME: "test-pool"}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --version"
+                    " 1.0.0 -v env=prod -t foo-bar"
+                ),
+                expected_code=0,
+                expected_output_contains=[
+                    "An important name/test-name",
+                    "prefect worker start --pool 'test-pool'",
+                ],
+            )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-pool"
+        assert deployment.version == "1.0.0"
+        assert deployment.tags == ["foo-bar"]
+        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.enforce_parameter_schema is False
+
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir, prefect_client
     ):
@@ -730,6 +768,39 @@ class TestProjectDeploy:
                 "Your Prefect workers will attempt to load your flow from:",
                 "To see more options for managing your flow's code, run:",
                 "$ prefect init",
+            ],
+        )
+
+    async def test_deploy_does_not_prompt_storage_when_pull_step_exists(
+        self, project_dir, work_pool, interactive_console
+    ):
+        # write a pull step to the prefect.yaml
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        config["pull"] = [
+            {"prefect.deployments.steps.set_working_directory": {"directory": "."}}
+        ]
+
+        with open("prefect.yaml", "w") as f:
+            yaml.safe_dump(config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                " --interval 60"
+            ),
+            user_input=(
+                # don't save the deployment configuration
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=[
+                "Would you like your workers to pull your flow code from a remote"
+                " storage location when running this flow?"
             ],
         )
 
@@ -1018,6 +1089,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -1078,6 +1153,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -1145,6 +1224,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             prefect_yaml = {
@@ -1221,6 +1304,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             with open("Dockerfile", "w") as f:
@@ -1318,6 +1405,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             with open("Dockerfile", "w") as f:
                 f.write("FROM python:3.8-slim\n")
@@ -1414,6 +1505,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             with open("Dockerfile", "w") as f:
                 f.write("FROM python:3.8-slim\n")
@@ -1484,6 +1579,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             await run_sync_in_worker_thread(
@@ -2308,6 +2407,10 @@ class TestProjectDeploy:
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
+            )
 
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -2347,6 +2450,10 @@ class TestProjectDeploy:
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
                 "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_module",
+                lambda x: None,
             )
 
             await run_sync_in_worker_thread(
@@ -3141,11 +3248,8 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             user_input=(
-                # decline remote storage
-                "n"
-                + readchar.key.ENTER
                 # reject saving configuration
-                + "n"
+                "n"
                 + readchar.key.ENTER
                 # accept naming deployment
                 + "y"
@@ -4248,9 +4352,6 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
                 + readchar.key.ENTER
@@ -4299,9 +4400,6 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4358,9 +4456,6 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
                 + readchar.key.ENTER
@@ -4414,9 +4509,6 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
-                + readchar.key.ENTER
-                # decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4506,9 +4598,6 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                # decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
                 + readchar.key.ENTER
@@ -4537,11 +4626,8 @@ class TestSaveUserInputs:
         invoke_and_assert(
             command="deploy -n existing-deployment --cron '* * * * *'",
             user_input=(
-                # decline remote storage
-                "n"
-                + readchar.key.ENTER
                 # accept create work pool
-                + readchar.key.ENTER
+                readchar.key.ENTER
                 # choose process work pool
                 + readchar.key.ENTER
                 +
@@ -4605,9 +4691,6 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4763,9 +4846,6 @@ class TestSaveUserInputs:
                 # enter work pool name
                 + "inflatable"
                 + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
                 + readchar.key.ENTER
@@ -4808,9 +4888,6 @@ class TestSaveUserInputs:
                 +
                 # accept create work pool
                 readchar.key.ENTER
-                # Decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 +
                 # choose process work pool
                 readchar.key.ENTER
@@ -4861,9 +4938,6 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
                 + readchar.key.ENTER
@@ -4901,9 +4975,6 @@ class TestSaveUserInputs:
                 + "3600"
                 + readchar.key.ENTER
                 # accept create work pool
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # choose process work pool
                 + readchar.key.ENTER
@@ -5057,9 +5128,6 @@ class TestSaveUserInputs:
             user_input=(
                 # reject schedule
                 "n"
-                + readchar.key.ENTER
-                # decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # accept saving configuration
                 + "y"
@@ -5867,9 +5935,6 @@ class TestDeploymentTrigger:
                         # Decline docker build
                         + "n"
                         + readchar.key.ENTER
-                        # Decline remote storage
-                        + "n"
-                        + readchar.key.ENTER
                         # Accept save configuration
                         + "y"
                         + readchar.key.ENTER
@@ -5974,9 +6039,6 @@ class TestDeployDockerBuildSteps:
                 # Reject build custom docker image
                 "n"
                 + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
                 + readchar.key.ENTER
@@ -6010,9 +6072,6 @@ class TestDeployDockerBuildSteps:
             user_input=(
                 # Reject build custom docker image
                 "n"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -6066,9 +6125,6 @@ class TestDeployDockerBuildSteps:
                 +
                 # Reject push to registry
                 "n"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -6141,9 +6197,6 @@ class TestDeployDockerBuildSteps:
                 +
                 # Reject push to registry
                 "n"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -6238,9 +6291,6 @@ class TestDeployDockerBuildSteps:
                 # Default tag
                 + readchar.key.ENTER
                 # Reject push to registry
-                + "n"
-                + readchar.key.ENTER
-                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
@@ -6509,9 +6559,6 @@ class TestDeployDockerPushSteps:
                 # Default tag
                 + readchar.key.ENTER
                 # Reject push to registry
-                + "n"
-                + readchar.key.ENTER
-                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration

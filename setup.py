@@ -1,7 +1,11 @@
 import versioneer
 from setuptools import find_packages, setup
 
-install_requires = open("requirements.txt").read().strip().split("\n")
+client_requires = open("requirements-client.txt").read().strip().split("\n")
+# strip the first line since setup.py will not recognize '-r requirements-client.txt'
+install_requires = (
+    open("requirements.txt").read().strip().split("\n")[1:] + client_requires
+)
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
 
 setup(

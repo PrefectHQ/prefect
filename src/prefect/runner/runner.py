@@ -44,7 +44,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Dict, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -55,6 +55,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -63,8 +64,9 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.deployments.deployments import load_flow_from_flow_run
 from prefect.deployments.runner import RunnerDeployment
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
@@ -83,12 +85,9 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
-
-if TYPE_CHECKING:
-    from prefect.client.schemas.objects import FlowRun
 
 __all__ = ["Runner", "serve"]
 
@@ -205,6 +204,7 @@ class Runner:
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -228,6 +228,9 @@ class Runner:
             rrule: An rrule schedule of when to execute runs of this flow.
             schedule: A schedule object of when to execute runs of this flow. Used for
                 advanced scheduling options like timezone.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -250,6 +253,7 @@ class Runner:
             cron=cron,
             rrule=rrule,
             schedule=schedule,
+            is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
             description=description,
@@ -283,6 +287,15 @@ class Runner:
             return storage_copy
         else:
             return next(s for s in self._storage_objs if s == storage)
+
+    def handle_sigterm(self, signum, frame):
+        """
+        Gracefully shuts down the runner when a SIGTERM is received.
+        """
+        self._logger.info("SIGTERM received, initiating graceful shutdown...")
+        from_sync.call_in_loop_thread(create_call(self.stop))
+
+        sys.exit(0)
 
     @sync_compatible
     async def start(
@@ -324,6 +337,8 @@ class Runner:
                 runner.start()
             ```
         """
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
+
         webserver = webserver if webserver is not None else self.webserver
 
         if webserver:
@@ -398,6 +413,7 @@ class Runner:
                 " .start()"
             )
 
+        self.started = False
         self.stopping = True
         await self.cancel_all()
         try:
@@ -432,9 +448,13 @@ class Runner:
                         pid=pid, flow_run=flow_run
                     )
 
+                    # We want this loop to stop when the flow run process exits
+                    # so we'll check if the flow run process is still alive on
+                    # each iteration and cancel the task group if it is not.
                     workload = partial(
                         self._check_for_cancelled_flow_runs,
-                        on_nothing_to_watch=tg.cancel_scope.cancel,
+                        should_stop=lambda: not self._flow_run_process_map,
+                        on_stop=tg.cancel_scope.cancel,
                     )
 
                     tg.start_soon(
@@ -485,8 +505,13 @@ class Runner:
         flow_run_logger.info("Opening process...")
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
-        env.update({"PREFECT__FLOW_RUN_ID": str(flow_run.id)})
-        env.update({"PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir)})
+        env.update(
+            {
+                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
+                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+            }
+        )
         env.update(**os.environ)  # is this really necessary??
 
         storage = self._deployment_storage_map.get(flow_run.deployment_id)
@@ -635,8 +660,18 @@ class Runner:
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
-        self, on_nothing_to_watch: Callable = lambda: None
+        self, should_stop: Callable = lambda: False, on_stop: Callable = lambda: None
     ):
+        """
+        Checks for flow runs with CANCELLING a cancelling state and attempts to
+        cancel them.
+
+        Args:
+            should_stop: A callable that returns a boolean indicating whether or not
+                the runner should stop checking for cancelled flow runs.
+            on_stop: A callable that is called when the runner should stop checking
+                for cancelled flow runs.
+        """
         if self.stopping:
             return
         if not self.started:
@@ -645,15 +680,12 @@ class Runner:
                 "as an async context manager."
             )
 
-        # To stop loop service checking for cancelled runs.
-        # Need to find a better way to stop runner spawned by
-        # a worker.
-        if not self._flow_run_process_map and not self._deployment_ids:
+        if should_stop():
             self._logger.debug(
                 "Runner has no active flow runs or deployments. Sending message to loop"
                 " service that no further cancellation checks are needed."
             )
-            on_nothing_to_watch()
+            on_stop()
 
         self._logger.debug("Checking for cancelled flow runs...")
 
@@ -706,6 +738,7 @@ class Runner:
 
         pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
         if not pid:
+            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -721,6 +754,7 @@ class Runner:
             await self._kill_process(pid)
         except RuntimeError as exc:
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
+            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(flow_run)
         except Exception:
             run_logger.exception(
@@ -729,8 +763,8 @@ class Runner:
             )
             # We will try again on generic exceptions
             self._cancelling_flow_run_ids.remove(flow_run.id)
-            return
         else:
+            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -769,7 +803,20 @@ class Runner:
         try:
             if self._limiter:
                 self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
+                self._logger.debug("Limit slot acquired for flow run '%s'", flow_run_id)
             return True
+        except RuntimeError as exc:
+            if (
+                "this borrower is already holding one of this CapacityLimiter's tokens"
+                in str(exc)
+            ):
+                self._logger.warning(
+                    f"Duplicate submission of flow run '{flow_run_id}' detected. Runner"
+                    " will not re-submit flow run."
+                )
+                return False
+            else:
+                raise
         except anyio.WouldBlock:
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
@@ -784,6 +831,7 @@ class Runner:
         """
         if self._limiter:
             self._limiter.release_on_behalf_of(flow_run_id)
+            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List["FlowRun"]
@@ -880,6 +928,11 @@ class Runner:
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",
             )
+
+        api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
+        terminal_state = api_flow_run.state
+        if terminal_state.is_crashed():
+            await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
 
         return status_code
 
@@ -996,6 +1049,38 @@ class Runner:
                 await result
 
         await self._runs_task_group.start(wrapper)
+
+    async def _run_on_cancellation_hooks(
+        self,
+        flow_run: "FlowRun",
+        state: State,
+    ) -> None:
+        """
+        Run the hooks for a flow.
+        """
+        if state.is_cancelling():
+            flow = await load_flow_from_flow_run(
+                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+            )
+            hooks = flow.on_cancellation or []
+
+            await _run_hooks(hooks, flow_run, flow, state)
+
+    async def _run_on_crashed_hooks(
+        self,
+        flow_run: "FlowRun",
+        state: State,
+    ) -> None:
+        """
+        Run the hooks for a flow.
+        """
+        if state.is_crashed():
+            flow = await load_flow_from_flow_run(
+                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+            )
+            hooks = flow.on_crashed or []
+
+            await _run_hooks(hooks, flow_run, flow, state)
 
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
@@ -1121,3 +1206,28 @@ async def serve(
         console.print(Panel(Group(help_message_top, table, help_message_bottom)))
 
     await runner.start()
+
+
+async def _run_hooks(
+    hooks: List[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
+):
+    logger = flow_run_logger(flow_run, flow)
+    for hook in hooks:
+        try:
+            logger.info(
+                f"Running hook {hook.__name__!r} in response to entering state"
+                f" {state.name!r}"
+            )
+            if is_async_fn(hook):
+                await hook(flow=flow, flow_run=flow_run, state=state)
+            else:
+                await from_async.call_in_new_thread(
+                    create_call(hook, flow=flow, flow_run=flow_run, state=state)
+                )
+        except Exception:
+            logger.error(
+                f"An error was encountered while running hook {hook.__name__!r}",
+                exc_info=True,
+            )
+        else:
+            logger.info(f"Hook {hook.__name__!r} finished running successfully")

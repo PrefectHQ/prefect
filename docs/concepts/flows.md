@@ -651,7 +651,7 @@ If a flow returns a manually created state, the final state is determined based 
 
 ```python hl_lines="16-19"
 from prefect import task, flow
-from prefect.server.schemas.states import Completed, Failed
+from prefect.states import Completed, Failed
 
 @task
 def always_fails_task():
@@ -860,8 +860,13 @@ my_flow()
 
     When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. This pattern allows you to update your flow code without restarting the serving process.
 
+## Pausing or suspending a flow run
 
-## Pause a flow run
+Prefect provides you with the ability to halt a flow run with two functions that are similar, but slightly different.
+When a flow run is paused, code execution is stopped and the process continues to run. 
+When a flow run is suspended, code execution is stopped and so is the process.
+
+### Pause a flow run
 
 Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
@@ -883,7 +888,7 @@ async def inspiring_joke():
     await marvin_punchline()
 ```
 
-Calling this flow will pause after the first task and wait for resumption.
+Calling this flow will block code execution after the first task and wait for resumption.
 
 <div class="terminal">
 ```bash
@@ -906,6 +911,12 @@ The paused flow run will then finish!
 ```
 </div>
 
+### Suspending a flow run
+
+Similar to pausing a flow run, Prefect enables suspending an in-progress flow run. Prefect exposes this functionality via the [`susepend_flow_run`](/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
+
+When called inside of a flow `suspend_flow_run` will immediately suspend execution of the flow run. The flow run will be marked as `Suspended` and will not be resumed until `resume_flow_run` is called.
+
 Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
 
 ```python
@@ -925,40 +936,55 @@ def noblock_pausing():
     omega = foo(wait_for=[x, y])
 ```
 
-This long-running flow can be paused out of process, either by calling `pause_flow_run(flow_run_id=<ID>)` or selecting the **Pause** button in the Prefect UI or Prefect Cloud.
+Flow runs can be suspended out-of-process by calling `suspend_flow_run(flow_run_id=<ID>)` or selecting the **Suspend** button in the Prefect UI or Prefect Cloud.
+
+Suspended flow runs can be resumed by clicking the **Resume** button in the Prefect UI or calling the `resume_flow_run` utility via client code.
 
 ```python
-from prefect import flow, task
-import time
-
-@task(persist_result=True)
-async def foo():
-    return 42
-
-@flow(persist_result=True)
-async def longrunning():
-    res = 0
-    for ii in range(20):
-        time.sleep(5)
-        res += (await foo())
-    return res
+resume_flow_run(FLOW_RUN_ID)
 ```
 
-!!! tip "Pausing flow runs is blocking by default"
-    By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
+## Waiting for input when pausing or suspending a flow run
 
-    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via an agent and you want the agent to be able to pick up other flows while the paused flow is paused.
+!!! warning "Experimental"
+    The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
 
-    Non-blocking pause can be accomplished by setting the `reschedule` flag to `True`. In order to use this feature, flows that pause with the `reschedule` flag must have:
+    If you encounter any issues, please let us know in Slack or with a Github issue.
 
-    - An associated deployment
-    - Results configured with the `persist_results` flag
+When pausing or suspending a flow run you may want to wait for input from a user. Prefect provides a way to do this by leveraging the `pause_flow_run` and `suspend_flow_run` functions. These functions accept a `wait_for_input` argument, the value of which should be a subclass of `prefect.input.RunInput`, a pydantic model. When resuming the flow run, users are required to provide data for this model. Upon successful validation, the flow run resumes, and the return value of the `pause_flow_run` or `suspend_flow_run` is an instance of the model containing the provided data.
+
+Here is an example of a flow that pauses and waits for input from a user:
+
+```python
+from prefect import flow, get_run_logger, pause_flow_run
+from prefect.input import RunInput
+
+
+class UserNameInput(RunInput):
+    name: str
+
+
+@flow
+async def greet_user():
+    logger = get_run_logger()
+
+    user_input = await pause_flow_run(
+        wait_for_input=UserNameInput
+    )
+
+    logger.info(f"Hello, {user_input.name}!")
+```
+Running this flow will create a flow run. The flow run will advance until code execution reaches `pause_flow_run`, at which point it will  move it into a `Paused` state. Execution will block and wait for resumption. 
+
+When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
+
+For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating human in the loop workflows](/guides/creating-human-in-the-loop-workflows/) guide.
 
 ## Cancel a flow run
 
 You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
 
-When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
+When cancellation is requested, the flow run is moved to a "Cancelling" state. The worker monitors the state of flow runs and detects that cancellation has been requested. The worker then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
 !!! warning "A deployment is required"
     Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow). A monitoring process must be running to enforce the cancellation. Inline subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
@@ -969,12 +995,12 @@ Support for cancellation is included for all core library infrastructure types:
 - Kubernetes Jobs
 - Processes
 
-Cancellation is robust to restarts of the agent. To enable this, we attach metadata about the created infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts:
+Cancellation is robust to restarts of the worker. To enable this, we attach metadata about the created infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts:
 
 1. Scope: identifying where the infrastructure is running.
 2. ID: a unique identifier for the infrastructure within the scope.
 
-The scope is used to ensure that Prefect does not kill the wrong infrastructure. For example, agents running on multiple machines may have overlapping process IDs but should not have a matching scope.
+The scope is used to ensure that Prefect does not kill the wrong infrastructure. For example, workers running on multiple machines may have overlapping process IDs but should not have a matching scope.
 
 The identifiers for the primary infrastructure types are as follows:
 
@@ -986,11 +1012,21 @@ While the cancellation process is robust, there are a few issues than can occur:
 
 - If the infrastructure block for the flow run has been removed or altered, cancellation may not work.
 - If the infrastructure block for the flow run does not have support for cancellation, cancellation will not work.
-- If the identifier scope does not match when attempting to cancel a flow run the agent will be unable to cancel the flow run. Another agent may attempt cancellation.
-- If the infrastructure associated with the run cannot be found or has already been killed, the agent will mark the flow run as cancelled.
+- If the identifier scope does not match when attempting to cancel a flow run the worker will be unable to cancel the flow run. Another worker may attempt cancellation.
+- If the infrastructure associated with the run cannot be found or has already been killed, the worker will mark the flow run as cancelled.
 - If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
-- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
+- If the worker runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The worker will try again to cancel the flow run. Another worker may attempt cancellation.
 
+!!! tip "Enhanced cancellation"
+    We are working on improving cases where cancellation can fail. You can try the improved cancellation experience by enabling the `PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION` setting on your worker or agents:
+
+    <div class="terminal">
+    ```bash
+    prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
+    ```
+    </div>
+
+    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/)Slack or with a [Github](https://github.com/PrefectHQ/prefect) issue.
 ### Cancel via the CLI
 
 From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run.

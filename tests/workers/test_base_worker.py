@@ -379,9 +379,8 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
 
     assert (
         f"Flow run {flow_run.id!r} was created from deployment"
-        f" {deployment.name!r} which is configured with a storage block. Workers"
-        " currently only support local storage. Please use an agent to execute this"
-        " flow run."
+        f" {deployment.name!r} which is configured with a storage block. Please use an"
+        + " agent to execute this flow run."
         in caplog.text
     )
 
@@ -1351,7 +1350,7 @@ class TestPrepareForFlowRun:
             "prefect.io/version": prefect.__version__,
         }
         assert job_config.name == "my-job-name"
-        assert job_config.command == "python -m prefect.engine"
+        assert job_config.command == "prefect flow-run execute"
 
     def test_prepare_for_flow_run_with_enhanced_cancellation(
         self, job_config, flow_run, enable_enhanced_cancellation
@@ -1394,7 +1393,7 @@ class TestPrepareForFlowRun:
             "prefect.io/flow-name": flow.name,
         }
         assert job_config.name == "my-job-name"
-        assert job_config.command == "python -m prefect.engine"
+        assert job_config.command == "prefect flow-run execute"
 
 
 def legacy_named_cancelling_state(**kwargs):
@@ -1402,6 +1401,13 @@ def legacy_named_cancelling_state(**kwargs):
 
 
 class TestCancellation:
+    @pytest.fixture(autouse=True)
+    def disable_enhanced_cancellation(self, disable_enhanced_cancellation):
+        """
+        Workers only cancel flow runs when enhanced cancellation is disabled.
+        These tests are for the legacy cancellation behavior.
+        """
+
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
@@ -1777,6 +1783,7 @@ class TestCancellation:
         # No need for state message update
         assert post_flow_run.state.message is None
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )

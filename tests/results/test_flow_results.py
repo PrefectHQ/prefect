@@ -1,3 +1,6 @@
+import base64
+import pickle
+
 import pytest
 
 from prefect import flow, task
@@ -472,9 +475,6 @@ async def test_root_flow_default_remote_storage():
 
 
 async def test_root_flow_default_remote_storage_saves_correct_result():
-    import base64
-    import pickle
-
     await LocalFileSystem(basepath="~/.prefect/results").save("my-result-storage")
 
     @task(result_storage_key="my-result.pkl")
@@ -519,3 +519,26 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
             ValueError, match="Unable to find block document named my-result-storage"
         ):
             await foo()
+
+
+async def test_root_flow_explicit_result_storage_settings_overrides_default():
+    await LocalFileSystem(basepath="~/.prefect/results").save("explicit-storage")
+    await LocalFileSystem(basepath="~/.prefect/other-results").save(
+        "default-result-storage"
+    )
+
+    @flow(result_storage=await LocalFileSystem.load("explicit-storage"))
+    async def foo():
+        return get_run_context().result_factory.storage_block
+
+    with temporary_settings(
+        {
+            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: (
+                "local-file-system/default-result-storage"
+            ),
+        }
+    ):
+        result = await foo()
+
+    assert_blocks_equal(result, await LocalFileSystem.load("explicit-storage"))

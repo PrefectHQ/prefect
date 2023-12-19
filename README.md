@@ -63,7 +63,16 @@ Prefect requires Python 3.8 or later. To [install Prefect](https://docs.prefect.
 pip install prefect
 ```
 
-Start by then exploring the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/), then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example.
+Start by exploring the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/), then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example.
+
+## Prefect Cloud
+
+Stop worrying about your workflows. Prefect Cloud allows you to centrally deploy, monitor, and manage the data workflows you support. With managed orchestration, automations, and webhooks, all backed by enterprise-class security, build production-ready code quickly and reliably.
+
+Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) or signup to [try it for yourself](https://app.prefect.cloud?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
+
+![Prefect Automations](/docs/img/ui/automations.png)
+
 
 ## Join the community
 

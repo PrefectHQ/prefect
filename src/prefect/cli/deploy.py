@@ -31,6 +31,7 @@ from prefect.cli._prompts import (
     prompt_select_remote_flow_storage,
     prompt_select_work_pool,
 )
+from prefect.cli._types import SettingsOption
 from prefect.cli._utilities import (
     exit_with_error,
 )
@@ -55,7 +56,11 @@ from prefect.deployments.steps.core import run_steps
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
@@ -115,8 +120,8 @@ async def deploy(
             " --work-queue flag."
         ),
     ),
-    work_pool_name: str = typer.Option(
-        None,
+    work_pool_name: str = SettingsOption(
+        PREFECT_DEFAULT_WORK_POOL_NAME,
         "-p",
         "--pool",
         help="The work pool that will handle this deployment's runs.",
@@ -437,7 +442,8 @@ async def _run_single_deploy(
     deploy_config["schedule"] = _construct_schedule(deploy_config, ci=ci)
 
     # determine work pool
-    if get_from_dict(deploy_config, "work_pool.name"):
+    work_pool_name = get_from_dict(deploy_config, "work_pool.name")
+    if work_pool_name:
         try:
             work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
@@ -544,7 +550,7 @@ async def _run_single_deploy(
     if (
         is_interactive()
         and not ci
-        and not deploy_config.get("pull")
+        and not (deploy_config.get("pull") or actions.get("pull"))
         and not docker_push_step_exists
         and confirm(
             (
@@ -711,7 +717,7 @@ async def _run_single_deploy(
                         " prefect.yaml file."
                     ),
                 )
-    if not work_pool.is_push_pool:
+    if not work_pool.is_push_pool and not work_pool.is_managed_pool:
         app.console.print(
             "\nTo execute flow runs from this deployment, start a worker in a"
             " separate terminal that pulls work from the"

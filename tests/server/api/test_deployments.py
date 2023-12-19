@@ -91,6 +91,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         deployment_id = response.json()["id"]
+        assert response.json()["status"] == "NOT_READY"
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -997,6 +998,8 @@ class TestReadDeployments:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
 
+        assert response.json()[0]["status"] == "NOT_READY"
+
     async def test_read_deployments_applies_filter(
         self, deployments, deployment_id_1, deployment_id_2, flow, client
     ):
@@ -1386,6 +1389,86 @@ class TestGetScheduledFlowRuns:
         assert [res["id"] for res in response.json()] == [
             str(flow_run.id) for flow_run in flow_runs[:3]
         ]
+
+    async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+
+        response1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert response1.status_code == 200
+        assert response1.json()["last_polled"] is None
+        assert response1.json()["status"] == "NOT_READY"
+
+        response2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert response2.status_code == 200
+        assert response2.json()["last_polled"] is None
+        assert response2.json()["status"] == "NOT_READY"
+
+        updated_response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id)]),
+        )
+        assert updated_response.status_code == 200
+
+        updated_response_deployment_1 = await client.get(
+            f"/deployments/{deployment_1.id}"
+        )
+        assert updated_response_deployment_1.status_code == 200
+
+        assert (
+            updated_response_deployment_1.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
+        assert updated_response_deployment_1.json()["status"] == "READY"
+
+        same_response_deployment_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert same_response_deployment_2.status_code == 200
+        assert same_response_deployment_2.json()["last_polled"] is None
+        assert same_response_deployment_2.json()["status"] == "NOT_READY"
+
+    async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status_multiple_deployments(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+
+        response_1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert response_1.status_code == 200
+        assert response_1.json()["last_polled"] is None
+        assert response_1.json()["status"] == "NOT_READY"
+
+        response_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert response_2.status_code == 200
+        assert response_2.json()["last_polled"] is None
+        assert response_2.json()["status"] == "NOT_READY"
+
+        updated_response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
+        )
+        assert updated_response.status_code == 200
+
+        updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert updated_response_1.status_code == 200
+        assert (
+            updated_response_1.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
+        assert updated_response_1.json()["status"] == "READY"
+
+        updated_response_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert updated_response_2.status_code == 200
+        assert (
+            updated_response_2.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
+        assert updated_response_2.json()["status"] == "READY"
 
 
 class TestDeleteDeployment:

@@ -511,13 +511,53 @@ async def work_pool(session):
             name="test-work-pool",
             type="test-type",
             base_job_template={
-                "job_configuration": {"command": "{{ command }}"},
+                "job_configuration": {
+                    "command": "{{ command }}",
+                },
                 "variables": {
                     "properties": {
                         "command": {
-                            "type": "array",
+                            "type": "string",
                             "title": "Command",
-                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_pool_with_image_variable(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="test-work-pool",
+            type="test-type",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                    "image_pull_policy": "{{ image_pull_policy }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                        "image_pull_policy": {
+                            "enum": ["IfNotPresent", "Always", "Never"],
+                            "type": "string",
+                            "title": "Image Pull Policy",
+                            "default": "IfNotPresent",
                         },
                     },
                     "required": [],
@@ -550,7 +590,57 @@ async def push_work_pool(session):
         work_pool=schemas.actions.WorkPoolCreate(
             name="push-work-pool",
             type="push-work-pool:push",
-            base_job_template={},
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def managed_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="mex-work-pool",
+            type="mex-work-pool:managed",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
         ),
     )
     await session.commit()
@@ -765,9 +855,12 @@ def initialize_orchestration(flow):
         flow_retries: int = None,
         flow_run_count: int = None,
         resuming: bool = None,
+        initial_flow_run_state_details=None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
+        if initial_flow_run_state_details is None:
+            initial_flow_run_state_details = {}
         if flow_retries:
             empirical_policy.update({"retries": flow_retries})
         if resuming:
@@ -798,10 +891,11 @@ def initialize_orchestration(flow):
         elif run_type == "task":
             if initial_flow_run_state_type:
                 flow_state_constructor = commit_flow_run_state
+                kwargs = {}
+                if initial_flow_run_state_details:
+                    kwargs["state_details"] = initial_flow_run_state_details
                 await flow_state_constructor(
-                    session,
-                    flow_run,
-                    initial_flow_run_state_type,
+                    session, flow_run, initial_flow_run_state_type, **kwargs
                 )
             task_run = await models.task_runs.create_task_run(
                 session=session,

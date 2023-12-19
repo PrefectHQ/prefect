@@ -31,6 +31,7 @@ import prefect.server.api as api
 import prefect.server.services as services
 import prefect.settings
 from prefect._internal.compatibility.experimental import enabled_experiments
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
@@ -48,7 +49,6 @@ TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
-SERVER_API_VERSION = "0.8.4"
 
 logger = get_logger("server")
 

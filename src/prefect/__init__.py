@@ -35,6 +35,7 @@ if sys.version_info < (3, 8):
 
 # Import user-facing API
 from prefect.runner import Runner, serve
+from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow
@@ -43,7 +44,7 @@ from prefect.context import tags
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
-from prefect.engine import pause_flow_run, resume_flow_run
+from prefect.engine import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
 import prefect.variables
@@ -169,4 +170,9 @@ __all__ = [
     "Task",
     "unmapped",
     "Runner",
+    "serve",
+    "deploy",
+    "pause_flow_run",
+    "resume_flow_run",
+    "suspend_flow_run",
 ]

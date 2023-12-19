@@ -175,10 +175,36 @@ schedule:
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
     A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
-## Creating schedules through a Python deployment file
+## Creating schedules through a Python deployment creation file
+
+When you create a deployment with through a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. 
+
+```
+interval: An interval on which to execute the new deployment. Accepts either a number
+    or a timedelta object. If a number is given, it will be interpreted as seconds.
+cron: A cron schedule of when to execute runs of this deployment.
+rrule: An rrule schedule of when to execute runs of this deployment.
+schedule: A schedule object defining when to execute runs of this deployment. Used to
+  define additional scheduling options like `timezone`.
+```
+
+Here's an example of creating a cron schedule with `serve` for a deployment flow that will run every minute of every day:
+
+```python
+my_flow.serve(name="flowing", cron="* * * * *")
+```
+
+Here's an example of creating an interval schedule with `serve` for a deployment flow that will run every 10 minutes with an anchor date and a timezone:
+
+```python
+from datetime import timedelta, datetime
+from prefect.client.schemas.schedules import IntervalSchedule
+
+my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minutes=10), anchor_date=datetime(2023, 1, 1, 0, 0), timezone="America/Chicago"))
+```
 
 Block and agent-based deployments with Python files are not a recommended way to create deployments.
-However, you can create a schedule by passing a `schedule` parameter to the `Deployment.build_from_flow` method.
+However, if you are using that deployment creation method you can create a schedule by passing a `schedule` parameter to the `Deployment.build_from_flow` method.
 
 Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
 

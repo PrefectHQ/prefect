@@ -1,41 +1,48 @@
 <template>
-  <p-layout-default v-if="workPool">
+  <p-layout-well v-if="workPool" class="work-pool">
     <template #header>
       <PageHeadingWorkPool :work-pool="workPool" @update="workPoolSubscription.refresh" />
+      <template v-if="showCodeBanner">
+        <CodeBanner class="work-pool__code-banner" :command="codeBannerCliCommand" title="Your work pool is almost ready!" subtitle="Run this command to start." />
+      </template>
     </template>
-
-    <p-layout-well v-if="workPool" class="work-pool">
-      <template #header>
-        <CodeBanner :command="codeBannerCliCommand" :title="codeBannerTitle" :subtitle="codeBannerSubtitle" />
+    <p-tabs v-model:selected="tab" :tabs="tabs">
+      <template #details>
+        <WorkPoolDetails :work-pool="workPool" />
       </template>
-      <p-tabs v-model:selected="tab" :tabs="tabs">
-        <template #details>
-          <WorkPoolDetails :work-pool="workPool" />
-        </template>
 
-        <template #runs>
-          <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
-        </template>
-
-        <template #work-queues>
-          <WorkPoolQueuesTable :work-pool-name="workPoolName" />
-        </template>
-
-        <template #workers>
-          <WorkersTable :work-pool-name="workPoolName" />
-        </template>
-      </p-tabs>
-
-      <template #well>
-        <WorkPoolDetails alternate :work-pool="workPool" />
+      <template #runs>
+        <FlowRunFilteredList :filter="flowRunFilter" prefix="runs" />
       </template>
-    </p-layout-well>
-  </p-layout-default>
+
+      <template #work-queues>
+        <WorkPoolQueuesTable :work-pool-name="workPoolName" />
+      </template>
+
+      <template #workers>
+        <WorkersTable :work-pool-name="workPoolName" />
+      </template>
+    </p-tabs>
+
+    <template #well>
+      <WorkPoolDetails alternate :work-pool="workPool" />
+    </template>
+  </p-layout-well>
 </template>
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useFlowRunsFilter, useTabs, WorkersTable } from '@prefecthq/prefect-ui-library'
+  import {
+    useWorkspaceApi,
+    PageHeadingWorkPool,
+    WorkPoolDetails,
+    FlowRunFilteredList,
+    WorkPoolQueuesTable,
+    useFlowRunsFilter,
+    useTabs,
+    WorkersTable,
+    CodeBanner
+  } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -60,15 +67,8 @@
   const tab = useRouteQueryParam('tab', 'Details')
   const { tabs } = useTabs(computedTabs, tab)
 
-
-  const codeBannerTitle = computed(() => {
-    if (!workPool.value) {
-      return 'Your work pool is ready to go!'
-    }
-    return `Your work pool ${workPool.value.name} is ready to go!`
-  })
+  const showCodeBanner = computed(() => workPool.value?.status !== 'ready')
   const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool "${workPool.value?.name}"`)
-  const codeBannerSubtitle = computed(() => `Work pools organize work that ${isAgentWorkPool.value ? 'Prefect agents' : 'Prefect workers'} can pull from.`)
 
   const { filter: flowRunFilter } = useFlowRunsFilter({
     workPools: {
@@ -85,3 +85,9 @@
 
   usePageTitle(title)
 </script>
+
+<style>
+.work-pool__code-banner { @apply
+  mt-4
+}
+</style>

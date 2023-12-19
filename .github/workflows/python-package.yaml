@@ -3,6 +3,12 @@ name: Publish Python package
 on:
   release:
     types: [released, prereleased]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit to build from"
+        required: true
+        default: "main"
 
 jobs:
   build-pypi-dists:
@@ -13,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.commit }}
           # Versioneer only generates correct versions with a full fetch
           fetch-depth: 0
           persist-credentials: false
@@ -24,7 +31,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"

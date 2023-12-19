@@ -21,9 +21,11 @@ In this section you'll learn how to host your own Prefect server.
 
 Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
 
+<div class="terminal">
 ```bash
 prefect server start
 ```
+</div>
 
 Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser.
 
@@ -31,24 +33,21 @@ Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1
 
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 
-### Differences between a Prefect server and Prefect Cloud
+### Differences between a self-hosted Prefect server and Prefect Cloud
 
-The self-hosted Prefect server and Prefect Cloud share a common set of features. Prefect Cloud also includes the following features:
+A self-hosted Prefect server and Prefect Cloud share a common set of features. Prefect Cloud includes the following additional features:
 
-- [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud.
 - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
 - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
 - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's servers based on automation triggers.
-- [Organizations](/cloud/organizations/) &mdash; user and workspace management features that enable collaboration for larger teams.
-- [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running agents or executing flow runs on remote infrastructure.
-- [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
+- [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
+- [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform activities within an account or workspace.
 - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.
 - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
-- Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
 
 You can read more about Prefect Cloud in the [Cloud](/cloud/) section.
 
-### Configuring a Prefect server
+### Configuring a Prefect server instance
 
 Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
 
@@ -88,9 +87,11 @@ A local SQLite database is the default database and is configured upon Prefect i
 
 To reset your database, run the CLI command:  
 
+<div class="terminal">
 ```bash
 prefect server database reset -y
 ```
+</div>
 
 This command will clear all data and reapply the schema.
 
@@ -98,12 +99,14 @@ This command will clear all data and reapply the schema.
 
 Prefect provides several settings for configuring the database. Here are the default settings:
 
+<div class="terminal">
 ```bash
 PREFECT_API_DATABASE_CONNECTION_URL='sqlite+aiosqlite:///${PREFECT_HOME}/prefect.db'
 PREFECT_API_DATABASE_ECHO='False'
 PREFECT_API_DATABASE_MIGRATE_ON_START='True'
 PREFECT_API_DATABASE_PASSWORD='None'
 ```
+</div>
 
 You can save a setting to your active Prefect profile with `prefect config set`.
 
@@ -111,9 +114,11 @@ You can save a setting to your active Prefect profile with `prefect config set`.
 
 To connect Prefect to a PostgreSQL database, you can set the following environment variable:
 
+<div class="terminal">
 ```bash
 prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
 ```
+</div>
 
 The above environment variable assumes that:
 
@@ -125,9 +130,11 @@ The above environment variable assumes that:
 
 If you want to quickly start a PostgreSQL instance that can be used as your Prefect database, you can use the following command that will start a Docker container running PostgreSQL:
 
+<div class="terminal">
 ```bash
 docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect postgres:latest
 ```
+</div>
 
 The above command:
 
@@ -138,15 +145,19 @@ The above command:
 
 You can inspect your profile to be sure that the environment variable has been set properly:
 
+<div class="terminal">
 ```bash
 prefect config view --show-sources
 ```
+</div>
 
 Start the Prefect server and it should from now on use your PostgreSQL database instance:
 
+<div class="terminal">
 ```bash
 prefect server start
 ```
+</div>
 
 ### In-memory database
 
@@ -154,9 +165,11 @@ One of the benefits of SQLite is in-memory database support.
 
 To use an in-memory SQLite database, set the following environment variable:
 
+<div class="terminal">
 ```bash
 prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
 ```
+</div>
 
 !!! warning "Use SQLite database for testing only"
     SQLite is only supported by Prefect for testing purposes and is not compatible with multiprocessing.  
@@ -178,28 +191,36 @@ To apply migrations to your database you can run the following commands:
 
 To upgrade:
 
+<div class="terminal">
 ```bash
 prefect server database upgrade -y
 ```
+</div>
 
 To downgrade:
 
+<div class="terminal">
 ```bash
 prefect server database downgrade -y
 ```
+</div>
 
 You can use the `-r` flag to specify a specific migration version to upgrade or downgrade to.
 For example, to downgrade to the previous migration version you can run:
 
+<div class="terminal">
 ```bash
 prefect server database downgrade -y -r -1
 ```
+</div>
 
 or to downgrade to a specific revision:
 
+<div class="terminal">
 ```bash
 prefect server database downgrade -y -r d20618ce678e
 ```
+</div>
 
 See the [contributing docs](/contributing/overview/#adding-database-migrations) for information on how to create new database migrations.
 

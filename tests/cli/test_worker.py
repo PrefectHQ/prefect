@@ -35,7 +35,7 @@ pytestmark = pytest.mark.flaky(max_runs=2)
 
 
 class MockKubernetesWorker(BaseWorker):
-    type = "kubernetes"
+    type = "kubernetes-test"
     job_configuration = BaseJobConfiguration
 
     async def run(self):
@@ -67,7 +67,7 @@ def interactive_console(monkeypatch):
 @pytest.fixture
 async def kubernetes_work_pool(prefect_client: PrefectClient):
     work_pool = await prefect_client.create_work_pool(
-        work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
+        work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes-test")
     )
 
     with respx.mock(
@@ -86,8 +86,8 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
                         }
                     },
                     "prefect-kubernetes": {
-                        "kubernetes": {
-                            "type": "kubernetes",
+                        "kubernetes-test": {
+                            "type": "kubernetes-test",
                             "default_base_job_configuration": {},
                         }
                     },
@@ -503,10 +503,9 @@ class TestInstallPolicyOption:
             ],
             user_input=readchar.key.ENTER,
             expected_output_contains=[
-                (
-                    "Could not find a kubernetes worker in the current"
-                    " environment. Install it now?"
-                ),
+                "Could not find the Prefect integration library for the",
+                "kubernetes",
+                "Install the library now?",
                 "Installing prefect-kubernetes...",
                 "Worker 'test-worker' started!",
                 "Worker 'test-worker' stopped!",

@@ -833,7 +833,7 @@ class BaseWorker(abc.ABC):
                 raise ValueError(
                     f"Flow run {flow_run.id!r} was created from deployment"
                     f" {deployment.name!r} which is configured with a storage block."
-                    " Workers currently only support local storage. Please use an"
+                    " Please use an"
                     " agent to execute this flow run."
                 )
 

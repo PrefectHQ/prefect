@@ -153,17 +153,19 @@ You should spend some time experimenting with this setup; a few next steps for e
 !!! tip "Security Note"
     Another implication of Prefect's deployment interface is our hybrid execution model. Whether you use Prefect Cloud or host a Prefect server instance yourself, you'll always be able to run work flows in the environments best suited to their execution. This model allows you efficient use of your infrastructure resources while maintaining the privacy of your code and data.
     There is no ingress required. 
-    For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#overview).
+    For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
 
 ## Next steps
 
 Congratulations! You now have your first working deployment. 
 
-Deploying flows through the `serve` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements, an alternative option involves deploying flows to a [worker](/concepts/work-pools/#worker-types).
+### Running flows on dynamic or managed infrastructure
 
-### A tale of two Docker tutorials 📖
+Deploying flows through the `serve` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements or you'd like to use prefect [managed execution](/guides/managed-execution/) an alternative option involves deploying flows to a [work pool](/concepts/work-pools/).
 
-To see how to host your served flow in a Docker container, head to our [docker guide](/guides/docker/). This should _serve_ 🥁 the needs of most scheduling and orchestration use cases.
+### Docker tutorials 📖
+
+To see how to host your served flow in a Docker container, head to our [Docker guide](/guides/docker/).
 
 Alternatively, to execute each flow run within its own _dedicated_ Docker container (or other ephemeral [infrastructure](/concepts/work-pools/#worker-types)) learn how to use a Prefect worker by heading to the [worker and work pools tutorial page](/tutorial/workers/).
 

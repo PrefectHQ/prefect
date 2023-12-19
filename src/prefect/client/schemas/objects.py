@@ -25,7 +25,10 @@ from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_with_banned_characters,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL
 from prefect.utilities.collections import AutoEnum, listrepr
@@ -86,6 +89,13 @@ class WorkerStatus(AutoEnum):
     OFFLINE = AutoEnum.auto()
 
 
+class DeploymentStatus(AutoEnum):
+    """Enumeration of deployment statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
@@ -98,6 +108,7 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
     pause_key: str = None
+    run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
 
 
@@ -835,6 +846,7 @@ class BlockDocument(ObjectBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
+    block_type_name: Optional[str] = Field(None, description="A block type name")
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
@@ -955,6 +967,10 @@ class Deployment(ObjectBaseModel):
             "The work queue for the deployment. If no work queue is set, work will not"
             " be scheduled."
         ),
+    )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The last time the deployment was polled for status updates.",
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -1353,6 +1369,10 @@ class WorkPool(ObjectBaseModel):
     def is_push_pool(self) -> bool:
         return self.type.endswith(":push")
 
+    @property
+    def is_managed_pool(self) -> bool:
+        return self.type.endswith(":managed")
+
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         raise_on_name_with_banned_characters(v)
@@ -1507,3 +1527,14 @@ class Variable(ObjectBaseModel):
         description="A list of variable tags",
         example=["tag-1", "tag-2"],
     )
+
+
+class FlowRunInput(ObjectBaseModel):
+    flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
+    key: str = Field(description="The key of the input.")
+    value: str = Field(description="The value of the input.")
+
+    @validator("key", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_alphanumeric_dashes_only(v)
+        return v

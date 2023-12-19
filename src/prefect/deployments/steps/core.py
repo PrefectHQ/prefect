@@ -11,17 +11,19 @@ Whenever a step is run, the following actions are taken:
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
 import os
+import re
 import subprocess
+import sys
 import warnings
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Tuple
+from importlib import import_module
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.importtools import import_object
-from prefect.utilities.processutils import get_sys_executable
 from prefect.utilities.templating import (
     apply_values,
     resolve_block_document_references,
@@ -37,8 +39,38 @@ class StepExecutionError(Exception):
     """
 
 
-def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = None):
+def _strip_version(requirement: str) -> str:
+    """
+    Strips the version from a requirement string.
+
+    Args:
+        requirement: A requirement string, e.g. "requests>=2.0.0"
+
+    Returns:
+        The package name, e.g. "requests"
+
+    Examples:
+        ```python
+        >>> _strip_version("s3fs>=2.0.0<3.0.0")
+        "s3fs"
+        ```
+    """
+    # split on any of the characters in the set [<>=!~]
+    # and return the first element which will be the package name
+    return re.split(r"[<>=!~]", requirement)[0].strip()
+
+
+def _get_function_for_step(
+    fully_qualified_name: str, requires: Union[str, List[str], None] = None
+):
+    if not isinstance(requires, list):
+        packages = [requires] if requires else []
+    else:
+        packages = requires
+
     try:
+        for package in packages:
+            import_module(_strip_version(package).replace("-", "_"))
         step_func = import_object(fully_qualified_name)
         return step_func
     except ImportError:
@@ -50,14 +82,12 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
         else:
             raise
 
-    if not isinstance(requires, list):
-        packages = [requires]
-    else:
-        packages = requires
-
-    subprocess.check_call(
-        [get_sys_executable(), "-m", "pip", "install", ",".join(packages)]
-    )
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", *packages])
+    except subprocess.CalledProcessError:
+        get_logger("deployments.steps.core").warning(
+            "Unable to install required packages for %s", fully_qualified_name
+        )
     step_func = import_object(fully_qualified_name)
     return step_func
 

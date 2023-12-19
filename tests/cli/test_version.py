@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.server.api.server import SERVER_API_VERSION
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_API_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 

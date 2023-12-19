@@ -472,6 +472,29 @@ class TestGetRunsInWorkQueue:
         assert agent.work_queue_id == work_queue.id
         assert agent.last_activity_time >= now
 
+    async def test_read_work_queue_runs_associated_deployments_return_status_of_ready(
+        self,
+        client,
+        deployment,
+    ):
+        work_queue_id = deployment.work_queue_id
+        # ensure deployment currently has a not ready status
+        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert deployment_response.status_code == status.HTTP_200_OK
+        assert deployment_response.json()["status"] == "NOT_READY"
+
+        # trigger a poll of the work queue, which should update the deployment status
+        response = await client.post(
+            f"/work_queues/{work_queue_id}/get_runs",
+            json=dict(),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # check that the deployment status is now ready
+        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert updated_deployment_response.status_code == status.HTTP_200_OK
+        assert updated_deployment_response.json()["status"] == "READY"
+
 
 class TestDeleteWorkQueue:
     async def test_delete_work_queue(self, client, work_queue):

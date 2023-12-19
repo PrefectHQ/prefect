@@ -842,6 +842,10 @@ class ORMDeployment:
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
     work_queue_name = sa.Column(sa.String, nullable=True, index=True)
+    last_polled = sa.Column(
+        Timestamp(),
+        nullable=True,
+    )
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)
     entrypoint = sa.Column(sa.String, nullable=True)
@@ -1069,6 +1073,8 @@ class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
+
+    block_type_name = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def block_type_id(cls):
@@ -1333,6 +1339,20 @@ class ORMVariable:
     __table_args__ = (sa.UniqueConstraint("name"),)
 
 
+@declarative_mixin
+class ORMFlowRunInput:
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+        )
+
+    key = sa.Column(sa.String, nullable=False)
+    value = sa.Column(sa.Text(), nullable=False)
+
+    __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1392,6 +1412,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        flow_run_input_mixin=ORMFlowRunInput,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1445,6 +1466,7 @@ class BaseORMConfiguration(ABC):
             block_document_reference_mixin=block_document_reference_mixin,
             configuration_mixin=configuration_mixin,
             variable_mixin=variable_mixin,
+            flow_run_input_mixin=flow_run_input_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1494,6 +1516,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        flow_run_input_mixin=ORMFlowRunInput,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1578,6 +1601,9 @@ class BaseORMConfiguration(ABC):
         class Variable(variable_mixin, self.Base):
             pass
 
+        class FlowRunInput(flow_run_input_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1604,6 +1630,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
         self.Variable = Variable
+        self.FlowRunInput = FlowRunInput
 
     @property
     @abstractmethod

@@ -9,24 +9,24 @@ search:
   boost: 2
 ---
 
-# Service Accounts <span class="badge cloud"></span> <span class="badge orgs"></span>
+# Service Accounts <span class="badge cloud"></span>  <span class="badge pro"> </span> <span class="badge enterprise"></span>
 
 Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account.
-Service accounts are typically used to configure API access for running agents or executing deployment flow runs on remote infrastructure.
+Service accounts are typically used to configure API access for running workers or executing deployment flow runs on remote infrastructure.
 
-Service accounts are non-user organization accounts that have the following:
+Service accounts are non-user accounts that have the following features:
 
 - Prefect Cloud [API keys](/cloud/users/api-keys/)
-- Organization [roles](/cloud/users/roles/) and permissions
+- [Roles](/cloud/users/roles/) and permissions
 
-Using service account credentials, you can [configure an execution environment](/cloud/connecting/#configure-a-local-execution-environment) to interact with your Prefect Cloud organization workspaces without a user having to manually log in from that environment.
-Service accounts may be created, added to workspaces, have their roles changed, or deleted without affecting organization user accounts.
+Using service account credentials, you can [configure an execution environment](/cloud/connecting/#configure-a-local-execution-environment) to interact with your Prefect Cloud workspaces without a user having to manually log in from that environment.
+Service accounts may be created, added to workspaces, have their roles changed, or deleted without affecting other user accounts.
 
-Select **Service Accounts** to view, create, or edit service accounts for your organization.
+Select **Service Accounts** to view, create, or edit service accounts.
 
-![Viewing service accounts for an organization in Prefect Cloud.](/img/ui/service-accounts.png)
+![Viewing service accounts in Prefect Cloud.](/img/ui/service-accounts.png)
 
-Service accounts are created at the organization level, but individual workspaces within the organization may be shared with the account.
+Service accounts are created at the account level, but individual workspaces may be shared with the service account.
 See [workspace sharing](/cloud/workspaces/#workspace-sharing) for more information.
 
 !!! tip "Service account credentials"
@@ -35,21 +35,21 @@ See [workspace sharing](/cloud/workspaces/#workspace-sharing) for more informati
     If the access credentials are lost or compromised, you should regenerate the credentials from the service account page.
 
 !!! note "Service account roles"
-    Service accounts are created at the organization level, and may then become members of workspaces within the organization.
+    Service accounts are created at the account level, and can then be added to workspaces within the account.
 
-    A service account may only be a Member of an organization. 
-    It can never be an organization Admin. 
+    A service account may only be a Member of an account. 
+    It can never be an account Admin. 
     You may apply any valid _workspace-level_ role to a service account.
 
 ## Create a service account
 
-Within your organization, on the **Service Accounts** page, select the **+** icon to create a new service account. You'll be prompted to configure:
+Within your account, on the **Service Accounts** page, select the **+** icon to create a new service account. You'll be prompted to configure:
 
-- The service account name. This name must be unique within your account or organization.
+- The service account name. This name must be unique within your account.
 - An expiration date, or the **Never Expire** option.
 
 !!! note "Service account roles"
-    A service account may only be a Member of an organization.
+    A service account may only be a Member of an account.
     You may apply any valid _workspace-level_ role to a service account when it is [added to a workspace](/cloud/workspaces/#workspace-sharing).
 
 Select **Create** to create the new service account.

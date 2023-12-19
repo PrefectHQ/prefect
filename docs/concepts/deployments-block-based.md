@@ -10,11 +10,12 @@ tags:
     - storage
     - work pool
     - worker
+boost: .5
 ---
 
 # Block Based Deployments
 
-!!! note "Workers are recommended"
+!!! warning "Workers are recommended"
     This page is about the block-based deployment model. The [Work Pools and Workers](/concepts/work-pools/) based [deployment model](/concepts/deployments/) simplifies the specification of a flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
 
 We encourage you to check out the new [deployment experience](/concepts/deployments/) with guided command line prompts and convenient CI/CD with `prefect.yaml` files.

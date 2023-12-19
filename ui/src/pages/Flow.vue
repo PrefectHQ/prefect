@@ -12,11 +12,11 @@
       </template>
 
       <template #deployments>
-        <DeploymentsTable :filter="deploymentsFilter" />
+        <DeploymentsTable :filter="deploymentsFilter" prefix="deployments" />
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :flow-run-filter="flowRunsFilter" />
+        <FlowRunFilteredList :filter="flowRunsFilter" prefix="runs" />
       </template>
     </p-tabs>
   </p-layout-default>

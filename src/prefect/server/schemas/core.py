@@ -24,6 +24,7 @@ from prefect.server.utilities.schemas.bases import (
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
 )
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
@@ -566,6 +567,10 @@ class Deployment(ORMBaseModel):
             " be scheduled."
         ),
     )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The last time the deployment was polled for status updates.",
+    )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
@@ -746,6 +751,9 @@ class BlockDocument(ORMBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
+    block_type_name: Optional[str] = Field(
+        default=None, description="The associated block type's name"
+    )
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
@@ -819,6 +827,7 @@ class BlockDocument(ORMBaseModel):
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
+            block_type_name=orm_block_document.block_type_name,
             block_type=orm_block_document.block_type,
             is_anonymous=orm_block_document.is_anonymous,
         )
@@ -1268,3 +1277,14 @@ class Variable(ORMBaseModel):
         description="A list of variable tags",
         example=["tag-1", "tag-2"],
     )
+
+
+class FlowRunInput(ORMBaseModel):
+    flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
+    key: str = Field(description="The key of the input.")
+    value: str = Field(description="The value of the input.")
+
+    @validator("key", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_alphanumeric_dashes_only(v)
+        return v

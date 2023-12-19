@@ -49,7 +49,9 @@ from prefect.settings import (
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
@@ -71,6 +73,7 @@ from prefect.testing.fixtures import *
 
 from .fixtures.api import *
 from .fixtures.client import *
+from .fixtures.collections_registry import *
 from .fixtures.database import *
 from .fixtures.docker import *
 from .fixtures.logging import *
@@ -507,3 +510,30 @@ def disable_workers():
         {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 0, PREFECT_EXPERIMENTAL_WARN_WORKERS: 1}
     ):
         yield
+
+
+@pytest.fixture
+def enable_enhanced_cancellation():
+    with temporary_settings(
+        {
+            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: 1,
+            PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: 0,
+        }
+    ):
+        yield
+
+
+@pytest.fixture
+def disable_enhanced_cancellation():
+    with temporary_settings(
+        {
+            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: 0,
+            PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: 1,
+        }
+    ):
+        yield
+
+
+@pytest.fixture
+def start_of_test() -> pendulum.DateTime:
+    return pendulum.now("UTC")
