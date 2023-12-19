@@ -78,6 +78,7 @@
     mapper
   } from '@prefecthq/prefect-ui-library'
   import { BooleanRouteParam, useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
+  import merge from 'lodash.merge'
   import { computed, ref, toRef } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
