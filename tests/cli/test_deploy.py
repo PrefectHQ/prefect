@@ -2397,6 +2397,81 @@ class TestProjectDeploy:
             "An important name/test-name"
         )
 
+    @pytest.mark.usefixtures("project_dir", "interactive_console")
+    async def test_deploy_templates_env_vars(self, prefect_client, monkeypatch):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        monkeypatch.setenv("WORK_POOL", "test-pool")
+        monkeypatch.setenv("MY_VAR", "my-value")
+        monkeypatch.setenv("REGISTRY", "my-registry")
+        monkeypatch.setenv("IMAGE_NAME", "my-image")
+        monkeypatch.setenv("TAG", "my-tag")
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        prefect_config["definitions"] = [
+            {
+                "work_pools": {
+                    "work_pool": "&work_pool",
+                    "name": "{{ $WORK_POOL_NAME}}",
+                    "job_variables": {
+                        "image": "{{ $REGISTRY }}/{{ $IMAGE_NAME }}:{{ $TAG }}"
+                    },
+                }
+            }
+        ]
+        prefect_config["deployments"] = [
+            {
+                "name": "test-deployment",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": "*work_pool",
+            }
+        ]
+
+        prefect_config["build"] = [
+            {"prefect.testing.utilities.a_test_step": {"input": "{{ $MY_VAR }}"}}
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+            expected_code=0,
+            expected_output_contains="An important name/test-name",
+            user_input=(
+                "n"  # Decline schedule
+                + readchar.key.ENTER
+                + "n"  # Decline docker build
+                + readchar.key.ENTER
+                + "y"  # Accept save configuration
+                + readchar.key.ENTER
+            ),
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.work_pool_name == "test-pool"
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert (
+            config["definitions"][0]["work_pools"]["job_variables"]["image"]
+            == "{{ $REGISTRY }}/{{ $IMAGE_NAME }}:{{ $TAG }}"
+        )
+        assert (
+            config["build"][0]["prefect.testing.utilities.a_test_step"]["input"]
+            == "{{ $MY_VAR }}"
+        )
+
     @pytest.mark.usefixtures("interactive_console")
     class TestRemoteStoragePicklist:
         @pytest.mark.usefixtures("uninitialized_project_dir_with_git_no_remote")
