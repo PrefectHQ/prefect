@@ -1438,7 +1438,7 @@ class TestOrchestrateTaskRun:
             Cancelled,
         ],
     )
-    async def test_dont_call_retry_condition_fn_on_non_failure_state(
+    async def test_retry_condition_fn_not_called_in_non_failure_terminal_state(
         self,
         state_constructor_fn,
         mock_anyio_sleep,
