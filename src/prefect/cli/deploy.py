@@ -329,6 +329,14 @@ async def _run_single_deploy(
 
     deploy_config = await resolve_variables(deploy_config)
 
+    env_vars = dict(os.environ)
+    deploy_config["work_pool"]["name"] = apply_values(
+        deploy_config["work_pool"]["name"], env_vars
+    )
+    deploy_config["work_pool"]["work_queue_name"] = apply_values(
+        deploy_config["work_pool"]["work_queue_name"], env_vars
+    )
+
     if get_from_dict(deploy_config, "schedule.anchor_date") and not get_from_dict(
         deploy_config, "schedule.interval"
     ):
