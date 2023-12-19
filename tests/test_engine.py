@@ -27,7 +27,6 @@ from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
     API_HEALTHCHECKS,
-    _check_task_failure_retriable,
     begin_flow_run,
     check_api_reachable,
     collect_task_run_inputs,
@@ -2728,31 +2727,3 @@ async def test_long_task_introspection_warning_off(
             )
 
     assert "Task parameter introspection took" not in caplog.text
-
-
-async def test__check_task_failure_retriable_not_callable(
-    flow_run, prefect_client, caplog: pytest.LogCaptureFixture
-):
-    @task(retry_condition_fn="not a callable")
-    def my_task():
-        ...
-
-    task_run = await prefect_client.create_task_run(
-        task=my_task,
-        flow_run_id=flow_run.id,
-        state=Pending(),
-        dynamic_key="0",
-    )
-
-    state = Failed(message="test")
-
-    with caplog.at_level("ERROR"):
-        assert await _check_task_failure_retriable(my_task, task_run, state) is False
-
-    assert (
-        "Expected `retry_condition_fn` to be callable, got str instead." in caplog.text
-    )
-    assert (
-        "An error was encountered while running `retry_condition_fn` check"
-        in caplog.text
-    )

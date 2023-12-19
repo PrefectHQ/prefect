@@ -39,7 +39,7 @@ from prefect.settings import (
 )
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import Async, Sync
+from prefect.utilities.asyncutils import Async, Sync, is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
     raise_for_reserved_arguments,
@@ -342,6 +342,17 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+
+        if not (
+            callable(retry_condition_fn)
+            or is_async_fn(retry_condition_fn)
+            or retry_condition_fn is None
+        ):
+            raise TypeError(
+                "Expected `retry_condition_fn` to be callable, got"
+                f" {type(retry_condition_fn).__name__} instead."
+            )
+
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
 

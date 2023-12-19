@@ -2512,12 +2512,7 @@ async def _check_task_failure_retriable(
             f"Running `retry_condition_fn` check {task.retry_condition_fn!r} for task"
             f" {task.name!r}"
         )
-        if not callable(task.retry_condition_fn):
-            raise TypeError(
-                "Expected `retry_condition_fn` to be callable, got"
-                f" {type(task.retry_condition_fn).__name__} instead."
-            )
-        elif is_async_fn(task.retry_condition_fn):
+        if is_async_fn(task.retry_condition_fn):
             return await task.retry_condition_fn(
                 task=task, task_run=task_run, state=state
             )
