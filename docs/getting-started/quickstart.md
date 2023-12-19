@@ -91,7 +91,7 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-Note that we added a `log_prints=True` argument to the `@flow` decorator so that `print` statements within the flow will be logged.
+Note that we added a `log_prints=True` argument to the `@flow` decorator so that `print` statements within the flow-decorated function will be logged.
 
 <div class="terminal">
 
@@ -115,10 +115,12 @@ Now when we run this script, Prefect will automatically track the state of the f
 
 </div>
 
-## Step 4: Choose a remote infrastructure location for your flow
+You should see similar output in your terminal, with your own randomly generated flow run name and your own Prefect Cloud account URL.
 
-Let's get this workflow running off our local machine.
-We can tell Prefect where we ant to run our workflow by creating a [work pool](/concepts/work-pools/).
+## Step 4: Choose a remote infrastructure location
+
+Let's get this workflow running off our local machine!
+We can tell Prefect where we want to run our workflow by creating a [work pool](/concepts/work-pools/).
 
 Because we're using Prefect Cloud, we have access to Prefect Managed work pools that provides hosted infrastructure for running our flows.
 
@@ -135,18 +137,16 @@ prefect work-pool create my-managed-pool --type prefect:managed
 </div>
 
 You should see a message in the CLI that your work pool was created.
-Feel free to check out your work pool in the UI.
+Feel free to check out your new work pool on the **Work Pools** page in the UI.
 
 ## Step 4: Make your code schedulable
 
 We have a flow function and we have a work pool where we can run our flow remotely.
-Let's package both of these things, along with the location of the flow code to pull at runtime, into a [deployment](/concepts/deployments/) so that we can schedule our workflow to run remotely.
+Let's package both of these things, along with the location for where to find our flow code, into a [deployment](/concepts/deployments/) so that we can schedule our workflow to run remotely.
 
 Deployments elevate flows to remotely configurable entities that have their own API.
 
-Let's update our script to use the work pool we just created:
-
-TK update repo
+Let's update our script to create a deployment.
 
 ```python title="my_workflow.py"
 ...
@@ -163,6 +163,7 @@ if __name__ == "__main__":
 ```
 
 Run the script to create the deployment on the Prefect Cloud server.
+Note that the `cron` argument will schedule the deployment to run at 1am every day.
 
 <div class="terminal">
 
@@ -198,9 +199,6 @@ You can also run your flow via the Prefect UI: <https://app.prefect.cloud/accoun
 
 Head to the **Deployments* page of the UI to check it out.
 
-Note that this flow run is now scheduled to run at 1am every day.
-You can toggle the deployment schedule on and off in the UI.
-
 !!! note "Code storage options"
     You can store your flow code in nearly any location.
     You just need to tell Prefect where to find it.
@@ -224,11 +222,11 @@ prefect deployment run 'get_repo_info/my-first-deployment'
 The deployment is configured to run on a Prefect Managed work pool, so Prefect will automatically spin up the infrastructure to run this flow.
 It may take a minute to set up the Docker image in which the flow will run.
 
-![Flow run timeline](/img/ui/flow-run-diagram.png)
+After a minute or so, you should see logs.
 
-You should see logs on the **Flow Run** page that look similar to this:
+![Managed flow run with metrics](/img/ui/deployment-managed.png)
 
-TK insert logs screenshot - one issue with not having tasks or sublfows is that we don't get a graph
+Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once a day.
 
 ## Next steps
 
