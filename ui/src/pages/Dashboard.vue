@@ -1,10 +1,12 @@
 <template>
   <p-layout-default class="workspace-dashboard">
     <template #header>
-      <PageHeading :crumbs="crumbs">
+      <PageHeading :crumbs="crumbs" class="workspace-dashboard__page-heading">
         <template v-if="!empty" #actions>
-          <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
-          <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
+          <div class="workspace-dashboard__header-actions">
+            <FlowRunTagsInput v-model:selected="filter.tags" empty-message="All tags" />
+            <DateRangeSelect v-model="filter.range" class="workspace-dashboard__date-select" />
+          </div>
         </template>
       </PageHeading>
     </template>
@@ -38,9 +40,7 @@
 <script setup lang="ts">
   import { Crumb } from '@prefecthq/prefect-design'
   import {
-    TimeSpanFilter,
     DashboardWorkPoolsCard,
-    WorkspaceDashboardFilter,
     WorkspaceDashboardFlowRunsCard,
     CumulativeTaskRunsCard,
     PageHeading,
@@ -51,10 +51,12 @@
     mapper,
     TaskRunsFilter,
     MarketingBanner,
-    Getter
+    Getter,
+    DateRangeSelect,
+    useWorkspaceDashboardFilterFromRoute
   } from '@prefecthq/prefect-ui-library'
-  import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
-  import { secondsInHour, secondsToMilliseconds } from 'date-fns'
+  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { secondsInDay, secondsToMilliseconds } from 'date-fns'
   import { computed, provide } from 'vue'
 
   provide(subscriptionIntervalKey, {
@@ -65,24 +67,37 @@
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
-
   const crumbs: Crumb[] = [{ text: 'Dashboard' }]
 
-  const timeSpanInSeconds = useRouteQueryParam('span', NumberRouteParam, secondsInHour * 24)
-  const tags = useRouteQueryParam('tags', [])
+  const filter = useWorkspaceDashboardFilterFromRoute({
+    range: { type: 'span', seconds: -secondsInDay },
+    tags: [],
+  })
 
-  const filter = computed<WorkspaceDashboardFilter>(() => ({
-    timeSpanInSeconds: timeSpanInSeconds.value,
-    tags: tags.value,
-  }))
-
-  const tasksFilter: Getter<TaskRunsFilter> = () => mapper.map('WorkspaceDashboardFilter', filter.value, 'TaskRunsFilter')
+  const tasksFilter: Getter<TaskRunsFilter> = () => mapper.map('WorkspaceDashboardFilter', filter, 'TaskRunsFilter')
 </script>
 
 <style>
-.workspace-dashboard__tags { @apply
+.workspace-dashboard__page-heading { @apply
+  grid
+  md:flex
+  md:flex-row
+  md:items-center
+}
+
+.workspace-dashboard__header-actions { @apply
+  flex
+  flex-col
   w-full
-  max-w-xs
+  max-w-full
+  gap-2
+  md:w-auto
+  md:inline-flex
+  md:flex-row
+}
+
+.workspace-dashboard__date-select { @apply
+  min-w-0
 }
 
 .workspace-dashboard__grid { @apply
@@ -90,12 +105,7 @@
   grid-cols-1
   gap-4
   items-start
-}
-
-@screen xl {
-  .workspace-dashboard__grid { @apply
-    grid-cols-2
-  }
+  xl:grid-cols-2
 }
 
 .workspace-dashboard__side { @apply
