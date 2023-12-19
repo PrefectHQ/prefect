@@ -11,9 +11,9 @@ search:
 # CI/CD with Prefect
 
 Prefect is used by many organizations in their CI/CD pipelines.
-Each organization has their own unique setup, but there are some common patterns.
-This guide provides links to repositories and resources that may be helpful when setting up Prefect in your CI/CD pipeline.
-This guide is not meant to be exhaustive, but should provide you with jumping off points for your own setup.
+Each organization has their own unique setup, but a common pattern is to use CI/CD to manage Prefect [deployments](/concepts/deployments).
+Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code updates, scheduling changes, and container builds.
+This guide utilizes [GitHub Actions](https://docs.github.com/en/actions) to execute CI/CD pipelines, but these concepts are generally applicable across many CI/CD tools.
 
 Note that Prefect's `.deploy` flow method and `prefect.yaml` configuration file are both designed with building and pushing images to a Docker registry in mind.
 
