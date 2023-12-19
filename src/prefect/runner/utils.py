@@ -1,25 +1,18 @@
 import os
 import uuid
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 
 from prefect import __version__ as PREFECT_VERSION
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.importtools import import_object
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
     from prefect.deployments import Deployment
-
-
-if HAS_PYDANTIC_V2:
-    pass
-else:
-    pass
 
 
 def inject_schemas_into_openapi(
@@ -124,7 +117,7 @@ def _set_parameter_schema(prefect_fn: Union["Flow", "Task"]) -> Union["Flow", "T
 
 async def _find_subflows_of_deployment(
     deployment: "Deployment",
-) -> list[tuple[str, "Flow"]]:
+) -> List[Tuple[str, "Flow"]]:
     """
     Find all subflows of a deployment.
 
