@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="flow-runs">
     <template #header>
-      <PageHeadingFlowRuns />
+      <PageHeadingFlowRuns :filter="dashboardFilter" :hide-actions="empty" @update:filter="setDashboardFilter" />
     </template>
 
     <template v-if="loaded">
@@ -9,13 +9,13 @@
         <FlowRunsPageEmptyState />
       </template>
       <template v-else>
-        <FlowRunsFilterGroup />
+        <FlowRunsFilterGroup v-model:name="flowRunNameLike" :filter="dashboardFilter" @update:filter="setDashboardFilter" />
 
         <template v-if="media.md">
           <FlowRunsScatterPlot
             :history="flowRunHistory"
-            :start-date="filter.flowRuns.expectedStartTimeAfter"
-            :end-date="filter.flowRuns.expectedStartTimeBefore"
+            :start-date="flowRunsFilter.flowRuns?.expectedStartTimeAfter"
+            :end-date="flowRunsFilter.flowRuns?.expectedStartTimeBefore"
             class="flow-runs__chart"
           />
         </template>
@@ -28,7 +28,7 @@
 
             <template #controls>
               <div class="flow-runs__subflows-toggle">
-                <p-toggle v-model="parentTaskRunIdNull" append="Hide subflows" />
+                <p-toggle v-model="hideSubflows" append="Hide subflows" />
               </div>
               <template v-if="media.md">
                 <SearchInput v-model="flowRunNameLike" placeholder="Search by run name" label="Search by run name" />
@@ -36,7 +36,7 @@
             </template>
 
             <template #sort>
-              <FlowRunsSort v-model="filter.sort" class="flow-runs__sort" />
+              <FlowRunsSort v-model="sort" class="flow-runs__sort" />
             </template>
           </p-list-header>
 
@@ -58,7 +58,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PEmptyResults, media } from '@prefecthq/prefect-design'
+  import { Getter, PEmptyResults, media } from '@prefecthq/prefect-design'
   import {
     PageHeadingFlowRuns,
     FlowRunsPageEmptyState,
@@ -71,11 +71,14 @@
     FlowRunsFilterGroup,
     useWorkspaceApi,
     SelectedCount,
-    useRecentFlowRunsFilterFromRoute,
-    useFlowRuns
+    useFlowRuns,
+    useWorkspaceFlowRunDashboardFilterFromRoute,
+    FlowRunSortValuesSortParam,
+    FlowRunsFilter,
+    mapper
   } from '@prefecthq/prefect-ui-library'
-  import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { BooleanRouteParam, useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
+  import { computed, ref, toRef } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
@@ -87,33 +90,40 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const flowRunNameLike = ref<string>()
+  const { filter: dashboardFilter, setFilter: setDashboardFilter, isCustom: isCustomDashboardFilter } = useWorkspaceFlowRunDashboardFilterFromRoute()
+
+  const flowRunNameLike = ref('')
   const flowRunNameLikeDebounced = useDebouncedRef(flowRunNameLike, 1200)
-  const { filter, isCustomFilter } = useRecentFlowRunsFilterFromRoute({
-    flowRuns: {
-      nameLike: flowRunNameLikeDebounced,
-    },
+  const hideSubflows = useRouteQueryParam('hide-subflows', BooleanRouteParam, false)
+  const sort = useRouteQueryParam('sort', FlowRunSortValuesSortParam, 'START_TIME_DESC')
+
+  const flowRunsFilter = toRef<Getter<FlowRunsFilter>>(() => {
+    const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
+
+    return merge({}, filter, {
+      flowRuns: {
+        nameLike: flowRunNameLikeDebounced.value,
+        parentTaskRunIdNull: hideSubflows.value ? true : undefined,
+      },
+      sort: sort.value,
+    })
   })
-  const parentTaskRunIdNull = computed({
-    get() {
-      return filter.flowRuns.parentTaskRunIdNull
-    },
-    set(val) {
-      filter.flowRuns.parentTaskRunIdNull = val ? true : undefined
-    },
-  })
+
+  const isCustomFilter = computed(() => isCustomDashboardFilter.value || hideSubflows.value || flowRunNameLike.value)
+
   const interval = 30000
 
 
-  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], {
+  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [flowRunsFilter], {
     interval,
   })
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const { flowRuns, total: flowRunCount, subscriptions: flowRunsSubscriptions, next: loadMoreFlowRuns } = useFlowRuns(filter, {
+  const { flowRuns, total: flowRunCount, subscriptions: flowRunsSubscriptions, next: loadMoreFlowRuns } = useFlowRuns(flowRunsFilter, {
     mode: 'infinite',
     interval,
   })
+
   const selectedFlowRuns = ref([])
 
   function clear(): void {
