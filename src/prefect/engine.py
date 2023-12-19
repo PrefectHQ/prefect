@@ -2513,8 +2513,8 @@ async def _check_task_failure_retriable(
             f" {task.name!r}"
         )
         if is_async_fn(task.retry_condition_fn):
-            return await task.retry_condition_fn(
-                task=task, task_run=task_run, state=state
+            return bool(
+                await task.retry_condition_fn(task=task, task_run=task_run, state=state)
             )
         else:
             return bool(
