@@ -1285,7 +1285,7 @@ class TestOrchestrateTaskRun:
                     log_prints=False,
                 )
 
-    async def test_is_retriable_after_failure(
+    async def test_retry_condition_fn_retries_after_failure(
         self, mock_anyio_sleep, prefect_client, flow_run, result_factory
     ):
         # the flow run must be running prior to running tasks
@@ -1327,11 +1327,11 @@ class TestOrchestrateTaskRun:
             log_prints=False,
         )
 
-        # Check that the task completed happily
+        # Check that the task failed after two attempts
         assert state.is_failed()
         assert mock.call_count == 2
 
-    async def test_no_retry_on_retries_eq_0_even_if_retriable(
+    async def test_retry_condition_fn_when_retries_eq_0_does_not_retry(
         self, mock_anyio_sleep, prefect_client, flow_run, result_factory
     ):
         # the flow run must be running prior to running tasks
@@ -1340,14 +1340,16 @@ class TestOrchestrateTaskRun:
             state=Running(),
         )
 
-        # Define a task that fails once and then succeeds
+        # Mocks to check call counts
         mock = MagicMock()
+        mock_2 = MagicMock()
 
-        # Can retry only once
+        # Could run task 5 times (4 retry)
         def is_retriable(task, task_run, state):
+            mock_2()
             return mock.call_count < 5
 
-        # Can retry more than once
+        # Never retry
         @task(retries=0, retry_condition_fn=is_retriable)
         def my_task(x):
             mock(x)
@@ -1373,9 +1375,11 @@ class TestOrchestrateTaskRun:
             log_prints=False,
         )
 
-        # Check that the task completed happily
+        # Check that the task failed after only one attempt
         assert state.is_failed()
         assert mock.call_count == 1
+        # Check that the retry condition function was only called once
+        assert mock_2.call_count == 1
 
     @pytest.mark.parametrize(
         "state_constructor_fn",
