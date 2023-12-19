@@ -1,9 +1,9 @@
 ---
 description: CI/CD resources for working with Prefect.
 tags:
-    - CI/CD
-    - continuous integration
-    - continuous delivery
+  - CI/CD
+  - continuous integration
+  - continuous delivery
 search:
   boost: 2
 ---
@@ -187,9 +187,32 @@ The `deploy` job is comprised of four `steps`:
               prefect deploy -n my-deployment
     ```
 
+### Running a GitHub workflow
+
+After pushing commits to your repository, GitHub will automatically detect and trigger a run of your workflow.
+
+![A GitHub Action triggered via push](/img/guides/github-actions-trigger.png)
+
+You can view the logs from each workflow step as they run. The `Prefect Deploy` step will include output about your image build and push, and the creation/update of your deployment.
+
+```
+Successfully built image '***/cicd-example:latest'
+
+Successfully pushed image '***/cicd-example:latest'
+
+Successfully created/updated all deployments!
+
+                Deployments
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃ Name                ┃ Status  ┃ Details ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ hello/my-deployment │ applied │         │
+└─────────────────────┴─────────┴─────────┘
+```
+
 ## Prefect GitHub Actions
 
-Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth) and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). These actions can simplify deploying with CI/CD when using `prefect.yaml`, especially in cases where a repository contains flows that are used in multiple deployments across multiple Prefect Cloud workspaces. 
+Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth) and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). These actions can simplify deploying with CI/CD when using `prefect.yaml`, especially in cases where a repository contains flows that are used in multiple deployments across multiple Prefect Cloud workspaces.
 
 Here's an example of integrating these actions into the pipeline we created above:
 
@@ -219,7 +242,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Prefect Auth
         uses: PrefectHQ/actions-prefect-auth@v1
@@ -233,20 +256,6 @@ jobs:
           deployment-names: my-deployment
           requirements-file-paths: requirements.txt
 ```
-
-## Additional examples
-
-The following examples use GitHub Actions and can be adapted to other CI/CD tools.
-
-| Description | Link |
-| --- | --- |
-| Deploy an image to AWS ECR when pushing to main. Uses `.deploy`  | [repo_link]()  |
-| Deploy an image to AWS ECR when pushing to main. Uses `prefect.yaml`  | [repo_link]()  |
-
-
-
-
-
 
 ## Other resources
 
