@@ -13,7 +13,7 @@ See the following PR for implementation details:
 
 Building on the updates to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans like "Past 7 days". This means its much easier to quickly look at what's happing right now (e.g. "Past 1 hour") or see whats coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
 
-We have also updated saved filters so it is possible to save date ranges when saving flow run filters. For example, creating a view to see the past 6 hours of runs for a specific work pool is now possible.
+We have also updated saved filters on the flow runs page so it is possible to save date ranges when saving a custom filter. For example, creating a view to see the past 6 hours of runs for a specific work pool is now possible.
 
 The flow page has also got the same updated date and time filters so you have much more control over how you filter and view runs. 
 
