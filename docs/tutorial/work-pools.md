@@ -48,7 +48,7 @@ Other advantages to using work pools include:
 - Work pools can be used to prioritize (or limit) flow runs through the use of [work queues](/concepts/work-pools/#work-queues).
 
 Prefect provides several [types of work pools](/concepts/work-pools/#work-pool-types).
-Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to deploy remote workflows.
+Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
 ## Set up a work pool
