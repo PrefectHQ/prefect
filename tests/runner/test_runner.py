@@ -32,6 +32,7 @@ from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check
 from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
@@ -747,6 +748,7 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
+        assert deployment.is_schedule_active is None
         assert deployment.enforce_parameter_schema
 
     def test_from_flow_accepts_interval(self):
@@ -767,6 +769,17 @@ class TestRunnerDeployment:
         )
 
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, None)],
+    )
+    def test_from_flow_accepts_is_schedule_active(self, value, expected):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, is_schedule_active=value
+        )
+
+        assert deployment.is_schedule_active is expected
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -871,6 +884,19 @@ class TestRunnerDeployment:
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
 
     @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, None)],
+    )
+    def test_from_entrypoint_accepts_is_schedule_active(
+        self, dummy_flow_1_entrypoint, value, expected
+    ):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, is_schedule_active=value
+        )
+
+        assert deployment.is_schedule_active is expected
+
+    @pytest.mark.parametrize(
         "kwargs",
         [
             {**d1, **d2}
@@ -921,6 +947,7 @@ class TestRunnerDeployment:
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema is False
         assert deployment.infra_overrides == {}
+        assert deployment.is_schedule_active is True
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
@@ -940,6 +967,17 @@ class TestRunnerDeployment:
             "image": "my-repo/my-image:latest",
         }
         assert deployment.work_queue_name == "default"
+
+    async def test_apply_inactive_schedule(self, prefect_client: PrefectClient):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, is_schedule_active=False
+        )
+
+        deployment_id = await deployment.apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.is_schedule_active is False
 
     @pytest.mark.parametrize(
         "from_flow_kwargs, apply_kwargs, expected_message",
@@ -1594,3 +1632,23 @@ class TestDeploy:
                 work_pool_name=work_pool_with_image_variable.name,
                 image="test-registry/test-image",
             )
+
+
+class TestDeploymentImage:
+    def test_adds_default_registry_url(self):
+        with temporary_settings(
+            {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
+        ):
+            image = DeploymentImage(name="test-image")
+            assert image.name == "alltheimages.com/my-org/test-image"
+
+    def test_override_default_registry_url(self):
+        with temporary_settings(
+            {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
+        ):
+            image = DeploymentImage(name="otherimages.com/my-org/test-image")
+            assert image.name == "otherimages.com/my-org/test-image"
+
+    def test_no_default_registry_url_by_default(self):
+        image = DeploymentImage(name="my-org/test-image")
+        assert image.name == "my-org/test-image"

@@ -11,7 +11,7 @@ import pytest
 from prefect.results import LiteralResult, PersistedResult, UnpersistedResult
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models import concurrency_limits
+from prefect.server.models import concurrency_limits, flow_runs
 from prefect.server.orchestration.core_policy import (
     BypassCancellingScheduledFlowRuns,
     CacheInsertion,
@@ -965,6 +965,57 @@ class TestTaskRetryingRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
+
+    async def test_not_retriable_detail_set(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+        ctx.run.run_count = 1
+        ctx.run_settings.retries = 2
+        ctx.proposed_state.state_details.retriable = False
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.FAILED
+
+    async def test_manual_retry_works_even_when_not_retriable(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        manual_retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=1,
+        )
+        ctx.proposed_state.name = "AwaitingRetry"
+        ctx.run.run_count = 1
+        ctx.run_settings.retries = 2
+        ctx.proposed_state.state_details.retriable = False
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in manual_retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
 
 
 class TestRenameRetryingStates:
@@ -2719,6 +2770,44 @@ class TestPreventRunningTasksFromStoppedFlows:
         else:
             assert ctx.response_status == SetStateStatus.ABORT
             assert ctx.validated_state.is_pending()
+
+    async def test_does_not_reuse_state_pk_from_paused_flow_run(
+        self, session, initialize_orchestration
+    ):
+        """
+        A regression test: fix a bug in version 2.14.10 where we inadvertently
+        reused the state ID from the flow run's paused state for task runs when
+        we paused them, leading to PK conflicts in some cases.
+        """
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        pause_timeout = pendulum.now("UTC").add(minutes=5)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_flow_run_state_type=states.StateType.PAUSED,
+            initial_flow_run_state_details={
+                "pause_timeout": pause_timeout,
+                "pause_reschedule": True,
+            },
+        )
+
+        flow_run = await flow_runs.read_flow_run(session, ctx.run.flow_run_id)
+        run_preventer = PreventRunningTasksFromStoppedFlows(ctx, *intended_transition)
+
+        async with run_preventer as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.is_paused()
+        assert flow_run.state.type == states.StateType.PAUSED
+        assert ctx.validated_state.id != flow_run.state.id
+
+        # Check that other values carried over from the state data
+        assert ctx.validated_state.state_details.pause_timeout == pause_timeout
+        assert ctx.validated_state.state_details.pause_reschedule is True
 
 
 class TestHandleCancellingStateTransitions:

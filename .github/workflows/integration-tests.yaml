@@ -35,6 +35,8 @@ jobs:
           - "2.9"
           - "2.10"
           - "2.11"
+          - "2.12"
+          - "2.13"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -79,7 +81,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: "pip"

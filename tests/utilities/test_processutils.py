@@ -55,6 +55,34 @@ class TestRunProcess:
         assert process.returncode == 0
         assert (tmp_path / "output.txt").read_text().strip() == "hello world"
 
+    class DummyWrapper:
+        def __init__(self, wrapped):
+            self.__wrapped = wrapped
+
+        def __getattr__(self, name):
+            return getattr(self.__wrapped, name)
+
+    async def test_run_process_allows_stdout_wrapper(self, tmp_path):
+        with open(tmp_path / "output.txt", "wt") as fout:
+            process = await run_process(
+                ["echo", "hello world"], stream_output=(self.DummyWrapper(fout), None)
+            )
+
+        assert process.returncode == 0
+        assert (tmp_path / "output.txt").read_text().strip() == "hello world"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="stderr redirect does not work on Windows"
+    )
+    async def test_run_process_allows_stderr_wrapper(self, tmp_path):
+        with open(tmp_path / "output.txt", "wt") as fout:
+            process = await run_process(
+                ["bash", "-c", ">&2 echo hello world"],
+                stream_output=(None, self.DummyWrapper(fout)),
+            )
+        assert process.returncode == 0
+        assert (tmp_path / "output.txt").read_text().strip() == "hello world"
+
 
 class TestOpenProcess:
     str_cmd = "ls -a"
