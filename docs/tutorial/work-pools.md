@@ -121,13 +121,12 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
 
-TK repo below
 
 if __name__ == "__main__":
     get_repo_info.from_source(
-        source="https://github.com/desertaxle/demo.git", 
-        entrypoint="flow.py:my_flow")
-    .deploy(
+        source="https://github.com/discdiver/demos.git", 
+        entrypoint="repo_info.py:my_flow"
+    ).deploy(
         name="my-first-deployment", 
         work_pool_name="my-managed-pool", 
     )
@@ -146,6 +145,29 @@ Alternatively, you could store your flow code in cloud provider storage such as 
     If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
 
 Run the script again and you should see a message in the CLI that your deployment was created with instructions for how to run it.
+
+<div class="terminal">
+
+```bash
+Successfully created/updated all deployments!
+
+                       Deployments                       
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃ Name                              ┃ Status  ┃ Details ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ get-repo-info/my-first-deployment  | applied │         │
+└───────────────────────────────────┴─────────┴─────────┘
+
+To schedule a run for this deployment, use the following command:
+
+        $ prefect deployment run 'get-repo-info/my-first-deployment'
+
+
+You can also run your flow via the Prefect UI: https://app.prefect.cloud/account/
+abc/workspace/123/deployments/deployment/xyz
+```
+
+</div>
 
 Navigate to your Prefect Cloud UI and view your new deployment.
 Click the "Run" button to trigger a run of your deployment.
