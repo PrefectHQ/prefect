@@ -11,9 +11,14 @@ See the following PR for implementation details:
 
 ### Second highlight
 
-lorem ipsum
+Building on the updates to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans like "Past 7 days". This means its much easier to quickly look at what's happing right now (e.g. "Past 1 hour") or see whats coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
 
-See the following PR for implementation details:
+We have also updated saved filters so it is possible to save date ranges when saving flow run filters. For example, creating a view to see the past 6 hours of runs for a specific work pool is now possible.
+
+The flow page has also got the same updated date and time filters so you have much more control over how you filter and view runs. 
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11473
 - https://github.com/PrefectHQ/prefect/pull/11481
 
 ### Third highlight
@@ -21,8 +26,6 @@ See the following PR for implementation details:
 See the following PR for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/10671
 
-### Enhancements
-- Allow users to select relative time spans and save date range to saved filters on the flow runs page — https://github.com/PrefectHQ/prefect/pull/11473
 
 ### Fixes
 - Fix prompt and role assignment in `ContainerInstanceProvisioner` — https://github.com/PrefectHQ/prefect/pull/11440
