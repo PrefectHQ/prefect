@@ -21,12 +21,6 @@ See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943
 - https://github.com/PrefectHQ/prefect/pull/11473
 - https://github.com/PrefectHQ/prefect/pull/11481
 
-### Third highlight
-
-See the following PR for implementation details:
-- https://github.com/PrefectHQ/prefect/pull/10671
-
-
 ### Fixes
 - Fix prompt and role assignment in `ContainerInstanceProvisioner` — https://github.com/PrefectHQ/prefect/pull/11440
 - Fix workers graph rendering — https://github.com/PrefectHQ/prefect/pull/11455
