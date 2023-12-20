@@ -3789,7 +3789,7 @@ class TestTaskHooksOnFailure:
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1")]
 
-    async def test_error_when_task_condition_fn_is_not_a_callable(self):
+    async def test_task_condition_fn_raises_when_not_a_callable(self):
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
