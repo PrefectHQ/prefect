@@ -120,7 +120,7 @@ def get_shirt_order():
 
 If a user chooses any size and color combination other than `small` and `green`, the flow run will resume successfully. However, if the user chooses size `small` and color `green`, the flow run will resume, and `pause_flow_run` will raise a `ValidationError` exception. This will cause the flow run to fail and log the error.
 
-However, what if you don't want the flow run to fail? One way to handle this is to use a `while` loop and pause again if the `ValidationError` exception is raised:
+However, what if you don't want the flow run to fail? One way to handle this case is to use a `while` loop and pause again if the `ValidationError` exception is raised:
 
 ```python
 import pydantic
