@@ -17,7 +17,7 @@ We have also updated saved filters on the flow runs page so it is possible to sa
 
 The flow page has also got the same updated date and time filters so you have much more control over how you filter and view runs. 
 
-See the following PRs for implementation details:
+See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943f950f?sid=b20bc27c-0dc2-40be-a627-a2148942c427) and the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11473
 - https://github.com/PrefectHQ/prefect/pull/11481
 
