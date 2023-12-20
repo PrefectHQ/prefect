@@ -32,17 +32,16 @@ See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943
 - Remove title/description from `RunInput` model — https://github.com/PrefectHQ/prefect/pull/11438
 
 ### Documentation
-- Adds big data guide — https://github.com/PrefectHQ/prefect/pull/11225
-- Rename moving data guide — https://github.com/PrefectHQ/prefect/pull/11441
-- Add troubleshooting instructions for agents.md re: Issue #11459 — https://github.com/PrefectHQ/prefect/pull/11475
-- Minor updates to formatting and work pool docs to reflect recent changes — https://github.com/PrefectHQ/prefect/pull/11479
-- CI/CD Guide — https://github.com/PrefectHQ/prefect/pull/11443
-- Add managed execution and provisioned infrastructure push work pool information to tutorial — https://github.com/PrefectHQ/prefect/pull/11444
-- Documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
+- Add guide to optimizing your code for big data — https://github.com/PrefectHQ/prefect/pull/11225
+- Add guide for integrating Prefect with CI/CD via GitHub Actions — https://github.com/PrefectHQ/prefect/pull/11443
+- Expand upon managed execution and provisioned infrastructure push work pool to tutorial — https://github.com/PrefectHQ/prefect/pull/11444
+- Rename guide on reading and writing data to and from cloud provider storage - https://github.com/PrefectHQ/prefect/pull/11441
+- Update formatting and work pool docs — https://github.com/PrefectHQ/prefect/pull/11479
+- Add documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
 - Fix typo in documentation on`prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11488
+- Add troubleshooting instructions for agents — https://github.com/PrefectHQ/prefect/pull/11475
 
 ### Contributors
-- @dominictarro
 - @1beb made their first contribution in https://github.com/PrefectHQ/prefect/pull/11475
 - @KMDgit made their first contribution in https://github.com/PrefectHQ/prefect/pull/11488
 
