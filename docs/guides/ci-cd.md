@@ -46,6 +46,8 @@ The `deploy` job is comprised of four `steps`:
 - **`Setup Python`** installs your selected version of Python.
 - **`Prefect Deploy`** installs the dependencies used in your flow, then deploys your flow. `env:` makes the `PREFECT_API_KEY` and `PREFECT_API_URL` secrets from your repository available as environment variables during this step's execution.
 
+For reference, the examples below can be found on their respective branches of [this repository](https://github.com/kevingrismore/cicd-example).
+
 === ".deploy"
 
     ```
