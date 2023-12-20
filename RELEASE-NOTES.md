@@ -29,7 +29,7 @@ See our [![short loom video demo](https://github.com/PrefectHQ/prefect/assets/42
 ### Documentation
 - Add guide to optimizing your code for big data — https://github.com/PrefectHQ/prefect/pull/11225
 - Add guide for integrating Prefect with CI/CD via GitHub Actions — https://github.com/PrefectHQ/prefect/pull/11443
-- Expand upon managed execution and provisioned infrastructure push work pool to tutorial — https://github.com/PrefectHQ/prefect/pull/11444
+- Expand upon managed execution and provisioned infrastructure push work pool in tutorial — https://github.com/PrefectHQ/prefect/pull/11444
 - Revise Quickstart to include benefits, remote execution, and core concepts — https://github.com/PrefectHQ/prefect/pull/11461
 - Add additions to human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11487
 - Rename guide on reading and writing data to and from cloud provider storage - https://github.com/PrefectHQ/prefect/pull/11441
