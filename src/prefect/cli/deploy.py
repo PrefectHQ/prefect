@@ -329,6 +329,9 @@ async def _run_single_deploy(
 
     deploy_config = await resolve_variables(deploy_config)
 
+    # check for env var placeholders early so users can pass work pool names, etc.
+    deploy_config = apply_values(deploy_config, os.environ, remove_notset=False)
+
     if get_from_dict(deploy_config, "schedule.anchor_date") and not get_from_dict(
         deploy_config, "schedule.interval"
     ):
