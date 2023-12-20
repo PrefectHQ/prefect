@@ -314,6 +314,8 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         and prefect.settings.PREFECT_UI_ENABLED.value()
         and not ephemeral
     ):
+        # If PREFECT_UI_SERVE_BASE is set, replace PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER with
+        # it by copying the static files to a temporary directory and replacing the placeholder
         ui_app.mount(
             os.environ.get("PREFECT_UI_SERVE_BASE", "/"),
             SPAStaticFiles(directory=prefect.__ui_static_path__),

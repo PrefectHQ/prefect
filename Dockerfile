@@ -29,11 +29,11 @@ RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
-RUN npm ci install
+RUN npm ci
 
 # Build static UI files
 COPY ./ui .
-ENV PREFECT_UI_SERVE_BASE="/"
+ENV PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER="PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER"
 RUN npm run build
 
 
