@@ -159,6 +159,6 @@ You should spend some time experimenting with this setup; a few next steps for e
 
 Congratulations! You now have your first working deployment.
 
-Deploying flows through the `serve` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has more complex infrastructure requirements or you'd like to use Prefect [Managed Execution](/guides/managed-execution/) you can deploy flows to a [work pool](/concepts/work-pools/).
+Deploying flows through the `serve` method is the most straightforward way to start scheduling flows with Prefect. However, if your team has more complex infrastructure requirements or you'd like to use Prefect [Managed Execution](/guides/managed-execution/) you can deploy flows to a [work pool](/concepts/work-pools/).
 
 Learn about work pools and how Prefect Cloud can handle infrastructure configuration for you in the [next step of the tutorial](/tutorial/work-pools/).
