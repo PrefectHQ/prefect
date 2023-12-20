@@ -16,6 +16,33 @@ See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11473
 - https://github.com/PrefectHQ/prefect/pull/11481
 
+### Get type-checked input from humans-in-the-loop
+
+Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow and wait for type-checked input. After declaring the structure of the input data using a Pydantic model, Prefect will render a form dynamically in the UI so that humans can submit data when they resume a flow. We’ll also make sure the data conforms to your Pydantic model by applying client- and server-side validation.
+
+<img width="472" alt="image" src="https://github.com/PrefectHQ/prefect/assets/97182/ac743557-e872-4b48-a61e-c74c95e076f0">
+
+Here's an example of a `RunInput` that uses date and time inputs and nested Pydantic models:
+
+```python
+class Person(RunInput):
+    first_name: str
+    last_name: str
+    birthday: datetime.date
+    likes_tofu: bool
+    age: int = Field(gt=0, lt=150)
+    shirt_size: Literal[ShirtSize.SMALL, ShirtSize.MEDIUM, ShirtSize.LARGE,
+                        ShirtSize.XLARGE]
+    shirt_color: Literal["red", "blue", "green"]
+    preferred_delivery_time: datetime.datetime
+    shipping_address: ShippingAddress
+    billing_address: BillingAddress | SameAsShipping = Field(
+        title="", default_factory=SameAsShipping
+    )
+```
+
+Check out our [guide on how to create human-in-the-loop flows](https://docs.prefect.io/latest/guides/creating-human-in-the-loop-workflows/) to learn more!
+
 ### Enhancements
 - Update default pause/suspend timeout to 1 hour — https://github.com/PrefectHQ/prefect/pull/11437
 
