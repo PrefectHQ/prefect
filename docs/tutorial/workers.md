@@ -20,7 +20,7 @@ search:
 
 ## Why workers
 
-In the last section of the tutorial you learned how work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
+In the last section of the tutorial, you learned how work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
 You saw how you can transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
 
 Work pools that rely on client-side workers take this a step further by enabling you to run work flows in your own Docker containers, Kubernetes Clusters, and serverless environments like AWS ECS, Azure Container Instances, and GCP Cloud Run.
