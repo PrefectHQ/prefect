@@ -327,7 +327,7 @@ See the [Push Work Pool guide](/guides/push-work-pools/) for more details and ex
 ## Next step
 
 Congratulations!
-You've learned how to use work pools to deploy flows to remote infrastructure.
+You've learned how to deploy flows to work pools.
 These infrastructure options might meet all of your needs.
 In that case, we encourage you to go deeper with the [concepts docs](/concepts/) or explore our [how-to guides](/guides/) to see examples of particular Prefect use cases.
 
