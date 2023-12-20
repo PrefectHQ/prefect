@@ -199,16 +199,12 @@ to force column width */
     border-radius: 5px;
 }
 
-/* .experimental::before {
-    background-color: #fccc3e;
-    content: "Experimental";
-} */
-
 .beta::before {
     background-color: #ffffff00;
     color: rgb(131, 131, 131);
     border: 1px solid rgb(131, 131, 131);
     content: "Beta";
+    vertical-align: middle;
 }
 
 .experimental::before {
@@ -217,13 +213,6 @@ to force column width */
     border: 1px solid rgb(131, 131, 131);
     content: "Experimental";
     vertical-align: middle;
-}
-
-.beta::before {
-    background-color: #ffffff00;
-    color: rgb(131, 131, 131);
-    border: 1px solid rgb(131, 131, 131);
-    content: "Beta";
 }
 
 .cloud::before {
