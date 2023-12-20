@@ -28,6 +28,7 @@
 
   const filter = useWorkspaceDashboardFilterFromRoute({
     range: { type: 'span', seconds: -secondsInDay },
+    tags: []
   })
 
   const flowStats = computed(() => ({
