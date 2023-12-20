@@ -41,6 +41,7 @@ See our [![short loom demo](https://github.com/PrefectHQ/prefect/assets/42048900
 - Add documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
 - Fix typo in documentation on`prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11488
 - Add troubleshooting instructions for agents — https://github.com/PrefectHQ/prefect/pull/11475
+- Update README example and language - https://github.com/PrefectHQ/prefect/pull/11171
 - Fix workers graph rendering in documentation — https://github.com/PrefectHQ/prefect/pull/11455
 
 ### Contributors
