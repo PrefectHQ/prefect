@@ -6515,7 +6515,7 @@ class TestDeployInfraOverrides:
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
                 " 1.0.0 -v env=prod -t foo-bar --variable "
-                ' \'{"resources":{"limits":{"cpu": 1}}}\''
+                ' \'{"resources":{"limits":{"cpu"}\''
             ),
             expected_code=1,
             expected_output_contains=[
