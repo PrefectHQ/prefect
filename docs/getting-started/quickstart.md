@@ -20,7 +20,6 @@ Let's get started!
 
 ## Setup
 
-Here's a basic script so we have something to work with.
 Here's a basic script that fetches statistics about the [main Prefect GitHub repository](https://github.com/PrefectHQ/prefect).
 
 ```python
