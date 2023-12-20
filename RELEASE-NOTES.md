@@ -11,11 +11,11 @@ See the following PR for implementation details:
 
 ### Second highlight
 
-Building on the updates to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans like "Past 7 days". This means its much easier to quickly look at what's happening right now (e.g. "Past 1 hour") or see what's coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
+Building on the updates to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans like "Past 7 days". This means it's much easier to quickly see what's happening right now (e.g. "Past 1 hour") or what's coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
 
-We have also updated saved filters on the flow runs page so it is possible to save date ranges when saving a custom filter. For example, creating a view to see the past 6 hours of runs for a specific work pool is now possible.
+We have also updated saved filters on the flow runs page so it is possible to save date ranges when saving a custom filter. For example, it's now possible to creatie a view of the past 6 hours of runs for a specific work pool!
 
-The flow page has also got the same updated date and time filters so you have much more control over how you filter and view runs. 
+The Flows page also has the same updated date and time filters so you have more control over how you filter and view runs. 
 
 See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943f950f?sid=b20bc27c-0dc2-40be-a627-a2148942c427) and the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11473
