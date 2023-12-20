@@ -2,6 +2,9 @@
 description: Moving data to and from cloud providers
 tags:
     - data
+    - storage
+    - read data
+    - write data
     - cloud providers
     - AWS
     - S3
@@ -16,9 +19,9 @@ search:
   boost: 2
 ---
 
-# How to move data to and from cloud providers
+# Read and Write Data to and From Cloud Provider Storage
 
-Sending data to cloud-based storage and retrieving data from that storage is a common task in data engineering.
+Writing data to cloud-based storage and reading data from that storage is a common task in data engineering.
 In this guide we'll learn how to use Prefect to move data to and from AWS, Azure, and GCP blob storage.
 
 ## Prerequisites
@@ -161,7 +164,7 @@ In this example we'll use Python code.
         bucket="my-bucket-name",
         credentials="my-aws-creds-block"
         )
-    s3bucket.save(name="my_s3_bucket_block", overwrite=True)
+    s3bucket.save(name="my-s3-bucket-block", overwrite=True)
     ```
 
 === "Azure"
@@ -186,7 +189,7 @@ In this example we'll use Python code.
         bucket="my-bucket-name", 
         credentials="my-gcp-creds-block"
         )
-    gcsbucket.save()
+    gcsbucket.save(name="my-gcs-bucket-block", overwrite=True)
     ```
 
 Run the code to create the block. We should see a message that the block was created.
@@ -206,7 +209,7 @@ Use your new block inside a flow to write data to your cloud provider.
     def upload_to_s3():
         """Flow function to upload data"""
         path = Path("my_path_to/my_file.parquet")
-        aws_block = S3Bucket.load("my-aws-bucket")
+        aws_block = S3Bucket.load("my-s3-bucket-block")
         aws_block.upload_from_path(from_path=path, to_path=path)
 
     if __name__ == "__main__":
@@ -250,7 +253,7 @@ Use your new block inside a flow to write data to your cloud provider.
     def upload_to_gcs():
         """Flow function to upload data"""
         path = Path("my_path_to/my_file.parquet")
-        gcs_block = GcsBucket.load("my-gcs-bucket")
+        gcs_block = GcsBucket.load("my-gcs-bucket-block")
         gcs_block.upload_from_path(from_path=path, to_path=path)
 
     if __name__ == "__main__":
@@ -271,7 +274,7 @@ Use your block to read data from your cloud provider inside a flow.
     @flow
     def download_from_s3():
         """Flow function to download data"""
-        s3_block = S3Bucket.load("my-aws-bucket")
+        s3_block = S3Bucket.load("my-s3-bucket-block")
         s3_block.get_directory(
             from_path="my_path_to/my_file.parquet", 
             local_path="my_path_to/my_file.parquet"
@@ -312,7 +315,7 @@ Use your block to read data from your cloud provider inside a flow.
 
     @flow
     def download_from_gcs():
-        gcs_block = GcsBucket.load("zoom-gcs")
+        gcs_block = GcsBucket.load("my-gcs-bucket-block")
         gcs_block.get_directory(
             from_path="my_path_to/my_file.parquet", 
             local_path="my_path_to/my_file.parquet"
