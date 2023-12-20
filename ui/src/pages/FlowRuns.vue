@@ -9,7 +9,7 @@
         <FlowRunsPageEmptyState />
       </template>
       <template v-else>
-        <FlowRunsFilterGroup v-model:name="flowRunNameLike" :filter="dashboardFilter" @update:filter="setDashboardFilter" />
+        <FlowRunsFilterGroup v-model:nameSearch="flowRunNameLike" :filter="dashboardFilter" @update:filter="setDashboardFilter" />
 
         <template v-if="media.md">
           <FlowRunsScatterPlot
