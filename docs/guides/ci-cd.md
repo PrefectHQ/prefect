@@ -11,9 +11,9 @@ search:
 # CI/CD with Prefect
 
 Many organizations deploy Prefect workflows via their CI/CD process.
-Each organization has their own unique setup, but a common pattern is to use CI/CD to manage Prefect [deployments](/concepts/deployments).
+Each organization has their own unique CI/CD setup, but a common pattern is to use CI/CD to manage Prefect [deployments](/concepts/deployments).
 Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code updates, scheduling changes, and container builds.
-This guide uses [GitHub Actions](https://docs.github.com/en/actions) to execute CI/CD pipelines, but these concepts are generally applicable across many CI/CD tools.
+This guide uses [GitHub Actions](https://docs.github.com/en/actions) to implement a CI/CD process, but these concepts are generally applicable across many CI/CD tools.
 
 Note that Prefect's primary ways for creating deployments, a`.deploy` flow method or a `prefect.yaml` configuration file, are both designed with building and pushing images to a Docker registry in mind.
 
@@ -25,7 +25,7 @@ In this example, you'll write a GitHub Actions workflow that will run each time 
 
 Your CI/CD process must be able to authenticate with Prefect in order to deploy flows.
 
-Deploying flows securely and non-interactively in your CI/CD pipeline can be accomplished by saving your `PREFECT_API_URL` and `PREFECT_API_KEY` [as secrets in your repository's settings](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions) so they can be accessed in your CI/CD runner's environment without exposing them in any scripts or configuration files.
+Deploying flows securely and non-interactively in your CI/CD process can be accomplished by saving your `PREFECT_API_URL` and `PREFECT_API_KEY` [as secrets in your repository's settings](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions) so they can be accessed in your CI/CD runner's environment without exposing them in any scripts or configuration files.
 
 In this scenario, deploying flows involves building and pushing Docker images, so add `DOCKER_USERNAME` and `DOCKER_PASSWORD` as secrets to your repository as well.
 
@@ -214,7 +214,7 @@ Successfully created/updated all deployments!
 
 Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth) and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). These actions can simplify deploying with CI/CD when using `prefect.yaml`, especially in cases where a repository contains flows that are used in multiple deployments across multiple Prefect Cloud workspaces.
 
-Here's an example of integrating these actions into the pipeline we created above:
+Here's an example of integrating these actions into the workflow we created above:
 
 ```yaml
 name: Deploy Prefect flow
