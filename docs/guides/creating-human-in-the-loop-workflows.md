@@ -72,7 +72,7 @@ async def greet_user():
 Prefect uses the fields and type hints on your `RunInput` subclass to validate the general structure of input your flow run receives, but you might require more complex validation. If you do, you can use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
 
 !!! warning "Custom validation runs after the flow run resumes"
-    We transform the type annotations in your `RunInput` class to a JSON schema and use that in our UI to do client-side validation. However, custom validation requires running logic defined in your `RunInput` class. This happens *after the flow resumes*, so you'll probably want to handle it explicitly in your flow. Continue reading for an example best practice.
+    Prefect transforms the type annotations in your `RunInput` class to a JSON schema and use that schema in the UI to do client-side validation. However, custom validation requires running logic defined in your `RunInput` class. This happens *after the flow resumes*, so you'll probably want to handle it explicitly in your flow. Continue reading for an example best practice.
 
 The following is an example `RunInput` class that uses a custom field validator:
 
