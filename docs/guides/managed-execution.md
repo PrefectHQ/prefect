@@ -7,7 +7,7 @@ search:
   boost: 2
 ---
 
-# Managed Execution <span class="badge cloud"></span> <span class="badge-api beta"/>
+# Managed Execution <span class="badge cloud"></span> <span class="badge beta"/>
 
 Prefect Cloud can run your flows on your behalf with **prefect:managed** work pools. Flows run with this work pool do not require a worker or cloud provider account. Prefect handles the infrastructure and code execution for you.
 
@@ -28,8 +28,6 @@ Create a new work pool of type **prefect:managed**. you can do this via the UI w
 ```
 prefect work-pool create my-managed-pool --type prefect:managed
 ```
-
-
 
 ### Step 2
 
@@ -94,11 +92,14 @@ All limitations listed below may change without warning during the beta period.
 We will update this page as we make changes.
 
 ### Concurrency & work pools
+
 Free tier accounts are limited to:
+
 - Maximum of 1 concurrent flow run per workspace across all `prefect:managed` pools.
 - Maximum of 1 managed execution work pool per workspace.
 
 Pro tier and above accounts are limited to:
+
 - Maximum of 10 concurrent flow runs per workspace across all `prefect:managed` pools.
 - Maximum of 5 managed execution work pools per workspace.
 
@@ -117,8 +118,8 @@ Remote block-based storage is also supported, so S3, GCS, and Azure Blob are add
 Memory is limited to 2GB of RAM, which includes all operations such as dependency installation. Maximum job run time is 24 hours.
 
 ## Usage limits
-Free tier accounts are limited to ten compute hours per workspace per month. Pro tier and above accounts are limited to 250 hours per workspace per month. you can view your compute hours quota usage on the work pools page.
 
+Free tier accounts are limited to ten compute hours per workspace per month. Pro tier and above accounts are limited to 250 hours per workspace per month. you can view your compute hours quota usage on the work pools page.
 
 ## Next steps
 
