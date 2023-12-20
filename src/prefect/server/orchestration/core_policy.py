@@ -343,8 +343,9 @@ class RetryFailedTasks(BaseOrchestrationRule):
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
     This rule rejects transitions into a failed state if `retries` has been
-    set and the run count has not reached the specified limit. The client will be
-    instructed to transition into a scheduled state to retry task execution.
+    set, the run count has not reached the specified limit, and the client
+    asserts it is a retriable task run. The client will be instructed to
+    transition into a scheduled state to retry task execution.
     """
 
     FROM_STATES = [StateType.RUNNING]
@@ -373,7 +374,11 @@ class RetryFailedTasks(BaseOrchestrationRule):
         else:
             delay = base_delay
 
-        if run_settings.retries is not None and run_count <= run_settings.retries:
+        if (
+            run_settings.retries is not None
+            and run_count <= run_settings.retries
+            and proposed_state.state_details.retriable is True
+        ):
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(seconds=delay),
                 message=proposed_state.message,

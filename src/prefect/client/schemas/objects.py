@@ -110,6 +110,7 @@ class StateDetails(PrefectBaseModel):
     pause_key: str = None
     run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
+    retriable: bool = True
 
 
 class State(ObjectBaseModel, Generic[R]):
