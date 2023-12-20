@@ -199,7 +199,7 @@ prefect deployment run 'get_repo_info/my-deployment'
 
 </div>
 
-Prefect Managed work pools are a great way to get started with dynamic infrastructure.  
+Prefect Managed work pools are a great way to get started with Prefect.  
 See the [Managed Execution guide](/guides/managed-execution/) for more details.
 
 Many users will find that they need more control over the infrastructure that their flows run on.
