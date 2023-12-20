@@ -15,7 +15,7 @@ Each organization has their own unique CI/CD setup, but a common pattern is to u
 Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code updates, scheduling changes, and container builds.
 This guide uses [GitHub Actions](https://docs.github.com/en/actions) to implement a CI/CD process, but these concepts are generally applicable across many CI/CD tools.
 
-Note that Prefect's primary ways for creating deployments, a`.deploy` flow method or a `prefect.yaml` configuration file, are both designed with building and pushing images to a Docker registry in mind.
+Note that Prefect's primary ways for creating deployments, a `.deploy` flow method or a `prefect.yaml` configuration file, are both designed with building and pushing images to a Docker registry in mind.
 
 ## Getting started with GitHub Actions and Prefect
 
