@@ -870,7 +870,10 @@ When a flow run is suspended, code execution is stopped and so is the process.
 
 Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
-Most simply, `pause_flow_run` can be called inside a flow. A timeout option can be supplied as well &mdash; after the specified number of seconds, the flow will fail if it hasn't been resumed.
+!!! note "Timeouts"
+    Paused flow runs time out after one hour by default. After the timeout, the flow run will fail with a message saying it paused and never resumed. You can specify a different timeout period in seconds using the `timeout` parameter.
+
+Most simply, `pause_flow_run` can be called inside a flow.
 
 ```python
 from prefect import task, flow, pause_flow_run, resume_flow_run
@@ -878,9 +881,13 @@ from prefect import task, flow, pause_flow_run, resume_flow_run
 @task
 async def marvin_setup():
     return "a raft of ducks walk into a bar..."
+
+
 @task
 async def marvin_punchline():
     return "it's a wonder none of them ducked!"
+
+
 @flow
 async def inspiring_joke():
     await marvin_setup()
@@ -888,7 +895,7 @@ async def inspiring_joke():
     await marvin_punchline()
 ```
 
-Calling this flow will block code execution after the first task and wait for resumption.
+Calling this flow will block code execution after the first task and wait for resumption to deliver the punchline.
 
 <div class="terminal">
 ```bash
@@ -913,9 +920,19 @@ The paused flow run will then finish!
 
 ### Suspending a flow run
 
-Similar to pausing a flow run, Prefect enables suspending an in-progress flow run. Prefect exposes this functionality via the [`suspend_flow_run`](/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
+Similar to pausing a flow run, Prefect enables suspending an in-progress flow run.
 
+!!! note "The difference between pausing and suspending a flow run"
+    There is an important difference between pausing and suspending a flow run. When you pause a flow run, the flow code is still running but is *blocked* until someone resumes the flow. This is not the case with suspending a flow run! When you suspend a flow run, the flow exits completely and the infrastructure running it (e.g., a Kubernetes Job) tears down.
+    
+    This means that you can suspend flow runs to save costs instead of paying for long-running infrastructure. However, when the flow run resumes, the flow code will execute again from the beginning of the flow, so you should use [tasks](/concepts/tasks/) and [task caching](/concepts/tasks/#caching) to avoid recomputing expensive operations.
+
+Prefect exposes this functionality via the [`suspend_flow_run`](/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
+    
 When called inside of a flow `suspend_flow_run` will immediately suspend execution of the flow run. The flow run will be marked as `Suspended` and will not be resumed until `resume_flow_run` is called.
+
+!!! note "Timeouts"
+    Suspended flow runs time out after one hour by default. After the timeout, the flow run will fail with a message saying it suspended and never resumed. You can specify a different timeout period in seconds using the `timeout` parameter or pass `timeout=None` for no timeout.
 
 Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
 
@@ -974,7 +991,7 @@ async def greet_user():
 
     logger.info(f"Hello, {user_input.name}!")
 ```
-Running this flow will create a flow run. The flow run will advance until code execution reaches `pause_flow_run`, at which point it will  move it into a `Paused` state. Execution will block and wait for resumption. 
+Running this flow will create a flow run. The flow run will advance until code execution reaches `pause_flow_run`, at which point it will move into a `Paused` state. Execution will block and wait for resumption. 
 
 When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
 
