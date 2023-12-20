@@ -2075,7 +2075,13 @@ async def orchestrate_task_run(
                     )
                     terminal_state.state_details.cache_key = cache_key
 
+            if terminal_state.is_failed():
+                # Defer to user to decide whether failure is retriable
+                terminal_state.state_details.retriable = (
+                    await _check_task_failure_retriable(task, task_run, terminal_state)
+                )
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
+
             last_event = _emit_task_run_state_change_event(
                 task_run=task_run,
                 initial_state=last_state,
@@ -2670,6 +2676,48 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                 )
             else:
                 logger.info(f"Hook {hook_name!r} finished running successfully")
+
+
+async def _check_task_failure_retriable(
+    task: Task, task_run: TaskRun, state: State
+) -> bool:
+    """Run the `retry_condition_fn` callable for a task, making sure to catch and log any errors
+    that occur. If None, return True. If not callable, logs an error and returns False.
+    """
+    if task.retry_condition_fn is None:
+        return True
+
+    logger = task_run_logger(task_run)
+
+    try:
+        logger.debug(
+            f"Running `retry_condition_fn` check {task.retry_condition_fn!r} for task"
+            f" {task.name!r}"
+        )
+        if is_async_fn(task.retry_condition_fn):
+            return bool(
+                await task.retry_condition_fn(task=task, task_run=task_run, state=state)
+            )
+        else:
+            return bool(
+                await from_async.call_in_new_thread(
+                    create_call(
+                        task.retry_condition_fn,
+                        task=task,
+                        task_run=task_run,
+                        state=state,
+                    )
+                )
+            )
+    except Exception:
+        logger.error(
+            (
+                "An error was encountered while running `retry_condition_fn` check"
+                f" '{task.retry_condition_fn!r}' for task {task.name!r}"
+            ),
+            exc_info=True,
+        )
+        return False
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
