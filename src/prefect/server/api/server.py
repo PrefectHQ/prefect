@@ -5,6 +5,7 @@ Defines the Prefect REST API FastAPI app.
 import asyncio
 import mimetypes
 import os
+import shutil
 import sqlite3
 from contextlib import asynccontextmanager
 from functools import partial, wraps
@@ -181,6 +182,35 @@ def is_client_retryable_exception(exc: Exception):
     return False
 
 
+def replace_placeholder_string_in_files(directory, placeholder, replacement):
+    """
+    Recursively loops through all files in the given directory and replaces
+    a placeholder string.
+    """
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+
+            with open(file_path, "r", encoding="utf-8") as file:
+                file_data = file.read()
+
+            file_data = file_data.replace(placeholder, replacement)
+
+            with open(file_path, "w", encoding="utf-8") as file:
+                file.write(file_data)
+
+
+def copy_directory(directory, path):
+    os.makedirs(path)
+    for item in os.listdir(directory):
+        s = os.path.join(directory, item)
+        d = os.path.join(path, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d, symlinks=True)
+        else:
+            shutil.copy2(s, d)
+
+
 async def custom_internal_exception_handler(request: Request, exc: Exception):
     """
     Log a detailed exception for internal server errors before returning.
@@ -296,6 +326,8 @@ def create_api_app(
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     ui_app.add_middleware(GZipMiddleware)
+    base_url = os.environ.get("PREFECT_UI_SERVE_BASE", "/")
+    reference_file_name = "UI_SERVE_BASE"
 
     if os.name == "nt":
         # Windows defaults to text/plain for .js files
@@ -309,16 +341,47 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             "flags": enabled_experiments(),
         }
 
+    def reference_file_matches_base_url():
+        if os.path.exists(prefect.__ui_static_subpath__):
+            with open(
+                os.path.join(prefect.__ui_static_subpath__, reference_file_name), "r"
+            ) as f:
+                return f.read() == base_url
+        else:
+            return False
+
+    def create_ui_static_subpath():
+        if os.path.exists(prefect.__ui_static_subpath__):
+            shutil.rmtree(prefect.__ui_static_subpath__)
+        os.makedirs(prefect.__ui_static_subpath__)
+        copy_directory(prefect.__ui_static_path__, prefect.__ui_static_subpath__)
+        replace_placeholder_string_in_files(
+            prefect.__ui_static_subpath__,
+            "PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
+            base_url,
+        )
+
+        # Create a file to indicate that the static files have been copied
+        # This is used to determine if the static files need to be copied again
+        # when the server is restarted
+        with open(
+            os.path.join(prefect.__ui_static_subpath__, reference_file_name), "w"
+        ) as f:
+            f.write(base_url)
+
     if (
         os.path.exists(prefect.__ui_static_path__)
         and prefect.settings.PREFECT_UI_ENABLED.value()
         and not ephemeral
     ):
-        # If PREFECT_UI_SERVE_BASE is set, replace PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER with
-        # it by copying the static files to a temporary directory and replacing the placeholder
+        # If the static files have already been copied, check if the base_url has changed
+        # If it has, we delete the subpath directory and copy the files again
+        if not reference_file_matches_base_url():
+            create_ui_static_subpath()
+
         ui_app.mount(
             os.environ.get("PREFECT_UI_SERVE_BASE", "/"),
-            SPAStaticFiles(directory=prefect.__ui_static_path__),
+            SPAStaticFiles(directory=prefect.__ui_static_subpath__),
             name="ui_root",
         )
 
