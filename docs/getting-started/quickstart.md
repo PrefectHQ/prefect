@@ -21,7 +21,7 @@ Let's get started!
 ## Setup
 
 Here's a basic script so we have something to work with.
-The script below fetches statistics about the [main Prefect GitHub repository](https://github.com/PrefectHQ/prefect).
+Here's a basic script that fetches statistics about the [main Prefect GitHub repository](https://github.com/PrefectHQ/prefect).
 
 ```python
 import httpx
