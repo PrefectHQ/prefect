@@ -23,7 +23,6 @@
 Prefect is an orchestration and observability platform for building, observing, and triaging workflows. 
 It's the simplest way to transform Python code into an interactive workflow application.
 
-Prefect sits at the center of the many systems you interact with every day.
 Prefect allows you to expose your workflows through an API so teams dependent on you can programmatically access your pipelines, business logic, and more.
 Prefect also allows you to standardize workflow development and deployment across your organization.
 
