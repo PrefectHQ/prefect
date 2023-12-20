@@ -35,6 +35,8 @@ See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943
 - Add guide to optimizing your code for big data — https://github.com/PrefectHQ/prefect/pull/11225
 - Add guide for integrating Prefect with CI/CD via GitHub Actions — https://github.com/PrefectHQ/prefect/pull/11443
 - Expand upon managed execution and provisioned infrastructure push work pool to tutorial — https://github.com/PrefectHQ/prefect/pull/11444
+- Revise Quickstart to include benefits, remote execution, and core concepts — https://github.com/PrefectHQ/prefect/pull/11461
+- Add additions to human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11487
 - Rename guide on reading and writing data to and from cloud provider storage - https://github.com/PrefectHQ/prefect/pull/11441
 - Update formatting and work pool docs — https://github.com/PrefectHQ/prefect/pull/11479
 - Add documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
@@ -44,6 +46,7 @@ See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943
 ### Contributors
 - @1beb made their first contribution in https://github.com/PrefectHQ/prefect/pull/11475
 - @KMDgit made their first contribution in https://github.com/PrefectHQ/prefect/pull/11488
+
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.11...2.14.12
 
