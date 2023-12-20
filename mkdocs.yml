@@ -155,6 +155,7 @@ nav:
                 - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
+                - CI/CD: guides/ci-cd.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
