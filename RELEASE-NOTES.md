@@ -2,14 +2,7 @@
 
 ## Release 2.14.12
 
-### First highlight
-
-lorem ipsum
-
-See the following PR for implementation details:
-- https://github.com/PrefectHQ/prefect/pull/11437
-
-### Second highlight
+### Dynamic time-span filtering and customizable flow run visualization
 
 Building on the updates to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans like "Past 7 days". This means it's much easier to quickly see what's happening right now (e.g. "Past 1 hour") or what's coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
 
@@ -20,6 +13,9 @@ The Flows page also has the same updated date and time filters so you have more 
 See our [![short loom demo](https://github.com/PrefectHQ/prefect/assets/42048900/4dc01ec0-0776-49b4-bbc4-a1472c612e4f)](https://www.loom.com/share/95113969257d4cffa48ad13f943f950f?sid=b20bc27c-0dc2-40be-a627-a2148942c427) and the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11473
 - https://github.com/PrefectHQ/prefect/pull/11481
+
+### Enhancements
+- Update default pause/suspend timeout to 1 hour — https://github.com/PrefectHQ/prefect/pull/11437
 
 ### Fixes
 - Resolve environment variables during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11463
