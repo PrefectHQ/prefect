@@ -26,6 +26,7 @@ This section of the documentation contains how-to guides for common workflows an
 | [Human-in-the-Loop Workflows:](/guides/creating-human-in-the-loop-workflows/) | Create human-in-the-loop workflows by pausing flow runs for input. |
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [Terraform Provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) | Use the Terraform Provider for Prefect Cloud for infrastructure as code. |
+| [CI/CD](/guides/ci-cd/) | Use CI/CD with Prefect. |
 | [Prefect Recipes](/recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 ## Execution
