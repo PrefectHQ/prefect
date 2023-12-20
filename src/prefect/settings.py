@@ -62,6 +62,7 @@ from typing import (
     Union,
 )
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import toml
 
@@ -1421,6 +1422,11 @@ Whether or not to enable the experimental workspace dashboard.
 PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
+"""
+
+PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER: Setting(str, default=uuid4())
+"""
+A placeholder UUID used to find/replace the base URL used for static assets in the UI.
 """
 
 # Defaults -----------------------------------------------------------------------------
