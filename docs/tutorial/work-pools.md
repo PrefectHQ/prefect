@@ -297,10 +297,17 @@ if __name__ == "__main__":
 
 This will build an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to the repository.
 
-See the [Push Work Pool guide](/guides/push-work-pools/) for more details and example commands for each cloud providers.
+Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
+Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
+
+See the [Push Work Pool guide](/guides/push-work-pools/) for more details and example commands for each cloud provider.
 
 ## Next step
 
-Congratulations! You've learned how to use work pools to deploy flows to remote infrastructure.
+Congratulations!
+You've learned how to use work pools to deploy flows to remote infrastructure.
+These infrastructure options might meet all of your needs.
+In that case, we encourage you to go deeper with the [concepts docs](/concepts/) or explore our [how-to guides](/guides/) to see examples of particular Prefect use cases.
 
-Learn how to use work pools that rely on a worker and build Docker images so that your flows can run in other container-based infrastructure in the [next section of the tutorial](/tutorial/workers/).
+However, if you need more control over your infrastructure, want to run your workflows in Kubernetes, or you are running a self-hosted Prefect server instance, we encourage you to see the [next section of the tutorial](/tutorial/workers/).
+There you'll learn how to use work pools that rely on a worker and learn how to customize Docker images for container-based infrastructure.
