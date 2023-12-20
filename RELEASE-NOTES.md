@@ -38,7 +38,7 @@ See our [![short loom video demo](https://github.com/PrefectHQ/prefect/assets/42
 - Fix typo in documentation on`prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11488
 - Add troubleshooting instructions for agents — https://github.com/PrefectHQ/prefect/pull/11475
 - Update README example and language - https://github.com/PrefectHQ/prefect/pull/11171
-- Fix workers graph rendering in documentation — https://github.com/PrefectHQ/prefect/pull/11455
+- Fix workers graph rendering — https://github.com/PrefectHQ/prefect/pull/11455
 
 ### Contributors
 - @1beb made their first contribution in https://github.com/PrefectHQ/prefect/pull/11475
