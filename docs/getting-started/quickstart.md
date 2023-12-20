@@ -119,7 +119,7 @@ You should see similar output in your terminal, with your own randomly generated
 
 ## Step 4: Choose a remote infrastructure location
 
-Let's get this workflow running off our local machine!
+Let's get this workflow running on infrastructure other than your local machine!
 We can tell Prefect where we want to run our workflow by creating a [work pool](/concepts/work-pools/).
 
 Because we're using Prefect Cloud, we have access to Prefect Managed work pools that provides hosted infrastructure for running our flows.
