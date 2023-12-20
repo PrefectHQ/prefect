@@ -165,7 +165,6 @@ def build_ui(
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
-            env["PREFECT_UI_SERVE_BASE"] = "/"
             subprocess.check_output(
                 ["npm", "run", "build"], env=env, shell=sys.platform == "win32"
             )
