@@ -84,3 +84,9 @@ This example will poll every work queue that starts with "foo-".
 By default, the agent begins submission of flow runs a short time (10 seconds) before they are scheduled to run. This allows time for the infrastructure to be created, so the flow run can start on time. In some cases, infrastructure will take longer than this to actually start the flow run. In these cases, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_AGENT_PREFETCH_SECONDS` setting.
 
 Submission can begin an arbitrary amount of time before the flow run is scheduled to start. If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start exactly on time.
+
+## Troubleshooting
+
+### Agent crash or keyboard interrupt
+
+If the agent process is ended abruptly, you can sometimes have left over flows that were destined for the agent whose process was ended. In the UI, these will show up as pending. You will need to delete these flows in order for the restarted agent to begin processing the work queue again. Take note of the flows you deleted, you might need to set them to run manually.
