@@ -152,6 +152,7 @@ nav:
                 - Runtime Context: guides/runtime-context.md
                 - Variables: guides/variables.md
                 - Prefect Client: guides/using-the-client.md
+                - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - Recipes: recipes/recipes.md
@@ -273,6 +274,9 @@ nav:
                       - "work_pool": api-ref/prefect/cli/work_pool.md
                       - "work_queue": api-ref/prefect/cli/work_queue.md
                       - "worker": api-ref/prefect/cli/worker.md
+                - "prefect.input":
+                      - "actions": api-ref/prefect/input/actions.md
+                      - "run_input": api-ref/prefect/input/run_input.md
                 - "prefect.utilities":
                       - "annotations": api-ref/prefect/utilities/annotations.md
                       - "asyncutils": api-ref/prefect/utilities/asyncutils.md

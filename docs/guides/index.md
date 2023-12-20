@@ -23,6 +23,7 @@ This section of the documentation contains how-to guides for common workflows an
 | [Runtime Context](/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
 | [Variables](/guides/variables/) | Store and retrieve configuration data. |
 | [Prefect Client](/guides/using-the-client/) | Use `PrefectClient` to interact with the API server. |
+| [Human-in-the-Loop Workflows:](/guides/creating-human-in-the-loop-workflows/) | Create human-in-the-loop workflows by pausing flow runs for input. |
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [Terraform Provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) | Use the Terraform Provider for Prefect Cloud for infrastructure as code. |
 | [Prefect Recipes](/recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
