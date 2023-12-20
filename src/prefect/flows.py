@@ -33,6 +33,7 @@ from typing import (
 from uuid import UUID
 
 from prefect._vendor.fastapi.encoders import jsonable_encoder
+from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -117,6 +118,7 @@ from prefect.utilities.visualization import (
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
+F = TypeVar("F", bound="Flow")  # The type of the flow
 
 logger = get_logger("flows")
 
@@ -373,7 +375,7 @@ class Flow(Generic[P, R]):
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    ):
+    ) -> Self:
         """
         Create a new flow from the current object, updating provided options.
 
@@ -428,7 +430,7 @@ class Flow(Generic[P, R]):
             >>> assert state.result() == 4
 
         """
-        return Flow(
+        new_flow = Flow(
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
@@ -467,6 +469,9 @@ class Flow(Generic[P, R]):
             on_cancellation=on_cancellation or self.on_cancellation,
             on_crashed=on_crashed or self.on_crashed,
         )
+        new_flow._storage = self._storage
+        new_flow._entrypoint = self._entrypoint
+        return new_flow
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -775,10 +780,10 @@ class Flow(Generic[P, R]):
     @classmethod
     @sync_compatible
     async def from_source(
-        cls,
+        cls: Type[F],
         source: Union[str, RunnerStorage, ReadableDeploymentStorage],
         entrypoint: str,
-    ) -> "Flow":
+    ) -> F:
         """
         Loads a flow from a remote s ource.
 
