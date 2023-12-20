@@ -10,7 +10,7 @@ search:
 
 # CI/CD with Prefect
 
-Prefect is used by many organizations in their CI/CD pipelines.
+Many organizations deploy Prefect workflows via their CI/CD process.
 Each organization has their own unique setup, but a common pattern is to use CI/CD to manage Prefect [deployments](/concepts/deployments).
 Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code updates, scheduling changes, and container builds.
 This guide uses [GitHub Actions](https://docs.github.com/en/actions) to execute CI/CD pipelines, but these concepts are generally applicable across many CI/CD tools.
