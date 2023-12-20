@@ -913,7 +913,7 @@ The paused flow run will then finish!
 
 ### Suspending a flow run
 
-Similar to pausing a flow run, Prefect enables suspending an in-progress flow run. Prefect exposes this functionality via the [`susepend_flow_run`](/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
+Similar to pausing a flow run, Prefect enables suspending an in-progress flow run. Prefect exposes this functionality via the [`suspend_flow_run`](/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
 When called inside of a flow `suspend_flow_run` will immediately suspend execution of the flow run. The flow run will be marked as `Suspended` and will not be resumed until `resume_flow_run` is called.
 
