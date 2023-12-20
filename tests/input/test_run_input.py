@@ -30,6 +30,12 @@ def test_keyset_from_base_key():
     assert keyset["schema"] == "person-schema"
 
 
+def test_keyset_from_type():
+    keyset = Person.keyset_from_type()
+    assert keyset["response"] == "person-response"
+    assert keyset["schema"] == "person-schema"
+
+
 @pytest.mark.parametrize(
     "state,expected",
     [

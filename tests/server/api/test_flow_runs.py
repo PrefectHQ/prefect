@@ -1532,6 +1532,15 @@ class TestFlowRunInput:
 
         assert response.status_code == 409
 
+    async def test_filter_flow_run_input(self, client: AsyncClient, flow_run_input):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "structured"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert schemas.core.FlowRunInput.parse_obj(response.json()[0]) == flow_run_input
+
     async def test_read_flow_run_input(self, client: AsyncClient, flow_run_input):
         response = await client.get(
             f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",

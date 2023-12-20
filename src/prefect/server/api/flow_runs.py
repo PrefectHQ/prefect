@@ -559,6 +559,31 @@ async def create_flow_run_input(
                 )
 
 
+@router.post("/{id}/input/filter")
+async def filter_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    prefix: str = Body(..., description="The input key prefix", embed=True),
+    limit: int = Body(
+        1, description="The maximum number of results to return", embed=True
+    ),
+    exclude_keys: List[str] = Body(
+        [], description="Exclude inputs with these keys", embed=True
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> List[schemas.core.FlowRunInput]:
+    """
+    Filter flow run inputs by key prefix
+    """
+    async with db.session_context() as session:
+        return await models.flow_run_input.filter_flow_run_input(
+            session=session,
+            flow_run_id=flow_run_id,
+            prefix=prefix,
+            limit=limit,
+            exclude_keys=exclude_keys,
+        )
+
+
 @router.get("/{id}/input/{key}")
 async def read_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),

@@ -11,6 +11,7 @@ from prefect.context import FlowRunContext
 from prefect.input import (
     create_flow_run_input,
     delete_flow_run_input,
+    filter_flow_run_input,
     read_flow_run_input,
 )
 
@@ -83,3 +84,47 @@ class TestReadFlowRunInput:
 
     async def test_missing_key_returns_none(self, flow_run):
         assert await read_flow_run_input(key="missing", flow_run_id=flow_run.id) is None
+
+
+class TestFilterFlowRunInput:
+    @pytest.fixture
+    async def flow_run_input_keys(self, flow_run):
+        keys = {"key-1", "key-2", "different-1"}
+        for key in keys:
+            await create_flow_run_input(key=key, value="value", flow_run_id=flow_run.id)
+
+        return keys
+
+    async def test_implicit_flow_run(
+        self, flow_run_context, flow_run_input_keys: list[str]
+    ):
+        filtered = await filter_flow_run_input(
+            key_prefix="key", limit=len(flow_run_input_keys) + 1
+        )
+        assert len(filtered) == 2
+        assert {"key-1", "key-2"} != flow_run_input_keys
+        assert {"key-1", "key-2"} == {item.key for item in filtered}
+
+    async def test_explicit_flow_run(self, flow_run, flow_run_input_keys: list[str]):
+        filtered = await filter_flow_run_input(
+            key_prefix="key",
+            limit=len(flow_run_input_keys) + 1,
+            flow_run_id=flow_run.id,
+        )
+        assert len(filtered) == 2
+        assert {"key-1", "key-2"} != flow_run_input_keys
+        assert {"key-1", "key-2"} == {item.key for item in filtered}
+
+    async def test_no_flow_run_raises(self):
+        with pytest.raises(
+            RuntimeError, match="provide a flow run ID or be within a flow run"
+        ):
+            await filter_flow_run_input(key_prefix="key")
+
+    async def test_exclude_keys(self, flow_run_context, flow_run_input_keys: list[str]):
+        filtered = await filter_flow_run_input(
+            key_prefix="key", limit=len(flow_run_input_keys) + 1, exclude_keys={"key-2"}
+        )
+        assert len(filtered) == 1
+        assert {"key-1"} == {item.key for item in filtered}
+        assert "key-2" in flow_run_input_keys

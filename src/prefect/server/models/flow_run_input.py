@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,33 @@ async def create_flow_run_input(
     await session.flush()
 
     return schemas.core.FlowRunInput.from_orm(model)
+
+
+@inject_db
+async def filter_flow_run_input(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    flow_run_id: uuid.UUID,
+    prefix: str,
+    limit: int,
+    exclude_keys: List[str],
+) -> List[schemas.core.FlowRunInput]:
+    query = (
+        sa.select(db.FlowRunInput)
+        .where(
+            sa.and_(
+                db.FlowRunInput.flow_run_id == flow_run_id,
+                db.FlowRunInput.key.like(prefix + "%"),
+                db.FlowRunInput.key.not_in(exclude_keys),
+            )
+        )
+        .limit(limit)
+    )
+
+    result = await session.execute(query)
+    return [
+        schemas.core.FlowRunInput.from_orm(model) for model in result.scalars().all()
+    ]
 
 
 @inject_db

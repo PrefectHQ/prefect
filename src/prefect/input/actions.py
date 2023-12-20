@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Set
 from uuid import UUID
 
 import orjson
@@ -45,6 +45,28 @@ async def create_flow_run_input(
 
     await client.create_flow_run_input(
         flow_run_id=flow_run_id, key=key, value=orjson.dumps(value).decode()
+    )
+
+
+@sync_compatible
+@inject_client
+async def filter_flow_run_input(
+    key_prefix: str,
+    limit: int = 1,
+    exclude_keys: Optional[Set[str]] = None,
+    flow_run_id: Optional[UUID] = None,
+    client: "PrefectClient" = None,
+):
+    if exclude_keys is None:
+        exclude_keys = set()
+
+    flow_run_id = _ensure_flow_run_id(flow_run_id)
+
+    return await client.filter_flow_run_input(
+        flow_run_id=flow_run_id,
+        key_prefix=key_prefix,
+        limit=limit,
+        exclude_keys=exclude_keys,
     )
 
 

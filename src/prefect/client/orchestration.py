@@ -9,6 +9,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Set,
     Union,
 )
 from uuid import UUID
@@ -2712,6 +2713,20 @@ class PrefectClient:
             json={"key": key, "value": value},
         )
         response.raise_for_status()
+
+    async def filter_flow_run_input(
+        self, flow_run_id: UUID, key_prefix: str, limit: int, exclude_keys: Set[str]
+    ) -> List[FlowRunInput]:
+        response = await self._client.post(
+            f"/flow_runs/{flow_run_id}/input/filter",
+            json={
+                "prefix": key_prefix,
+                "limit": limit,
+                "exclude_keys": list(exclude_keys),
+            },
+        )
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[FlowRunInput], response.json())
 
     async def read_flow_run_input(self, flow_run_id: UUID, key: str) -> str:
         """

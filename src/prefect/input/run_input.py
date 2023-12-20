@@ -1,10 +1,22 @@
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Literal,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID
 
 import pydantic
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.input.actions import create_flow_run_input, read_flow_run_input
+from prefect.input.actions import (
+    create_flow_run_input,
+    read_flow_run_input,
+)
 from prefect.utilities.asyncutils import sync_compatible
 
 if TYPE_CHECKING:
@@ -16,8 +28,7 @@ if HAS_PYDANTIC_V2:
 
 
 T = TypeVar("T", bound="RunInput")
-KeysetNames = Union[Literal["response"], Literal["schema"]]
-Keyset = Dict[KeysetNames, str]
+Keyset = Dict[Union[Literal["response"], Literal["schema"]], str]
 
 
 def keyset_from_paused_state(state: "State") -> Keyset:
@@ -31,9 +42,8 @@ def keyset_from_paused_state(state: "State") -> Keyset:
     if not state.is_paused():
         raise RuntimeError(f"{state.type.value!r} is unsupported.")
 
-    return keyset_from_base_key(
-        f"{state.name.lower()}-{str(state.state_details.pause_key)}"
-    )
+    base_key = f"{state.name.lower()}-{str(state.state_details.pause_key)}"
+    return keyset_from_base_key(base_key)
 
 
 def keyset_from_base_key(base_key: str) -> Keyset:
@@ -55,6 +65,10 @@ def keyset_from_base_key(base_key: str) -> Keyset:
 class RunInput(pydantic.BaseModel):
     class Config:
         extra = "forbid"
+
+    @classmethod
+    def keyset_from_type(cls) -> Keyset:
+        return keyset_from_base_key(cls.__name__.lower())
 
     @classmethod
     @sync_compatible
