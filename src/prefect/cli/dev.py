@@ -145,18 +145,23 @@ Requires npm.
 
 
 @dev_app.command(help=BUILD_UI_HELP)
-def build_ui():
+def build_ui(
+    no_install: bool = False,
+):
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__development_base_path__):
         with tmpchdir(prefect.__development_base_path__ / "ui"):
-            app.console.print("Installing npm packages...")
-            try:
-                subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
-            except Exception:
-                app.console.print(
-                    "npm call failed - try running `nvm use` first.", style="red"
-                )
-                raise
+            if not no_install:
+                app.console.print("Installing npm packages...")
+                try:
+                    subprocess.check_output(
+                        ["npm", "ci"], shell=sys.platform == "win32"
+                    )
+                except Exception:
+                    app.console.print(
+                        "npm call failed - try running `nvm use` first.", style="red"
+                    )
+                    raise
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
