@@ -87,7 +87,7 @@ Work pools contain configuration that is used to provision infrastructure for fl
 For example, you can specify additional Python packages or environment variables that should be set for all deployments that use this work pool.
 Note that individual deployments can override the work pool configuration.
 
-Now that you’ve set up your work pool, we can create a deployment that is tied to this work pool.
+Now that you’ve set up your work pool, we can deploy a flow to this work pool.
 Let's deploy your tutorial flow to `my-managed-pool`.
 
 ## Create the deployment
