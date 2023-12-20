@@ -23,7 +23,7 @@ In this example, you'll write a GitHub Actions workflow that will run each time 
 
 ### Repository secrets
 
-Your CI/CD pipeline must be able to authenticate to Prefect in order to deploy flows.
+Your CI/CD process must be able to authenticate with Prefect in order to deploy flows.
 
 Deploying flows securely and non-interactively in your CI/CD pipeline can be accomplished by saving your `PREFECT_API_URL` and `PREFECT_API_KEY` [as secrets in your repository's settings](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions) so they can be accessed in your CI/CD runner's environment without exposing them in any scripts or configuration files.
 
