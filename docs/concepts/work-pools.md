@@ -74,6 +74,8 @@ prefect work-pool create test-pool
 
 </div>
 
+### Work pool types
+
 If you don't use the `--type` flag to specify an infrastructure type, you are prompted to select from the following options:
 
 === "Prefect Cloud"
