@@ -156,4 +156,4 @@ def get_shirt_order():
 
 This code will cause the flow run to continually pause until the user enters a valid age.
 
-As an additional step, you may want to use an [automation](/concepts/automations) or [notification](/concepts/notifications/) when this happens, to make sure the user sees the error.
+As an additional step, you may want to use an [automation](/concepts/automations) or [notification](/concepts/notifications/) to alert the user to the error.
