@@ -2,7 +2,7 @@
 
 ## Release 2.14.12
 
-### Dynamic time-span filtering and customizable flow run visualization
+### Increased customization of date and time filters across the UI
 
 Building on the updates to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans like "Past 7 days". This means it's much easier to quickly see what's happening right now (e.g. "Past 1 hour") or what's coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
 
