@@ -290,14 +290,14 @@ def retry_handler(task, task_run, state) -> bool:
         return True
 
 @task(retries=1, retry_condition_fn=retry_handler)
-def my_api_call_task(url):
+def get_data_task(url):
     response = httpx.get(url)
     response.raise_for_status()
     return response.json()
 
 @flow
 def get_data_flow(url):
-    my_api_call_task(url=url)
+    get_data_task(url=url)
 
 if __name__ == "__main__":
     get_data_flow(url="http://google.com")
