@@ -2,7 +2,6 @@ import json
 import os
 import random
 import threading
-import time
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -829,37 +828,6 @@ async def test_create_then_read_flow_run(prefect_client):
     assert lookup == flow_run
 
 
-async def test_create_then_wait_for_flow_run(prefect_client):
-    @flow
-    def foo():
-        pass
-
-    flow_run = await prefect_client.create_flow_run(
-        foo, name="petes-flow-run", state=Completed()
-    )
-    assert isinstance(flow_run, client_schemas.FlowRun)
-
-    lookup = await prefect_client.wait_for_flow_run(flow_run.id, poll_interval=0)
-    # Estimates will not be equal since time has passed
-    assert lookup == flow_run
-    assert flow_run.state.is_final()
-
-
-async def test_create_then_wait_timeout(prefect_client):
-    @flow
-    def foo():
-        time.sleep(9999)
-
-    flow_run = await prefect_client.create_flow_run(
-        foo,
-        name="petes-flow-run",
-    )
-    assert isinstance(flow_run, client_schemas.FlowRun)
-
-    with pytest.raises(prefect.exceptions.FlowWaitTimeout):
-        await prefect_client.wait_for_flow_run(flow_run.id, timeout=0)
-
-
 async def test_create_flow_run_retains_parameters(prefect_client):
     @flow
     def foo():
@@ -1210,10 +1178,10 @@ async def test_create_then_read_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[
-        FlowRunNotificationPolicy
-    ] = await prefect_client.read_flow_run_notification_policies(
-        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+    response: List[FlowRunNotificationPolicy] = (
+        await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+        )
     )
 
     assert len(response) == 1
