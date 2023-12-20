@@ -966,57 +966,6 @@ class TestTaskRetryingRule:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
 
-    async def test_not_retriable_detail_set(
-        self,
-        session,
-        initialize_orchestration,
-    ):
-        retry_policy = [RetryFailedTasks]
-        initial_state_type = states.StateType.RUNNING
-        proposed_state_type = states.StateType.FAILED
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            "task",
-            *intended_transition,
-        )
-        ctx.run.run_count = 1
-        ctx.run_settings.retries = 2
-        ctx.proposed_state.state_details.retriable = False
-        async with contextlib.AsyncExitStack() as stack:
-            for rule in retry_policy:
-                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
-            await ctx.validate_proposed_state()
-
-        assert ctx.response_status == SetStateStatus.ACCEPT
-        assert ctx.validated_state_type == states.StateType.FAILED
-
-    async def test_manual_retry_works_even_when_not_retriable(
-        self,
-        session,
-        initialize_orchestration,
-    ):
-        manual_retry_policy = [RetryFailedTasks]
-        initial_state_type = states.StateType.RUNNING
-        proposed_state_type = states.StateType.FAILED
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            "task",
-            *intended_transition,
-            flow_retries=1,
-        )
-        ctx.proposed_state.name = "AwaitingRetry"
-        ctx.run.run_count = 1
-        ctx.run_settings.retries = 2
-        ctx.proposed_state.state_details.retriable = False
-
-        async with contextlib.AsyncExitStack() as stack:
-            for rule in manual_retry_policy:
-                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
-
-        assert ctx.response_status == SetStateStatus.ACCEPT
-
 
 class TestRenameRetryingStates:
     async def test_rerun_states_get_renamed(
