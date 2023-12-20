@@ -871,7 +871,7 @@ When a flow run is suspended, code execution is stopped and so is the process.
 Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
 !!! note "Timeouts"
-    Paused flow runs time out after one hour by default. After the timeout, the flow run will fail with a message saying it paused and never resumed. You can specify a different timeout period in seconds using the `timeout` parameter or pass `timeout=None` for no timeout.
+    Paused flow runs time out after one hour by default. After the timeout, the flow run will fail with a message saying it paused and never resumed. You can specify a different timeout period in seconds using the `timeout` parameter.
 
 Most simply, `pause_flow_run` can be called inside a flow.
 
