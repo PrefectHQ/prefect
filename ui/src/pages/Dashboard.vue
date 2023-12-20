@@ -1,10 +1,12 @@
 <template>
   <p-layout-default class="workspace-dashboard">
     <template #header>
-      <PageHeading :crumbs="crumbs">
+      <PageHeading :crumbs="crumbs" class="workspace-dashboard__page-heading">
         <template v-if="!empty" #actions>
-          <FlowRunTagsInput v-model:selected="filter.tags" empty-message="All tags" class="workspace-dashboard__tags" />
-          <DateRangeSelect v-model="filter.range" />
+          <div class="workspace-dashboard__header-actions">
+            <FlowRunTagsInput v-model:selected="filter.tags" empty-message="All tags" />
+            <DateRangeSelect v-model="filter.range" class="workspace-dashboard__date-select" />
+          </div>
         </template>
       </PageHeading>
     </template>
@@ -76,9 +78,26 @@
 </script>
 
 <style>
-.workspace-dashboard__tags { @apply
+.workspace-dashboard__page-heading { @apply
+  grid
+  md:flex
+  md:flex-row
+  md:items-center
+}
+
+.workspace-dashboard__header-actions { @apply
+  flex
+  flex-col
   w-full
-  max-w-xs
+  max-w-full
+  gap-2
+  md:w-auto
+  md:inline-flex
+  md:flex-row
+}
+
+.workspace-dashboard__date-select { @apply
+  min-w-0
 }
 
 .workspace-dashboard__grid { @apply
@@ -86,12 +105,7 @@
   grid-cols-1
   gap-4
   items-start
-}
-
-@screen xl {
-  .workspace-dashboard__grid { @apply
-    grid-cols-2
-  }
+  xl:grid-cols-2
 }
 
 .workspace-dashboard__side { @apply
