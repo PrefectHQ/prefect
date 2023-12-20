@@ -27,7 +27,7 @@ Your CI/CD process must be able to authenticate with Prefect in order to deploy 
 
 Deploying flows securely and non-interactively in your CI/CD pipeline can be accomplished by saving your `PREFECT_API_URL` and `PREFECT_API_KEY` [as secrets in your repository's settings](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions) so they can be accessed in your CI/CD runner's environment without exposing them in any scripts or configuration files.
 
-Since deploying flows in this scenario also includes building and pushing Docker images, add `DOCKER_USERNAME` and `DOCKER_PASSWORD` as secrets to your repository as well.
+In this scenario, deploying flows involves building and pushing Docker images, so add `DOCKER_USERNAME` and `DOCKER_PASSWORD` as secrets to your repository as well.
 
 You can create secrets for GitHub Actions in your repository under **Settings -> Secrets and variables -> Actions -> New repository secret**:
 
