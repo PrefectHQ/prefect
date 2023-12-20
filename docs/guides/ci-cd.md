@@ -48,6 +48,15 @@ The `deploy` job is comprised of four `steps`:
 
 === ".deploy"
 
+    ```
+    .
+    ├── .github/
+    │   └── workflows/
+    │       └── deploy-prefect-flow.yaml
+    ├── flow.py
+    └── requirements.txt
+    ```
+
     `flow.py`
 
     ```python
@@ -105,6 +114,16 @@ The `deploy` job is comprised of four `steps`:
     ```
 
 === "prefect.yaml"
+
+    ```
+    .
+    ├── .github/
+    │   └── workflows/
+    │       └── deploy-prefect-flow.yaml
+    ├── flow.py
+    ├── prefect.yaml
+    └── requirements.txt
+    ```
 
     `flow.py`
 
