@@ -815,8 +815,15 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
                     reason="The enclosing flow must be running to begin task execution."
                 )
             elif flow_run.state.type == StateType.PAUSED:
+                # Use the flow run's Paused state details to preserve data like
+                # timeouts.
+                paused_state = states.Paused(
+                    name="NotReady",
+                    pause_expiration_time=flow_run.state.state_details.pause_timeout,
+                    reschedule=flow_run.state.state_details.pause_reschedule,
+                )
                 await self.reject_transition(
-                    state=states.Paused(name="NotReady"),
+                    state=paused_state,
                     reason=(
                         "The flow is paused, new tasks can execute after resuming flow"
                         f" run: {flow_run.id}."
