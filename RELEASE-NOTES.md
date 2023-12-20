@@ -22,11 +22,10 @@ See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943
 - https://github.com/PrefectHQ/prefect/pull/11481
 
 ### Fixes
+- Resolve environment variables during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11463
 - Fix prompt and role assignment in `ContainerInstanceProvisioner` — https://github.com/PrefectHQ/prefect/pull/11440
-- Fix workers graph rendering — https://github.com/PrefectHQ/prefect/pull/11455
-- Fix: dashboard header to be responsive — https://github.com/PrefectHQ/prefect/pull/11427
+- Ensure dashboard header is responsive to varying tag and date input sizes — https://github.com/PrefectHQ/prefect/pull/11427
 - Fix error when deploying a remotely loaded flow with options — https://github.com/PrefectHQ/prefect/pull/11484
-- Resolve `work_pool` env vars during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11463
 
 ### Experimental
 - Remove title/description from `RunInput` model — https://github.com/PrefectHQ/prefect/pull/11438
@@ -42,11 +41,11 @@ See our [short loom demo](https://www.loom.com/share/95113969257d4cffa48ad13f943
 - Add documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
 - Fix typo in documentation on`prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11488
 - Add troubleshooting instructions for agents — https://github.com/PrefectHQ/prefect/pull/11475
+- Fix workers graph rendering in documentation — https://github.com/PrefectHQ/prefect/pull/11455
 
 ### Contributors
 - @1beb made their first contribution in https://github.com/PrefectHQ/prefect/pull/11475
 - @KMDgit made their first contribution in https://github.com/PrefectHQ/prefect/pull/11488
-
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.11...2.14.12
 
