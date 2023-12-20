@@ -1,9 +1,5 @@
 """
-<span class="badge-api beta"/>
-
 Module containing the Process worker used for executing flow runs as subprocesses.
-
-Note this module is in **beta**. The interfaces within may change without notice.
 
 To start a Process worker, run the following command:
 
