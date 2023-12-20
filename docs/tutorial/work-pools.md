@@ -328,7 +328,7 @@ See the [Push Work Pool guide](/guides/push-work-pools/) for more details and ex
 
 Congratulations!
 You've learned how to deploy flows to work pools.
-These infrastructure options might meet all of your needs.
+If these work pool options meet all of your needs, we encourage you to go deeper with the [concepts docs](/concepts/) or explore our [how-to guides](/guides/) to see examples of particular Prefect use cases.
 
 However, if you need more control over your infrastructure, want to run your workflows in Kubernetes, or you are running a self-hosted Prefect server instance, we encourage you to see the [next section of the tutorial](/tutorial/workers/).
 There you'll learn how to use work pools that rely on a worker and learn how to customize Docker images for container-based infrastructure.
