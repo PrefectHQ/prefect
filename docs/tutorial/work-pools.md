@@ -13,11 +13,6 @@ search:
 
 # Work Pools
 
-!!! note "Prefect Cloud"
-    This tutorial uses Prefect Cloud to deploy flows to work pools.
-    Managed execution and push work pools are available in [Prefect Cloud](https://www.prefect.io/cloud) only.
-    If you are not using Prefect Cloud, please learn about work pools below and then proceed to the [next tutorial](/tutorial/workers/) that uses worker-based work pools.
-
 ## Why work pools?
 
 Work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
@@ -52,6 +47,11 @@ Prefect Cloud provides a Prefect Managed work pool option that is the simplest w
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
 ## Set up a work pool
+
+!!! note "Prefect Cloud"
+    This tutorial uses Prefect Cloud to deploy flows to work pools.
+    Managed execution and push work pools are available in [Prefect Cloud](https://www.prefect.io/cloud) only.
+    If you are not using Prefect Cloud, please learn about work pools below and then proceed to the [next tutorial](/tutorial/workers/) that uses worker-based work pools.
 
 ### Create a Prefect Managed work pool
 
