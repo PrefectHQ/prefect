@@ -268,6 +268,41 @@ def some_task_with_manual_backoff_retries():
    ...
 ```
 
+The `retry_condition_fn` option accepts a callable that returns a boolean. If the callable returns `True`, the task will be retried. If the callable returns `False`, the task will not be retried. The callable accepts three arguments &mdash; the task, the task run, and the state of the task run. The following task will retry on non-401 and non-404 HTTP status codes:
+
+```python
+import httpx
+from prefect import flow, task
+
+def retry_handler(task, task_run, state) -> bool:
+    try:
+        # Attempt to get the result of the task
+        state.result()
+    except httpx.HTTPStatusError as exc:
+        # Retry on any HTTP status code that is not 401 or 404
+        do_not_retry_on_these_codes = [401, 404]
+        return exc.response.status_code not in do_not_retry_on_these_codes
+    except httpx.ConnectError:
+        # Do not retry
+        return False
+    except Exception:
+        # Retry on any other exception
+        return True
+
+@task(retries=1, retry_condition_fn=retry_handler)
+def get_data_task(url):
+    response = httpx.get(url)
+    response.raise_for_status()
+    return response.json()
+
+@flow
+def get_data_flow(url):
+    get_data_task(url=url)
+
+if __name__ == "__main__":
+    get_data_flow(url="http://google.com")
+```
+
 Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an [`exponential_backoff`](/api-ref/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
 
 ```python
