@@ -62,7 +62,7 @@ prefect cloud login
 
 </div>
 
-Choose **Log in with a web browser** and click **Authorize** button in the browser window that opens.
+Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
 
 !!! note "Self-hosted Prefect server instance"
     If you would like to host a Prefect server instance on your own infrastructure, see the [tutorial](/tutorial/) and select the "Self-hosted" tab.
