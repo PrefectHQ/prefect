@@ -12,12 +12,14 @@ search:
 ---
 # Deploying Flows
 
-!!! note "Reminder to start a Prefect API"
-    Some features in this tutorial, such as scheduling, require a Prefect server to be running; if using a self-hosted setup, simply run `prefect server start` to run both the webserver and UI; if using Prefect Cloud, make sure you have [successfully configured your local profile](/cloud/cloud-quickstart/).
+!!! note "Reminder to connect to Prefect Cloud or a self-hosted Prefect server instance"
+    Some features in this tutorial, such as scheduling, require you to be connected to a Prefect server.
+    If using a self-hosted setup, run `prefect server start` to run both the webserver and UI.
+    If using Prefect Cloud, make sure you have [successfully authenticated your local environment](/cloud/cloud-quickstart/).
 
 ## Why deployments?
 
-One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules) or [event-based triggering](/concepts/automations/).
+Some of the most common reasons to use an orchestration tool such as Prefect are for [scheduling](/concepts/schedules/) and [event-based triggering](/concepts/automations/).
 Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering and managing flow runs.
 You can certainly continue to trigger your workflows in this way and use Prefect as a monitoring layer for other schedulers or systems, but you will miss out on many of the other benefits and features that Prefect offers.
 
@@ -29,7 +31,7 @@ Deploying a flow exposes an API and UI so that you can:
 
 ## What is a deployment?
 
-Deploying a flow is the act of specifying when, where, and how it will run.
+Deploying a flow is the act of specifying where and how it will run.
 This information is encapsulated and sent to Prefect as a [deployment](/concepts/deployments/) that contains the crucial metadata needed for remote orchestration.
 Deployments elevate workflows from functions that you call manually to API-managed entities.
 
@@ -41,7 +43,7 @@ Attributes of a deployment include (but are not limited to):
 
 ## Create a deployment
 
-Using our `get_repo_info` flow from the previous sections, we can easily create a deployment for it by introducing one simple line of code:
+Using our `get_repo_info` flow from the previous sections, we can easily create a deployment for it by calling a single method on the flow object: `flow.serve`.
 
 ```python hl_lines="16-17" title="repo_info.py"
 import httpx
@@ -70,14 +72,17 @@ Running this script will do two things:
 
 !!! warning "Deployments must be defined in static files"
     Flows can be defined and run interactively, that is, within REPLs or Notebooks.
-    Deployments, on the other hand, require that your flow definition be in a known file (which can be located on a remote filesystem in certain setups).  
+    Deployments, on the other hand, require that your flow definition be in a known file (which can be located on a remote filesystem in certain setups, as we'll see in the next section of the tutorial).  
 
 Because this deployment has no schedule or triggering automation, you will need to use the UI or API to create runs for it.
-Let's use the CLI (in a separate terminal window) to see what happens:
+Let's use the CLI (in a separate terminal window) to create a run for this deployment:
+
 <div class="terminal">
+
 ```bash
 prefect deployment run 'get-repo-info/my-first-deployment'
 ```
+
 </div>
 
 If you are watching either your terminal or your UI, you should see the newly created run execute successfully!  
@@ -85,15 +90,15 @@ Let's take this example further by adding a schedule and additional metadata.
 
 ### Additional options
 
-The `serve` method on flows exposes many options for your deployment.
+The `serve` method on flows exposes many options for the deployment.
 Let's use a few of these options now:
 
 - `cron`: a keyword that allows us to set a cron string schedule for the deployment; see [schedules](/concepts/schedules/) for more advanced scheduling options
 - `tags`: a keyword that allows us to tag this deployment and its runs for bookkeeping and filtering purposes
-- `description`: a keyword that allows us to document what this deployment does; by default the description is set from the docstring of the flow function, but we did not document our flow
+- `description`: a keyword that allows us to document what this deployment does; by default the description is set from the docstring of the flow function, but we did not document our flow function
 - `version`: a keyword that allows us to track changes to our deployment; by default a hash of the file containing the flow is used; popular options include semver tags or git commit hashes
 
-Setting these fields is simple:
+Let's add these options to our deployment:
 
 ```python
 if __name__ == "__main__":
@@ -106,14 +111,15 @@ if __name__ == "__main__":
     )
 ```
 
-When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work!  Stop the script using `CTRL+C` and your schedule will be automatically paused.
+When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work!  
+Stop the script in the CLI using `CTRL+C` and your schedule will be automatically paused.
 
 !!! note "`.serve` is a long-running process"
-    In order for remotely triggered or scheduled runs to be executed, your script with `flow.serve` must be actively running.
+    For remotely triggered or scheduled runs to be executed, your script with `flow.serve` must be actively running.
 
 ## Running multiple deployments at once
 
-This method is useful for creating deployments for single flows, but what if we have two or more flows?  This only requires a few additional method calls and imports to get up and running:
+This method is useful for creating deployments for single flows, but what if we have two or more flows?  This situation only requires a few additional method calls and imports to get up and running:
 
 ```python hl_lines="2 18-20" title="multi_flow_deployment.py"
 import time
@@ -144,14 +150,17 @@ A few observations are in order:
 - the deployments are only registered with the API once `serve(...)` is called
 - when serving multiple deployments, the only requirement is that they share a Python environment; they can be executed and scheduled independently of each other
 
-You should spend some time experimenting with this setup; a few next steps for exploration include:
+Spend some time experimenting with this setup.
+A few potential next steps for exploration include:
 
 - pausing and unpausing the schedule for the "sleeper" deployment
-- use the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
-- use the UI to cancel an active run for the "sleeper" deployment (good luck cancelling the "fast" one 😉)
+- using the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
+- cancelling an active run for the "sleeper" deployment from the UI (good luck cancelling the "fast" one 😉)
 
-!!! tip "Security Note"
-    Another implication of Prefect's deployment interface is our hybrid execution model. Whether you use Prefect Cloud or host a Prefect server instance yourself, you'll always be able to run work flows in the environments best suited to their execution. This model allows you efficient use of your infrastructure resources while maintaining the privacy of your code and data.
+!!! tip "Hybrid execution option"
+    Another implication of Prefect's deployment interface is that you can choose to use our hybrid execution model.
+    Whether you use Prefect Cloud or host a Prefect server instance yourself, you can run work flows in the environments best suited to their execution.
+    This model allows you efficient use of your infrastructure resources while maintaining the privacy of your code and data.
     There is no ingress required.
     For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
 
@@ -159,6 +168,7 @@ You should spend some time experimenting with this setup; a few next steps for e
 
 Congratulations! You now have your first working deployment.
 
-Deploying flows through the `serve` method is the most straightforward way to start scheduling flows with Prefect. However, if your team has more complex infrastructure requirements or you'd like to use Prefect [Managed Execution](/guides/managed-execution/) you can deploy flows to a [work pool](/concepts/work-pools/).
+Deploying flows through the `serve` method is a fast way to start scheduling flows with Prefect.
+However, if your team has more complex infrastructure requirements or you'd like to have Prefect manage flow execution, you can deploy flows to a work pool.
 
 Learn about work pools and how Prefect Cloud can handle infrastructure configuration for you in the [next step of the tutorial](/tutorial/work-pools/).

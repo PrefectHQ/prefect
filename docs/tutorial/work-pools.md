@@ -170,7 +170,7 @@ abc/workspace/123/deployments/deployment/xyz
 </div>
 
 Navigate to your Prefect Cloud UI and view your new deployment.
-Click the "Run" button to trigger a run of your deployment.
+Click the **Run** button to trigger a run of your deployment.
 
 Because this deployment was configured with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
 
@@ -233,7 +233,8 @@ You will need the following permissions in your GCP project:
 - resourcemanager.projects.setIamPolicy
 - artifactregistry.repositories.create
 
-Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+Docker is also required to build and push images to your registry.
+You can install Docker [here](https://docs.docker.com/get-docker/).
 
 Run the following command to set up a work pool named `my-cloud-run-pool` of type `cloud-run:push`.
 
@@ -294,7 +295,7 @@ After infrastructure provisioning completes, you will be logged into your new Ar
 
 While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the repository.
 
-To take advantage of this functionality, you can write your deploy scripts like this:
+To take advantage of this functionality, you can write your deploy script like this:
 
 ```python hl_lines="14" title="example_deploy_script.py"
 from prefect import flow                                                       
@@ -317,7 +318,10 @@ if __name__ == "__main__":
     )
 ```
 
-This will build an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to the repository.
+Running this script will build a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to your repository.
+
+!!! tip
+    Make sure you have Docker running locally before running this script.
 
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
 Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
@@ -330,5 +334,5 @@ Congratulations!
 You've learned how to deploy flows to work pools.
 If these work pool options meet all of your needs, we encourage you to go deeper with the [concepts docs](/concepts/) or explore our [how-to guides](/guides/) to see examples of particular Prefect use cases.
 
-However, if you need more control over your infrastructure, want to run your workflows in Kubernetes, or you are running a self-hosted Prefect server instance, we encourage you to see the [next section of the tutorial](/tutorial/workers/).
-There you'll learn how to use work pools that rely on a worker and learn how to customize Docker images for container-based infrastructure.
+However, if you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect server instance, we encourage you to see the [next section of the tutorial](/tutorial/workers/).
+There you'll learn how to use work pools that rely on a worker and see how to customize Docker images for container-based infrastructure.
