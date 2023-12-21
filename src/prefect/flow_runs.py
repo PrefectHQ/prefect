@@ -1,16 +1,17 @@
+from typing import Optional
 from uuid import UUID
 
 import anyio
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun
-from prefect.exceptions import FlowWaitTimeout
+from prefect.exceptions import FlowRunWaitTimeout
 
 
 async def wait_for_flow_run(
     client: PrefectClient,
     flow_run_id: UUID,
-    timeout: int = 10800,
+    timeout: Optional[int] = 10800,
     poll_interval: int = 5,
 ) -> FlowRun:
     """Waits for the prefect flow run to finish and returns the FlowRun
@@ -32,6 +33,6 @@ async def wait_for_flow_run(
                 return flow_run
             await anyio.sleep(poll_interval)
 
-    raise FlowWaitTimeout(
-        f"FlowRun with ID {flow_run_id} is taking longer than {timeout} seconds"
+    raise FlowRunWaitTimeout(
+        f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
     )

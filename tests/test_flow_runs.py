@@ -4,7 +4,7 @@ import pytest
 
 import prefect.client.schemas as client_schemas
 from prefect import flow
-from prefect.exceptions import FlowWaitTimeout
+from prefect.exceptions import FlowRunWaitTimeout
 from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Completed
 
@@ -36,5 +36,5 @@ async def test_create_then_wait_timeout(prefect_client):
     )
     assert isinstance(flow_run, client_schemas.FlowRun)
 
-    with pytest.raises(FlowWaitTimeout):
+    with pytest.raises(FlowRunWaitTimeout):
         await wait_for_flow_run(prefect_client, flow_run.id, timeout=0)
