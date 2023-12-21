@@ -73,43 +73,76 @@ Choose **Log in with a web browser** and click the **Authorize** button in the b
 The fastest way to get started with Prefect is to add a `@flow` decorator to your Python function.
 [Flows](/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
-```python hl_lines="2 5" title="my_workflow.py"
+```python hl_lines="2 5" title="my_gh_workflow.py"
 import httpx
-from prefect import flow
+from prefect import flow, task
+
+
+@task(retries=2)
+def get_repo_info(repo_owner: str, repo_name: str):
+    """Get info about a repo - will retry twice after failing"""
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+    api_response = httpx.get(url)
+    api_response.raise_for_status()
+    repo_info = api_response.json()
+    return repo_info
+
+
+@task
+def get_contributors(repo_info: dict):
+    """Get contributors for a repo"""
+    contributors_url = repo_info["contributors_url"]
+    response = httpx.get(contributors_url)
+    response.raise_for_status()
+    contributors = response.json()
+    return contributors
 
 
 @flow(log_prints=True)
-def get_repo_info():
-    url = "https://api.github.com/repos/PrefectHQ/prefect"
-    response = httpx.get(url)
-    repo = response.json()
-    print("PrefectHQ/prefect repository statistics 🤓:")
-    print(f"Stars 🌠 : {repo['stargazers_count']}")
+def repo_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
+    """
+    Given a GitHub repository, logs the number of stargazers
+    and contributors for that repo.
+    """
+    repo_info = get_repo_info(repo_owner, repo_name)
+    print(f"Stars 🌠 : {repo_info['stargazers_count']}")
+
+    contributors = get_contributors(repo_info)
+    print(f"Number of contributors 👷: {len(contributors)}")
+
 
 if __name__ == "__main__":
-    get_repo_info()
+    repo_info()
 ```
 
 Note that we added a `log_prints=True` argument to the `@flow` decorator so that `print` statements within the flow-decorated function will be logged.
+Also note that our flow calls two tasks, which are defined by the `task` decorator.
+Tasks are the smallest unit of observed and orchestrated work in Prefect.
 
 <div class="terminal">
 
 ```bash
-python my_workflow.py
+python my_gh_workflow.py
 ```
 
 </div>
 
-Now when we run this script, Prefect will automatically track the state of the flow run and log the output where we can see it in the UI or CLI.
+Now when we run this script, Prefect will automatically track the state of the flow run and log the output where we can see it in the UI and CLI.
 
 <div class="terminal">
 
 ```bash
-15:16:34.705 | INFO    | prefect.engine - Created flow run 'frisky-reindeer' for flow 'get-repo-info'
-15:16:34.706 | INFO    | Flow run 'frisky-reindeer' - View at https://app.prefect.cloud/account/abc/flow-runs/flow-run/123
-15:16:35.053 | INFO    | Flow run 'frisky-reindeer' - PrefectHQ/prefect repository statistics 🤓:
-15:16:35.055 | INFO    | Flow run 'frisky-reindeer' - Stars 🌠 : 13593
-15:16:35.744 | INFO    | Flow run 'frisky-reindeer' - Finished in state Completed()
+14:28:31.099 | INFO    | prefect.engine - Created flow run 'energetic-panther' for flow 'repo-info'
+14:28:31.100 | INFO    | Flow run 'energetic-panther' - View at https://app.prefect.cloud/account/123/workspace/abc/flow-runs/flow-run/xyz
+14:28:32.178 | INFO    | Flow run 'energetic-panther' - Created task run 'get_repo_info-0' for task 'get_repo_info'
+14:28:32.179 | INFO    | Flow run 'energetic-panther' - Executing 'get_repo_info-0' immediately...
+14:28:32.584 | INFO    | Task run 'get_repo_info-0' - Finished in state Completed()
+14:28:32.599 | INFO    | Flow run 'energetic-panther' - Stars 🌠 : 13609
+14:28:32.682 | INFO    | Flow run 'energetic-panther' - Created task run 'get_contributors-0' for task 'get_contributors'
+14:28:32.682 | INFO    | Flow run 'energetic-panther' - Executing 'get_contributors-0' immediately...
+14:28:33.118 | INFO    | Task run 'get_contributors-0' - Finished in state Completed()
+14:28:33.134 | INFO    | Flow run 'energetic-panther' - Number of contributors 👷: 30
+14:28:33.255 | INFO    | Flow run 'energetic-panther' - Finished in state Completed('All states completed.')
 ```
 
 </div>
@@ -145,26 +178,15 @@ Let's package both of these things, along with the location for where to find ou
 
 Deployments elevate flows to remotely configurable entities that have their own API.
 
-Let's update our script to create a deployment with the name *my-first-deployment* and set it to run on a schedule.
+Let's make a script to build a deployment with the name *my-first-deployment* and set it to run on a schedule.
 
-```python hl_lines="15-22" title="my_workflow.py"
-import httpx
+```python hl_lines="15-22" title="create_deployment.py"
 from prefect import flow
-
-
-@flow(log_prints=True)
-def get_repo_info():
-    url = "https://api.github.com/repos/PrefectHQ/prefect"
-    response = httpx.get(url)
-    repo = response.json()
-    print("PrefectHQ/prefect repository statistics 🤓:")
-    print(f"Stars 🌠 : {repo['stargazers_count']}")
-
 
 if __name__ == "__main__":
     flow.from_source(
-        source="https://github.com/discdiver/demo.git",
-        entrypoint="my_workflow.py:get_repo_info",
+        source="https://github.com/discdiver/demos.git",
+        entrypoint="my_gh_workflow.py:repo_info",
     ).deploy(
         name="my-first-deployment",
         work_pool_name="my-managed-pool",
@@ -178,7 +200,7 @@ Note that the `cron` argument will schedule the deployment to run at 1am every d
 <div class="terminal">
 
 ```bash
-python my_workflow.py
+python create_deployment.py
 ```
 
 </div>
@@ -190,16 +212,17 @@ You should see a message that your deployment was created, similar to the one be
 ```bash
 Successfully created/updated all deployments!
 
-                       Deployments                       
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
-┃ Name                              ┃ Status  ┃ Details ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ get-repo-info/my-first-deployment │ applied │         │
-└───────────────────────────────────┴─────────┴─────────┘
+                     Deployments                     
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃ Name                          ┃ Status  ┃ Details ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ repo-info/my-first-deployment │ applied │         │
+└───────────────────────────────┴─────────┴─────────┘
 
 To schedule a run for this deployment, use the following command:
 
-        prefect deployment run 'get-repo-info/my-first-deployment'
+        $ prefect deployment run 'repo-info/my-first-deployment'
+
 
 You can also run your flow via the Prefect UI: <https://app.prefect.cloud/account/abc/workspace/123/deployments/deployment/xyz>
 
@@ -219,12 +242,12 @@ Head to the **Deployments* page of the UI to check it out.
     In the example above, we use an existing GitHub repository.
     If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument to point to your repository.
 
-You can trigger a run of this deployment by either clicking the **Run** button in the top right of the deployment page in the UI, or by running the following CLI command in your terminal:
+You can trigger a manual run of this deployment by either clicking the **Run** button in the top right of the deployment page in the UI, or by running the following CLI command in your terminal:
 
 <div class="terminal">
 
 ```bash
-prefect deployment run 'get_repo_info/my-first-deployment'  
+prefect deployment run 'repo-info/my-first-deployment'
 ```
 
 </div>
@@ -232,10 +255,9 @@ prefect deployment run 'get_repo_info/my-first-deployment'
 The deployment is configured to run on a Prefect Managed work pool, so Prefect will automatically spin up the infrastructure to run this flow.
 It may take a minute to set up the Docker image in which the flow will run.
 
-After a minute or so, you should see logs in the UI.
-Note that you won't see a flow run graph in the UI because we don't have multiple parts to our workflow.
+After a minute or so, you should see the flow run graph and logs on the Flow Run page in the UI.
 
-![Managed flow run with metrics](/img/ui/deployment-managed.png)
+![Managed flow run graph and logs](/img/ui/qs-flow-run.png)
 
 !!! warning "Remove the schedule"
     Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
@@ -244,18 +266,9 @@ Note that you won't see a flow run graph in the UI because we don't have multipl
 
 You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect.
 
-To learn how to run flows on your own infrastructure or see how to customize the Docker image where your flow runs, check out the [tutorial](/tutorial/).
-
-The tutorial also shows you how to gain lots of Prefect orchestration benefits such as:
-
-- automatic retries
-- caching
-- simple async
-- result persistence
-- long-running deployment servers
-<!-- add event-driven workflows when added to tutorial -->
+To learn how to run flows on your own infrastructure, see how to customize the Docker image where your flow runs, and see how to gain lots of orchestration and observation benefits check out the [tutorial](/tutorial/).
 
 !!! tip "Need help?"
     Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
 
-Happy orchestrating!
+Happy building!
