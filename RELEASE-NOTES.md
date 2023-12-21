@@ -18,11 +18,11 @@ See the following PRs for implementation details:
 
 ### Get type-checked input from humans in the loop
 
-Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow and wait for type-checked input. After declaring the structure of the input data using a Pydantic model, Prefect will render a form dynamically in the UI so that humans can submit data when they resume a flow. We’ll also make sure the data conforms to your Pydantic model by applying client- and server-side validation.
+Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow and wait for type-checked input. To get started, declare the structure of the input data using a Pydantic model, and Prefect will render a form dynamically in the UI when a human resumes the flow. Form validation will ensure that the data conforms to your Pydantic model, and your flow will receive tbe input.
 
 <img width="472" alt="image" src="https://github.com/PrefectHQ/prefect/assets/97182/ac743557-e872-4b48-a61e-c74c95e076f0">
 
-Here's an example of a `RunInput` that uses date and time inputs and nested Pydantic models:
+Prefect's new `RunInput` class powers this experience. `RunInput` is a subclass of Pydantic's `BaseModel`. Here's an example of using `RunInput` that uses dates, literals, and nested Pydantic models to show you what's possible:
 
 ```python
 class Person(RunInput):
