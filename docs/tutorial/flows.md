@@ -9,15 +9,16 @@ tags:
     - parameters
     - retries
 ---
-!!! note "Start a  Prefect API and UI"
-    This tutorial is best paired with a Prefect UI so that you can see the information that Prefect is capturing.  
-    If using Prefect Cloud, navigate to your workspace at [`https://app.prefect.cloud/`](https://app.prefect.cloud/).
-
-    If using a self-hosted setup instead, run `prefect server start` to run both the webserver and UI.
+!!! note "Prerequisites"
+    This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-hosted server instance.
+    See the prerequisites section of the [tutorial](/tutorial/) for more details.
 
 ## What is a flow?
 
-[Flows](/concepts/flows/) are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
+[Flows](/concepts/flows/) are like functions.
+They can take inputs, perform work, and return an output.
+In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator.
+When a function becomes a flow, its behavior changes, giving it the following advantages:
 
 - All runs of the flow have persistent [state](/concepts/states/). Transitions between states are recorded, allowing for flow execution to be observed and acted upon.
 - Input arguments can be type validated as workflow parameters.
@@ -46,22 +47,23 @@ def get_repo_info():
     print("PrefectHQ/prefect repository statistics 🤓:")
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
+
+if __name__ == "__main__":
+    get_repo_info()
 ```
 
-Running this file interactively (using `python -i`) and calling this function directly will result in some interesting output:
+Running this file will result in some interesting output:
 
 <div class="terminal">
-```bash
-python -i repo_info.py
->>> get_repo_info()
 
+```bash
 12:47:42.792 | INFO | prefect.engine - Created flow run 'ludicrous-warthog' for flow 'get-repo-info'
 PrefectHQ/prefect repository statistics 🤓:
 Stars 🌠 : 12146
 Forks 🍴 : 1245
 12:47:45.008 | INFO | Flow run 'ludicrous-warthog' - Finished in state Completed()
-
 ```
+
 </div>
 
 !!! tip "Flows can contain arbitrary Python"
@@ -69,9 +71,9 @@ Forks 🍴 : 1245
 
 ## Parameters
 
-As with any Python function, you can pass arguments to a flow. 
-The positional and keyword arguments defined on your flow function are called [parameters](/concepts/flows/#parameters). 
-Prefect will automatically perform type conversion using any provided type hints. 
+As with any Python function, you can pass arguments to a flow.
+The positional and keyword arguments defined on your flow function are called [parameters](/concepts/flows/#parameters).
+Prefect will automatically perform type conversion using any provided type hints.
 Let's make the repository a string parameter with a default value:
 
 ```python hl_lines="6 7 11" title="repo_info.py"
@@ -88,18 +90,33 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     print(f"{repo_name} repository statistics 🤓:")
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
+
+
+if __name__ == "__main__":
+    get_repo_info(repo_name="PrefectHQ/marvin")
 ```
 
-Running `python -i repo_info.py` we can now call our flow with varying values for the `repo_name` parameter (including "bad" values):
+We can call our flow with varying values for the `repo_name` parameter (including "bad" values):
 
 <div class="terminal">
+
 ```bash
-python -i repo_info.py
->>> get_repo_info(repo_name="PrefectHQ/marvin")
-...
->>> get_repo_info(repo_name="missing-org/missing-repo")
-HTTPStatusError: Client error '404 Not Found' for url 'https://api.github.com/repos/missing-org/missing-repo'
+python repo_info.py
 ```
+
+</div>
+
+Try passing `repo_name="missing-org/missing-repo"`.
+
+You should see
+
+<div class="terminal">
+
+```bash
+HTTPStatusError: Client error '404 Not Found' for url '<https://api.github.com/repos/missing-org/missing-repo>'
+
+```
+
 </div>
 
 Now navigate to your Prefect dashboard and compare the displays for these two runs.
@@ -141,12 +158,14 @@ Now the output looks more consistent _and_, more importantly, our statistics are
 
 !!! tip "`log_prints=True`"
     We could have achieved the exact same outcome by using Prefect's convenient `log_prints` keyword argument in the `flow` decorator:
+
     ```python
+
     @flow(log_prints=True)
     def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
         ...
 
-```
+    ```
 
 !!! warning "Logging vs Artifacts"
     The example above is for educational purposes.
@@ -155,7 +174,8 @@ Now the output looks more consistent _and_, more importantly, our statistics are
 
 ## Retries
 
-So far our script works, but in the future unexpected errors may occur; for example the GitHub API may be temporarily unavailable or rate limited.
+So far our script works, but in the future unexpected errors may occur.
+For example the GitHub API may be temporarily unavailable or rate limited.
 [Retries](/concepts/flows/#flow-settings) help make our flow more resilient.
 Let's add retry functionality to our example above:
 
@@ -173,6 +193,11 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     print(f"{repo_name} repository statistics 🤓:")
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
+
+if __name__ == "__main__":
+    get_repo_info()
+```
+
 ```
 
 ## [Next: Tasks](/tutorial/tasks/)
