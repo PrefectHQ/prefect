@@ -41,7 +41,7 @@ How can we make this script schedulable, observable, resilient, and capable of r
 ## Step 1: Install Prefect
 
 ```bash
-pip install -U "prefect"
+pip install -U prefect
 ```
 
 See the [install guide](/getting-started/installation/) for more detailed installation instructions, if needed.
@@ -172,7 +172,7 @@ python my_workflow.py
 
 </div>
 
-You should see a message in the CLI that your deployment was created similar to this one.
+You should see a message that your deployment was created, similar to the one below.
 
 <div class="terminal">
 
@@ -202,7 +202,7 @@ Head to the **Deployments* page of the UI to check it out.
     You can store your flow code in nearly any location.
     You just need to tell Prefect where to find it.
     In this example, we use a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage.
-    Read more [here]/guides/prefect-deploy/#creating-work-pool-based-deployments).
+    Read more [here](/guides/prefect-deploy/#creating-work-pool-based-deployments).
 
 !!! caution "Push your code to GitHub"
     In the example above, we use an existing GitHub repository.
@@ -221,7 +221,7 @@ prefect deployment run 'get_repo_info/my-first-deployment'
 The deployment is configured to run on a Prefect Managed work pool, so Prefect will automatically spin up the infrastructure to run this flow.
 It may take a minute to set up the Docker image in which the flow will run.
 
-After a minute or so, you should see logs.
+After a minute or so, you should see logs in the UI.
 
 ![Managed flow run with metrics](/img/ui/deployment-managed.png)
 
