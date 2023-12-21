@@ -226,7 +226,7 @@ After a minute or so, you should see logs in the UI.
 ![Managed flow run with metrics](/img/ui/deployment-managed.png)
 
 !!! warning "Remove the schedule"
-    Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once a day.
+    Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
 
 ## Next steps
 
