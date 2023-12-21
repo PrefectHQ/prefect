@@ -21,13 +21,14 @@ By the end of this tutorial you will have:
 
 1. [Created a flow](/tutorial/flows/)
 2. [Added tasks to it](/tutorial/tasks/)
-3. [Deployed and run the flow](/tutorial/deployments/)
+3. [Deployed and run the flow locally](/tutorial/deployments/)
+4. [Created a work pool and run the flow on Prefect Cloud managed infrastructure](/tutorial/work-pools/)
 
-These three topics will get most users ready for their first production deployment.
+These four topics will get most users ready for their first production deployment.
 
 Advanced users that need more governance and control of their workflow infrastructure can go one step further by:
 
-4. [Creating a work pool & worker](/tutorial/workers/)
+5. [Creating a worker](/tutorial/workers/)
 
 If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
 
