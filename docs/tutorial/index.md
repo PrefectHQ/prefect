@@ -22,15 +22,15 @@ By the end of this tutorial you will have:
 1. [Created a flow](/tutorial/flows/)
 2. [Added tasks to it](/tutorial/tasks/)
 3. [Deployed and run the flow locally](/tutorial/deployments/)
-4. [Created a work pool and run the flow on Prefect Cloud managed infrastructure](/tutorial/work-pools/)
+4. [Created a work pool and run the flow remotely](/tutorial/work-pools/)
 
-These four topics will get most users ready for their first production deployment.
+These four topics will get most users to their first production deployment.
 
 Advanced users that need more governance and control of their workflow infrastructure can go one step further by:
 
-5. [Creating a worker](/tutorial/workers/)
+5. [Using a worker-based deployment](/tutorial/workers/)
 
-If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
+If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/kubernetes/)), check out Prefect's [guides](/guides/).
 
 ## Prerequisites
 
@@ -41,9 +41,11 @@ If you're looking for examples of more advanced operations (like [deploying on K
 
 ## What is Prefect?
 
-Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines. With Prefect, you define workflows as Python code and let it handle the rest.
+Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines.
+With Prefect, you define workflows as Python code and let it handle the rest.
 
-Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
+Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
+It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 
 Just bring your Python code, sprinkle in a few decorators, and go!
 
