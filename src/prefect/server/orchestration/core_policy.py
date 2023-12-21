@@ -376,12 +376,9 @@ class RetryFailedTasks(BaseOrchestrationRule):
 
         # set by user to conditionally retry a task using @task(retry_condition_fn=...)
         if getattr(proposed_state.state_details, "retriable", True) is False:
-           return
- 
-        if (
-            run_settings.retries is not None
-            and run_count <= run_settings.retries
-        ):
+            return
+
+        if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(seconds=delay),
                 message=proposed_state.message,
