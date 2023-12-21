@@ -198,8 +198,6 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-```
-
 ## [Next: Tasks](/tutorial/tasks/)
 
 As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow.

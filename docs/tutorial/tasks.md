@@ -52,6 +52,9 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     print(f"{repo_name} repository statistics 🤓:")
     print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
     print(f"Forks 🍴 : {repo_stats['forks_count']}")
+
+if __name__ == "__main__":
+    repo_info()
 ```
 
 Running the flow in your terminal will result in something like this:
@@ -143,6 +146,11 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
     print(f"Forks 🍴 : {repo_stats['forks_count']}")
     print(f"Average open issues per user 💌 : {issues_per_user:.2f}")
+
+
+if __name__ == "__main__":
+    get_repo_info()
+
 ```
 
 Now we're fetching the data we need, but the requests are happening sequentially.
