@@ -22,7 +22,7 @@ Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow
 
 <img width="472" alt="image" src="https://github.com/PrefectHQ/prefect/assets/97182/ac743557-e872-4b48-a61e-c74c95e076f0">
 
-Prefect's new `RunInput` class powers this experience. `RunInput` is a subclass of Pydantic's `BaseModel`. Here's an example of using `RunInput` that uses dates, literals, and nested Pydantic models to show you what's possible:
+Prefect's new `RunInput` class powers this experience. `RunInput` is a subclass of Pydantic's `BaseModel`. Here's an example of a `RunInput` that uses dates, literals, and nested Pydantic models to show you what's possible:
 
 ```python
 class Person(RunInput):
