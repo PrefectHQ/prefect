@@ -1,3 +1,4 @@
+import base64
 import contextlib
 import contextvars
 import importlib
@@ -16,11 +17,17 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
+from rich.syntax import Syntax
 
+from prefect.cli._prompts import prompt
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
+from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    update_current_profile,
+)
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.importtools import lazy_import
 
@@ -48,46 +55,10 @@ class IamPolicyResource:
 
     def __init__(
         self,
-        policy_name: str = "prefect-ecs-policy",
+        policy_name: str,
     ):
         self._iam_client = boto3.client("iam")
         self._policy_name = policy_name
-        self._policy_document = json.dumps(
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Sid": "PrefectEcsPolicy",
-                        "Effect": "Allow",
-                        "Action": [
-                            "ec2:AuthorizeSecurityGroupIngress",
-                            "ec2:CreateSecurityGroup",
-                            "ec2:CreateTags",
-                            "ec2:DescribeNetworkInterfaces",
-                            "ec2:DescribeSecurityGroups",
-                            "ec2:DescribeSubnets",
-                            "ec2:DescribeVpcs",
-                            "ecs:CreateCluster",
-                            "ecs:DeregisterTaskDefinition",
-                            "ecs:DescribeClusters",
-                            "ecs:DescribeTaskDefinition",
-                            "ecs:DescribeTasks",
-                            "ecs:ListAccountSettings",
-                            "ecs:ListClusters",
-                            "ecs:ListTaskDefinitions",
-                            "ecs:RegisterTaskDefinition",
-                            "ecs:RunTask",
-                            "ecs:StopTask",
-                            "logs:CreateLogStream",
-                            "logs:PutLogEvents",
-                            "logs:DescribeLogGroups",
-                            "logs:GetLogEvents",
-                        ],
-                        "Resource": "*",
-                    }
-                ],
-            }
-        )
 
         self._requires_provisioning = None
 
@@ -146,6 +117,7 @@ class IamPolicyResource:
 
     async def provision(
         self,
+        policy_document: Dict[str, Any],
         advance: Callable[[], None],
     ):
         """
@@ -164,13 +136,23 @@ class IamPolicyResource:
                 partial(
                     self._iam_client.create_policy,
                     PolicyName=self._policy_name,
-                    PolicyDocument=self._policy_document,
+                    PolicyDocument=json.dumps(policy_document),
                 )
             )
             policy_arn = policy["Policy"]["Arn"]
             advance()
             return policy_arn
-        # TODO: read and return policy arn
+        else:
+            policy = await anyio.to_thread.run_sync(
+                partial(self._get_policy_by_name, self._policy_name)
+            )
+            # This should never happen, but just in case
+            assert policy is not None, "Could not find expected policy"
+            return policy["Arn"]
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class IamUserResource:
@@ -245,6 +227,10 @@ class IamUserResource:
                 partial(self._iam_client.create_user, UserName=self._user_name)
             )
             advance()
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class CredentialsBlockResource:
@@ -368,6 +354,10 @@ class CredentialsBlockResource:
             "$ref": {"block_document_id": str(block_doc.id)}
         }
 
+    @property
+    def next_steps(self):
+        return []
+
 
 class AuthenticationResource:
     def __init__(
@@ -375,18 +365,58 @@ class AuthenticationResource:
         work_pool_name: str,
         user_name: str = "prefect-ecs-user",
         policy_name: str = "prefect-ecs-policy",
+        credentials_block_name: str = None,
     ):
         self._user_name = user_name
+        self._credentials_block_name = (
+            credentials_block_name or f"{work_pool_name}-aws-credentials"
+        )
         self._policy_name = policy_name
+        self._policy_document = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "PrefectEcsPolicy",
+                    "Effect": "Allow",
+                    "Action": [
+                        "ec2:AuthorizeSecurityGroupIngress",
+                        "ec2:CreateSecurityGroup",
+                        "ec2:CreateTags",
+                        "ec2:DescribeNetworkInterfaces",
+                        "ec2:DescribeSecurityGroups",
+                        "ec2:DescribeSubnets",
+                        "ec2:DescribeVpcs",
+                        "ecs:CreateCluster",
+                        "ecs:DeregisterTaskDefinition",
+                        "ecs:DescribeClusters",
+                        "ecs:DescribeTaskDefinition",
+                        "ecs:DescribeTasks",
+                        "ecs:ListAccountSettings",
+                        "ecs:ListClusters",
+                        "ecs:ListTaskDefinitions",
+                        "ecs:RegisterTaskDefinition",
+                        "ecs:RunTask",
+                        "ecs:StopTask",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogGroups",
+                        "logs:GetLogEvents",
+                    ],
+                    "Resource": "*",
+                }
+            ],
+        }
         self._iam_user_resource = IamUserResource(user_name=user_name)
         self._iam_policy_resource = IamPolicyResource(policy_name=policy_name)
         self._credentials_block_resource = CredentialsBlockResource(
-            user_name=user_name, block_document_name=f"{work_pool_name}-aws-credentials"
+            user_name=user_name, block_document_name=self._credentials_block_name
         )
+        self._execution_role_resource = ExecutionRoleResource()
 
     @property
     def resources(self):
         return [
+            self._execution_role_resource,
             self._iam_user_resource,
             self._iam_policy_resource,
             self._credentials_block_resource,
@@ -439,10 +469,25 @@ class AuthenticationResource:
                 infrastructure for.
             advance: A callback function to indicate progress.
         """
+        # Provision task execution role
+        role_arn = await self._execution_role_resource.provision(
+            base_job_template=base_job_template, advance=advance
+        )
+        # Update policy document with the role ARN
+        self._policy_document["Statement"].append(
+            {
+                "Sid": "AllowPassRoleForEcs",
+                "Effect": "Allow",
+                "Action": "iam:PassRole",
+                "Resource": role_arn,
+            }
+        )
         # Provision the IAM user
         await self._iam_user_resource.provision(advance=advance)
         # Provision the IAM policy
-        policy_arn = await self._iam_policy_resource.provision(advance=advance)
+        policy_arn = await self._iam_policy_resource.provision(
+            policy_document=self._policy_document, advance=advance
+        )
         # Attach the policy to the user
         if policy_arn:
             iam_client = boto3.client("iam")
@@ -457,6 +502,14 @@ class AuthenticationResource:
             base_job_template=base_job_template,
             advance=advance,
         )
+
+    @property
+    def next_steps(self):
+        return [
+            next_step
+            for resource in self.resources
+            for next_step in resource.next_steps
+        ]
 
 
 class ClusterResource:
@@ -535,13 +588,22 @@ class ClusterResource:
             "default"
         ] = self._cluster_name
 
+    @property
+    def next_steps(self):
+        return []
+
 
 class VpcResource:
-    def __init__(self, vpc_name: str = "prefect-ecs-vpc"):
+    def __init__(
+        self,
+        vpc_name: str = "prefect-ecs-vpc",
+        ecs_security_group_name: str = "prefect-ecs-security-group",
+    ):
         self._ec2_client = boto3.client("ec2")
         self._ec2_resource = boto3.resource("ec2")
         self._vpc_name = vpc_name
         self._requires_provisioning = None
+        self._ecs_security_group_name = ecs_security_group_name
 
     async def get_task_count(self):
         """
@@ -746,7 +808,7 @@ class VpcResource:
             await anyio.to_thread.run_sync(
                 partial(
                     self._ec2_resource.create_security_group,
-                    GroupName="prefect-ecs-security-group",
+                    GroupName=self._ecs_security_group_name,
                     Description=(
                         "Block all inbound traffic and allow all outbound traffic"
                     ),
@@ -761,6 +823,269 @@ class VpcResource:
             base_job_template["variables"]["properties"]["vpc_id"]["default"] = str(
                 vpc.id
             )
+
+    @property
+    def next_steps(self):
+        return []
+
+
+class ContainerRepositoryResource:
+    def __init__(self, work_pool_name: str, repository_name: str = "prefect-flows"):
+        self._ecr_client = boto3.client("ecr")
+        self._repository_name = repository_name
+        self._requires_provisioning = None
+        self._work_pool_name = work_pool_name
+        self._next_steps = []
+
+    async def get_task_count(self):
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
+        return 3 if await self.requires_provisioning() else 0
+
+    async def _get_prefect_created_registry(self):
+        try:
+            registries = await anyio.to_thread.run_sync(
+                partial(
+                    self._ecr_client.describe_repositories,
+                    repositoryNames=[self._repository_name],
+                )
+            )
+            return next(iter(registries), None)
+        except self._ecr_client.exceptions.RepositoryNotFoundException:
+            return None
+
+    async def requires_provisioning(self) -> bool:
+        """
+        Check if this resource requires provisioning.
+
+        Returns:
+            bool: True if provisioning is required, False otherwise.
+        """
+        if self._requires_provisioning is not None:
+            return self._requires_provisioning
+
+        if await self._get_prefect_created_registry() is not None:
+            self._requires_provisioning = False
+            return False
+
+        self._requires_provisioning = True
+        return True
+
+    async def get_planned_actions(self) -> List[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
+        if await self.requires_provisioning():
+            return [
+                "Creating an ECR repository for storing Prefect images:"
+                f" [blue]{self._repository_name}[/]"
+            ]
+        return []
+
+    async def provision(
+        self,
+        base_job_template: Dict[str, Any],
+        advance: Callable[[], None],
+    ):
+        """
+        Provisions an ECR repository.
+
+        Args:
+            base_job_template: The base job template of the work pool to provision
+                infrastructure for.
+            advance: A callback function to indicate progress.
+        """
+        if await self.requires_provisioning():
+            console = current_console.get()
+            console.print("Provisioning ECR repository")
+            response = await anyio.to_thread.run_sync(
+                partial(
+                    self._ecr_client.create_repository,
+                    repositoryName=self._repository_name,
+                )
+            )
+            advance()
+            console.print("Authenticating with ECR")
+            auth_token = self._ecr_client.get_authorization_token()
+            user, passwd = (
+                base64.b64decode(
+                    auth_token["authorizationData"][0]["authorizationToken"]
+                )
+                .decode()
+                .split(":")
+            )
+            proxy_endpoint = auth_token["authorizationData"][0]["proxyEndpoint"]
+            await run_process(f"docker login -u {user} -p {passwd} {proxy_endpoint}")
+            advance()
+            console.print("Setting default Docker build namespace")
+            namespace = response["repository"]["repositoryUri"].split("/")[0]
+            update_current_profile({PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: namespace})
+            self._update_next_steps(namespace)
+            advance()
+
+    def _update_next_steps(self, repository_uri: str):
+        self._next_steps.extend(
+            [
+                dedent(
+                    f"""\
+
+                    Your default Docker build namespace has been set to [blue]{repository_uri!r}[/].
+
+                    To build and push a Docker image to your newly created repository, use [blue]{self._repository_name!r}[/] as your image name:
+                    """
+                ),
+                Panel(
+                    Syntax(
+                        dedent(
+                            f"""\
+                                from prefect import flow
+                                from prefect.deployments import DeploymentImage
+
+
+                                @flow(log_prints=True)
+                                def my_flow(name: str = "world"):
+                                    print(f"Hello {{name}}! I'm a flow running on ECS!")
+
+
+                                if __name__ == "__main__":
+                                    my_flow.deploy(
+                                        name="my-deployment",
+                                        work_pool_name="{self._work_pool_name}",
+                                        image=DeploymentImage(
+                                            name="{self._repository_name}:latest",
+                                            platform="linux/amd64",
+                                        )
+                                    )"""
+                        ),
+                        "python",
+                        background_color="default",
+                    ),
+                    title="example_deploy_script.py",
+                    expand=False,
+                ),
+            ]
+        )
+
+    @property
+    def next_steps(self):
+        return self._next_steps
+
+
+class ExecutionRoleResource:
+    def __init__(self, execution_role_name: str = "PrefectEcsTaskExecutionRole"):
+        self._iam_client = boto3.client("iam")
+        self._execution_role_name = execution_role_name
+        self._trust_policy_document = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+                        "Action": "sts:AssumeRole",
+                    }
+                ],
+            }
+        )
+        self._requires_provisioning = None
+
+    async def get_task_count(self):
+        """
+        Returns the number of tasks that will be executed to provision this resource.
+
+        Returns:
+            int: The number of tasks to be provisioned.
+        """
+        return 1 if await self.requires_provisioning() else 0
+
+    async def requires_provisioning(self) -> bool:
+        """
+        Check if this resource requires provisioning.
+
+        Returns:
+            bool: True if provisioning is required, False otherwise.
+        """
+        if self._requires_provisioning is None:
+            try:
+                await anyio.to_thread.run_sync(
+                    partial(
+                        self._iam_client.get_role, RoleName=self._execution_role_name
+                    )
+                )
+                self._requires_provisioning = False
+            except self._iam_client.exceptions.NoSuchEntityException:
+                self._requires_provisioning = True
+
+        return self._requires_provisioning
+
+    async def get_planned_actions(self) -> List[str]:
+        """
+        Returns a description of the planned actions for provisioning this resource.
+
+        Returns:
+            Optional[str]: A description of the planned actions for provisioning the resource,
+                or None if provisioning is not required.
+        """
+        if await self.requires_provisioning():
+            return [
+                "Creating an IAM role assigned to ECS tasks:"
+                f" [blue]{self._execution_role_name}[/]"
+            ]
+        return []
+
+    async def provision(
+        self,
+        base_job_template: Dict[str, Any],
+        advance: Callable[[], None],
+    ):
+        """
+        Provisions an IAM role.
+
+        Args:
+            base_job_template: The base job template of the work pool to provision
+                infrastructure for.
+            advance: A callback function to indicate progress.
+        """
+        if await self.requires_provisioning():
+            console = current_console.get()
+            console.print("Provisioning execution role")
+            response = await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.create_role,
+                    RoleName=self._execution_role_name,
+                    Description="Role for ECS tasks to access ECR and other resources.",
+                    AssumeRolePolicyDocument=self._trust_policy_document,
+                )
+            )
+            await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.attach_role_policy,
+                    RoleName=self._execution_role_name,
+                    PolicyArn="arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+                )
+            )
+            advance()
+        else:
+            response = await anyio.to_thread.run_sync(
+                partial(self._iam_client.get_role, RoleName=self._execution_role_name)
+            )
+
+        base_job_template["variables"]["properties"]["execution_role_arn"][
+            "default"
+        ] = response["Role"]["Arn"]
+        return response["Role"]["Arn"]
+
+    @property
+    def next_steps(self):
+        return []
 
 
 class ElasticContainerServicePushProvisioner:
@@ -797,11 +1122,33 @@ class ElasticContainerServicePushProvisioner:
         except ModuleNotFoundError:
             return False
 
-    def _generate_resources(self, work_pool_name: str):
+    def _generate_resources(
+        self,
+        work_pool_name: str,
+        user_name: str = "prefect-ecs-user",
+        policy_name: str = "prefect-ecs-policy",
+        credentials_block_name: str = None,
+        cluster_name: str = "prefect-ecs-cluster",
+        vpc_name: str = "prefect-ecs-vpc",
+        ecs_security_group_name: str = "prefect-ecs-security-group",
+        repository_name: str = "prefect-flows",
+    ):
         return [
-            AuthenticationResource(work_pool_name=work_pool_name),
-            ClusterResource(),
-            VpcResource(),
+            AuthenticationResource(
+                work_pool_name=work_pool_name,
+                user_name=user_name,
+                policy_name=policy_name,
+                credentials_block_name=credentials_block_name,
+            ),
+            ClusterResource(cluster_name=cluster_name),
+            VpcResource(
+                vpc_name=vpc_name,
+                ecs_security_group_name=ecs_security_group_name,
+            ),
+            ContainerRepositoryResource(
+                work_pool_name=work_pool_name,
+                repository_name=repository_name,
+            ),
         ]
 
     async def provision(
@@ -833,7 +1180,88 @@ class ElasticContainerServicePushProvisioner:
                 )
 
         try:
-            resources = self._generate_resources(work_pool_name=work_pool_name)
+            if self.console.is_interactive and Confirm.ask(
+                "Would you like to customize the resource names for your"
+                " infrastructure? This includes an IAM user, IAM policy, ECS cluster,"
+                " VPC, ECS security group, and ECR repository."
+            ):
+                user_name = prompt(
+                    "Enter a name for the IAM user (manages ECS tasks)",
+                    default="prefect-ecs-user",
+                )
+                policy_name = prompt(
+                    (
+                        "Enter a name for the IAM policy (defines ECS task execution"
+                        " and image management permissions)"
+                    ),
+                    default="prefect-ecs-policy",
+                )
+                cluster_name = prompt(
+                    "Enter a name for the ECS cluster (hosts ECS tasks)",
+                    default="prefect-ecs-cluster",
+                )
+                credentials_name = prompt(
+                    (
+                        "Enter a name for the AWS credentials block (stores AWS"
+                        " credentials for managing ECS tasks)"
+                    ),
+                    default=f"{work_pool_name}-aws-credentials",
+                )
+                vpc_name = prompt(
+                    (
+                        "Enter a name for the VPC (provides network isolation for ECS"
+                        " tasks)"
+                    ),
+                    default="prefect-ecs-vpc",
+                )
+                ecs_security_group_name = prompt(
+                    (
+                        "Enter a name for the ECS security group (controls task network"
+                        " traffic)"
+                    ),
+                    default="prefect-ecs-security-group",
+                )
+                repository_name = prompt(
+                    (
+                        "Enter a name for the ECR repository (stores Docker images for"
+                        " ECS tasks)"
+                    ),
+                    default="prefect-flows",
+                )
+
+                provision_preview = Panel(
+                    dedent(
+                        f"""\
+                            Custom names for infrastructure resources for
+                            [blue]{work_pool_name}[/]:
+
+                            - IAM user: [blue]{user_name}[/]
+                            - IAM policy: [blue]{policy_name}[/]
+                            - ECS cluster: [blue]{cluster_name}[/]
+                            - AWS credentials block: [blue]{credentials_name}[/]
+                            - VPC: [blue]{vpc_name}[/]
+                            - ECS security group: [blue]{ecs_security_group_name}[/]
+                            - ECR repository: [blue]{repository_name}[/]
+                            """
+                    ),
+                    expand=False,
+                )
+
+                self.console.print(provision_preview)
+
+                resources = self._generate_resources(
+                    work_pool_name=work_pool_name,
+                    user_name=user_name,
+                    policy_name=policy_name,
+                    credentials_block_name=credentials_name,
+                    cluster_name=cluster_name,
+                    vpc_name=vpc_name,
+                    ecs_security_group_name=ecs_security_group_name,
+                    repository_name=repository_name,
+                )
+
+            else:
+                resources = self._generate_resources(work_pool_name=work_pool_name)
 
             with Progress(
                 SpinnerColumn(),
@@ -879,6 +1307,7 @@ class ElasticContainerServicePushProvisioner:
                 # provision calls will be no-ops, but update the base job template
 
             base_job_template_copy = deepcopy(base_job_template)
+            next_steps = []
             with Progress(console=self._console, disable=num_tasks == 0) as progress:
                 task = progress.add_task(
                     "Provisioning Infrastructure",
@@ -890,6 +1319,12 @@ class ElasticContainerServicePushProvisioner:
                             advance=partial(progress.advance, task),
                             base_job_template=base_job_template_copy,
                         )
+                    next_steps.append(resource.next_steps)
+
+            if next_steps:
+                for step in next_steps:
+                    for item in step:
+                        self._console.print(item)
 
             if num_tasks > 0:
                 self._console.print(

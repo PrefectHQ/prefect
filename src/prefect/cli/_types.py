@@ -106,8 +106,16 @@ class PrefectTyper(typer.Typer):
             typer_instance, *args, no_args_is_help=no_args_is_help, **kwargs
         )
 
-    def command(self, *args, **kwargs):
-        command_decorator = super().command(*args, **kwargs)
+    def command(
+        self,
+        *args,
+        aliases: List[str] = None,
+        **kwargs,
+    ):
+        """
+        Create a new command. If aliases are provided, the same command function
+        will be registered with multiple names.
+        """
 
         def wrapper(fn):
             if is_async_fn(fn):
@@ -115,6 +123,20 @@ class PrefectTyper(typer.Typer):
             fn = with_cli_exception_handling(fn)
             if self.deprecated:
                 fn = with_deprecated_message(self.deprecated_message)(fn)
-            return command_decorator(fn)
+
+            # register fn with its original name
+            command_decorator = super(PrefectTyper, self).command(*args, **kwargs)
+            original_command = command_decorator(fn)
+
+            # register fn for each alias, e.g. @marvin_app.command(aliases=["r"])
+            if aliases:
+                for alias in aliases:
+                    super(PrefectTyper, self).command(
+                        name=alias,
+                        *args,
+                        **{k: v for k, v in kwargs.items() if k != "aliases"},
+                    )(fn)
+
+            return original_command
 
         return wrapper

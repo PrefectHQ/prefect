@@ -142,7 +142,7 @@ nav:
           - Tasks: tutorial/tasks.md
           - Deploying Flows: tutorial/deployments.md
           - Workers & Work Pools: tutorial/workers.md
-    - Guides:
+    - How-to Guides:
           - guides/index.md
           - Development:
                 - Hosting: guides/host.md
@@ -152,16 +152,20 @@ nav:
                 - Runtime Context: guides/runtime-context.md
                 - Variables: guides/variables.md
                 - Prefect Client: guides/using-the-client.md
+                - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
+                - CI/CD: guides/ci-cd.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
-                - Moving data: guides/moving-data.md
+                - Read and Write Data: guides/moving-data.md
+                - Big Data: guides/big-data.md
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
+                - Managed Execution: guides/managed-execution.md
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
@@ -252,18 +256,28 @@ nav:
                       - "utilities": api-ref/prefect/client/utilities.md
                 - "prefect.cli":
                       - "agent": api-ref/prefect/cli/agent.md
+                      - "artifact": api-ref/prefect/cli/artifact.md
+                      - "block": api-ref/prefect/cli/block.md
                       - "cloud": api-ref/prefect/cli/cloud.md
-                      - "cloud_webhook": api-ref/prefect/cli/cloud-webhook.md
                       - "concurrency_limit": api-ref/prefect/cli/concurrency_limit.md
                       - "config": api-ref/prefect/cli/config.md
+                      - "deploy": api-ref/prefect/cli/deploy.md
+                      - "deployment": api-ref/prefect/cli/deployment.md
                       - "dev": api-ref/prefect/cli/dev.md
+                      - "flow": api-ref/prefect/cli/flow.md
+                      - "flow_run": api-ref/prefect/cli/flow_run.md
+                      - "kubernetes": api-ref/prefect/cli/kubernetes.md
                       - "profile": api-ref/prefect/cli/profile.md
                       - "project": api-ref/prefect/cli/project.md
-                      - "work_queue": api-ref/prefect/cli/work_queue.md
                       - "root": api-ref/prefect/cli/root.md
-                      - "deployment": api-ref/prefect/cli/deployment.md
-                      - "flow_run": api-ref/prefect/cli/flow_run.md
                       - "server": api-ref/prefect/cli/server.md
+                      - "variable": api-ref/prefect/cli/variable.md
+                      - "work_pool": api-ref/prefect/cli/work_pool.md
+                      - "work_queue": api-ref/prefect/cli/work_queue.md
+                      - "worker": api-ref/prefect/cli/worker.md
+                - "prefect.input":
+                      - "actions": api-ref/prefect/input/actions.md
+                      - "run_input": api-ref/prefect/input/run_input.md
                 - "prefect.utilities":
                       - "annotations": api-ref/prefect/utilities/annotations.md
                       - "asyncutils": api-ref/prefect/utilities/asyncutils.md
@@ -327,7 +341,6 @@ nav:
           - Contributing: contributing/overview.md
           - Style: contributing/style.md
           - Versioning: contributing/versioning.md
-          - Troubleshooting: contributing/common-mistakes.md
 social:
     - icon: fontawesome/brands/slack
       link: https://www.prefect.io/slack/

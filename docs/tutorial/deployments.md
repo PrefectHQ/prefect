@@ -17,8 +17,8 @@ search:
 
 ## Why deployments?
 
-One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules) or [event-based triggering](/concepts/automations/). 
-Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering and managing flow runs. 
+One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules) or [event-based triggering](/concepts/automations/).
+Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering and managing flow runs.
 You can certainly continue to trigger your workflows in this way and use Prefect as a monitoring layer for other schedulers or systems, but you will miss out on many of the other benefits and features that Prefect offers.
 
 Deploying a flow exposes an API and UI so that you can:
@@ -29,13 +29,13 @@ Deploying a flow exposes an API and UI so that you can:
 
 ## What is a deployment?
 
-Deploying a flow is the act of specifying when, where, and how it will run. 
-This information is encapsulated and sent to Prefect as a [deployment](/concepts/deployments/) that contains the crucial metadata needed for remote orchestration. 
+Deploying a flow is the act of specifying when, where, and how it will run.
+This information is encapsulated and sent to Prefect as a [deployment](/concepts/deployments/) that contains the crucial metadata needed for remote orchestration.
 Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Attributes of a deployment include (but are not limited to):
 
-- __Flow entrypoint__: path to your flow function 
+- __Flow entrypoint__: path to your flow function
 - __Schedule__ or __Trigger__: optional schedule or triggering rule for this deployment
 - __Tags__: optional text labels for organizing your deployments
 
@@ -66,13 +66,13 @@ if __name__ == "__main__":
 Running this script will do two things:
 
 - create a deployment called "my-first-deployment" for your flow in the Prefect API
-- stay running to listen for flow runs for this deployment; when a run is found, it will be _asynchronously executed within a subprocess_
+- stay running to listen for flow runs for this deployment; when a run is found, it will be *asynchronously executed within a subprocess*
 
 !!! warning "Deployments must be defined in static files"
     Flows can be defined and run interactively, that is, within REPLs or Notebooks.
     Deployments, on the other hand, require that your flow definition be in a known file (which can be located on a remote filesystem in certain setups).  
 
-Because this deployment has no schedule or triggering automation, you will need to use the UI or API to create runs for it. 
+Because this deployment has no schedule or triggering automation, you will need to use the UI or API to create runs for it.
 Let's use the CLI (in a separate terminal window) to see what happens:
 <div class="terminal">
 ```bash
@@ -82,7 +82,6 @@ prefect deployment run 'get-repo-info/my-first-deployment'
 
 If you are watching either your terminal or your UI, you should see the newly created run execute successfully!  
 Let's take this example further by adding a schedule and additional metadata.
-
 
 ### Additional options
 
@@ -95,6 +94,7 @@ Let's use a few of these options now:
 - `version`: a keyword that allows us to track changes to our deployment; by default a hash of the file containing the flow is used; popular options include semver tags or git commit hashes
 
 Setting these fields is simple:
+
 ```python
 if __name__ == "__main__":
     get_repo_info.serve(
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
 A few observations are in order:
 
-- the `flow.to_deployment` interface exposes the _exact same_ options as `flow.serve`; this method produces a deployment object
+- the `flow.to_deployment` interface exposes the *exact same* options as `flow.serve`; this method produces a deployment object
 - the deployments are only registered with the API once `serve(...)` is called
 - when serving multiple deployments, the only requirement is that they share a Python environment; they can be executed and scheduled independently of each other
 
@@ -152,25 +152,13 @@ You should spend some time experimenting with this setup; a few next steps for e
 
 !!! tip "Security Note"
     Another implication of Prefect's deployment interface is our hybrid execution model. Whether you use Prefect Cloud or host a Prefect server instance yourself, you'll always be able to run work flows in the environments best suited to their execution. This model allows you efficient use of your infrastructure resources while maintaining the privacy of your code and data.
-    There is no ingress required. 
+    There is no ingress required.
     For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
 
 ## Next steps
 
-Congratulations! You now have your first working deployment. 
+Congratulations! You now have your first working deployment.
 
-### Hosting your served flows
+Deploying flows through the `serve` method is the most straightforward way to start scheduling flows with Prefect. However, if your team has more complex infrastructure requirements or you'd like to use Prefect [Managed Execution](/guides/managed-execution/) you can deploy flows to a [work pool](/concepts/work-pools/).
 
-If you want a quick way to host your served flows, check out [Coiled's quickstart guide](https://docs.coiled.io/user_guide/labs/prefect-cli.html) for serving flows on their cloud platform. 
-
-### Running flows on dynamic infrastructure
-
-Deploying flows through the `serve` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements, an alternative option involves deploying flows to a [worker](/concepts/work-pools/#worker-types).
-
-### A tale of two Docker tutorials 📖
-
-To see how to host your served flow in a Docker container, head to our [Docker guide](/guides/docker/). This should _serve_ 🥁 the needs of most scheduling and orchestration use cases.
-
-Alternatively, to execute each flow run within its own _dedicated_ Docker container (or other ephemeral [infrastructure](/concepts/work-pools/#worker-types)) learn how to use a Prefect worker by heading to the [worker and work pools tutorial page](/tutorial/workers/).
-
-For a deeper understanding of the trade-offs between the serve and worker approaches or how you might mix and match both methods, refer to our [deployment concept page](/concepts/deployments/#two-approaches-to-deployments).
+Learn about work pools and how Prefect Cloud can handle infrastructure configuration for you in the [next step of the tutorial](/tutorial/work-pools/).
