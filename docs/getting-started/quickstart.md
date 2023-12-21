@@ -145,10 +145,21 @@ Let's package both of these things, along with the location for where to find ou
 
 Deployments elevate flows to remotely configurable entities that have their own API.
 
-Let's update our script to create a deployment.
+Let's update our script to create a deployment with the name *my-first-deployment* and set it to run on a schedule.
 
-```python title="my_workflow.py"
-...
+```python hl_lines="15-22" title="my_workflow.py"
+import httpx
+from prefect import flow
+
+
+@flow(log_prints=True)
+def get_repo_info():
+    url = "https://api.github.com/repos/PrefectHQ/prefect"
+    response = httpx.get(url)
+    repo = response.json()
+    print("PrefectHQ/prefect repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo['stargazers_count']}")
+
 
 if __name__ == "__main__":
     flow.from_source(
@@ -222,6 +233,7 @@ The deployment is configured to run on a Prefect Managed work pool, so Prefect w
 It may take a minute to set up the Docker image in which the flow will run.
 
 After a minute or so, you should see logs in the UI.
+Note that you won't see a flow run graph in the UI because we don't have multiple parts to our workflow.
 
 ![Managed flow run with metrics](/img/ui/deployment-managed.png)
 
