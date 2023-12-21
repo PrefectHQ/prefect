@@ -16,7 +16,7 @@ See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11473
 - https://github.com/PrefectHQ/prefect/pull/11481
 
-### Get type-checked input from humans-in-the-loop
+### Get type-checked input from humans in the loop
 
 Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow and wait for type-checked input. After declaring the structure of the input data using a Pydantic model, Prefect will render a form dynamically in the UI so that humans can submit data when they resume a flow. We’ll also make sure the data conforms to your Pydantic model by applying client- and server-side validation.
 
