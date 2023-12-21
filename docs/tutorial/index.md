@@ -35,9 +35,29 @@ If you're looking for examples of more advanced operations (like [deploying on K
 ## Prerequisites
 
 1. Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
-      1. See the [install guide](/getting-started/installation/) for more detailed instructions.
 
-2. This tutorial requires the Prefect API, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect Server](/host/).
+See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
+
+2. To use Prefect, you need to self-host a Prefect server or connect to [Prefect Cloud](https://app.prefect.cloud).
+
+To get the most out of this tutorial, we recommend using Prefect Cloud.
+Sign up for a forever free [Prefect Cloud account](/cloud/) or accept your organization's invite to join their Prefect Cloud account.
+
+1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
+1. Use the `prefect cloud login` CLI command to [authenticate to Prefect Cloud](/cloud/users/api-keys/) from your environment.
+
+<div class="terminal">
+
+```bash
+prefect cloud login
+```
+
+</div>
+
+Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
+
+As an alternative to using Prefect Cloud, you can self-host a [Prefect server instance](/host/).
+If you choose this option, run `prefect server start` to start a local Prefect server instance.
 
 ## What is Prefect?
 
