@@ -1,5 +1,80 @@
 # Prefect Release Notes
 
+## Release 2.14.12
+
+### Increased customization of date and time filters across the UI
+
+Building on the enhancements to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans such as "Past 7 days". These changes make it easier to quickly see what's recently occurred (e.g. "Past 1 hour") and what's coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
+
+We have also updated saved filters on the flow runs page so you can save date ranges as part of a custom filter. For example, it's now possible to create a view of the past 6 hours of runs for a specific work pool!
+
+The Flows page uses the same updated date and time filters so you have more control over how you filter and view runs. 
+
+View a demonstration here: [![short loom video demo](https://github.com/PrefectHQ/prefect/assets/42048900/4dc01ec0-0776-49b4-bbc4-a1472c612e4f)](https://www.loom.com/share/95113969257d4cffa48ad13f943f950f?sid=b20bc27c-0dc2-40be-a627-a2148942c427) 
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11473
+- https://github.com/PrefectHQ/prefect/pull/11481
+
+### Get type-checked input from humans in the loop
+
+Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow and wait for type-checked input. To get started, declare the structure of the input data using a Pydantic model, and Prefect will render a form dynamically in the UI when a human resumes the flow. Form validation will ensure that the data conforms to your Pydantic model, and your flow will receive tbe input.
+
+<img width="472" alt="image" src="https://github.com/PrefectHQ/prefect/assets/97182/ac743557-e872-4b48-a61e-c74c95e076f0">
+
+Prefect's new `RunInput` class powers this experience. `RunInput` is a subclass of Pydantic's `BaseModel`. Here's an example of a `RunInput` that uses dates, literals, and nested Pydantic models to show you what's possible:
+
+```python
+class Person(RunInput):
+    first_name: str
+    last_name: str
+    birthday: datetime.date
+    likes_tofu: bool
+    age: int = Field(gt=0, lt=150)
+    shirt_size: Literal[ShirtSize.SMALL, ShirtSize.MEDIUM, ShirtSize.LARGE,
+                        ShirtSize.XLARGE]
+    shirt_color: Literal["red", "blue", "green"]
+    preferred_delivery_time: datetime.datetime
+    shipping_address: ShippingAddress
+    billing_address: BillingAddress | SameAsShipping = Field(
+        title="", default_factory=SameAsShipping
+    )
+```
+
+Check out our [guide on how to create human-in-the-loop flows](https://docs.prefect.io/latest/guides/creating-human-in-the-loop-workflows/) to learn more!
+
+### Enhancements
+- Update default pause/suspend timeout to 1 hour — https://github.com/PrefectHQ/prefect/pull/11437
+
+### Fixes
+- Resolve environment variables during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11463
+- Fix prompt and role assignment in `ContainerInstanceProvisioner` — https://github.com/PrefectHQ/prefect/pull/11440
+- Ensure dashboard header is responsive to varying tag and date input sizes — https://github.com/PrefectHQ/prefect/pull/11427
+- Fix error when deploying a remotely loaded flow with options — https://github.com/PrefectHQ/prefect/pull/11484
+
+### Experimental
+- Remove title/description from `RunInput` model — https://github.com/PrefectHQ/prefect/pull/11438
+
+### Documentation
+- Add guide to optimizing your code for big data — https://github.com/PrefectHQ/prefect/pull/11225
+- Add guide for integrating Prefect with CI/CD via GitHub Actions — https://github.com/PrefectHQ/prefect/pull/11443
+- Expand upon managed execution and provisioned infrastructure push work pool in tutorial — https://github.com/PrefectHQ/prefect/pull/11444
+- Revise Quickstart to include benefits, remote execution, and core concepts — https://github.com/PrefectHQ/prefect/pull/11461
+- Add additions to human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11487
+- Rename guide on reading and writing data to and from cloud provider storage - https://github.com/PrefectHQ/prefect/pull/11441
+- Update formatting and work pool docs — https://github.com/PrefectHQ/prefect/pull/11479
+- Add documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
+- Fix typo in documentation on`prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11488
+- Add troubleshooting instructions for agents — https://github.com/PrefectHQ/prefect/pull/11475
+- Update README example and language - https://github.com/PrefectHQ/prefect/pull/11171
+- Fix workers graph rendering — https://github.com/PrefectHQ/prefect/pull/11455
+
+### Contributors
+- @1beb made their first contribution in https://github.com/PrefectHQ/prefect/pull/11475
+- @KMDgit made their first contribution in https://github.com/PrefectHQ/prefect/pull/11488
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.11...2.14.12
+
 ## Release 2.14.11
 
 ### Customize resource names when provisioning infrastructure for push work pools
