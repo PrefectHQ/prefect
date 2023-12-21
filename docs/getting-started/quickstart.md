@@ -194,7 +194,7 @@ Successfully created/updated all deployments!
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
 ┃ Name                              ┃ Status  ┃ Details ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ get-repo-info/my-first-deployment  │ applied │         │
+│ get-repo-info/my-first-deployment │ applied │         │
 └───────────────────────────────────┴─────────┴─────────┘
 
 To schedule a run for this deployment, use the following command:
