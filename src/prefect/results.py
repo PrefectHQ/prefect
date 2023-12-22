@@ -615,17 +615,18 @@ class PersistedResultBlob(pydantic.BaseModel):
         return self.json().encode()
 
 
-class PlaceholderResult(BaseResult):
+class UnknownResult(BaseResult):
     """
-    Result type for "placeholder" results. We use these to represent the result
+    Result type for unknown results. We use these to represent the result
     of tasks that are forced into Completed state from a failure state.
 
-    Values are not persisted to external result storage, but orchestration treats
-    them the same as persisted results when determining orchestration rules,
-    such as whether to rerun a Completed task.
+    The value for this result is always None and is not persisted to external
+    result storage, but orchestration treats the result the same as persisted
+    results when determining orchestration rules, such as whether to rerun a
+    Completed task.
     """
 
-    type = "placeholder"
+    type = "unknown"
     value: None
 
     def has_cached_object(self) -> bool:
@@ -639,14 +640,14 @@ class PlaceholderResult(BaseResult):
     @classmethod
     @sync_compatible
     async def create(
-        cls: "Type[PlaceholderResult]",
+        cls: "Type[UnknownResult]",
         obj: R = None,
-    ) -> "PlaceholderResult[R]":
+    ) -> "UnknownResult[R]":
         if obj is not None:
             raise TypeError(
-                f"Unsupported type {type(obj).__name__!r} for placeholder result. "
+                f"Unsupported type {type(obj).__name__!r} for unknown result. "
                 "Only None is supported."
             )
 
-        description = "Placeholder result persisted to Prefect."
+        description = "Unknown result persisted to Prefect."
         return cls(value=obj, artifact_type="result", artifact_description=description)

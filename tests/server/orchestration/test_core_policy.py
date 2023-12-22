@@ -8,7 +8,12 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.results import LiteralResult, PersistedResult, UnpersistedResult
+from prefect.results import (
+    LiteralResult,
+    PersistedResult,
+    UnknownResult,
+    UnpersistedResult,
+)
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits
@@ -755,6 +760,39 @@ class TestPermitRerunningFailedTaskRuns:
         assert ctx.run.run_count == 2
         assert ctx.proposed_state.name == "Retrying"
         assert ctx.run.flow_run_run_count == 2
+
+    async def test_allows_rerunning_tasks_with_unknown_results(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        rerun_policy = [
+            HandleTaskTerminalStateTransitions,
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=10,
+        )
+        ctx.initial_state.data = UnknownResult
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 3
+        ctx.run.flow_run_run_count = 3
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 2
+        assert ctx.proposed_state.name == "Completed"
+        assert ctx.run.flow_run_run_count == 3
 
 
 class TestTaskRetryingRule:

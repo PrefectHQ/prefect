@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
-from prefect.results import PlaceholderResult
+from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
@@ -84,7 +84,7 @@ class MinimalTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             ReleaseTaskConcurrencySlots,  # always release concurrency slots
-            AddPlaceholderResult,  # mark forced completions with a result placeholder
+            AddUnknownResult,  # mark forced completions with a result placeholder
         ]
 
 
@@ -196,18 +196,19 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
                 cl.active_slots = list(active_slots)
 
 
-class AddPlaceholderResult(BaseOrchestrationRule):
+class AddUnknownResult(BaseOrchestrationRule):
     """
-    Add a result placeholder to task runs that are forced to complete from
-    a failed or crashed state, if the previous state used a persisted result.
+    Assign an "unknown" result to task runs that are forced to complete from a
+    failed or crashed state, if the previous state used a persisted result.
 
     When we retry a flow run, we retry any task runs that were in a failed or
     crashed state, but we also retry completed task runs that didn't use a
-    persisted result. This means that without a placeholder, a task run forced
-    into Completed state will always get rerun if the flow runretries because
-    the task run lacks a persisted result. This placeholder ensures that when we
-    see a completed task run with a placeholder result, we know that it was
-    forced to complete and we shouldn't rerun it.
+    persisted result. This means that without a sentinel value for unknown
+    results, a task run forced into Completed state will always get rerun if the
+    flow run retries because the task run lacks a persisted result. The
+    "unknown" sentinel ensures that when we see a completed task run with an
+    unknown result, we know that it was forced to complete and we shouldn't
+    rerun it.
     """
 
     FROM_STATES = [StateType.CRASHED, StateType.FAILED]
@@ -220,7 +221,7 @@ class AddPlaceholderResult(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         if initial_state.data and initial_state.data.get("type") == "reference":
-            placeholder_result = await PlaceholderResult.create()
+            placeholder_result = await UnknownResult.create()
             self.context.proposed_state.data = placeholder_result.dict()
 
 
@@ -686,7 +687,7 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             and initial_state.data
             and (
                 initial_state.data.get("type") != "unpersisted"
-                or initial_state.data.get("type") != "placeholder"
+                or initial_state.data.get("type") != "unknown"
             )
         ):
             await self.reject_transition(None, "This run is already completed.")
