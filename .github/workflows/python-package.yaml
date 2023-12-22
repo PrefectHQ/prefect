@@ -45,6 +45,10 @@ jobs:
         run: |
           prefect dev build-ui
 
+      - name: Download current worker metadata
+        run: |
+          curl -o src/prefect/server/api/collections_data/views/aggregate-worker-metadata.json https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json
+
       - name: Build a binary wheel and a source tarball
         run: |
           python setup.py sdist bdist_wheel
