@@ -17,7 +17,7 @@ Incidents in Prefect Cloud is an advanced feature designed to optimize the manag
 
 ## What Are Incidents?
 
-In the context of Prefect Cloud, an "incident" is any event that disrupts or has the potential to disrupt a workflow. Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud now enables users to effectively track and manage these incidents, ensuring minimal impact on operational continuity.
+Incidents are formal declarations of disruptions to flow activity. Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud now enables users to effectively track and manage these incidents, ensuring minimal impact on operational continuity.
 
 ## Why Use Incident Management?
 
@@ -27,7 +27,7 @@ In the context of Prefect Cloud, an "incident" is any event that disrupts or has
 
 3. **Comprehensive Impact Assessment**: Users gain insights into the incident's influence on workflows, helping in prioritizing response efforts.
 
-4. **Regulatory Compliance**: Detailed documentation and reporting features support compliance with internal policies and external regulations.
+4. **Compliance with Incident Management Processes**: Detailed documentation and reporting features support compliance with incident management systems.
 
 5. **Enhanced Operational Transparency**: The system provides a transparent view of both ongoing and resolved incidents, promoting accountability and continuous improvement.
 
@@ -47,7 +47,7 @@ In the context of Prefect Cloud, an "incident" is any event that disrupts or has
      
 ### Incident Automations
 
-Automations can be used for triggering an incident and for selecting actions to take when an incident is triggered. For example, a critical level incident could trigger a Pager Duty notification action. 
+Automations can be used for triggering an incident and for selecting actions to take when an incident is triggered. For example, a work pool status change could trigger the declaration of an incident, or a critical level incident could trigger a notification action.
 
 ### Managing an Incident
 
