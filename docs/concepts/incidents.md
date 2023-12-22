@@ -1,4 +1,15 @@
-# Incidents in Prefect Cloud
+---
+description: Incidents in Prefect Cloud help identify, rectify and document issues in mission-critical workflows.
+tags:
+    - UI
+    - flow runs
+    - triggers
+    - Prefect Cloud
+search:
+  boost: 2
+---
+
+# Incidents<span class="badge cloud"></span>
 
 ## Overview
 
