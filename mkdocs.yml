@@ -140,8 +140,9 @@ nav:
           - tutorial/index.md
           - Flows: tutorial/flows.md
           - Tasks: tutorial/tasks.md
-          - Deploying Flows: tutorial/deployments.md
-          - Workers & Work Pools: tutorial/workers.md
+          - Deployments: tutorial/deployments.md
+          - Work Pools: tutorial/work-pools.md
+          - Workers: tutorial/workers.md
     - How-to Guides:
           - guides/index.md
           - Development:
@@ -155,6 +156,7 @@ nav:
                 - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
+                - CI/CD: guides/ci-cd.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
@@ -192,6 +194,7 @@ nav:
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
                 - Agents: concepts/agents.md
+          - Incidents: concepts/incidents.md
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
