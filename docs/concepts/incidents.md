@@ -65,6 +65,6 @@ Automations can be used for triggering an incident and for selecting actions to 
 
 ### Incident reporting
 
-- Generate detailed reports summarizing the incident, actions taken, and resolution, suitable for compliance and retrospective analysis.
+- Generate a detailed timeline of the incident: actions taken, updates to severity and resolution - suitable for compliance and retrospective analysis.
 
 
