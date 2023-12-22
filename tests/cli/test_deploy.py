@@ -5049,9 +5049,6 @@ class TestSaveUserInputs:
                 # reject schedule
                 "n"
                 + readchar.key.ENTER
-                # decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # accept saving configuration
                 + "y"
                 + readchar.key.ENTER

@@ -67,7 +67,7 @@ class TestRunStep:
         output = await run_step(
             {
                 "prefect.deployments.steps.run_shell_script": {
-                    "script": "{{ prefect.blocks.secret.test-secret.value }}",
+                    "script": "{{ prefect.blocks.secret.test-secret }}",
                 }
             }
         )
