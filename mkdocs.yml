@@ -194,6 +194,7 @@ nav:
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
                 - Agents: concepts/agents.md
+          - Incidents: cloud/incidents.md
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
@@ -208,7 +209,6 @@ nav:
                 - Teams: cloud/users/teams.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
-          - Incidents: cloud/incidents.md
     - Integrations:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
