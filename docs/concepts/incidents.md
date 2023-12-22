@@ -6,7 +6,7 @@ Incidents in Prefect Cloud is an advanced feature designed to optimize the manag
 
 ## What Are Incidents?
 
-In the context of Prefect Cloud, an "incident" is any event that disrupts or has the potential to disrupt a workflow. Incidents vary in nature and severity, ranging from minor glitches to critical system failures. The IMS enables users to effectively track and manage these incidents, ensuring minimal impact on operational continuity.
+In the context of Prefect Cloud, an "incident" is any event that disrupts or has the potential to disrupt a workflow. Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud now enables users to effectively track and manage these incidents, ensuring minimal impact on operational continuity.
 
 ## Why Use Incident Management?
 
@@ -24,15 +24,19 @@ In the context of Prefect Cloud, an "incident" is any event that disrupts or has
 
 ### Creating an Incident
 
-1. **From the Incident List Page**:
-   - Accessible via a 'plus' button.
+1. **From the Incidents Page**:
+   - Click on the 'plus' button.
    - Fill in required fields and attach any relevant resources.
 
 2. **From a Flow Run, Work Pool or Block**:
-   - Initiate an incident directly from a failed flow run, automatically linking it as a resource.
+   - Initiate an incident directly from a failed flow run, automatically linking it as a resource, by clicking on the menu button and selecting "Declare an incident".
 
 3. **Via Automation**:
-   - Set up incident creation as an automated response to certain triggers.
+   - Set up incident creation as an automated response to selected triggers.
+     
+### Incident Automations
+
+Automations can be used for triggering an incident and for selecting actions to take when an incident is triggered. For example, a critical level incident could trigger a Pager Duty notification action. 
 
 ### Managing an Incident
 
@@ -50,7 +54,4 @@ In the context of Prefect Cloud, an "incident" is any event that disrupts or has
 
 - Generate detailed reports summarizing the incident, actions taken, and resolution, suitable for compliance and retrospective analysis.
 
-### Incident Automations
-
-- Set up automated actions triggered by incident status changes or metric thresholds.
 
