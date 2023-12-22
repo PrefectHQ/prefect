@@ -59,7 +59,7 @@ To automatically take action when an incident is declared, set up a custom trigg
     "prefect.resource.id": "prefect-cloud.incident.*"
   },
   "expect": [
-    "prefect-cloud.incident.created"
+    "prefect-cloud.incident.declared"
   ],
   "posture": "Reactive",
   "threshold": 1,
