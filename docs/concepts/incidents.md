@@ -19,7 +19,7 @@ Incidents in Prefect Cloud is an advanced feature designed to optimize the manag
 
 Incidents are formal declarations of disruptions to flow activity. Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud now enables users to effectively track and manage these incidents, ensuring minimal impact on operational continuity.
 
-[Incidents in the Prefect Cloud UI](img/ui/incidents-dashboard.png)
+![Incidents in the Prefect Cloud UI](/img/ui/incidents-dashboard.png)
 
 ## Why Use Incident Management?
 
