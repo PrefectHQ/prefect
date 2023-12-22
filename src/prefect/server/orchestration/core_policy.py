@@ -853,8 +853,10 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
             elif flow_run.state.type == StateType.PAUSED:
                 # Use the flow run's Paused state details to preserve data like
                 # timeouts.
-                paused_state = flow_run.state.as_state().copy(
-                    update={"name": "NotReady"}
+                paused_state = states.Paused(
+                    name="NotReady",
+                    pause_expiration_time=flow_run.state.state_details.pause_timeout,
+                    reschedule=flow_run.state.state_details.pause_reschedule,
                 )
                 await self.reject_transition(
                     state=paused_state,

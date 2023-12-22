@@ -16,7 +16,7 @@ from prefect.results import (
 )
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models import concurrency_limits
+from prefect.server.models import concurrency_limits, flow_runs
 from prefect.server.orchestration.core_policy import (
     BypassCancellingScheduledFlowRuns,
     CacheInsertion,
@@ -2757,6 +2757,44 @@ class TestPreventRunningTasksFromStoppedFlows:
         else:
             assert ctx.response_status == SetStateStatus.ABORT
             assert ctx.validated_state.is_pending()
+
+    async def test_does_not_reuse_state_pk_from_paused_flow_run(
+        self, session, initialize_orchestration
+    ):
+        """
+        A regression test: fix a bug in version 2.14.10 where we inadvertently
+        reused the state ID from the flow run's paused state for task runs when
+        we paused them, leading to PK conflicts in some cases.
+        """
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        pause_timeout = pendulum.now("UTC").add(minutes=5)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_flow_run_state_type=states.StateType.PAUSED,
+            initial_flow_run_state_details={
+                "pause_timeout": pause_timeout,
+                "pause_reschedule": True,
+            },
+        )
+
+        flow_run = await flow_runs.read_flow_run(session, ctx.run.flow_run_id)
+        run_preventer = PreventRunningTasksFromStoppedFlows(ctx, *intended_transition)
+
+        async with run_preventer as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.is_paused()
+        assert flow_run.state.type == states.StateType.PAUSED
+        assert ctx.validated_state.id != flow_run.state.id
+
+        # Check that other values carried over from the state data
+        assert ctx.validated_state.state_details.pause_timeout == pause_timeout
+        assert ctx.validated_state.state_details.pause_reschedule is True
 
 
 class TestHandleCancellingStateTransitions:

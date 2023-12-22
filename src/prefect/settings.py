@@ -933,12 +933,12 @@ PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
     default=10.0,
 )
 """
-Threshold time in seconds for logging a warning if task parameter introspection 
+Threshold time in seconds for logging a warning if task parameter introspection
 exceeds this duration. Parameter introspection can be a significant performance hit
 when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
-and each element needs to be inspected. See `prefect.utilities.annotations.quote` 
+and each element needs to be inspected. See `prefect.utilities.annotations.quote`
 for more details.
-Defaults to `10.0`. 
+Defaults to `10.0`.
 Set to `0` to disable logging the warning.
 """
 
@@ -1332,6 +1332,16 @@ PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
 Whether or not to warn when deployment status is used.
 """
 
+PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT = Setting(bool, default=False)
+"""
+Whether or not to enable flow run input.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
+"""
+Whether or not to enable flow run input.
+"""
+
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
@@ -1386,6 +1396,11 @@ The host address the worker's webserver should bind to.
 PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
 """
 The port the worker's webserver should bind to.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental worker webserver endpoints.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)

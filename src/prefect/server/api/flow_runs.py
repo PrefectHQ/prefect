@@ -3,9 +3,11 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
+import jsonschema
+import orjson
 import pendulum
 import sqlalchemy as sa
 from prefect._vendor.fastapi import (
@@ -290,6 +292,7 @@ async def read_flow_run_graph_v2(
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
+    run_input: Optional[Dict] = Body(default=None, embed=True),
     response: Response = None,
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
@@ -323,6 +326,51 @@ async def resume_flow_run(
 
         orchestration_parameters.update({"api-version": api_version})
 
+        keyset = state.state_details.run_input_keyset
+        if keyset and not run_input:
+            return OrchestrationResult(
+                state=state,
+                status=schemas.responses.SetStateStatus.REJECT,
+                details=schemas.responses.StateAbortDetails(
+                    reason="Flow run was expecting input but none was provided."
+                ),
+            )
+        elif keyset and run_input:
+            schema_json = await models.flow_run_input.read_flow_run_input(
+                session=session, flow_run_id=flow_run.id, key=keyset["schema"]
+            )
+
+            if schema_json is None:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Run input schema not found."
+                    ),
+                )
+
+            try:
+                schema = orjson.loads(schema_json.value)
+            except orjson.JSONDecodeError:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Run input schema is not valid JSON."
+                    ),
+                )
+
+            try:
+                jsonschema.validate(run_input, schema)
+            except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason=f"Run input validation failed: {exc.message}"
+                    ),
+                )
+
         if state.state_details.pause_reschedule:
             orchestration_result = await models.flow_runs.set_flow_run_state(
                 session=session,
@@ -340,6 +388,22 @@ async def resume_flow_run(
                 state=schemas.states.Running(),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
+            )
+
+        if (
+            keyset
+            and run_input
+            and orchestration_result.status == schemas.responses.SetStateStatus.ACCEPT
+        ):
+            # The state change is accepted, go ahead and store the validated
+            # run input.
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run_id,
+                    key=keyset["response"],
+                    value=orjson.dumps(run_input).decode("utf-8"),
+                ),
             )
 
         # set the 201 if a new state was created
@@ -465,7 +529,7 @@ async def set_flow_run_state(
 async def create_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Body(..., description="The input key"),
-    value: str = Body(..., description="The value of the input"),
+    value: bytes = Body(..., description="The value of the input"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
@@ -478,7 +542,7 @@ async def create_flow_run_input(
                 flow_run_input=schemas.core.FlowRunInput(
                     flow_run_id=flow_run_id,
                     key=key,
-                    value=value,
+                    value=value.decode(),
                 ),
             )
             await session.commit()

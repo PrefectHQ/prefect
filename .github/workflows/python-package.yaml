@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.8"
           cache: "pip"
@@ -45,12 +45,16 @@ jobs:
         run: |
           prefect dev build-ui
 
+      - name: Download current worker metadata
+        run: |
+          curl -o src/prefect/server/api/collections_data/views/aggregate-worker-metadata.json https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json
+
       - name: Build a binary wheel and a source tarball
         run: |
           python setup.py sdist bdist_wheel
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pypi-dists
           path: "./dist"
@@ -63,7 +67,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pypi-dists
           path: "./dist"
