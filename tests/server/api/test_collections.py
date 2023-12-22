@@ -69,6 +69,27 @@ class TestReadCollectionViews:
 
         return respx_mock
 
+    @respx.mock
+    @pytest.fixture
+    def mock_get_missing_view(
+        self,
+        respx_mock,
+        mock_flow_response,
+        mock_block_response,
+        mock_collection_response,
+    ):
+        respx_mock.get(self.collection_view_url("flow")).mock(
+            return_value=Response(404, json=mock_flow_response)
+        )
+        respx_mock.get(self.collection_view_url("block")).mock(
+            return_value=Response(404, json=mock_block_response)
+        )
+        respx_mock.get(self.collection_view_url("worker")).mock(
+            return_value=Response(404, json=mock_collection_response)
+        )
+
+        return respx_mock
+
     @pytest.mark.parametrize(
         "view", ["aggregate-flow-metadata", "aggregate-block-metadata"]
     )
@@ -78,12 +99,14 @@ class TestReadCollectionViews:
         assert res.status_code == 200
         assert isinstance(res.json(), dict)
 
-    async def test_read_collection_view_when_missing(self, client, mock_get_view):
-        res = await client.get("/collections/views/aggregate-worker-metadata")
+    async def test_read_collection_view_when_missing(
+        self, client, mock_get_missing_view
+    ):
+        res = await client.get("/collections/views/aggregate-flow-metadata")
         detail = res.json()["detail"]
 
         assert res.status_code == 404
-        assert detail == "Requested content missing for view aggregate-worker-metadata"
+        assert detail == "Requested content missing for view aggregate-flow-metadata"
 
     async def test_read_collection_view_invalid(self, client):
         res = await client.get("/collections/views/invalid")
@@ -108,3 +131,10 @@ class TestReadCollectionViews:
 
         assert res1.json() == res2.json()
         mock_get_view.calls.assert_called_once()
+
+    async def test_read_worker_view_failed_fetch(self, client, mock_get_missing_view):
+        res = await client.get("/collections/views/aggregate-worker-metadata")
+
+        assert res.status_code == 200
+        # check for expected key to ensure it isn't an error
+        assert isinstance(res.json()["prefect"], dict)
