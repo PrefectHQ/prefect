@@ -9,7 +9,7 @@ search:
   boost: 2
 ---
 
-# Incidents<span class="badge cloud"></span>
+# Incidents<span class="badge cloud"><span class="badge beta"/>
 
 ## Overview
 
