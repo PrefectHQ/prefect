@@ -54,6 +54,3 @@ In the context of Prefect Cloud, an "incident" is any event that disrupts or has
 
 - Set up automated actions triggered by incident status changes or metric thresholds.
 
-## Conclusion
-
-Prefect Cloud's Incident Management System is a pivotal tool for teams handling complex workflows. By automating the detection and management of incidents, it ensures that teams can quickly address disruptions, maintain workflow integrity, and adhere to compliance requirements.
