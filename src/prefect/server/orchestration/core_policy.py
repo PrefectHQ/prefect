@@ -77,7 +77,9 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
-        return []
+        return [
+            AddUnknownResult,  # mark forced completions with a result placeholder
+        ]
 
 
 class MinimalTaskPolicy(BaseOrchestrationPolicy):
@@ -198,7 +200,7 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
 
 class AddUnknownResult(BaseOrchestrationRule):
     """
-    Assign an "unknown" result to task runs that are forced to complete from a
+    Assign an "unknown" result to runs that are forced to complete from a
     failed or crashed state, if the previous state used a persisted result.
 
     When we retry a flow run, we retry any task runs that were in a failed or
@@ -209,6 +211,12 @@ class AddUnknownResult(BaseOrchestrationRule):
     "unknown" sentinel ensures that when we see a completed task run with an
     unknown result, we know that it was forced to complete and we shouldn't
     rerun it.
+
+    Flow runs forced into a Completed state have a similar problem: without a
+    sentinel value, attempting to refer to the flow run's result will raise an
+    exception because the flow run has no result. The sentinel ensures that we
+    can distinguish between a flow run that has no result and a flow run that
+    has an unknown result.
     """
 
     FROM_STATES = [StateType.CRASHED, StateType.FAILED]
@@ -221,8 +229,8 @@ class AddUnknownResult(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         if initial_state.data and initial_state.data.get("type") == "reference":
-            placeholder_result = await UnknownResult.create()
-            self.context.proposed_state.data = placeholder_result.dict()
+            unknown_result = await UnknownResult.create()
+            self.context.proposed_state.data = unknown_result.dict()
 
 
 class CacheInsertion(BaseOrchestrationRule):
@@ -680,7 +688,8 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             return
 
         # Only allow departure from a happily completed state if the result is not persisted
-        # and the result is not a placeholder for forced completions.
+        # and the result is not a placeholder for unknown results. We record an unknown result
+        # when a task run is forced to complete from a failed or crashed state.
 
         if (
             initial_state.is_completed()
@@ -750,7 +759,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
             initial_state.is_completed()
             and not proposed_state.is_final()
             and initial_state.data
-            and initial_state.data.get("type") != "unpersisted"
+            and initial_state.data.get("type") not in ["unpersisted", "unknown"]
         ):
             await self.reject_transition(None, "Run is already COMPLETED.")
             return

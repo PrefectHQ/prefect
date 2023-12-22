@@ -1186,7 +1186,7 @@ class TestTransitionsFromTerminalStatesRule:
         ],
         ids=transition_names,
     )
-    @pytest.mark.parametrize("result_type", [None, UnpersistedResult])
+    @pytest.mark.parametrize("result_type", [None, UnpersistedResult, UnknownResult])
     async def test_transitions_from_completed_to_non_final_states_allowed_without_persisted_result(
         self,
         session,
