@@ -41,7 +41,7 @@ Incidents are formal declarations of disruptions to flow activity. Incidents var
    - Click on the 'plus' button.
    - Fill in required fields and attach any relevant resources.
 
-2. **From a flow Run, work Pool or block**:
+2. **From a flow run, work pool or block**:
    - Initiate an incident directly from a failed flow run, automatically linking it as a resource, by clicking on the menu button and selecting "Declare an incident".
 
 3. **Via automation**:
