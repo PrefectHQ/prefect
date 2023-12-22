@@ -37,7 +37,7 @@ Incidents are formal declarations of disruptions to flow activity. Incidents var
 
 ### Creating an incident
 
-1. **From the Incidents page**:
+1. **From the incidents page**:
    - Click on the 'plus' button.
    - Fill in required fields and attach any Prefect resources related to your incident.
 
