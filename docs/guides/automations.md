@@ -154,8 +154,11 @@ Let's have local deployment created where we can kick off some work based on how
     To follow a more python based approach to deploy, you can explore .deploy to expose similar fields
 
     ```python
+    # .deploy only needs a name, valid work pool 
+    # and a reference to where the flow code exists
+
     if __name__ == "__main__":
-    hello_world.deploy(
+    build_names.deploy(
         name="deploy-build-names",
         work_pool_name="tutorial-process-pool"
         image="my_registry/my_image:my_image_tag",
@@ -240,14 +243,14 @@ trigger:
     "prefect.resource.id": "prefect.flow-run.*"
   match_related: {}
   after:
-    - prefect.flow-run.Failed
+    - "prefect.flow-run.Failed"
   expect:
     - "prefect.flow-run.*"
   for_each:
     - "prefect.resource.id"
-  posture: Proactive
+  posture: "Proactive"
   threshold: 1
-  within: 3600
+  within: 30
 actions:
   - type: "cancel-flow-run"
 ```
@@ -289,7 +292,27 @@ In this example, we managed to create the automation by registering the .yaml fi
 
 We can use webhooks to expose the events API which allows us to extend the functionality of deployments and ways to respond to changes in our workflow through a few easy steps. 
 
-Make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that does uses these pulled parameters
+By exposing a webhook endpoint, we can kick off workflows that can trigger deployments - all from a simple event created from an HTTP request. 
+
+Lets create a webhook within the UI. From a simple input, we can easily create an exposed webhook endpoint. 
+
+*insert UI screenshot of a created webhook 
+
+Each webhook will correspond to a custom event created, where you can react to it downstream with a seperate deployment or automation. 
+
+Here is the webhook we can use to create these dynamic events.
+```JSON
+{
+    "event": "model-update",
+    "resource": {
+        "prefect.resource.id": "product.models.{{ body.model_id}}",
+        "prefect.resource.name": "{{ body.friendly_name }}",
+        "run_count": "{{body.run_count}}"
+    }
+}
+```
+
+Make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that does uses these pulled parameters.
 
 I think showing how to go from custom event with a webhook to to an automation that kicks off a deployment with parameters passed into the flow would be good unless you think it's covered elsewhere in the main docs (outside recipes and blogs).
 
@@ -358,9 +381,12 @@ deployments:
     - enabled: true
       match:
         prefect.resource.id: "prefect.flow-run.*"
+      after: "prefect.flow-run.Running",
       expect: [],
+      for_each: ["prefect.resource.id"],
       parameters:
         param_1: 10
+      posture: "Proactive"
   version: null
   tags: []
   description: null
