@@ -17,7 +17,7 @@ Incidents in Prefect Cloud is an advanced feature designed to optimize the manag
 
 ## What are incidents?
 
-Incidents are formal declarations of disruptions to flow activity. Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud now enables users to effectively track and manage these incidents, ensuring minimal impact on operational continuity.
+Incidents are formal declarations of disruptions to your workflows, and provide a temporary control plane for collaboratively managing those disruptions. Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud now enables users to effectively and automatically track and manage these incidents, ensuring minimal impact on operational continuity.
 
 ![Incidents in the Prefect Cloud UI](/img/ui/incidents-dashboard.png)
 
@@ -50,6 +50,24 @@ Incidents are formal declarations of disruptions to flow activity. Incidents var
 ### Incident automations
 
 Automations can be used for triggering an incident and for selecting actions to take when an incident is triggered. For example, a work pool status change could trigger the declaration of an incident, or a critical level incident could trigger a notification action.
+
+To automatically take action when an incident is declared, set up a custom trigger that listens for declaration events.
+
+```
+{
+  "match": {
+    "prefect.resource.id": "prefect-cloud.incident.*"
+  },
+  "expect": [
+    "prefect-cloud.incident.created"
+  ],
+  "posture": "Reactive",
+  "threshold": 1,
+  "within": 0
+}
+```
+
+When an incident is declared, any actions you configure such as pausing work pools or sending notifications, will execute immediately.
 
 ### Managing an incident
 
