@@ -194,6 +194,7 @@ nav:
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
                 - Agents: concepts/agents.md
+          - Incidents: concepts/incidents.md
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
