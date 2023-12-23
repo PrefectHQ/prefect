@@ -219,7 +219,7 @@ class AddUnknownResult(BaseOrchestrationRule):
     has an unknown result.
     """
 
-    FROM_STATES = [StateType.CRASHED, StateType.FAILED]
+    FROM_STATES = [StateType.FAILED, StateType.CRASHED, StateType.COMPLETED]
     TO_STATES = [StateType.COMPLETED]
 
     async def before_transition(
@@ -228,7 +228,11 @@ class AddUnknownResult(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        if initial_state.data and initial_state.data.get("type") == "reference":
+        if (
+            initial_state
+            and initial_state.data
+            and initial_state.data.get("type") == "reference"
+        ):
             unknown_result = await UnknownResult.create()
             self.context.proposed_state.data = unknown_result.dict()
 
@@ -694,7 +698,7 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         if (
             initial_state.is_completed()
             and initial_state.data
-            and initial_state.data.get("type") not in ["unpersisted", "unknown"]
+            and initial_state.data.get("type") != "unpersisted"
         ):
             await self.reject_transition(None, "This run is already completed.")
             return
