@@ -294,12 +294,7 @@ We can use webhooks to expose the events API which allows us to extend the funct
 
 By exposing a webhook endpoint, we can kick off workflows that can trigger deployments - all from a simple event created from an HTTP request. 
 
-Lets create a webhook within the UI. From a simple input, we can easily create an exposed webhook endpoint. 
-
-*insert UI screenshot of a created webhook 
-
-Each webhook will correspond to a custom event created, where you can react to it downstream with a seperate deployment or automation. 
-
+Lets create a webhook within the UI. 
 Here is the webhook we can use to create these dynamic events.
 ```JSON
 {
@@ -311,10 +306,26 @@ Here is the webhook we can use to create these dynamic events.
     }
 }
 ```
+From a simple input, we can easily create an exposed webhook endpoint. 
 
-Make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that does uses these pulled parameters.
+![webhook-simple](/img/guides/webhook-simple.png)
 
-I think showing how to go from custom event with a webhook to to an automation that kicks off a deployment with parameters passed into the flow would be good unless you think it's covered elsewhere in the main docs (outside recipes and blogs).
+Each webhook will correspond to a custom event created, where you can react to it downstream with a seperate deployment or automation. 
+
+For example, we can create a curl request that sends the endpoint information such as a run count for our deployment. 
+```console
+curl -X POST https://api.prefect.cloud/hooks/34iV2SFke3mVa6y5Y-YUoA -d "model_id=adhoc" -d "run_count=10" -d "friendly_name=test-user-input"
+```
+From here, we can make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that uses these pulled parameters.
+![Webhook created](/img/guides/webhook-created.png)
+
+Let us go into the event feed, and we can automate straight from this event. 
+![Webhook automate](/img/guides/webhook-automate.png)
+
+This allows us to create automations that respond to these webhook events. From a few clicks in the UI, we are able to associate an external process with the Prefect events API, that can enable us to trigger downstream deployments. 
+![Automation custom](/img/guides/automation-custom.png)
+
+In the next section, we will explore event triggers that can help kick off a deployment.
 
 ## Using triggers, an AI function extension
 
