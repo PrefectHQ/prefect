@@ -78,7 +78,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
-            AddUnknownResult,  # mark forced completions with a result placeholder
+            AddUnknownResult,  # mark forced completions with an unknown result
         ]
 
 

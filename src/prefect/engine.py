@@ -1927,8 +1927,6 @@ async def orchestrate_task_run(
         and result_factory.persist_result
         and not last_state.data
     ):
-        # Why aren't we getting the state's data when we see this proposed state
-        # during orchestration?
         state = await propose_state(
             client,
             state=Completed(data=await UnknownResult.create()),
@@ -2454,7 +2452,6 @@ async def propose_state(
 
     # Handle task and sub-flow tracing
     if state.is_final():
-        # TODO: Is this doing something weird?
         if isinstance(state.data, BaseResult) and state.data.has_cached_object():
             # Avoid fetching the result unless it is cached, otherwise we defeat
             # the purpose of disabling `cache_result_in_memory`
