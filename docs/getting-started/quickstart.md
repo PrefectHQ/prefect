@@ -230,7 +230,7 @@ You can also run your flow via the Prefect UI: <https://app.prefect.cloud/accoun
 
 </div>
 
-Head to the **Deployments* page of the UI to check it out.
+Head to the **Deployments** page of the UI to check it out.
 
 !!! note "Code storage options"
     You can store your flow code in nearly any location.
