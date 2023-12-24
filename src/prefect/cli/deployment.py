@@ -1116,8 +1116,6 @@ async def build(
                 schedule.timezone = timezone
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
-    elif no_schedule:
-        schedule = NoSchedule()
 
     # parse storage_block
     if storage_block:
@@ -1184,7 +1182,7 @@ async def build(
 
     # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
     # we let `build_from_flow` load them from the server
-    if schedule:
+    if schedule or no_schedule:
         init_kwargs.update(schedule=schedule)
     if tags:
         init_kwargs.update(tags=tags)

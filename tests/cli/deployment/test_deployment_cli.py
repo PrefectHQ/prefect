@@ -318,7 +318,7 @@ class TestUpdatingDeployments:
                 "rence-griffith/test-deployment",
             ],
             expected_output_does_not_contain=["10.76"],
-            expected_output_contains=["'schedule': {}"],
+            expected_output_contains=["'schedule': None"],
             expected_code=0,
         )
 

@@ -10,7 +10,6 @@ import pytest
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect import flow
-from prefect.client.schemas.schedules import NoSchedule
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
@@ -195,7 +194,7 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule == NoSchedule()
+        assert deployment.schedule is None
 
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(

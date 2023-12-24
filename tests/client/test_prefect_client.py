@@ -751,7 +751,7 @@ async def test_updating_deployment_and_removing_schedule(
 
     second_lookup = await prefect_client.read_deployment(deployment_id)
     assert not second_lookup.is_schedule_active
-    assert second_lookup.schedule == updated_schedule
+    assert second_lookup.schedule is None
 
 
 async def test_read_deployment_by_name(prefect_client):

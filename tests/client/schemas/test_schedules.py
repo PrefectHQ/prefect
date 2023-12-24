@@ -46,8 +46,7 @@ class TestConstructSchedule:
     )
     def test_multiple_schedules_error(self, kwargs):
         with pytest.raises(
-            ValueError,
-            match="Only one of interval, cron, rrule or no_schedule can be provided.",
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
             construct_schedule(**kwargs)
 
@@ -67,8 +66,7 @@ class TestConstructSchedule:
 
     def test_no_schedule_error(self):
         with pytest.raises(
-            ValueError,
-            match="Either interval, cron, rrule or no_schedule must be provided",
+            ValueError, match="Either interval, cron, or rrule must be provided"
         ):
             construct_schedule()
 
