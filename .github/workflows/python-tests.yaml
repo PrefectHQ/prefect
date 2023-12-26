@@ -20,6 +20,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/python-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-client.txt
+      - requirements-dev.txt
+      - setup.cfg
+      - Dockerfile
 
 permissions:
   contents: read
@@ -59,7 +67,7 @@ jobs:
 
         include:
           # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automaticlly in fixtures
+          # suite from building images automatically in fixtures
           - pytest-options: "--only-services"
             build-docker-images: true
 
@@ -91,7 +99,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -209,7 +217,7 @@ jobs:
 
       - name: Upload failure flag
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.create_failure_flag.outputs.artifact_name }}
           path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
@@ -245,7 +253,7 @@ jobs:
 
         include:
           # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automaticlly in fixtures
+          # suite from building images automatically in fixtures
           - pytest-options: "--only-services"
             build-docker-images: true
 
@@ -273,7 +281,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -399,7 +407,7 @@ jobs:
 
       - name: Upload failure flag
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.create_failure_flag.outputs.artifact_name }}
           path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
@@ -421,7 +429,7 @@ jobs:
       FAILURE_THRESHOLD: 1
     steps:
       - name: Download all failure flags
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: failure-flags/
 

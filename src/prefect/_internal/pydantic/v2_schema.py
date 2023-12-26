@@ -82,11 +82,18 @@ def process_v2_params(
     return name, type_, field
 
 
-def create_v2_schema(name_: str, model_cfg: ConfigDict, **model_fields):
+def create_v2_schema(
+    name_: str,
+    model_cfg: t.Optional[ConfigDict] = None,
+    model_base: t.Optional[t.Type[V2BaseModel]] = None,
+    **model_fields
+):
     """
     Create a pydantic v2 model and craft a v1 compatible schema from it.
     """
-    model = create_model(name_, __config__=model_cfg, **model_fields)
+    model = create_model(
+        name_, __config__=model_cfg, __base__=model_base, **model_fields
+    )
     adapter = TypeAdapter(model)
 
     # root model references under #definitions
@@ -95,7 +102,7 @@ def create_v2_schema(name_: str, model_cfg: ConfigDict, **model_fields):
         ref_template="#/definitions/{model}",
         schema_generator=GenerateEmptySchemaForUserClasses,
     )
-    # ensure backwards compatability by copying $defs into definitions
+    # ensure backwards compatibility by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]
     return schema

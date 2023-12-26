@@ -17,7 +17,6 @@ cd $TMPDIR/src/prefect
 # delete the files we don't need
 rm artifacts.py
 rm -rf cli/
-rm -rf concurrency/
 rm -rf deployments/recipes/
 rm -rf deployments/templates
 rm infrastructure/submission.py
@@ -30,7 +29,6 @@ rm -rf server/schemas
 rm -rf server/services
 rm -rf testing
 rm -rf server/utilities
-rm utilities/validation.py
 
 # replace old build files with client build files
 cd $TMPDIR

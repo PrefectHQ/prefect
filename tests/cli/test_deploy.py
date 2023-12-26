@@ -39,7 +39,11 @@ from prefect.server.schemas.actions import (
     WorkPoolCreate,
 )
 from prefect.server.schemas.schedules import CronSchedule
-from prefect.settings import PREFECT_UI_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -683,6 +687,36 @@ class TestProjectDeploy:
                 "prefect worker start --pool 'test-pool'",
             ],
         )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-pool"
+        assert deployment.version == "1.0.0"
+        assert deployment.tags == ["foo-bar"]
+        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.enforce_parameter_schema is False
+
+    async def test_project_deploy_with_default_work_pool(
+        self, project_dir, prefect_client
+    ):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        with temporary_settings(updates={PREFECT_DEFAULT_WORK_POOL_NAME: "test-pool"}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --version"
+                    " 1.0.0 -v env=prod -t foo-bar"
+                ),
+                expected_code=0,
+                expected_output_contains=[
+                    "An important name/test-name",
+                    "prefect worker start --pool 'test-pool'",
+                ],
+            )
 
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
@@ -2362,6 +2396,75 @@ class TestProjectDeploy:
         assert await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_templates_env_vars(
+        self, prefect_client, monkeypatch, work_pool
+    ):
+        # set up environment variables
+        monkeypatch.setenv("WORK_POOL", work_pool.name)
+        monkeypatch.setenv("MY_VAR", "my-value")
+
+        # set up prefect.yaml that has env var placeholders for the work pool name
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        prefect_config["deployments"] = [
+            {
+                "name": "test-deployment",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {"name": "{{ $WORK_POOL }}"},
+            },
+            {
+                "name": "test-deployment2",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {"name": "{{ $WORK_POOL }}"},
+            },
+        ]
+        prefect_config["build"] = [
+            {"prefect.testing.utilities.a_test_step": {"input": "{{ $MY_VAR }}"}}
+        ]
+
+        # save config to prefect.yaml
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_does_not_contain=(
+                "This deployment configuration references work pool",
+                (
+                    "This means no worker will be able to pick up its runs. You can"
+                    " create a work pool in the Prefect UI."
+                ),
+            ),
+        )
+        assert result.exit_code == 0
+
+        deployments = await prefect_client.read_deployments()
+
+        assert len(deployments) == 2
+
+        assert deployments[0].name == "test-deployment"
+        assert deployments[0].work_pool_name == work_pool.name
+
+        assert deployments[1].name == "test-deployment2"
+        assert deployments[1].work_pool_name == work_pool.name
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert (
+            config["build"][0]["prefect.testing.utilities.a_test_step"]["input"]
+            == "{{ $MY_VAR }}"
+        )
+
+        assert config["deployments"][0]["work_pool"]["name"] == "{{ $WORK_POOL }}"
+
+        assert config["deployments"][1]["work_pool"]["name"] == "{{ $WORK_POOL }}"
 
     @pytest.mark.usefixtures("interactive_console")
     class TestRemoteStoragePicklist:

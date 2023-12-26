@@ -760,18 +760,18 @@ This value sets the default retry delay seconds for all tasks.
 This value does not overwrite individually set retry delay seconds
 """
 
+PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(int, default=30)
+"""
+The number of seconds to wait before retrying when a task run
+cannot secure a concurrency slot from the server.
+"""
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
     value_callback=template_with_settings(PREFECT_HOME),
 )
 """The path to a block storage directory to store things in."""
-
-PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    str,
-    default=None,
-)
-"""The `block-type/block-document` slug of a block to use as the default result storage."""
 
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
@@ -933,12 +933,12 @@ PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
     default=10.0,
 )
 """
-Threshold time in seconds for logging a warning if task parameter introspection 
+Threshold time in seconds for logging a warning if task parameter introspection
 exceeds this duration. Parameter introspection can be a significant performance hit
 when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
-and each element needs to be inspected. See `prefect.utilities.annotations.quote` 
+and each element needs to be inspected. See `prefect.utilities.annotations.quote`
 for more details.
-Defaults to `10.0`. 
+Defaults to `10.0`.
 Set to `0` to disable logging the warning.
 """
 
@@ -1312,12 +1312,12 @@ PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect visualize is used.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental enhanced flow run cancellation.
 """
 
-PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 """
 Whether or not to warn when experimental enhanced flow run cancellation is used.
 """
@@ -1330,6 +1330,16 @@ Whether or not to enable deployment status in the UI
 PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
 """
 Whether or not to warn when deployment status is used.
+"""
+
+PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT = Setting(bool, default=False)
+"""
+Whether or not to enable flow run input.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
+"""
+Whether or not to enable flow run input.
 """
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
@@ -1378,6 +1388,21 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
+PREFECT_WORKER_WEBSERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the worker's webserver should bind to.
+"""
+
+PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
+"""
+The port the worker's webserver should bind to.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental worker webserver endpoints.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect artifacts.
@@ -1396,6 +1421,29 @@ Whether or not to enable the experimental workspace dashboard.
 PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
+"""
+
+# Defaults -----------------------------------------------------------------------------
+
+PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
+    str,
+    default=None,
+)
+"""The `block-type/block-document` slug of a block to use as the default result storage."""
+
+PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
+"""
+The default work pool to deploy to.
+"""
+
+PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
+    str,
+    default=None,
+)
+"""
+The default Docker namespace to use when building images.
+
+Can be either an organization/username or a registry URL with an organization/username.
 """
 
 # Deprecated settings ------------------------------------------------------------------

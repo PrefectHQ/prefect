@@ -80,6 +80,7 @@ from prefect.client.schemas.objects import (
     Constant,
     Deployment,
     Flow,
+    FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
     Log,
@@ -1377,7 +1378,7 @@ class PrefectClient:
         name: str,
         block_type_slug: str,
         include_secrets: bool = True,
-    ):
+    ) -> BlockDocument:
         """
         Read the block document with the specified name that corresponds to a
         specific block type name.
@@ -1780,18 +1781,23 @@ class PrefectClient:
                 raise
         return FlowRun.parse_obj(response.json())
 
-    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+    async def resume_flow_run(
+        self, flow_run_id: UUID, run_input: Optional[Dict] = None
+    ) -> OrchestrationResult:
         """
         Resumes a paused flow run.
 
         Args:
             flow_run_id: the flow run ID of interest
+            run_input: the input to resume the flow run with
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
         try:
-            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
+            response = await self._client.post(
+                f"/flow_runs/{flow_run_id}/resume", json={"run_input": run_input}
+            )
         except httpx.HTTPStatusError:
             raise
 
@@ -2181,7 +2187,7 @@ class PrefectClient:
         limit: int = None,
         offset: int = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,
-    ) -> None:
+    ) -> List[Log]:
         """
         Read flow and task run logs.
         """
@@ -2491,7 +2497,6 @@ class PrefectClient:
             f"/work_pools/{work_pool_name}/get_scheduled_flow_runs",
             json=body,
         )
-
         return pydantic.parse_obj_as(List[WorkerFlowRunResponse], response.json())
 
     async def create_artifact(
@@ -2688,6 +2693,48 @@ class PrefectClient:
                 "occupancy_seconds": occupancy_seconds,
             },
         )
+
+    async def create_flow_run_input(self, flow_run_id: UUID, key: str, value: str):
+        """
+        Creates a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+            value: The input value.
+        """
+
+        # Initialize the input to ensure that the key is valid.
+        FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
+
+        response = await self._client.post(
+            f"/flow_runs/{flow_run_id}/input",
+            json={"key": key, "value": value},
+        )
+        response.raise_for_status()
+
+    async def read_flow_run_input(self, flow_run_id: UUID, key: str) -> str:
+        """
+        Reads a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+        """
+        response = await self._client.get(f"/flow_runs/{flow_run_id}/input/{key}")
+        response.raise_for_status()
+        return response.content.decode()
+
+    async def delete_flow_run_input(self, flow_run_id: UUID, key: str):
+        """
+        Deletes a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+        """
+        response = await self._client.delete(f"/flow_runs/{flow_run_id}/input/{key}")
+        response.raise_for_status()
 
     async def __aenter__(self):
         """

@@ -3,7 +3,7 @@
   "javascript.format.enable": false,
   "eslint.alwaysShowStatus": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": "explicit"
   },
   "eslint.options": {
     "extensions": [
@@ -25,6 +25,7 @@
     "rrule",
     "semibold",
     "subflow",
+    "subflows",
     "tailwindcss",
     "vite",
     "vitejs"
@@ -36,7 +37,6 @@
   "files.exclude": {
     "node_modules": true,
     "dist": true,
-    "playwright-report": true,
     "test-results": true,
   },
   "css.customData": [

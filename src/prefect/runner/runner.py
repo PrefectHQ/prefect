@@ -204,6 +204,7 @@ class Runner:
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
+        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -227,6 +228,9 @@ class Runner:
             rrule: An rrule schedule of when to execute runs of this flow.
             schedule: A schedule object of when to execute runs of this flow. Used for
                 advanced scheduling options like timezone.
+            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
+                not provided when creating a deployment, the schedule will be set as active. If not
+                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -249,6 +253,7 @@ class Runner:
             cron=cron,
             rrule=rrule,
             schedule=schedule,
+            is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
             description=description,
@@ -798,7 +803,20 @@ class Runner:
         try:
             if self._limiter:
                 self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
+                self._logger.debug("Limit slot acquired for flow run '%s'", flow_run_id)
             return True
+        except RuntimeError as exc:
+            if (
+                "this borrower is already holding one of this CapacityLimiter's tokens"
+                in str(exc)
+            ):
+                self._logger.warning(
+                    f"Duplicate submission of flow run '{flow_run_id}' detected. Runner"
+                    " will not re-submit flow run."
+                )
+                return False
+            else:
+                raise
         except anyio.WouldBlock:
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
@@ -813,6 +831,7 @@ class Runner:
         """
         if self._limiter:
             self._limiter.release_on_behalf_of(flow_run_id)
+            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List["FlowRun"]

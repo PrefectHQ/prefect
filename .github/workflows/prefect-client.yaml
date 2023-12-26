@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.8"
           cache: "pip"
@@ -77,7 +77,7 @@ jobs:
       
       - name: Publish build artifacts
         if: ${{ inputs.upload-artifacts }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
           path: "${{ env.TMPDIR }}/dist"

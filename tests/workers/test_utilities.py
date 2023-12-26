@@ -33,36 +33,6 @@ def reset_cache():
 
 
 @pytest.fixture
-async def mock_collection_registry():
-    with respx.mock as respx_mock:
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "prefect-agent": {
-                            "type": "prefect-agent",
-                            "default_base_job_configuration": {},
-                        }
-                    },
-                    "prefect-fake": {
-                        "fake": {
-                            "type": "fake",
-                            "default_base_job_configuration": (
-                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
-                            ),
-                        }
-                    },
-                },
-            )
-        )
-        yield
-
-
-@pytest.fixture
 async def mock_collection_registry_not_available():
     with respx.mock as respx_mock:
         respx_mock.get(
@@ -82,8 +52,11 @@ class TestGetAvailableWorkPoolTypes:
 
         work_pool_types = await get_available_work_pool_types()
         assert work_pool_types == [
+            "cloud-run:push",
+            "docker",
             "fake",
             "faker",
+            "kubernetes",
             "prefect-agent",
             "process",
         ]
@@ -101,9 +74,17 @@ class TestGetAvailableWorkPoolTypes:
 
         work_pool_types = await get_available_work_pool_types()
 
-        assert work_pool_types == [
+        assert set(work_pool_types) == {
+            "azure-container-instance",
+            "cloud-run",
+            "cloud-run-v2",
+            "docker",
+            "ecs",
+            "kubernetes",
+            "prefect-agent",
             "process",
-        ]
+            "vertex-ai",
+        }
 
 
 class TestGetDefaultBaseJobTemplateForInfrastructureType:

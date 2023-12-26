@@ -3304,6 +3304,7 @@ class TestFlowServe:
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
+            is_schedule_active=False,
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -3318,6 +3319,7 @@ class TestFlowServe:
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
+        assert not deployment.is_schedule_active
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)
@@ -3433,7 +3435,7 @@ class TestFlowFromSource:
     async def test_load_flow_from_source_with_storage(self):
         storage = MockStorage()
 
-        loaded_flow = await Flow.from_source(
+        loaded_flow: Flow = await Flow.from_source(
             entrypoint="flows.py:test_flow", source=storage
         )
 
@@ -3448,6 +3450,18 @@ class TestFlowFromSource:
         loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
 
         deployment = loaded_flow.to_deployment(name="test")
+
+        assert deployment.storage == storage
+
+    def test_loaded_flow_can_be_updated_with_options(self):
+        storage = MockStorage()
+        storage.set_base_path(Path.cwd())
+
+        loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+        flow_with_options = loaded_flow.with_options(name="with_options")
+
+        deployment = flow_with_options.to_deployment(name="test")
 
         assert deployment.storage == storage
 
@@ -3547,6 +3561,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             enforce_parameter_schema=True,
+            is_schedule_active=False,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3559,6 +3574,7 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
+                is_schedule_active=False,
             ),
             work_pool_name=work_pool.name,
             image=image,
@@ -3592,6 +3608,7 @@ class TestFlowDeploy:
             image=image,
             push=False,
             enforce_parameter_schema=True,
+            is_schedule_active=False,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3604,6 +3621,7 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
+                is_schedule_active=False,
             ),
             work_pool_name=work_pool.name,
             image=image,

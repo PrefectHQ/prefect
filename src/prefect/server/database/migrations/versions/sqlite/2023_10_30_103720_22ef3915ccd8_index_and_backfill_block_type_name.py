@@ -24,12 +24,9 @@ def upgrade():
         )
 
     backfill_query = """
-        WITH null_block_type_name_cte AS (SELECT id from block_document where block_type_name is null limit 500)
         UPDATE block_document
-        SET block_type_name = block_type.name
-        FROM block_type, null_block_type_name_cte
-        WHERE block_document.block_type_id = block_type.id
-        AND block_document.id = null_block_type_name_cte.id;
+        SET block_type_name = (SELECT name from block_type where block_type.id = block_document.block_type_id)
+        WHERE block_document.id in (SELECT id from block_document where block_type_name is null limit 500);
     """
 
     with op.get_context().autocommit_block():
