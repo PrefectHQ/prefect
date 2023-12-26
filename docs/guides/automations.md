@@ -14,6 +14,7 @@ search:
 From the [Automations concept page](/concepts/automations/), we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
 
 In this guide, we will showcase common usecases where automations can come in handy by:
+
 - Creating a simple notification automation in just a few UI clicks
 - Build upon an event based automation
 - Combine into a multi-layered responsive deployment pattern
@@ -24,10 +25,11 @@ In this guide, we will showcase common usecases where automations can come in ha
 
 ## Prerequisites
 Please have the following before exploring the guide:
+
 - Python installed
-- Prefect installed (follow the installation guide)
+- Prefect installed (follow the [installation guide](/getting-started/installation/))
 - You can sign up for a forever free Prefect Cloud account
-- Explore deployments so the concepts are familiar
+- Have a [work pool](/concepts/work-pools/) set up to handle the deployments
 
 ## Creating the example script
 
@@ -104,7 +106,7 @@ Now let's try to send a notification based off a completed state outcome. We can
     Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not tied to creating a full deployment in order to have safe responses to our desired outcomes.
 
 ## Event based deployment automation 
-We can create an automation that can kick off a deployment instead of a notification. Let's explore how we can programatically create this automation. We will take advantage of our extensive REST API catalogue to help 'automate' the creation of this automation.  
+We can create an automation that can kick off a deployment instead of a notification. Let's explore how we can programmatically create this automation. We will take advantage of our extensive REST API catalogue to help 'automate' the creation of this automation.  
 
 Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further.
 
@@ -182,7 +184,7 @@ prefect deployment ls
 │ ride-duration-prediction-backfill/backfill-deployment │ 76dc6581-1773-45c5-a291-7f864d064c57 │
 └───────────────────────────────────────────────────────┴──────────────────────────────────────┘
 ``` 
-We can create an automation via a POST call, where we can programatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id` are handy. 
+We can create an automation via a POST call, where we can programmatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id` are handy. 
 
 ```python
 def create_event_driven_automation():
@@ -227,7 +229,7 @@ After running this function, you will see within the UI the changes that came fr
 
 Let's run the underlying flow and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of `build_names`, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
 
-In a few quick changes, we are able to programatically create an automation that deploys workflows with custom parameters. 
+In a few quick changes, we are able to programmatically create an automation that deploys workflows with custom parameters. 
 
 ## Using an underlying .yaml file
 
@@ -310,7 +312,7 @@ From a simple input, we can easily create an exposed webhook endpoint.
 
 ![webhook-simple](/img/guides/webhook-simple.png)
 
-Each webhook will correspond to a custom event created, where you can react to it downstream with a seperate deployment or automation. 
+Each webhook will correspond to a custom event created, where you can react to it downstream with a separate deployment or automation. 
 
 For example, we can create a curl request that sends the endpoint information such as a run count for our deployment. 
 ```console
@@ -345,7 +347,7 @@ import pandas as pd
 @ai_fn
 def generate_synthetic_user_data(build_of_names: list[dict]) -> list:
     """
-    Generate additional data for userID (numerical values with 6 digits), location, and timestamp as seperate columns and append the data onto 'build_of_names'. Make userID the first column
+    Generate additional data for userID (numerical values with 6 digits), location, and timestamp as separate columns and append the data onto 'build_of_names'. Make userID the first column
     """
 
 @flow
