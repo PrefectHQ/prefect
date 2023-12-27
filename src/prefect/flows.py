@@ -970,6 +970,12 @@ class Flow(Generic[P, R]):
                 " deploying this flow."
             ) from exc
 
+        if "/" in name:
+            raise ValueError(
+                f"Invalid deployment name {name!r}. Deployment names cannot contain"
+                " forward slashes."
+            )
+
         deployment = await self.to_deployment(
             name=name,
             interval=interval,
