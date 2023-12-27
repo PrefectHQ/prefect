@@ -1,7 +1,6 @@
 ---
-description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution.
+description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution with workers.
 tags:
-    - work pools
     - workers
     - orchestration
     - flow runs
@@ -13,32 +12,21 @@ search:
   boost: 2
 ---
 
-# Workers and Work Pools
+# Workers
 
-!!! note "Docker"
-    This tutorial requires the use of Docker.
+## Prerequisites
 
-## Why workers and work pools?
+[Docker](https://docs.docker.com/engine/install/) installed and running on your machine.
 
-Workers and work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned. To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
+## Why workers
 
-!!! tip "[Choosing Between `flow.deploy()` and `flow.serve()`](/concepts/deployments/#two-approaches-to-deployments)"
-    The earlier section discussed the `serve` approach. For many use cases, `serve` is sufficient to meet scheduling and orchestration needs. Workers and work pools are **optional**. Just remember, if infrastructure needs escalate, workers and work pools can become a handy tool. The best part? You're not locked into one method. You can seamlessly combine approaches as needed.
+In the previous section of the tutorial, you learned how work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
+You saw how you can transition from persistent infrastructure to dynamic infrastructure by using `flow.deploy` instead of `flow.serve`.
 
-!!! note "Deployment definition methods differ slightly for workers"
-    If you choose to use worker-based execution, the way you define deployments will be different. Deployments for workers are configured with `deploy`, which requires additional configuration. A deployment created with `serve` cannot be submitted to a worker.
+Work pools that rely on client-side workers take this a step further by enabling you to run work flows in your own Docker containers, Kubernetes clusters, and serverless environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run.
 
-The primary reason to use workers and work pools is for **dynamic infrastructure provisioning and configuration**.
-For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently.
-In this case, you don't want an idle process running within that infrastructure. Instead, use a lightweight _worker_ to dynamically provision the infrastructure only when the workflow is scheduled to run.  
+The architecture of a worker-based work pool deployment can be summarized with the following diagram:
 
-Other advantages to using workers and work pools include:
-
-- You can configure default infrastructure configurations on your work pools that all jobs inherit and can override
-- Platform teams can use work pools to expose opinionated (and enforced!) interfaces to the infrastructure that they oversee
-- Work pools can be used to prioritize (or limit) flow runs through the use of [work queues](/concepts/work-pools/#work-queues)
-
-The architecture of a worker/work pool deployment can be summarized with the following diagram:
 ```mermaid
 graph TD
     subgraph your_infra["Your Execution Environment"]
@@ -60,7 +48,10 @@ graph TD
     worker --> |creates| flow_run_infra
     worker --> |creates| flow_run_infra_2
 ```
-<sup>Notice above that the worker is in charge of provisioning the _flow run infrastructure_. In context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run. Different [worker types](/concepts/work-pools/#worker-types) create different types of flow run infrastructure.</sup>
+
+<sup>Notice above that the worker is in charge of provisioning the _flow run infrastructure_.
+In context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run.
+Different [worker types](/concepts/work-pools/#worker-types) create different types of flow run infrastructure.</sup>
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.
 
@@ -71,31 +62,37 @@ For this tutorial you will create a **Docker** type work pool via the CLI.
 Using the **Docker** work pool type means that all work sent to this work pool will run within a dedicated Docker container using a Docker client available to the worker.
 
 !!! tip "Other work pool types"
-    There are [work pool types](/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run. Kubernetes is also a popular type of work pool.
+    There are [work pool types](/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
+    Kubernetes is also a popular work pool type.
 
-    These are expanded upon in the [Guides](/guides/) section.
+    These options are expanded upon in various [How-to Guides](/guides/).
 
 ### Create a work pool
 
 In your terminal, run the following command to set up a **Docker** type work pool.
 
 <div class="terminal">
+
 ```bash
 prefect work-pool create --type docker my-docker-pool
 ```
+
 </div>
 
-Let’s confirm that the work pool was successfully created by running the following command in the same terminal. You should see your new `my-docker-pool` in the output list.
+Let’s confirm that the work pool was successfully created by running the following command in the same terminal.
+You should see your new `my-docker-pool` in the output list.
 
 <div class="terminal">
+
 ```bash
 prefect work-pool ls
 ```
+
 </div>
 
 Finally, let’s double check that you can see this work pool in your Prefect UI.
 
-Navigate to the Work Pools tab and verify that you see `my-docker-pool` listed.
+Navigate to the _Work Pools_ tab and verify that you see `my-docker-pool` listed.
 
 When you click into `my-docker-pool` you should see a red status icon signifying that this work pool is not ready to submit work.
 
@@ -103,23 +100,29 @@ To get the work pool ready to submit flow runs, you need to start a worker.
 
 ### Start a worker
 
-Workers are a lightweight polling process that kick off scheduled flow runs on a certain type of infrastructure (like Docker).
+Workers are a lightweight polling process that kick off scheduled flow runs on a certain type of infrastructure (such as Docker).
 To start a worker on your laptop, open a new terminal and confirm that your virtual environment has `prefect` installed.
 
 Run the following command in this new terminal to start the worker:
 
 <div class="terminal">
+
 ```bash
 prefect worker start --pool my-docker-pool
+
 ```
+
 </div>
 
-You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution. 
+You should see the worker start.
+It's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution.
 You’ll see your new worker listed in the UI under the Workers tab of the Work Pools page with a recent last polled date.
 
 You should also be able to see a `Ready` status indicator on your work pool - progress!
 
-You will need to keep this terminal session active in order for the worker to continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. Therefore, in a production setting this worker should run as a daemonized or managed process. See next steps for more information on this.
+You will need to keep this terminal session active in order for the worker to continue to pick up jobs.
+Since you are running this worker locally, the worker will terminate if you close the terminal.
+Therefore, in a production setting this worker should run as a [daemonized or managed process](/guides/deployment/daemonize/).
 
 Now that you’ve set up your work pool and worker, we have what we need to kick off and execute flow runs of flows deployed to this work pool.
 Let's deploy your tutorial flow to `my-docker-pool`.
@@ -132,7 +135,8 @@ From our previous steps, we now have:
 2. A work pool
 3. A worker
 
-Now it’s time to put it all together. We're going to update our `repo_info.py` file so it will build a Docker image and update our deployment so our worker can execute it.
+Now it’s time to put it all together.
+We're going to update our `repo_info.py` file to build a Docker image and update our deployment so our worker can execute it.
 
 The updates that you need to make to `repo_info.py` are:
 
@@ -175,9 +179,11 @@ if __name__ == "__main__":
 Now that you've updated your script, you can run it to deploy your flow to the work pool:
 
 <div class="terminal">
+
 ```bash
 python repo_info.py
 ```
+
 </div>
 
 Prefect will build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run.
@@ -256,34 +262,37 @@ if __name__ == "__main__":
 To register this update to your deployment's parameters with Prefect's API, run:
 
 <div class="terminal">
+
 ```bash
 python repo_info.py
 ```
+
 </div>
 
-Now everything is set up for us to submit a flow-run to the work pool:
+Now everything is set for us to submit a flow-run to the work pool:
 
 <div class="terminal">
+
 ```bash
 prefect deployment run 'get_repo_info/my-deployment'
 ```
+
 </div>
 
 !!! danger "Common Pitfall"
     - Store and run your deploy scripts at the **root of your repo**, otherwise the built Docker file may be missing files that it needs to execute!
-
 
 !!! tip "Did you know?"
     A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple schedules.
 
 ## Next steps
 
-- Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments).
-- Check out some of our other [work pools](/concepts/work-pools/).
+- Go deeper with deployments and learn about configuring deployments in YAML with [`prefect.yaml`](/guides/prefect-deploy/).
 - [Concepts](/concepts/) contain deep dives into Prefect components.
 - [Guides](/guides/) provide step-by-step recipes for common Prefect operations including:
-  - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
+  - [Deploying flows on Kubernetes](/guides/deployment/kubernetes/)
   - [Deploying flows in Docker](/guides/deployment/docker/)
-  - [Writing tests](/guides/testing)
+  - [Deploying flows on serverless infrastructure](/guides/deployment/serverless-workers/)
+  - [Daemonizing workers](/guides/deployment/daemonize/)
 
-And more!
+Happy building!
