@@ -74,7 +74,7 @@ To automatically take action when an incident is declared, set up a custom trigg
 
       - **match**: The resource emitting your event of interest. You can match on specific resource IDs, use wildcards to match on all resources of a given type, and even match on other resource attributes, like `prefect.resource.name`.
 
-      - **expect**: The event type to listen for. For example, you could listen for any of the following event types:
+      - **expect**: The event type to listen for. For example, you could listen for any (or all) of the following event types:
           - `prefect-cloud.incident.declared`
           - `prefect-cloud.incident.resolved`
           - `prefect-cloud.incident.updated.severity`
