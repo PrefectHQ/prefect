@@ -56,7 +56,11 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._internal.concurrency.api import (
+    create_call,
+    from_async,
+    from_sync,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -86,7 +90,10 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.asyncutils import is_async_fn, sync_compatible
+from prefect.utilities.asyncutils import (
+    is_async_fn,
+    sync_compatible,
+)
 from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
 
@@ -174,7 +181,7 @@ class Runner:
         )
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
-        self.loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_event_loop()
 
     @sync_compatible
     async def add_deployment(
@@ -390,11 +397,18 @@ class Runner:
                     )
                 )
 
+    def execute_in_background(self, func, *args, **kwargs):
+        """
+        Schedules an async function for execution in the thread where `self._client` is valid.
+        """
+
+        return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
+
     async def cancel_all(self):
         runs_to_cancel = []
 
         # done to avoid dictionary size changing during iteration
-        for flow_run_id, info in self._flow_run_process_map.items():
+        for _, info in self._flow_run_process_map.items():
             runs_to_cancel.append(info["flow_run"])
         if runs_to_cancel:
             for run in runs_to_cancel:
@@ -491,7 +505,6 @@ class Runner:
         task_status: Optional[anyio.abc.TaskStatus] = None,
         entrypoint: Optional[str] = None,
     ):
-        print(entrypoint)
         """
         Runs the given flow run in a subprocess.
 
@@ -848,7 +861,9 @@ class Runner:
             self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     async def _submit_scheduled_flow_runs(
-        self, flow_run_response: List["FlowRun"]
+        self,
+        flow_run_response: List["FlowRun"],
+        entrypoints: Optional[List[str]] = None,
     ) -> List["FlowRun"]:
         """
         Takes a list of FlowRuns and submits the referenced flow runs
@@ -856,7 +871,7 @@ class Runner:
         """
         submittable_flow_runs = flow_run_response
         submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
-        for flow_run in submittable_flow_runs:
+        for i, flow_run in enumerate(submittable_flow_runs):
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
 
@@ -867,8 +882,7 @@ class Runner:
                 )
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
-                    self._submit_run,
-                    flow_run,
+                    self._submit_run, flow_run, entrypoints[i] if entrypoints else None
                 )
             else:
                 break
@@ -880,7 +894,7 @@ class Runner:
             )
         )
 
-    async def _submit_run(self, flow_run: "FlowRun") -> None:
+    async def _submit_run(self, flow_run: "FlowRun", entrypoint: Optional[str] = None):
         """
         Submits a given flow run for execution by the runner.
         """
@@ -890,7 +904,7 @@ class Runner:
 
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
-                self._submit_run_and_capture_errors, flow_run
+                self._submit_run_and_capture_errors, flow_run, entrypoint
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
@@ -1108,6 +1122,7 @@ class Runner:
         await self._runs_task_group.__aenter__()
 
         self.started = True
+        self._thread = threading.current_thread()
         return self
 
     async def __aexit__(self, *exc_info):

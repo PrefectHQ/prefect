@@ -1,4 +1,3 @@
-import asyncio
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import pendulum
@@ -19,6 +18,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
+from prefect.states import Scheduled
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.validation import validate_values_conform_to_schema
 
@@ -85,13 +85,11 @@ async def _build_endpoint_for_deployment(
 
         async with get_client() as client:
             flow_run = await client.create_flow_run_from_deployment(
-                deployment_id=deployment.id, parameters=body
+                deployment_id=deployment.id,
+                parameters=body,
+                state=Scheduled(scheduled_time=pendulum.now("utc")),
             )
-        future = asyncio.run_coroutine_threadsafe(
-            runner.execute_flow_run(flow_run.id), runner.loop
-        )
-
-        future.result()
+        runner.execute_in_background(runner.execute_flow_run, flow_run.id)
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -142,11 +140,8 @@ async def _build_endpoint_for_flow(
         async with get_client() as client:
             flow_run = await client.create_flow_run(flow=flow, parameters=body)
 
-        future = asyncio.run_coroutine_threadsafe(
-            runner.execute_flow_run(flow_run.id, entrypoint), runner.loop
-        )
-
-        future.result()
+        # Schedule the background task
+        runner.execute_in_background(runner.execute_flow_run, flow_run.id, entrypoint)
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -159,8 +154,6 @@ async def _build_endpoint_for_flow(
 async def get_subflow_router(
     runner: "Runner",
 ) -> Tuple[APIRouter, Dict[str, Dict]]:
-    from prefect import get_client
-
     router = APIRouter()
     schemas = {}
     async with get_client() as client:
@@ -173,7 +166,7 @@ async def get_subflow_router(
                     methods=["POST"],
                 )
                 schemas[subflow.name] = subflow.parameter_openapi_schema
-                schemas[f"{subflow.id}"] = subflow.name
+                schemas[subflow.id] = subflow.name
     return router, schemas
 
 
