@@ -1259,7 +1259,7 @@ until a resume attempt.
 
 PREFECT_API_EXTRA_SERVICES = Setting(
     str,
-    default="",
+    default=None,
 )
 """Specify the list of extra service that can be started by the server.
 The list should be comma separated and each service should be a valid python module
