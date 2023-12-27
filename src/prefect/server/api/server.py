@@ -35,6 +35,7 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.services.dynamic_service_loader import string_to_loop_services
 from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
@@ -480,6 +481,11 @@ def create_app(
             service_instances.append(
                 services.flow_run_notifications.FlowRunNotifications()
             )
+        if prefect.settings.PREFECT_API_EXTRA_SERVICES.value() is not None:
+            extra_services = string_to_loop_services(
+                prefect.settings.PREFECT_API_EXTRA_SERVICES.value()
+            )
+            service_instances += extra_services
 
         loop = asyncio.get_running_loop()
 
