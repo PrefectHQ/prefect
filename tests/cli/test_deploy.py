@@ -1,11 +1,14 @@
 import datetime
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -23,6 +26,7 @@ from prefect.cli.deploy import (
     _initialize_deployment_triggers,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.client.schemas.objects import WorkPool
 from prefect.deployments import register_flow
 from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
@@ -163,7 +167,7 @@ async def default_agent_pool(prefect_client):
 
 
 @pytest.fixture
-async def docker_work_pool(prefect_client: PrefectClient):
+async def docker_work_pool(prefect_client: PrefectClient) -> WorkPool:
     return await prefect_client.create_work_pool(
         work_pool=WorkPoolCreate(
             name="test-docker-work-pool",
@@ -6985,3 +6989,118 @@ class TestDeployDockerPushSteps:
 
         with pytest.raises(ImportError):
             import prefect_docker  # noqa
+
+
+class TestDeployingUsingCustomPrefectFile:
+    def customize_from_existing_prefect_file(
+        self,
+        existing_file: Path,
+        new_file: io.TextIOBase,
+        work_pool: Optional[WorkPool],
+    ):
+        with existing_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        # Customize the template
+        contents["deployments"] = [
+            {
+                "name": "test-deployment1",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name if work_pool else "some_name"},
+            },
+            {
+                "name": "test-deployment2",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name if work_pool else "some_name"},
+            },
+        ]
+        # Write the customized template
+        yaml.dump(contents, new_file)
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploying_using_custom_prefect_file(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        # Create and use a temporary prefect.yaml file
+        with tempfile.NamedTemporaryFile("w+") as fp:
+            self.customize_from_existing_prefect_file(
+                Path("prefect.yaml"), fp, work_pool
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=f"deploy --all --prefect-file {fp.name}",
+                expected_code=0,
+                user_input=(
+                    # decline remote storage
+                    "n"
+                    + readchar.key.ENTER
+                    # reject saving configuration
+                    + "n"
+                    + readchar.key.ENTER
+                    # reject naming deployment
+                    + "n"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    (
+                        "Deployment 'An important name/test-deployment1' successfully"
+                        " created"
+                    ),
+                    (
+                        "Deployment 'An important name/test-deployment2' successfully"
+                        " created"
+                    ),
+                ],
+            )
+
+        # Check if deployments were created correctly
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-deployment1",
+        )
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "An important name/test-deployment2"
+        )
+
+        assert deployment1.name == "test-deployment1"
+        assert deployment1.work_pool_name == work_pool.name
+        assert deployment2.name == "test-deployment2"
+        assert deployment2.work_pool_name == work_pool.name
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploying_using_missing_prefect_file(self):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --prefect-file THIS_FILE_DOES_NOT_EXIST",
+            expected_code=1,
+            expected_output_contains=[
+                "Unable to read the specified config file. Reason: [Errno 2] "
+                "No such file or directory: 'THIS_FILE_DOES_NOT_EXIST'. Skipping"
+            ],
+        )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploying_using_malformed_prefect_file(self):
+        with tempfile.NamedTemporaryFile("w+") as fp:
+            fp.write("{this isn't valid YAML!}")
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=f"deploy --all --prefect-file {fp.name}",
+                expected_code=1,
+                expected_output_contains=[
+                    "Unable to parse the specified config file. Skipping."
+                ],
+            )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploying_directory_as_prefect_file(self):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --prefect-file ./",
+            expected_code=1,
+            expected_output_contains=[
+                "Unable to read the specified config file. Reason: [Errno 21] "
+                "Is a directory: '.'. Skipping."
+            ],
+        )
