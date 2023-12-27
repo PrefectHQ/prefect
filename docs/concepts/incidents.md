@@ -40,7 +40,7 @@ Incidents are formal declarations of disruptions to your workflows, and provide 
 There are several ways to create an incident:
 
 1. **from the Incidents page:**
-    - Click on the 'plus' button.
+    - Click on the **+** button.
     - Fill in required fields and attach any Prefect resources related to your incident.
 
 2. **from a flow run, work pool or block:**
