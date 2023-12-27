@@ -79,7 +79,7 @@ To automatically take action when an incident is declared, set up a custom trigg
           - `prefect-cloud.incident.resolved`
           - `prefect-cloud.incident.updated.severity`
 
-    See [Event Triggers](/concepts/automations/#custom-triggers) for more information on custom triggers, and check out your Event Feed to see the event types emitted by your incidents and other resources (i.e. events that you can react to)
+    See [Event Triggers](/concepts/automations/#custom-triggers) for more information on custom triggers, and check out your Event Feed to see the event types emitted by your incidents and other resources (i.e. events that you can react to).
 
 
 When an incident is declared, any actions you configure such as pausing work pools or sending notifications, will execute immediately.
