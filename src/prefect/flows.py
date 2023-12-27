@@ -961,6 +961,12 @@ class Flow(Generic[P, R]):
         """
         work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
 
+        if "/" in name:
+            raise ValueError(
+                f"Invalid deployment name {name!r}. Deployment names cannot contain"
+                " forward slashes."
+            )
+
         try:
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
@@ -969,12 +975,6 @@ class Flow(Generic[P, R]):
                 f"Could not find work pool {work_pool_name!r}. Please create it before"
                 " deploying this flow."
             ) from exc
-
-        if "/" in name:
-            raise ValueError(
-                f"Invalid deployment name {name!r}. Deployment names cannot contain"
-                " forward slashes."
-            )
 
         deployment = await self.to_deployment(
             name=name,
