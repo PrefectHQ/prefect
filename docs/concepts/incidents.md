@@ -70,7 +70,7 @@ To automatically take action when an incident is declared, set up a custom trigg
 }
 ```
 !!! tip "Building custom triggers"
-    To get started with Incident automations, you only need to specify two fields in your trigger:
+    To get started with incident automations, you only need to specify two fields in your trigger:
 
       - **match**: The resource emitting your event of interest. You can match on specific resource IDs, use wildcards to match on all resources of a given type, and even match on other resource attributes, like `prefect.resource.name`.
 
