@@ -623,6 +623,12 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
+        if "/" in name:
+            raise ValueError(
+                f"Invalid deployment name {name!r}. Deployment names cannot contain"
+                " forward slashes."
+            )
+
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
@@ -960,12 +966,6 @@ class Flow(Generic[P, R]):
             ```
         """
         work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
-
-        if "/" in name:
-            raise ValueError(
-                f"Invalid deployment name {name!r}. Deployment names cannot contain"
-                " forward slashes."
-            )
 
         try:
             async with get_client() as client:
