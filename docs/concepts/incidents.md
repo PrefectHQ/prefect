@@ -46,7 +46,7 @@ There are several ways to create an incident:
 2. **From a flow run, work pool, or block:**
     - Initiate an incident directly from a failed flow run, automatically linking it as a resource, by clicking on the menu button and selecting "Declare an incident".
 
-3. **via an [Automation](/concepts/automations/):**
+3. **Via an [automation](/concepts/automations/):**
     - Set up incident creation as an automated response to selected triggers.
 
      
