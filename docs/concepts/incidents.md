@@ -37,15 +37,18 @@ Incidents are formal declarations of disruptions to your workflows, and provide 
 
 ### Creating an incident
 
-1. **From the incidents page**:
-   - Click on the 'plus' button.
-   - Fill in required fields and attach any Prefect resources related to your incident.
+There are several ways to create an incident:
 
-2. **From a flow run, work pool or block**:
-   - Initiate an incident directly from a failed flow run, automatically linking it as a resource, by clicking on the menu button and selecting "Declare an incident".
+1. **From the Incidents page:**
+    - Click on the **+** button.
+    - Fill in required fields and attach any Prefect resources related to your incident.
 
-3. **Via automation**:
-   - Set up incident creation as an automated response to selected triggers.
+2. **From a flow run, work pool, or block:**
+    - Initiate an incident directly from a failed flow run, automatically linking it as a resource, by clicking on the menu button and selecting "Declare an incident".
+
+3. **Via an [automation](/concepts/automations/):**
+    - Set up incident creation as an automated response to selected triggers.
+
      
 ### Incident automations
 
@@ -53,7 +56,7 @@ Automations can be used for triggering an incident and for selecting actions to 
 
 To automatically take action when an incident is declared, set up a custom trigger that listens for declaration events.
 
-```
+```json
 {
   "match": {
     "prefect.resource.id": "prefect-cloud.incident.*"
@@ -66,6 +69,18 @@ To automatically take action when an incident is declared, set up a custom trigg
   "within": 0
 }
 ```
+!!! tip "Building custom triggers"
+    To get started with incident automations, you only need to specify two fields in your trigger:
+
+      - **match**: The resource emitting your event of interest. You can match on specific resource IDs, use wildcards to match on all resources of a given type, and even match on other resource attributes, like `prefect.resource.name`.
+
+      - **expect**: The event type to listen for. For example, you could listen for any (or all) of the following event types:
+          - `prefect-cloud.incident.declared`
+          - `prefect-cloud.incident.resolved`
+          - `prefect-cloud.incident.updated.severity`
+
+    See [Event Triggers](/concepts/automations/#custom-triggers) for more information on custom triggers, and check out your Event Feed to see the event types emitted by your incidents and other resources (i.e. events that you can react to).
+
 
 When an incident is declared, any actions you configure such as pausing work pools or sending notifications, will execute immediately.
 
