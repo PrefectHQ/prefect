@@ -1257,6 +1257,15 @@ application. If disabled, paused flows that have timed out will remain in a Paus
 until a resume attempt.
 """
 
+PREFECT_API_EXTRA_SERVICES = Setting(
+    str,
+    default="",
+)
+"""Specify the list of extra service that can be started by the server.
+The list should be comma separated and each service should be a valid python module
+"""
+
+
 PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
 """
 The maximum number of characters allowed for a task run cache key.
