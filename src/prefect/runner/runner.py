@@ -904,7 +904,7 @@ class Runner:
 
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
-                self._submit_run_and_capture_errors, flow_run, entrypoint
+                self._submit_run_and_capture_errors, flow_run, None, entrypoint
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
@@ -1117,12 +1117,11 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
-        self._tmp_dir.mkdir(parents=True, exist_ok=True)
+        self._tmp_dir.mkdir(parents=True)
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
         self.started = True
-        self._thread = threading.current_thread()
         return self
 
     async def __aexit__(self, *exc_info):

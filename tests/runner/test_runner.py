@@ -416,7 +416,9 @@ class TestRunner:
             await runner.stop()
             tg.cancel_scope.cancel()
 
-        assert flow_run.state.is_cancelled()
+        assert (
+            flow_run.state.is_cancelled()
+        ), f"Flow run state not cancelled: {flow_run.state.name=!r}"
         # check to make sure on_cancellation hook was called
         assert "This flow was cancelled!" in caplog.text
 
