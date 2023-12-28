@@ -412,7 +412,6 @@ async def retrieve_flow_then_begin_flow_run(
     flow_run = await client.read_flow_run(flow_run_id)
 
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
-    print(entrypoint)
 
     try:
         flow = (

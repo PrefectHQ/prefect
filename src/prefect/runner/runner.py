@@ -461,7 +461,11 @@ class Runner:
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
                     pid = await self._runs_task_group.start(
-                        self._submit_run_and_capture_errors, flow_run, None, entrypoint
+                        partial(
+                            self._submit_run_and_capture_errors,
+                            flow_run=flow_run,
+                            entrypoint=entrypoint,
+                        ),
                     )
 
                     self._flow_run_process_map[flow_run.id] = dict(
@@ -877,7 +881,13 @@ class Runner:
                 )
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
-                    self._submit_run, flow_run, entrypoints[i] if entrypoints else None
+                    partial(
+                        self._submit_run,
+                        flow_run=flow_run,
+                        entrypoint=(
+                            entrypoints[i] if entrypoints else None
+                        ),  # TODO: avoid relying on index
+                    )
                 )
             else:
                 break
@@ -899,7 +909,11 @@ class Runner:
 
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
-                self._submit_run_and_capture_errors, flow_run, None, entrypoint
+                partial(
+                    self._submit_run_and_capture_errors,
+                    flow_run=flow_run,
+                    entrypoint=entrypoint,
+                ),
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
