@@ -461,12 +461,7 @@ class Runner:
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
                     pid = await self._runs_task_group.start(
-                        partial(
-                            self._submit_run_and_capture_errors,
-                            flow_run=flow_run,
-                            task_status=None,
-                            entrypoint=entrypoint,
-                        )
+                        self._submit_run_and_capture_errors, flow_run, None, entrypoint
                     )
 
                     self._flow_run_process_map[flow_run.id] = dict(
@@ -922,7 +917,7 @@ class Runner:
     async def _submit_run_and_capture_errors(
         self,
         flow_run: "FlowRun",
-        task_status: anyio.abc.TaskStatus = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
         entrypoint: Optional[str] = None,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
