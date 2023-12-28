@@ -296,7 +296,7 @@ class Automation(PrefectBaseModel):
     )
 
     @validator("trigger", pre=True)
-    def validate_trigger(cls, value: Trigger):
+    def validate_trigger(cls, value: dict):
         if not value:
             raise ValueError(f"Automations must have a trigger: received {value}")
         else:
