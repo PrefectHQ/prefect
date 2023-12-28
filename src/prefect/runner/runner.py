@@ -399,7 +399,7 @@ class Runner:
 
     def execute_in_background(self, func, *args, **kwargs):
         """
-        Schedules an async function for execution in the thread where `self._client` is valid.
+        Executes a function in the background.
         """
 
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)

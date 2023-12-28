@@ -7,8 +7,9 @@ from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 
 from prefect import __version__ as PREFECT_VERSION
+from prefect.deployments.base import _search_for_flow_functions
+from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.callables import parameter_schema
-from prefect.utilities.importtools import import_object
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
@@ -127,15 +128,17 @@ async def _find_subflows_of_deployment(
     Returns:
         A list of flows.
     """
-    from prefect.deployments.base import _search_for_flow_functions
 
     entrypoint_dir = os.path.dirname(deployment.entrypoint.split(":")[0])
 
-    flows = [
+    flow_entrypoints = [
         entrypoint
         for flow in await _search_for_flow_functions(entrypoint_dir)
         if (entrypoint := f'{flow["filepath"]}:{flow["function_name"]}')
         != deployment.entrypoint
     ]
 
-    return [(flow, _set_parameter_schema(import_object(flow))) for flow in flows]
+    return [
+        (entrypoint, _set_parameter_schema(load_flow_from_entrypoint(entrypoint)))
+        for entrypoint in flow_entrypoints
+    ]

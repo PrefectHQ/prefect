@@ -18,7 +18,6 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
-from prefect.states import Scheduled
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.validation import validate_values_conform_to_schema
 
@@ -85,9 +84,7 @@ async def _build_endpoint_for_deployment(
 
         async with get_client() as client:
             flow_run = await client.create_flow_run_from_deployment(
-                deployment_id=deployment.id,
-                parameters=body,
-                state=Scheduled(scheduled_time=pendulum.now("utc")),
+                deployment_id=deployment.id, parameters=body
             )
         runner.execute_in_background(runner.execute_flow_run, flow_run.id)
 

@@ -567,7 +567,7 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
     return decorated_functions
 
 
-async def _search_for_flow_functions(directory: str = "."):
+async def _search_for_flow_functions(directory: str = ".") -> List[Dict]:
     """
     Search for flow functions in the provided directory. If no directory is provided,
     the current working directory is used.

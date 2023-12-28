@@ -9,12 +9,49 @@ from prefect._vendor.fastapi.testclient import TestClient
 from prefect import flow
 from prefect.runner import Runner
 from prefect.runner.server import build_server
+from prefect.runner.utils import _set_parameter_schema
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_PORT,
     temporary_settings,
 )
+
+
+class A(pydantic.BaseModel):
+    a: int = 0
+
+
+class B(pydantic.BaseModel):
+    a: A = A()
+    b: bool = False
+
+
+@flow(version="test")
+def simple_flow(verb: str = "party"):
+    print(f"I'm just here to {verb}")
+
+
+@flow
+def complex_flow(
+    x: int, y: str = "hello", z: List[bool] = [True], a: A = A(), b: B = B()
+):
+    print(x, y, z, a, b)
+
+
+@pytest.fixture(autouse=True)
+def only_flows_from_here(monkeypatch):
+    async def get_flows_in_this_file(directory="."):
+        return [
+            (f"{__file__}:simple_flow", _set_parameter_schema(simple_flow)),
+            (f"{__file__}:complex_flow", _set_parameter_schema(complex_flow)),
+        ]
+
+    monkeypatch.setattr(
+        "prefect.runner.server._find_subflows_of_deployment",
+        get_flows_in_this_file,
+    )
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +67,7 @@ def tmp_runner_settings():
 
 
 @pytest.fixture(scope="function")
-async def runner(tmp_runner_settings) -> Runner:
+async def runner() -> Runner:
     return Runner()
 
 
@@ -58,11 +95,7 @@ async def test_deployment_router_not_added_if_experimental_flag_is_false(
 
 
 async def test_runners_deployment_run_routes_exist(runner: Runner):
-    @flow(version="test")
-    def f(verb: str = "party"):
-        print(f"I'm just here to {verb}")
-
-    deployment_ids = [await create_deployment(runner, f) for _ in range(3)]
+    deployment_ids = [await create_deployment(runner, simple_flow) for _ in range(3)]
     webserver = await build_server(runner)
 
     deployment_run_routes = [
@@ -84,11 +117,7 @@ async def test_runners_deployment_run_routes_exist(runner: Runner):
 
 
 async def test_runners_deployment_run_route_does_input_validation(runner: Runner):
-    @flow(version="test")
-    def f(verb: str = "party"):
-        print(f"I'm just here to {verb}")
-
-    deployment_id = await create_deployment(runner, f)
+    deployment_id = await create_deployment(runner, simple_flow)
     webserver = await build_server(runner)
 
     client = TestClient(webserver)
@@ -102,19 +131,6 @@ async def test_runners_deployment_run_route_does_input_validation(runner: Runner
 
 
 async def test_runners_deployment_run_route_with_complex_args(runner: Runner):
-    class A(pydantic.BaseModel):
-        a: int = 0
-
-    class B(pydantic.BaseModel):
-        a: A = A()
-        b: bool = False
-
-    @flow
-    def complex_flow(
-        x: int, y: str = "hello", z: List[bool] = [True], a: A = A(), b: B = B()
-    ):
-        print(x, y, z, a, b)
-
     deployment_id = await runner.add_flow(
         complex_flow, f"{uuid.uuid4()}", enforce_parameter_schema=True
     )
@@ -130,16 +146,12 @@ async def test_runners_deployment_run_route_with_complex_args(runner: Runner):
 async def test_runners_deployment_run_route_execs_flow_run(
     mock_get_client: mock.Mock, runner: Runner
 ):
-    @flow(version="test")
-    def f(verb: str = "party"):
-        print(f"I'm just here to {verb}")
-
     mock_flow_run_id = str(uuid.uuid4())
     mock_client = mock.AsyncMock()
     mock_get_client.return_value.__aenter__.return_value = mock_client
     mock_client.create_flow_run_from_deployment.return_value.id = mock_flow_run_id
 
-    deployment_id = await create_deployment(runner, f)
+    deployment_id = await create_deployment(runner, simple_flow)
     webserver = await build_server(runner)
 
     client = TestClient(webserver)
