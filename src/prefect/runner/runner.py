@@ -532,11 +532,13 @@ class Runner:
         env = get_current_settings().to_environment_variables(exclude_unset=True)
         env.update(
             {
-                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+                **{
+                    "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
+                    "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+                },
+                **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
             }
-            | ({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {})
         )
         env.update(**os.environ)  # is this really necessary??
 
