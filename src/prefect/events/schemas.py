@@ -7,10 +7,24 @@ import pendulum
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic.v1 import (
+        Extra,
+        Field,
+        PrivateAttr,
+        ValidationError,
+        root_validator,
+        validator,
+    )
     from pydantic.v1.fields import ModelField
 else:
-    from pydantic import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic import (
+        Extra,
+        Field,
+        PrivateAttr,
+        ValidationError,
+        root_validator,
+        validator,
+    )
     from pydantic.fields import ModelField
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -280,6 +294,17 @@ class Automation(PrefectBaseModel):
     owner_resource: Optional[str] = Field(
         default=None, description="The owning resource of this automation"
     )
+
+    @validator("trigger", pre=True)
+    def validate_trigger(cls, value: Trigger):
+        if not value:
+            raise ValueError(f"Automations must have a trigger: received {value}")
+        else:
+            try:
+                Trigger.parse_obj(value)
+            except ValidationError as exc:
+                raise ValueError(f"Invalid trigger: {exc}") from exc
+        return value
 
 
 class ExistingAutomation(Automation):

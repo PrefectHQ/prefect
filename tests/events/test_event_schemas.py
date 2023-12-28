@@ -193,3 +193,19 @@ def test_deployment_trigger_as_automation():
         ],
         owner_resource=f"prefect.deployment.{trigger._deployment_id}",
     )
+
+
+def test_empty_trigger_for_automation_raises_error():
+    with pytest.raises(ValidationError, match="Automations must have a trigger"):
+        Automation(
+            name="A deployment automation",
+            trigger={},
+            actions=[
+                RunDeployment(
+                    type="run-deployment",
+                    source="selected",
+                    parameters=None,
+                    deployment_id=uuid4(),
+                )
+            ],
+        )
