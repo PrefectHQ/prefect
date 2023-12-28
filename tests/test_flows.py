@@ -3255,6 +3255,15 @@ class TestFlowToDeployment:
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
+    async def test_to_deployment_fails_forward_slash(self):
+        name = "test/deployment"
+        expected_message = (
+            f"Invalid deployment name {name!r}. Deployment names cannot contain"
+            " forward slashes."
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            await test_flow.to_deployment(name)
+
     @pytest.mark.parametrize(
         "kwargs",
         [
