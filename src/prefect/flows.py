@@ -623,6 +623,12 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
+        if "/" in name and not name.endswith(".py"):
+            raise ValueError(
+                f"Invalid deployment name {name!r}. Deployment names cannot contain"
+                " forward slashes."
+            )
+
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
