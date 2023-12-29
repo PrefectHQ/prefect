@@ -5135,7 +5135,8 @@ class TestSaveUserInputs:
                     "Would you like to save configuration for this deployment for"
                     " faster deployments in the future?"
                 ),
-                "Would you like to overwrite",
+                "Would you like",
+                "to overwrite that entry?",
                 "Deployment configuration saved to prefect.yaml!",
             ],
         )
