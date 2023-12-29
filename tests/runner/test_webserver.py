@@ -9,7 +9,6 @@ from prefect._vendor.fastapi.testclient import TestClient
 from prefect import flow
 from prefect.runner import Runner
 from prefect.runner.server import build_server
-from prefect.runner.utils import _set_parameter_schema
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_SERVER_HOST,
@@ -43,8 +42,8 @@ def complex_flow(
 def only_flows_from_here(monkeypatch):
     async def get_flows_in_this_file(directory="."):
         return [
-            (f"{__file__}:simple_flow", _set_parameter_schema(simple_flow)),
-            (f"{__file__}:complex_flow", _set_parameter_schema(complex_flow)),
+            (f"{__file__}:simple_flow", simple_flow),
+            (f"{__file__}:complex_flow", complex_flow),
         ]
 
     monkeypatch.setattr(
