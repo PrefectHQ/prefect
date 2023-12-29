@@ -1,9 +1,11 @@
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
+import httpx
 import pendulum
 import uvicorn
 from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.responses import JSONResponse
+from typing_extensions import Literal
 
 from prefect.client.orchestration import get_client
 from prefect.runner.utils import (
@@ -19,12 +21,19 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_PORT,
 )
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.hashing import hash_objects
 from prefect.utilities.validation import validate_values_conform_to_schema
 
 if TYPE_CHECKING:
     from prefect import Flow
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
+
+RunnableEndpoint = Literal["flow", "deployment"]
+
+
+def _hash_prefect_callable(prefect_callable: Callable) -> str:
+    return hash_objects(prefect_callable.fn.__name__, prefect_callable.fn.__code__)
 
 
 def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
@@ -110,11 +119,19 @@ async def get_deployment_router(
                 f"/deployment/{deployment.id}/run",
                 await _build_endpoint_for_deployment(deployment, runner),
                 methods=["POST"],
+                name=f"Create flow run for deployment {deployment.name}",
+                description=(
+                    "Trigger a flow run for a deployment as a background task on the"
+                    " runner."
+                ),
+                summary=f"Run {deployment.name}",
             )
 
             # Used for updating the route schemas later on
-            schemas[deployment.name] = deployment.parameter_openapi_schema
-            schemas[deployment.id] = deployment.name
+            schemas[f"{deployment.name}-{deployment_id}"] = (
+                deployment.parameter_openapi_schema
+            )
+            schemas[deployment_id] = deployment.name
     return router, schemas
 
 
@@ -125,9 +142,9 @@ async def _build_endpoint_for_flow(
         body: Optional[Dict[Any, Any]] = None
     ) -> JSONResponse:
         body = body or {}
-        if flow.enforce_parameter_schema and flow.parameter_openapi_schema:
+        if flow.parameters:
             try:
-                validate_values_conform_to_schema(body, flow.parameter_openapi_schema)
+                validate_values_conform_to_schema(body, flow.parameters.dict())
             except ValueError as exc:
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST,
@@ -157,13 +174,20 @@ async def get_subflow_router(
         for deployment_id in runner._deployment_ids:
             deployment = await client.read_deployment(deployment_id)
             for entrypoint, subflow in await _find_subflows_of_deployment(deployment):
+                subflow_id = _hash_prefect_callable(subflow)
                 router.add_api_route(
-                    f"/flow/{subflow.id}/run",
+                    f"/flow/{subflow_id}/run",
                     await _build_endpoint_for_flow(subflow, runner, entrypoint),
                     methods=["POST"],
+                    name=f"Create flow run for flow {subflow.name}",
+                    description=(
+                        "Trigger a flow run for a flow as a background task on the"
+                        " runner."
+                    ),
+                    summary=f"Run {subflow.name}",
                 )
-                schemas[subflow.name] = subflow.parameter_openapi_schema
-                schemas[subflow.id] = subflow.name
+                schemas[f"{subflow.name}-{subflow_id}"] = subflow.parameters.dict()
+                schemas[subflow_id] = subflow.name
     return router, schemas
 
 
@@ -196,8 +220,8 @@ async def build_server(runner: "Runner") -> FastAPI:
             if webserver.openapi_schema:
                 return webserver.openapi_schema
 
-            openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
-            openapi_schema = inject_schemas_into_openapi(webserver, flow_schemas)
+            schemas_to_inject = {**deployment_schemas, **flow_schemas}
+            openapi_schema = inject_schemas_into_openapi(webserver, schemas_to_inject)
             webserver.openapi_schema = openapi_schema
             return webserver.openapi_schema
 
@@ -219,3 +243,28 @@ def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
     webserver = build_server(runner)
     uvicorn.run(webserver, host=host, port=port, log_level=log_level)
+
+
+@sync_compatible
+async def run_in_background(
+    endpoint_type: RunnableEndpoint,
+    prefect_callable: Callable,
+    fn_kwargs: Dict[str, Any],
+) -> None:
+    """
+    Run a callable in the background via the runner webserver.
+
+    Args:
+        prefect_callable (Callable): the callable to run
+        fn_kwargs (Dict[str, Any]): the keyword arguments to pass to the callable
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            (
+                f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
+                f":{PREFECT_RUNNER_SERVER_PORT.value()}"
+                f"/{endpoint_type}/{_hash_prefect_callable(prefect_callable)}/run"
+            ),
+            json=fn_kwargs,
+        )
+        response.raise_for_status()

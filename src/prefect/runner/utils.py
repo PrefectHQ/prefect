@@ -1,7 +1,6 @@
 import os
-import uuid
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.fastapi.openapi.utils import get_openapi
@@ -9,22 +8,21 @@ from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect import __version__ as PREFECT_VERSION
 from prefect.deployments.base import _search_for_flow_functions
 from prefect.flows import load_flow_from_entrypoint
-from prefect.utilities.callables import parameter_schema
 
 if TYPE_CHECKING:
-    from prefect import Flow, Task
+    from prefect import Flow
     from prefect.deployments import Deployment
 
 
 def inject_schemas_into_openapi(
-    webserver: FastAPI, deployment_schemas: Dict[str, Any]
+    webserver: FastAPI, schemas_to_inject: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Augments the webserver's OpenAPI schema with additional schemas from deployments.
+    Augments the webserver's OpenAPI schema with additional schemas from deployments / flows / tasks.
 
     Args:
         webserver: The FastAPI instance representing the webserver.
-        deployment_schemas: A dictionary of deployment schemas to integrate.
+        schemas_to_inject: A dictionary of OpenAPI schemas to integrate.
 
     Returns:
         The augmented OpenAPI schema dictionary.
@@ -33,25 +31,25 @@ def inject_schemas_into_openapi(
         title="FastAPI Prefect Runner", version=PREFECT_VERSION, routes=webserver.routes
     )
 
-    augmented_schema = merge_definitions(deployment_schemas, openapi_schema)
+    augmented_schema = merge_definitions(schemas_to_inject, openapi_schema)
     return update_refs_to_components(augmented_schema)
 
 
 def merge_definitions(
-    deployment_schemas: Dict[str, Any], openapi_schema: Dict[str, Any]
+    injected_schemas: Dict[str, Any], openapi_schema: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Integrates definitions from deployment schemas into the OpenAPI components.
+    Integrates definitions from injected schemas into the OpenAPI components.
 
     Args:
-        deployment_schemas: A dictionary of deployment-specific schemas.
+        injected_schemas: A dictionary of deployment-specific schemas.
         openapi_schema: The base OpenAPI schema to update.
     """
     openapi_schema_copy = deepcopy(openapi_schema)
     components = openapi_schema_copy.setdefault("components", {}).setdefault(
         "schemas", {}
     )
-    for definitions in deployment_schemas.values():
+    for definitions in injected_schemas.values():
         if "definitions" in definitions:
             for def_name, def_schema in definitions["definitions"].items():
                 def_schema_copy = deepcopy(def_schema)
@@ -101,21 +99,6 @@ def update_refs_to_components(openapi_schema: Dict[str, Any]) -> Dict[str, Any]:
     return openapi_schema
 
 
-def _set_parameter_schema(prefect_fn: Union["Flow", "Task"]) -> Union["Flow", "Task"]:
-    """
-    Sets the parameter schema of a flow or task.
-
-    Args:
-        prefect_fn: The flow or task to set the parameter schema of.
-        schema: The parameter schema to set.
-    """
-    prefect_fn.id = str(uuid.uuid4())
-    prefect_fn.parameter_openapi_schema = parameter_schema(prefect_fn.fn).dict()
-    prefect_fn.enforce_parameter_schema = True
-
-    return prefect_fn
-
-
 async def _find_subflows_of_deployment(
     deployment: "Deployment",
 ) -> List[Tuple[str, "Flow"]]:
@@ -139,6 +122,6 @@ async def _find_subflows_of_deployment(
     ]
 
     return [
-        (entrypoint, _set_parameter_schema(load_flow_from_entrypoint(entrypoint)))
+        (entrypoint, load_flow_from_entrypoint(entrypoint))
         for entrypoint in flow_entrypoints
     ]

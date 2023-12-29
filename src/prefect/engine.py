@@ -415,7 +415,7 @@ async def retrieve_flow_then_begin_flow_run(
 
     try:
         flow = (
-            await load_flow_from_entrypoint(entrypoint)
+            load_flow_from_entrypoint(entrypoint)
             if entrypoint
             else await load_flow_from_flow_run(flow_run, client=client)
         )
