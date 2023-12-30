@@ -54,7 +54,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     print(f"Forks 🍴 : {repo_stats['forks_count']}")
 
 if __name__ == "__main__":
-    repo_info()
+    get_repo_info()
 ```
 
 Running the flow in your terminal will result in something like this:
