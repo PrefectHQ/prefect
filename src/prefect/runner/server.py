@@ -7,6 +7,7 @@ from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
+import prefect.runtime
 from prefect.client.orchestration import get_client
 from prefect.runner.utils import (
     _find_subflows_of_deployment,
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
-RunnableEndpoint = Literal["flow", "deployment"]
+RunnableEndpoint = Literal["deployment", "flow", "task"]
 
 
 def _hash_prefect_callable(prefect_callable: Callable) -> str:
@@ -174,20 +175,20 @@ async def get_subflow_router(
         for deployment_id in runner._deployment_ids:
             deployment = await client.read_deployment(deployment_id)
             for entrypoint, subflow in await _find_subflows_of_deployment(deployment):
-                subflow_id = _hash_prefect_callable(subflow)
+                subflow_hash = _hash_prefect_callable(subflow)
                 router.add_api_route(
-                    f"/flow/{subflow_id}/run",
+                    f"/flow/{subflow_hash}/run",
                     await _build_endpoint_for_flow(subflow, runner, entrypoint),
                     methods=["POST"],
-                    name=f"Create flow run for flow {subflow.name}",
+                    name=f"Run {subflow.name} in background {subflow_hash[:8]}",
                     description=(
                         "Trigger a flow run for a flow as a background task on the"
                         " runner."
                     ),
                     summary=f"Run {subflow.name}",
                 )
-                schemas[f"{subflow.name}-{subflow_id}"] = subflow.parameters.dict()
-                schemas[subflow_id] = subflow.name
+                schemas[f"{subflow.name}-{subflow_hash}"] = subflow.parameters.dict()
+                schemas[subflow_hash] = subflow.name
     return router, schemas
 
 
@@ -255,15 +256,21 @@ async def run_in_background(
     Run a callable in the background via the runner webserver.
 
     Args:
-        prefect_callable (Callable): the callable to run
-        fn_kwargs (Dict[str, Any]): the keyword arguments to pass to the callable
+        prefect_callable: the callable to run, e.g. a flow or task
+        fn_kwargs: the keyword arguments to pass to the callable
     """
+    callable_identifier = (
+        _hash_prefect_callable(prefect_callable)
+        if endpoint_type in ("flow", "task")
+        else prefect.runtime.deployment.id
+    )
+
     async with httpx.AsyncClient() as client:
         response = await client.post(
             (
                 f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
                 f":{PREFECT_RUNNER_SERVER_PORT.value()}"
-                f"/{endpoint_type}/{_hash_prefect_callable(prefect_callable)}/run"
+                f"/{endpoint_type}/{callable_identifier}/run"
             ),
             json=fn_kwargs,
         )
