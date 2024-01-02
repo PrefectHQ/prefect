@@ -1876,7 +1876,7 @@ class TestOrchestrateTaskRun:
         assert mock.call_count == 0
 
     async def test_retry_condition_fn_retry_handler_returns_false_does_not_retry(
-        self, mock_anyio_sleep, prefect_client, flow_run, result_factory
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory, caplog
     ):
         # the flow run must be running prior to running tasks
         await prefect_client.set_flow_run_state(
@@ -1925,8 +1925,14 @@ class TestOrchestrateTaskRun:
         # Check that the retry condition function was only called once
         assert mock_2.call_count == 1
 
-    async def test_retry_condition_fn_retry_handler_returns_notfalse_does_not_retry(
-        self, mock_anyio_sleep, prefect_client, flow_run, result_factory
+        assert (
+            "Received non-final state 'Failed' when proposing final state 'Failed' and"
+            " will not attempt to run again..."
+            not in caplog.text
+        )
+
+    async def test_retry_condition_fn_retry_handler_returns_notfalse_retries(
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory, caplog
     ):
         # the flow run must be running prior to running tasks
         await prefect_client.set_flow_run_state(
@@ -1938,12 +1944,11 @@ class TestOrchestrateTaskRun:
         mock = MagicMock()
         mock_2 = MagicMock()
 
-        # Always return false and thus isn't retriable
+        # Doesn't return false and thus is retriable
         def is_retriable(task, task_run, state):
             mock_2()
-            return None
+            return "x"
 
-        # Never retry
         @task(retries=5, retry_condition_fn=is_retriable)
         def my_task(x):
             mock(x)
@@ -1969,11 +1974,15 @@ class TestOrchestrateTaskRun:
             log_prints=False,
         )
 
-        # # Check that the task failed after only one attempt
         assert state.is_failed()
-        assert mock.call_count == 1
-        # Check that the retry condition function was only called once
-        assert mock_2.call_count == 1
+        assert mock.call_count == 6
+        assert mock_2.call_count == 6
+
+        assert (
+            "Received non-final state 'AwaitingRetry' when proposing final state"
+            " 'Failed' and will attempt to run again..."
+            in caplog.text
+        )
 
 
 class TestBeginTaskRun:
