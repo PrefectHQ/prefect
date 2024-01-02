@@ -1518,5 +1518,5 @@ def test_open_current_workspace_in_browser_failure_no_workspace_set(respx_mock):
         invoke_and_assert(
             ["cloud", "open"],
             expected_code=1,
-            expected_output_contains="There is no current workspace set.",
+            expected_output_contains="There is no current workspace set - set one with",
         )
