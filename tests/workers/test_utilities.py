@@ -74,9 +74,17 @@ class TestGetAvailableWorkPoolTypes:
 
         work_pool_types = await get_available_work_pool_types()
 
-        assert work_pool_types == [
+        assert set(work_pool_types) == {
+            "azure-container-instance",
+            "cloud-run",
+            "cloud-run-v2",
+            "docker",
+            "ecs",
+            "kubernetes",
+            "prefect-agent",
             "process",
-        ]
+            "vertex-ai",
+        }
 
 
 class TestGetDefaultBaseJobTemplateForInfrastructureType:
