@@ -58,11 +58,163 @@ Importantly, triggers can be configured not only in reaction to events, but also
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
 
-#### Custom Triggers
+
+### Actions
+
+Actions specify what your automation does when its trigger criteria are met. Current action types include:
+
+- Cancel a flow run
+- Pause a flow run
+- Run a deployment
+- Pause or resume a deployment schedule
+- Pause or resume a work queue
+- Pause or resume an automation
+- Send a [notification](#automation-notifications)
+- Call a webhook
+
+![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
+
+### Selected and inferred action targets
+
+Some actions require you to either select the target of the action, or specify that the target of the action should be inferred.
+
+Selected targets are simple, and useful for when you know exactly what object your action should act on &mdash; for example, the case of a cleanup flow you want to run or a specific notification you’d like to send.
+
+Inferred targets are deduced from the trigger itself.
+
+For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred flow run, the flow run to cancel is inferred as the stuck run that caused the trigger to fire.
+
+Similarly, if a trigger fires on a work queue event and the corresponding action is to pause an inferred work queue, the inferred work queue is the one that emitted the event.
+
+Prefect tries to infer the relevant event whenever possible, but sometimes one does not exist.
+
+Specify a name and, optionally, a description for the automation.
+
+## Custom triggers
 
 Custom triggers allow advanced configuration of the conditions on which a trigger executes its actions.
 
 ![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/img/ui/automations-custom.png)
+
+The complete schema that defines a trigger is as follows:
+
+```python
+class Trigger:
+    """Defines the criteria for the events and conditions
+    under which an Automation will trigger an action"""
+
+    # resource filtering
+    match: dict[str, str | list[str]] = {}
+    match_related: dict[str, str | list[str]] = {}
+
+    # event matching strategy
+    after: set[str] = {}
+    expect: set[str] = {}
+
+    # evaluation strategy
+    for_each: set[str] = {}
+    posture: str = "Reactive"
+    threshold: int = 1
+    within: timedelta = 0
+
+    # metrics
+    metric: MetricTriggerQuery | None = None
+```
+
+A custom trigger can be configured to filter for events from specific resources, then match on one or more of those events, and finally evaluate whether conditions have been satisfied to execute its actions.
+
+### Resource filtering
+
+`match` and `match_related` control which events are considered for a trigger's event matching strategy by filtering on the contents of their `resource` and `related` fields, respectively. Each label added to a `match` filter has a conjunctive effect, and can accept a single value or a list of multiple values that are `OR`'d together. Values may include trailing wildcards, like `prefect.flow-run.*`.
+
+Consider the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for the sake of example. Its primary resource is a flow run, and since that flow run was started via a deployment, it is related to both its flow and its deployment:
+
+```json
+"resource": {
+  "prefect.resource.id": "prefect.flow-run.925eacce-7fe5-4753-8f02-77f1511543db",
+  "prefect.resource.name": "cute-kittiwake"
+}
+"related": [
+  {
+    "prefect.resource.id": "prefect.flow.cb6126db-d528-402f-b439-96637187a8ca",
+    "prefect.resource.role": "flow",
+    "prefect.resource.name": "hello"
+  },
+  {
+    "prefect.resource.id": "prefect.deployment.37ca4a08-e2d9-4628-a310-cc15a323378e",
+    "prefect.resource.role": "deployment",
+    "prefect.resource.name": "example"
+  }
+]
+```
+
+There are a number of valid ways to select the above event for matching consideration, and the approach depends on the purpose of the automation.
+The following configuration will filter for any events whose primary resource is a flow run, _and_ that flow run has a name starting with `cute-` or `radical-`.
+
+```json
+"match": {
+  "prefect.resource.id": "prefect.flow-run.*",
+  "prefect.resource.name": ["cute-*", "radical-*"]
+},
+"match_related": {}
+```
+
+This configuration, on the other hand, will filter for any events whose related resource is a specific deployment.
+
+```json
+"match": {},
+"match_related": {
+  "prefect.resource.id": "prefect.deployment.37ca4a08-e2d9-4628-a310-cc15a323378e",
+  "prefect.resource.role": "deployment"
+}
+```
+
+Both of the above approaches will select the example `prefect.flow-run.Completed` event, but will permit numerous other events through the filter as well. `match` and `match_related` can be combined for more restrictive filtering:
+
+```json
+"match": {
+  "prefect.resource.id": "prefect.flow-run.*",
+  "prefect.resource.name": ["cute-*", "radical-*"]
+},
+"match_related": {
+  "prefect.resource.id": "prefect.deployment.37ca4a08-e2d9-4628-a310-cc15a323378e",
+  "prefect.resource.role": "deployment"
+}
+```
+
+Now this trigger will filter only for events whose primary resource is a flow run started by a specific deployment, _and_ that flow run has a name starting with `cute-` or `radical-`.
+
+### Event matching
+
+Once an event has passed through the `match` filters, it must be decided if this event should be counted toward the trigger's `threshold`. Whether that is the case is determined by the event names present in `after` and `expect`. Values for both `after` and `accept` may include trailing wildcards, like `prefect.flow-run.*`.
+
+`after` is an optional list of event names which must have appeared before `expect` can be evaluated. `after` acts as a gate, consuming the first appearance of each listed event as single-use keys (except in behavior 3 below), then unlocking, releasing all other occurrences of events seen during the `within` window to `expect`.
+
+`expect` is an optional list of event names, occurrences of which will count toward the trigger's `threshold`. If `expect` is empty, any event that reaches this stage will be counted.
+
+Using a non-empty `after` in combination with `exepct` exhibits different behaviors depending on `expect`'s contents:
+
+1. When `expect` is empty, satisfying `after` counts toward the `threshold` exactly once, in addition to any other events that may have occurred.
+
+2. When `expect` contains exclusively different event names from `after`, only events listed in `expect` count toward the `threshold` once `after` is satisfied.
+
+3. When `expect` contains events that are also present in `after`, n - 1 occurrences of those events count toward the `threshold`, but other events count toward the `threshold` normally.
+
+#### Matching scenarios
+
+| `after` | `expect` | Outcome |
+| --- | --- | - |
+| `[]` | `[]` | All events count toward the `threshold` |
+| `["event", ...]` | `[]` | Satisfying the `after` condition counts toward the `threshold` exactly once; each additional event counts toward `threshold` even if the event occurred before `after` was satisfied |
+| `[]` | `["event", ...]` | All events whose names are present in `expect` count toward the `threshold` |
+| `["event", ...]` | `["event", ...]` | The appearance of all events in `after` counts toward the `threshold` once per occurrence of each event name present in `after` that is also present in `expect` |
+
+### Evaluation strategy
+
+- **`for_each`**: evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. For example, `"for_each": ["related:flow:prefect.resource.id"]` would evaluate the automation for each flow.
+- **`posture`**: the posture of this Automation, either Reactive or Proactive. **Reactive** automations respond to the _presence_ of the expected events, while **Proactive** automations respond to the _absence_ of those expected events.
+- **`threshold`**: the number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations) |
+- **`within`**: the time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers |
 
 For example, if you would like a trigger to execute an action if it receives two flow run failure events of a specific deployment within ten seconds, you could paste in the following trigger configuration:
 
@@ -100,37 +252,6 @@ For example, if you would like a trigger to execute an action if it receives two
       "prefect.resource.role": "deployment"
     },
     ```
-
-### Actions
-
-Actions specify what your automation does when its trigger criteria are met. Current action types include:
-
-- Cancel a flow run
-- Pause a flow run
-- Run a deployment
-- Pause or resume a deployment schedule
-- Pause or resume a work queue
-- Pause or resume an automation
-- Send a [notification](#automation-notifications)
-- Call a webhook
-
-![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
-
-### Selected and inferred action targets
-
-Some actions require you to either select the target of the action, or specify that the target of the action should be inferred.
-
-Selected targets are simple, and useful for when you know exactly what object your action should act on &mdash; for example, the case of a cleanup flow you want to run or a specific notification you’d like to send.
-
-Inferred targets are deduced from the trigger itself.
-
-For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred flow run, the flow run to cancel is inferred as the stuck run that caused the trigger to fire.
-
-Similarly, if a trigger fires on a work queue event and the corresponding action is to pause an inferred work queue, the inferred work queue is the one that emitted the event.
-
-Prefect tries to infer the relevant event whenever possible, but sometimes one does not exist.
-
-Specify a name and, optionally, a description for the automation.
 
 ## Create an automation via deployment triggers
 
