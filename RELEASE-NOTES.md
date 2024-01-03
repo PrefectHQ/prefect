@@ -1,5 +1,225 @@
 # Prefect Release Notes
 
+## Release 2.14.12
+
+### Increased customization of date and time filters across the UI
+
+Building on the enhancements to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans such as "Past 7 days". These changes make it easier to quickly see what's recently occurred (e.g. "Past 1 hour") and what's coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
+
+We have also updated saved filters on the flow runs page so you can save date ranges as part of a custom filter. For example, it's now possible to create a view of the past 6 hours of runs for a specific work pool!
+
+The Flows page uses the same updated date and time filters so you have more control over how you filter and view runs. 
+
+View a demonstration here: [![short loom video demo](https://github.com/PrefectHQ/prefect/assets/42048900/4dc01ec0-0776-49b4-bbc4-a1472c612e4f)](https://www.loom.com/share/95113969257d4cffa48ad13f943f950f?sid=b20bc27c-0dc2-40be-a627-a2148942c427) 
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11473
+- https://github.com/PrefectHQ/prefect/pull/11481
+
+### Get type-checked input from humans in the loop
+
+Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow and wait for type-checked input. To get started, declare the structure of the input data using a Pydantic model, and Prefect will render a form dynamically in the UI when a human resumes the flow. Form validation will ensure that the data conforms to your Pydantic model, and your flow will receive the input.
+
+<img width="472" alt="image" src="https://github.com/PrefectHQ/prefect/assets/97182/ac743557-e872-4b48-a61e-c74c95e076f0">
+
+Prefect's new `RunInput` class powers this experience. `RunInput` is a subclass of Pydantic's `BaseModel`. Here's an example of a `RunInput` that uses dates, literals, and nested Pydantic models to show you what's possible:
+
+```python
+class Person(RunInput):
+    first_name: str
+    last_name: str
+    birthday: datetime.date
+    likes_tofu: bool
+    age: int = Field(gt=0, lt=150)
+    shirt_size: Literal[ShirtSize.SMALL, ShirtSize.MEDIUM, ShirtSize.LARGE,
+                        ShirtSize.XLARGE]
+    shirt_color: Literal["red", "blue", "green"]
+    preferred_delivery_time: datetime.datetime
+    shipping_address: ShippingAddress
+    billing_address: BillingAddress | SameAsShipping = Field(
+        title="", default_factory=SameAsShipping
+    )
+```
+
+Check out our [guide on how to create human-in-the-loop flows](https://docs.prefect.io/latest/guides/creating-human-in-the-loop-workflows/) to learn more!
+
+### Enhancements
+- Update default pause/suspend timeout to 1 hour — https://github.com/PrefectHQ/prefect/pull/11437
+
+### Fixes
+- Resolve environment variables during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11463
+- Fix prompt and role assignment in `ContainerInstanceProvisioner` — https://github.com/PrefectHQ/prefect/pull/11440
+- Ensure dashboard header is responsive to varying tag and date input sizes — https://github.com/PrefectHQ/prefect/pull/11427
+- Fix error when deploying a remotely loaded flow with options — https://github.com/PrefectHQ/prefect/pull/11484
+
+### Experimental
+- Remove title/description from `RunInput` model — https://github.com/PrefectHQ/prefect/pull/11438
+
+### Documentation
+- Add guide to optimizing your code for big data — https://github.com/PrefectHQ/prefect/pull/11225
+- Add guide for integrating Prefect with CI/CD via GitHub Actions — https://github.com/PrefectHQ/prefect/pull/11443
+- Expand upon managed execution and provisioned infrastructure push work pool in tutorial — https://github.com/PrefectHQ/prefect/pull/11444
+- Revise Quickstart to include benefits, remote execution, and core concepts — https://github.com/PrefectHQ/prefect/pull/11461
+- Add additions to human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11487
+- Rename guide on reading and writing data to and from cloud provider storage - https://github.com/PrefectHQ/prefect/pull/11441
+- Update formatting and work pool docs — https://github.com/PrefectHQ/prefect/pull/11479
+- Add documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
+- Fix typo in documentation on`prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11488
+- Add troubleshooting instructions for agents — https://github.com/PrefectHQ/prefect/pull/11475
+- Update README example and language - https://github.com/PrefectHQ/prefect/pull/11171
+- Fix workers graph rendering — https://github.com/PrefectHQ/prefect/pull/11455
+
+### Contributors
+- @1beb made their first contribution in https://github.com/PrefectHQ/prefect/pull/11475
+- @KMDgit made their first contribution in https://github.com/PrefectHQ/prefect/pull/11488
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.11...2.14.12
+
+## Release 2.14.11
+
+### Customize resource names when provisioning infrastructure for push work pools
+
+In the past few releases, we've added the ability to provision infrastructure for push work pools via the CLI. This release adds the ability to customize the name of the resources created in your cloud environment when provisioning infrastructure for push work pools so you can follow your organization's naming conventions.
+
+To customize your resource names when provisioning infrastructure for a push work pool, follow the interactive prompts:
+
+```bash
+? Proceed with infrastructure provisioning with default resource names? [Use arrows to move; enter to select]
+┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃    ┃ Options:                                                                  ┃
+┡━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│    │ Yes, proceed with infrastructure provisioning with default resource names │
+│ >  │ Customize resource names                                                  │
+│    │ Do not proceed with infrastructure provisioning                           │
+└────┴───────────────────────────────────────────────────────────────────────────┘
+? Please enter a name for the resource group (prefect-aci-push-pool-rg): new-rg
+? Please enter a name for the app registration (prefect-aci-push-pool-app): new-app
+? Please enter a prefix for the Azure Container Registry (prefect): newregistry
+? Please enter a name for the identity (used for ACR access) (prefect-acr-identity): new-identity
+? Please enter a name for the ACI credentials block (new-work-pool-push-pool-credentials): new-aci-block
+╭───────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool new-work-pool will require:                │
+│                                                                                           │
+│     Updates in subscription: Azure subscription 1                                         │
+│                                                                                           │
+│         - Create a resource group in location: eastus                                     │
+│         - Create an app registration in Azure AD: new-app                                 │
+│         - Create/use a service principal for app registration                             │
+│         - Generate a secret for app registration                                          │
+│         - Create an Azure Container Registry with prefix newregistry                      │
+│         - Create an identity new-identity to allow access to the created registry         │
+│         - Assign Contributor role to service account                                      │
+│         - Create an ACR registry for image hosting                                        │
+│         - Create an identity for Azure Container Instance to allow access to the registry │
+│                                                                                           │
+│     Updates in Prefect workspace                                                          │
+│                                                                                           │
+│         - Create Azure Container Instance credentials block: new-aci-block                │
+│                                                                                           │
+╰───────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+Creating resource group
+Resource group 'new-rg' created successfully
+Creating app registration
+App registration 'new-app' created successfully
+Generating secret for app registration
+Secret generated for app registration with client ID '03923189-3151-4acd-8d59-76483752cd39'
+Creating ACI credentials block
+ACI credentials block 'new-aci-block' created in Prefect Cloud
+Assigning Contributor role to service account
+Service principal created for app ID '25329389-3151-4acd-8d59-71835252cd39'
+Contributor role assigned to service principal with object ID '483h4c85-4a8f-4fdb-0394-bd0f0b1202d0'
+Creating Azure Container Registry
+Registry created
+Logged into registry newregistry1702538242q2z2.azurecr.io
+Creating identity
+Identity 'new-identity' created
+Provisioning infrastructure. ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Your default Docker build namespace has been set to 'newregistry1702538242q2z2.azurecr.io'.
+Use any image name to build and push to this registry by default:
+
+╭─────────────────────────── example_deploy_script.py ───────────────────────────╮
+│ from prefect import flow                                                       │
+│ from prefect.deployments import DeploymentImage                                │
+│                                                                                │
+│                                                                                │
+│ @flow(log_prints=True)                                                         │
+│ def my_flow(name: str = "world"):                                              │
+│     print(f"Hello {name}! I'm a flow running on an Azure Container Instance!") │
+│                                                                                │
+│                                                                                │
+│ if __name__ == "__main__":                                                     │
+│     my_flow.deploy(                                                            │
+│         name="my-deployment",                                                  │
+│         work_pool_name="my-work-pool",                                         │
+│         image=DeploymentImage(                                                 │
+│             name="my-image:latest",                                            │
+│             platform="linux/amd64",                                            │
+│         )                                                                      │
+│     )                                                                          │
+╰────────────────────────────────────────────────────────────────────────────────╯
+Infrastructure successfully provisioned for 'new-work-pool' work pool!
+Created work pool 'new-work-pool'!
+```
+
+Using a push work pool with automatic infrastructure provisioning is a great way to get started with a production-level Prefect set up in minutes! Check out our [push work pool guide](https://docs.prefect.io/latest/guides/deployment/push-work-pools/) for step-by-step instructions on how to get started!
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11407
+- https://github.com/PrefectHQ/prefect/pull/11381
+- https://github.com/PrefectHQ/prefect/pull/11412
+
+### An updated date time input on the workspace dashboard
+
+We've added a new date and time filter to the workspace dashboard that gives greater control over the dashboard. You can now filter by days, hours, and even minutes. You can also specify a specific date and time range to filter by. You can also go backwards and forwards in time using that time window, for example, you can scroll through by hour.  
+
+See it in action!
+[![Demo of updated time input in the Prefect UI](https://github.com/PrefectHQ/prefect/assets/40272060/045b144f-35ff-4b32-abcd-74eaf16f181c)
+](https://www.loom.com/share/ca099d3792d146d08df6fcd506ff9eb2?sid=70797dda-6dc6-4fe6-bf4a-a9df2a0bf230)
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1937
+- https://github.com/PrefectHQ/prefect-design/pull/1048
+
+
+### Enhancements
+- Add the ability to publish `KubernetesJob` blocks as work pools — https://github.com/PrefectHQ/prefect/pull/11347
+- Add setting to configure a default Docker namespace for image builds — https://github.com/PrefectHQ/prefect/pull/11378
+- Add the ability to provision an ECR repository for ECS push work pools — https://github.com/PrefectHQ/prefect/pull/11382
+- Add ability to provision an Artifact Registry repository for Cloud Run push work pools — https://github.com/PrefectHQ/prefect/pull/11399
+- Add ability to provision an Azure Container Registry for Azure Container Instance push work pools — https://github.com/PrefectHQ/prefect/pull/11387
+- Add support for `is_schedule_active` to `flow.deploy` and `flow.serve` — https://github.com/PrefectHQ/prefect/pull/11375
+- Allow users to select relative and fixed date ranges to filter the dashboard — https://github.com/PrefectHQ/prefect/pull/11406
+- Add support for arbitrary sink types to `prefect.utilities.processutils.stream_text` — https://github.com/PrefectHQ/prefect/pull/11298
+- Update the Prefect UI deployments page to add run activity and separate out the deployment and flow names — https://github.com/PrefectHQ/prefect/pull/11394  
+- Update Prefect UI workspace dashboard filters to use new date range - https://github.com/PrefectHQ/prefect-ui-library/pull/1937
+
+### Fixes
+- Fix bug where a pause state reused an existing state ID — https://github.com/PrefectHQ/prefect/pull/11405
+
+### Experimental
+- Build out API for creating/reading/deleting flow run inputs — https://github.com/PrefectHQ/prefect/pull/11363
+- Integrate flow run input and schema/response mechanics into pause/suspend — https://github.com/PrefectHQ/prefect/pull/11376
+- Add typing overloads for pause/suspend methods — https://github.com/PrefectHQ/prefect/pull/11403
+- Use bytes for `value` in `create_flow_run_input` — https://github.com/PrefectHQ/prefect/pull/11421
+- Validate run input when resuming flow runs — https://github.com/PrefectHQ/prefect/pull/11396
+- Run existing deployments via the `Runner` webserver — https://github.com/PrefectHQ/prefect/pull/11333
+
+### Documentation
+- Add instructions for automatic infrastructure provisioning to the push work pools guide — https://github.com/PrefectHQ/prefect/pull/11316
+- Fix broken links in states concept doc and daemonize guide — https://github.com/PrefectHQ/prefect/pull/11374
+- Update agent upgrade guide to include `flow.deploy` and examples — https://github.com/PrefectHQ/prefect/pull/11373
+- Update block document names in Moving Data guide  — https://github.com/PrefectHQ/prefect/pull/11386
+- Rename `Guides` to` How-to Guides` — https://github.com/PrefectHQ/prefect/pull/11388
+- Add guide to provision infrastructure for existing push work pools  — https://github.com/PrefectHQ/prefect/pull/11365
+- Add documentation for required permissions for infrastructure provisioning — https://github.com/PrefectHQ/prefect/pull/11417
+- Add docs for managed execution open beta — https://github.com/PrefectHQ/prefect/pull/11397, https://github.com/PrefectHQ/prefect/pull/11426, and https://github.com/PrefectHQ/prefect/pull/11425
+
+### Contributors
+- @j-tr
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.10...2.14.11
+
 ## Release 2.14.10
 
 ### Azure Container Instance push pool infrastructure provisioning via the CLI

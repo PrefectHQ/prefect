@@ -140,9 +140,10 @@ nav:
           - tutorial/index.md
           - Flows: tutorial/flows.md
           - Tasks: tutorial/tasks.md
-          - Deploying Flows: tutorial/deployments.md
-          - Workers & Work Pools: tutorial/workers.md
-    - Guides:
+          - Deployments: tutorial/deployments.md
+          - Work Pools: tutorial/work-pools.md
+          - Workers: tutorial/workers.md
+    - How-to Guides:
           - guides/index.md
           - Development:
                 - Hosting: guides/host.md
@@ -152,16 +153,20 @@ nav:
                 - Runtime Context: guides/runtime-context.md
                 - Variables: guides/variables.md
                 - Prefect Client: guides/using-the-client.md
+                - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
+                - CI/CD: guides/ci-cd.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
-                - Moving data: guides/moving-data.md
+                - Read and Write Data: guides/moving-data.md
+                - Big Data: guides/big-data.md
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
+                - Managed Execution: guides/managed-execution.md
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
@@ -184,6 +189,7 @@ nav:
           - Task Runners: concepts/task-runners.md
           - Events: concepts/events.md
           - Automations: concepts/automations.md
+          - Incidents: concepts/incidents.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
@@ -238,7 +244,7 @@ nav:
                       - "deploy": api-ref/prefect/cli/deploy.md
                       - "deployment": api-ref/prefect/cli/deployment.md
                       - "dev": api-ref/prefect/cli/dev.md
-                      - "flow": api-ref/prefect/cli/flows.md
+                      - "flow": api-ref/prefect/cli/flow.md
                       - "flow_run": api-ref/prefect/cli/flow_run.md
                       - "kubernetes": api-ref/prefect/cli/kubernetes.md
                       - "profile": api-ref/prefect/cli/profile.md
@@ -270,6 +276,9 @@ nav:
                 - "prefect.flows": api-ref/prefect/flows.md
                 - "prefect.futures": api-ref/prefect/futures.md
                 - "prefect.infrastructure": api-ref/prefect/infrastructure.md
+                - "prefect.input":
+                      - "actions": api-ref/prefect/input/actions.md
+                      - "run_input": api-ref/prefect/input/run_input.md
                 - "prefect.logging":
                       - "configuration": api-ref/prefect/logging/configuration.md
                       - "formatters": api-ref/prefect/logging/formatters.md
@@ -357,7 +366,6 @@ nav:
           - Contributing: contributing/overview.md
           - Style: contributing/style.md
           - Versioning: contributing/versioning.md
-          - Troubleshooting: contributing/common-mistakes.md
 social:
     - icon: fontawesome/brands/slack
       link: https://www.prefect.io/slack/

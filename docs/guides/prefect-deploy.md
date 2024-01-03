@@ -19,12 +19,13 @@ search:
 
 # Deploying Flows to Work Pools and Workers
 
-In this guide, we will configure a deployment that uses a work pool for for dynamically provisioned infrastructure.
+In this guide, we will configure a deployment that uses a work pool for dynamically provisioned infrastructure.
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
 With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
 
-A deployment turns your workflow into an application that can be interacted with and managed via the Prefect API. A deployment enables you to:
+A deployment turns your workflow into an application that can be interacted with and managed via the Prefect API.
+A deployment enables you to:
 
 - Schedule flow runs.
 - Specify event triggers for flow runs.
@@ -43,12 +44,10 @@ Work pool-based deployments contain information about the infrastructure type an
 
 Work pool-based deployment infrastructure options include the following:
 
-- Process - runs flow in a subprocess. Generally better off using `.serve`
+- Process - runs flow in a subprocess. In most cases, you're better off using `.serve`.
 - [Docker](/guides/deployment/docker/) - runs flows in an ephemeral Docker container.
 - [Kubernetes](/guides/deployment/kubernetes/) - runs flows as a Kubernetes Job.
-<!-- - [Serverless Cloud Provider options] TK - Jeff PR in progress, awaiting ACI PR in progress - runs flows in a Docker container in a serverless cloud provider environment, such as AWS ECS, Azure Container Instance, Google Cloud Run, or Vertex AI. -->
-
-Work pool-based deployments also allow you to assign a work queue name to prioritize work and allow you to limit concurrent runs at the work pool level.
+- [Serverless Cloud Provider options](/guides/deployment/serverless-workers/) - runs flows in a Docker container in a serverless cloud provider environment, such as AWS ECS, Azure Container Instance, Google Cloud Run, or Vertex AI.
 
 The following diagram provides a high-level overview of the conceptual elements involved in defining a work-pool based deployment that is polled by a worker and executes a flow run based on that deployment.
 
@@ -95,13 +94,15 @@ The work pool types above require a worker to be running on your infrastructure 
 
     Prefect Cloud offers other flavors of work pools that don't require a worker:
 
-    - [Push Work Pools](/guides/deployment/push-work-pools) - serverless cloud options that don't require a worker because Prefect Cloud submits them to your cloud provider on your behalf.
+    - [Push Work Pools](/guides/deployment/push-work-pools) - serverless cloud options that don't require a worker because Prefect Cloud submits them to your serverless cloud infrastructure on your behalf. Prefect can auto-provision your cloud infrastructure for you and set it up to use your work pool.
     
-    <!-- - [Managed Execution]() TK - Prefect Cloud submits and runs your deployment on serverless infrastructure TK - Jake PR in progress -->
+    - [Managed Execution](/guides/managed-execution/) Prefect Cloud submits and runs your deployment on serverless infrastructure. No cloud provider account required.
 
 In this guide, we focus on deployments that require a worker.
 
-When creating a deployment that uses a work pool, we must answer _two_ basic questions:
+Work pool-based deployments that use a worker also allow you to assign a work queue name to prioritize work and allow you to limit concurrent runs at the work pool level.
+
+When creating a deployment that uses a work pool and worker, we must answer _two_ basic questions:
 
 - What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow? For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
@@ -111,9 +112,9 @@ When creating a deployment that uses a work pool, we must answer _two_ basic que
 The [tutorial](/tutorial/deployments/) shows how you can create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`.
 See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools).
 
-In this guide, we will explore how to use `.deploy` in more depth and discuss `prefect.yaml`, a YAML-based alternative for managing deployments.
+In this guide, we show how to use `.deploy` in more depth and discuss `prefect.yaml`, a YAML-based alternative for managing deployments.
 
-Use the tabs below to explore both deployment creation options.
+Use the tabs below to explore these two deployment creation options.
 
 === ".deploy"
 
@@ -266,6 +267,30 @@ Use the tabs below to explore both deployment creation options.
     Note that we used a [Prefect Secret block](/concepts/blocks/) to load the URL configuration for the artifact registry above.
 
     See all the optional keyword arguments for the DeploymentImage class [here](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build). 
+
+    !!! tip "Default Docker namespace"
+        You can set the `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to append a default Docker namespace to all images you build with `.deploy`. This is great if you use a private registry to store your images.
+
+        To set a default Docker namespace for your current profile run:
+
+        <div class="terminal">
+        ```bash
+        prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
+        ```
+        </div>
+
+        Once set, you can omit the namespace from your image name when creating a deployment:
+
+        ```python hl_lines="5" title="with_default_docker_namespace.py"
+        if __name__ == "__main__":
+            buy.deploy(
+                name="my-code-baked-into-an-image-deployment", 
+                work_pool_name="my-docker-pool", 
+                image="my_image:my_image_tag"
+            )
+        ```
+
+        The above code will build an image with the format `<docker-registry-url>/<organization-or-username>/my_image:my_image_tag` when `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
 
     While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
