@@ -302,14 +302,18 @@ nav:
                       - "task_run": api-ref/prefect/runtime/task_run.md
                 - "prefect.serializers": api-ref/prefect/serializers.md
                 - "prefect.settings": api-ref/prefect/settings.md
+                - "prefect.software": api-ref/prefect/software.md
                 - "prefect.states": api-ref/prefect/states.md
                 - "prefect.task_runners": api-ref/prefect/task-runners.md
                 - "prefect.tasks": api-ref/prefect/tasks.md
+                - "prefect.testing": api-ref/prefect/testing.md
                 - "prefect.utilities":
                       - "annotations": api-ref/prefect/utilities/annotations.md
                       - "asyncutils": api-ref/prefect/utilities/asyncutils.md
                       - "callables": api-ref/prefect/utilities/callables.md
                       - "collections": api-ref/prefect/utilities/collections.md
+                      - "compat": api-ref/prefect/utilities/compat.md
+                      - "context": api-ref/prefect/utilities/context.md
                       - "dispatch": api-ref/prefect/utilities/dispatch.md
                       - "dockerutils": api-ref/prefect/utilities/dockerutils.md
                       - "filesystem": api-ref/prefect/utilities/filesystem.md
