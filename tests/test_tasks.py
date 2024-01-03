@@ -3788,3 +3788,10 @@ class TestTaskHooksOnFailure:
         state = my_flow._run()
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1")]
+
+    async def test_task_condition_fn_raises_when_not_a_callable(self):
+        with pytest.raises(TypeError):
+
+            @task(retry_condition_fn="not a callable")
+            def my_task():
+                ...
