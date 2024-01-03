@@ -285,6 +285,7 @@ nav:
                       - "handlers": api-ref/prefect/logging/handlers.md
                       - "highlighters": api-ref/prefect/logging/highlighters.md
                       - "loggers": api-ref/prefect/logging/loggers.md
+                - "prefect.manifests": api-ref/prefect/manifests.md
                 - "prefect.packaging":
                       - "base": api-ref/prefect/packaging/base.md
                       - "docker": api-ref/prefect/packaging/docker.md
