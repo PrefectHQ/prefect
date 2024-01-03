@@ -13,7 +13,7 @@ import prefect.runtime
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.exceptions import MissingFlowError
+from prefect.exceptions import MissingFlowError, ScriptError
 from prefect.flows import load_flow_from_entrypoint, load_flows_from_script
 from prefect.runner.utils import (
     inject_schemas_into_openapi,
@@ -40,7 +40,6 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel
 
-logger = prefect.logging.get_logger("runner.server")
 
 RunnableEndpoint = Literal["deployment", "flow", "task"]
 
@@ -178,7 +177,7 @@ def _build_generic_endpoint_for_flows(
     ) -> JSONResponse:
         try:
             flow = load_flow_from_entrypoint(body.entrypoint)
-        except MissingFlowError:
+        except (MissingFlowError, ScriptError):
             return JSONResponse(
                 status_code=status.HTTP_404_NOT_FOUND,
                 content={"message": "Flow not found"},
