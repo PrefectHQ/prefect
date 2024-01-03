@@ -268,7 +268,7 @@ def some_task_with_manual_backoff_retries():
    ...
 ```
 
-The `retry_condition_fn` option accepts a callable that returns a boolean. If the callable returns `True`, the task will be retried. If the callable returns `False`, the task will not be retried. The callable accepts three arguments &mdash; the task, the task run, and the state of the task run. The following task will retry on non-401 and non-404 HTTP status codes:
+The `retry_condition_fn` option accepts a callable that returns a boolean. If the callable returns `True`, the task will be retried. If the callable returns `False`, the task will not be retried. The callable accepts three arguments &mdash; the task, the task run, and the state of the task run. The following task will retry on HTTP status codes other than 401 or 404:
 
 ```python
 import httpx
