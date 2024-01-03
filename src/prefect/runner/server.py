@@ -7,10 +7,10 @@ from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
-import prefect.runtime
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
+from prefect.flows import load_flow_from_entrypoint
 from prefect.runner.utils import (
-    _find_subflows_of_deployment,
     inject_schemas_into_openapi,
 )
 from prefect.settings import (
@@ -26,11 +26,21 @@ from prefect.utilities.hashing import hash_objects
 from prefect.utilities.validation import validate_values_conform_to_schema
 
 if TYPE_CHECKING:
-    from prefect import Flow
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
+
+
 RunnableEndpoint = Literal["deployment", "flow", "task"]
+
+
+class RunnerGenericFlowRunRequest(BaseModel):
+    entrypoint: str
+    parameters: Optional[Dict[str, Any]] = None
 
 
 def _hash_prefect_callable(prefect_callable: Callable) -> str:
@@ -136,60 +146,27 @@ async def get_deployment_router(
     return router, schemas
 
 
-async def _build_endpoint_for_flow(
-    flow: "Flow", runner: "Runner", entrypoint: str
-) -> Callable:
-    async def _create_flow_run_for_flow(
-        body: Optional[Dict[Any, Any]] = None
+def _build_generic_endpoint_for_flows(runner: "Runner") -> Callable:
+    async def _create_flow_run_for_flow_from_fqn(
+        body: RunnerGenericFlowRunRequest,
     ) -> JSONResponse:
-        body = body or {}
-        if flow.parameters:
-            try:
-                validate_values_conform_to_schema(body, flow.parameters.dict())
-            except ValueError as exc:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    detail=f"Error creating flow run: {exc}",
-                )
+        flow = load_flow_from_entrypoint(body.entrypoint)
 
         async with get_client() as client:
-            flow_run = await client.create_flow_run(flow=flow, parameters=body)
+            flow_run = await client.create_flow_run(
+                flow=flow, parameters=body.parameters
+            )
 
-        # Schedule the background task
-        runner.execute_in_background(runner.execute_flow_run, flow_run.id, entrypoint)
+        runner.execute_in_background(
+            runner.execute_flow_run, flow_run.id, body.entrypoint
+        )
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={"flow_run_id": str(flow_run.id)},
         )
 
-    return _create_flow_run_for_flow
-
-
-async def get_subflow_router(
-    runner: "Runner",
-) -> Tuple[APIRouter, Dict[str, Dict]]:
-    router = APIRouter()
-    schemas = {}
-    async with get_client() as client:
-        for deployment_id in runner._deployment_ids:
-            deployment = await client.read_deployment(deployment_id)
-            for entrypoint, subflow in await _find_subflows_of_deployment(deployment):
-                subflow_hash = _hash_prefect_callable(subflow)
-                router.add_api_route(
-                    f"/flow/{subflow_hash}/run",
-                    await _build_endpoint_for_flow(subflow, runner, entrypoint),
-                    methods=["POST"],
-                    name=f"Run {subflow.name} in background {subflow_hash[:8]}",
-                    description=(
-                        "Trigger a flow run for a flow as a background task on the"
-                        " runner."
-                    ),
-                    summary=f"Run {subflow.name}",
-                )
-                schemas[f"{subflow.name}-{subflow_hash}"] = subflow.parameters.dict()
-                schemas[subflow_hash] = subflow.name
-    return router, schemas
+    return _create_flow_run_for_flow_from_fqn
 
 
 @sync_compatible
@@ -213,16 +190,21 @@ async def build_server(runner: "Runner") -> FastAPI:
 
     if PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
         deployments_router, deployment_schemas = await get_deployment_router(runner)
-        flows_router, flow_schemas = await get_subflow_router(runner)
         webserver.include_router(deployments_router)
-        webserver.include_router(flows_router)
+        webserver.add_api_route(
+            "/flow/run",
+            _build_generic_endpoint_for_flows(runner=runner),
+            methods=["POST"],
+            name="Run flow in background",
+            description="Trigger any flow run as a background task on the runner.",
+            summary="Run flow",
+        )
 
         def customize_openapi():
             if webserver.openapi_schema:
                 return webserver.openapi_schema
 
-            schemas_to_inject = {**deployment_schemas, **flow_schemas}
-            openapi_schema = inject_schemas_into_openapi(webserver, schemas_to_inject)
+            openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
             webserver.openapi_schema = openapi_schema
             return webserver.openapi_schema
 
@@ -247,10 +229,10 @@ def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
 
 
 @sync_compatible
-async def run_in_background(
-    endpoint_type: RunnableEndpoint,
+async def submit_to_runner(
     prefect_callable: Callable,
     fn_kwargs: Dict[str, Any],
+    # capture_errors: bool = SETTING.value()?
 ) -> None:
     """
     Run a callable in the background via the runner webserver.
@@ -259,19 +241,18 @@ async def run_in_background(
         prefect_callable: the callable to run, e.g. a flow or task
         fn_kwargs: the keyword arguments to pass to the callable
     """
-    callable_identifier = (
-        _hash_prefect_callable(prefect_callable)
-        if endpoint_type in ("flow", "task")
-        else prefect.runtime.deployment.id
-    )
+    object_type = prefect_callable.__class__.__name__.lower()
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
             (
                 f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
                 f":{PREFECT_RUNNER_SERVER_PORT.value()}"
-                f"/{endpoint_type}/{callable_identifier}/run"
+                f"/{object_type}/run"
             ),
-            json=fn_kwargs,
+            json={
+                "entrypoint": prefect_callable._entrypoint,
+                "parameters": fn_kwargs,
+            },
         )
         response.raise_for_status()

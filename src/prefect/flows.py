@@ -350,6 +350,13 @@ class Flow(Generic[P, R]):
         self._storage: Optional[RunnerStorage] = None
         self._entrypoint: Optional[str] = None
 
+        module = fn.__module__
+        if module in ("__main__", "__prefect_loader__"):
+            module_name = inspect.getfile(fn)
+            module = module_name if module_name != "__main__" else module
+
+        self._entrypoint = f"{module}:{fn.__name__}"
+
     def with_options(
         self,
         *,

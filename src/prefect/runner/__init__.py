@@ -1,2 +1,2 @@
 from .runner import Runner, serve
-from .server import run_in_background
+from .server import submit_to_runner
