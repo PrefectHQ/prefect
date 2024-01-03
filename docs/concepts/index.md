@@ -26,7 +26,6 @@ search:
 | __[Blocks](/concepts/blocks)__                     | Prefect primitives that enable the storage of configuration and provide a UI interface.          |
 | __[Task Runners](/concepts/task-runners)__         | Configure how tasks are run - concurrently, in parallel, or in a distributed environment. |
 | __[Automations](/concepts/automations)__           | Configure actions that Prefect executes automatically based on trigger conditions.         |
-| __[Incidents](/concepts/incidents)__               | Track and manage workflow disruptions.         |
 
 |  Block and Agent-Based Deployments                 | Description   |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
