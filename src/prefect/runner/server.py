@@ -1,5 +1,4 @@
 import uuid
-from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import anyio
@@ -11,9 +10,7 @@ from typing_extensions import Literal
 
 import prefect.runtime
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas.objects import FlowRun
-from prefect.client.utilities import inject_client
+from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import load_flow_from_entrypoint
 from prefect.runner.utils import (
@@ -27,7 +24,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
-from prefect.tasks import Task
+from prefect.tasks import Task, task
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
 from prefect.utilities.validation import validate_values_conform_to_schema
@@ -234,36 +231,12 @@ def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
     uvicorn.run(webserver, host=host, port=port, log_level=log_level)
 
 
-async def track_flow_run(
-    flow_run_id: uuid.UUID,
-    timeout: Optional[float] = None,
-    poll_interval: Optional[float] = 5,
-) -> FlowRun:
-    """
-    Track a flow run until it finishes.
-
-    Args:
-        flow_run_id (uuid.UUID): the flow run to wait for
-    """
-    async with get_client() as client:
-        with anyio.move_on_after(timeout):
-            while True:
-                flow_run = await client.read_flow_run(flow_run_id)
-                flow_state = flow_run.state
-                if flow_state and flow_state.is_final():
-                    return flow_run
-                await anyio.sleep(poll_interval)
-
-
-@sync_compatible
-@inject_client
-async def submit_to_runner(
+async def _submit_to_runner(
     prefect_callable: Callable,
     parameters: Dict[str, Any],
     timeout: Optional[float] = None,
     poll_interval: Optional[float] = 5,
     # capture_errors: bool = SETTING.value()?
-    client: Optional[PrefectClient] = None,
 ) -> None:
     """
     Run a callable in the background via the runner webserver.
@@ -274,73 +247,108 @@ async def submit_to_runner(
         timeout: the maximum time to wait for the callable to finish
         poll_interval: the interval (in seconds) to wait between polling the callable
     """
-    object_type = prefect_callable.__class__.__name__.lower()
+    async with get_client() as client:
+        object_type = prefect_callable.__class__.__name__.lower()
 
-    if object_type not in ["flow", "task"]:
-        raise ValueError(
-            f"Object type {object_type!r} cannot be submitted to the runner."
-        )
+        if object_type not in ["flow", "task"]:
+            raise ValueError(
+                f"Object type {object_type!r} cannot be submitted to the runner."
+            )
 
-    flow_run_ctx = FlowRunContext.get()
-    task_run_ctx = TaskRunContext.get()
+        flow_run_ctx = FlowRunContext.get()
+        task_run_ctx = TaskRunContext.get()
 
-    if flow_run_ctx or task_run_ctx:
-        from prefect.engine import (
-            Pending,
-            _dynamic_key_for_task_run,
-            collect_task_run_inputs,
-        )
+        if flow_run_ctx or task_run_ctx:
+            from prefect.engine import (
+                Pending,
+                _dynamic_key_for_task_run,
+                collect_task_run_inputs,
+            )
 
-        task_inputs = {
-            k: await collect_task_run_inputs(v) for k, v in parameters.items()
-        }
+            task_inputs = {
+                k: await collect_task_run_inputs(v) for k, v in parameters.items()
+            }
 
-        flow_run_id = (
-            flow_run_ctx.flow_run.id
-            if flow_run_ctx
-            else task_run_ctx.task_run.flow_run_id
-        )
+            flow_run_id = (
+                flow_run_ctx.flow_run.id
+                if flow_run_ctx
+                else task_run_ctx.task_run.flow_run_id
+            )
 
-        deployment_id = prefect.runtime.deployment.id or "local"
+            deployment_id = prefect.runtime.deployment.id or "local"
 
-        dummy_task = Task(
-            name=prefect_callable.name,
-            fn=partial(
-                track_flow_run,
+            dummy_task = Task(
+                name=prefect_callable.name,
+                fn=lambda: None,
+            )
+
+            dummy_task.task_key = f"{__name__}.run_{object_type}.{slugify(prefect_callable.name)}_{deployment_id}"
+
+            dynamic_key = (
+                _dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+                if flow_run_ctx
+                else task_run_ctx.task_run.dynamic_key
+            )
+            parent_task_run = await client.create_task_run(
+                task=dummy_task,
                 flow_run_id=flow_run_id,
-                timeout=timeout,
-                poll_interval=poll_interval,
+                dynamic_key=dynamic_key,
+                task_inputs=task_inputs,
+                state=Pending(),
+            )
+            parent_task_run_id = parent_task_run.id
+        else:
+            parent_task_run_id = None
+
+        response = await client._client.post(
+            (
+                f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
+                f":{PREFECT_RUNNER_SERVER_PORT.value()}"
+                f"/{object_type}/run"
             ),
+            json={
+                "entrypoint": prefect_callable._entrypoint,
+                "parameters": parameters,
+                "parent_task_run_id": str(parent_task_run_id),
+            },
         )
+        response.raise_for_status()
 
-        dummy_task.task_key = f"{__name__}.run_{object_type}.{slugify(prefect_callable.name)}_{deployment_id}"
+        if timeout == 0:
+            return
 
-        dynamic_key = (
-            _dynamic_key_for_task_run(flow_run_ctx, dummy_task)
-            if flow_run_ctx
-            else task_run_ctx.task_run.dynamic_key
-        )
-        parent_task_run = await client.create_task_run(
-            task=dummy_task,
-            flow_run_id=flow_run_id,
-            dynamic_key=dynamic_key,
-            task_inputs=task_inputs,
-            state=Pending(),
-        )
-        parent_task_run_id = parent_task_run.id
-    else:
-        parent_task_run_id = None
+        new_flow_run_id = response.json()["flow_run_id"]
 
-    response = await client._client.post(
-        (
-            f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
-            f":{PREFECT_RUNNER_SERVER_PORT.value()}"
-            f"/{object_type}/run"
-        ),
-        json={
-            "entrypoint": prefect_callable._entrypoint,
-            "parameters": parameters,
-            "parent_task_run_id": str(parent_task_run_id),
-        },
+        with anyio.move_on_after(timeout):
+            while True:
+                flow_run = await client.read_flow_run(new_flow_run_id)
+                flow_state = flow_run.state
+                if flow_state and flow_state.is_final():
+                    return flow_run
+                await anyio.sleep(poll_interval)
+
+
+@sync_compatible
+async def submit_to_runner(
+    prefect_callable: Callable,
+    parameters: Dict[str, Any],
+    timeout: Optional[float] = None,
+    poll_interval: Optional[float] = 5,
+    # capture_errors: bool = SETTING.value()?
+) -> None:
+    """
+    Run a callable in the background via the runner webserver.
+
+    Args:
+        prefect_callable: the callable to run, e.g. a flow or task
+        parameters: the keyword arguments to pass to the callable
+        timeout: the maximum time to wait for the callable to finish
+        poll_interval: the interval (in seconds) to wait between polling the callable
+    """
+
+    task(_submit_to_runner).submit(
+        prefect_callable,
+        parameters,
+        timeout,
+        poll_interval,
     )
-    response.raise_for_status()
