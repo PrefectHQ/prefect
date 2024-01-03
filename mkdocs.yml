@@ -189,7 +189,6 @@ nav:
           - Task Runners: concepts/task-runners.md
           - Events: concepts/events.md
           - Automations: concepts/automations.md
-          - Incidents: concepts/incidents.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
@@ -209,6 +208,7 @@ nav:
                 - Teams: cloud/users/teams.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
+          - Incidents: cloud/incidents.md
     - Integrations:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
