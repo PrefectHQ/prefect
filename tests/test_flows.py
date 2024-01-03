@@ -3255,7 +3255,7 @@ class TestFlowToDeployment:
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
-    async def test_to_deployment_fails_forward_slash(self):
+    async def test_to_deployment_invalid_name_raises(self):
         name = "test/deployment"
         expected_message = (
             f"Invalid deployment name {name!r}. Deployment names cannot contain"
