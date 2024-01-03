@@ -873,7 +873,7 @@ Prefect enables pausing an in-progress flow run for manual approval. Prefect exp
 !!! note "Timeouts"
     Paused flow runs time out after one hour by default. After the timeout, the flow run will fail with a message saying it paused and never resumed. You can specify a different timeout period in seconds using the `timeout` parameter.
 
-Most simply, `pause_flow_run` can be called inside a flow.
+Most simply, `pause_flow_run` can be called inside a flow:
 
 ```python
 from prefect import task, flow, pause_flow_run, resume_flow_run
@@ -893,6 +893,27 @@ async def inspiring_joke():
     await marvin_setup()
     await pause_flow_run(timeout=600)  # pauses for 10 minutes
     await marvin_punchline()
+```
+
+You can also implement conditional pauses:
+
+```python
+from prefect import task, flow, pause_flow_run
+
+@task
+def task_one():
+    for i in range(3):
+        sleep(1)
+        print(i)
+
+@flow
+def my_flow():
+    terminal_state = task_one.submit(return_state=True)
+    if terminal_state.type == StateType.COMPLETED:
+        print("Task one succeeded! Pausing flow run..")
+        pause_flow_run(timeout=2) 
+    else:
+        print("Task one failed. Skipping pause flow run..")
 ```
 
 Calling this flow will block code execution after the first task and wait for resumption to deliver the punchline.
