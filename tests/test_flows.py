@@ -3255,6 +3255,10 @@ class TestFlowToDeployment:
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
+    async def test_to_deployment_invalid_name_raises(self):
+        with pytest.raises(InvalidNameError, match="contains an invalid character"):
+            await test_flow.to_deployment("test/deployment")
+
     @pytest.mark.parametrize(
         "kwargs",
         [
