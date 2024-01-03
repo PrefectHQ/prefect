@@ -273,8 +273,6 @@ async def submit_to_runner(
         parameters: the keyword arguments to pass to the callable
         timeout: the maximum time to wait for the callable to finish
         poll_interval: the interval (in seconds) to wait between polling the callable
-        influence_parent_final_state: if True, the parent flow's final state will be
-            influenced by the final state of this callable
     """
     object_type = prefect_callable.__class__.__name__.lower()
 
