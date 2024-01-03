@@ -30,7 +30,7 @@ from prefect._internal.schemas.validators import (
     raise_on_name_with_banned_characters,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.settings import PREFECT_CLOUD_API_URL
+from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
 
@@ -776,6 +776,16 @@ class Workspace(PrefectBaseModel):
             f"{PREFECT_CLOUD_API_URL.value()}"
             f"/accounts/{self.account_id}"
             f"/workspaces/{self.workspace_id}"
+        )
+
+    def ui_url(self) -> str:
+        """
+        Generate the UI URL for accessing this workspace
+        """
+        return (
+            f"{PREFECT_CLOUD_UI_URL.value()}"
+            f"/account/{self.account_id}"
+            f"/workspace/{self.workspace_id}"
         )
 
     def __hash__(self):

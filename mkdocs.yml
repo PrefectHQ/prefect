@@ -140,8 +140,9 @@ nav:
           - tutorial/index.md
           - Flows: tutorial/flows.md
           - Tasks: tutorial/tasks.md
-          - Deploying Flows: tutorial/deployments.md
-          - Workers & Work Pools: tutorial/workers.md
+          - Deployments: tutorial/deployments.md
+          - Work Pools: tutorial/work-pools.md
+          - Workers: tutorial/workers.md
     - How-to Guides:
           - guides/index.md
           - Development:
@@ -207,6 +208,7 @@ nav:
                 - Teams: cloud/users/teams.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
+          - Incidents: cloud/incidents.md
     - Integrations:
           - integrations/index.md
           - Using Integrations: integrations/usage.md

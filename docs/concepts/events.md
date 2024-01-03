@@ -18,7 +18,7 @@ Events power several features in Prefect Cloud, including flow run logs, audit l
 
 Events can represent API calls, state transitions, or changes in your execution environment or infrastructure.
 
-Events enable observability into your data stack via the [event feed](/ui/events/#event-feed), and the configuration of Prefect's reactivity via [automations](/ui/automations/).
+Events enable observability into your data stack via the [event feed](/ui/events/#event-feed), and the configuration of Prefect's reactivity via [automations](/concepts/automations/).
 
 ![Prefect UI](/img/ui/event-feed.png)
 
