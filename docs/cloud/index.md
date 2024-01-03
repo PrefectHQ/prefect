@@ -99,8 +99,9 @@ Automations also enable you to create event-driven workflows.
 
 ## Incidents <span class="badge pro"></span> <span class="badge enterprise"></span> <span class="badge beta"/>
 
-Prefect Cloud's [incidents](/concepts/incidents/)  help teams identify, rectify, and document issues in mission-critical workflows. 
-Incidents are formal declarations of disruptions to a workspace. With Automations, activity in that workspace can be paused when an incident is created and resumed when it is resolved.
+Prefect Cloud's [incidents](/concepts/incidents/)  help teams identify, rectify, and document issues in mission-critical workflows.
+Incidents are formal declarations of disruptions to a workspace.
+With [automations](/cloud/incidents/#incident-automations)), activity in that workspace can be paused when an incident is created and resumed when it is resolved.
 
 ## Error summaries
 
