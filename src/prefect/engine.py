@@ -1028,6 +1028,24 @@ async def pause_flow_run(
             resumed without providing the input, the flow will fail. If the flow is
             resumed with the input, the flow will resume and the input will be loaded
             and returned from this function.
+
+    Example:
+    ```python
+    @task
+    def task_one():
+        for i in range(3):
+            sleep(1)
+
+    @flow
+    def my_flow():
+        terminal_state = task_one.submit(return_state=True)
+        if terminal_state.type == StateType.COMPLETED:
+            print("Task one succeeded! Pausing flow run..")
+            pause_flow_run(timeout=2)
+        else:
+            print("Task one failed. Skipping pause flow run..")
+    ```
+
     """
     if flow_run_id:
         if wait_for_input is not None:
