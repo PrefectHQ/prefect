@@ -41,7 +41,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-from contextlib import nullcontext
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
@@ -91,6 +90,7 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import (
+    asyncnullcontext,
     is_async_fn,
     sync_compatible,
 )
@@ -449,7 +449,7 @@ class Runner:
         the flow run process has exited.
         """
         self.pause_on_shutdown = False
-        context = self if not self.started else nullcontext()
+        context = self if not self.started else asyncnullcontext()
 
         async with context:
             if not self._acquire_limit_slot(flow_run_id):
