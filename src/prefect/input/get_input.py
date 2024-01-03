@@ -3,6 +3,7 @@ from typing import (
     Generic,
     Literal,
     Optional,
+    Set,
     Type,
     TypeVar,
     Union,
@@ -65,7 +66,7 @@ class GetInput(Generic[T]):
         timeout: Optional[float] = 3600,
         poll_interval: float = 10,
         raise_timeout_error: bool = False,
-        exclude_keys: Optional[set[str]] = None,
+        exclude_keys: Optional[Set[str]] = None,
     ):
         self.run_input_cls = run_input_cls
         self.timeout = timeout
@@ -164,7 +165,7 @@ def get_input(
     timeout: Optional[float] = 3600.0,
     poll_interval: float = 10.0,
     raise_timeout_error: bool = False,
-    exclude_keys: Optional[set[str]] = None,
+    exclude_keys: Optional[Set[str]] = None,
 ) -> GetInput[T]:
     ...
 
@@ -176,7 +177,7 @@ def get_input(
     timeout: Optional[float] = 3600.0,
     poll_interval: float = 10.0,
     raise_timeout_error: bool = False,
-    exclude_keys: Optional[set[str]] = None,
+    exclude_keys: Optional[Set[str]] = None,
 ) -> GetInputUnwrapped[T]:
     ...
 
@@ -188,7 +189,7 @@ def get_input(
     timeout: Optional[float] = 3600.0,
     poll_interval: float = 10.0,
     raise_timeout_error: bool = False,
-    exclude_keys: Optional[set[str]] = None,
+    exclude_keys: Optional[Set[str]] = None,
 ) -> GetInputUnwrapped[T]:
     ...
 
@@ -199,7 +200,7 @@ def get_input(
     timeout: Optional[float] = 3600.0,
     poll_interval: float = 10.0,
     raise_timeout_error: bool = False,
-    exclude_keys: Optional[set[str]] = None,
+    exclude_keys: Optional[Set[str]] = None,
 ):
     """
     Get input for the given run input class.
@@ -215,7 +216,7 @@ def get_input(
         raise_timeout_error (bool, optional): when used as a generator whether
             or not to raise a `TimeoutError` if the timeout is reached,
             defaults to `False`
-        exclude_keys (Optional[set[str]], optional): keys to exclude from the
+        exclude_keys (Optional[Set[str]], optional): keys to exclude from the
             input
     """
 
@@ -233,7 +234,7 @@ def get_input(
         return GetInputUnwrapped(**kwargs)
 
 
-class InputWrapper(Generic[T], pydantic.BaseModel):
+class InputWrapper(pydantic.BaseModel, Generic[T]):
     value: T
     key: str
     sender: Optional[str] = None
