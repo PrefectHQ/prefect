@@ -183,7 +183,7 @@ async def wait_for_submitted_runs(
         response.raise_for_status()
         fetched_ids = response.json()
 
-        fetched_flow_run_ids: set[uuid.UUID] = {
+        fetched_flow_run_ids: Set[uuid.UUID] = {
             flow_run_id
             for run_details in fetched_ids
             if (flow_run_id := run_details.get("flow_run_id"))
