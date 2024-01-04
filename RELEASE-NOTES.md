@@ -8,8 +8,13 @@ Those who run Prefect server in an environment where arbitrary outbound internet
 See the following PR for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/11503
 
+## Introducing conditional task retries for enhanced workflow control
+In this release, we're excited to introduce the ability to conditionally retry tasks by passing in an argument to `retry_condition_fn` in your task decorator, enabling more nuanced and flexible retry mechanisms. This adds a significant level of control and efficiency, particularly in handling complex or unpredictable task outcomes. For more information on usage, check out our [docs](https://github.com/PrefectHQ/prefect/pull/11535)!
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11500
+
 ### Enhancements
-- Add ability to conditionally retry tasks with `retry_condition_fn` — https://github.com/PrefectHQ/prefect/pull/11500
 - Add `prefect cloud open` to open current workspace in browser from CLI — https://github.com/PrefectHQ/prefect/pull/11519
 - Display work queue status details via CLI — https://github.com/PrefectHQ/prefect/pull/11545
 
@@ -23,7 +28,6 @@ See the following PR for implementation details:
     - https://github.com/PrefectHQ/prefect/pull/11532
     - https://github.com/PrefectHQ/prefect/pull/11506
     - https://github.com/PrefectHQ/prefect/pull/11508
-- Add documentation on conditional retries — https://github.com/PrefectHQ/prefect/pull/11535
 - Add security readme — https://github.com/PrefectHQ/prefect/pull/11520
 - Add conditional pause example to flow documentation — https://github.com/PrefectHQ/prefect/pull/11536
 - Add API modules to Python SDK docs — https://github.com/PrefectHQ/prefect/pull/11538
@@ -36,6 +40,7 @@ See the following PR for implementation details:
 
 ### Contributors
 - @yifanmai made their first contribution in https://github.com/PrefectHQ/prefect/pull/11523
+- @dominictarro
 - @ConstantinoSchillebeeckx
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.12...2.14.13
