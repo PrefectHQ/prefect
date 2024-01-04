@@ -1434,7 +1434,7 @@ Can be used to compensate for infrastructure start up time for a worker.
 
 PREFECT_WORKER_WEBSERVER_HOST = Setting(
     str,
-    default="0.0.0.0",
+    default=None,
     deprecated=True,
     deprecated_start_date="Jan 2024",
     deprecated_help="Use `PREFECT_RUNNER_SERVER_HOST` instead",
@@ -1445,7 +1445,7 @@ The host address the worker's webserver should bind to.
 
 PREFECT_WORKER_WEBSERVER_PORT = Setting(
     int,
-    default=8080,
+    default=None,
     deprecated=True,
     deprecated_start_date="Jan 2024",
     deprecated_help="Use `PREFECT_RUNNER_SERVER_PORT` instead",
