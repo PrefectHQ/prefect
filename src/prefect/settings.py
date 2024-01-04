@@ -1372,6 +1372,11 @@ PREFECT_RUNNER_SERVER_LOG_LEVEL = Setting(str, default="error")
 The log level of the runner's webserver.
 """
 
+PREFECT_RUNNER_ENABLE_SERVER = Setting(bool, default=False)
+"""
+Whether or not to enable the runner's webserver.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
