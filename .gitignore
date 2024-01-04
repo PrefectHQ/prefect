@@ -66,6 +66,10 @@ dask-worker-space/
 # Prefect files
 prefect.yaml
 
+# Ignore dynamically generated worker metadata
+src/prefect/server/api/collections_data/views/aggregate-worker-metadata.json
+
+
 # Deployment recipes
 !src/prefect/deployments/recipes/*/**
 
