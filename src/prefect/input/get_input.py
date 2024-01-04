@@ -55,9 +55,12 @@ async def send_input(
 
     wrapper = InputWrapper(value=input, key=key, sender=str(sender))
 
-    await create_flow_run_input(
-        key=key, value=orjson.loads(wrapper.json()), flow_run_id=flow_run_id
-    )
+    if HAS_PYDANTIC_V2:
+        json_safe = orjson.loads(wrapper.model_dump_json())
+    else:
+        json_safe = orjson.loads(wrapper.json())
+
+    await create_flow_run_input(key=key, value=json_safe, flow_run_id=flow_run_id)
 
 
 class GetInput(Generic[T]):
