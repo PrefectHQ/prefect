@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
@@ -318,6 +319,11 @@ async def stream_text(source: TextReceiveStream, *sinks: TextSink):
                 raise TypeError(f"Unsupported sink type {type(sink).__name__}")
 
 
+def _register_signal(signum: int, handler: Callable):
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signum, handler)
+
+
 def forward_signal_handler(
     pid: int, signum: int, *signums: int, process_name: str, print_fn: Callable
 ):
@@ -349,7 +355,7 @@ def forward_signal_handler(
             )
 
     # register current and future signal handlers
-    signal.signal(signum, handler)
+    _register_signal(signum, handler)
 
 
 def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable):
