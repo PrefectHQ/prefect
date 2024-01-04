@@ -16,11 +16,12 @@ See the following PR for implementation details:
 
 ### Enhancements
 - Add `prefect cloud open` to open current workspace in browser from CLI — https://github.com/PrefectHQ/prefect/pull/11519
+- Implement `SendNotification` action type for programmatic Automations — https://github.com/PrefectHQ/prefect/pull/11471
 - Display work queue status details via CLI — https://github.com/PrefectHQ/prefect/pull/11545
 
 ### Fixes
 - Validate deployment name in `.deploy` — https://github.com/PrefectHQ/prefect/pull/11539
-- Implement `SendNotification` action type for programmatic Automations — https://github.com/PrefectHQ/prefect/pull/11471
+- Ensure `flow.from_source` handles remote git repository updates — https://github.com/PrefectHQ/prefect/pull/11547
 
 ### Documentation
 - Add documentation for Incidents feature in Prefect Cloud 
