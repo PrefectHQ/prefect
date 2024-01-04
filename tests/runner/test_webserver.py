@@ -14,6 +14,8 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_PORT,
+    PREFECT_WORKER_WEBSERVER_HOST,
+    PREFECT_WORKER_WEBSERVER_PORT,
     temporary_settings,
 )
 
@@ -66,6 +68,31 @@ async def create_deployment(runner: Runner, func: Callable):
         func, f"{uuid.uuid4()}", enforce_parameter_schema=True
     )
     return str(deployment_id)
+
+
+class TestWebserverSettings:
+    async def test_webserver_settings_are_respected(self, runner: Runner):
+        with temporary_settings(
+            updates={
+                PREFECT_RUNNER_SERVER_HOST: "127.0.0.1",
+                PREFECT_RUNNER_SERVER_PORT: 4200,
+            }
+        ):
+            assert PREFECT_RUNNER_SERVER_HOST.value() == "127.0.0.1"
+            assert PREFECT_RUNNER_SERVER_PORT.value() == 4200
+
+    async def test_deprecated_webserver_settings_are_respected(self, runner: Runner):
+        with pytest.warns(
+            DeprecationWarning, match=r".*PREFECT_WORKER_WEBSERVER_.*deprecated.*"
+        ):
+            with temporary_settings(
+                updates={
+                    PREFECT_WORKER_WEBSERVER_HOST: "127.0.0.1",
+                    PREFECT_WORKER_WEBSERVER_PORT: 4200,
+                }
+            ):
+                assert PREFECT_RUNNER_SERVER_HOST.value() == "127.0.0.1"
+                assert PREFECT_RUNNER_SERVER_PORT.value() == 4200
 
 
 class TestWebserverDeploymentRoutes:
