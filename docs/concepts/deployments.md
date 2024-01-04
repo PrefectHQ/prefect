@@ -6,7 +6,6 @@ tags:
     - deployments
     - schedules
     - triggers
-    - prefect.yaml
     - infrastructure
     - storage
     - work pool
