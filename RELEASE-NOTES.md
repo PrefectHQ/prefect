@@ -1,5 +1,55 @@
 # Prefect Release Notes
 
+## Release 2.14.13
+
+## Access default work pool configurations in an air-gapped environment
+Those who run Prefect server in an environment where arbitrary outbound internet traffic is not allowed were previously unable to retrieve up-to-date default work pool configurations (via the UI or otherwise). You can now access the worker metadata needed to access the corresponding work pool configurations in your server even in such an air-gapped environment. Upon each release of `prefect`, the most recent version of this worker metadata will be embedded in the `prefect` package so that it can be used as a fallback if the outbound call to retrieve the real-time metadata fails.
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11503
+
+## Introducing conditional task retries for enhanced workflow control
+In this release, we're excited to introduce the ability to conditionally retry tasks by passing in an argument to `retry_condition_fn` in your task decorator, enabling more nuanced and flexible retry mechanisms. This adds a significant level of control and efficiency, particularly in handling complex or unpredictable task outcomes. For more information on usage, check out our [docs](https://github.com/PrefectHQ/prefect/pull/11535)!
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11500
+
+### Enhancements
+- Add `prefect cloud open` to open current workspace in browser from CLI — https://github.com/PrefectHQ/prefect/pull/11519
+- Implement `SendNotification` action type for programmatic Automations — https://github.com/PrefectHQ/prefect/pull/11471
+- Display work queue status details via CLI — https://github.com/PrefectHQ/prefect/pull/11545
+- Allow users to add date ranges "Around a time" when filtering by date - https://github.com/PrefectHQ/prefect-design/pull/1069
+
+### Fixes
+- Validate deployment name in `.deploy` — https://github.com/PrefectHQ/prefect/pull/11539
+- Ensure `flow.from_source` handles remote git repository updates — https://github.com/PrefectHQ/prefect/pull/11547
+
+### Documentation
+- Add documentation for Incidents feature in Prefect Cloud 
+    — https://github.com/PrefectHQ/prefect/pull/11504
+    - https://github.com/PrefectHQ/prefect/pull/11532
+    - https://github.com/PrefectHQ/prefect/pull/11506
+    - https://github.com/PrefectHQ/prefect/pull/11508
+- Add security README — https://github.com/PrefectHQ/prefect/pull/11520
+- Add conditional pause example to flow documentation — https://github.com/PrefectHQ/prefect/pull/11536
+- Add API modules to Python SDK docs — https://github.com/PrefectHQ/prefect/pull/11538
+- Update human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11497
+- Improve formatting in quickstart and tutorial — https://github.com/PrefectHQ/prefect/pull/11502
+- Fix typo in quickstart — https://github.com/PrefectHQ/prefect/pull/11498
+- Fix broken link — https://github.com/PrefectHQ/prefect/pull/11507
+- Fix method name typo in tasks tutorial — https://github.com/PrefectHQ/prefect/pull/11523
+- Remove redundant word typo — https://github.com/PrefectHQ/prefect/pull/11528
+
+### Collections
+- Add `LambdaFunction` block to `prefect-aws` to easily configure and invoke AWS Lambda functions - https://github.com/PrefectHQ/prefect-aws/pull/355
+
+### Contributors
+- @yifanmai made their first contribution in https://github.com/PrefectHQ/prefect/pull/11523
+- @dominictarro
+- @ConstantinoSchillebeeckx
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.12...2.14.13
+
 ## Release 2.14.12
 
 ### Increased customization of date and time filters across the UI
