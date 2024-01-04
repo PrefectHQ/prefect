@@ -37,7 +37,8 @@ See the following PR for implementation details:
 - Fix broken link — https://github.com/PrefectHQ/prefect/pull/11507
 - Fix method name typo in Tasks tutorial — https://github.com/PrefectHQ/prefect/pull/11523
 - Remove redundant word typo — https://github.com/PrefectHQ/prefect/pull/11528
-
+### Collections
+- Add `LambdaFunction` block to `prefect-aws` to easily configure and invoke AWS Lambda functions - https://github.com/PrefectHQ/prefect-aws/pull/355
 ### Contributors
 - @yifanmai made their first contribution in https://github.com/PrefectHQ/prefect/pull/11523
 - @dominictarro
