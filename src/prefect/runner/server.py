@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
@@ -39,8 +38,6 @@ else:
 logger = get_logger("webserver")
 
 RunnableEndpoint = Literal["deployment", "flow", "task"]
-
-WEBSERVER_RUN_RESPONSE_LOG: asyncio.Queue = asyncio.Queue(maxsize=100)
 
 
 class RunnerGenericFlowRunRequest(BaseModel):
