@@ -15,6 +15,7 @@ import anyio
 import orjson
 import pydantic
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.context import FlowRunContext
 from prefect.input.actions import (
     create_flow_run_input,
@@ -243,4 +244,7 @@ class InputWrapper(pydantic.BaseModel, Generic[T]):
         return self.value
 
 
-InputWrapper.update_forward_refs()
+if HAS_PYDANTIC_V2:
+    InputWrapper.model_rebuild()
+else:
+    InputWrapper.update_forward_refs()
