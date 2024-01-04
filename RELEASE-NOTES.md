@@ -1,5 +1,40 @@
 # Prefect Release Notes
 
+## Release 2.14.13
+
+### Enhancements
+- Add ability to serve default work pool configurations in air gapped environment — https://github.com/PrefectHQ/prefect/pull/11503
+- Add ability to conditionally retry tasks with `retry_condition_fn` — https://github.com/PrefectHQ/prefect/pull/11500
+- Add `prefect cloud open` to open current workspace in browser from CLI — https://github.com/PrefectHQ/prefect/pull/11519
+- Display work queue status details via CLI — https://github.com/PrefectHQ/prefect/pull/11545
+
+### Fixes
+- Validate deployment name in `.deploy` — https://github.com/PrefectHQ/prefect/pull/11539
+- Implement `SendNotification` action type for programmatic Automations — https://github.com/PrefectHQ/prefect/pull/11471
+
+### Documentation
+- Add documentation for Incidents feature in Prefect Cloud 
+    — https://github.com/PrefectHQ/prefect/pull/11504
+    - https://github.com/PrefectHQ/prefect/pull/11532
+    - https://github.com/PrefectHQ/prefect/pull/11506
+    - https://github.com/PrefectHQ/prefect/pull/11508
+- Add documentation on conditional retries — https://github.com/PrefectHQ/prefect/pull/11535
+- Add security readme — https://github.com/PrefectHQ/prefect/pull/11520
+- Add conditional pause example to flow documentation — https://github.com/PrefectHQ/prefect/pull/11536
+- Add API modules to Python SDK docs — https://github.com/PrefectHQ/prefect/pull/11538
+- Update human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11497
+- Formatting fixes for quickstart and tutorial — https://github.com/PrefectHQ/prefect/pull/11502
+- Fix typo in quickstart — https://github.com/PrefectHQ/prefect/pull/11498
+- Fix broken link — https://github.com/PrefectHQ/prefect/pull/11507
+- Fix method name typo in Tasks tutorial — https://github.com/PrefectHQ/prefect/pull/11523
+- Remove redundant word typo — https://github.com/PrefectHQ/prefect/pull/11528
+
+### Contributors
+- @yifanmai made their first contribution in https://github.com/PrefectHQ/prefect/pull/11523
+- @ConstantinoSchillebeeckx
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.12...2.14.13
+
 ## Release 2.14.12
 
 ### Increased customization of date and time filters across the UI
