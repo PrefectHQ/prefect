@@ -29,7 +29,7 @@ See the following PR for implementation details:
     - https://github.com/PrefectHQ/prefect/pull/11532
     - https://github.com/PrefectHQ/prefect/pull/11506
     - https://github.com/PrefectHQ/prefect/pull/11508
-- Add security readme — https://github.com/PrefectHQ/prefect/pull/11520
+- Add security README — https://github.com/PrefectHQ/prefect/pull/11520
 - Add conditional pause example to flow documentation — https://github.com/PrefectHQ/prefect/pull/11536
 - Add API modules to Python SDK docs — https://github.com/PrefectHQ/prefect/pull/11538
 - Update human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11497
