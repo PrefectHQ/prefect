@@ -95,9 +95,7 @@ class TestFilterFlowRunInput:
 
         return keys
 
-    async def test_implicit_flow_run(
-        self, flow_run_context, flow_run_input_keys: list[str]
-    ):
+    async def test_implicit_flow_run(self, flow_run_context, flow_run_input_keys):
         filtered = await filter_flow_run_input(
             key_prefix="key", limit=len(flow_run_input_keys) + 1
         )
@@ -105,7 +103,7 @@ class TestFilterFlowRunInput:
         assert {"key-1", "key-2"} != flow_run_input_keys
         assert {"key-1", "key-2"} == {item.key for item in filtered}
 
-    async def test_explicit_flow_run(self, flow_run, flow_run_input_keys: list[str]):
+    async def test_explicit_flow_run(self, flow_run, flow_run_input_keys):
         filtered = await filter_flow_run_input(
             key_prefix="key",
             limit=len(flow_run_input_keys) + 1,
@@ -121,7 +119,7 @@ class TestFilterFlowRunInput:
         ):
             await filter_flow_run_input(key_prefix="key")
 
-    async def test_exclude_keys(self, flow_run_context, flow_run_input_keys: list[str]):
+    async def test_exclude_keys(self, flow_run_context, flow_run_input_keys):
         filtered = await filter_flow_run_input(
             key_prefix="key", limit=len(flow_run_input_keys) + 1, exclude_keys={"key-2"}
         )
