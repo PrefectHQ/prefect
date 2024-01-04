@@ -57,8 +57,12 @@ async def test_get_waiter_with_call_done():
 
 @pytest.mark.parametrize("cls", [AsyncWaiter, SyncWaiter])
 async def test_waiter_repr(cls):
+    current_thread_name = threading.current_thread().name
     waiter = cls(Call.new(fake_fn, 1, 2))
-    assert repr(waiter) == f"<{cls.__name__} call=fake_fn(1, 2), owner='MainThread'>"
+    assert (
+        repr(waiter)
+        == f"<{cls.__name__} call=fake_fn(1, 2), owner='{current_thread_name}'>"
+    )
 
 
 def test_async_waiter_created_outside_of_loop():
