@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import anyio
 import httpx
@@ -146,8 +146,8 @@ async def submit_many_to_runner(
 
 @sync_compatible
 async def wait_for_submitted_runs(
-    flow_run_ids: Optional[set[uuid.UUID]] = None,
-    task_run_ids: Optional[set[uuid.UUID]] = None,
+    flow_run_ids: Optional[Set[uuid.UUID]] = None,
+    task_run_ids: Optional[Set[uuid.UUID]] = None,
     timeout: Optional[float] = None,
     poll_interval: float = 3.0,
 ):

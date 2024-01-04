@@ -39,21 +39,6 @@ def complex_flow(
 
 
 @pytest.fixture(autouse=True)
-def only_flows_from_here(monkeypatch):
-    async def get_flows_in_this_file(directory="."):
-        return [
-            (f"{__file__}:simple_flow", simple_flow),
-            (f"{__file__}:complex_flow", complex_flow),
-        ]
-
-    monkeypatch.setattr(
-        "prefect.runner.server._find_subflows_of_deployment",
-        get_flows_in_this_file,
-    )
-    yield
-
-
-@pytest.fixture(autouse=True)
 def tmp_runner_settings():
     with temporary_settings(
         updates={
