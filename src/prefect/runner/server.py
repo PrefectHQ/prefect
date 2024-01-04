@@ -43,17 +43,6 @@ RunnableEndpoint = Literal["deployment", "flow", "task"]
 WEBSERVER_RUN_RESPONSE_LOG: asyncio.Queue = asyncio.Queue(maxsize=100)
 
 
-def get_run_response_details():
-    responses = []
-    while True:
-        try:
-            response = WEBSERVER_RUN_RESPONSE_LOG.get_nowait()
-            responses.append(response)
-        except asyncio.QueueEmpty:
-            break
-    return responses
-
-
 class RunnerGenericFlowRunRequest(BaseModel):
     entrypoint: str
     parameters: Optional[Dict[str, Any]] = None
@@ -241,7 +230,6 @@ def _build_generic_endpoint_for_flows(
         runner.execute_in_background(
             runner.execute_flow_run, flow_run.id, body.entrypoint
         )
-        WEBSERVER_RUN_RESPONSE_LOG.put_nowait({"flow_run_id": str(flow_run.id)})
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -282,14 +270,6 @@ async def build_server(runner: "Runner") -> FastAPI:
             name="Run flow in background",
             description="Trigger any flow run as a background task on the runner.",
             summary="Run flow",
-        )
-        webserver.add_api_route(
-            "/run_response_details",
-            get_run_response_details,
-            methods=["GET"],
-            name="Get run response details",
-            description="Get details of all runs submitted to this runner webserver.",
-            summary="Get run response details",
         )
 
         def customize_openapi():

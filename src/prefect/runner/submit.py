@@ -1,13 +1,14 @@
 import asyncio
 import inspect
 import uuid
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Union
 
 import anyio
 import httpx
 from typing_extensions import Literal
 
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import FlowRunFilter, TaskRunFilter
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.logging import get_logger
@@ -146,23 +147,25 @@ async def submit_many_to_runner(
 
 @sync_compatible
 async def wait_for_submitted_runs(
-    flow_run_ids: Optional[Set[uuid.UUID]] = None,
-    task_run_ids: Optional[Set[uuid.UUID]] = None,
+    flow_run_filter: Optional[FlowRunFilter] = None,
+    task_run_filter: Optional[TaskRunFilter] = None,
     timeout: Optional[float] = None,
     poll_interval: float = 3.0,
 ):
     """
-    Wait for completion of any provided flow and task runs, as well as runs submitted to the
-    current runner webserver, within a timeout.
+    Wait for completion of any provided flow runs (eventually task runs), as well as subflow runs
+    of the current flow run (if called from within a flow run and subflow runs exist).
 
     Args:
-        flow_run_ids: Additional flow run IDs to wait for.
-        task_run_ids: Additional task run IDs to wait for. # TODO: /task/run endpoint
+        flow_run_filter: A filter to apply to the flow runs to wait for.
+        task_run_filter: A filter to apply to the task runs to wait for. # TODO: /task/run
         timeout: How long to wait for completion of all runs (seconds).
         poll_interval: How long to wait between polling each run's state (seconds).
     """
-    flow_run_ids = flow_run_ids or set()
-    if task_run_ids:
+
+    parent_flow_run_id = ctx.flow_run.id if (ctx := FlowRunContext.get()) else None
+
+    if task_run_filter:
         raise NotImplementedError("Waiting for task runs is not yet supported.")
 
     async def wait_for_final_state(
@@ -176,21 +179,21 @@ async def wait_for_submitted_runs(
             await anyio.sleep(poll_interval)
 
     async with anyio.move_on_after(timeout), get_client() as client:
-        response = await client._client.get(
-            f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
-            f":{PREFECT_RUNNER_SERVER_PORT.value()}/run_response_details"
+        flow_runs_to_wait_for = (
+            await client.read_flow_runs(flow_run_filter=flow_run_filter)
+            if flow_run_filter
+            else []
         )
-        response.raise_for_status()
-        fetched_ids = response.json()
 
-        fetched_flow_run_ids: Set[uuid.UUID] = {
-            flow_run_id
-            for run_details in fetched_ids
-            if (flow_run_id := run_details.get("flow_run_id"))
-        }
+        if parent_flow_run_id is not None:
+            subflow_runs = await client.read_flow_runs(
+                flow_run_filter=FlowRunFilter(
+                    parent_flow_run_id=dict(any_=[parent_flow_run_id])
+                )
+            )
 
-        flow_run_ids.update(fetched_flow_run_ids)
+            flow_runs_to_wait_for.extend(subflow_runs)
 
         await asyncio.gather(
-            *(wait_for_final_state("flow", run_id) for run_id in flow_run_ids)
+            *(wait_for_final_state("flow", run.id) for run in flow_runs_to_wait_for)
         )
