@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-## Release 2.14.13
+## Release 2.14.14
 
 ## Access default work pool configurations in an air-gapped environment
 Those who run Prefect server in an environment where arbitrary outbound internet traffic is not allowed were previously unable to retrieve up-to-date default work pool configurations (via the UI or otherwise). You can now access the worker metadata needed to access the corresponding work pool configurations in your server even in such an air-gapped environment. Upon each release of `prefect`, the most recent version of this worker metadata will be embedded in the `prefect` package so that it can be used as a fallback if the outbound call to retrieve the real-time metadata fails.
