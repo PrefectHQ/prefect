@@ -8,11 +8,13 @@ from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
+import prefect.logging
 import prefect.runtime
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.flows import load_flow_from_entrypoint
+from prefect.exceptions import MissingFlowError, ScriptError
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flows_from_script
 from prefect.runner.utils import (
     inject_schemas_into_openapi,
 )
@@ -120,8 +122,6 @@ async def _build_endpoint_for_deployment(
 async def get_deployment_router(
     runner: "Runner",
 ) -> Tuple[APIRouter, Dict[str, Dict]]:
-    from prefect import get_client
-
     router = APIRouter()
     schemas = {}
     async with get_client() as client:
@@ -147,11 +147,76 @@ async def get_deployment_router(
     return router, schemas
 
 
-def _build_generic_endpoint_for_flows(runner: "Runner") -> Callable:
+async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
+    """
+    Load available subflow schemas by filtering for only those subflows in the
+    deployment entrypoint's import space.
+    """
+    schemas = {}
+    async with get_client() as client:
+        for deployment_id in runner._deployment_ids:
+            deployment = await client.read_deployment(deployment_id)
+            if deployment.entrypoint is None:
+                continue
+
+            script = deployment.entrypoint.split(":")[0]
+            subflows = load_flows_from_script(script)
+            for flow in subflows:
+                schemas[flow.name] = flow.parameters.dict()
+
+    return schemas
+
+
+def _flow_in_schemas(flow: Flow, schemas: Dict[str, Dict]) -> bool:
+    """
+    Check if a flow is in the schemas dict, either by name or by name with
+    dashes replaced with underscores.
+    """
+    flow_name_with_dashes = flow.name.replace("_", "-")
+    return flow.name in schemas or flow_name_with_dashes in schemas
+
+
+def _flow_schema_changed(flow: Flow, schemas: Dict[str, Dict]) -> bool:
+    """
+    Check if a flow's schemas have changed, either by bame of by name with
+    dashes replaced with underscores.
+    """
+    flow_name_with_dashes = flow.name.replace("_", "-")
+
+    schema = schemas.get(flow.name, None) or schemas.get(flow_name_with_dashes, None)
+    if schema is not None and flow.parameters.dict() != schema:
+        return True
+    return False
+
+
+def _build_generic_endpoint_for_flows(
+    runner: "Runner", schemas: Dict[str, Dict]
+) -> Callable:
     async def _create_flow_run_for_flow_from_fqn(
         body: RunnerGenericFlowRunRequest,
     ) -> JSONResponse:
-        flow = load_flow_from_entrypoint(body.entrypoint)
+        try:
+            flow = load_flow_from_entrypoint(body.entrypoint)
+        except (MissingFlowError, ScriptError, ModuleNotFoundError):
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"message": "Flow not found"},
+            )
+
+        # Verify that the flow we're loading is a subflow this runner is
+        # managing
+        if not _flow_in_schemas(flow, schemas):
+            runner._logger.warning(
+                f"Flow {flow.name} is not directly managed by the runner. Please "
+                "include it in the runner's served flows' import namespace."
+            )
+        # Verify that the flow we're loading hasn't changed since the webserver
+        # was started
+        if _flow_schema_changed(flow, schemas):
+            runner._logger.warning(
+                "A change in flow parameters has been detected. Please "
+                "restart the runner."
+            )
 
         async with get_client() as client:
             flow_run = await client.create_flow_run(
@@ -194,9 +259,11 @@ async def build_server(runner: "Runner") -> FastAPI:
     if PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
         deployments_router, deployment_schemas = await get_deployment_router(runner)
         webserver.include_router(deployments_router)
+
+        subflow_schemas = await get_subflow_schemas(runner)
         webserver.add_api_route(
             "/flow/run",
-            _build_generic_endpoint_for_flows(runner=runner),
+            _build_generic_endpoint_for_flows(runner=runner, schemas=subflow_schemas),
             methods=["POST"],
             name="Run flow in background",
             description="Trigger any flow run as a background task on the runner.",
