@@ -92,6 +92,7 @@ from prefect.client.schemas.objects import (
     Worker,
     WorkPool,
     WorkQueue,
+    WorkQueueStatusDetail,
 )
 from prefect.client.schemas.responses import (
     DeploymentResponse,
@@ -1035,6 +1036,32 @@ class PrefectClient:
             else:
                 raise
         return WorkQueue.parse_obj(response.json())
+
+    async def read_work_queue_status(
+        self,
+        id: UUID,
+    ) -> WorkQueueStatusDetail:
+        """
+        Read a work queue status.
+
+        Args:
+            id: the id of the work queue to load
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            WorkQueueStatus: an instantiated WorkQueueStatus object
+        """
+        try:
+            response = await self._client.get(f"/work_queues/{id}/status")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return WorkQueueStatusDetail.parse_obj(response.json())
 
     async def match_work_queues(
         self,
