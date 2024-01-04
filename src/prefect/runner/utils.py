@@ -1,17 +1,10 @@
-import os
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import Any, Dict
 
 from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 
 from prefect import __version__ as PREFECT_VERSION
-from prefect.deployments.base import _search_for_flow_functions
-from prefect.flows import load_flow_from_entrypoint
-
-if TYPE_CHECKING:
-    from prefect import Flow
-    from prefect.deployments import Deployment
 
 
 def inject_schemas_into_openapi(
@@ -97,31 +90,3 @@ def update_refs_to_components(openapi_schema: Dict[str, Any]) -> Dict[str, Any]:
         update_refs_in_schema(definition, "#/components/schemas/")
 
     return openapi_schema
-
-
-async def _find_subflows_of_deployment(
-    deployment: "Deployment",
-) -> List[Tuple[str, "Flow"]]:
-    """
-    Find all subflows of a deployment.
-
-    Args:
-        deployment: The deployment to find subflows of.
-
-    Returns:
-        A list of flows.
-    """
-
-    entrypoint_dir = os.path.dirname(deployment.entrypoint.split(":")[0])
-
-    flow_entrypoints = [
-        entrypoint
-        for flow in await _search_for_flow_functions(entrypoint_dir)
-        if (entrypoint := f'{flow["filepath"]}:{flow["function_name"]}')
-        != deployment.entrypoint
-    ]
-
-    return [
-        (entrypoint, load_flow_from_entrypoint(entrypoint))
-        for entrypoint in flow_entrypoints
-    ]
