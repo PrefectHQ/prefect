@@ -630,6 +630,8 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
+        if not name.endswith(".py"):
+            raise_on_name_with_banned_characters(name)
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
