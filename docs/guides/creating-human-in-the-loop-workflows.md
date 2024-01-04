@@ -14,7 +14,7 @@ search:
 
     The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
 
-    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/)Slack or with a [Github](https://github.com/PrefectHQ/prefect) issue.
+    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/) or with a [Github](https://github.com/PrefectHQ/prefect) issue.
 
 
 When a flow run is paused or suspended, you can receive input from the user. This is useful when you need to ask the user for additional information or feedback before resuming the flow run.
@@ -69,88 +69,91 @@ async def greet_user():
 
 ## Handling custom validation
 
-Prefect uses the fields and type hints on your `RunInput` subclass to validate the general structure of input your flow run receives, but you might require more complex validation. If you do, you can use Pydantic's validation methods.
+Prefect uses the fields and type hints on your `RunInput` subclass to validate the general structure of input your flow run receives, but you might require more complex validation. If you do, you can use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
+
+!!! warning "Custom validation runs after the flow run resumes"
+    Prefect transforms the type annotations in your `RunInput` class to a JSON schema and use that schema in the UI to do client-side validation. However, custom validation requires running logic defined in your `RunInput` class. This happens *after the flow resumes*, so you'll probably want to handle it explicitly in your flow. Continue reading for an example best practice.
+
+The following is an example `RunInput` class that uses a custom field validator:
 
 ```python
 import pydantic
 from prefect.input import RunInput
 
-class UserAgeInput(RunInput):
-    age: int
 
-    @pydantic.validator("age")
-    def validate_age(cls, value):
-        min_age = 18
-        max_age = 99
+class ShirtOrder(RunInput):
+    size: Literal["small", "medium", "large", "xlarge"]
+    color: Literal["red", "green", "black"]
 
-        if not min_age <= value <= max_age:
-            raise ValueError(f"Age must be between {min_age} and {max_age}")
-        
+    @pydantic.validator("color")
+    def validate_age(cls, value, values, **kwargs):
+        if value == "green" and values["size"] == "small":
+            raise ValueError("Green is only in-stock for medium, large, and XL sizes.")
+
         return value
 ```
 
-In this case, we are using Pydantic's `validator` decorator to define a custom validation method for the `age` field. We can use it in a flow like this:
+In the example, we use Pydantic's `validator` decorator to define a custom validation method for the `color` field. We can use it in a flow like this:
 
 ```python
 import pydantic
-from prefect import flow, pause_flow_run
-from prefect.input import RunInput
-
-class UserAgeInput(RunInput):
-    age: int
-
-    @pydantic.validator("age")
-    def validate_age(cls, value):
-        min_age = 18
-        max_age = 99
-
-        if not min_age <= value <= max_age:
-            raise ValueError(f"Age must be between {min_age} and {max_age}")
-
-        return value
-
-@flow
-def get_user_age():
-    user_age_input = pause_flow_run(wait_for_input=UserAgeInput)
-```
-
-If a user enters an invalid age of `hello`, the flow run will not resume and the user will receive a validation error. However, if the user enters a number that is a valid integer but that is not between 18 and 99, the flow run will resume, and `pause_flow_run` will raise a `ValidationError` exception.
-
-One way to handle this and ensure that the user enters valid input is to use a `while` loop and pause again if the `ValidationError` exception is raised:
-
-```python
-import pydantic
-from prefect import flow, suspend_flow_run, get_run_logger
+from prefect import flow
 from prefect.input import RunInput
 
 
-class UserAgeInput(RunInput):
-    age: int
+class ShirtOrder(RunInput):
+    size: Literal["small", "medium", "large", "xlarge"]
+    color: Literal["red", "green", "black"]
 
-    @pydantic.validator("age")
-    def validate_age(cls, value):
-        min_age = 18
-        max_age = 99
-
-        if not min_age <= value <= max_age:
-            raise ValueError(f"Age must be between {min_age} and {max_age}")
+    @pydantic.validator("color")
+    def validate_age(cls, value, values, **kwargs):
+        if value == "green" and values["size"] == "small":
+            raise ValueError("Green is only in-stock for medium, large, and XL sizes.")
 
         return value
 
 
 @flow
-def get_user_age():
+def get_shirt_order():
+    shirt_order = pause_flow_run(wait_for_input=ShirtOrder)
+```
+
+If a user chooses any size and color combination other than `small` and `green`, the flow run will resume successfully. However, if the user chooses size `small` and color `green`, the flow run will resume, and `pause_flow_run` will raise a `ValidationError` exception. This will cause the flow run to fail and log the error.
+
+However, what if you don't want the flow run to fail? One way to handle this case is to use a `while` loop and pause again if the `ValidationError` exception is raised:
+
+```python
+import pydantic
+from prefect import flow, get_run_logger
+from prefect.input import RunInput
+
+
+class ShirtOrder(RunInput):
+    size: Literal["small", "medium", "large", "xlarge"]
+    color: Literal["red", "green", "black"]
+
+    @pydantic.validator("color")
+    def validate_age(cls, value, values, **kwargs):
+        if value == "green" and values["size"] == "small":
+            raise ValueError("Green is only in-stock for medium, large, and XL sizes.")
+
+        return value
+
+
+@flow
+def get_shirt_order():
     logger = get_run_logger()
+    shirt_order = None
 
-    user_age_data = None
-
-    while user_age_data is None:
+    while shirt_order is None:
         try:
-            user_age_data = pause_flow_run(wait_for_input=UserAgeInput)
+            shirt_order = pause_flow_run(wait_for_input=ShirtOrder)
         except pydantic.ValidationError as exc:
-            logger.error(f"Invalid age: {exc}")
+            logger.error(f"Invalid size and color combination: {exc}")
 
-    logger.info(f"User age: {user_age_data.age}")
+    logger.info(f"Shirt order: {shirt_order.size}, {shirt_order.color}")
 ```
 
 This code will cause the flow run to continually pause until the user enters a valid age.
+
+As an additional step, you may want to use an [automation](/concepts/automations) or [notification](/concepts/notifications/) to alert the user to the error.
