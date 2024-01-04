@@ -9,6 +9,7 @@ interrupts.
 import asyncio
 import os
 import signal
+import threading
 from unittest.mock import ANY, MagicMock
 
 import anyio
@@ -211,6 +212,8 @@ async def test_interrupt_in_child_crashes_parent_and_child_flow(
 
 @pytest.fixture
 def mock_sigterm_handler():
+    if threading.current_thread() != threading.main_thread():
+        pytest.skip("Can't test signal handlers from a thread")
     mock = MagicMock()
 
     def handler(*args, **kwargs):
