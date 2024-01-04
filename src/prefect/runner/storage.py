@@ -256,7 +256,6 @@ class GitRepository:
         try:
             await run_process(cmd)
         except subprocess.CalledProcessError as exc:
-            breakpoint()
             # Hide the command used to avoid leaking the access token
             exc_chain = None if self._credentials else exc
             raise RuntimeError(
