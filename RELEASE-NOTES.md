@@ -33,7 +33,7 @@ See the following PR for implementation details:
 - Add conditional pause example to flow documentation — https://github.com/PrefectHQ/prefect/pull/11536
 - Add API modules to Python SDK docs — https://github.com/PrefectHQ/prefect/pull/11538
 - Update human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11497
-- Formatting fixes for quickstart and tutorial — https://github.com/PrefectHQ/prefect/pull/11502
+- Improve formatting in quickstart and tutorial — https://github.com/PrefectHQ/prefect/pull/11502
 - Fix typo in quickstart — https://github.com/PrefectHQ/prefect/pull/11498
 - Fix broken link — https://github.com/PrefectHQ/prefect/pull/11507
 - Fix method name typo in tasks tutorial — https://github.com/PrefectHQ/prefect/pull/11523
