@@ -294,7 +294,7 @@ Use the tabs below to explore these two deployment creation options.
 
     While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
-    ### Store you code in git-based cloud storage 
+    ### Store your code in git-based cloud storage 
 
     If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from at runtime with the `from_source` method. 
 
@@ -842,7 +842,7 @@ These deployments can be managed independently of one another, allowing you to d
         deploy(
             buy.to_deployment(name="buy-deploy"),
             sell.to_deployment(name="sell-deploy"),
-            work_pool_name=""my-dev-work-pool"
+            work_pool_name="my-dev-work-pool"
             image="my-registry/my-image:dev",
             push=False,
         )
