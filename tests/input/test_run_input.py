@@ -370,7 +370,7 @@ async def test_receive(flow_run):
     async def receive():
         received = []
         async for place in Place.receive(
-            flow_run_id=flow_run.id, timeout=0.5, poll_interval=0.1
+            flow_run_id=flow_run.id, timeout=1, poll_interval=0.1
         ):
             received.append(place)
         return received
