@@ -409,7 +409,7 @@ class Runner:
         runs_to_cancel = []
 
         # done to avoid dictionary size changing during iteration
-        for _, info in self._flow_run_process_map.items():
+        for info in self._flow_run_process_map.values():
             runs_to_cancel.append(info["flow_run"])
         if runs_to_cancel:
             for run in runs_to_cancel:
