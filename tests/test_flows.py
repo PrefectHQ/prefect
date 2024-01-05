@@ -5,6 +5,7 @@ import inspect
 import os
 import signal
 import sys
+import threading
 import time
 from functools import partial
 from itertools import combinations
@@ -82,6 +83,8 @@ def test_flow():
 
 @pytest.fixture
 def mock_sigterm_handler():
+    if threading.current_thread() != threading.main_thread():
+        pytest.skip("Can't test signal handlers from a thread")
     mock = MagicMock()
 
     def handler(*args, **kwargs):
@@ -3254,6 +3257,10 @@ class TestFlowToDeployment:
         deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+
+    async def test_to_deployment_invalid_name_raises(self):
+        with pytest.raises(InvalidNameError, match="contains an invalid character"):
+            await test_flow.to_deployment("test/deployment")
 
     @pytest.mark.parametrize(
         "kwargs",
