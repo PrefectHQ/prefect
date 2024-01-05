@@ -7,7 +7,7 @@
       "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/c771bb53894c877e169c8db158c5598558b8f175-24x24.svg",
       "install_command": "pip install prefect",
       "default_base_job_configuration": {},
-      "description": "Execute flow runs on heterogenous infrastructure using infrastructure blocks."
+      "description": "Execute flow runs on heterogeneous infrastructure using infrastructure blocks."
     },
     "process": {
       "default_base_job_configuration": {
@@ -180,7 +180,7 @@
             },
             "launch_type": {
               "title": "Launch Type",
-              "description": "The type of ECS task run infrastructure that should be used. Note that 'FARGATE_SPOT' is not a formal ECS launch type, but we will configure the proper capacity provider stategy if set here.",
+              "description": "The type of ECS task run infrastructure that should be used. Note that 'FARGATE_SPOT' is not a formal ECS launch type, but we will configure the proper capacity provider strategy if set here.",
               "default": "FARGATE",
               "enum": [
                 "FARGATE",
