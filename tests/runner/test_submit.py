@@ -1,3 +1,4 @@
+import httpx
 import pytest
 
 from prefect import flow
@@ -7,6 +8,7 @@ from prefect.runner import (
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_SERVER_ENABLE,
+    PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER,
     temporary_settings,
 )
 
@@ -49,3 +51,14 @@ def test_submission_fails_over_if_webserver_is_not_running(caplog):
 
         assert result == 42
         assert expected_text in caplog.text
+
+
+def test_submission_raises_if_webserver_not_running_and_no_failover():
+    with temporary_settings(
+        {
+            PREFECT_RUNNER_SERVER_ENABLE: False,
+            PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER: False,
+        }
+    ):
+        with pytest.raises((httpx.HTTPStatusError, RuntimeError)):
+            submit_to_runner(schleeb)

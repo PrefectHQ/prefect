@@ -123,7 +123,7 @@ async def submit_to_runner(
     parameters = parameters or {}
     try:
         flow_run = await _submit_flow_to_runner(prefect_callable, parameters)
-    except (httpx.ConnectError, httpx.HTTPStatusError):
+    except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
         if PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER.value():
             logger.warning(
                 "The `submit_to_runner` utility failed to connect to the `Runner`"
@@ -137,7 +137,11 @@ async def submit_to_runner(
                 result = await result
             return result
         else:
-            raise
+            raise RuntimeError(
+                "The `submit_to_runner` utility failed to connect to the `Runner`"
+                " webserver. To enable blocking failover, set the"
+                " `PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER` setting to `True`."
+            ) from exc
 
     if inspect.isawaitable(flow_run):
         return await flow_run
