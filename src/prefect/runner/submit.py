@@ -101,38 +101,24 @@ async def _submit_flow_to_runner(
 @sync_compatible
 async def submit_to_runner(
     prefect_callable: Union[Flow, Task],
-    parameters: Dict[str, Any],
-) -> uuid.UUID:
+    parameters: Union[Dict[str, Any], List[Dict[str, Any]]],
+    retry_failed_submissions: bool = True,
+) -> Union[uuid.UUID, List[uuid.UUID]]:
     """
     Run a callable in the background via the runner webserver.
 
     Args:
         prefect_callable: the callable to run (only flows are supported for now, but eventually tasks)
-        parameters: the keyword arguments to pass to the callable,
+        parameters: keyword arguments to pass to the callable. May be a list of dictionaries where
+            each dictionary represents a discrete invocation of the callable
     """
-    flow_run_id = await _submit_flow_to_runner(prefect_callable, parameters)
+    if isinstance(parameters, dict):
+        parameters = [parameters]
 
-    if inspect.isawaitable(flow_run_id):
-        return await flow_run_id
-    else:
-        return flow_run_id
-
-
-@sync_compatible
-async def submit_many_to_runner(
-    prefect_callable: Union[Flow, Task], parameters_list: List[Dict[str, Any]]
-) -> List[uuid.UUID]:
-    """
-    Run multiple callables in the background via the runner webserver.
-
-    Args:
-        prefect_callable: the callable to run (flows or tasks)
-        parameters_list: a list of dictionaries, each representing keyword arguments to pass to the callable.
-    """
     submitted_run_ids = []
-    for parameters in parameters_list:
+    for p in parameters:
         try:
-            flow_run_id = await submit_to_runner(prefect_callable, parameters)
+            flow_run_id = await _submit_flow_to_runner(prefect_callable, p)
         except HTTPError:
             # When case client-side retries still fail, continue submitting the
             # next run
@@ -142,13 +128,17 @@ async def submit_many_to_runner(
             flow_run_id = await flow_run_id
         submitted_run_ids.append(flow_run_id)
 
-    if (diff := len(parameters_list) - len(submitted_run_ids)) > 0:
+    if (diff := len(parameters) - len(submitted_run_ids)) > 0:
         logger.warning(
-            f"The last {diff} runs were not submitted to the runner,"
-            f" as all of the available {PREFECT_RUNNER_PROCESS_LIMIT.value()}"
-            " slots were occupied. To increase the number of available slots,"
-            " configure the `PREFECT_RUNNER_PROCESS_LIMIT` setting."
+            f"Failed to submit {diff} to the runner, as all of the available "
+            f"{PREFECT_RUNNER_PROCESS_LIMIT.value()}slots were occupied. To "
+            "increase the number of available slots, configure the"
+            "`PREFECT_RUNNER_PROCESS_LIMIT` setting."
         )
+
+    # If one run was submitted, return the run_id directly
+    if len(parameters) == 1:
+        return submitted_run_ids[0]
     return submitted_run_ids
 
 
