@@ -214,11 +214,6 @@ Automation notifications support sending notifications via any predefined block 
 
 ![Configuring notifications for an automation in Prefect Cloud.](/img/ui/automations-notifications.png)
 
-!!! note "Notification blocks must be pre-configured"
-    Notification blocks must be pre-configured prior to creating a notification action. Any existing blocks capable of sending messages will be shown in the block drop-down list.
-
-    The **Add +** button cancels the current automation creation process and enables configuration a notification block.
-
 ## Templating notifications with Jinja
 
 The notification body can include templated variables using [Jinja](https://palletsprojects.com/p/jinja/) syntax. Templated variable enable you to include details relevant to automation trigger, such as a flow or pool name.
