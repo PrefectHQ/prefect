@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import anyio
 import httpx
+from requests.exceptions import HTTPError
 from typing_extensions import Literal
 
 from prefect.client.orchestration import get_client
@@ -109,7 +110,6 @@ async def submit_to_runner(
         prefect_callable: the callable to run (only flows are supported for now, but eventually tasks)
         parameters: the keyword arguments to pass to the callable,
     """
-
     flow_run_id = await _submit_flow_to_runner(prefect_callable, parameters)
 
     if inspect.isawaitable(flow_run_id):
@@ -123,31 +123,32 @@ async def submit_many_to_runner(
     prefect_callable: Union[Flow, Task], parameters_list: List[Dict[str, Any]]
 ) -> List[uuid.UUID]:
     """
-    Run multiple callables in the background via the runner webserver, respecting the run limit.
+    Run multiple callables in the background via the runner webserver.
 
     Args:
         prefect_callable: the callable to run (flows or tasks)
         parameters_list: a list of dictionaries, each representing keyword arguments to pass to the callable.
     """
-
-    n_current_runs = await get_current_run_count()
-    available_slots = max(0, PREFECT_RUNNER_PROCESS_LIMIT.value() - n_current_runs)
-
     submitted_run_ids = []
-    for parameters in parameters_list[:available_slots]:
-        flow_run_id = await submit_to_runner(prefect_callable, parameters)
+    for parameters in parameters_list:
+        try:
+            flow_run_id = await submit_to_runner(prefect_callable, parameters)
+        except HTTPError:
+            # When case client-side retries still fail, continue submitting the
+            # next run
+            break
+
         if inspect.isawaitable(flow_run_id):
             flow_run_id = await flow_run_id
         submitted_run_ids.append(flow_run_id)
 
-    if (diff := len(parameters_list) - available_slots) > 0:
+    if (diff := len(parameters_list) - len(submitted_run_ids)) > 0:
         logger.warning(
             f"The last {diff} runs were not submitted to the runner,"
             f" as all of the available {PREFECT_RUNNER_PROCESS_LIMIT.value()}"
             " slots were occupied. To increase the number of available slots,"
             " configure the `PREFECT_RUNNER_PROCESS_LIMIT` setting."
         )
-
     return submitted_run_ids
 
 

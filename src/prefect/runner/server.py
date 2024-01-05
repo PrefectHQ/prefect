@@ -194,6 +194,12 @@ def _build_generic_endpoint_for_flows(
     async def _create_flow_run_for_flow_from_fqn(
         body: RunnerGenericFlowRunRequest,
     ) -> JSONResponse:
+        if not runner.has_slots_available():
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={"message": "Runner has no available slots"},
+            )
+
         try:
             flow = load_flow_from_entrypoint(body.entrypoint)
         except (MissingFlowError, ScriptError, ModuleNotFoundError):

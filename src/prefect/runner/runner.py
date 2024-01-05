@@ -822,6 +822,15 @@ class Runner:
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
 
+    def has_slots_available(self) -> bool:
+        """
+        Determine if the flow run limit has been reached.
+
+        Returns:
+            - bool: True if the limit has not been reached, False otherwise.
+        """
+        return self._limiter.available_tokens > 0
+
     def _acquire_limit_slot(self, flow_run_id: str) -> bool:
         """
         Enforces flow run limit set on runner.
