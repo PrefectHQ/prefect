@@ -9,12 +9,14 @@ from typing_extensions import Literal
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowRunFilter, TaskRunFilter
+from prefect.client.schemas.objects import FlowRun
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_PROCESS_LIMIT,
+    PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_PORT,
 )
@@ -38,8 +40,7 @@ async def get_current_run_count() -> int:
 async def _submit_flow_to_runner(
     flow: Flow,
     parameters: Dict[str, Any],
-    # capture_errors: bool = SETTING.value()?
-) -> uuid.UUID:
+) -> FlowRun:
     """
     Run a callable in the background via the runner webserver.
 
@@ -48,14 +49,10 @@ async def _submit_flow_to_runner(
         parameters: the keyword arguments to pass to the callable
         timeout: the maximum time to wait for the callable to finish
         poll_interval: the interval (in seconds) to wait between polling the callable
-    """
-    if not PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
-        raise ValueError(
-            "The `submit_to_runner` utility requires the `Runner` webserver to be"
-            " built with extra endpoints enabled. To enable this, set the"
-            " `PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS` setting to `True`."
-        )
 
+    Returns:
+        A `FlowRun` object representing the flow run that was submitted.
+    """
     from prefect.engine import (
         _dynamic_key_for_task_run,
         collect_task_run_inputs,
@@ -72,8 +69,14 @@ async def _submit_flow_to_runner(
         dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
         parent_task_run = await client.create_task_run(
             task=dummy_task,
-            flow_run_id=parent_flow_run_context.flow_run.id,
-            dynamic_key=_dynamic_key_for_task_run(parent_flow_run_context, dummy_task),
+            flow_run_id=(
+                parent_flow_run_context.flow_run.id if parent_flow_run_context else None
+            ),
+            dynamic_key=(
+                _dynamic_key_for_task_run(parent_flow_run_context, dummy_task)
+                if parent_flow_run_context
+                else str(uuid.uuid4())
+            ),
             task_inputs=task_inputs,
             state=Pending(),
         )
@@ -94,16 +97,16 @@ async def _submit_flow_to_runner(
         )
         response.raise_for_status()
 
-        flow_run_id = response.json()["flow_run_id"]
+        flow_run_id = uuid.UUID(response.json()["flow_run_id"])
 
-        return uuid.UUID(flow_run_id)
+        return await client.read_flow_run(flow_run_id)
 
 
 @sync_compatible
 async def submit_to_runner(
     prefect_callable: Union[Flow, Task],
-    parameters: Dict[str, Any],
-) -> uuid.UUID:
+    parameters: Optional[Dict[str, Any]] = None,
+) -> Union[FlowRun, Any]:
     """
     Run a callable in the background via the runner webserver.
 
@@ -111,13 +114,35 @@ async def submit_to_runner(
         prefect_callable: the callable to run (only flows are supported for now, but eventually tasks)
         parameters: the keyword arguments to pass to the callable,
     """
+    if not PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
+        raise ValueError(
+            "The `submit_to_runner` utility requires the `Runner` webserver to be"
+            " built with extra endpoints enabled. To enable this, set the"
+            " `PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS` setting to `True`."
+        )
+    parameters = parameters or {}
+    try:
+        flow_run = await _submit_flow_to_runner(prefect_callable, parameters)
+    except (httpx.ConnectError, httpx.HTTPStatusError):
+        if PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER.value():
+            logger.warning(
+                "The `submit_to_runner` utility failed to connect to the `Runner`"
+                " webserver, but blocking failover is enabled. The utility will"
+                " block until the flow run completes. You can disable this behavior"
+                " by configuring the `PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER`"
+                " setting to `False`."
+            )
+            result = prefect_callable(**parameters)
+            if inspect.isawaitable(result):
+                result = await result
+            return result
+        else:
+            raise
 
-    flow_run_id = await _submit_flow_to_runner(prefect_callable, parameters)
-
-    if inspect.isawaitable(flow_run_id):
-        return await flow_run_id
+    if inspect.isawaitable(flow_run):
+        return await flow_run
     else:
-        return flow_run_id
+        return flow_run
 
 
 @sync_compatible
@@ -131,8 +156,20 @@ async def submit_many_to_runner(
         prefect_callable: the callable to run (flows or tasks)
         parameters_list: a list of dictionaries, each representing keyword arguments to pass to the callable.
     """
-
-    n_current_runs = await get_current_run_count()
+    try:
+        n_current_runs = await get_current_run_count()
+    except httpx.ConnectError:
+        if PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER.value():
+            logger.warning(
+                "The `submit_many_to_runner` utility failed to connect to the `Runner`"
+                " webserver, but blocking failover is enabled. The utility will block"
+                " until all flow runs complete sequentially. You can disable this"
+                " behavior by configuring the"
+                " `PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER` setting to `False`."
+            )
+            n_current_runs = 0
+        else:
+            raise
     available_slots = max(0, PREFECT_RUNNER_PROCESS_LIMIT.value() - n_current_runs)
 
     submitted_run_ids = []

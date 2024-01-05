@@ -35,9 +35,9 @@ from prefect.runner.server import perform_health_check
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_RUNNER_ENABLE_SERVER,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
+    PREFECT_RUNNER_SERVER_ENABLE,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -1085,7 +1085,7 @@ class TestServer:
 
     @pytest.mark.parametrize("enabled", [True, False])
     async def test_webserver_start_flag(self, enabled: bool):
-        with temporary_settings(updates={PREFECT_RUNNER_ENABLE_SERVER: enabled}):
+        with temporary_settings(updates={PREFECT_RUNNER_SERVER_ENABLE: enabled}):
             with mock.patch("prefect.runner.runner.threading.Thread") as mocked_thread:
                 runner = Runner()
                 await runner.start(run_once=True)
