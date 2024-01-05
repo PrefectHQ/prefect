@@ -409,7 +409,7 @@ class Runner:
         runs_to_cancel = []
 
         # done to avoid dictionary size changing during iteration
-        for _, info in self._flow_run_process_map.items():
+        for info in self._flow_run_process_map.values():
             runs_to_cancel.append(info["flow_run"])
         if runs_to_cancel:
             for run in runs_to_cancel:
@@ -821,6 +821,15 @@ class Runner:
         )
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
+
+    def has_slots_available(self) -> bool:
+        """
+        Determine if the flow run limit has been reached.
+
+        Returns:
+            - bool: True if the limit has not been reached, False otherwise.
+        """
+        return self._limiter.available_tokens > 0
 
     def _acquire_limit_slot(self, flow_run_id: str) -> bool:
         """
