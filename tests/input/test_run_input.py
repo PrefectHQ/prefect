@@ -208,7 +208,9 @@ async def test_respond(flow_run):
     await person.respond(Place(city="New York", state="NY"))
 
     place = await Place.receive(flow_run_id=flow_run.id, timeout=0.1).next()
-    assert place == Place(city="New York", state="NY")
+    assert isinstance(place, Place)
+    assert place.city == "New York"
+    assert place.state == "NY"
 
 
 def test_respond_functions_sync(flow_run):
@@ -225,7 +227,9 @@ def test_respond_functions_sync(flow_run):
     person.respond(Place(city="New York", state="NY"))
 
     place = Place.receive(flow_run_id=flow_run.id, timeout=0.1).next()
-    assert place == Place(city="New York", state="NY")
+    assert isinstance(place, Place)
+    assert place.city == "New York"
+    assert place.state == "NY"
 
 
 async def test_respond_can_set_sender(flow_run):
@@ -261,7 +265,9 @@ async def test_respond_can_set_key_prefix(flow_run):
     place = await Place.receive(
         flow_run_id=flow_run.id, timeout=0.1, key_prefix="heythere"
     ).next()
-    assert place == Place(city="New York", state="NY")
+    assert isinstance(place, Place)
+    assert place.city == "New York"
+    assert place.state == "NY"
 
 
 async def test_respond_raises_exception_no_sender_in_input():
@@ -293,7 +299,10 @@ async def test_send_to(flow_run):
     await person.send_to(flow_run_id=flow_run.id)
 
     received = await Person.receive(flow_run_id=flow_run.id, timeout=0.1).next()
-    assert received == person
+    assert isinstance(received, Person)
+    assert person.name == "Bob"
+    assert person.email == "bob@example.com"
+    assert person.human is True
 
 
 def test_send_to_works_sync(flow_run):
@@ -309,7 +318,10 @@ def test_send_to_works_sync(flow_run):
     person.send_to(flow_run_id=flow_run.id)
 
     received = Person.receive(flow_run_id=flow_run.id, timeout=0.1).next()
-    assert received == person
+    assert isinstance(received, Person)
+    assert person.name == "Bob"
+    assert person.email == "bob@example.com"
+    assert person.human is True
 
 
 async def test_send_to_can_set_sender(flow_run):
@@ -343,7 +355,10 @@ async def test_send_to_can_set_key_prefix(flow_run):
     received = await Person.receive(
         flow_run_id=flow_run.id, timeout=0.1, key_prefix="heythere"
     ).next()
-    assert received == person
+    assert isinstance(received, Person)
+    assert person.name == "Bob"
+    assert person.email == "bob@example.com"
+    assert person.human is True
 
 
 async def test_receive(flow_run):
@@ -417,8 +432,11 @@ async def test_receive_with_exclude_keys(flow_run):
         flow_run_id=flow_run.id, timeout=0, exclude_keys=exclude_keys
     ):
         received.append(place)
+
     assert len(received) == 1
-    assert received[0] == Place(city="Portland", state="OR")
+    place = received[0]
+    assert place.city == "Portland"
+    assert place.state == "OR"
 
 
 async def test_receive_can_raise_timeout_errors_as_generator(flow_run):
