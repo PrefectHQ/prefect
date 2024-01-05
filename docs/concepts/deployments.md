@@ -210,7 +210,7 @@ However, there are a few reasons you might consider running flows on dynamically
 Options for [serverless work pools](/guides/deployment/serverless-workers/) allow you to scale to zero when workflows aren't running.
 Prefect even provides you with the ability to [provision cloud infrastructure via a single CLI command](/guides/deployment/push-work-pools/#automatically-creating-a-new-push-work-pool-and-provisioning-infrastructure), if you use a Prefect Cloud push work pool option.
 
-With work pool-based approaches:
+With work pools:
 
 - You can configure and monitor infrastructure configuration within the Prefect UI.
 - Infrastructure is ephemeral and dynamically provisioned.
