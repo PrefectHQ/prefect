@@ -68,7 +68,7 @@ async def _submit_flow_to_runner(
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
-
+        parameters = await resolve_inputs(parameters)
         dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
         parent_task_run = await client.create_task_run(
             task=dummy_task,
@@ -77,8 +77,6 @@ async def _submit_flow_to_runner(
             task_inputs=task_inputs,
             state=Pending(),
         )
-
-        parameters = await resolve_inputs(parameters)
 
         response = await client._client.post(
             (
