@@ -349,7 +349,7 @@ Prefect is installed into a conda environment named `prefect`.
 
 If your flow relies on dependencies not found in the default `prefecthq/prefect` images, you may want to build your own image. You can either
 base it off of one of the provided `prefecthq/prefect` images, or build your own image.
-See the [Docker guide](\guides\deployment\docker\) for discussion of how the Prefect CLI can help you build custom images with dependencies specifiied in a `requirements.txt` file.
+See the [Work pool deployment guide](/guides/prefect-deploy/) for discussion of how Prefect can help you build custom images with dependencies specifiied in a `requirements.txt` file.
 
 By default, Prefect [work pools](/concepts/work-pools) that use containers refer to the `2-latest` image.
 You can specify another image at work pool creation.
@@ -384,4 +384,4 @@ We only served a single flow in this guide, but you can extend this setup to ser
 
 To learn more about deploying flows, check out the [Deployments](/concepts/deployments/) concept doc!
 
-For advanced infrastructure requirements, such as executing each flow run within its own dedicated Docker container, learn more in our [worker and work pools tutorial page](/tutorial/workers/).
+For advanced infrastructure requirements, such as executing each flow run within its own dedicated Docker container, learn more in the [Work pool deployment guide](/guides/prefect-deploy/).
