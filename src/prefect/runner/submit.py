@@ -40,6 +40,7 @@ async def _submit_flow_to_runner(
     flow: Flow,
     parameters: Dict[str, Any],
     # capture_errors: bool = SETTING.value()?
+    retry_failed_submissions: bool = True,
 ) -> uuid.UUID:
     """
     Run a callable in the background via the runner webserver.
@@ -64,6 +65,11 @@ async def _submit_flow_to_runner(
     )
 
     async with get_client() as client:
+        if not retry_failed_submissions:
+            # TODO - configure the client to not retry 429s coming from the
+            # webserver
+            pass
+
         parent_flow_run_context = FlowRunContext.get()
 
         task_inputs = {
@@ -118,11 +124,13 @@ async def submit_to_runner(
     submitted_run_ids = []
     for p in parameters:
         try:
-            flow_run_id = await _submit_flow_to_runner(prefect_callable, p)
+            flow_run_id = await _submit_flow_to_runner(
+                prefect_callable, p, retry_failed_submissions
+            )
         except HTTPError:
-            # When case client-side retries still fail, continue submitting the
+            # When client-side retries fail, try submitting the
             # next run
-            break
+            continue
 
         if inspect.isawaitable(flow_run_id):
             flow_run_id = await flow_run_id
