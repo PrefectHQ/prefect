@@ -181,13 +181,12 @@ async def submit_to_runner(
                 ) from exc
 
     if unsubmitted_parameters:
-        flow_run_ids = await asyncio.gather(
+        await asyncio.gather(
             *[
                 run_prefect_callable_and_retrieve_run_id(prefect_callable, p)
                 for p in unsubmitted_parameters
             ]
         )
-        submitted_run_ids.extend(flow_run_ids)
 
     if (diff := len(parameters) - len(submitted_run_ids)) > 0:
         logger.warning(
