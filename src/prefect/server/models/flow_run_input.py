@@ -40,6 +40,7 @@ async def filter_flow_run_input(
                 db.FlowRunInput.key.not_in(exclude_keys),
             )
         )
+        .order_by(db.FlowRunInput.created)
         .limit(limit)
     )
 

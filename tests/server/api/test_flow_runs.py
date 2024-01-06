@@ -1541,6 +1541,60 @@ class TestFlowRunInput:
         assert len(response.json()) == 1
         assert schemas.core.FlowRunInput.parse_obj(response.json()[0]) == flow_run_input
 
+    async def test_filter_flow_run_input_limits_response(
+        self, client: AsyncClient, session: AsyncSession, flow_run
+    ):
+        for i in range(100):
+            await models.flow_run_input.create_flow_run_input(
+                session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run.id,
+                    key=f"structured-key-{i}",
+                    value="really important stuff",
+                ),
+            )
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input/filter",
+            json={"prefix": "structured", "limit": 10},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 10
+        assert response.json()[0]["key"] == "structured-key-0"
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input/filter",
+            json={"prefix": "structured", "limit": 20},
+        )
+
+        assert response.status_code == 200
+        assert len(response.json()) == 20
+        assert response.json()[-1]["key"] == "structured-key-19"
+
+    async def test_filter_flow_run_input_excludes_keys(
+        self,
+        client: AsyncClient,
+        flow_run_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "structured", "exclude_keys": [flow_run_input.key]},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
+    async def test_filter_flow_run_input_no_matches(
+        self,
+        client: AsyncClient,
+        flow_run_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "big-dawg"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
     async def test_read_flow_run_input(self, client: AsyncClient, flow_run_input):
         response = await client.get(
             f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",
