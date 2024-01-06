@@ -1553,6 +1553,7 @@ class TestFlowRunInput:
                     value="really important stuff",
                 ),
             )
+        await session.commit()
 
         response = await client.post(
             f"/flow_runs/{flow_run.id}/input/filter",
