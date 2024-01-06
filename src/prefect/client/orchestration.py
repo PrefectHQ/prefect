@@ -9,6 +9,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Set,
     Union,
 )
 from uuid import UUID
@@ -2721,7 +2722,9 @@ class PrefectClient:
             },
         )
 
-    async def create_flow_run_input(self, flow_run_id: UUID, key: str, value: str):
+    async def create_flow_run_input(
+        self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
+    ):
         """
         Creates a flow run input.
 
@@ -2729,6 +2732,7 @@ class PrefectClient:
             flow_run_id: The flow run id.
             key: The input key.
             value: The input value.
+            sender: The sender of the input.
         """
 
         # Initialize the input to ensure that the key is valid.
@@ -2736,9 +2740,23 @@ class PrefectClient:
 
         response = await self._client.post(
             f"/flow_runs/{flow_run_id}/input",
-            json={"key": key, "value": value},
+            json={"key": key, "value": value, "sender": sender},
         )
         response.raise_for_status()
+
+    async def filter_flow_run_input(
+        self, flow_run_id: UUID, key_prefix: str, limit: int, exclude_keys: Set[str]
+    ) -> List[FlowRunInput]:
+        response = await self._client.post(
+            f"/flow_runs/{flow_run_id}/input/filter",
+            json={
+                "prefix": key_prefix,
+                "limit": limit,
+                "exclude_keys": list(exclude_keys),
+            },
+        )
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[FlowRunInput], response.json())
 
     async def read_flow_run_input(self, flow_run_id: UUID, key: str) -> str:
         """

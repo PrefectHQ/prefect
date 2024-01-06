@@ -207,6 +207,7 @@ class RunContext(ContextModel):
     """
 
     start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: PrefectClient
 
 

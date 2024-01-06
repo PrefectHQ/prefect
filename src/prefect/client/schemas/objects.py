@@ -12,6 +12,7 @@ from typing import (
 )
 from uuid import UUID
 
+import orjson
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -1544,6 +1545,17 @@ class FlowRunInput(ObjectBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
     key: str = Field(description="The key of the input.")
     value: str = Field(description="The value of the input.")
+    sender: Optional[str] = Field(description="The sender of the input.")
+
+    @property
+    def decoded_value(self) -> Any:
+        """
+        Decode the value of the input.
+
+        Returns:
+            Any: the decoded value
+        """
+        return orjson.loads(self.value)
 
     @validator("key", check_fields=False)
     def validate_name_characters(cls, v):
