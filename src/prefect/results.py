@@ -617,13 +617,13 @@ class PersistedResultBlob(pydantic.BaseModel):
 
 class UnknownResult(BaseResult):
     """
-    Result type for unknown results. We use these to represent the result
-    of tasks that are forced into Completed state from a failure state.
+    Result type for unknown results. Typipcally used to represent the result
+    of tasks that were forced from a failure state into a completed state.
 
     The value for this result is always None and is not persisted to external
     result storage, but orchestration treats the result the same as persisted
     results when determining orchestration rules, such as whether to rerun a
-    Completed task.
+    completed task.
     """
 
     type = "unknown"
