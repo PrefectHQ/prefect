@@ -1546,7 +1546,7 @@ class TestFlowRunInput:
     ):
         for i in range(100):
             await models.flow_run_input.create_flow_run_input(
-                session,
+                session=session,
                 flow_run_input=schemas.core.FlowRunInput(
                     flow_run_id=flow_run.id,
                     key=f"structured-key-{i}",
