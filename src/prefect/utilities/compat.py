@@ -9,7 +9,9 @@ from shutil import copytree
 from signal import raise_signal
 
 def unstringitize(obj: str) -> object:
-    if sys.version_info < (3, 13) and sys.version_info > (3, 9):
+    if sys.version_info > (3, 12):
+        return obj
+    elif sys.version_info > (3, 9):
         from inspect import get_annotations
         return get_annotations(obj)
     else:
