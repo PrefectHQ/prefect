@@ -3684,4 +3684,4 @@ class TestCompat:
         
         @flow
         def foo(x: Test):
-       print(x)
+            print(x)
