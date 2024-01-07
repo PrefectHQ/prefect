@@ -1,12 +1,13 @@
 """
 Utilities for working with Python callables.
 """
-import sys
 import inspect
+import sys
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
+
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -279,7 +280,6 @@ def process_v1_params(
         name = param.name
 
     type_ = Any if param.annotation is inspect._empty else param.annotation
-
     field = pydantic.Field(
         default=... if param.default is param.empty else param.default,
         title=param.name,
