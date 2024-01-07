@@ -6,7 +6,6 @@ Utilities for Python version compatibility
 import asyncio
 import sys
 
-
 if sys.version_info < (3, 10):
     import importlib_metadata
     from importlib_metadata import EntryPoint, EntryPoints, entry_points
