@@ -6,7 +6,7 @@ from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
-
+from prefect.utilities.compat import destringitize
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -279,6 +279,9 @@ def process_v1_params(
         name = param.name
 
     type_ = Any if param.annotation is inspect._empty else param.annotation
+    if isinstance(type_, str):
+        type_ = destringitize(type_)
+
     field = pydantic.Field(
         default=... if param.default is param.empty else param.default,
         title=param.name,
