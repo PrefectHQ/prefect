@@ -5,16 +5,6 @@ Utilities for Python version compatibility
 
 import asyncio
 import sys
-from shutil import copytree
-from signal import raise_signal
-
-def unstringitize(obj: str) -> object:
-    if sys.version_info < (3, 13) and sys.version_info > (3, 9):
-        from inspect import get_annotations
-        return get_annotations(obj)
-    else:
-        raise ValueError("From __future__ import annotations is supported for"
-                         " Python versions 3.9+ only with Prefect.")
 
 
 if sys.version_info < (3, 10):
