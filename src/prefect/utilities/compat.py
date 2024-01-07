@@ -8,7 +8,7 @@ import sys
 from shutil import copytree
 from signal import raise_signal
 
-def unstringitize(obj: str) -> object:
+def destringitize(obj: str) -> object:
     if sys.version_info > (3, 12):
         return obj
     elif sys.version_info > (3, 9):
