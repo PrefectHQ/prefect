@@ -3673,3 +3673,15 @@ class TestFlowDeploy:
         )
 
         assert not capsys.readouterr().out
+
+class TestCompat:
+    def test_destringify_classes():
+        from __future__ import annotations
+        from prefect import flow
+        
+        class Test:
+            pass
+        
+        @flow
+        def foo(x: Test):
+       print(x)
