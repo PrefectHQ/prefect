@@ -14,3 +14,5 @@ def test_destringify_class():
     @flow
     def foo(x: Test):
         print(x)
+
+    assert foo
