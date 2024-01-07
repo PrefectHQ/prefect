@@ -13,7 +13,7 @@ def destringitize(obj: str) -> object:
         return obj
     elif sys.version_info >= (3, 10):
         from inspect import get_annotations
-        return get_annotations(obj)
+        return get_annotations(obj, eval_str=True)
     else:
         raise ValueError("From __future__ import annotations is supported for"
                          " Python versions 3.9+ only with Prefect.")
