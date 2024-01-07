@@ -1,8 +1,8 @@
 """
 Utilities for working with Python callables.
 """
-import sys
 import inspect
+import sys
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
