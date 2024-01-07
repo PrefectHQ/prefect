@@ -15,15 +15,3 @@ def test_destringify_class():
         print(x)
 
     assert foo
-
-@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python 3.9 or lower")
-def test_destringify_class_old():
-    with pytest.raises(ValueError):
-        class Test:
-            pass
-    
-        @flow
-        def foo(x: Test):
-            print(x)
-    
-        assert foo
