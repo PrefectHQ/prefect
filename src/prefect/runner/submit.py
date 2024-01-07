@@ -42,7 +42,7 @@ async def run_prefect_callable_and_retrieve_run_id(
 ) -> uuid.UUID:
     flow_run_id: Optional[uuid.UUID] = None
 
-    def store_run_id(flow, flow_run, state):
+    async def store_run_id(flow, flow_run, state):
         nonlocal flow_run_id
         flow_run_id = flow_run.id
 
@@ -128,7 +128,7 @@ async def _submit_flow_to_runner(
 @sync_compatible
 async def submit_to_runner(
     prefect_callable: Union[Flow, Task],
-    parameters: Union[Dict[str, Any], List[Dict[str, Any]]],
+    parameters: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
     retry_failed_submissions: bool = True,
 ) -> Union[uuid.UUID, List[uuid.UUID]]:
     """
@@ -190,7 +190,7 @@ async def submit_to_runner(
 
     if (diff := len(parameters) - len(submitted_run_ids)) > 0:
         logger.warning(
-            f"Failed to submit {diff} to the runner, as all of the available "
+            f"Failed to submit {diff} runs to the runner, as all of the available "
             f"{PREFECT_RUNNER_PROCESS_LIMIT.value()} slots were occupied. To "
             "increase the number of available slots, configure the"
             "`PREFECT_RUNNER_PROCESS_LIMIT` setting."
