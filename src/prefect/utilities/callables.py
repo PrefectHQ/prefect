@@ -280,7 +280,6 @@ def process_v1_params(
         name = param.name
 
     type_ = Any if param.annotation is inspect._empty else param.annotation
-
     field = pydantic.Field(
         default=... if param.default is param.empty else param.default,
         title=param.name,
