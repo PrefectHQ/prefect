@@ -36,7 +36,7 @@ async def async_identity(whatever):
 
 
 @flow
-def super_schleeb(*args, **kwargs):
+def super_identity(*args, **kwargs):
     return args, kwargs
 
 
@@ -267,7 +267,7 @@ def test_return_for_submissions_matches_input(input_: Union[List[Dict], Dict]):
     ],
 )
 def test_types_in_submission(input_: Union[List[Dict], Dict]):
-    results = submit_to_runner(super_schleeb, input_)
+    results = submit_to_runner(super_identity, input_)
 
     if isinstance(input_, List):
         assert len(results) == len(input_)
