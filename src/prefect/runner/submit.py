@@ -154,6 +154,9 @@ async def submit_to_runner(
     if isinstance(parameters, dict):
         parameters = [parameters]
 
+    if not parameters:
+        parameters = [{}]
+
     submitted_run_ids = []
     unsubmitted_parameters = []
 
