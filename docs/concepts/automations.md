@@ -137,6 +137,7 @@ Consider the `resource` and `related` fields on the following `prefect.flow-run.
 ```
 
 There are a number of valid ways to select the above event for evaluation, and the approach depends on the purpose of the automation.
+
 The following configuration will filter for any events whose primary resource is a flow run, _and_ that flow run has a name starting with `cute-` or `radical-`.
 
 ```json
