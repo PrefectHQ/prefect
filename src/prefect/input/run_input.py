@@ -1,3 +1,64 @@
+"""
+This module offers a framework for data exchange between flow runs enabling
+real-time interaction and efficient data handling. It's designed to facilitate
+dynamic communication within distributed or microservices-oriented systems,
+making it ideal for scenarios requiring continuous data synchronization and
+processing.
+
+Use this module to create responsive, real-time applications where different
+flow runs need to communicate and exchange data dynamically. It's particularly
+useful for systems that require ongoing data input and output.
+
+The following is an example of two flows. One sends a random number to the
+other and waits for a response. The other receives the number, squares it, and
+sends the result back. The sender flow then prints the result.
+
+Sender flow:
+
+```python
+import random
+from uuid import UUID
+from prefect import flow, get_run_logger
+from prefect.input import RunInput
+
+class NumberData(RunInput):
+    number: int
+
+
+@flow
+async def sender_flow(receiver_flow_run_id: UUID):
+    logger = get_run_logger()
+
+    the_number = random.randint(1, 100)
+
+    await NumberData(number=the_number).send_to(receiver_flow_run_id)
+
+    receiver = NumberData.receive(flow_run_id=receiver_flow_run_id)
+    squared = await receiver.next()
+
+    logger.info(f"{the_number} squared is {squared.number}")
+```
+
+Receiver flow:
+```python
+import random
+from uuid import UUID
+from prefect import flow, get_run_logger
+from prefect.input import RunInput
+
+class NumberData(RunInput):
+    number: int
+
+
+@flow
+async def receiver_flow():
+    async for data in NumberData.receive():
+        squared = data.number ** 2
+        data.respond(NumberData(number=squared))
+```
+"""
+
+
 from typing import (
     TYPE_CHECKING,
     Any,
