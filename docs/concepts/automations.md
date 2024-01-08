@@ -213,11 +213,13 @@ def transform(table_name: str):
 
   if not table.exists():
     emit_event(
-        event="table-missing", resource={"prefect.resource.id": "etl-events.transform"}
+        event="table-missing",
+        resource={"prefect.resource.id": "etl-events.transform"}
     )
   elif table.is_empty():
     emit_event(
-        event="table-empty", resource={"prefect.resource.id": "etl-events.transform"}
+        event="table-empty",
+        resource={"prefect.resource.id": "etl-events.transform"}
     )
   else:
     # transform data
