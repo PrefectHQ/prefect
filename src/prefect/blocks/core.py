@@ -952,9 +952,9 @@ class Block(BaseModel, ABC):
         if name is None and not is_anonymous:
             if self._block_document_name is None:
                 raise ValueError(
-                    "You're attempting to save a block document without a name. "
-                    "Please either save a block document with a name or set "
-                    "is_anonymous to True."
+                    "You're attempting to save a block document without a name."
+                    " Please either call `save` with a `name` or pass"
+                    " `is_anonymous=True` to save an anonymous block."
                 )
             else:
                 name = self._block_document_name
