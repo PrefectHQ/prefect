@@ -233,7 +233,10 @@ The following configuration uses `after` to prevent this automation from firing 
 
 ```json
 "match": {
-  "prefect.resource.id": ["prefect.flow-run.*", "etl-events.transform"],
+  "prefect.resource.id": [
+    "prefect.flow-run.*",
+    "etl-events.transform"
+  ]
 },
 "match_related": {
   "prefect.resource.id": "prefect.deployment.37ca4a08-e2d9-4628-a310-cc15a323378e"
