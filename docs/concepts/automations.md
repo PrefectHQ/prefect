@@ -92,7 +92,7 @@ Specify a name and, optionally, a description for the automation.
 
 ## Custom triggers
 
-Custom triggers allow advanced configuration of the conditions on which a trigger executes its actions. Several custom trigger fields accept values that end with trailing wildcards, like `"prefect.flow-run.*"`.
+Custom triggers allow advanced configuration of the conditions on which an automation executes its actions. Several custom trigger fields accept values that end with trailing wildcards, like `"prefect.flow-run.*"`.
 
 ![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/img/ui/automations-custom.png)
 
