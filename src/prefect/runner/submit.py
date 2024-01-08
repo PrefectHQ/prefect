@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, overload
 
 import anyio
 import httpx
@@ -127,6 +127,24 @@ async def _submit_flow_to_runner(
         response.raise_for_status()
 
         return uuid.UUID(response.json()["flow_run_id"])
+
+
+@overload
+def submit_to_runner(
+    prefect_callable: Union[Flow, Task],
+    parameters: Dict[str, Any],
+    retry_failed_submissions: bool = True,
+) -> uuid.UUID:
+    ...
+
+
+@overload
+def submit_to_runner(
+    prefect_callable: Union[Flow, Task],
+    parameters: List[Dict[str, Any]],
+    retry_failed_submissions: bool = True,
+) -> List[uuid.UUID]:
+    ...
 
 
 @sync_compatible
