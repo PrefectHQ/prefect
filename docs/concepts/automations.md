@@ -186,7 +186,7 @@ This configuration informs the trigger to evaluate _only_ `prefect.flow-run.Comp
 ...
 ```
 
-If an automation shouldn't execute its actions until multiple `expect`ed events are seen, use `threshold` to decide the quantity. Increasing the `threshold` will also require use of `within` to define a range of time in which multiple events are seen. The following configuration will expect two occurrences of `prefect.flow-run.Completed` within 60 seconds.
+`threshold` decides the quantity of `expect`ed events needed to satisfy the trigger. Increasing the `threshold` above 1 will also require use of `within` to define a range of time in which multiple events are seen. The following configuration will expect two occurrences of `prefect.flow-run.Completed` within 60 seconds.
 
 ```json
 "expect": [
@@ -244,7 +244,7 @@ The following configuration uses `after` to prevent this automation from firing 
 
 ### Evaluation strategy
 
-All of the previous examples were designed around a "Reactive" `posture` - that is, count up events toward the `threshold` until it is met, then execute actions. To respond to the absence of events, use a "Proactive" `posture`. A proactive trigger will fire when its `threshold` has _not_ been met by the end of the window of time defined by `within`. Proactive triggers must have a `within` of at least 10 seconds. 
+All of the previous examples were designed around a reactive `posture` - that is, count up events toward the `threshold` until it is met, then execute actions. To respond to the absence of events, use a proactive `posture`. A proactive trigger will fire when its `threshold` has _not_ been met by the end of the window of time defined by `within`. Proactive triggers must have a `within` of at least 10 seconds. 
 
 The following trigger will fire if a `prefect.flow-run.Completed` event is not seen within 60 seconds after a `prefect.flow-run.Running` event is seen.
 
