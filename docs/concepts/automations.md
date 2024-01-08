@@ -226,7 +226,10 @@ def transform(table_name: str):
     # transform data
 ```
 
-The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a `table-empty` event has occurred before a flow run of this deployment completes. Note how `match` and `match_related` are used to ensure the trigger only evaluates events that are relevant to its purpose:
+The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a `table-empty` event has occurred before a flow run of this deployment completes.
+
+!!! tip
+    Note how `match` and `match_related` are used to ensure the trigger only evaluates events that are relevant to its purpose.
 
 ```json
 "match": {
