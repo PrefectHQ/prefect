@@ -126,9 +126,7 @@ async def _submit_flow_to_runner(
         )
         response.raise_for_status()
 
-        flow_run_id = uuid.UUID(response.json()["flow_run_id"])
-
-        return await client.read_flow_run(flow_run_id)
+        return uuid.UUID(response.json()["flow_run_id"])
 
 
 @sync_compatible
