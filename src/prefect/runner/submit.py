@@ -36,14 +36,14 @@ async def get_current_run_count() -> int:
         return response.json()
 
 
-async def run_prefect_callable_and_retrieve_run_id(
+async def _run_prefect_callable_and_retrieve_run_id(
     prefect_callable: Union[Flow, Task],
     parameters: Dict[str, Any],
 ) -> uuid.UUID:
     """
-    This function exists only to capture the flow_run_id that is created 
-    while directly executing a flow. It does so by injecting its own 
-    on_completion callback. This should only be called if flow run 
+    This function exists only to capture the flow_run_id that is created
+    while directly executing a flow. It does so by injecting its own
+    on_completion callback. This should only be called if flow run
     submission to the Runner's webserver failed.
     """
     flow_run_id: Optional[uuid.UUID] = None
@@ -164,18 +164,15 @@ async def submit_to_runner(
             flow_run_id = await _submit_flow_to_runner(
                 prefect_callable, p, retry_failed_submissions
             )
-            if inspect.isawaitable(flow_run_id):
-                flow_run_id = await flow_run_id
-            submitted_run_ids.append(flow_run_id)
         except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
             if PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER.value():
                 logger.warning(
                     "The `submit_to_runner` utility failed to connect to the `Runner`"
-                    " webserver, but blocking failover is enabled. The utility will"
+                    " webserver, and blocking failover is enabled. The utility will"
                     " block until the flow run completes. You can disable this behavior"
                     " by configuring the"
                     " `PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER` setting to"
-                    " `False`."
+                    " `False`, which will raise an error immediately."
                 )
                 unsubmitted_parameters.append(p)
             else:
@@ -185,14 +182,19 @@ async def submit_to_runner(
                     " `PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER` setting to"
                     " `True`."
                 ) from exc
+        else:
+            if inspect.isawaitable(flow_run_id):
+                flow_run_id = await flow_run_id
+            submitted_run_ids.append(flow_run_id)
 
     if unsubmitted_parameters:
-        await asyncio.gather(
+        blocking_run_ids = await asyncio.gather(
             *[
-                run_prefect_callable_and_retrieve_run_id(prefect_callable, p)
+                _run_prefect_callable_and_retrieve_run_id(prefect_callable, p)
                 for p in unsubmitted_parameters
             ]
         )
+        submitted_run_ids.extend(blocking_run_ids)
 
     if (diff := len(parameters) - len(submitted_run_ids)) > 0:
         logger.warning(
