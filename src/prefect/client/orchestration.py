@@ -2736,12 +2736,10 @@ class PrefectClient:
     async def update_global_concurrency_limit(
         self, name: str, concurrency_limit: GlobalConcurrencyLimitUpdate
     ) -> httpx.Response:
-        concurrency_limit_dict = concurrency_limit.dict(
-            json_compatible=True, exclude_unset=True
-        )
         try:
             response = await self._client.patch(
-                f"/v2/concurrency_limits/{name}", json=concurrency_limit_dict
+                f"/v2/concurrency_limits/{name}",
+                json=concurrency_limit.dict(json_compatible=True, exclude_unset=True),
             )
             return response
         except httpx.HTTPStatusError as e:
