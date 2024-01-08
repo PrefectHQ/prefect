@@ -1368,6 +1368,25 @@ class TestSaveBlock:
 
         assert loaded_new_block == new_block
 
+    async def test_save_block_with_inferred_name(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
+
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save a block document without a name.",
+        ):
+            await new_block.save()
+
+        await new_block.save("new-block")
+
+        new_python_instance = await NewBlock.load("new-block")
+        new_python_instance.a = "baz"
+        await new_python_instance.save(overwrite=True)
+
+        loaded_new_block = await new_block.load("new-block")
+        assert loaded_new_block.a == "baz"
+        assert loaded_new_block.b == "bar"
+
     async def test_save_anonymous_block(self, NewBlock):
         new_anon_block = NewBlock(a="foo", b="bar")
         await new_anon_block._save(is_anonymous=True)
