@@ -83,9 +83,9 @@ from prefect.runner.server import start_webserver
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_RUNNER_ENABLE_SERVER,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
+    PREFECT_RUNNER_SERVER_ENABLE,
     PREFECT_UI_URL,
     get_current_settings,
 )
@@ -351,7 +351,7 @@ class Runner:
 
         webserver = webserver if webserver is not None else self.webserver
 
-        if webserver or PREFECT_RUNNER_ENABLE_SERVER.value():
+        if webserver or PREFECT_RUNNER_SERVER_ENABLE.value():
             # we'll start the ASGI server in a separate thread so that
             # uvicorn does not block the main thread
             server_thread = threading.Thread(
@@ -409,7 +409,7 @@ class Runner:
         runs_to_cancel = []
 
         # done to avoid dictionary size changing during iteration
-        for _, info in self._flow_run_process_map.items():
+        for info in self._flow_run_process_map.values():
             runs_to_cancel.append(info["flow_run"])
         if runs_to_cancel:
             for run in runs_to_cancel:
@@ -821,6 +821,15 @@ class Runner:
         )
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
+
+    def has_slots_available(self) -> bool:
+        """
+        Determine if the flow run limit has been reached.
+
+        Returns:
+            - bool: True if the limit has not been reached, False otherwise.
+        """
+        return self._limiter.available_tokens > 0
 
     def _acquire_limit_slot(self, flow_run_id: str) -> bool:
         """
