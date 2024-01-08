@@ -141,7 +141,7 @@ def test_submission_raises_if_webserver_not_running_and_no_failover():
         }
     ):
         with pytest.raises((httpx.HTTPStatusError, RuntimeError)):
-            submit_to_runner(identity, {"d": {"schleeb": 9001}})
+            submit_to_runner(identity, {"d": {"input": 9001}})
 
 
 @mock.patch(
@@ -152,12 +152,12 @@ def test_failed_submission_gets_run_sync(run_callable_mock: mock.Mock, caplog):
         "prefect.runner.submit._submit_flow_to_runner",
         side_effect=httpx.ConnectError(""),
     ):
-        inputs = [{"schleeb": 1}, {"schleeb": 2}, {"schleeb": 3}]
-        results = submit_to_runner(schleeb, inputs)
+        inputs = [{"input": 1}, {"input": 2}, {"input": 3}]
+        results = submit_to_runner(identity, inputs)
 
         assert run_callable_mock.call_count == len(inputs)
         assert run_callable_mock.call_args_list == [
-            mock.call(schleeb, d) for d in inputs
+            mock.call(identity, d) for d in inputs
         ]
         assert len(results) == len(inputs)
         assert (
@@ -179,11 +179,11 @@ def test_intermittent_failed_submission_gets_run_sync(
         "prefect.runner.submit._submit_flow_to_runner",
         side_effect=[uuid.uuid4(), httpx.ConnectError(""), uuid.uuid4()],
     ):
-        inputs = [{"schleeb": 1}, {"schleeb": 2}, {"schleeb": 3}]
-        results = submit_to_runner(schleeb, inputs)
+        inputs = [{"input": 1}, {"input": 2}, {"input": 3}]
+        results = submit_to_runner(identity, inputs)
 
         assert run_callable_mock.call_count == 1
-        assert run_callable_mock.call_args_list == [mock.call(schleeb, {"schleeb": 2})]
+        assert run_callable_mock.call_args_list == [mock.call(identity, {"input": 2})]
         assert len(results) == len(inputs)
         assert (
             "The `submit_to_runner` utility failed to connect to the `Runner` webserver"
@@ -202,11 +202,11 @@ def test_failed_submission_are_not_run_sync_if_configured(caplog):
         side_effect=httpx.ConnectError(""),
     ) as sub_flow_mock:
         with pytest.raises(RuntimeError):
-            submit_to_runner(schleeb, {"schleeb": 1})
+            submit_to_runner(identity, {"input": 1})
 
         assert sub_flow_mock.call_count == 1
         assert sub_flow_mock.call_args_list == [
-            mock.call(schleeb, {"schleeb": 1}, True)
+            mock.call(identity, {"input": 1}, True)
         ], sub_flow_mock.call_args_list
         assert (
             "The `submit_to_runner` utility failed to connect to the `Runner`"
@@ -214,7 +214,7 @@ def test_failed_submission_are_not_run_sync_if_configured(caplog):
         )
 
 
-@pytest.mark.parametrize("input_", [[{"schleeb": 1}, {"schleeb": 2}], {"schleeb": 3}])
+@pytest.mark.parametrize("input_", [[{"input": 1}, {"input": 2}], {"input": 3}])
 def test_return_for_submissions_matches_input(input_: Union[List[Dict], Dict]):
     def _uuid_generator(*_, **__):
         return uuid.uuid4()
@@ -223,7 +223,7 @@ def test_return_for_submissions_matches_input(input_: Union[List[Dict], Dict]):
         "prefect.runner.submit._submit_flow_to_runner",
         side_effect=_uuid_generator,
     ):
-        results = submit_to_runner(schleeb, input_)
+        results = submit_to_runner(identity, input_)
 
         if isinstance(input_, dict):
             assert isinstance(results, uuid.UUID)
