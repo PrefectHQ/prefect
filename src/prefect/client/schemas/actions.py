@@ -23,7 +23,7 @@ from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_underscores_only,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.schedules import SCHEDULE_TYPES, NoSchedule
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
@@ -215,6 +215,12 @@ class DeploymentUpdate(ActionBaseModel):
                 UserWarning,
             )
         return values_copy
+
+    @validator("schedule")
+    def return_none_schedule(cls, v):
+        if isinstance(v, NoSchedule):
+            return None
+        return v
 
     version: Optional[str] = FieldFrom(objects.Deployment)
     schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
