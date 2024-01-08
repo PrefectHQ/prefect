@@ -162,6 +162,11 @@ async def submit_to_runner(
             each dictionary represents a discrete invocation of the callable
         retry_failed_submissions: Whether to retry failed submissions to the runner webserver.
     """
+    if not isinstance(prefect_callable, (Flow, Task)):
+        raise TypeError(
+            "The `submit_to_runner` utility only supports submitting flows and tasks."
+        )
+
     if not PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
         raise ValueError(
             "The `submit_to_runner` utility requires the `Runner` webserver to be"
