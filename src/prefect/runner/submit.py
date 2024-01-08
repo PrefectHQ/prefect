@@ -40,6 +40,12 @@ async def run_prefect_callable_and_retrieve_run_id(
     prefect_callable: Union[Flow, Task],
     parameters: Dict[str, Any],
 ) -> uuid.UUID:
+    """
+    This function exists only to capture the flow_run_id that is created 
+    while directly executing a flow. It does so by injecting its own 
+    on_completion callback. This should only be called if flow run 
+    submission to the Runner's webserver failed.
+    """
     flow_run_id: Optional[uuid.UUID] = None
 
     async def store_run_id(flow, flow_run, state):
