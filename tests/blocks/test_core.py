@@ -1368,7 +1368,7 @@ class TestSaveBlock:
 
         assert loaded_new_block == new_block
 
-    async def test_save_block_with_inferred_name(self, NewBlock):
+    async def test_save_block_with_name_inferred_from_loaded_document(self, NewBlock):
         new_block = NewBlock(a="foo", b="bar")
 
         with pytest.raises(
@@ -1383,7 +1383,7 @@ class TestSaveBlock:
         new_python_instance.a = "baz"
         await new_python_instance.save(overwrite=True)
 
-        loaded_new_block = await new_block.load("new-block")
+        loaded_new_block = await NewBlock.load("new-block")
         assert loaded_new_block.a == "baz"
         assert loaded_new_block.b == "bar"
 
