@@ -266,7 +266,7 @@ The following trigger will fire if a `prefect.flow-run.Completed` event is not s
   "within": 60
 }
 ```
-However, without `for_each`, a `prefect.flow-run.Completed` event from a _different_ flow run than the one that started this trigger with its `prefect.flow-run.Running` event could satisfy the condition. Adding a `for_each` of `"prefect.resource.id"` will cause this trigger to be evaluated separately for each flow run id associated with these events.
+However, without `for_each`, a `prefect.flow-run.Completed` event from a _different_ flow run than the one that started this trigger with its `prefect.flow-run.Running` event could satisfy the condition. Adding a `for_each` of `prefect.resource.id` will cause this trigger to be evaluated separately for each flow run id associated with these events.
 
 ```json
 {
@@ -280,7 +280,9 @@ However, without `for_each`, a `prefect.flow-run.Completed` event from a _differ
   "expect": [
     "prefect.flow-run.Completed"
   ],
-  "for_each": ["prefect.resource.id"],
+  "for_each": [
+    "prefect.resource.id"
+  ],
   "posture": "Proactive",
   "threshold": 1,
   "within": 60
