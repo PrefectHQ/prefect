@@ -15,7 +15,7 @@ From the [Automations concept page](/concepts/automations/), we saw what an auto
 
 In this guide, we will showcase the following common use cases:
 
-- Creating a simple notification automation in just a few UI clicks
+- Create a simple notification automation in just a few UI clicks
 - Build upon an event based automation
 - Combine into a multi-layered responsive deployment pattern
 
