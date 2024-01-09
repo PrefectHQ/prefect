@@ -32,7 +32,7 @@ Please have the following before exploring the guide:
 
 ## Creating the example script
 
-Automations are the one stop shop to react to different workflows by responding to specific actions recorded by Prefect. 
+Automations allow you to take actions in response to triggering events recorded by Prefect. 
 
 For example, let's try to grab data from an API and have a notification get based on the end state. 
 
