@@ -33,7 +33,7 @@ Flow code is not stored in a Prefect server database instance or Prefect Cloud.
 When deploying a flow, you have several flow code storage options.
 
 This guide discusses storage options with a focus on deployments created with a the interactive CLI experience or a `prefect.yaml` file. 
-If you'd like to create your deployments using Python code, see the discussion of flow code storage on the `.deploy` tab of [Deploying Flows to Work pools and Workers guide](guides/prefect-deploy/#creating-work-pool-based-deployments).
+If you'd like to create your deployments using Python code, see the discussion of flow code storage on the `.deploy` tab of [Deploying Flows to Work pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments).
 
 ## Option 1: Local storage
 
