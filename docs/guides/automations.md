@@ -13,7 +13,7 @@ search:
 
 From the [Automations concept page](/concepts/automations/), we saw what an automation can do and how to configure one within the UI. 
 
-In this guide, we will showcase common usecases where automations can come in handy by:
+In this guide, we will showcase the following common use cases:
 
 - Creating a simple notification automation in just a few UI clicks
 - Build upon an event based automation
