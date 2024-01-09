@@ -1176,7 +1176,7 @@ def _load_deploy_configs_and_actions(
     prefect_file: Path, ci: bool = False
 ) -> Tuple[List[Dict], Dict]:
     """
-    Load deploy configs and actions from a prefect.yaml file.
+    Load deploy configs and actions from a deployment configuration YAML file.
 
     Handles the deprecation of the deployment.yaml file.
 
