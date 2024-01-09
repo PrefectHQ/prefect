@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -953,7 +953,7 @@ class TestResumeFlowrun:
         flow,
     ):
         class SimpleInput(RunInput):
-            approved: bool | None = True
+            approved: Optional[bool] = True
 
         state = schemas.states.Paused(pause_key="1")
         keyset = keyset_from_paused_state(state)
@@ -1051,15 +1051,8 @@ class TestResumeFlowrun:
         response = await client.post(
             f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
         )
-        assert response.status_code == 200
-        assert response.json()["status"] == "REJECT"
-        assert (
-            response.json()["details"]["reason"]
-            == "Run input validation failed: 'approved' is a required property"
-        )
-        assert response.json()["state"]["id"] == str(
-            paused_flow_run_waiting_for_input_with_default.state_id
-        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
 
     async def test_resume_flow_run_waiting_for_input_without_input_fails_if_required(
         self,
