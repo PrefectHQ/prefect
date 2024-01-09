@@ -182,7 +182,12 @@
               "title": "Launch Type",
               "description": "The type of ECS task run infrastructure that should be used. Note that 'FARGATE_SPOT' is not a formal ECS launch type, but we will configure the proper capacity provider strategy if set here.",
               "default": "FARGATE",
-              "enum": ["FARGATE", "EC2", "EXTERNAL", "FARGATE_SPOT"],
+              "enum": [
+                "FARGATE",
+                "EC2",
+                "EXTERNAL",
+                "FARGATE_SPOT"
+              ],
               "type": "string"
             },
             "image": {
@@ -354,7 +359,9 @@
                 }
               },
               "block_type_slug": "aws-credentials",
-              "secret_fields": ["aws_secret_access_key"],
+              "secret_fields": [
+                "aws_secret_access_key"
+              ],
               "block_schema_references": {}
             }
           }
@@ -588,7 +595,10 @@
               "type": "number"
             }
           },
-          "required": ["resource_group_name", "subscription_id"],
+          "required": [
+            "resource_group_name",
+            "subscription_id"
+          ],
           "definitions": {
             "DockerRegistry": {
               "title": "DockerRegistry",
@@ -619,9 +629,15 @@
                   "type": "boolean"
                 }
               },
-              "required": ["username", "password", "registry_url"],
+              "required": [
+                "username",
+                "password",
+                "registry_url"
+              ],
               "block_type_slug": "docker-registry",
-              "secret_fields": ["password"],
+              "secret_fields": [
+                "password"
+              ],
               "block_schema_references": {}
             },
             "ACRManagedIdentity": {
@@ -640,7 +656,10 @@
                   "type": "string"
                 }
               },
-              "required": ["registry_url", "identity"]
+              "required": [
+                "registry_url",
+                "identity"
+              ]
             },
             "AzureContainerInstanceCredentials": {
               "title": "AzureContainerInstanceCredentials",
@@ -671,7 +690,9 @@
                 }
               },
               "block_type_slug": "azure-container-instance-credentials",
-              "secret_fields": ["client_secret"],
+              "secret_fields": [
+                "client_secret"
+              ],
               "block_schema_references": {}
             }
           }
@@ -744,7 +765,11 @@
             "image_pull_policy": {
               "title": "Image Pull Policy",
               "description": "The image pull policy to use when pulling images.",
-              "enum": ["IfNotPresent", "Always", "Never"],
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ],
               "type": "string"
             },
             "networks": {
@@ -769,7 +794,9 @@
             "volumes": {
               "title": "Volumes",
               "description": "A list of volume to mount into created containers.",
-              "example": ["/my/local/path:/path/in/container"],
+              "example": [
+                "/my/local/path:/path/in/container"
+              ],
               "type": "array",
               "items": {
                 "type": "string"
@@ -977,7 +1004,9 @@
                 }
               },
               "block_type_slug": "gcp-credentials",
-              "secret_fields": ["service_account_info.*"],
+              "secret_fields": [
+                "service_account_info.*"
+              ],
               "block_schema_references": {}
             }
           }
@@ -1166,7 +1195,9 @@
                 }
               },
               "block_type_slug": "gcp-credentials",
-              "secret_fields": ["service_account_info.*"],
+              "secret_fields": [
+                "service_account_info.*"
+              ],
               "block_schema_references": {}
             }
           }
@@ -1328,7 +1359,10 @@
               "type": "number"
             }
           },
-          "required": ["region", "image"],
+          "required": [
+            "region",
+            "image"
+          ],
           "definitions": {
             "GcpCredentials": {
               "title": "GcpCredentials",
@@ -1353,7 +1387,9 @@
                 }
               },
               "block_type_slug": "gcp-credentials",
-              "secret_fields": ["service_account_info.*"],
+              "secret_fields": [
+                "service_account_info.*"
+              ],
               "block_schema_references": {}
             }
           }
@@ -1463,7 +1499,11 @@
               "title": "Image Pull Policy",
               "description": "The Kubernetes image pull policy to use for job containers.",
               "default": "IfNotPresent",
-              "enum": ["IfNotPresent", "Always", "Never"],
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ],
               "type": "string"
             },
             "finished_job_ttl": {
@@ -1515,7 +1555,10 @@
                   "type": "string"
                 }
               },
-              "required": ["config", "context_name"],
+              "required": [
+                "config",
+                "context_name"
+              ],
               "block_type_slug": "kubernetes-cluster-config",
               "secret_fields": [],
               "block_schema_references": {}

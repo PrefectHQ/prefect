@@ -1283,6 +1283,7 @@ class FlowRunInput(ORMBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
     key: str = Field(description="The key of the input.")
     value: str = Field(description="The value of the input.")
+    sender: Optional[str] = Field(description="The sender of the input.")
 
     @validator("key", check_fields=False)
     def validate_name_characters(cls, v):
