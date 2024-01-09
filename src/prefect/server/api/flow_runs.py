@@ -327,15 +327,10 @@ async def resume_flow_run(
         orchestration_parameters.update({"api-version": api_version})
 
         keyset = state.state_details.run_input_keyset
-        if keyset and not run_input:
-            return OrchestrationResult(
-                state=state,
-                status=schemas.responses.SetStateStatus.REJECT,
-                details=schemas.responses.StateAbortDetails(
-                    reason="Flow run was expecting input but none was provided."
-                ),
-            )
-        elif keyset and run_input:
+
+        if keyset:
+            run_input = run_input or {}
+
             schema_json = await models.flow_run_input.read_flow_run_input(
                 session=session, flow_run_id=flow_run.id, key=keyset["schema"]
             )
