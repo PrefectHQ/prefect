@@ -32,6 +32,9 @@ When a flow runs, the execution environment needs access to its code.
 Flow code is not stored in a Prefect server database instance or Prefect Cloud. 
 When deploying a flow, you have several flow code storage options.
 
+This guide discusses storage options with a focus on deployments created with a the interactive CLI experience or a `prefect.yaml` file. 
+If you'd like to create your deployments using Python code, see the discussion of flow code storage on the `.deploy` tab of [Deploying Flows to Work pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments).
+
 ## Option 1: Local storage
 
 Local flow code storage is often used with a Local Subprocess work pool for initial experimentation. 
@@ -121,7 +124,7 @@ Creating access tokens differs for each provider.
 
     In your repository in the GitLab UI, select *Settings->Repository->Project Access Tokens* and check *read_repository* under *Select scopes*.
 
-If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file, create the block via code or the Prefect UI and reference it like this:
+If you want to configure a Secret block ahead of time, create the block via code or the Prefect UI and reference it in your `prefect.yaml` file.
 
 ```yaml
 
