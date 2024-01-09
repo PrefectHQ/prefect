@@ -709,7 +709,7 @@ async def _run_single_deploy(
                 app.console.print(
                     "[red]Cancelled saving deployment configuration"
                     f" '{deploy_config_before_templating.get('name')}' to the"
-                    f" prefect.yaml file.[/red] at {prefect_file}"
+                    f" deployment configuration file[/red] at {prefect_file}"
                 )
             else:
                 _save_deployment_to_prefect_file(
