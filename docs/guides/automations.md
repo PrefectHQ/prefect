@@ -113,7 +113,7 @@ Let's create a deployment where we can kick off some work based on how long a fl
 
 === ".yaml"
 
-    By following the deployment steps, we can get started by creating a local prefect.yaml that looks like this for our flow `build_names`
+    Create a `prefect.yaml` file like this one for our flow `build_names`:
 
     ```yaml
       # Welcome to your prefect.yaml file! You can use this file for storing and managing
