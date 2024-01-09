@@ -183,7 +183,7 @@ prefect deployment ls
 │ ride-duration-prediction-backfill/backfill-deployment │ 76dc6581-1773-45c5-a291-7f864d064c57 │
 └───────────────────────────────────────────────────────┴──────────────────────────────────────┘
 ``` 
-We can create an automation via a POST call, where we can programmatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id` are handy. 
+We can create an automation via a POST call, where we can programmatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id`. 
 
 ```python
 def create_event_driven_automation():
