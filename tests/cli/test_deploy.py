@@ -7093,7 +7093,7 @@ class TestDeployingUsingCustomPrefectFile:
                 command=f"deploy --all --prefect-file {fp.name}",
                 expected_code=1,
                 expected_output_contains=[
-                    "Unable to parse the specified config file. Skipping....."
+                    "Unable to parse the specified config file. Skipping."
                 ],
             )
 
