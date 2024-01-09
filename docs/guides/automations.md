@@ -92,7 +92,7 @@ Now let's try to send a notification based off a completed state outcome. We can
 3. Now that we created a notification block, we can go to the automations page to create our first automation.
 ![Automations page](/img/guides/automation-list.png)
 
-4. Next we try to find the trigger type, in this case let's do a flow completion. 
+4. Next we try to find the trigger type, in this case let's use a flow completion. 
 ![Trigger type](/img/guides/automation-triggers.png)
 
 5. Finally, let's create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
