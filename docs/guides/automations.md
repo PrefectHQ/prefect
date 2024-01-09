@@ -11,7 +11,7 @@ search:
 
 # Using Automations for Dynamic Responses
 
-From the [Automations concept page](/concepts/automations/), we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
+From the [Automations concept page](/concepts/automations/), we saw what an automation can do and how to configure one within the UI. 
 
 In this guide, we will showcase common usecases where automations can come in handy by:
 
