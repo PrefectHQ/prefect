@@ -98,7 +98,7 @@ Now let's try to send a notification based off a completed state outcome. We can
 5. Finally, let's create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
-6. Now the automation is ready to be triggered from a flow run completion. Let's locally run the file and see that the notification being sent to our inbox after the completion.
+6. Now the automation is ready to be triggered from a flow run completion. Let's run the file locally and see that the notification is sent to our inbox after the completion. It may take a few minutes for the notification to arrive.
 ![Final notification](/img/guides/final-automation.png)
 
 !!! Tip "No deployment created"
