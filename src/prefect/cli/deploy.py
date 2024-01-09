@@ -727,7 +727,7 @@ async def _run_single_deploy(
                         " with:\n\n\t[blue]$ prefect deploy -n"
                         f" {deploy_config['name']}[/]\n\nYou can also make changes to"
                         " this deployment configuration by making changes to the"
-                        " file."
+                        " YAML file."
                     ),
                 )
     if not work_pool.is_push_pool and not work_pool.is_managed_pool:
