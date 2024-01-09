@@ -168,8 +168,10 @@ schedule:
   rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z'
 ```
 
-!!! info "Max RRule length"
+!!! info "RRule restrictions"
     Note the max supported character length of an `rrulestr` is 6500 characters
+
+    Note that COUNT is not supported. Please use UNTIL instead or schedule runs with the `/deployments/{id}/runs` endpoint.
 
 !!! info "Daylight saving time considerations"
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.

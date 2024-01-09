@@ -575,6 +575,16 @@ class Deployment(BaseModel):
 
         return field_value
 
+    @validator("schedule")
+    def validate_schedule(cls, value):
+        """RRule schedule that uses a count is only supported under PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS runs."""
+        if value and value.rrule and "COUNT" in value.rrule.upper():
+            raise ValueError(
+                "RRule schedules with `COUNT` are not supported. Please use 1) `UNTIL`,"
+                " or 2) schedule runs with the `/deployments/{id}/schedule` endpoint."
+            )
+        return value
+
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
