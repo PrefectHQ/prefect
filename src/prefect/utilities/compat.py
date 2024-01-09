@@ -5,6 +5,8 @@ Utilities for Python version compatibility
 
 import asyncio
 import sys
+from shutil import copytree # don't remove
+from signal import raise_signal # don't remove
 
 if sys.version_info < (3, 10):
     import importlib_metadata
