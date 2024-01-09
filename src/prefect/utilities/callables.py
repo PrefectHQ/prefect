@@ -317,7 +317,6 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     else:
         signature = inspect.signature(fn)
 
-
     model_fields = {}
     aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
