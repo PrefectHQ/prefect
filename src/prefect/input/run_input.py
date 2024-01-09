@@ -180,7 +180,10 @@ class RunInput(pydantic.BaseModel):
         """
         flow_run_id = ensure_flow_run_id(flow_run_id)
         value = await read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
-        instance = cls(**value)
+        if value:
+            instance = cls(**value)
+        else:
+            instance = cls()
         instance._metadata = RunInputMetadata(
             key=keyset["response"], sender=None, receiver=flow_run_id
         )
