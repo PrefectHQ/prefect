@@ -34,7 +34,7 @@ Please have the following before exploring the guide:
 
 Automations allow you to take actions in response to triggering events recorded by Prefect. 
 
-For example, let's try to grab data from an API and have a notification get based on the end state. 
+For example, let's try to grab data from an API and send a notification based on the end state. 
 
 We can get started by pulling data from this endpoint in order to do some data cleaning and transformations. 
 
