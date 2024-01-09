@@ -1,5 +1,7 @@
 import asyncio
 import uuid
+from typing import Dict, List, Union
+from unittest import mock
 
 import httpx
 import pytest
@@ -31,6 +33,11 @@ def identity(whatever):
 @flow
 async def async_identity(whatever):
     return whatever
+
+
+@flow
+def super_identity(*args, **kwargs):
+    return args, kwargs
 
 
 @flow(log_prints=True)
@@ -134,4 +141,137 @@ def test_submission_raises_if_webserver_not_running_and_no_failover():
         }
     ):
         with pytest.raises((httpx.HTTPStatusError, RuntimeError)):
-            submit_to_runner(identity, {"d": {"schleeb": 9001}})
+            submit_to_runner(identity, {"d": {"input": 9001}})
+
+
+@mock.patch(
+    "prefect.runner.submit._run_prefect_callable_and_retrieve_run_id",
+)
+def test_failed_submission_gets_run_sync(run_callable_mock: mock.Mock, caplog):
+    with mock.patch(
+        "prefect.runner.submit._submit_flow_to_runner",
+        side_effect=httpx.ConnectError(""),
+    ):
+        inputs = [{"input": 1}, {"input": 2}, {"input": 3}]
+        results = submit_to_runner(identity, inputs)
+
+        assert run_callable_mock.call_count == len(inputs)
+        assert run_callable_mock.call_args_list == [
+            mock.call(identity, d) for d in inputs
+        ]
+        assert len(results) == len(inputs)
+        assert (
+            "The `submit_to_runner` utility failed to connect to the `Runner` webserver"
+            in caplog.text
+        )
+
+
+@mock.patch(
+    "prefect.runner.submit._run_prefect_callable_and_retrieve_run_id",
+)
+def test_intermittent_failed_submission_gets_run_sync(
+    run_callable_mock: mock.Mock, caplog
+):
+    """
+    Verify that failures interspersed between successful submissions are run sync
+    """
+    with mock.patch(
+        "prefect.runner.submit._submit_flow_to_runner",
+        side_effect=[uuid.uuid4(), httpx.ConnectError(""), uuid.uuid4()],
+    ):
+        inputs = [{"input": 1}, {"input": 2}, {"input": 3}]
+        results = submit_to_runner(identity, inputs)
+
+        assert run_callable_mock.call_count == 1
+        assert run_callable_mock.call_args_list == [mock.call(identity, {"input": 2})]
+        assert len(results) == len(inputs)
+        assert (
+            "The `submit_to_runner` utility failed to connect to the `Runner` webserver"
+            in caplog.text
+        )
+
+
+def test_failed_submission_are_not_run_sync_if_configured(caplog):
+    with temporary_settings(
+        {
+            PREFECT_RUNNER_SERVER_ENABLE: True,
+            PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER: False,
+        }
+    ), mock.patch(
+        "prefect.runner.submit._submit_flow_to_runner",
+        side_effect=httpx.ConnectError(""),
+    ) as sub_flow_mock:
+        with pytest.raises(RuntimeError):
+            submit_to_runner(identity, {"input": 1})
+
+        assert sub_flow_mock.call_count == 1
+        assert sub_flow_mock.call_args_list == [
+            mock.call(identity, {"input": 1}, True)
+        ], sub_flow_mock.call_args_list
+        assert (
+            "The `submit_to_runner` utility failed to connect to the `Runner`"
+            in caplog.text
+        )
+
+
+@pytest.mark.parametrize("input_", [[{"input": 1}, {"input": 2}], {"input": 3}])
+def test_return_for_submissions_matches_input(input_: Union[List[Dict], Dict]):
+    def _uuid_generator(*_, **__):
+        return uuid.uuid4()
+
+    with mock.patch(
+        "prefect.runner.submit._submit_flow_to_runner",
+        side_effect=_uuid_generator,
+    ):
+        results = submit_to_runner(identity, input_)
+
+        if isinstance(input_, dict):
+            assert isinstance(results, uuid.UUID)
+        else:
+            assert len(results) == len(input_)
+            assert all(isinstance(r, uuid.UUID) for r in results)
+
+
+@pytest.mark.parametrize(
+    "input_",
+    [
+        {
+            "name": "Schleeb",
+            "age": 99,
+            "young": True,
+            "metadata": [{"nested": "info"}],
+            "data": [True, False, True],
+            "info": {"nested": "info"},
+        },
+        [
+            {
+                "name": "Schleeb",
+                "age": 99,
+                "young": True,
+                "metadata": [{"nested": "info"}],
+                "data": [True, False, True],
+                "info": {"nested": "info"},
+            }
+        ],
+        [
+            {
+                "name": "Schleeb",
+                "age": 99,
+                "young": True,
+                "metadata": [{"nested": "info"}],
+                "data": [True, False, True],
+                "info": {"nested": "info"},
+            }
+        ],
+        [{"1": {2: {3: {4: None}}}}],
+    ],
+)
+def test_types_in_submission(input_: Union[List[Dict], Dict]):
+    results = submit_to_runner(super_identity, input_)
+
+    if isinstance(input_, List):
+        assert len(results) == len(input_)
+        for r in results:
+            assert isinstance(r, uuid.UUID)
+    else:
+        assert isinstance(results, uuid.UUID)

@@ -174,11 +174,12 @@ async def submit_to_runner(
             " `PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS` setting to `True`."
         )
 
+    parameters = parameters or {}
+    if isinstance(parameters, List):
+        return_single = False
     if isinstance(parameters, dict):
         parameters = [parameters]
-
-    if not parameters:
-        parameters = [{}]
+        return_single = True
 
     submitted_run_ids = []
     unsubmitted_parameters = []
@@ -229,7 +230,7 @@ async def submit_to_runner(
         )
 
     # If one run was submitted, return the run_id directly
-    if len(parameters) == 1:
+    if return_single:
         return submitted_run_ids[0]
     return submitted_run_ids
 
