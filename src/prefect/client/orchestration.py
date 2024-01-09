@@ -2762,7 +2762,7 @@ class PrefectClient:
 
     async def read_global_concurrency_limit_by_name(
         self, name: str
-    ) -> dict[str, object]:
+    ) -> Dict[str, object]:
         try:
             response = await self._client.get(f"/v2/concurrency_limits/{name}")
             return response.json()
@@ -2774,7 +2774,7 @@ class PrefectClient:
 
     async def read_global_concurrency_limits(
         self, limit: int = 10, offset: int = 0
-    ) -> list[dict[str, object]]:
+    ) -> List[Dict[str, object]]:
         response = await self._client.post(
             "/v2/concurrency_limits/filter",
             json={
