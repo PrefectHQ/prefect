@@ -34,6 +34,8 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
     ArtifactCreate,
+    GlobalConcurrencyLimitCreate,
+    GlobalConcurrencyLimitUpdate,
     LogCreate,
     VariableCreate,
     WorkPoolCreate,
@@ -1967,3 +1969,59 @@ async def test_prefect_client_follow_redirects():
     # do not follow redirects by default during unit tests
     async with PrefectClient(api=app) as client:
         assert client._client.follow_redirects is False
+
+
+async def test_global_concurrency_limit_create(prefect_client):
+    response_uuid = await prefect_client.create_global_concurrency_limit(
+        GlobalConcurrencyLimitCreate(name="global-create-test", limit=42)
+    )
+    assert response_uuid == UUID(
+        (
+            await prefect_client.read_global_concurrency_limit_by_name(
+                name="global-create-test"
+            )
+        ).get("id")
+    )
+
+
+async def test_global_concurrency_limit_delete(prefect_client):
+    await prefect_client.create_global_concurrency_limit(
+        GlobalConcurrencyLimitCreate(name="global-delete-test", limit=42)
+    )
+    assert len(await prefect_client.read_global_concurrency_limits()) == 1
+    await prefect_client.delete_global_concurrency_limit_by_name(
+        name="global-delete-test"
+    )
+    assert len(await prefect_client.read_global_concurrency_limits()) == 0
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.delete_global_concurrency_limit_by_name(
+            name="global-delete-test"
+        )
+
+
+async def test_global_concurrency_limit_update(prefect_client):
+    await prefect_client.create_global_concurrency_limit(
+        GlobalConcurrencyLimitCreate(name="global-update-test", limit=42)
+    )
+    await prefect_client.update_global_concurrency_limit(
+        name="global-update-test",
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            limit=1, name="global-update-test-new"
+        ),
+    )
+    assert len(await prefect_client.read_global_concurrency_limits()) == 1
+    assert (
+        await prefect_client.read_global_concurrency_limit_by_name(
+            name="global-update-test-new"
+        )
+    ).get("limit") == 1
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.update_global_concurrency_limit(
+            name="global-update-test",
+            concurrency_limit=GlobalConcurrencyLimitUpdate(limit=1),
+        )
+
+
+async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.read_global_concurrency_limit_by_name(name="not-here")
