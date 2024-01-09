@@ -7081,16 +7081,19 @@ class TestDeployingUsingCustomPrefectFile:
         )
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_deploying_using_malformed_prefect_file(self):
+    @pytest.mark.parametrize(
+        "content", ["{this isn't valid YAML!}", "unbalanced blackets: ]["]
+    )
+    async def test_deploying_using_malformed_prefect_file(self, content: str):
         with tempfile.NamedTemporaryFile("w+") as fp:
-            fp.write("{this isn't valid YAML!}")
+            fp.write(content)
 
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=f"deploy --all --prefect-file {fp.name}",
                 expected_code=1,
                 expected_output_contains=[
-                    "Unable to parse the specified config file. Skipping."
+                    "Unable to parse the specified config file. Skipping....."
                 ],
             )
 

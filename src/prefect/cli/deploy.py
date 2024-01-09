@@ -14,6 +14,7 @@ import typer.core
 import yaml
 from rich.console import Console
 from rich.panel import Panel
+from yaml.error import YAMLError
 
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
@@ -1189,7 +1190,7 @@ def _load_deploy_configs_and_actions(
     try:
         with prefect_file.open("r") as f:
             prefect_yaml_contents = yaml.safe_load(f)
-    except (FileNotFoundError, IsADirectoryError) as exc:
+    except (FileNotFoundError, IsADirectoryError, YAMLError) as exc:
         app.console.print(
             f"Unable to read the specified config file. Reason: {exc}. Skipping.",
             style="yellow",
