@@ -21,7 +21,6 @@ In this guide, we will showcase the following common use cases:
 
 !!! cloud-ad "Available only on Prefect Cloud"
         Automations are a [Prefect Cloud](/cloud/) feature
-        additional features are available
 
 ## Prerequisites
 Please have the following before exploring the guide:
