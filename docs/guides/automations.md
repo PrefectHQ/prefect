@@ -327,7 +327,7 @@ Let us go into the event feed, and we can automate straight from this event.
 This allows us to create automations that respond to these webhook events. From a few clicks in the UI, we are able to associate an external process with the Prefect events API, that can enable us to trigger downstream deployments. 
 ![Automation custom](/img/guides/automation-custom.png)
 
-In the next section, we will explore event triggers that can help kick off a deployment.
+In the next section, we will explore event triggers that automate the kickoff of a deployment run.
 
 ## Using triggers
 
