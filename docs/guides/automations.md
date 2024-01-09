@@ -111,7 +111,7 @@ See the [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api
 
 Let's create a deployment where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking too long to execute, we can kick off a deployment of the with the same `build_names` flow, but replace the `count` value with a lower number - to speed up completion.
 You can create a deployment with a `prefect.yaml` file or a Python file that uses `flow.deploy`.
-=== ".yaml"
+=== "prefect.yaml"
 
     Create a `prefect.yaml` file like this one for our flow `build_names`:
 
