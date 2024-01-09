@@ -329,7 +329,7 @@ This allows us to create automations that respond to these webhook events. From 
 
 In the next section, we will explore event triggers that can help kick off a deployment.
 
-## Using triggers, an AI function extension
+## Using triggers
 
 Let's take this idea one step further, by creating a deployment that will be triggered from a previous flow taking longer than expected. We can take advantage of [Marvin](https://www.askmarvin.ai/) that will help classify the data we are pulling in. Marvin is great in embedding data science and data analysis applications within your pre-existing data engineering worklows. In this case, we can use [Marvin AI functions](https://www.askmarvin.ai/components/ai_function/#ai-function) to help make our dataset more information rich. You can find more on potential usecases with Marvin on their page. 
 
