@@ -48,11 +48,10 @@ This section of the documentation contains how-to guides for common workflows an
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) | Learn how to run you code with dynamic infrastructure. |
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from agents to workers. |
-| [Flow code storage](/guides/deployment/storage-guide/) | Where to store your code for deployments. |
+| [Flow Code Storage](/guides/deployment/storage-guide/) | Where to store your code for deployments. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
 | [Serverless Push Work Pools](/guides/deployment/push-work-pools/) | Run flows on serverless infrastructure without a worker. |
 | [Serverless Work Pools with Workers](/guides/deployment/serverless-workers/) | Run flows on serverless infrastructure with a worker. |
-
 | [Daemonize Processes](/guides/deployment/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
 
