@@ -578,11 +578,14 @@ class Deployment(BaseModel):
     @validator("schedule")
     def validate_schedule(cls, value):
         """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
-        if value and value.rrule and "COUNT" in value.rrule.upper():
-            raise ValueError(
-                "RRule schedules with `COUNT` are not supported. Please use 1) `UNTIL`,"
-                " or 2) schedule runs with the `/deployments/{id}/schedule` endpoint."
-            )
+        if value:
+            rrule_value = getattr(value, "rrule", None)
+            if rrule_value and "COUNT" in rrule_value.upper():
+                raise ValueError(
+                    "RRule schedules with `COUNT` are not supported. Please use 1)"
+                    " `UNTIL`, or 2) schedule runs with the"
+                    " `/deployments/{id}/schedule` endpoint."
+                )
         return value
 
     @classmethod
