@@ -154,6 +154,7 @@ nav:
                 - Variables: guides/variables.md
                 - Prefect Client: guides/using-the-client.md
                 - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
+                - Automations: guides/automations.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - CI/CD: guides/ci-cd.md
