@@ -78,7 +78,7 @@ if __name__ == "__main__":
     list_of_names = build_names()
 ```
 
-From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
+The data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
 
 ## Create notification block within the UI
 Now let's try to send a notification based off a completed state outcome. We can configure a notification to be sent so that we know when to look into our workflow logic. 
