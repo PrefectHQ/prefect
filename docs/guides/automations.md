@@ -20,7 +20,7 @@ In this guide, we will showcase the following common use cases:
 - Combine into a multi-layered responsive deployment pattern
 
 !!! cloud-ad "Available only on Prefect Cloud"
-        Automations are a [Prefect Cloud](/cloud/index/) feature
+        Automations are a [Prefect Cloud](https://app.prefect.cloud) feature.
 
 ## Prerequisites
 Please have the following before exploring the guide:
