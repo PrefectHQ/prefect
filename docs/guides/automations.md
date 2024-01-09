@@ -28,7 +28,7 @@ Please have the following before exploring the guide:
 - Python installed
 - Prefect installed (follow the [installation guide](/getting-started/installation/))
 - Authenticated to a [Prefect Cloud workspace](/getting-started/quickstart/#step-2-connect-to-prefects-api/)
-- Have a [work pool](/concepts/work-pools/) set up to handle the deployments
+- A [work pool](/concepts/work-pools/) set up to handle the deployments
 
 ## Creating the example script
 
