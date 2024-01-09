@@ -319,7 +319,12 @@ class RRuleSchedule(PrefectBaseModel):
         return v
 
 
-SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule]
+class NoSchedule(PrefectBaseModel):
+    class Config:
+        extra = "forbid"
+
+
+SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule]
 
 
 def construct_schedule(

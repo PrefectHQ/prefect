@@ -12,6 +12,7 @@ from typing import (
 )
 from uuid import UUID
 
+import orjson
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -30,7 +31,7 @@ from prefect._internal.schemas.validators import (
     raise_on_name_with_banned_characters,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.settings import PREFECT_CLOUD_API_URL
+from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
 
@@ -110,6 +111,7 @@ class StateDetails(PrefectBaseModel):
     pause_key: str = None
     run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
+    retriable: bool = None
 
 
 class State(ObjectBaseModel, Generic[R]):
@@ -775,6 +777,16 @@ class Workspace(PrefectBaseModel):
             f"{PREFECT_CLOUD_API_URL.value()}"
             f"/accounts/{self.account_id}"
             f"/workspaces/{self.workspace_id}"
+        )
+
+    def ui_url(self) -> str:
+        """
+        Generate the UI URL for accessing this workspace
+        """
+        return (
+            f"{PREFECT_CLOUD_UI_URL.value()}"
+            f"/account/{self.account_id}"
+            f"/workspace/{self.workspace_id}"
         )
 
     def __hash__(self):
@@ -1533,6 +1545,17 @@ class FlowRunInput(ObjectBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
     key: str = Field(description="The key of the input.")
     value: str = Field(description="The value of the input.")
+    sender: Optional[str] = Field(description="The sender of the input.")
+
+    @property
+    def decoded_value(self) -> Any:
+        """
+        Decode the value of the input.
+
+        Returns:
+            Any: the decoded value
+        """
+        return orjson.loads(self.value)
 
     @validator("key", check_fields=False)
     def validate_name_characters(cls, v):

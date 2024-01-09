@@ -11,6 +11,7 @@ import pendulum
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.utilities.processutils import _register_signal
 
 
 class LoopService:
@@ -39,8 +40,8 @@ class LoopService:
         self.logger = get_logger(f"server.services.{self.name.lower()}")
 
         if handle_signals:
-            signal.signal(signal.SIGINT, self._stop)
-            signal.signal(signal.SIGTERM, self._stop)
+            _register_signal(signal.SIGINT, self._stop)
+            _register_signal(signal.SIGTERM, self._stop)
 
     @inject_db
     async def _on_start(self, db: PrefectDBInterface) -> None:
