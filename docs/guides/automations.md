@@ -366,7 +366,7 @@ if __name__ == "__main__":
     
 ```
 
-Now in order for us to kick off a deployment similarly done in an automation, we can utilize the underlying trigger to help kick off the deployment. The prefect.yaml file needs us to capture the event that is thrown from a flow running, and staying in the running state for longer than 30 seconds. The prefect.yaml file would look like:
+Let's kick off a deployment with a trigger defined in a `prefect.yaml` file. Let's specify what we want to trigger when the event stays in a running state for longer than 30 seconds. 
 ```yaml
 # Welcome to your prefect.yaml file! You can use this file for storing and managing
 # configuration for deploying your flows. We recommend committing this file to source
