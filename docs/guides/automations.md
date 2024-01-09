@@ -285,7 +285,7 @@ if __name__ == "__main__":
     create_or_update_automation()
 ```
 
-You can find a complete repo with these examples in our [recipes repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
+You can find a complete repo with these APIs examples in this [GitHub repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
 
 In this example, we managed to create the automation by registering the .yaml file with a helper function. This offers another experience when trying to create an automation.
 
