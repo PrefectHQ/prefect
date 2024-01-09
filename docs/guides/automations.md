@@ -412,4 +412,8 @@ deployments:
   schedule: null
 ```
 
-Marvin allows us to extend our current workflows by offering robust data science applications without more maintenance. This offers a lightweight framework in responding to changes in your orchestrator unaccompanied by the extra overhead of setting up an automation within the UI. 
+## Next steps
+
+You've seen how to create automations via the UI, REST API, and a triggers defined in a `prefect.yaml` deployment definition.
+
+To learn more about events that can act as automation triggers, see the [events docs](/concepts/events/).  To learn more about event webhooks in particular, see the [webhooks guide](/guides/webhooks/)
