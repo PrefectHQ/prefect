@@ -102,7 +102,7 @@ Now let's try to send a notification based off a completed state outcome. We can
 ![Final notification](/img/guides/final-automation.png)
 
 !!! Tip "No deployment created"
-    Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not tied to creating a full deployment in order to have safe responses to our desired outcomes.
+    Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not required to create a deployment to trigger a notification.
 
 ## Event based deployment automation 
 We can create an automation that can kick off a deployment instead of a notification. Let's explore how we can programmatically create this automation. We will take advantage of our extensive REST API catalogue to help 'automate' the creation of this automation.  
