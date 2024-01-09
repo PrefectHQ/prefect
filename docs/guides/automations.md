@@ -36,7 +36,7 @@ Automations allow you to take actions in response to triggering events recorded 
 
 For example, let's try to grab data from an API and send a notification based on the end state. 
 
-We can get started by pulling data from this endpoint in order to do some data cleaning and transformations. 
+We can start by pulling hypothetical user data from an endpoint and then performing data cleaning and transformations. 
 
 Let's create a simple extract method, that pulls the data from a random user data generator endpoint. 
 
