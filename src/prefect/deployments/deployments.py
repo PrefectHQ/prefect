@@ -577,7 +577,7 @@ class Deployment(BaseModel):
 
     @validator("schedule")
     def validate_schedule(cls, value):
-        """RRule schedule that uses a count is only supported under PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS runs."""
+        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
         if value and value.rrule and "COUNT" in value.rrule.upper():
             raise ValueError(
                 "RRule schedules with `COUNT` are not supported. Please use 1) `UNTIL`,"
