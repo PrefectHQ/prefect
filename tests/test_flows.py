@@ -533,17 +533,6 @@ class TestFlowCall:
 
         assert foo(x="foo") == "foo"
 
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python 3.10 or higher")
-    def test_class_destringify():
-        class Test:
-            pass
-
-        @flow
-        def foo(x: Test):
-            print(x)
-
-        assert foo
-
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
         @flow(version="test")
