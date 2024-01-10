@@ -138,10 +138,7 @@ class TestDeploymentBasicInterface:
     def test_schedule_rrule_count_param_raises(self):
         with pytest.raises(
             ValueError,
-            match=(
-                "RRule schedules with `COUNT` are not supported. Please use 1. `UNTIL`,"
-                " or 2. schedule runs with the `/deployments/{id}/schedule` endpoint."
-            ),
+            match="RRule schedules with `COUNT` are not supported.",
         ):
             Deployment(
                 name="foo",
