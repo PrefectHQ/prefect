@@ -31,4 +31,9 @@ If changing documentation, a link to a preview of the page is great.
 
 For documentation changes:
 
-- [ ] This pull request includes redirect settings in `netlify.toml` for files that are removed or renamed
+- [ ] This pull request includes redirect settings in `netlify.toml` for files that are removed or renamed.
+
+For new functions or classes in the Python SDK:
+
+- [ ] This pull request includes helpful docstrings.
+- [ ] If a new Python file was added, this pull request contains a stub page in the Python SDK docs and an entry in `mkdocs.yml` navigation.
