@@ -313,11 +313,9 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         ParameterSchema: the argument schema
     """
     if (3, 10) <= sys.version_info < (3, 13):
-        eval_str = True
+        signature = inspect.signature(fn, eval_str=True)
     else:
-        eval_str = False
-
-    signature = inspect.signature(fn, eval_str=eval_str)
+        signature = inspect.signature(fn)
 
     model_fields = {}
     aliases = {}
