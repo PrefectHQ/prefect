@@ -11,6 +11,7 @@ import yaml
 from httpx import Response
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas.schedules import RRuleSchedule
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1.error_wrappers import ValidationError
@@ -133,6 +134,19 @@ class TestDeploymentBasicInterface:
         """
         d = Deployment(name="foo")
         assert d.enforce_parameter_schema is None
+
+    def test_schedule_rrule_count_param_raises(self):
+        with pytest.raises(
+            ValueError,
+            match=(
+                "RRule schedules with `COUNT` are not supported. Please use 1. `UNTIL`,"
+                " or 2. schedule runs with the `/deployments/{id}/schedule` endpoint."
+            ),
+        ):
+            Deployment(
+                name="foo",
+                schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1;COUNT=1"),
+            )
 
 
 class TestDeploymentLoad:
