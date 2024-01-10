@@ -316,7 +316,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         and not ephemeral
     ):
         ui_app.mount(
-            PREFECT_UI_SERVE_BASE,
+            PREFECT_UI_SERVE_BASE.value(),
             SPAStaticFiles(directory=prefect.__ui_static_path__),
             name="ui_root",
         )
