@@ -208,7 +208,7 @@ Use the tabs below to explore these two deployment creation options.
 
     if __name__ == "__main__":
         buy.deploy(
-            name="my-custom-dockerfile-deployment",", 
+            name="my-custom-dockerfile-deployment", 
             work_pool_name="my-docker-pool", 
             image=DeploymentImage(
                 name="my_image",
