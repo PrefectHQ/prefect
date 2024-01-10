@@ -2,6 +2,7 @@
 Utilities for working with Python callables.
 """
 import inspect
+import sys
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -311,7 +312,11 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     Returns:
         ParameterSchema: the argument schema
     """
-    signature = inspect.signature(fn)
+    if (3, 10) <= sys.version_info < (3, 13):
+        signature = inspect.signature(fn, eval_str=True)
+    else:
+        signature = inspect.signature(fn)
+
     model_fields = {}
     aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
