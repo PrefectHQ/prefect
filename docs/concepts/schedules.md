@@ -76,7 +76,7 @@ deployments:
   schedule:
     cron: 0 0 * * *
     timezone: America/Chicago
-    active: true
+    active: false
 ```
 
 !!! tip "Schedules can be inactive"
