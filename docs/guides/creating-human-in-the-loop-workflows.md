@@ -123,8 +123,10 @@ If a user chooses any size and color combination other than `small` and `green`,
 However, what if you don't want the flow run to fail? One way to handle this case is to use a `while` loop and pause again if the `ValidationError` exception is raised:
 
 ```python
+from typing import Literal
+
 import pydantic
-from prefect import flow, get_run_logger
+from prefect import flow, pause_flow_run, get_run_logger
 from prefect.input import RunInput
 
 
