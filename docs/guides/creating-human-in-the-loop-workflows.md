@@ -24,7 +24,7 @@ When a flow run is paused or suspended, you can receive input from the user. Thi
 To receive input you must use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` functions. This parameter accepts a subclass of `prefect.input.RunInput`. `RunInput` is a subclass of `pydantic.BaseModel` and can be used to define the input that you want to receive:
 
 ```python
-fomr prefect import flow, pause_flow_run
+from prefect import flow, pause_flow_run
 from prefect.input import RunInput
 
 class UserNameInput(RunInput):
