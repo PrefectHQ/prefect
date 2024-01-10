@@ -5,7 +5,7 @@ import os
 import shutil
 from datetime import timedelta
 from getpass import GetPassWarning
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import readchar
 from rich.console import Console, Group
@@ -328,20 +328,26 @@ def prompt_schedule_type(console):
     return selection["type"]
 
 
-def prompt_schedule(console) -> SCHEDULE_TYPES:
+def prompt_schedule(console) -> Tuple[SCHEDULE_TYPES, bool]:
     """
     Prompt the user for a schedule type. Once a schedule type is selected, prompt
     the user for the schedule details and return the schedule.
     """
     schedule_type = prompt_schedule_type(console)
     if schedule_type == "Cron":
-        return prompt_cron_schedule(console)
+        schedule = prompt_cron_schedule(console)
     elif schedule_type == "Interval":
-        return prompt_interval_schedule(console)
+        schedule = prompt_interval_schedule(console)
     elif schedule_type == "RRule":
-        return prompt_rrule_schedule(console)
+        schedule = prompt_rrule_schedule(console)
     else:
         raise Exception("Invalid schedule type")
+
+    is_schedule_active = confirm(
+        "Would you like to activate this schedule?", default=True
+    )
+
+    return (schedule, is_schedule_active)
 
 
 @inject_client

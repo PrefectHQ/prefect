@@ -2963,6 +2963,35 @@ class TestSchedules:
         )
         assert deployment.schedule is None
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_inactive_schedule(self, work_pool, prefect_client):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
+        deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
+        deploy_config["deployments"][0]["schedule"]["active"] = False
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+        )
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.is_schedule_active is False
+        assert deployment.schedule.cron == "0 4 * * *"
+        assert deployment.schedule.timezone == "America/Chicago"
+
 
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
@@ -4460,6 +4489,8 @@ class TestSaveUserInputs:
                 # enter interval schedule
                 "3600"
                 + readchar.key.ENTER
+                # accept schedule being active
+                + readchar.key.ENTER
                 +
                 # accept create work pool
                 readchar.key.ENTER
@@ -4494,6 +4525,7 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["schedule"]["interval"] == 3600
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
         assert config["deployments"][1]["schedule"]["anchor_date"] is not None
+        assert config["deployments"][1]["schedule"]["active"]
 
     def test_save_user_inputs_with_cron_schedule(self):
         invoke_and_assert(
@@ -4515,6 +4547,8 @@ class TestSaveUserInputs:
                 +
                 # accept default timezone
                 readchar.key.ENTER
+                # accept schedule being active
+                + readchar.key.ENTER
                 +
                 # accept create work pool
                 readchar.key.ENTER
@@ -4549,6 +4583,7 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["schedule"]["cron"] == "* * * * *"
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
         assert config["deployments"][1]["schedule"]["day_or"]
+        assert config["deployments"][1]["schedule"]["active"]
 
     def test_deploy_existing_deployment_with_no_changes_does_not_prompt_save(self):
         # Set up initial deployment deployment
@@ -4568,6 +4603,8 @@ class TestSaveUserInputs:
                 + "* * * * *"
                 + readchar.key.ENTER
                 # accept default timezone
+                + readchar.key.ENTER
+                # accept schedule being active
                 + readchar.key.ENTER
                 +
                 # accept create work pool
@@ -4606,6 +4643,7 @@ class TestSaveUserInputs:
             "cron": "* * * * *",
             "day_or": True,
             "timezone": "UTC",
+            "active": True,
         }
 
         invoke_and_assert(
@@ -4644,6 +4682,7 @@ class TestSaveUserInputs:
             "cron": "* * * * *",
             "day_or": True,
             "timezone": "UTC",
+            "active": True,
         }
 
     def test_deploy_existing_deployment_with_changes_prompts_save(self):
@@ -4748,9 +4787,10 @@ class TestSaveUserInputs:
                 # enter rrule schedule
                 "FREQ=MINUTELY"
                 + readchar.key.ENTER
-                +
-                # accept default timezone
-                readchar.key.ENTER
+                # accept schedule being active
+                + readchar.key.ENTER
+                # accept create work pool
+                + readchar.key.ENTER
                 +
                 # accept create work pool
                 readchar.key.ENTER
@@ -4784,6 +4824,7 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
         assert config["deployments"][1]["schedule"]["rrule"] == "FREQ=MINUTELY"
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+        assert config["deployments"][1]["schedule"]["active"]
 
     async def test_save_user_inputs_with_actions(self):
         new_deployment_to_save = {

@@ -76,7 +76,12 @@ deployments:
   schedule:
     cron: 0 0 * * *
     timezone: America/Chicago
+    active: true
 ```
+
+!!! tip "Schedules can be inactive"
+    You can set the `active` property to `false` to deactivate a schedule.
+    This is useful if you want to keep the schedule configuration but temporarily stop the schedule from creating new flow runs.
 
 Let's discuss the three schedule types in more detail.
 

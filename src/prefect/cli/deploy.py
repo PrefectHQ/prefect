@@ -440,7 +440,10 @@ async def _run_single_deploy(
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    deploy_config["schedule"] = _construct_schedule(deploy_config, ci=ci)
+    (
+        deploy_config["schedule"],
+        deploy_config["is_schedule_active"],
+    ) = _construct_schedule(deploy_config, ci=ci)
 
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
@@ -643,6 +646,7 @@ async def _run_single_deploy(
         work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
         version=deploy_config.get("version"),
         schedule=deploy_config.get("schedule"),
+        is_schedule_active=deploy_config.get("is_schedule_active"),
         enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
         parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
         parameters=deploy_config.get("parameters"),
@@ -782,7 +786,7 @@ async def _run_multi_deploy(
 def _construct_schedule(
     deploy_config: Dict,
     ci: bool = False,
-) -> Optional[SCHEDULE_TYPES]:
+) -> Tuple[Optional[SCHEDULE_TYPES], Optional[bool]]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -799,6 +803,7 @@ def _construct_schedule(
     anchor_date = get_from_dict(deploy_config, "schedule.anchor_date")
     rrule = get_from_dict(deploy_config, "schedule.rrule")
     timezone = get_from_dict(deploy_config, "schedule.timezone")
+    schedule_active = get_from_dict(deploy_config, "schedule.active", True)
 
     if cron:
         cron_kwargs = {"cron": cron, "timezone": timezone}
@@ -832,13 +837,18 @@ def _construct_schedule(
                 console=app.console,
             )
         ):
-            schedule = prompt_schedule(app.console)
+            schedule, schedule_active = prompt_schedule(app.console)
         else:
             schedule = None
+            schedule_active = None
     else:
         schedule = None
+        schedule_active = None
 
-    return schedule
+    if schedule_active is None:
+        schedule_active = True
+
+    return (schedule, schedule_active)
 
 
 def _merge_with_default_deploy_config(deploy_config: Dict):
