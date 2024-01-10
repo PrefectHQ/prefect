@@ -171,7 +171,7 @@ schedule:
 !!! info "RRule restrictions"
     Note the max supported character length of an `rrulestr` is 6500 characters
 
-    Note that COUNT is not supported. Please use UNTIL instead or schedule runs with the `/deployments/{id}/runs` endpoint.
+    Note that `COUNT` is not supported. Please use `UNTIL` or the `/deployments/{id}/runs` endpoint to schedule a fixed number of flow runs.
 
 !!! info "Daylight saving time considerations"
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
