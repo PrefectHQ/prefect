@@ -575,6 +575,19 @@ class Deployment(BaseModel):
 
         return field_value
 
+    @validator("schedule")
+    def validate_schedule(cls, value):
+        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
+        if value:
+            rrule_value = getattr(value, "rrule", None)
+            if rrule_value and "COUNT" in rrule_value.upper():
+                raise ValueError(
+                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
+                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
+                    " number of flow runs."
+                )
+        return value
+
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
