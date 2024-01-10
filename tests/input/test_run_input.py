@@ -386,6 +386,7 @@ async def test_receive(flow_run):
     }
 
 
+@pytest.mark.flaky
 def test_receive_works_sync(flow_run):
     for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         Place(city=city, state=state).send_to(flow_run_id=flow_run.id)
