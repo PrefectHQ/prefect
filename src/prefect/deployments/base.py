@@ -416,6 +416,9 @@ def _format_deployment_for_saving_to_prefect_file(
         elif isinstance(deployment["schedule"], BaseModel):
             deployment["schedule"] = deployment["schedule"].dict()
 
+        if "is_schedule_active" in deployment:
+            deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
+
     return deployment
 
 
