@@ -63,6 +63,7 @@ async def run_deployment(
     tags: Optional[Iterable[str]] = None,
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
+    as_subflow: Optional[bool] = True,
 ):
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -117,7 +118,7 @@ async def run_deployment(
 
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
-    if flow_run_ctx or task_run_ctx:
+    if as_subflow and (flow_run_ctx or task_run_ctx):
         # This was called from a flow. Link the flow run as a subflow.
         from prefect.engine import (
             Pending,
