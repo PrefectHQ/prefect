@@ -3045,6 +3045,59 @@ class TestMultiDeploy:
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_schedules_remain_inactive(
+        self, prefect_client, work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "schedule": {"interval": 60.0, "active": True},
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+                "schedule": {"interval": 60.0, "active": False},
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_contains=[
+                "An important name/test-name-1",
+                "An important name/test-name-2",
+            ],
+            expected_output_does_not_contain=[
+                "You have passed options to the deploy command, but you are"
+                " creating or updating multiple deployments. These options"
+                " will be ignored."
+            ],
+        )
+
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-2"
+        )
+
+        assert deployment1.name == "test-name-1"
+        assert deployment1.is_schedule_active is True
+        assert deployment2.name == "test-name-2"
+        assert deployment2.is_schedule_active is False
+
     async def test_deploy_selected_deployments(
         self, project_dir, prefect_client, work_pool
     ):
