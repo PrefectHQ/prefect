@@ -1446,6 +1446,16 @@ The default Docker namespace to use when building images.
 Can be either an organization/username or a registry URL with an organization/username.
 """
 
+PREFECT_UI_SERVE_BASE = Setting(
+    str,
+    default="/",
+)
+"""
+The base URL path to serve the Prefect UI from.
+
+Defaults to the root path.
+"""
+
 # Deprecated settings ------------------------------------------------------------------
 
 
