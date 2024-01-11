@@ -2,7 +2,6 @@
 Utilities for working with Python callables.
 """
 import inspect
-import sys
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -312,10 +311,8 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     Returns:
         ParameterSchema: the argument schema
     """
-    if (3, 10) <= sys.version_info < (3, 13):
-        signature = inspect.signature(fn, eval_str=True)
-    else:
-        signature = inspect.signature(fn)
+
+    signature = inspect.signature(fn)
 
     model_fields = {}
     aliases = {}
@@ -341,7 +338,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             create_schema(
                 "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
             )
-        except ValueError:
+        except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)
