@@ -24,6 +24,9 @@ from prefect._internal.concurrency.cancellation import (
 
 @pytest.fixture
 def mock_alarm_signal_handler():
+    if threading.current_thread() != threading.main_thread():
+        pytest.skip("Can't test signal handlers from a thread")
+
     mock = MagicMock()
     _previous_alarm_handler = signal.signal(signal.SIGALRM, mock)
     try:
