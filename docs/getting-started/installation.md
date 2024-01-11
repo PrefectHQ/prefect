@@ -17,6 +17,8 @@ search:
 
 Prefect requires Python 3.8 or newer.
 
+Python 3.12 support is experimental, as not all dependencies to support it yet. If you encounter any errors, please [open an issue](https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=needs%3Atriage%2Cbug&projects=&template=1_general_bug_report.yaml).
+
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
         <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" /></a>
@@ -104,6 +106,7 @@ Server type:         ephemeral
 Server:
   Database:          sqlite
   SQLite version:    3.42.0
+
 ```
 </div>
 
@@ -123,11 +126,11 @@ If you're using Windows Subsystem for Linux (WSL), see [Linux installation notes
 
 ## Linux installation notes
 
-Linux is a popular operating system for running Prefect. You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database). 
+Linux is a popular operating system for running Prefect. You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database).
 
 For development, you can use [SQLite](/concepts/database/#configuring_a_sqlite_database) 2.24 or newer as your database. Note that certain Linux versions of SQLite can be problematic. Compatible versions include Ubuntu 22.04 LTS and Ubuntu 20.04 LTS.
 
-Alternatively, you can [install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel) or use the `conda` virtual environment manager and configure a compatible SQLite version. 
+Alternatively, you can [install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel) or use the `conda` virtual environment manager and configure a compatible SQLite version.
 
 ## Using a self-signed SSL certificate
 
@@ -140,7 +143,6 @@ If the certificate is not part of your system bundle, you can set the
 
 ***Note:*** Disabling certificate validation is insecure and only suggested as an option for testing!
 
-
 ## Proxies
 
 Prefect supports communicating via proxies through environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. Read more about using Prefect Cloud with proxies [here](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
@@ -149,7 +151,7 @@ Prefect supports communicating via proxies through environment variables. Simply
 
 ### SQLite
 
-You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database). 
+You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database).
 
 By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation. Most systems will already have SQLite installed, because it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
@@ -236,4 +238,5 @@ For more information about these environment variables, see the [cURL
 documentation](https://everything.curl.dev/usingcurl/proxies/env).
 
 ## Next steps
+
 Now that you have Prefect installed and your environment configured, you may want to check out the [Tutorial](/tutorial/) to get more familiar with Prefect.
