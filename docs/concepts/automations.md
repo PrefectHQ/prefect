@@ -47,7 +47,7 @@ Triggers specify the conditions under which your action should be performed. Tri
 - Flow run state change
   - Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work pool status
-- Deployment Status
+- Deployment status
 - Metric thresholds, such as average duration, lateness, or completion percentage
 - Custom event triggers
 
