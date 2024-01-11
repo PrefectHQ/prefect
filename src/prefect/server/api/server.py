@@ -183,26 +183,32 @@ def is_client_retryable_exception(exc: Exception):
     return False
 
 
-def replace_placeholder_string_in_files(directory, placeholder, replacement):
+def replace_placeholder_string_in_files(
+    directory, placeholder, replacement, allowed_extensions=None
+):
     """
     Recursively loops through all files in the given directory and replaces
     a placeholder string.
     """
+    if allowed_extensions is None:
+        allowed_extensions = [".txt", ".html", ".css", ".js", ".json", ".txt"]
+
     for root, dirs, files in os.walk(directory):
         for file in files:
-            file_path = os.path.join(root, file)
+            if any(file.endswith(ext) for ext in allowed_extensions):
+                file_path = os.path.join(root, file)
 
-            with open(file_path, "r", encoding="utf-8") as file:
-                file_data = file.read()
+                with open(file_path, "r", encoding="utf-8") as file:
+                    file_data = file.read()
 
-            file_data = file_data.replace(placeholder, replacement)
+                file_data = file_data.replace(placeholder, replacement)
 
-            with open(file_path, "w", encoding="utf-8") as file:
-                file.write(file_data)
+                with open(file_path, "w", encoding="utf-8") as file:
+                    file.write(file_data)
 
 
 def copy_directory(directory, path):
-    os.makedirs(path)
+    os.makedirs(path, exist_ok=True)
     for item in os.listdir(directory):
         s = os.path.join(directory, item)
         d = os.path.join(path, item)
@@ -327,7 +333,7 @@ def create_api_app(
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     ui_app.add_middleware(GZipMiddleware)
-    base_url = os.environ.get("PREFECT_UI_SERVE_BASE", "/")
+    base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
     reference_file_name = "UI_SERVE_BASE"
 
     if os.name == "nt":
@@ -343,11 +349,16 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         }
 
     def reference_file_matches_base_url():
+        reference_file_path = os.path.join(
+            prefect.__ui_static_subpath__, reference_file_name
+        )
+
         if os.path.exists(prefect.__ui_static_subpath__):
-            with open(
-                os.path.join(prefect.__ui_static_subpath__, reference_file_name), "r"
-            ) as f:
-                return f.read() == base_url
+            try:
+                with open(reference_file_path, "r") as f:
+                    return f.read() == base_url
+            except FileNotFoundError:
+                return False
         else:
             return False
 
@@ -358,7 +369,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         copy_directory(prefect.__ui_static_path__, prefect.__ui_static_subpath__)
         replace_placeholder_string_in_files(
             prefect.__ui_static_subpath__,
-            "PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
+            "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
             base_url,
         )
 

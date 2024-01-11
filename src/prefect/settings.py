@@ -1423,13 +1423,6 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
-PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER: Setting(
-    str, default="PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER"
-)
-"""
-A placeholder used to find/replace the base URL used for static assets in the UI.
-"""
-
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(

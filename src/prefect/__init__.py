@@ -18,7 +18,7 @@ __development_base_path__ = __module_path__.parents[1]
 
 # The absolute path to the built UI within the Python module, used by
 # `prefect server start` to serve a dynamic build of the UI
-__ui_static_subpath__ = __module_path__ / "server" / "ui" / "build"
+__ui_static_subpath__ = __module_path__ / "server" / "ui_build"
 
 # The absolute path to the built UI within the Python module
 __ui_static_path__ = __module_path__ / "server" / "ui"
