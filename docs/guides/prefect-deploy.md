@@ -466,8 +466,8 @@ Use the tabs below to explore these two deployment creation options.
 
     !!! tip "`prefect.yaml` file flexibility"
         In older versions of Prefect, this file had to be in the root of your repository or project directory and named `prefect.yaml`.
-        Now this file can be located elsewhere and be named differently. To use a custom prefect.yaml file, run the new 
-        form of the deploy CLI command from the root of your project directory: 
+        Now this file can be located elsewhere and be named differently. To use a custom `prefect.yaml` file, supply the new 
+        `--prefect-file` CLI argument when running the `deploy` command from the root of your project directory: 
         
         `prefect deploy --prefect-file path/to/my_file.yaml`
 
