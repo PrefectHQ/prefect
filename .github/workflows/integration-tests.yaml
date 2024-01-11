@@ -37,6 +37,7 @@ jobs:
           - "2.11"
           - "2.12"
           - "2.13"
+          - "2.14"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
