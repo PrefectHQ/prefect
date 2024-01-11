@@ -311,8 +311,10 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     Returns:
         ParameterSchema: the argument schema
     """
-
-    signature = inspect.signature(fn)
+    try:
+        signature = inspect.signature(fn, eval_str=True)
+    except (NameError, TypeError):
+        signature = inspect.signature(fn)
 
     model_fields = {}
     aliases = {}
