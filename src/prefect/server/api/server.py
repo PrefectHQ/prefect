@@ -370,7 +370,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         replace_placeholder_string_in_files(
             prefect.__ui_static_subpath__,
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
-            base_url if base_url != "/" else "",
+            base_url.rstrip("/"),
         )
 
         # Create a file to indicate that the static files have been copied
