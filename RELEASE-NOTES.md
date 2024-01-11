@@ -6,9 +6,9 @@
 > TODO
 - ft: support reading and writing  custom prefect.yaml files — https://github.com/PrefectHQ/prefect/pull/11511
 
-## Schedule = `active`
-> TODO
-- Support defining if a schedule is active or not via `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/11608
+## Toggle Deployment Schedule Status via `prefect.yaml`
+
+You can now toggle your deployment schedules between active and inactive in your prefect.yaml. This enables you to create deployments with initially inactive schedules, allowing for thorough testing or staged rollouts. 
 
 ## Support for Python 3.12
 - Adds support for Python 3.12  — https://github.com/PrefectHQ/prefect/pull/11306
