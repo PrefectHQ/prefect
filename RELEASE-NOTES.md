@@ -10,6 +10,9 @@
 > TODO
 - Support defining if a schedule is active or not via `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/11608
 
+## Support for Python 3.12
+- Adds support for Python 3.12  — https://github.com/PrefectHQ/prefect/pull/11306
+
 ### Enhancements
 - allow removing schedules from deployments through CLI and Python — https://github.com/PrefectHQ/prefect/pull/11353
 - Prefect client global concurrency limit functions / tests — https://github.com/PrefectHQ/prefect/pull/11415
@@ -22,6 +25,7 @@
 - Use default values if no run input was provided — https://github.com/PrefectHQ/prefect/pull/11598
 - Prevent deployment with `RRule` schedule containing `COUNT` — https://github.com/PrefectHQ/prefect/pull/11600
 - Fix: Flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578
+- Raise `StepExecutionError` on non-zero `run_shell_script` return code during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11604
 
 ### Experimental
 - Enable flow runs to receive typed input from external sources — https://github.com/PrefectHQ/prefect/pull/11573
