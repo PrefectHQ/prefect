@@ -14,6 +14,7 @@ import typer.core
 import yaml
 from rich.console import Console
 from rich.panel import Panel
+from yaml.error import YAMLError
 
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
@@ -211,6 +212,11 @@ async def deploy(
             " provided, this flag will be ignored."
         ),
     ),
+    prefect_file: Path = typer.Option(
+        Path("prefect.yaml"),
+        "--prefect-file",
+        help="Specify a custom path to a prefect.yaml file",
+    ),
     ci: bool = typer.Option(
         False,
         "--ci",
@@ -260,8 +266,9 @@ async def deploy(
         "enforce_parameter_schema": enforce_parameter_schema,
     }
     try:
-        deploy_configs, actions = _load_deploy_configs_and_actions(ci=ci)
-
+        deploy_configs, actions = _load_deploy_configs_and_actions(
+            prefect_file=prefect_file, ci=ci
+        )
         parsed_names = []
         for name in names:
             if "*" in name:
@@ -287,6 +294,7 @@ async def deploy(
                 actions=actions,
                 deploy_all=deploy_all,
                 ci=ci,
+                prefect_file=prefect_file,
             )
         else:
             # Accommodate passing in -n flow-name/deployment-name as well as -n deployment-name
@@ -299,6 +307,7 @@ async def deploy(
                 actions=actions,
                 options=options,
                 ci=ci,
+                prefect_file=prefect_file,
             )
     except ValueError as exc:
         exit_with_error(str(exc))
@@ -311,6 +320,7 @@ async def _run_single_deploy(
     options: Optional[Dict] = None,
     ci: bool = False,
     client: PrefectClient = None,
+    prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
     actions = deepcopy(actions) if actions else {}
@@ -359,8 +369,7 @@ async def _run_single_deploy(
             raise ValueError(
                 "An entrypoint must be provided:\n\n"
                 " \t[yellow]prefect deploy path/to/file.py:flow_function\n\n"
-                "You can also provide an entrypoint in a prefect.yaml"
-                " file located in the current working directory."
+                "You can also provide an entrypoint in a prefect.yaml file."
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
     if deploy_config.get("flow_name") and deploy_config.get("entrypoint"):
@@ -440,7 +449,10 @@ async def _run_single_deploy(
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    deploy_config["schedule"] = _construct_schedule(deploy_config, ci=ci)
+    (
+        deploy_config["schedule"],
+        deploy_config["is_schedule_active"],
+    ) = _construct_schedule(deploy_config, ci=ci)
 
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
@@ -643,6 +655,7 @@ async def _run_single_deploy(
         work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
         version=deploy_config.get("version"),
         schedule=deploy_config.get("schedule"),
+        is_schedule_active=deploy_config.get("is_schedule_active"),
         enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
         parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
         parameters=deploy_config.get("parameters"),
@@ -670,7 +683,9 @@ async def _run_single_deploy(
         )
 
     identical_deployment_exists_in_prefect_file = (
-        _check_if_identical_deployment_in_prefect_file(deploy_config_before_templating)
+        _check_if_identical_deployment_in_prefect_file(
+            deploy_config_before_templating, prefect_file
+        )
     )
     if should_prompt_for_save and not identical_deployment_exists_in_prefect_file:
         if confirm(
@@ -682,7 +697,8 @@ async def _run_single_deploy(
         ):
             matching_deployment_exists = (
                 _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                    deploy_config=deploy_config_before_templating
+                    deploy_config=deploy_config_before_templating,
+                    prefect_file=prefect_file,
                 )
             )
             if matching_deployment_exists and not confirm(
@@ -691,14 +707,14 @@ async def _run_single_deploy(
                     f" [yellow]{deploy_config_before_templating.get('name')}[/yellow]"
                     " and entrypoint:"
                     f" [yellow]{deploy_config_before_templating.get('entrypoint')}[/yellow]"
-                    " in the [yellow]prefect.yaml[/yellow] file. Would you like to"
-                    " overwrite that entry?"
+                    f" in the [yellow]prefect.yaml[/yellow] file at {prefect_file}."
+                    " Would you like to overwrite that entry?"
                 ),
             ):
                 app.console.print(
                     "[red]Cancelled saving deployment configuration"
                     f" '{deploy_config_before_templating.get('name')}' to the"
-                    " prefect.yaml file.[/red]"
+                    f" deployment configuration file[/red] at {prefect_file}"
                 )
             else:
                 _save_deployment_to_prefect_file(
@@ -707,15 +723,16 @@ async def _run_single_deploy(
                     push_steps=push_steps or None,
                     pull_steps=pull_steps or None,
                     triggers=trigger_specs or None,
+                    prefect_file=prefect_file,
                 )
                 app.console.print(
                     (
-                        "\n[green]Deployment configuration saved to prefect.yaml![/]"
+                        f"\n[green]Deployment configuration saved to {prefect_file}![/]"
                         " You can now deploy using this deployment configuration"
                         " with:\n\n\t[blue]$ prefect deploy -n"
                         f" {deploy_config['name']}[/]\n\nYou can also make changes to"
                         " this deployment configuration by making changes to the"
-                        " prefect.yaml file."
+                        " YAML file."
                     ),
                 )
     if not work_pool.is_push_pool and not work_pool.is_managed_pool:
@@ -746,6 +763,7 @@ async def _run_multi_deploy(
     names: Optional[List[str]] = None,
     deploy_all: bool = False,
     ci: bool = False,
+    prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
     actions = deepcopy(actions) if actions else {}
@@ -776,13 +794,15 @@ async def _run_multi_deploy(
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
         app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
-        await _run_single_deploy(deploy_config, actions, ci=ci)
+        await _run_single_deploy(
+            deploy_config, actions, ci=ci, prefect_file=prefect_file
+        )
 
 
 def _construct_schedule(
     deploy_config: Dict,
     ci: bool = False,
-) -> Optional[SCHEDULE_TYPES]:
+) -> Tuple[Optional[SCHEDULE_TYPES], Optional[bool]]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -799,6 +819,7 @@ def _construct_schedule(
     anchor_date = get_from_dict(deploy_config, "schedule.anchor_date")
     rrule = get_from_dict(deploy_config, "schedule.rrule")
     timezone = get_from_dict(deploy_config, "schedule.timezone")
+    schedule_active = get_from_dict(deploy_config, "schedule.active", True)
 
     if cron:
         cron_kwargs = {"cron": cron, "timezone": timezone}
@@ -832,13 +853,18 @@ def _construct_schedule(
                 console=app.console,
             )
         ):
-            schedule = prompt_schedule(app.console)
+            schedule, schedule_active = prompt_schedule(app.console)
         else:
             schedule = None
+            schedule_active = None
     else:
         schedule = None
+        schedule_active = None
 
-    return schedule
+    if schedule_active is None:
+        schedule_active = True
+
+    return (schedule, schedule_active)
 
 
 def _merge_with_default_deploy_config(deploy_config: Dict):
@@ -1157,9 +1183,11 @@ def _handle_deployment_yaml_copy(prefect_yaml_contents, ci):
         )
 
 
-def _load_deploy_configs_and_actions(ci=False) -> Tuple[List[Dict], Dict]:
+def _load_deploy_configs_and_actions(
+    prefect_file: Path, ci: bool = False
+) -> Tuple[List[Dict], Dict]:
     """
-    Load deploy configs and actions from the prefect.yaml file.
+    Load deploy configs and actions from a deployment configuration YAML file.
 
     Handles the deprecation of the deployment.yaml file.
 
@@ -1170,9 +1198,19 @@ def _load_deploy_configs_and_actions(ci=False) -> Tuple[List[Dict], Dict]:
         Tuple[List[Dict], Dict]: a tuple of deployment configurations and actions
     """
     try:
-        with open("prefect.yaml", "r") as f:
+        with prefect_file.open("r") as f:
             prefect_yaml_contents = yaml.safe_load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, IsADirectoryError, YAMLError) as exc:
+        app.console.print(
+            f"Unable to read the specified config file. Reason: {exc}. Skipping.",
+            style="yellow",
+        )
+        prefect_yaml_contents = {}
+    if not isinstance(prefect_yaml_contents, dict):
+        app.console.print(
+            "Unable to parse the specified config file. Skipping.",
+            style="yellow",
+        )
         prefect_yaml_contents = {}
 
     actions = {
@@ -1518,9 +1556,8 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
 
 
 def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-    deploy_config,
+    deploy_config, prefect_file: Path = Path("prefect.yaml")
 ) -> bool:
-    prefect_file = Path("prefect.yaml")
     if prefect_file.exists():
         with prefect_file.open(mode="r") as f:
             parsed_prefect_file_contents = yaml.safe_load(f)
@@ -1538,7 +1575,7 @@ def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
 
 
 def _check_if_identical_deployment_in_prefect_file(
-    untemplated_deploy_config: Dict,
+    untemplated_deploy_config: Dict, prefect_file: Path = Path("prefect.yaml")
 ) -> bool:
     """
     Check if the given deploy config is identical to an existing deploy config in the
@@ -1551,8 +1588,6 @@ def _check_if_identical_deployment_in_prefect_file(
     user_specified_deploy_config = _format_deployment_for_saving_to_prefect_file(
         untemplated_deploy_config
     )
-
-    prefect_file = Path("prefect.yaml")
     if prefect_file.exists():
         with prefect_file.open(mode="r") as f:
             parsed_prefect_file_contents = yaml.safe_load(f)
