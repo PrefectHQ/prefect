@@ -19,7 +19,7 @@ search:
 
 # Deploying Flows to Work Pools and Workers
 
-In this guide, we will configure a deployment that uses a work pool for for dynamically provisioned infrastructure.
+In this guide, we will configure a deployment that uses a work pool for dynamically provisioned infrastructure.
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
 With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
@@ -208,7 +208,7 @@ Use the tabs below to explore these two deployment creation options.
 
     if __name__ == "__main__":
         buy.deploy(
-            name="my-custom-dockerfile-deployment",", 
+            name="my-custom-dockerfile-deployment", 
             work_pool_name="my-docker-pool", 
             image=DeploymentImage(
                 name="my_image",
@@ -294,7 +294,7 @@ Use the tabs below to explore these two deployment creation options.
 
     While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
-    ### Store you code in git-based cloud storage 
+    ### Store your code in git-based cloud storage 
 
     If you don't specify an `image` argument for `.deploy`, then you need to specify where to pull the flow code from at runtime with the `from_source` method. 
 
@@ -842,7 +842,7 @@ These deployments can be managed independently of one another, allowing you to d
         deploy(
             buy.to_deployment(name="buy-deploy"),
             sell.to_deployment(name="sell-deploy"),
-            work_pool_name=""my-dev-work-pool"
+            work_pool_name="my-dev-work-pool"
             image="my-registry/my-image:dev",
             push=False,
         )

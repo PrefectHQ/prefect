@@ -86,7 +86,7 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import is_async_fn, sync_compatible
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
 
 __all__ = ["Runner", "serve"]
@@ -337,7 +337,7 @@ class Runner:
                 runner.start()
             ```
         """
-        signal.signal(signal.SIGTERM, self.handle_sigterm)
+        _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
 

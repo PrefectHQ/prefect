@@ -23,7 +23,7 @@ from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_underscores_only,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.schedules import SCHEDULE_TYPES, NoSchedule
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
@@ -215,6 +215,12 @@ class DeploymentUpdate(ActionBaseModel):
                 UserWarning,
             )
         return values_copy
+
+    @validator("schedule")
+    def return_none_schedule(cls, v):
+        if isinstance(v, NoSchedule):
+            return None
+        return v
 
     version: Optional[str] = FieldFrom(objects.Deployment)
     schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
@@ -617,3 +623,25 @@ class VariableUpdate(ActionBaseModel):
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+
+
+@copy_model_fields
+class GlobalConcurrencyLimitCreate(ActionBaseModel):
+    """Data used by the Prefect REST API to create a global concurrency limit."""
+
+    name: str = FieldFrom(objects.GlobalConcurrencyLimit)
+    limit: int = FieldFrom(objects.GlobalConcurrencyLimit)
+    active: Optional[bool] = FieldFrom(objects.GlobalConcurrencyLimit)
+    active_slots: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
+    slot_decay_per_second: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
+
+
+@copy_model_fields
+class GlobalConcurrencyLimitUpdate(ActionBaseModel):
+    """Data used by the Prefect REST API to update a global concurrency limit."""
+
+    name: Optional[str] = FieldFrom(objects.GlobalConcurrencyLimit)
+    limit: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
+    active: Optional[bool] = FieldFrom(objects.GlobalConcurrencyLimit)
+    active_slots: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
+    slot_decay_per_second: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)

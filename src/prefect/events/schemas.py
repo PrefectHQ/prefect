@@ -341,7 +341,7 @@ class DeploymentTrigger(ResourceTrigger):
     def owner_resource(self) -> Optional[str]:
         return f"prefect.deployment.{self._deployment_id}"
 
-    def actions(self) -> List[ActionTypes]:
+    def actions(self) -> List[RunDeployment]:
         assert self._deployment_id
         return [
             RunDeployment(

@@ -63,6 +63,61 @@ class TestCreateFlowRunInput:
             )
 
 
+class TestFilterFlowRunInput:
+    async def test_reads_flow_run_input(self, session: AsyncSession, flow_run):
+        for key in ["my-key", "my-key2", "other-key"]:
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run.id, key=key, value="my-value"
+                ),
+            )
+
+        flow_run_inputs = await models.flow_run_input.filter_flow_run_input(
+            session=session,
+            flow_run_id=flow_run.id,
+            prefix="my-key",
+            limit=10,
+            exclude_keys=[],
+        )
+
+        assert len(flow_run_inputs) == 2
+        assert all(
+            isinstance(flow_run_input, schemas.core.FlowRunInput)
+            for flow_run_input in flow_run_inputs
+        )
+        assert {flow_run_input.key for flow_run_input in flow_run_inputs} == {
+            "my-key",
+            "my-key2",
+        }
+
+    async def test_reads_flow_run_input_exclude_keys(
+        self, session: AsyncSession, flow_run
+    ):
+        for key in ["my-key", "my-key2", "other-key"]:
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run.id, key=key, value="my-value"
+                ),
+            )
+
+        flow_run_inputs = await models.flow_run_input.filter_flow_run_input(
+            session=session,
+            flow_run_id=flow_run.id,
+            prefix="my-key",
+            limit=10,
+            exclude_keys=["my-key2"],
+        )
+
+        assert len(flow_run_inputs) == 1
+        assert all(
+            isinstance(flow_run_input, schemas.core.FlowRunInput)
+            for flow_run_input in flow_run_inputs
+        )
+        assert {flow_run_input.key for flow_run_input in flow_run_inputs} == {"my-key"}
+
+
 class TestReadFlowRunInput:
     async def test_reads_flow_run_input(self, session: AsyncSession, flow_run):
         await models.flow_run_input.create_flow_run_input(

@@ -1,6 +1,8 @@
+import json
 from typing import Any, Dict
 
 import httpx
+from anyio import Path
 from cachetools import TTLCache
 from prefect._vendor.fastapi import HTTPException, status
 
@@ -47,9 +49,19 @@ async def get_collection_view(view: str):
     except KeyError:
         pass
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(KNOWN_VIEWS[view])
-        resp.raise_for_status()
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(KNOWN_VIEWS[view])
+            resp.raise_for_status()
 
-        GLOBAL_COLLECTIONS_VIEW_CACHE[view] = resp.json()
-        return resp.json()
+            GLOBAL_COLLECTIONS_VIEW_CACHE[view] = resp.json()
+            return resp.json()
+    except Exception:
+        local_file = Path(__file__).parent / Path(f"collections_data/views/{view}.json")
+        if await local_file.exists():
+            raw_data = await local_file.read_text()
+            data = json.loads(raw_data)
+            GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
+            return data
+        else:
+            raise
