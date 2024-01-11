@@ -59,6 +59,7 @@ See the following PR for implementation details:
 - Fix formatting in `prefect deploy` guide — https://github.com/PrefectHQ/prefect/pull/11562
 - Remove "Notification blocks must be pre-configured" warning from automations docs — https://github.com/PrefectHQ/prefect/pull/11569
 - Update work pools concept docs example to use correct entrypoint — https://github.com/PrefectHQ/prefect/pull/11584
+- Add incident, metric, and deployment status info to automations docs - https://github.com/PrefectHQ/prefect/pull/11625
 
 ### New Contributors
 - @brett-koonce made their first contribution in https://github.com/PrefectHQ/prefect/pull/11562
