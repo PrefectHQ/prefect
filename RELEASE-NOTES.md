@@ -10,7 +10,6 @@ and can follow your own naming conventions. Using this feature provides more fle
 and managing your deployments.
 
 See the following PR for implementation details:
-
 - https://github.com/PrefectHQ/prefect/pull/11511
 - https://github.com/PrefectHQ/prefect/pull/11624
 
