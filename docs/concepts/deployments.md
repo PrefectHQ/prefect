@@ -135,7 +135,7 @@ def main():
     
 If you call `run_deployment` from within a flow or task, the scheduled flow
 run will be linked to the calling flow run (or the calling task's flow run)
-by default.
+as a subflow run by default.
 
 Subflow runs have different behavior than regular flow runs. For example, a 
 subflow run can't be suspended independently of its parent flow. If you'd

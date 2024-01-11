@@ -66,7 +66,7 @@ async def run_deployment(
     as_subflow: Optional[bool] = True,
 ) -> FlowRun:
     """
-    Create a flow run for a deployment and return its metadata.
+    Create a flow run for a deployment and return it after completion or a timeout.
 
     By default, this function blocks until the flow run finishes executing.
     Specify a timeout (in seconds) to wait for the flow run to execute before
