@@ -2,9 +2,17 @@
 
 ## Release 2.14.14
 
-## Custom prefect.yaml files
-> TODO
-- ft: support reading and writing  custom prefect.yaml files — https://github.com/PrefectHQ/prefect/pull/11511
+## Support for custom prefect.yaml deployment configuration files
+
+You can now specify a `prefect.yaml` deployment configuration file while running `prefect deploy` by using the 
+`--prefect-file` command line argument. This means that your configuration files can be in any directory 
+and can follow your own naming conventions. By using this feature, you will have more flexibility in defining 
+and managing your deployments.
+
+See the following PR for implementation details:
+
+- https://github.com/PrefectHQ/prefect/pull/11511
+
 
 ## Toggle Deployment Schedule Status via `prefect.yaml`
 
