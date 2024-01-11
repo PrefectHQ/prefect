@@ -34,11 +34,13 @@ See the following PR for details:
 - Make subflows optional with `run_deployment` — https://github.com/PrefectHQ/prefect/pull/11611
 - Improve IDE support for `PrefectObjectRegistry.register_instances` decorated classes — https://github.com/PrefectHQ/prefect/pull/11617
 - Make the UI accessible via reverse proxy and add a `--no-install` flag to `prefect dev build-ui` — https://github.com/PrefectHQ/prefect/pull/11489
+- Improve UI build when using `prefect server start` - https://github.com/PrefectHQ/prefect/pull/11493
+- Improve error message when using `.deploy` — https://github.com/PrefectHQ/prefect/pull/11615
 
 ### Fixes
 - Use default values (if any) if no run input is provided on resume — https://github.com/PrefectHQ/prefect/pull/11598
 - Prevent deployments with `RRule` schedules containing `COUNT` — https://github.com/PrefectHQ/prefect/pull/11600
-- Fix flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578
+- Fix flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578 & https://github.com/PrefectHQ/prefect/pull/11616
 - Raise `StepExecutionError` on non-zero `run_shell_script` return code during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11604
 
 ### Experimental
