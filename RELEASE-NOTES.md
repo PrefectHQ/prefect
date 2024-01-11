@@ -24,7 +24,8 @@ You can now install `prefect` using Python 3.12. This support is experimental an
 
 See the following PR for details:
 
-— https://github.com/PrefectHQ/prefect/pull/11306
+- https://github.com/PrefectHQ/prefect/pull/11306
+
 
 ### Enhancements
 - allow removing schedules from deployments through CLI and Python — https://github.com/PrefectHQ/prefect/pull/11353
