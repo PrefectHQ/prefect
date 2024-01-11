@@ -1,20 +1,30 @@
 from __future__ import annotations
 
-import sys
-
-import pytest
+from typing import TYPE_CHECKING
 
 from prefect import flow
+
+if TYPE_CHECKING:
+
+    class Test2:
+        pass
 
 
 class Test:
     pass
 
 
-@pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python 3.10 or higher")
-def test_class_destringify():
+def test_class_arg():
     @flow
-    def foo(x: Test):
-        return
+    def foo(x: Test) -> Test:
+        return x
+
+    assert foo
+
+
+def test_class_arg2():
+    @flow(validate_parameters=False)
+    def foo(x: Test2) -> Test2:
+        return x
 
     assert foo
