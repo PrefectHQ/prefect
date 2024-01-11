@@ -1,7 +1,5 @@
 name: Unit tests
 
-# Note: Conda support for 3.11 is pending. See https://github.com/ContinuumIO/anaconda-issues/issues/13082
-
 env:
   # enable colored output
   # https://github.com/pytest-dev/pytest/issues/7443
@@ -61,6 +59,7 @@ jobs:
           - "3.9"
           - "3.10"
           - "3.11"
+          - "3.12"
         pytest-options:
           - "--exclude-services"
           - "--only-services"
@@ -144,8 +143,7 @@ jobs:
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Build Conda flavored test image
-        # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
+        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v5
         with:
           context: .
