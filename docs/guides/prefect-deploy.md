@@ -464,7 +464,7 @@ Use the tabs below to explore these two deployment creation options.
 
     Any deployment configuration can be overridden via options available on the `prefect deploy` CLI command when creating a deployment.
 
-    !!! tip "New `prefect.yaml` file flexibility"
+    !!! tip "`prefect.yaml` file flexibility"
         Traditionally, this file had to be in the root of your repository or project directory and named `prefect.yaml`.
         Now this file can be located elsewhere and be named differently. To use a custom prefect.yaml file, run the new 
         form of the deploy CLI command from the root of your project directory: 
