@@ -63,14 +63,22 @@ async def run_deployment(
     tags: Optional[Iterable[str]] = None,
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
-):
+    as_subflow: Optional[bool] = True,
+) -> FlowRun:
     """
     Create a flow run for a deployment and return it after completion or a timeout.
 
-    This function will return when the created flow run enters any terminal state or
-    the timeout is reached. If the timeout is reached and the flow run has not reached
-    a terminal state, it will still be returned. When using a timeout, we suggest
-    checking the state of the flow run if completion is important moving forward.
+    By default, this function blocks until the flow run finishes executing.
+    Specify a timeout (in seconds) to wait for the flow run to execute before
+    returning flow run metadata. To return immediately, without waiting for the
+    flow run to execute, set `timeout=0`.
+
+    Note that if you specify a timeout, this function will return the flow run
+    metadata whether or not the flow run finished executing.
+
+    If called within a flow or task, the flow run this function creates will
+    be linked to the current flow run as a subflow. Disable this behavior by
+    passing `as_subflow=False`.
 
     Args:
         name: The deployment id or deployment name in the form:
@@ -80,10 +88,10 @@ async def run_deployment(
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             the flow run to start now.
         flow_run_name: A name for the created flow run
-        timeout: The amount of time to wait for the flow run to complete before
-            returning. Setting `timeout` to 0 will return the flow run immediately.
-            Setting `timeout` to None will allow this function to poll indefinitely.
-            Defaults to None
+        timeout: The amount of time to wait (in seconds) for the flow run to
+            complete before returning. Setting `timeout` to 0 will return the flow
+            run metadata immediately. Setting `timeout` to None will allow this
+            function to poll indefinitely. Defaults to None.
         poll_interval: The number of seconds between polls
         tags: A list of tags to associate with this flow run; note that tags are used
             only for organizational purposes.
@@ -91,6 +99,8 @@ async def run_deployment(
             prevent creating multiple flow runs.
         work_queue_name: The name of a work queue to use for this run. Defaults to
             the default work queue for the deployment.
+        as_subflow: Whether or not to link the flow run as a subflow of the current
+            flow or task run.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
@@ -117,7 +127,7 @@ async def run_deployment(
 
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
-    if flow_run_ctx or task_run_ctx:
+    if as_subflow and (flow_run_ctx or task_run_ctx):
         # This was called from a flow. Link the flow run as a subflow.
         from prefect.engine import (
             Pending,

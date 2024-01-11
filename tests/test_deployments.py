@@ -1087,7 +1087,7 @@ class TestRunDeployment:
 
         assert flow_run_a.id == flow_run_b.id
 
-    async def test_links_to_parent_flow_run_when_used_in_flow(
+    async def test_links_to_parent_flow_run_when_used_in_flow_by_default(
         self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
     ):
         d, deployment_id = test_deployment
@@ -1106,6 +1106,24 @@ class TestRunDeployment:
         task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
         assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
+
+    async def test_optionally_does_not_link_to_parent_flow_run_when_used_in_flow(
+        self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
+    ):
+        d, deployment_id = test_deployment
+
+        @flow
+        async def foo():
+            return await run_deployment(
+                f"{d.flow_name}/{d.name}",
+                timeout=0,
+                poll_interval=0,
+                as_subflow=False,
+            )
+
+        parent_state = await foo(return_state=True)
+        child_flow_run = await parent_state.result()
+        assert child_flow_run.parent_task_run_id is None
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_links_to_parent_flow_run_when_used_in_task_without_flow_context(
