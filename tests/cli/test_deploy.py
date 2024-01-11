@@ -33,6 +33,7 @@ from prefect.deployments.base import (
     create_default_prefect_yaml,
     initialize_project,
 )
+from prefect.deployments.steps.core import StepExecutionError
 from prefect.events.schemas import Posture
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
@@ -2400,6 +2401,39 @@ class TestProjectDeploy:
         assert await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
+
+    async def test_deploy_with_bad_run_shell_script_raises(
+        self, project_dir, work_pool
+    ):
+        """
+        Regression test for a bug where deployment steps would continue even when
+        a `run_shell_script` step failed.
+        """
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        config["build"] = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "id": "test",
+                    "script": "cat nothing",
+                    "stream_output": True,
+                }
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(config, f)
+
+        with pytest.raises(StepExecutionError):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --pool"
+                    f" {work_pool.name}"
+                ),
+            )
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_templates_env_vars(
@@ -6105,8 +6139,8 @@ class TestDeployDockerBuildSteps:
         prefect_config["build"] = [
             {
                 "prefect.deployments.steps.run_shell_script": {
-                    "id": "get-commit-hash",
-                    "script": "git rev-parse --short HEAD",
+                    "id": "sample-bash-cmd",
+                    "script": "echo 'Hello, World!'",
                     "stream_output": False,
                 }
             }
