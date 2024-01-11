@@ -118,7 +118,7 @@ These can be overwritten through a trigger or when manually creating a custom ru
     Because deployments are nothing more than metadata, runs can be created at anytime.
     Note that pausing a schedule, updating your deployment, and other actions reset your auto-scheduled runs.
 
-#### Scheduling deployments from within Python flow code
+#### Running a deployed flow from within Python flow code
 
 Prefect provides a [`run_deployment` function](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) that can be used to schedule the run of an existing deployment when your Python code executes.
 

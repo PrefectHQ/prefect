@@ -1037,7 +1037,7 @@ Suspended flow runs can be resumed by clicking the **Resume** button in the Pref
 resume_flow_run(FLOW_RUN_ID)
 ```
 
-!!! note "Subflows cannot be suspended independently of their parent run"
+!!! note "Subflows can't be suspended independently of their parent run"
     You can't suspend a subflow run independently of its parent flow run.
 
     If you use a flow to schedule a flow run with `run_deployment`, the
