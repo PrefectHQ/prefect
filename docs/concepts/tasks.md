@@ -22,7 +22,7 @@ search:
 
 # Tasks
 
-A task is a function that represents a discrete unit of work in a Prefect workflow. Tasks are not required &mdash; you may define Prefect workflows that consist only of flows, using regular Python statements and functions. Tasks enable you to encapsulate elements of your workflow logic in observable units that can be reused across flows and subflows. 
+A task is a function that represents a discrete unit of work in a Prefect workflow. Tasks are not required &mdash; you may define Prefect workflows that consist only of flows, using regular Python statements and functions. Tasks enable you to encapsulate elements of your workflow logic in observable units that can be reused across flows and subflows.
 
 ## Tasks overview
 
@@ -30,7 +30,7 @@ Tasks are functions: they can take inputs, perform work, and return an output. A
 
 Tasks are special because they receive metadata about upstream dependencies and the state of those dependencies before they run, even if they don't receive any explicit data inputs from them. This gives you the opportunity to, for example, have a task wait on the completion of another task before executing.
 
-Tasks also take advantage of automatic Prefect [logging](/concepts/logs/) to capture details about task runs such as runtime, tags, and final state. 
+Tasks also take advantage of automatic Prefect [logging](/concepts/logs/) to capture details about task runs such as runtime, tags, and final state.
 
 You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
@@ -122,7 +122,7 @@ def my_task(name, date):
 @flow
 def my_flow():
     # creates a run with a name like "hello-marvin-on-Thursday"
-    my_task(name="marvin", date=datetime.datetime.utcnow())
+    my_task(name="marvin", date=datetime.datetime.now(datetime.timezone.utc))
 ```
 
 Additionally this setting also accepts a function that returns a string to be used for the task run name:
@@ -132,7 +132,7 @@ import datetime
 from prefect import flow, task
 
 def generate_task_name():
-    date = datetime.datetime.utcnow()
+    date = datetime.datetime.now(datetime.timezone.utc)
     return f"{date:%A}-is-a-lovely-day"
 
 @task(name="My Example Task",
@@ -219,7 +219,6 @@ or _failed_ if it returned a string.
 
 !!! note "Retries don't create new task runs"
     A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
-
 
 ### A real-world example: making an API request
 
@@ -338,7 +337,7 @@ def some_task_with_exponential_backoff_retries():
 
 ### Configuring retry behavior globally with settings
 
-You can also set retries and retry delays by using the following global settings. These settings will not override the `retries` or `retry_delay_seconds` that are set in the flow or task decorator. 
+You can also set retries and retry delays by using the following global settings. These settings will not override the `retries` or `retry_delay_seconds` that are set in the flow or task decorator.
 
 ```
 prefect config set PREFECT_FLOW_DEFAULT_RETRIES=2
@@ -377,12 +376,12 @@ def hello_flow(name_input):
     hello_task(name_input)
 ```
 
-Alternatively, you can provide your own function or other callable that returns a string cache key. A generic `cache_key_fn` is a function that accepts two positional arguments: 
+Alternatively, you can provide your own function or other callable that returns a string cache key. A generic `cache_key_fn` is a function that accepts two positional arguments:
 
 - The first argument corresponds to the `TaskRunContext`, which stores task run metadata in the attributes `task_run_id`, `flow_run_id`, and `task`.
 - The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
 
-Note that the `cache_key_fn` is _not_ defined as a `@task`. 
+Note that the `cache_key_fn` is _not_ defined as a `@task`.
 
 !!! note "Task cache keys"
     By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` setting.
@@ -468,9 +467,9 @@ def caching_task():
 
 ## Timeouts
 
-Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
+Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task.
 
-Timeout durations are specified using the `timeout_seconds` keyword argument. 
+Timeout durations are specified using the `timeout_seconds` keyword argument.
 
 ```python
 from prefect import task, get_run_logger
@@ -502,6 +501,7 @@ See [state returned values](/concepts/task-runners/#using-results-from-submitted
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
 
 ## Wait for
+
 To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) keyword argument:
 
 ```python
@@ -618,7 +618,7 @@ Prefect has built-in functionality for achieving this: task concurrency limits.
 
 Task concurrency limits use [task tags](#tags). You can specify an optional concurrency limit as the maximum number of concurrent task runs in a `Running` state for tasks with a given tag. The specified concurrency limit applies to any task to which the tag is applied.
 
-If a task has multiple tags, it will run only if _all_ tags have available concurrency. 
+If a task has multiple tags, it will run only if _all_ tags have available concurrency.
 
 Tags without explicit limits are considered to have unlimited concurrency.
 
@@ -627,9 +627,9 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states/). 
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states/).
 
-If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds (or the value specified by the `PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS` setting). 
+If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds (or the value specified by the `PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS` setting).
 
 !!! warning "Concurrency limits in subflows"
     Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
@@ -638,7 +638,6 @@ If there are no concurrency slots available for any one of your task's tags, the
 
 !!! tip "Flow run concurrency limits are set at a work pool and/or work queue level"
     While task run concurrency limits are configured via tags (as shown below), [flow run concurrency limits](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-concurrency) are configured via work pools and/or work queues.
-
 
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
 
@@ -651,7 +650,7 @@ You can set concurrency limits on as few or as many tags as you wish. You can se
 You can create, list, and remove concurrency limits by using Prefect CLI `concurrency-limit` commands.
 
 ```bash
-$ prefect concurrency-limit [command] [arguments]
+prefect concurrency-limit [command] [arguments]
 ```
 
 | Command | Description                                                      |
@@ -664,24 +663,24 @@ $ prefect concurrency-limit [command] [arguments]
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
 ```bash
-$ prefect concurrency-limit create small_instance 10
+prefect concurrency-limit create small_instance 10
 ```
 
 To delete the concurrency limit on the 'small_instance' tag:
 
 ```bash
-$ prefect concurrency-limit delete small_instance
+prefect concurrency-limit delete small_instance
 ```
 
 To view details about the concurrency limit on the 'small_instance' tag:
 
 ```bash
-$ prefect concurrency-limit inspect small_instance
+prefect concurrency-limit inspect small_instance
 ```
 
 #### Python client
 
-To update your tag concurrency limits programmatically, use [`PrefectClient.orchestration.create_concurrency_limit`](../../api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit). 
+To update your tag concurrency limits programmatically, use [`PrefectClient.orchestration.create_concurrency_limit`](../../api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit).
 
 `create_concurrency_limit` takes two arguments:
 
@@ -710,7 +709,6 @@ async with get_client() as client:
 ```
 
 If you wish to query for the currently set limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
-
 
 To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limits).
 
