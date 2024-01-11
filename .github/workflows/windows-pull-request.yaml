@@ -1,15 +1,15 @@
 name: Windows tests (Pull Request)
 
 on:
-    pull_request:
-        branches:
-            - main
-        types:
-            - opened
-            - reopened
-            - synchronize
-            - labeled
-            - unlabeled
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
 
 permissions: {}
 
@@ -23,54 +23,54 @@ permissions: {}
 #
 # https://docs.github.com/en/actions/using-jobs/using-concurrency
 concurrency:
-    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-    run-tests-sqlite:
-        name: Test with SQLite
-        if: contains(github.event.pull_request.labels.*.name, 'arch:windows')
+  run-tests-sqlite:
+    name: Test with SQLite
+    if: contains(github.event.pull_request.labels.*.name, 'arch:windows')
 
-        strategy:
-            matrix:
-                python-version:
-                    - "3.9"
-                    - "3.10"
-                    - "3.11"
-                    - "3.12"
+    strategy:
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"         
 
-            fail-fast: false
+      fail-fast: false
 
-        permissions:
-            contents: read
+    permissions:
+      contents: read
 
-        runs-on: windows-latest
-        timeout-minutes: 45
+    runs-on: windows-latest
+    timeout-minutes: 45
 
-        env:
-            # enable colored output
-            # https://github.com/pytest-dev/pytest/issues/7443
-            PY_COLORS: 1
+    env:
+      # enable colored output
+      # https://github.com/pytest-dev/pytest/issues/7443
+      PY_COLORS: 1
 
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  persist-credentials: false
-                  fetch-depth: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
-            - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v5
-              with:
-                python-version: ${{ matrix.python-version }}
-                cache: "pip"
-                cache-dependency-path: "requirements*.txt"
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
 
-            - name: Install packages
-              run: |
-                python -m pip install --upgrade pip
-                pip install --upgrade --upgrade-strategy eager -e .[dev]
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-            - name: Run tests
-              run: |
-                  # Parallelize tests by scope to reduce expensive service fixture duplication
-                  pytest tests -vv --numprocesses auto --dist loadscope --exclude-services --durations=25
+      - name: Run tests
+        run: |
+          # Parallelize tests by scope to reduce expensive service fixture duplication
+          pytest tests -vv --numprocesses auto --dist loadscope --exclude-services --durations=25
