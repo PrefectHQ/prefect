@@ -20,7 +20,7 @@ You can now toggle your deployment schedules between active and inactive in your
 
 ## Support for Python 3.12
 
-`prefect` now supports Python 3.12. This support is experimental and will be hardened in future releases.
+You can now install `prefect` using Python 3.12. This support is experimental and will be hardened in future releases.
 
 See the following PR for details:
 
