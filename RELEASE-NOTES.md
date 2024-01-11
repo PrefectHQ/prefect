@@ -28,17 +28,17 @@ See the following PR for details:
 
 
 ### Enhancements
-- allow removing schedules from deployments through CLI and Python — https://github.com/PrefectHQ/prefect/pull/11353
-- Prefect client global concurrency limit functions / tests — https://github.com/PrefectHQ/prefect/pull/11415
-- allow saving previously saved blocks without passing `name` — https://github.com/PrefectHQ/prefect/pull/11592
-- Make subflows optional with run_deployment — https://github.com/PrefectHQ/prefect/pull/11611
-- fix IDE support for `PrefectObjectRegistry.register_instances` decorated classes — https://github.com/PrefectHQ/prefect/pull/11617
-- Enhancement: Reverse proxying the UI — https://github.com/PrefectHQ/prefect/pull/11489
+- Add an option through the CLI and python client to remove schedules from deployments — https://github.com/PrefectHQ/prefect/pull/11353
+- Add client methods to interact with global concurrency limit apis — https://github.com/PrefectHQ/prefect/pull/11415
+- Make name optional when saving a loaded block — https://github.com/PrefectHQ/prefect/pull/11592
+- Make subflows optional with `run_deployment` — https://github.com/PrefectHQ/prefect/pull/11611
+- Improve IDE support for `PrefectObjectRegistry.register_instances` decorated classes — https://github.com/PrefectHQ/prefect/pull/11617
+- Make the UI accessible via reverse proxy and add a `--no-install` flag to `prefect dev build-ui` — https://github.com/PrefectHQ/prefect/pull/11489
 
 ### Fixes
-- Use default values if no run input was provided — https://github.com/PrefectHQ/prefect/pull/11598
-- Prevent deployment with `RRule` schedule containing `COUNT` — https://github.com/PrefectHQ/prefect/pull/11600
-- Fix: Flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578
+- Use default values (if any) if no run input is provided on resume — https://github.com/PrefectHQ/prefect/pull/11598
+- Prevent deployments with `RRule` schedules containing `COUNT` — https://github.com/PrefectHQ/prefect/pull/11600
+- Fix flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578
 - Raise `StepExecutionError` on non-zero `run_shell_script` return code during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11604
 
 ### Experimental
@@ -47,16 +47,16 @@ See the following PR for details:
 ### Documentation
 - Fix non-rendering link in Docker guide — https://github.com/PrefectHQ/prefect/pull/11574
 - Update deployment and flow concept docs — https://github.com/PrefectHQ/prefect/pull/11576
-- Automation triggers examples — https://github.com/PrefectHQ/prefect/pull/11589
+- Add examples for custom triggers for automations — https://github.com/PrefectHQ/prefect/pull/11589
 - Add send/receive documentation to `run_input` module docstring — https://github.com/PrefectHQ/prefect/pull/11591
-- Automations Guide — https://github.com/PrefectHQ/prefect/pull/10559
+- Add Automations Guide — https://github.com/PrefectHQ/prefect/pull/10559
 - Fix storage guide links and reference — https://github.com/PrefectHQ/prefect/pull/11602
 - Fix typo in deploy guide — https://github.com/PrefectHQ/prefect/pull/11606
-- Fix imports in tshirt example of human-in-the-loop guide — https://github.com/PrefectHQ/prefect/pull/11612
+- Fix imports in t-shirt example of human-in-the-loop guide — https://github.com/PrefectHQ/prefect/pull/11612
 - Add more imports to creating-human-in-the-loop-workflows.md — https://github.com/PrefectHQ/prefect/pull/11614
-- fix formatting, sp — https://github.com/PrefectHQ/prefect/pull/11562
-- removing automations cancel warning — https://github.com/PrefectHQ/prefect/pull/11569
-- Update work-pools.md — https://github.com/PrefectHQ/prefect/pull/11584
+- Fix formatting — https://github.com/PrefectHQ/prefect/pull/11562
+- Remove "Notification blocks must be pre-configured" warning from automations — https://github.com/PrefectHQ/prefect/pull/11569
+- Update work-pools.md to use correct entrypoint — https://github.com/PrefectHQ/prefect/pull/11584
 
 ### New Contributors
 - @brett-koonce made their first contribution in https://github.com/PrefectHQ/prefect/pull/11562
