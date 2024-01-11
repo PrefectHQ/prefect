@@ -446,14 +446,14 @@ class ORMRun:
         have a start time and are not in a final state and were expected to
         start already."""
         if self.start_time and self.start_time > self.expected_start_time:
-            return (self.start_time - self.expected_start_time).as_interval()
+            return self.start_time - self.expected_start_time
         elif (
             self.start_time is None
             and self.expected_start_time
             and self.expected_start_time < pendulum.now("UTC")
             and self.state_type not in schemas.states.TERMINAL_STATES
         ):
-            return (pendulum.now("UTC") - self.expected_start_time).as_interval()
+            return pendulum.now("UTC") - self.expected_start_time
         else:
             return datetime.timedelta(0)
 
@@ -1349,6 +1349,7 @@ class ORMFlowRunInput:
 
     key = sa.Column(sa.String, nullable=False)
     value = sa.Column(sa.Text(), nullable=False)
+    sender = sa.Column(sa.String, nullable=True)
 
     __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
 

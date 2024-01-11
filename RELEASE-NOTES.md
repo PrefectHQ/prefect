@@ -1,6 +1,68 @@
 # Prefect Release Notes
 
 ## Release 2.14.14
+<<<<<<< HEAD
+=======
+
+## Support for custom prefect.yaml deployment configuration files
+
+You can now specify a `prefect.yaml` deployment configuration file while running `prefect deploy` by using the 
+`--prefect-file` command line argument. This means that your configuration files can be in any directory 
+and can follow your own naming conventions. By using this feature, you will have more flexibility in defining 
+and managing your deployments.
+
+See the following PR for implementation details:
+
+- https://github.com/PrefectHQ/prefect/pull/11511
+
+
+## Toggle Deployment Schedule Status via `prefect.yaml`
+
+You can now toggle your deployment schedules between active and inactive in your prefect.yaml. This enables you to create deployments with initially inactive schedules, allowing for thorough testing or staged rollouts. 
+
+## Support for Python 3.12
+- Adds support for Python 3.12  — https://github.com/PrefectHQ/prefect/pull/11306
+
+### Enhancements
+- allow removing schedules from deployments through CLI and Python — https://github.com/PrefectHQ/prefect/pull/11353
+- Prefect client global concurrency limit functions / tests — https://github.com/PrefectHQ/prefect/pull/11415
+- allow saving previously saved blocks without passing `name` — https://github.com/PrefectHQ/prefect/pull/11592
+- Make subflows optional with run_deployment — https://github.com/PrefectHQ/prefect/pull/11611
+- fix IDE support for `PrefectObjectRegistry.register_instances` decorated classes — https://github.com/PrefectHQ/prefect/pull/11617
+- Enhancement: Reverse proxying the UI — https://github.com/PrefectHQ/prefect/pull/11489
+
+### Fixes
+- Use default values if no run input was provided — https://github.com/PrefectHQ/prefect/pull/11598
+- Prevent deployment with `RRule` schedule containing `COUNT` — https://github.com/PrefectHQ/prefect/pull/11600
+- Fix: Flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578
+- Raise `StepExecutionError` on non-zero `run_shell_script` return code during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11604
+
+### Experimental
+- Enable flow runs to receive typed input from external sources — https://github.com/PrefectHQ/prefect/pull/11573
+
+### Documentation
+- Fix non-rendering link in Docker guide — https://github.com/PrefectHQ/prefect/pull/11574
+- Update deployment and flow concept docs — https://github.com/PrefectHQ/prefect/pull/11576
+- Automation triggers examples — https://github.com/PrefectHQ/prefect/pull/11589
+- Add send/receive documentation to `run_input` module docstring — https://github.com/PrefectHQ/prefect/pull/11591
+- Automations Guide — https://github.com/PrefectHQ/prefect/pull/10559
+- Fix storage guide links and reference — https://github.com/PrefectHQ/prefect/pull/11602
+- Fix typo in deploy guide — https://github.com/PrefectHQ/prefect/pull/11606
+- Fix imports in tshirt example of human-in-the-loop guide — https://github.com/PrefectHQ/prefect/pull/11612
+- Add more imports to creating-human-in-the-loop-workflows.md — https://github.com/PrefectHQ/prefect/pull/11614
+- fix formatting, sp — https://github.com/PrefectHQ/prefect/pull/11562
+- removing automations cancel warning — https://github.com/PrefectHQ/prefect/pull/11569
+- Update work-pools.md — https://github.com/PrefectHQ/prefect/pull/11584
+
+### New Contributors
+- @brett-koonce made their first contribution in https://github.com/PrefectHQ/prefect/pull/11562
+- @jitvimol made their first contribution in https://github.com/PrefectHQ/prefect/pull/11584
+- @oz-elhassid made their first contribution in https://github.com/PrefectHQ/prefect/pull/11353
+- @Zyntogz made their first contribution in https://github.com/PrefectHQ/prefect/pull/11415
+- @Andrew-S-Rosen made their first contribution in https://github.com/PrefectHQ/prefect/pull/11578
+
+## Release 2.14.13
+>>>>>>> 8e3e8c53d9657f224bc897ccd442290f8774522d
 
 ## Access default work pool configurations in an air-gapped environment
 Those who run Prefect server in an environment where arbitrary outbound internet traffic is not allowed were previously unable to retrieve up-to-date default work pool configurations (via the UI or otherwise). You can now access the worker metadata needed to access the corresponding work pool configurations in your server even in such an air-gapped environment. Upon each release of `prefect`, the most recent version of this worker metadata will be embedded in the `prefect` package so that it can be used as a fallback if the outbound call to retrieve the real-time metadata fails.

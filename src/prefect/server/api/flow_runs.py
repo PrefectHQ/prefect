@@ -327,15 +327,10 @@ async def resume_flow_run(
         orchestration_parameters.update({"api-version": api_version})
 
         keyset = state.state_details.run_input_keyset
-        if keyset and not run_input:
-            return OrchestrationResult(
-                state=state,
-                status=schemas.responses.SetStateStatus.REJECT,
-                details=schemas.responses.StateAbortDetails(
-                    reason="Flow run was expecting input but none was provided."
-                ),
-            )
-        elif keyset and run_input:
+
+        if keyset:
+            run_input = run_input or {}
+
             schema_json = await models.flow_run_input.read_flow_run_input(
                 session=session, flow_run_id=flow_run.id, key=keyset["schema"]
             )
@@ -530,6 +525,7 @@ async def create_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Body(..., description="The input key"),
     value: bytes = Body(..., description="The value of the input"),
+    sender: Optional[str] = Body(None, description="The sender of the input"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
@@ -542,6 +538,7 @@ async def create_flow_run_input(
                 flow_run_input=schemas.core.FlowRunInput(
                     flow_run_id=flow_run_id,
                     key=key,
+                    sender=sender,
                     value=value.decode(),
                 ),
             )
@@ -557,6 +554,31 @@ async def create_flow_run_input(
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
+
+
+@router.post("/{id}/input/filter")
+async def filter_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    prefix: str = Body(..., description="The input key prefix", embed=True),
+    limit: int = Body(
+        1, description="The maximum number of results to return", embed=True
+    ),
+    exclude_keys: List[str] = Body(
+        [], description="Exclude inputs with these keys", embed=True
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> List[schemas.core.FlowRunInput]:
+    """
+    Filter flow run inputs by key prefix
+    """
+    async with db.session_context() as session:
+        return await models.flow_run_input.filter_flow_run_input(
+            session=session,
+            flow_run_id=flow_run_id,
+            prefix=prefix,
+            limit=limit,
+            exclude_keys=exclude_keys,
+        )
 
 
 @router.get("/{id}/input/{key}")

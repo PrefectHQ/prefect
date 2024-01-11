@@ -12,6 +12,7 @@ from typing import (
 )
 from uuid import UUID
 
+import orjson
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -1544,8 +1545,46 @@ class FlowRunInput(ObjectBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
     key: str = Field(description="The key of the input.")
     value: str = Field(description="The value of the input.")
+    sender: Optional[str] = Field(description="The sender of the input.")
+
+    @property
+    def decoded_value(self) -> Any:
+        """
+        Decode the value of the input.
+
+        Returns:
+            Any: the decoded value
+        """
+        return orjson.loads(self.value)
 
     @validator("key", check_fields=False)
     def validate_name_characters(cls, v):
         raise_on_name_alphanumeric_dashes_only(v)
         return v
+
+
+class GlobalConcurrencyLimit(ObjectBaseModel):
+    """An ORM representation of a global concurrency limit"""
+
+    name: str = Field(description="The name of the global concurrency limit.")
+    limit: int = Field(
+        description=(
+            "The maximum number of slots that can be occupied on this concurrency"
+            " limit."
+        )
+    )
+    active: Optional[bool] = Field(
+        default=True,
+        description="Whether or not the concurrency limit is in an active state.",
+    )
+    active_slots: Optional[int] = Field(
+        default=0,
+        description="Number of tasks currently using a concurrency slot.",
+    )
+    slot_decay_per_second: Optional[int] = Field(
+        default=0,
+        description=(
+            "Controls the rate at which slots are released when the concurrency limit"
+            " is used as a rate limit."
+        ),
+    )
