@@ -188,6 +188,12 @@ async def run_shell_script(
 
             await process.wait()
 
+            if process.returncode != 0:
+                raise RuntimeError(
+                    f"`run_shell_script` failed with error code {process.returncode}:"
+                    f" {stderr_sink.getvalue()}"
+                )
+
     return {
         "stdout": stdout_sink.getvalue().strip(),
         "stderr": stderr_sink.getvalue().strip(),
