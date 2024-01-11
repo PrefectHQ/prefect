@@ -1041,11 +1041,11 @@ resume_flow_run(FLOW_RUN_ID)
     You can't suspend a subflow run independently of its parent flow run.
 
     If you use a flow to schedule a flow run with `run_deployment`, the
-    scheduled flow run will be linked to the calling flow by default. This means
-    you won't be able to suspend the scheduled flow run independently of the
-    calling flow. Call `run_deployment` with `as_subflow=False` to disable this
-    linking if you need to be able to suspend the scheduled flow run
-    independently of the calling flow.
+    scheduled flow run will be linked to the calling flow as a subflow run by
+    default. This means you won't be able to suspend the scheduled flow run
+    independently of the calling flow. Call `run_deployment` with
+    `as_subflow=False` to disable this linking if you need to be able to suspend
+    the scheduled flow run independently of the calling flow.
     
 ## Waiting for input when pausing or suspending a flow run
 
