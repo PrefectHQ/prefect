@@ -2402,7 +2402,7 @@ class TestProjectDeploy:
         self, project_dir, work_pool
     ):
         """
-        Regression test for a bug where deployment steps woould continue even when
+        Regression test for a bug where deployment steps would continue even when
         a `run_shell_script` step failed.
         """
         prefect_file = Path("prefect.yaml")
