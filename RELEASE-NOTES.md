@@ -12,6 +12,7 @@ and managing your deployments.
 See the following PR for implementation details:
 
 - https://github.com/PrefectHQ/prefect/pull/11511
+- https://github.com/PrefectHQ/prefect/pull/11624
 
 ## Toggle Deployment Schedule Status via `prefect.yaml`
 
