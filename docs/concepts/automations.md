@@ -47,6 +47,8 @@ Triggers specify the conditions under which your action should be performed. Tri
 - Flow run state change
   - Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work pool status
+- Deployment Status
+- Metric thresholds, such as average duration, lateness, or completion percentage
 - Custom event triggers
 
 !!! note "Automations API"
@@ -71,6 +73,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Pause or resume an automation
 - Send a [notification](#automation-notifications)
 - Call a webhook
+- Open an incident
 
 ![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
 
