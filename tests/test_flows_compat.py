@@ -23,7 +23,7 @@ def test_class_arg():
 
 
 def test_class_arg2():
-    @flow
+    @flow(validate_parameters=False)
     def foo(x: Test2) -> Test2:
         return x
 
