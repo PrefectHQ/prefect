@@ -6,7 +6,7 @@
 
 You can now specify a `prefect.yaml` deployment configuration file while running `prefect deploy` by using the 
 `--prefect-file` command line argument. This means that your configuration files can be in any directory 
-and can follow your own naming conventions. By using this feature, you will have more flexibility in defining 
+and can follow your own naming conventions. Using this feature provides more flexibility in defining 
 and managing your deployments.
 
 See the following PR for implementation details:
@@ -15,25 +15,23 @@ See the following PR for implementation details:
 
 ## Toggle Deployment Schedule Status via `prefect.yaml`
 
-You can now toggle your deployment schedules between active and inactive in your prefect.yaml. This enables you to create deployments with initially inactive schedules, allowing for thorough testing or staged rollouts. 
+You can now toggle your deployment schedules between `active` and `inactive` in your `prefect.yaml` configuration file. This enables you to create deployments with initially _inactive_ schedules, allowing for thorough testing or staged rollouts!
 
 See the following PR for implementation details:
-
 - https://github.com/PrefectHQ/prefect/pull/11608
 
 ## Support for Python 3.12
 
-You can now install `prefect` using Python 3.12. This support is experimental and will be hardened in future releases.
+You can now install `prefect` using Python 3.12! This support is experimental and will be hardened in future releases.
 
 See the following PR for implementation details:
-
 - https://github.com/PrefectHQ/prefect/pull/11306
 
 ### Enhancements
 - Add an option through the CLI and Python client to remove schedules from deployments — https://github.com/PrefectHQ/prefect/pull/11353
 - Add client methods to interact with global concurrency limit APIs — https://github.com/PrefectHQ/prefect/pull/11415
 - Make `name` optional when saving an existing block — https://github.com/PrefectHQ/prefect/pull/11592
-- Make making a flow as a subflow in `run_deployment`  optional — https://github.com/PrefectHQ/prefect/pull/11611
+- Make marking a flow as a subflow in `run_deployment`  optional — https://github.com/PrefectHQ/prefect/pull/11611
 - Improve IDE support for `PrefectObjectRegistry.register_instances` decorated classes — https://github.com/PrefectHQ/prefect/pull/11617
 - Make the UI accessible via reverse proxy and add a `--no-install` flag to `prefect dev build-ui` — https://github.com/PrefectHQ/prefect/pull/11489
 - Improve UI build during `prefect server start` - https://github.com/PrefectHQ/prefect/pull/11493
@@ -58,7 +56,7 @@ See the following PR for implementation details:
 - Fix typo in `prefect deploy` guide — https://github.com/PrefectHQ/prefect/pull/11606
 - Fix imports in human-in-the-loop workflows guide example — https://github.com/PrefectHQ/prefect/pull/11612
 - Add missing imports to human-in-the-loop workflows example — https://github.com/PrefectHQ/prefect/pull/11614
-- Fix formatting in `prefect-deploy` guide — https://github.com/PrefectHQ/prefect/pull/11562
+- Fix formatting in `prefect deploy` guide — https://github.com/PrefectHQ/prefect/pull/11562
 - Remove "Notification blocks must be pre-configured" warning from automations docs — https://github.com/PrefectHQ/prefect/pull/11569
 - Update work pools concept docs example to use correct entrypoint — https://github.com/PrefectHQ/prefect/pull/11584
 
