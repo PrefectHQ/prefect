@@ -892,7 +892,7 @@ These deployments can be managed independently of one another, allowing you to d
     New deployment declarations can be added to the `prefect.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to select deployment declarations when using the `prefect deploy` command.
     
     !!! warning
-        When using a custom `prefect.yaml` file, remember that the value for deployment `entrypoints` must be relative to 
+        When using a custom `prefect.yaml` file, remember that the value for the deployment `entrypoint` must be relative to 
         the root directory of the project.  
 
     For example, consider the following `prefect.yaml` file:
