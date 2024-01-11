@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -946,6 +946,41 @@ class TestResumeFlowrun:
 
         return flow_run
 
+    @pytest.fixture
+    async def paused_flow_run_waiting_for_input_with_default(
+        self,
+        session,
+        flow,
+    ):
+        class SimpleInput(RunInput):
+            approved: Optional[bool] = True
+
+        state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(state)
+        state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, flow_version="1.0", state=state
+            ),
+        )
+
+        assert flow_run
+
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="paused-1-schema",
+                value=orjson.dumps(SimpleInput.schema()).decode(),
+            ),
+        )
+
+        await session.commit()
+
+        return flow_run
+
     async def test_resuming_blocking_pauses(
         self, blocking_paused_flow_run, client, session
     ):
@@ -1010,7 +1045,16 @@ class TestResumeFlowrun:
         )
         assert resumed_run.state.type == "FAILED"
 
-    async def test_cannot_resume_flow_run_waiting_for_input_without_input(
+    async def test_resume_flow_run_waiting_for_input_without_input_succeeds_with_defaults(
+        self, client, paused_flow_run_waiting_for_input_with_default
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+    async def test_resume_flow_run_waiting_for_input_without_input_fails_if_required(
         self,
         client,
         paused_flow_run_waiting_for_input,
@@ -1022,7 +1066,7 @@ class TestResumeFlowrun:
         assert response.json()["status"] == "REJECT"
         assert (
             response.json()["details"]["reason"]
-            == "Flow run was expecting input but none was provided."
+            == "Run input validation failed: 'approved' is a required property"
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1531,6 +1575,70 @@ class TestFlowRunInput:
         )
 
         assert response.status_code == 409
+
+    async def test_filter_flow_run_input(self, client: AsyncClient, flow_run_input):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "structured"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert schemas.core.FlowRunInput.parse_obj(response.json()[0]) == flow_run_input
+
+    async def test_filter_flow_run_input_limits_response(
+        self, client: AsyncClient, session: AsyncSession, flow_run
+    ):
+        for i in range(100):
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run.id,
+                    key=f"structured-key-{i}",
+                    value="really important stuff",
+                ),
+            )
+        await session.commit()
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input/filter",
+            json={"prefix": "structured", "limit": 10},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 10
+        assert response.json()[0]["key"] == "structured-key-0"
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input/filter",
+            json={"prefix": "structured", "limit": 20},
+        )
+
+        assert response.status_code == 200
+        assert len(response.json()) == 20
+        assert response.json()[-1]["key"] == "structured-key-19"
+
+    async def test_filter_flow_run_input_excludes_keys(
+        self,
+        client: AsyncClient,
+        flow_run_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "structured", "exclude_keys": [flow_run_input.key]},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
+    async def test_filter_flow_run_input_no_matches(
+        self,
+        client: AsyncClient,
+        flow_run_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "big-dawg"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 0
 
     async def test_read_flow_run_input(self, client: AsyncClient, flow_run_input):
         response = await client.get(
