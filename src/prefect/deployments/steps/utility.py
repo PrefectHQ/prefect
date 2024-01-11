@@ -190,7 +190,7 @@ async def run_shell_script(
 
             if process.returncode != 0:
                 raise RuntimeError(
-                    f"run_shell_script failed with error code {process.returncode}:"
+                    f"`run_shell_script` failed with error code {process.returncode}:"
                     f" {stderr_sink.getvalue()}"
                 )
 
