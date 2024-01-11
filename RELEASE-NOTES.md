@@ -68,6 +68,8 @@ See the following PR for implementation details:
 - @Zyntogz made their first contribution in https://github.com/PrefectHQ/prefect/pull/11415
 - @Andrew-S-Rosen made their first contribution in https://github.com/PrefectHQ/prefect/pull/11578
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.13...2.14.14
+
 ## Release 2.14.13
 
 ## Access default work pool configurations in an air-gapped environment
