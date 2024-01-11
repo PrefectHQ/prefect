@@ -8,7 +8,7 @@ import prefect
 
 # GitHub Actions sets the CI environment variable — the runners are much slower there
 # so the sleep time needs to be larger to account for overhead
-SLEEP_TIME = 4 if os.environ.get("CI") else 2
+SLEEP_TIME = 5 if os.environ.get("CI") else 2
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
