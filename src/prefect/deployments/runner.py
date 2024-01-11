@@ -806,18 +806,13 @@ async def deploy(
     )
     # carve out an exception for block based work pools that only have a block in their base job template
     if not is_docker_based_work_pool and not is_block_based_work_pool:
-        error_message = (
-            f"Work pool {work_pool_name!r} does not support custom Docker images. "
-            "Please use a work pool with an `image` variable in its base job template."
+        raise ValueError(
+            f"Work pool {work_pool_name!r} does not support custom Docker images."
+            " Please use a work pool with an `image` variable in its base job template."
+            " If you are attempting to deploy a flow to a local process work pool,"
+            " you should `serve` the flow instead. See the documentation for more"
+            " information: https://docs.prefect.io/latest/concepts/flows/"
         )
-        if work_pool.type == "process":
-            error_message += (
-                " If you are attempting to deploy a flow to a local process work pool,"
-                " you should `serve` the flow instead. See the documentation for more"
-                " information: https://docs.prefect.io/latest/concepts/flows/"
-            )
-
-        raise ValueError(error_message)
 
     is_managed_pool = work_pool.is_managed_pool
     if is_managed_pool:
