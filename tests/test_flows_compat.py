@@ -16,15 +16,15 @@ class Test:
 
 def test_class_arg():
     @flow
-    def foo(x: Test):
-        return
+    def foo(x: Test) -> Test:
+        return x
 
     assert foo
 
 
 def test_class_arg2():
     @flow
-    def foo(x: Test2):
-        return
+    def foo(x: Test2) -> Test2:
+        return x
 
     assert foo
