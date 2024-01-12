@@ -247,7 +247,7 @@ You can trigger a manual run of this deployment by either clicking the **Run** b
 <div class="terminal">
 
 ```bash
-prefect deployment run 'repo-info/my-first-deployment'
+prefect deployment run repo-info/my-first-deployment
 ```
 
 </div>
