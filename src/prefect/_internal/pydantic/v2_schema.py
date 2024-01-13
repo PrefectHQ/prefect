@@ -18,7 +18,7 @@ from prefect._internal.pydantic.annotations.pendulum import (
 from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
 
 
-def _is_v2_model(v) -> bool:
+def is_v2_model(v) -> bool:
     if isinstance(v, V2BaseModel):
         return True
     try:
@@ -27,17 +27,19 @@ def _is_v2_model(v) -> bool:
     except TypeError:
         pass
 
+    return False
+
 
 def has_v2_model_as_param(signature: inspect.Signature) -> bool:
     parameters = signature.parameters.values()
     for p in parameters:
         # check if this parameter is a v2 model
-        if _is_v2_model(p.annotation):
+        if is_v2_model(p.annotation):
             return True
 
         # check if this parameter is a collection of types
         for v in typing.get_args(p.annotation):
-            if _is_v2_model(v):
+            if is_v2_model(v):
                 return True
     return False
 
