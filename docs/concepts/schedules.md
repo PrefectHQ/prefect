@@ -76,7 +76,12 @@ deployments:
   schedule:
     cron: 0 0 * * *
     timezone: America/Chicago
+    active: false
 ```
+
+!!! tip "Schedules can be inactive"
+    You can set the `active` property to `false` to deactivate a schedule.
+    This is useful if you want to keep the schedule configuration but temporarily stop the schedule from creating new flow runs.
 
 Let's discuss the three schedule types in more detail.
 
@@ -168,8 +173,10 @@ schedule:
   rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z'
 ```
 
-!!! info "Max RRule length"
+!!! info "RRule restrictions"
     Note the max supported character length of an `rrulestr` is 6500 characters
+
+    Note that `COUNT` is not supported. Please use `UNTIL` or the `/deployments/{id}/runs` endpoint to schedule a fixed number of flow runs.
 
 !!! info "Daylight saving time considerations"
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.

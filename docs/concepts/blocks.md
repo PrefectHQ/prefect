@@ -145,6 +145,21 @@ If this JSON value needs to be retrieved later to be used within a flow or task,
 json_block.save(name="life-the-universe-everything")
 ```
 
+If you'd like to update the block value stored for a given `name`, you can overwrite the existing block document by setting `overwrite=True`:
+
+```python
+json_block.save(overwrite=True)
+```
+
+!!! Tip
+    in the above example, the name `"life-the-universe-everything"` is inferred from the existing block document
+
+... or save the same block value as a new block document by setting the `name` parameter to a new value:
+
+```python
+json_block.save(name="actually-life-the-universe-everything")
+```
+
 !!! tip "Utilizing the UI"
     Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
 
