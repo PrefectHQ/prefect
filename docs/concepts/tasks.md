@@ -285,9 +285,9 @@ def retry_handler(task, task_run, state) -> bool:
     except httpx.ConnectError:
         # Do not retry
         return False
-
-    # For any other exception, retry
-    return True
+    except:
+        # For any other exception, retry
+        return True
 
 @task(retries=1, retry_condition_fn=retry_handler)
 def my_api_call_task(url):
