@@ -156,6 +156,7 @@ from prefect.exceptions import (
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.input import RunInput, keyset_from_paused_state
+from prefect.input.run_input import run_input_from_type
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
@@ -1023,11 +1024,12 @@ async def pause_flow_run(
             the number of pauses observed by the flow so far, and prevents pauses that
             use the "reschedule" option from running the same pause twice. A custom key
             can be supplied for custom pausing behavior.
-        wait_for_input: a subclass of `RunInput`. If provided when the flow pauses, the
-            flow will wait for the input to be provided before resuming. If the flow is
-            resumed without providing the input, the flow will fail. If the flow is
-            resumed with the input, the flow will resume and the input will be loaded
-            and returned from this function.
+        wait_for_input: a subclass of `RunInput` or any type supported by
+            Pydantic. If provided when the flow pauses, the flow will wait for the
+            input to be provided before resuming. If the flow is resumed without
+            providing the input, the flow will fail. If the flow is resumed with the
+            input, the flow will resume and the input will be loaded and returned
+            from this function.
 
     Example:
     ```python
@@ -1095,6 +1097,7 @@ async def _in_process_pause(
     )
 
     if wait_for_input:
+        wait_for_input = run_input_from_type(wait_for_input)
         run_input_keyset = keyset_from_paused_state(proposed_state)
         proposed_state.state_details.run_input_keyset = run_input_keyset
 

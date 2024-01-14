@@ -281,6 +281,36 @@ class RunInput(pydantic.BaseModel):
         )
 
 
+class AutomaticRunInput(RunInput):
+    @classmethod
+    @sync_compatible
+    async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):
+        """
+        Load the run input response from the given key.
+
+        Args:
+            - keyset (Keyset): the keyset to load the input for
+            - flow_run_id (UUID, optional): the flow run ID to load the input for
+        """
+        instance = super().load(keyset, flow_run_id=flow_run_id)
+        return instance.value
+
+
+def run_input_from_type(_type: Type[T]) -> Type[RunInput]:
+    """
+    Create a new `RunInput` subclass from the given type.
+    """
+    if issubclass(_type, RunInput):
+        return _type
+    elif issubclass(_type, pydantic.BaseModel):
+        return type(f"{_type.__name__}RunInput", (RunInput, _type), {})
+    else:
+        fields = {"value": (_type, ...)}
+        return pydantic.create_model(
+            AutomaticRunInput.__name__, **fields, __base__=AutomaticRunInput
+        )
+
+
 class GetInputHandler(Generic[T]):
     def __init__(
         self,
