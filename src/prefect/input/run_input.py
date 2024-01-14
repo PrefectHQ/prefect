@@ -285,7 +285,7 @@ class RunInput(pydantic.BaseModel):
         cls, model_cls: Type[pydantic.BaseModel]
     ) -> Type["RunInput"]:
         """
-        Create a new `RunInput` instance from the given base model.
+        Create a new `RunInput` subclass from the given base model.
 
         Args:
             - model_cls (pydantic.BaseModel subclass): the base model class
