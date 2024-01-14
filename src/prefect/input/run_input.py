@@ -280,8 +280,23 @@ class RunInput(pydantic.BaseModel):
             flow_run_id=flow_run_id,
         )
 
+    @classmethod
+    def from_base_model_type(
+        cls, model_cls: Type[pydantic.BaseModel]
+    ) -> Type["RunInput"]:
+        """
+        Create a new `RunInput` instance from the given base model.
+
+        Args:
+            - model_cls (pydantic.BaseModel subclass): the base model class
+              to create the run input class from
+        """
+        return type(f"{model_cls.__name__}RunInput", (RunInput, model_cls), {})  # type: ignore
+
 
 class AutomaticRunInput(RunInput):
+    value: Any
+
     @classmethod
     @sync_compatible
     async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):
@@ -292,8 +307,19 @@ class AutomaticRunInput(RunInput):
             - keyset (Keyset): the keyset to load the input for
             - flow_run_id (UUID, optional): the flow run ID to load the input for
         """
-        instance = super().load(keyset, flow_run_id=flow_run_id)
+        instance = await super().load(keyset, flow_run_id=flow_run_id)
         return instance.value
+
+    @classmethod
+    def from_type(cls, _type: Type[T]) -> Type["AutomaticRunInput"]:
+        """
+        Create a new `AutomaticRunInput` subclass from the given type.
+        """
+        fields = {"value": (_type, ...)}
+        new_cls: Type["AutomaticRunInput"] = pydantic.create_model(
+            AutomaticRunInput.__name__, **fields, __base__=AutomaticRunInput
+        )
+        return new_cls
 
 
 def run_input_from_type(_type: Type[T]) -> Type[RunInput]:
@@ -303,12 +329,9 @@ def run_input_from_type(_type: Type[T]) -> Type[RunInput]:
     if issubclass(_type, RunInput):
         return _type
     elif issubclass(_type, pydantic.BaseModel):
-        return type(f"{_type.__name__}RunInput", (RunInput, _type), {})
+        return RunInput.from_base_model_type(_type)
     else:
-        fields = {"value": (_type, ...)}
-        return pydantic.create_model(
-            AutomaticRunInput.__name__, **fields, __base__=AutomaticRunInput
-        )
+        return AutomaticRunInput.from_type(_type)
 
 
 class GetInputHandler(Generic[T]):

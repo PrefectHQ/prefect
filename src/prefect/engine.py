@@ -963,7 +963,7 @@ async def pause_flow_run(
 
 @overload
 async def pause_flow_run(
-    wait_for_input: Type[T],
+    wait_for_input: Type[Any],
     flow_run_id: UUID = None,
     timeout: int = 3600,
     poll_interval: int = 10,
@@ -987,7 +987,7 @@ async def pause_flow_run(
     "wait_for_input", group="flow_run_input", when=lambda y: y is not None
 )
 async def pause_flow_run(
-    wait_for_input: Optional[Type[T]] = None,
+    wait_for_input: Optional[Type[Any]] = None,
     flow_run_id: UUID = None,
     timeout: int = 3600,
     poll_interval: int = 10,
