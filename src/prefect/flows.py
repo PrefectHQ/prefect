@@ -814,7 +814,7 @@ class Flow(Generic[P, R]):
             my_flow()
             ```
 
-            Load a flow from a private git repository:
+            Load a flow from a private git repository using an access token stored in a `Secret` block:
 
             ```python
             from prefect import flow
@@ -824,7 +824,7 @@ class Flow(Generic[P, R]):
             my_flow = flow.from_source(
                 source=GitRepository(
                     url="https://github.com/org/repo.git",
-                    access_token=Secret.load("github-access-token").get(),
+                    credentials={"access_token": Secret.load("github-access-token")}
                 ),
                 entrypoint="flows.py:my_flow",
             )

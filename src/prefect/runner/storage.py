@@ -111,7 +111,7 @@ class GitRepository:
     def __init__(
         self,
         url: str,
-        credentials: Union[GitCredentials, Block, None] = None,
+        credentials: Union[GitCredentials, Block, Dict[str, Any], None] = None,
         name: Optional[str] = None,
         branch: Optional[str] = None,
         include_submodules: bool = False,
