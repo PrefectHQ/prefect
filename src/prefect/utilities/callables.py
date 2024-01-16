@@ -311,7 +311,11 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     Returns:
         ParameterSchema: the argument schema
     """
-    signature = inspect.signature(fn)
+    try:
+        signature = inspect.signature(fn, eval_str=True)
+    except (NameError, TypeError):
+        signature = inspect.signature(fn)
+
     model_fields = {}
     aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
@@ -336,7 +340,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             create_schema(
                 "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
             )
-        except ValueError:
+        except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)

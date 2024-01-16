@@ -1651,6 +1651,20 @@ class TestDeploy:
                 image="test-registry/test-image",
             )
 
+    async def test_deploy_raises_helpful_error_when_process_pool_has_no_image(
+        self,
+        process_work_pool,
+    ):
+        with pytest.raises(
+            ValueError,
+            match="If you are attempting to deploy a flow to a local process work pool",
+        ):
+            await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                work_pool_name=process_work_pool.name,
+                image="test-registry/test-image",
+            )
+
 
 class TestDeploymentImage:
     def test_adds_default_registry_url(self):

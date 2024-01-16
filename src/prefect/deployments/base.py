@@ -416,6 +416,9 @@ def _format_deployment_for_saving_to_prefect_file(
         elif isinstance(deployment["schedule"], BaseModel):
             deployment["schedule"] = deployment["schedule"].dict()
 
+        if "is_schedule_active" in deployment:
+            deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
+
     return deployment
 
 
@@ -425,6 +428,7 @@ def _save_deployment_to_prefect_file(
     push_steps: Optional[List[Dict]] = None,
     pull_steps: Optional[List[Dict]] = None,
     triggers: Optional[List[Dict]] = None,
+    prefect_file: Path = Path("prefect.yaml"),
 ):
     """
     Save a deployment configuration to the `prefect.yaml` file in the
@@ -438,7 +442,6 @@ def _save_deployment_to_prefect_file(
     deployment = _format_deployment_for_saving_to_prefect_file(deployment)
 
     current_directory_name = os.path.basename(os.getcwd())
-    prefect_file = Path("prefect.yaml")
     if not prefect_file.exists():
         create_default_prefect_yaml(
             ".",

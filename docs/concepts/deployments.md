@@ -118,19 +118,65 @@ These can be overwritten through a trigger or when manually creating a custom ru
     Because deployments are nothing more than metadata, runs can be created at anytime.
     Note that pausing a schedule, updating your deployment, and other actions reset your auto-scheduled runs.
 
-!!! tip "Scheduling deployments from within Python flow code"
-    Note that Prefect provides a [`run_deployment` function](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) that can be used to schedule the run of an existing deployment when your Python code executes.
+#### Running a deployed flow from within Python flow code
 
-    ```python
-    from prefect.deployments import run_deployment
+Prefect provides a [`run_deployment` function](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) that can be used to schedule the run of an existing deployment when your Python code executes.
 
-    def main():
-        run_deployment(name="my_flow_name/my_deployment_name")
-    ```
+```python
+from prefect.deployments import run_deployment
 
-    Pass `timeout=0` to return immediately and not block.
+def main():
+    run_deployment(name="my_flow_name/my_deployment_name")
+```
 
-### Versioning and bookkeeping
+!!! tip "Run a deployment without blocking"
+    By default, `run_deployment` blocks until the scheduled flow run finishes
+    executing. Pass `timeout=0` to return immediately and not block.
+    
+If you call `run_deployment` from within a flow or task, the scheduled flow
+run will be linked to the calling flow run (or the calling task's flow run)
+as a subflow run by default.
+
+Subflow runs have different behavior than regular flow runs. For example, a 
+subflow run can't be suspended independently of its parent flow. If you'd
+rather not link the scheduled flow run to the calling flow or task run, you
+can disable this behavior by passing `as_subflow=False`:
+
+```python
+from prefect import flow
+from prefect.deployments import run_deployment
+
+
+@flow
+def my_flow():
+    # The scheduled flow run will not be linked to this flow as a subflow.
+    run_deployment(name="my_other_flow/my_deployment_name", as_subflow=False)
+```
+
+The return value of `run_deployment` is a [FlowRun](/api-ref/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) object containing metadata about the scheduled run. You
+can use this object to retrieve information about the run after calling
+`run_deployment`:
+
+```python
+from prefect import get_client
+from prefect.deployments import run_deployment
+
+def main():
+    flow_run = run_deployment(name="my_flow_name/my_deployment_name")
+    flow_run_id = flow_run.id
+
+    # If you save the flow run's ID, you can use it later to retrieve
+    # flow run metadata again, e.g. to check if it's completed.
+    async with get_client() as client:
+        flow_run = client.read_flow_run(flow_run_id)
+        print(f"Current state of the flow run: {flow_run.state}")
+```
+
+!!! tip "Using the Prefect client"
+    For more information on using the Prefect client to interact with Prefect's
+    REST API, see [our guide](/guides/using-the-client/).
+
+## Versioning and bookkeeping
 
 Versions, descriptions and tags are omnipresent fields throughout Prefect that can be easy to overlook. However, putting some extra thought into how you use these fields can pay dividends down the road.
 
