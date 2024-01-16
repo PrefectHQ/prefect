@@ -189,9 +189,12 @@ async def resolve_block_document_references(
     Once the block document is retrieved from the API, the data of the block document
     is used to replace the reference.
 
-    The content of the block document can be referenced using the following syntax:
-    For example, if the block document data is:
-    ```
+    Accessing Values:
+    -----------------
+    To access different values in a block document, use dot notation combined with the block document's prefix, slug, and block name.
+
+    For a block document with the structure:
+    ```json
     {
         "value": {
             "key": {
@@ -205,23 +208,23 @@ async def resolve_block_document_references(
         }
     }
     ```
-    Different values will be resolved using the following way:
-    ```
-    <block_doc_prefix>.<block_doc_slug>.<block_name>.value.key -> {"nested-key": "nested-value"}
-    <block_doc_prefix>.<block_doc_slug>.<block_name>.value.nested-key -> "nested-value"
-    <block_doc_prefix>.<block_doc_slug>.<block_name>.value.list[0].list-key -> "list-value"
-    ```
+    examples of value resolution are as follows:
 
-    Block attributes can also be resolved using the same syntax.
-    Consider a Webhook block which has a `url` attribute. The `url` attribute can be
-    references using the following keypath:
+    1. Accessing a nested dictionary:
+       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.key
+       Example: Returns {"nested-key": "nested-value"}
 
-    ```
-    <block_doc_prefix>.webhook.<block_name>.url
-    ```
+    2. Accessing a specific nested value:
+       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.key.nested-key
+       Example: Returns "nested-value"
 
-    If the block is a system block (e.g. it only has a `value` attribute),
-    the `value` attribute will be resolved by default.
+    3. Accessing a list element's key-value:
+       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.list[0].list-key
+       Example: Returns "list-value"
+
+    Default Resolution for System Blocks:
+    -------------------------------------
+    For system blocks, which only contain a `value` attribute, this attribute is resolved by default.
 
     Args:
         template: The template to resolve block documents in
@@ -259,6 +262,8 @@ async def resolve_block_document_references(
             and list(placeholders)[0].full_match == template
             and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
         ):
+            # value_keypath will be a list containing a dot path if additional
+            # attributes are accessed and an empty list otherwise.
             block_type_slug, block_document_name, *value_keypath = (
                 list(placeholders)[0]
                 .name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "")
