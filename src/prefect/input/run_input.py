@@ -281,15 +281,16 @@ class RunInput(pydantic.BaseModel):
         )
 
     @classmethod
-    def from_base_model_type(
+    def subclass_from_base_model_type(
         cls, model_cls: Type[pydantic.BaseModel]
     ) -> Type["RunInput"]:
         """
-        Create a new `RunInput` subclass from the given base model.
+        Create a new `RunInput` subclass from the given `pydantic.BaseModel`
+        subclass.
 
         Args:
-            - model_cls (pydantic.BaseModel subclass): the base model class
-              to create the run input class from
+            - model_cls (pydantic.BaseModel subclass): the class from which
+                to create the new `RunInput` subclass
         """
         return type(f"{model_cls.__name__}RunInput", (RunInput, model_cls), {})  # type: ignore
 
@@ -311,7 +312,7 @@ class AutomaticRunInput(RunInput):
         return instance.value
 
     @classmethod
-    def from_type(cls, _type: Type[T]) -> Type["AutomaticRunInput"]:
+    def subclass_from_type(cls, _type: Type[T]) -> Type["AutomaticRunInput"]:
         """
         Create a new `AutomaticRunInput` subclass from the given type.
         """
@@ -322,16 +323,16 @@ class AutomaticRunInput(RunInput):
         return new_cls
 
 
-def run_input_from_type(_type: Type[T]) -> Type[RunInput]:
+def run_input_subclass_from_type(_type: Type[T]) -> Type[RunInput]:
     """
     Create a new `RunInput` subclass from the given type.
     """
     if issubclass(_type, RunInput):
         return _type
     elif issubclass(_type, pydantic.BaseModel):
-        return RunInput.from_base_model_type(_type)
+        return RunInput.subclass_from_base_model_type(_type)
     else:
-        return AutomaticRunInput.from_type(_type)
+        return AutomaticRunInput.subclass_from_type(_type)
 
 
 class GetInputHandler(Generic[T]):

@@ -15,7 +15,7 @@ from prefect.input import (
     keyset_from_paused_state,
     read_flow_run_input,
 )
-from prefect.input.run_input import AutomaticRunInput, run_input_from_type
+from prefect.input.run_input import AutomaticRunInput, run_input_subclass_from_type
 from prefect.states import Paused, Running, Suspended
 
 
@@ -196,7 +196,7 @@ async def test_with_initial_data(flow_run_context):
 
 
 async def test_run_input_from_type_str(flow_run_context):
-    new_cls = run_input_from_type(str)
+    new_cls = run_input_subclass_from_type(str)
     assert issubclass(new_cls, AutomaticRunInput)
     obj = new_cls(value="hey")
     assert obj.value == "hey"
@@ -210,7 +210,7 @@ async def test_run_input_from_type_basemodel(flow_run_context):
         name: str
         age: int
 
-    new_cls = run_input_from_type(MyModel)
+    new_cls = run_input_subclass_from_type(MyModel)
     assert issubclass(new_cls, RunInput)
     obj = new_cls(name="Bob", age=42)
     assert obj.name == "Bob"
