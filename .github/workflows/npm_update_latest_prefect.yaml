@@ -56,7 +56,7 @@
         - name: Create Pull Request
           run: |
             git checkout "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
-            gh pr create --base main --title "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}" --body "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}"
+            gh pr create --base main --title "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}" --body "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}. Release can be found at https://github.com/${{ inputs.package_name }}/releases/tag/${{ inputs.package_version }}. --label maintenance --label ui
           env:
             GITHUB_TOKEN: ${{ github.token }}
   
