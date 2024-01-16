@@ -326,8 +326,6 @@ Use the tabs below to explore these two deployment creation options.
     The exception is if something that the server needs to know about changes, such as the flow entrypoint parameters. 
     Rerunning the Python script with `.deploy` will update your deployment on the server with the new flow code.
 
-    If you want to pull your flow code from private git-based storage,
-
     If you need to provide additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
 
     ```python hl_lines="2-3 7-12" title="private_git_storage.py"
