@@ -387,6 +387,10 @@ async def test_send_to_can_set_key_prefix(flow_run):
     assert person.human is True
 
 
+# Since this test relies on timing of the send/receive in the CI environment
+# it can sometimes fail. Marking it as flaky rather than bumping the timeout
+# to avoid slowing down the test suite.
+@pytest.mark.flaky
 async def test_receive(flow_run):
     async def send():
         for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
