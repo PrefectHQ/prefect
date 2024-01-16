@@ -1143,7 +1143,7 @@ async def serve(
         *args: A list of deployments to serve.
         pause_on_shutdown: A boolean for whether or not to automatically pause
             deployment schedules on shutdown.
-        print_starting_message: Whether or not to print a message to the console
+        print_starting_message: Whether or not to print message to the console
             on startup.
         limit: An optional limit to the number of flow runs that can be run
             concurrently.
