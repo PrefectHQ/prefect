@@ -6,7 +6,7 @@ from packaging.version import Version
 import prefect
 from prefect import flow, task
 
-# Support for the subflows with the same name was added in 2.10.6
+# Support for subflows with the same name was added in 2.10.6
 # Support for the concurrent subflow fix in #10533 was released in 2.12.0
 MINIMUM_VERSION = "2.12.0"
 
