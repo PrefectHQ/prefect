@@ -214,12 +214,10 @@ def copy_directory(directory, path):
         destination = os.path.join(path, item)
 
         if os.path.isdir(source):
-            # If the directory already exists at the destination, remove it first
             if os.path.exists(destination):
                 shutil.rmtree(destination)
             shutil.copytree(source, destination, symlinks=True)
         else:
-            # For files, copy2 will overwrite any existing file
             shutil.copy2(source, destination)
 
 
