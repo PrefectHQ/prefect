@@ -35,6 +35,8 @@ Incidents vary in nature and severity, ranging from minor glitches to critical s
 
 5. **Enhanced operational transparency**: The system provides a transparent view of both ongoing and resolved incidents, promoting accountability and continuous improvement.
 
+![An active incident in the Prefect Cloud UI](/img/ui/incidents-active.png)
+
 ## How to use incident management in Prefect Cloud
 
 ### Creating an incident
