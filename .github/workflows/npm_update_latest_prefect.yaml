@@ -1,0 +1,68 @@
+---
+  name: Update to latest Prefect Packages
+  on:
+    workflow_dispatch:
+      inputs:
+        package_name:
+          description: The name of the Prefect package to update
+          required: true
+        package_version:
+          description: The version of the Prefect package to update
+          required: true
+  permissions: {} 
+  
+  jobs:
+    update_prefect_packages:
+      runs-on: ubuntu-latest
+      permissions:
+        # required to write to the repo
+        contents: write
+        # required to open a pr with prefect ui changes
+        pull-requests: write
+      steps:
+        - uses: actions/checkout@v4
+  
+        - name: Configure Git
+          run: |
+            git config user.name "$GITHUB_ACTOR"
+            git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+  
+        - name: Create Branch For Dependency Version Updates
+          run: git checkout -b "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
+  
+        - name: Setup NodeJS 
+          uses: actions/setup-node@v4
+          with:
+            node-version-file: ".nvmrc"
+            cache-dependency-path: "**/package-lock.json"
+  
+        - name: Install Dependencies
+          run: npm ci
+          working-directory: ./ui
+  
+        - name: Upgrade Package
+          run: |
+            npm i @${{ inputs.package_name }}@${{ inputs.package_version }} --save-exact
+          working-directory: ./ui
+  
+        - name: Commit Package Changes
+          run: |
+            git add .
+            git commit -m "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}"
+            git push --set-upstream origin "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
+          env:
+            GITHUB_TOKEN: ${{ github.token }}
+        
+        - name: Create Pull Request
+          run: |
+            git checkout "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
+            gh pr create \
+            --base main \
+            --title "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}" \
+            --body "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}.
+            Release information can be found at https://github.com/${{ inputs.package_name }}/releases/tag/${{ inputs.package_version }}." \
+            --label maintenance \
+            --label ui
+          env:
+            GITHUB_TOKEN: ${{ github.token }}
+  
