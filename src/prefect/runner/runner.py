@@ -1133,6 +1133,7 @@ async def serve(
     *args: RunnerDeployment,
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
+    limit: Optional[int] = None,
     **kwargs,
 ):
     """
@@ -1142,6 +1143,10 @@ async def serve(
         *args: A list of deployments to serve.
         pause_on_shutdown: A boolean for whether or not to automatically pause
             deployment schedules on shutdown.
+        print_starting_message: Whether or not to print a message to the console
+            on startup.
+        limit: An optional limit to the number of flow runs that can be run
+            concurrently.
         **kwargs: Additional keyword arguments to pass to the runner.
 
     Examples:
@@ -1174,7 +1179,7 @@ async def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
-    runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
         await runner.add_deployment(deployment)
 
