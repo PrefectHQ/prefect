@@ -9,6 +9,7 @@ from typing_extensions import Literal
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowRunFilter, TaskRunFilter
+from prefect.client.schemas.objects import FlowRun
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.logging import get_logger
@@ -36,21 +37,21 @@ async def get_current_run_count() -> int:
         return response.json()
 
 
-async def _run_prefect_callable_and_retrieve_run_id(
+async def _run_prefect_callable_and_retrieve_run(
     prefect_callable: Union[Flow, Task],
     parameters: Dict[str, Any],
-) -> uuid.UUID:
+) -> FlowRun:
     """
-    This function exists only to capture the flow_run_id that is created
+    This function exists only to capture the flow_run that is created
     while directly executing a flow. It does so by injecting its own
     on_completion callback. This should only be called if flow run
     submission to the Runner's webserver failed.
     """
-    flow_run_id: Optional[uuid.UUID] = None
+    _flow_run: Optional[FlowRun] = None
 
     async def store_run_id(flow, flow_run, state):
-        nonlocal flow_run_id
-        flow_run_id = flow_run.id
+        nonlocal _flow_run
+        _flow_run = flow_run
 
     prefect_callable.on_completion = (prefect_callable.on_completion or []) + [
         store_run_id
@@ -59,19 +60,19 @@ async def _run_prefect_callable_and_retrieve_run_id(
     result = prefect_callable(**parameters)
     if inspect.isawaitable(result):
         result = await result
-    return flow_run_id
+    return _flow_run
 
 
 async def _submit_flow_to_runner(
     flow: Flow,
     parameters: Dict[str, Any],
     retry_failed_submissions: bool = True,
-) -> uuid.UUID:
+) -> FlowRun:
     """
-    Run a callable in the background via the runner webserver.
+    Run a flow in the background via the runner webserver.
 
     Args:
-        prefect_callable: the callable to run, e.g. a flow or task
+        flow: the flow to create a run for and execute in the background
         parameters: the keyword arguments to pass to the callable
         timeout: the maximum time to wait for the callable to finish
         poll_interval: the interval (in seconds) to wait between polling the callable
@@ -126,7 +127,7 @@ async def _submit_flow_to_runner(
         )
         response.raise_for_status()
 
-        return uuid.UUID(response.json()["flow_run_id"])
+        return FlowRun.parse_obj(response.json())
 
 
 @overload
@@ -134,7 +135,7 @@ def submit_to_runner(
     prefect_callable: Union[Flow, Task],
     parameters: Dict[str, Any],
     retry_failed_submissions: bool = True,
-) -> uuid.UUID:
+) -> FlowRun:
     ...
 
 
@@ -143,7 +144,7 @@ def submit_to_runner(
     prefect_callable: Union[Flow, Task],
     parameters: List[Dict[str, Any]],
     retry_failed_submissions: bool = True,
-) -> List[uuid.UUID]:
+) -> List[FlowRun]:
     ...
 
 
@@ -152,7 +153,7 @@ async def submit_to_runner(
     prefect_callable: Union[Flow, Task],
     parameters: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
     retry_failed_submissions: bool = True,
-) -> Union[uuid.UUID, List[uuid.UUID]]:
+) -> Union[FlowRun, List[FlowRun]]:
     """
     Submit a callable in the background via the runner webserver one or more times.
 
@@ -181,12 +182,12 @@ async def submit_to_runner(
         parameters = [parameters]
         return_single = True
 
-    submitted_run_ids = []
+    submitted_runs = []
     unsubmitted_parameters = []
 
     for p in parameters:
         try:
-            flow_run_id = await _submit_flow_to_runner(
+            flow_run = await _submit_flow_to_runner(
                 prefect_callable, p, retry_failed_submissions
             )
         except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
@@ -208,20 +209,20 @@ async def submit_to_runner(
                     " `True`."
                 ) from exc
         else:
-            if inspect.isawaitable(flow_run_id):
-                flow_run_id = await flow_run_id
-            submitted_run_ids.append(flow_run_id)
+            if inspect.isawaitable(flow_run):
+                flow_run = await flow_run
+            submitted_runs.append(flow_run)
 
     if unsubmitted_parameters:
-        blocking_run_ids = await asyncio.gather(
+        blocking_runs = await asyncio.gather(
             *[
-                _run_prefect_callable_and_retrieve_run_id(prefect_callable, p)
+                _run_prefect_callable_and_retrieve_run(prefect_callable, p)
                 for p in unsubmitted_parameters
             ]
         )
-        submitted_run_ids.extend(blocking_run_ids)
+        submitted_runs.extend(blocking_runs)
 
-    if (diff := len(parameters) - len(submitted_run_ids)) > 0:
+    if (diff := len(parameters) - len(submitted_runs)) > 0:
         logger.warning(
             f"Failed to submit {diff} runs to the runner, as all of the available "
             f"{PREFECT_RUNNER_PROCESS_LIMIT.value()} slots were occupied. To "
@@ -229,10 +230,10 @@ async def submit_to_runner(
             "`PREFECT_RUNNER_PROCESS_LIMIT` setting."
         )
 
-    # If one run was submitted, return the run_id directly
+    # If one run was submitted, return the corresponding FlowRun directly
     if return_single:
-        return submitted_run_ids[0]
-    return submitted_run_ids
+        return submitted_runs[0]
+    return submitted_runs
 
 
 @sync_compatible
@@ -268,22 +269,23 @@ async def wait_for_submitted_runs(
                 return run_id
             await anyio.sleep(poll_interval)
 
-    async with anyio.move_on_after(timeout), get_client() as client:
-        flow_runs_to_wait_for = (
-            await client.read_flow_runs(flow_run_filter=flow_run_filter)
-            if flow_run_filter
-            else []
-        )
-
-        if parent_flow_run_id is not None:
-            subflow_runs = await client.read_flow_runs(
-                flow_run_filter=FlowRunFilter(
-                    parent_flow_run_id=dict(any_=[parent_flow_run_id])
-                )
+    async with get_client() as client:
+        with anyio.move_on_after(timeout):
+            flow_runs_to_wait_for = (
+                await client.read_flow_runs(flow_run_filter=flow_run_filter)
+                if flow_run_filter
+                else []
             )
 
-            flow_runs_to_wait_for.extend(subflow_runs)
+            if parent_flow_run_id is not None:
+                subflow_runs = await client.read_flow_runs(
+                    flow_run_filter=FlowRunFilter(
+                        parent_flow_run_id=dict(any_=[parent_flow_run_id])
+                    )
+                )
 
-        await asyncio.gather(
-            *(wait_for_final_state("flow", run.id) for run in flow_runs_to_wait_for)
-        )
+                flow_runs_to_wait_for.extend(subflow_runs)
+
+            await asyncio.gather(
+                *(wait_for_final_state("flow", run.id) for run in flow_runs_to_wait_for)
+            )
