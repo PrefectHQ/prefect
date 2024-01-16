@@ -210,12 +210,17 @@ def replace_placeholder_string_in_files(
 def copy_directory(directory, path):
     os.makedirs(path, exist_ok=True)
     for item in os.listdir(directory):
-        s = os.path.join(directory, item)
-        d = os.path.join(path, item)
-        if os.path.isdir(s):
-            shutil.copytree(s, d, symlinks=True)
+        source = os.path.join(directory, item)
+        destination = os.path.join(path, item)
+
+        if os.path.isdir(source):
+            # If the directory already exists at the destination, remove it first
+            if os.path.exists(destination):
+                shutil.rmtree(destination)
+            shutil.copytree(source, destination, symlinks=True)
         else:
-            shutil.copy2(s, d)
+            # For files, copy2 will overwrite any existing file
+            shutil.copy2(source, destination)
 
 
 async def custom_internal_exception_handler(request: Request, exc: Exception):
@@ -334,6 +339,10 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     ui_app.add_middleware(GZipMiddleware)
     base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
+    static_dir = (
+        prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
+        or prefect.__ui_static_subpath__
+    )
     reference_file_name = "UI_SERVE_BASE"
 
     if os.name == "nt":
@@ -349,11 +358,9 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         }
 
     def reference_file_matches_base_url():
-        reference_file_path = os.path.join(
-            prefect.__ui_static_subpath__, reference_file_name
-        )
+        reference_file_path = os.path.join(static_dir, reference_file_name)
 
-        if os.path.exists(prefect.__ui_static_subpath__):
+        if os.path.exists(static_dir):
             try:
                 with open(reference_file_path, "r") as f:
                     return f.read() == base_url
@@ -363,12 +370,12 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             return False
 
     def create_ui_static_subpath():
-        if os.path.exists(prefect.__ui_static_subpath__):
-            shutil.rmtree(prefect.__ui_static_subpath__)
-        os.makedirs(prefect.__ui_static_subpath__)
-        copy_directory(prefect.__ui_static_path__, prefect.__ui_static_subpath__)
+        if not os.path.exists(static_dir):
+            os.makedirs(static_dir)
+
+        copy_directory(prefect.__ui_static_path__, static_dir)
         replace_placeholder_string_in_files(
-            prefect.__ui_static_subpath__,
+            static_dir,
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
             base_url.rstrip("/"),
         )
@@ -376,9 +383,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # Create a file to indicate that the static files have been copied
         # This is used to determine if the static files need to be copied again
         # when the server is restarted
-        with open(
-            os.path.join(prefect.__ui_static_subpath__, reference_file_name), "w"
-        ) as f:
+        with open(os.path.join(static_dir, reference_file_name), "w") as f:
             f.write(base_url)
 
     if (
@@ -393,7 +398,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
 
         ui_app.mount(
             PREFECT_UI_SERVE_BASE.value(),
-            SPAStaticFiles(directory=prefect.__ui_static_subpath__),
+            SPAStaticFiles(directory=static_dir),
             name="ui_root",
         )
 
