@@ -45,7 +45,7 @@
             npm i @${{ inputs.package_name }}@${{ inputs.package_version }} --save-exact
           working-directory: ./ui
   
-        - name: Commit Package changes
+        - name: Commit Package Changes
           run: |
             git add .
             git commit -m "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}"
