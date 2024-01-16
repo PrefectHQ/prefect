@@ -820,8 +820,8 @@ class Runner:
         except anyio.WouldBlock:
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                " in progress. You can control this limit by adjusting the"
-                " PREFECT_RUNNER_PROCESS_LIMIT setting."
+                " in progress. You can control this limit by passing a `limit` value"
+                " to `serve` or adjusting the PREFECT_RUNNER_PROCESS_LIMIT setting."
             )
             return False
 
@@ -1145,8 +1145,7 @@ async def serve(
             deployment schedules on shutdown.
         print_starting_message: Whether or not to print message to the console
             on startup.
-        limit: An optional limit to the number of flow runs that can be run
-            concurrently.
+        limit: The maximum number of runs that can be executed concurrently.
         **kwargs: Additional keyword arguments to pass to the runner.
 
     Examples:
