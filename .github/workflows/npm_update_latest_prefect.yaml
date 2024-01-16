@@ -27,7 +27,7 @@
             git config user.name "$GITHUB_ACTOR"
             git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
   
-        - name: create branch for dependency version updates
+        - name: Create Branch For Dependency Version Updates
           run: git checkout -b "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
   
         - name: Setup NodeJS 
@@ -45,7 +45,7 @@
             npm i @${{ inputs.package_name }}@${{ inputs.package_version }} --save-exact
           working-directory: ./ui
   
-        - name: Commit Package changes
+        - name: Commit Package Changes
           run: |
             git add .
             git commit -m "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}"
