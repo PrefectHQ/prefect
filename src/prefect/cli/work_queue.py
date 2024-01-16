@@ -349,6 +349,7 @@ async def inspect(
     async with get_client() as client:
         try:
             result = await client.read_work_queue(id=queue_id)
+            app.console.print(Pretty(result))
         except ObjectNotFound:
             if pool:
                 error_message = f"No work queue found: {name!r} in work pool {pool!r}"
@@ -356,7 +357,11 @@ async def inspect(
                 error_message = f"No work queue found: {name!r}"
             exit_with_error(error_message)
 
-    app.console.print(Pretty(result))
+        try:
+            status = await client.read_work_queue_status(id=queue_id)
+            app.console.print(Pretty(status))
+        except ObjectNotFound:
+            pass
 
 
 @work_app.command()

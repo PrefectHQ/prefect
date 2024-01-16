@@ -20,10 +20,10 @@ search:
 
 ## Why workers
 
-In the last section of the tutorial, you learned how work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
-You saw how you can transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
+In the previous section of the tutorial, you learned how work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
+You saw how you can transition from persistent infrastructure to dynamic infrastructure by using `flow.deploy` instead of `flow.serve`.
 
-Work pools that rely on client-side workers take this a step further by enabling you to run work flows in your own Docker containers, Kubernetes Clusters, and serverless environments like AWS ECS, Azure Container Instances, and GCP Cloud Run.
+Work pools that rely on client-side workers take this a step further by enabling you to run work flows in your own Docker containers, Kubernetes clusters, and serverless environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run.
 
 The architecture of a worker-based work pool deployment can be summarized with the following diagram:
 
@@ -63,7 +63,7 @@ Using the **Docker** work pool type means that all work sent to this work pool w
 
 !!! tip "Other work pool types"
     There are [work pool types](/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
-    Kubernetes is also a popular work poo typdel.
+    Kubernetes is also a popular work pool type.
 
     These options are expanded upon in various [How-to Guides](/guides/).
 
@@ -79,7 +79,8 @@ prefect work-pool create --type docker my-docker-pool
 
 </div>
 
-Let’s confirm that the work pool was successfully created by running the following command in the same terminal. You should see your new `my-docker-pool` in the output list.
+Let’s confirm that the work pool was successfully created by running the following command in the same terminal.
+You should see your new `my-docker-pool` in the output list.
 
 <div class="terminal">
 
@@ -91,7 +92,7 @@ prefect work-pool ls
 
 Finally, let’s double check that you can see this work pool in your Prefect UI.
 
-Navigate to the Work Pools tab and verify that you see `my-docker-pool` listed.
+Navigate to the _Work Pools_ tab and verify that you see `my-docker-pool` listed.
 
 When you click into `my-docker-pool` you should see a red status icon signifying that this work pool is not ready to submit work.
 
@@ -113,12 +114,14 @@ prefect worker start --pool my-docker-pool
 
 </div>
 
-You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution.
+You should see the worker start.
+It's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution.
 You’ll see your new worker listed in the UI under the Workers tab of the Work Pools page with a recent last polled date.
 
 You should also be able to see a `Ready` status indicator on your work pool - progress!
 
-You will need to keep this terminal session active in order for the worker to continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal.
+You will need to keep this terminal session active in order for the worker to continue to pick up jobs.
+Since you are running this worker locally, the worker will terminate if you close the terminal.
 Therefore, in a production setting this worker should run as a [daemonized or managed process](/guides/deployment/daemonize/).
 
 Now that you’ve set up your work pool and worker, we have what we need to kick off and execute flow runs of flows deployed to this work pool.
@@ -132,7 +135,8 @@ From our previous steps, we now have:
 2. A work pool
 3. A worker
 
-Now it’s time to put it all together. We're going to update our `repo_info.py` file so it will build a Docker image and update our deployment so our worker can execute it.
+Now it’s time to put it all together.
+We're going to update our `repo_info.py` file to build a Docker image and update our deployment so our worker can execute it.
 
 The updates that you need to make to `repo_info.py` are:
 
@@ -265,7 +269,7 @@ python repo_info.py
 
 </div>
 
-Now everything is set up for us to submit a flow-run to the work pool:
+Now everything is set for us to submit a flow-run to the work pool:
 
 <div class="terminal">
 
@@ -291,4 +295,4 @@ prefect deployment run 'get_repo_info/my-deployment'
   - [Deploying flows on serverless infrastructure](/guides/deployment/serverless-workers/)
   - [Daemonizing workers](/guides/deployment/daemonize/)
 
-And more!
+Happy building!

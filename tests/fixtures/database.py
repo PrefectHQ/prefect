@@ -979,7 +979,7 @@ async def worker_deployment_wq1(
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=pendulum.duration(days=1).as_timedelta(),
+                interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             path="./subdir",
@@ -1006,7 +1006,7 @@ async def worker_deployment_infra_wq1(
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=pendulum.duration(days=1).as_timedelta(),
+                interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             path="./subdir",
@@ -1037,7 +1037,7 @@ async def worker_deployment_wq_2(
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=pendulum.duration(days=1).as_timedelta(),
+                interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             path="./subdir",

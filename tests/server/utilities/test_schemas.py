@@ -151,7 +151,7 @@ class TestJsonCompatibleDict:
         assert isinstance(d2["x"], str) and d2["x"] == str(model.x)
 
         assert isinstance(d1["y"], datetime.datetime) and d1["y"] == model.y
-        assert isinstance(d2["y"], str) and d2["y"] == str(model.y)
+        assert isinstance(d2["y"], str) and d2["y"] == model.y.isoformat()
 
     def test_json_applies_to_nested(self, nested):
         d1 = nested.dict(json_compatible=True)
