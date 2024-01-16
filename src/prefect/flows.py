@@ -48,11 +48,11 @@ from prefect.runner.storage import (
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
-    from pydantic import BaseModel as V2BaseModel
     from pydantic import ValidationError as V2ValidationError
     from pydantic.v1 import BaseModel as V1BaseModel
     from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 
+    from ._internal.pydantic.v2_schema import is_v2_type
     from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
     from ._internal.pydantic.v2_validated_func import (
         V2ValidatedFunction as ValidatedFunction,
@@ -487,19 +487,19 @@ class Flow(Generic[P, R]):
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         if HAS_PYDANTIC_V2:
-            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
+            has_v1_types = any(isinstance(o, V1BaseModel) for o in args) or any(
                 isinstance(o, V1BaseModel) for o in kwargs.values()
             )
-            has_v2_models = any(isinstance(o, V2BaseModel) for o in args) or any(
-                isinstance(o, V2BaseModel) for o in kwargs.values()
+            has_v2_types = any(is_v2_type(o) for o in args) or any(
+                is_v2_type(o) for o in kwargs.values()
             )
 
-            if has_v1_models and has_v2_models:
+            if has_v1_types and has_v2_types:
                 raise ParameterTypeError(
-                    "Cannot mix Pydantic v1 and v2 models as arguments to a flow."
+                    "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
                 )
 
-            if has_v1_models:
+            if has_v1_types:
                 validated_fn = V1ValidatedFunction(
                     self.fn, config={"arbitrary_types_allowed": True}
                 )
