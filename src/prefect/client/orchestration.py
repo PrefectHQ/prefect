@@ -684,7 +684,7 @@ class PrefectClient:
             httpx.RequestError: If requests fails
         """
         try:
-            await self._client.delete(f"/flow_runs/{flow_run_id}"),
+            await self._client.delete(f"/flow_runs/{flow_run_id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
