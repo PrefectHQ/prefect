@@ -236,7 +236,7 @@ def _build_generic_endpoint_for_flows(
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
-            content={"flow_run_id": str(flow_run.id)},
+            content=flow_run.dict(json_compatible=True),
         )
 
     return _create_flow_run_for_flow_from_fqn
