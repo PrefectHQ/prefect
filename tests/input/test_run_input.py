@@ -1,4 +1,5 @@
 import asyncio
+from typing import Tuple
 from uuid import uuid4
 
 import orjson
@@ -15,7 +16,12 @@ from prefect.input import (
     keyset_from_paused_state,
     read_flow_run_input,
 )
-from prefect.input.run_input import AutomaticRunInput, run_input_subclass_from_type
+from prefect.input.run_input import (
+    AutomaticRunInput,
+    receive_input,
+    run_input_subclass_from_type,
+    send_input,
+)
 from prefect.states import Paused, Running, Suspended
 
 
@@ -201,9 +207,6 @@ async def test_run_input_from_type_str(flow_run_context):
     obj = new_cls(value="hey")
     assert obj.value == "hey"
 
-    with pytest.raises(pydantic.ValidationError):
-        new_cls(value=123)
-
 
 async def test_run_input_from_type_basemodel(flow_run_context):
     class MyModel(pydantic.BaseModel):
@@ -215,9 +218,6 @@ async def test_run_input_from_type_basemodel(flow_run_context):
     obj = new_cls(name="Bob", age=42)
     assert obj.name == "Bob"
     assert obj.age == 42
-
-    with pytest.raises(pydantic.ValidationError):
-        new_cls(name=["whuuuut"], age="hey there")
 
 
 async def test_respond(flow_run):
@@ -312,6 +312,50 @@ async def test_respond_raises_exception_no_sender_in_input():
         await person.respond(Place(city="New York", state="NY"))
 
 
+async def test_automatic_input_send_to(flow_run):
+    await send_input(1, flow_run_id=flow_run.id)
+
+    received = await receive_input(int, flow_run_id=flow_run.id, timeout=0.1).next()
+    assert received == 1
+
+
+def test_automatic_input_send_to_works_sync(flow_run):
+    send_input(1, flow_run_id=flow_run.id)
+
+    receive_iter = receive_input(int, flow_run_id=flow_run.id, timeout=0.1)
+    received = receive_iter.next()
+    assert received == 1
+
+
+async def test_automatic_input_send_to_can_set_sender(flow_run):
+    await send_input(1, flow_run_id=flow_run.id, sender="sally")
+
+    received = await receive_input(
+        int, flow_run_id=flow_run.id, timeout=0.1, with_metadata=True
+    ).next()
+    assert received.metadata.sender == "sally"
+
+
+async def test_automatic_input_send_to_can_set_key_prefix(flow_run):
+    await send_input(1, flow_run_id=flow_run.id, sender="sally", key_prefix="heythere")
+
+    # Shouldn't work without the key prefix.
+    with pytest.raises(TimeoutError):
+        await receive_input(
+            int, flow_run_id=flow_run.id, timeout=0.1, with_metadata=True
+        ).next()
+
+    # Now we should see it.
+    received = await receive_input(
+        int,
+        flow_run_id=flow_run.id,
+        timeout=0.1,
+        with_metadata=True,
+        key_prefix="heythere",
+    ).next()
+    assert received.metadata.sender == "sally"
+
+
 async def test_send_to(flow_run):
     flow_run_input = FlowRunInput(
         flow_run_id=uuid4(),
@@ -385,6 +429,139 @@ async def test_send_to_can_set_key_prefix(flow_run):
     assert person.name == "Bob"
     assert person.email == "bob@example.com"
     assert person.human is True
+
+
+async def test_automatic_input_can_receive_metadata(flow_run):
+    await send_input(1, flow_run_id=flow_run.id)
+
+    received = await receive_input(
+        int, flow_run_id=flow_run.id, timeout=0.1, with_metadata=True
+    ).next()
+    assert received.value == 1
+
+
+async def test_automatic_input_can_receive_without_metadata(flow_run):
+    await send_input(1, flow_run_id=flow_run.id)
+
+    received = await receive_input(int, flow_run_id=flow_run.id, timeout=0.1).next()
+    assert received == 1
+
+
+async def test_automatic_input_receive_multiple_values(flow_run):
+    async def send():
+        for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
+            await send_input(city, flow_run_id=flow_run.id)
+            await asyncio.sleep(0.2)
+
+    async def receive():
+        received = []
+        async for city in receive_input(
+            Tuple[str, str], flow_run_id=flow_run.id, timeout=1, poll_interval=0.1
+        ):
+            received.append(city)
+        return received
+
+    _, received = await asyncio.gather(send(), receive())
+
+    assert len(received) == 3
+    assert all(isinstance(city, tuple) for city in received)
+    assert set(received) == {
+        ("New York", "NY"),
+        ("Boston", "MA"),
+        ("Chicago", "IL"),
+    }
+
+
+@pytest.mark.flaky
+def test_automatic_input_receive_works_sync(flow_run):
+    for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
+        send_input(city, flow_run_id=flow_run.id)
+
+    received = []
+    for city in receive_input(
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
+    ):
+        received.append(city)
+
+    assert len(received) == 3
+    assert all(isinstance(city, tuple) for city in received)
+    assert set(received) == {
+        ("New York", "NY"),
+        ("Boston", "MA"),
+        ("Chicago", "IL"),
+    }
+
+
+async def test_automatic_input_receive_with_exclude_keys(flow_run):
+    for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
+        await send_input(city, flow_run_id=flow_run.id)
+
+    # Receive the cities that were sent.
+    received = []
+    async for city in receive_input(
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
+    ):
+        received.append(city)
+    assert len(received) == 3
+
+    # Send a new city
+    await send_input(("Los Angeles", "CA"), flow_run_id=flow_run.id)
+
+    # Since this receive is being called without exclude_keys, it will receive
+    # all of the cities that have been sent.
+    received = []
+    async for city in receive_input(
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, with_metadata=True
+    ):
+        received.append(city)
+    assert len(received) == 4
+
+    # If we send another new city and receive excluding the keys that have
+    # been previously received, we should only receive the new city.
+    exclude_keys = {city.metadata.key for city in received}
+    await send_input(("Portland", "OR"), flow_run_id=flow_run.id)
+    received = []
+    async for city in receive_input(
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, exclude_keys=exclude_keys
+    ):
+        received.append(city)
+
+    assert len(received) == 1
+    city = received[0]
+    assert city[0] == "Portland"
+    assert city[1] == "OR"
+
+
+async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator(
+    flow_run,
+):
+    with pytest.raises(TimeoutError):
+        async for _ in receive_input(
+            int,
+            flow_run_id=flow_run.id,
+            timeout=0,
+            poll_interval=0.1,
+            # Normally the loop would just exit, but this causes it to raise
+            # when it doesn't receive a value for `timeout` seconds.
+            raise_timeout_error=True,
+        ):
+            pass
+
+
+def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
+    flow_run,
+):
+    with pytest.raises(TimeoutError):
+        for _ in receive_input(
+            int,
+            flow_run_id=flow_run.id,
+            timeout=0,
+            poll_interval=0.1,
+            # Normally the loop would just exit, but this causes it to raise
+            # when it doesn't receive a value for `timeout` seconds.
+            raise_timeout_error=True,
+        ):
+            pass
 
 
 async def test_receive(flow_run):

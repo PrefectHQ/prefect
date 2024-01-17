@@ -317,21 +317,49 @@ class AutomaticRunInput(RunInput):
         Create a new `AutomaticRunInput` subclass from the given type.
         """
         fields = {"value": (_type, ...)}
+
+        # Sending a value to a flow run that relies on an AutomaticRunInput will
+        # produce a key prefix that includes the type name. For example, if the
+        # value is a list, the key will include "list" as the type. If the user
+        # then tries to receive the value with a type annotation like List[int],
+        # we need to find the key we saved with "list" as the type (not
+        # "List[int]"). Calling __name__.lower() on a type annotation like
+        # List[int] produces the string "list", which is what we need.
+        class_name = f"{_type.__name__.lower()}AutomaticRunInput"
+
         new_cls: Type["AutomaticRunInput"] = pydantic.create_model(
-            AutomaticRunInput.__name__, **fields, __base__=AutomaticRunInput
+            class_name, **fields, __base__=AutomaticRunInput
         )
         return new_cls
+
+    @classmethod
+    def receive(cls, *args, **kwargs):
+        if kwargs.get("key_prefix") is None:
+            kwargs["key_prefix"] = f"{cls.__name__.lower()}-auto"
+
+        return GetAutomaticInputHandler(run_input_cls=cls, *args, **kwargs)
 
 
 def run_input_subclass_from_type(_type: Type[T]) -> Type[RunInput]:
     """
     Create a new `RunInput` subclass from the given type.
     """
+    try:
+        is_class = issubclass(_type, object)
+    except TypeError:
+        is_class = False
+
+    if not is_class:
+        # Could be something like a typing._GenericAlias, so pass it through to
+        # Pydantic to see if we can create a model from it.
+        return AutomaticRunInput.subclass_from_type(_type)
     if issubclass(_type, RunInput):
         return _type
     elif issubclass(_type, pydantic.BaseModel):
         return RunInput.subclass_from_base_model_type(_type)
     else:
+        # As a fall-through for a type that isn't a `RunInput` subclass or
+        # `pydantic.BaseModel` subclass, pass it through to Pydantic.
         return AutomaticRunInput.subclass_from_type(_type)
 
 
@@ -409,6 +437,19 @@ class GetInputHandler(Generic[T]):
                     return self.to_instance(flow_run_inputs[0])
 
 
+class GetAutomaticInputHandler(GetInputHandler):
+    def __init__(self, *args, **kwargs):
+        self.with_metadata = kwargs.pop("with_metadata", False)
+        super().__init__(*args, **kwargs)
+
+    def to_instance(self, flow_run_input: "FlowRunInput") -> Any:
+        run_input = self.run_input_cls.load_from_flow_run_input(flow_run_input)
+
+        if self.with_metadata:
+            return run_input
+        return run_input.value
+
+
 async def _send_input(
     flow_run_id: UUID,
     run_input: "RunInput",
@@ -422,4 +463,42 @@ async def _send_input(
 
     await create_flow_run_input_from_model(
         key=key, flow_run_id=flow_run_id, model_instance=run_input, sender=sender
+    )
+
+
+@sync_compatible
+async def send_input(
+    value: Any,
+    flow_run_id: UUID,
+    sender: Optional[str] = None,
+    key_prefix: Optional[str] = None,
+):
+    input_cls = run_input_subclass_from_type(type(value))
+    await _send_input(
+        flow_run_id=flow_run_id,
+        run_input=input_cls(value=value),
+        sender=sender,
+        key_prefix=key_prefix,
+    )
+
+
+def receive_input(
+    _type: type,
+    timeout: Optional[float] = 3600,
+    poll_interval: float = 10,
+    raise_timeout_error: bool = False,
+    exclude_keys: Optional[Set[str]] = None,
+    key_prefix: Optional[str] = None,
+    flow_run_id: Optional[UUID] = None,
+    with_metadata: bool = False,
+) -> RunInput:
+    input_cls = run_input_subclass_from_type(_type)
+    return input_cls.receive(
+        timeout=timeout,
+        poll_interval=poll_interval,
+        raise_timeout_error=raise_timeout_error,
+        exclude_keys=exclude_keys,
+        key_prefix=key_prefix,
+        flow_run_id=flow_run_id,
+        with_metadata=with_metadata,
     )
