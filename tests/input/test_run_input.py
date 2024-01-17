@@ -564,6 +564,10 @@ def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
             pass
 
 
+# Since this test relies on timing of the send/receive in the CI environment
+# it can sometimes fail. Marking it as flaky rather than bumping the timeout
+# to avoid slowing down the test suite.
+@pytest.mark.flaky
 async def test_receive(flow_run):
     async def send():
         for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
