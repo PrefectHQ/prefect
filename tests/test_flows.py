@@ -12,7 +12,7 @@ from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from typing import List
-from unittest.mock import MagicMock, call, create_autospec
+from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
 
@@ -3401,6 +3401,17 @@ class TestFlowServe:
         await test_flow.serve("test")
 
         mock_runner_start.assert_awaited_once()
+
+    async def test_serve_passes_limit_specification_to_runner(self, monkeypatch):
+        runner_mock = MagicMock(return_value=AsyncMock())
+        monkeypatch.setattr("prefect.runner.Runner", runner_mock)
+
+        limit = 42
+        await test_flow.serve("test", limit=limit)
+
+        runner_mock.assert_called_once_with(
+            name="test", pause_on_shutdown=ANY, limit=limit
+        )
 
 
 class MockStorage:
