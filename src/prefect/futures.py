@@ -69,7 +69,7 @@ class PrefectFuture(Generic[R, A]):
         >>>     future = my_task.submit()
         >>>     final_state = future.wait()
 
-        Wait N sconds for the task to complete
+        Wait N seconds for the task to complete
 
         >>> @flow
         >>> def my_flow():

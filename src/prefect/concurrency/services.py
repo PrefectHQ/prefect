@@ -7,7 +7,7 @@ from typing import (
 )
 
 import httpx
-from fastapi import status
+from starlette import status
 
 from prefect import get_client
 from prefect._internal.concurrency import logger
@@ -63,7 +63,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
             if self._stopped:
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
-            logger.debug("Service %r enqueing item %r", self, item)
+            logger.debug("Service %r enqueuing item %r", self, item)
             future = concurrent.futures.Future()
 
             occupy, mode = item

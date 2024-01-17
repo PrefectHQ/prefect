@@ -1,4 +1,5 @@
 # Version: 0.20
+# versioneer is on 0.29, would be good to update
 
 """The Versioneer - like a rocketeer, but for versions.
 
@@ -728,7 +729,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, runner=run_command):
         # TAG-NUM-gHEX
         mo = re.search(r'^(.+)-(\d+)-g([0-9a-f]+)$', git_describe)
         if not mo:
-            # unparseable. Maybe git-describe is misbehaving?
+            # unparsable. Maybe git-describe is misbehaving?
             pieces["error"] = ("unable to parse git-describe output: '%%s'"
                                %% describe_out)
             return pieces
@@ -1239,7 +1240,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, runner=run_command):
         # TAG-NUM-gHEX
         mo = re.search(r"^(.+)-(\d+)-g([0-9a-f]+)$", git_describe)
         if not mo:
-            # unparseable. Maybe git-describe is misbehaving?
+            # unparsable. Maybe git-describe is misbehaving?
             pieces["error"] = "unable to parse git-describe output: '%s'" % describe_out
             return pieces
 
@@ -1719,7 +1720,7 @@ def get_version():
 
 
 def get_cmdclass(cmdclass=None):
-    """Get the custom setuptools/distutils subclasses used by Versioneer.
+    """Get the custom setuptools subclasses used by Versioneer.
 
     If the package uses a different cmdclass (e.g. one from numpy), it
     should be provide as an argument.
@@ -1741,8 +1742,7 @@ def get_cmdclass(cmdclass=None):
 
     cmds = {} if cmdclass is None else cmdclass.copy()
 
-    # we add "version" to both distutils and setuptools
-    from distutils.core import Command
+    from setuptools import Command
 
     class cmd_version(Command):
         description = "report generated version string"
@@ -1786,8 +1786,6 @@ def get_cmdclass(cmdclass=None):
         _build_py = cmds["build_py"]
     elif "setuptools" in sys.modules:
         from setuptools.command.build_py import build_py as _build_py
-    else:
-        from distutils.command.build_py import build_py as _build_py
 
     class cmd_build_py(_build_py):
         def run(self):
@@ -1808,8 +1806,6 @@ def get_cmdclass(cmdclass=None):
         _build_ext = cmds["build_ext"]
     elif "setuptools" in sys.modules:
         from setuptools.command.build_ext import build_ext as _build_ext
-    else:
-        from distutils.command.build_ext import build_ext as _build_ext
 
     class cmd_build_ext(_build_ext):
         def run(self):
@@ -1869,7 +1865,7 @@ def get_cmdclass(cmdclass=None):
         del cmds["build_py"]
 
     if "py2exe" in sys.modules:  # py2exe enabled?
-        from py2exe.distutils_buildexe import py2exe as _py2exe
+        from py2exe.setuptools_buildexe import py2exe as _py2exe
 
         class cmd_py2exe(_py2exe):
             def run(self):
@@ -1902,8 +1898,6 @@ def get_cmdclass(cmdclass=None):
         _sdist = cmds["sdist"]
     elif "setuptools" in sys.modules:
         from setuptools.command.sdist import sdist as _sdist
-    else:
-        from distutils.command.sdist import sdist as _sdist
 
     class cmd_sdist(_sdist):
         def run(self):

@@ -1,5 +1,5 @@
+import json
 import os
-import sys
 import threading
 from enum import Enum
 from functools import partial
@@ -22,7 +22,11 @@ from prefect.settings import (
     PREFECT_WORKER_QUERY_SECONDS,
 )
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.processutils import run_process, setup_signal_handlers_worker
+from prefect.utilities.processutils import (
+    get_sys_executable,
+    run_process,
+    setup_signal_handlers_worker,
+)
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.server import start_healthcheck_server
@@ -98,6 +102,15 @@ async def start(
         help="Install policy to use workers from Prefect integration packages.",
         case_sensitive=False,
     ),
+    base_job_template: typer.FileText = typer.Option(
+        None,
+        "--base-job-template",
+        help=(
+            "The path to a JSON file containing the base job template to use. If"
+            " unspecified, Prefect will use the default base job template for the given"
+            " worker type. If the work pool already exists, this will be ignored."
+        ),
+    ),
 ):
     """
     Start a worker process to poll a work pool for flow runs.
@@ -114,6 +127,7 @@ async def start(
         )
 
     worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
+
     if worker_cls is None:
         exit_with_error(
             "Unable to start worker. Please ensure you have the necessary dependencies"
@@ -125,12 +139,18 @@ async def start(
         worker_process_id, f"the {worker_type} worker", app.console.print
     )
 
+    template_contents = None
+    if base_job_template is not None:
+        template_contents = json.load(fp=base_job_template)
+
     async with worker_cls(
         name=worker_name,
         work_pool_name=work_pool_name,
         work_queues=work_queues,
         limit=limit,
         prefetch_seconds=prefetch_seconds,
+        heartbeat_interval_seconds=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+        base_job_template=template_contents,
     ) as worker:
         app.console.print(f"Worker {worker.name!r} started!", style="green")
         async with anyio.create_task_group() as tg:
@@ -145,6 +165,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,  # Up to ~1 minute interval during backoff
                 )
             )
             # schedule the sync loop
@@ -152,10 +173,11 @@ async def start(
                 partial(
                     critical_service_loop,
                     workload=worker.sync_with_backend,
-                    interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+                    interval=worker.heartbeat_interval_seconds,
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,
                 )
             )
             tg.start_soon(
@@ -166,6 +188,7 @@ async def start(
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,
+                    backoff=4,
                 )
             )
 
@@ -203,10 +226,19 @@ async def _retrieve_worker_type_from_pool(work_pool_name: Optional[str] = None) 
     try:
         async with get_client() as client:
             work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
+
         worker_type = work_pool.type
         app.console.print(
-            f"Discovered worker type {worker_type!r} for work pool {work_pool.name!r}."
+            f"Discovered type {worker_type!r} for work pool {work_pool.name!r}."
         )
+
+        if work_pool.is_push_pool or work_pool.is_managed_pool:
+            exit_with_error(
+                "Workers are not required for push work pools. "
+                "See https://docs.prefect.io/latest/guides/deployment/push-work-pools/ "
+                "for more details."
+            )
+
     except ObjectNotFound:
         app.console.print(
             (
@@ -231,7 +263,7 @@ async def _install_package(
     package: str, upgrade: bool = False
 ) -> Optional[Type[BaseWorker]]:
     app.console.print(f"Installing {package}...")
-    command = [sys.executable, "-m", "pip", "install", package]
+    command = [get_sys_executable(), "-m", "pip", "install", package]
     if upgrade:
         command.append("--upgrade")
     await run_process(command, stream_output=True)
@@ -287,8 +319,9 @@ async def _get_worker_class(
             # Confirm with the user for installation in an interactive session
             elif install_policy == InstallPolicy.PROMPT and is_interactive():
                 message = (
-                    f"Could not find a {worker_type} worker in the current"
-                    " environment. Install it now?"
+                    "Could not find the Prefect integration library for the"
+                    f" {worker_type} worker in the current environment."
+                    " Install the library now?"
                 )
                 should_install = confirm(message, default=True)
 

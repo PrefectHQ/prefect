@@ -910,7 +910,7 @@ class TestScheduledRuns:
     async def test_scheduling_multiple_batches_correctly_updates_runs(
         self, session, deployment, flow_function, flow, db
     ):
-        # ensures that updating flow run states works correctly and doesnt set
+        # ensures that updating flow run states works correctly and doesn't set
         # any to None inadvertently
         deployment_2 = await models.deployments.create_deployment(
             session=session,
@@ -1096,3 +1096,23 @@ class TestUpdateDeployment:
         )
         assert wq is not None
         assert wq.work_pool == work_pool
+
+
+class TestUpdateDeploymentLastPolled:
+    async def test_updated_deployments_have_last_polled_of_now(
+        self, session, deployment
+    ):
+        current_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert current_deployment.last_polled is None
+
+        await models.deployments._update_deployment_last_polled(
+            session=session, deployment_ids=[deployment.id]
+        )
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.last_polled is not None
+        assert updated_deployment.last_polled > pendulum.now("UTC").subtract(minutes=1)

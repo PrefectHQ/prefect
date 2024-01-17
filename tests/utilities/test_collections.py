@@ -4,7 +4,13 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 
 from prefect.utilities.annotations import BaseAnnotation, quote
@@ -140,6 +146,12 @@ class PrivatePydantic(pydantic.BaseModel):
 class ImmutablePrivatePydantic(PrivatePydantic):
     class Config:
         allow_mutation = False
+
+
+class PydanticWithDefaults(pydantic.BaseModel):
+    name: str
+    val: uuid.UUID = pydantic.Field(default_factory=uuid.uuid4)
+    num: int = 0
 
 
 @dataclass
@@ -327,6 +339,24 @@ class TestVisitCollection:
         assert (
             output_model.val == input_model.val
         ), "The fields value should be used, not the default factory"
+
+    @pytest.mark.parametrize(
+        "input",
+        [
+            {"name": "prefect"},
+            {"name": "prefect", "num": 1},
+            {"name": "prefect", "num": 1, "val": uuid.UUID(int=0)},
+            {"name": "prefect", "val": uuid.UUID(int=0)},
+        ],
+    )
+    def test_visit_collection_remembers_unset_pydantic_fields(self, input: dict):
+        input_model = PydanticWithDefaults(**input)
+        output_model = visit_collection(
+            input_model, visit_fn=visit_even_numbers, return_data=True
+        )
+        assert (
+            output_model.dict(exclude_unset=True) == input
+        ), "Unset fields values should be remembered and preserved"
 
     @pytest.mark.parametrize("immutable", [True, False])
     def test_visit_collection_mutation_with_private_pydantic_attributes(

@@ -1,11 +1,15 @@
+import shutil
+import subprocess
 import sys
 import warnings
 from pathlib import Path
-from unittest.mock import ANY
+from textwrap import dedent
+from unittest.mock import ANY, call
 
 import pytest
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.deployments.steps import run_step
@@ -117,6 +121,102 @@ class TestRunStep:
         )
         assert output.returncode == 0
         assert output.stdout.decode().strip() == "hello world"
+
+    async def test_requirement_installation_successful(self, monkeypatch):
+        """
+        Test that the function attempts to install the package and succeeds.
+        """
+        import_module_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[ImportError, lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step(
+            {"test_module.test_function": {"requires": "test-package>=1.0.0", "x": 1}}
+        )
+
+        import_module_mock.assert_called_once_with("test_package")
+        assert (
+            import_object_mock.call_count == 2
+        )  # once before and once after installation
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0"]
+        )
+
+    async def test_install_multiple_requirements(self, monkeypatch):
+        """
+        Test that passing multiple requirements installs all of them.
+        """
+        import_module_mock = MagicMock(side_effect=[None, ImportError])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step(
+            {
+                "test_module.test_function": {
+                    "requires": ["test-package>=1.0.0", "another"],
+                    "x": 1,
+                }
+            }
+        )
+
+        import_module_mock.assert_has_calls([call("test_package"), call("another")])
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "test-package>=1.0.0", "another"]
+        )
+
+    async def test_requirement_installation_failure(self, monkeypatch, caplog):
+        """
+        Test that the function logs a warning if it fails to install the package.
+        """
+        # Mocking the import_module function to always raise ImportError
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module",
+            MagicMock(side_effect=ImportError),
+        )
+
+        # Mock subprocess.check_call to simulate failed package installation
+        monkeypatch.setattr(
+            subprocess,
+            "check_call",
+            MagicMock(side_effect=subprocess.CalledProcessError(1, ["pip"])),
+        )
+
+        with pytest.raises(ImportError):
+            await run_step(
+                {
+                    "test_module.test_function": {
+                        "requires": "nonexistent-package>=1.0.0"
+                    }
+                }
+            )
+
+        assert subprocess.check_call.called
+        record = next(
+            (
+                record
+                for record in caplog.records
+                if "Unable to install required packages" in record.message
+            ),
+            None,
+        )
+        assert record is not None, "No warning was logged"
+        assert record.levelname == "WARNING"
 
 
 class TestRunSteps:
@@ -245,25 +345,42 @@ class TestRunSteps:
         mock_print.assert_any_call("this is a warning")
 
 
-class MockGitHubCredentials:
-    def __init__(self, token: str):
+class MockCredentials:
+    def __init__(self, token: str, username: str = None, password: str = None):
         self.token = token
-        self.data = {"value": {"token": self.token}}
+        self.username = username
+        self.password = password
+
+        self.data = {
+            "value": {
+                "token": self.token,
+                "username": self.username,
+                "password": self.password,
+            }
+        }
 
     async def save(self, name: str):
         pass
 
     async def load(self, name: str):
-        return MockGitHubCredentials("mock-token")
+        return MockCredentials(token="mock-token")
+
+
+@pytest.fixture
+def git_repository_mock(monkeypatch):
+    git_repository_mock = MagicMock()
+    pull_code_mock = AsyncMock()
+    git_repository_mock.return_value.pull_code = pull_code_mock
+    git_repository_mock.return_value.destination = Path.cwd() / "repo"
+    monkeypatch.setattr(
+        "prefect.deployments.steps.pull.GitRepository",
+        git_repository_mock,
+    )
+    return git_repository_mock
 
 
 class TestGitCloneStep:
-    async def test_git_clone(self, monkeypatch):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
+    async def test_git_clone(self, git_repository_mock):
         output = await run_step(
             {
                 "prefect.deployments.steps.git_clone": {
@@ -272,25 +389,15 @@ class TestGitCloneStep:
             }
         )
         assert output["directory"] == "repo"
-        subprocess_mock.check_call.assert_called_once_with(
-            [
-                "git",
-                "clone",
-                "https://github.com/org/repo.git",
-                "--depth",
-                "1",
-            ],
-            shell=False,
-            stderr=ANY,
-            stdout=ANY,
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
         )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    async def test_deprecated_git_clone_project(self, monkeypatch):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
+    async def test_deprecated_git_clone_project(self, git_repository_mock):
         with pytest.warns(DeprecationWarning):
             output = await run_step(
                 {
@@ -300,25 +407,15 @@ class TestGitCloneStep:
                 }
             )
         assert output["directory"] == "repo"
-        subprocess_mock.check_call.assert_called_once_with(
-            [
-                "git",
-                "clone",
-                "https://github.com/org/repo.git",
-                "--depth",
-                "1",
-            ],
-            shell=False,
-            stderr=ANY,
-            stdout=ANY,
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
         )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    async def test_git_clone_include_submodules(self, monkeypatch):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
+    async def test_git_clone_include_submodules(self, git_repository_mock):
         output = await run_step(
             {
                 "prefect.deployments.steps.git_clone": {
@@ -327,159 +424,115 @@ class TestGitCloneStep:
                 }
             }
         )
-        assert output["directory"] == "has-submodules"
-        subprocess_mock.check_call.assert_called_once_with(
-            [
-                "git",
-                "clone",
-                "https://github.com/org/has-submodules.git",
-                "--recurse-submodules",
-                "--depth",
-                "1",
-            ],
-            shell=False,
-            stderr=ANY,
-            stdout=ANY,
+        assert output["directory"] == "repo"
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/has-submodules.git",
+            credentials=None,
+            branch=None,
+            include_submodules=True,
         )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    async def test_git_clone_errors_obscure_access_token(self):
-        with pytest.raises(RuntimeError) as exc:
-            await run_step(
-                {
-                    "prefect.deployments.steps.git_clone": {
-                        "repository": "https://github.com/PrefectHQ/prefect.git",
-                        "branch": "definitely-does-not-exist-123",
-                        "access_token": None,
-                    }
+    async def test_git_clone_with_access_token(self, git_repository_mock):
+        await Secret(value="my-access-token").save(name="my-access-token")
+        await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "access_token": "{{ prefect.blocks.secret.my-access-token }}",
                 }
-            )
-        # prove by default command shows up
-        assert (
-            "Command '['git', 'clone', 'https://github.com/PrefectHQ/prefect.git',"
-            " '-b', 'definitely-does-not-exist-123', '--depth', '1']"
-            in str(exc.getrepr())
-        )
-
-        with pytest.raises(RuntimeError) as exc:
-            # we uppercase the token because this test definition does show up in the exception traceback
-            await run_step(
-                {
-                    "prefect.deployments.steps.git_clone": {
-                        "repository": "https://github.com/PrefectHQ/prefect.git",
-                        "branch": "definitely-does-not-exist-123",
-                        "access_token": "super-secret-42".upper(),
-                    }
-                }
-            )
-        assert "super-secret-42".upper() not in str(exc.getrepr())
-
-    @pytest.mark.asyncio
-    async def test_git_clone_with_valid_credentials_block_succeeds(self, monkeypatch):
-        mock_subprocess = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            mock_subprocess,
-        )
-        blocks = {
-            "github-credentials": {
-                "my-github-creds-block": MockGitHubCredentials("mock-token")
             }
-        }
-
-        async def mock_read_block_document(self, name: str, block_type_slug: str):
-            return blocks[block_type_slug][name]
-
-        monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
-            mock_read_block_document,
         )
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials={"access_token": "my-access-token"},
+            branch=None,
+            include_submodules=False,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-        await MockGitHubCredentials("mock-token").save("my-github-creds-block")
+    async def test_git_clone_with_credentials(self, git_repository_mock):
+        class MockGitCredentials(Block):
+            username: str
+            password: str
 
-        output = await run_step(
+        await MockGitCredentials(username="marvin42", password="hunter2").save(
+            name="my-credentials"
+        )
+        await run_step(
             {
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
                     "credentials": (
-                        "{{ prefect.blocks.github-credentials.my-github-creds-block }}"
+                        "{{ prefect.blocks.mockgitcredentials.my-credentials }}"
                     ),
                 }
             }
         )
-
-        assert output["directory"] == "repo"
-        mock_subprocess.check_call.assert_called_once_with(
-            [
-                "git",
-                "clone",
-                "https://mock-token@github.com/org/repo.git",
-                "--depth",
-                "1",
-            ],
-            shell=False,
-            stderr=ANY,
-            stdout=ANY,
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "marvin42", "password": "hunter2"},
+            branch=None,
+            include_submodules=False,
         )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    @pytest.mark.asyncio
-    async def test_git_clone_with_invalid_credentials_block_raises(self, monkeypatch):
-        blocks = {
-            "github-credentials": {
-                "my-github-creds-block": MockGitHubCredentials("mock-token")
-            }
-        }
 
-        async def mock_read_block_document(self, name: str, block_type_slug: str):
-            return blocks[block_type_slug][name]
-
+class TestPullFromRemoteStorage:
+    @pytest.fixture
+    def remote_storage_mock(self, monkeypatch):
+        remote_storage_mock = MagicMock()
+        pull_code_mock = AsyncMock()
+        remote_storage_mock.return_value.pull_code = pull_code_mock
+        remote_storage_mock.return_value.destination = Path.cwd() / "bucket" / "folder"
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
-            mock_read_block_document,
+            "prefect.deployments.steps.pull.RemoteStorage",
+            remote_storage_mock,
         )
+        return remote_storage_mock
 
-        with pytest.raises(KeyError, match="invalid-block"):
-            await run_step(
-                {
-                    "prefect.deployments.steps.git_clone": {
-                        "repository": "https://github.com/org/repo.git",
-                        "credentials": (
-                            "{{ prefect.blocks.github-credentials.invalid-block }}"
-                        ),
-                    }
-                }
-            )
-
-    @pytest.mark.asyncio
-    async def test_git_clone_with_token_and_credentials_raises(self, monkeypatch):
-        blocks = {
-            "github-credentials": {
-                "my-github-creds-block": MockGitHubCredentials("mock-token")
-            }
-        }
-
-        async def mock_read_block_document(self, name: str, block_type_slug: str):
-            return blocks[block_type_slug][name]
-
+    @pytest.fixture
+    def subprocess_mock(self, monkeypatch):
+        subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
-            mock_read_block_document,
+            "prefect.deployments.steps.core.subprocess",
+            subprocess_mock,
         )
+        return subprocess_mock
 
-        with pytest.raises(
-            ValueError,
-            match="Please provide either an access token or credentials but not both",
-        ):
-            await run_step(
-                {
-                    "prefect.deployments.steps.git_clone": {
-                        "repository": "https://github.com/org/repo.git",
-                        "access_token": "my-token",
-                        "credentials": (
-                            "{{ prefect.blocks.github-credentials.my-github-creds-block }}"
-                        ),
-                    }
+    @pytest.fixture
+    def import_module_mock(self, monkeypatch):
+        import_module_mock = MagicMock(side_effect=ImportError())
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module",
+            import_module_mock,
+        )
+        return import_module_mock
+
+    async def test_pull_from_remote_storage(
+        self, remote_storage_mock, subprocess_mock, import_module_mock
+    ):
+        output = await run_step(
+            {
+                "prefect.deployments.steps.pull_from_remote_storage": {
+                    "requires": "s3fs<3.0",
+                    "url": "s3://bucket/folder",
+                    "key": "my-access-key-id",
+                    "secret": "my-secret-access-key",
                 }
-            )
+            }
+        )
+        assert output["directory"] == "bucket/folder"
+        import_module_mock.assert_called_once_with("s3fs")
+        subprocess_mock.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "s3fs<3.0"]
+        )
+        remote_storage_mock.assert_called_once_with(
+            "s3://bucket/folder",
+            key="my-access-key-id",
+            secret="my-secret-access-key",
+        )
+        remote_storage_mock.return_value.pull_code.assert_awaited_once()
 
 
 class TestRunShellScript:
@@ -584,10 +637,41 @@ class TestRunShellScript:
         assert result["stdout"] == parent_dir
         assert result["stderr"] == ""
 
+    @pytest.mark.skipif(
+        sys.platform != "win32",
+        reason="_open_anyio_process errors when mocking OS in test context",
+    )
+    async def test_run_shell_script_split_on_windows(self, monkeypatch):
+        # return type needs to be mocked to avoid TypeError
+        shex_split_mock = MagicMock(return_value=["echo", "Hello", "World"])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.utility.shlex.split",
+            shex_split_mock,
+        )
+        result = await run_shell_script("echo Hello World")
+        # validates that command is parsed as non-posix
+        shex_split_mock.assert_called_once_with("echo Hello World", posix=False)
+        assert result["stdout"] == "Hello World"
+        assert result["stderr"] == ""
+
+
+class MockProcess:
+    def __init__(self, returncode=0):
+        self.returncode = returncode
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+    async def wait(self):
+        pass
+
 
 class TestPipInstallRequirements:
     async def test_pip_install_reqs_runs_expected_command(self, monkeypatch):
-        open_process_mock = MagicMock()
+        open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",
             open_process_mock,
@@ -616,7 +700,7 @@ class TestPipInstallRequirements:
         )
 
     async def test_pip_install_reqs_custom_requirements_file(self, monkeypatch):
-        open_process_mock = MagicMock()
+        open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",
             open_process_mock,
@@ -648,13 +732,7 @@ class TestPipInstallRequirements:
     async def test_pip_install_reqs_with_directory_step_output_succeeds(
         self, monkeypatch
     ):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
-
-        open_process_mock = MagicMock()
+        open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",
             open_process_mock,
@@ -709,4 +787,121 @@ class TestPipInstallRequirements:
             cwd="hello-projects",
             stderr=ANY,
             stdout=ANY,
+        )
+
+    async def test_pip_install_fails_on_error(self):
+        with pytest.raises(RuntimeError) as exc:
+            await run_step(
+                {
+                    "prefect.deployments.steps.pip_install_requirements": {
+                        "id": "pip-install-step",
+                        "requirements_file": "doesnt-exist.txt",
+                    }
+                }
+            )
+        assert (
+            "pip_install_requirements failed with error code 1: ERROR: Could not open "
+            "requirements file: [Errno 2] No such file or directory: "
+            "'doesnt-exist.txt'"
+            in str(exc.value)
+        )
+
+
+class TestPullWithBlock:
+    @pytest.fixture
+    async def test_block(self):
+        class FakeStorageBlock(Block):
+            _block_type_slug = "fake-storage-block"
+
+            code: str = dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+
+            async def get_directory(self, local_path: str):
+                (Path(local_path) / "flows.py").write_text(self.code)
+
+        block = FakeStorageBlock()
+        await block.save("test-block")
+        return block
+
+    async def test_normal_operation(self, test_block: Block):
+        """
+        A block type slug and a block document name corresponding
+        to a block with the get_directory method can be used
+        to pull code into the current working path.
+        """
+        try:
+            output = await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": test_block.get_block_type_slug(),
+                        "block_document_name": test_block._block_document_name,
+                    }
+                }
+            )
+            assert "directory" in output
+            assert Path(f"{output['directory']}/flows.py").read_text() == dedent(
+                """\
+                from prefect import flow
+
+                @flow
+                def test_flow():
+                    return 1
+                """
+            )
+        finally:
+            if "output" in locals() and "directory" in output:
+                shutil.rmtree(f"{output['directory']}")
+
+    async def test_block_not_found(self, caplog):
+        """
+        When a `pull_with_block` step is run with a block type slug
+        and block document name that can't be resolved, `run_step`
+        should raise and log a message.
+        """
+        with pytest.raises(ValueError):
+            await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": "in-the",
+                        "block_document_name": "wind",
+                    }
+                }
+            )
+
+        assert "Unable to load block 'in-the/wind'" in caplog.text
+
+    async def test_incorrect_type_of_block(self, caplog):
+        """
+        When a `pull_with_block` step is run with a block that doesn't
+        have a `get_directory` method, `run_step` should raise and log
+        a message.
+        """
+
+        class Wrong(Block):
+            square_peg = "round_hole"
+
+        block = Wrong()
+        await block.save("test-block")
+
+        with pytest.raises(ValueError):
+            await run_step(
+                {
+                    "prefect.deployments.steps.pull_with_block": {
+                        "block_type_slug": block.get_block_type_slug(),
+                        "block_document_name": block._block_document_name,
+                    }
+                }
+            )
+
+        assert (
+            "Unable to create storage adapter for block"
+            f" '{block.get_block_type_slug()}/{block._block_document_name}"
+            in caplog.text
         )

@@ -44,7 +44,7 @@ async def rate_limit(names: Union[str, List[str]], occupy: int = 1):
 
     Args:
         names: The names of the concurrency limits to acquire slots from.
-        occupy: The number of slots to acquire and holf from each limit.
+        occupy: The number of slots to acquire and hold from each limit.
     """
     names = names if isinstance(names, list) else [names]
     limits = await _acquire_concurrency_slots(names, occupy, mode="rate_limit")

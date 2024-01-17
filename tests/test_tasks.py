@@ -3,6 +3,7 @@ import inspect
 import time
 import warnings
 from asyncio import Event, sleep
+from functools import partial
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -3393,6 +3394,22 @@ async def test_sets_run_name_once_per_call():
     assert generate_task_run_name.call_count == 2
 
 
+def test_task_parameter_annotations_can_be_non_pydantic_classes():
+    class Test:
+        pass
+
+    @task
+    def my_task(instance: Test):
+        return instance
+
+    @flow
+    def my_flow(instance: Test):
+        return my_task(instance)
+
+    instance = my_flow(Test())
+    assert isinstance(instance, Test)
+
+
 def create_hook(mock_obj):
     def my_hook(task, task_run, state):
         mock_obj()
@@ -3405,6 +3422,46 @@ def create_async_hook(mock_obj):
         mock_obj()
 
     return my_hook
+
+
+class TestTaskHooksWithKwargs:
+    def test_hook_with_extra_default_arg(self):
+        data = {}
+
+        def hook(task, task_run, state, foo=42):
+            data.update(name=hook.__name__, state=state, foo=foo)
+
+        @task(on_completion=[hook])
+        def foo_task():
+            pass
+
+        @flow
+        def foo_flow():
+            return foo_task(return_state=True)
+
+        state = foo_flow()
+
+        assert data == dict(name="hook", state=state, foo=42)
+
+    def test_hook_with_bound_kwargs(self):
+        data = {}
+
+        def hook(task, task_run, state, **kwargs):
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
+
+        hook_with_kwargs = partial(hook, foo=42)
+
+        @task(on_completion=[hook_with_kwargs])
+        def foo_task():
+            pass
+
+        @flow
+        def foo_flow():
+            return foo_task(return_state=True)
+
+        state = foo_flow()
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42})
 
 
 class TestTaskHooksOnCompletion:
@@ -3731,3 +3788,10 @@ class TestTaskHooksOnFailure:
         state = my_flow._run()
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1")]
+
+    async def test_task_condition_fn_raises_when_not_a_callable(self):
+        with pytest.raises(TypeError):
+
+            @task(retry_condition_fn="not a callable")
+            def my_task():
+                ...

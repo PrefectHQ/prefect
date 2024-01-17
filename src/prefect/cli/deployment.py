@@ -5,7 +5,7 @@ import json
 import sys
 import textwrap
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -25,6 +25,7 @@ from prefect.client.schemas.filters import FlowFilter
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
+    NoSchedule,
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
@@ -327,15 +328,25 @@ async def set_schedule(
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
+    no_schedule: bool = typer.Option(
+        False,
+        "--no-schedule",
+        help="An optional flag to disable scheduling for this deployment.",
+    ),
 ):
     """
     Set schedule for a given deployment.
     """
     assert_deployment_name_format(name)
 
-    if sum(option is not None for option in [interval, rrule_string, cron_string]) != 1:
+    if (
+        sum(option is not None for option in [interval, rrule_string, cron_string])
+        + (1 if no_schedule else 0)
+        != 1
+    ):
         exit_with_error(
-            "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided."
+            "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule` must"
+            " be provided."
         )
 
     if interval_anchor and not interval:
@@ -382,6 +393,9 @@ async def set_schedule(
                 updated_schedule.timezone = timezone
         except json.JSONDecodeError:
             updated_schedule = RRuleSchedule(rrule=rrule_string, timezone=timezone)
+
+    if no_schedule:
+        updated_schedule = NoSchedule()
 
     async with get_client() as client:
         try:
@@ -559,7 +573,9 @@ async def run(
                         "TO_TIMEZONE": "UTC",
                         "RETURN_AS_TIMEZONE_AWARE": False,
                         "PREFER_DATES_FROM": "future",
-                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                        "RELATIVE_BASE": datetime.fromtimestamp(
+                            now.timestamp(), tz=timezone.utc
+                        ),
                     },
                 )
 
@@ -600,11 +616,20 @@ async def run(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
         )
 
-        flow_run = await client.create_flow_run_from_deployment(
-            deployment.id,
-            parameters=parameters,
-            state=Scheduled(scheduled_time=scheduled_start_time),
-        )
+        try:
+            flow_run = await client.create_flow_run_from_deployment(
+                deployment.id,
+                parameters=parameters,
+                state=Scheduled(scheduled_time=scheduled_start_time),
+            )
+        except PrefectHTTPStatusError as exc:
+            detail = exc.response.json().get("detail")
+            if detail:
+                exit_with_error(
+                    exc.response.json()["detail"],
+                )
+            else:
+                raise
 
     if PREFECT_UI_URL:
         run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
@@ -998,6 +1023,11 @@ async def build(
             ' --params=\'{"question": "ultimate", "answer": 42}\''
         ),
     ),
+    no_schedule: bool = typer.Option(
+        False,
+        "--no-schedule",
+        help="An optional flag to disable scheduling for this deployment.",
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -1008,7 +1038,11 @@ async def build(
             "A name for this deployment must be provided with the '--name' flag."
         )
 
-    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+    if (
+        len([value for value in (cron, rrule, interval) if value is not None])
+        + (1 if no_schedule else 0)
+        > 1
+    ):
         exit_with_error("Only one schedule type can be provided.")
 
     if infra_block and infra_type:
@@ -1148,7 +1182,7 @@ async def build(
 
     # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
     # we let `build_from_flow` load them from the server
-    if schedule:
+    if schedule or no_schedule:
         init_kwargs.update(schedule=schedule)
     if tags:
         init_kwargs.update(tags=tags)

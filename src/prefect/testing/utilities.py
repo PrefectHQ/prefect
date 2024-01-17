@@ -12,11 +12,10 @@ from typing import Dict, List, Union
 import pytest
 
 import prefect.context
-import prefect.server.schemas as schemas
 import prefect.settings
 from prefect.blocks.core import Block
-from prefect.client import get_client
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
 from prefect.filesystems import ReadableFileSystem
 from prefect.results import PersistedResult
@@ -71,7 +70,7 @@ if sys.version_info < (3, 8):
 
         def _get_child_mock(self, **kw):
             """Patch to return async mocks for async methods"""
-            # This implemetation copied from unittest in Python 3.8
+            # This implementation copied from unittest in Python 3.8
             _new_name = kw.get("_new_name")
             if _new_name in self.__dict__.get("_spec_asyncs", {}):
                 return AsyncMock(**kw)
@@ -183,7 +182,7 @@ async def get_most_recent_flow_run(client: PrefectClient = None):
         client = get_client()
 
     flow_runs = await client.read_flow_runs(
-        sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
+        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
     )
 
     return flow_runs[0]

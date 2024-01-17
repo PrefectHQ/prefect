@@ -161,7 +161,7 @@ async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
     ).state
     assert not api_state.data.has_cached_object()
     assert await api_state.result() == 1
-    # After retrieval from the API, the "cache_result_in_memory" settig is dropped
+    # After retrieval from the API, the "cache_result_in_memory" setting is dropped
     # and caching is enabled by default
     assert api_state.data.has_cached_object()
     assert await api_state.result() == 1

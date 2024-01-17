@@ -1,7 +1,13 @@
 from functools import partial
 from typing import Any, Callable, Generic, Type, TypeVar, cast, overload
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from jsonpatch import JsonPatch as JsonPatchBase
 from typing_extensions import Self
 

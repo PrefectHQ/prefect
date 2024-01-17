@@ -5,7 +5,7 @@
 /src/prefect/server                   @PrefectHQ/open-source @zangell44
 
 # ui
-/ui                            @pleek91
+/ui                            @pleek91 @znicholasbrown
 
 # documentation
 /docs                                @PrefectHQ/docs

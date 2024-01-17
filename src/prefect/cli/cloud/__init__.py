@@ -13,9 +13,16 @@ import httpx
 import readchar
 import typer
 import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from prefect._vendor.fastapi import FastAPI
+from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
+
 from rich.live import Live
 from rich.table import Table
 from typing_extensions import Literal
@@ -506,6 +513,36 @@ async def logout():
     )
 
     exit_with_success("Logged out from Prefect Cloud.")
+
+
+@cloud_app.command()
+async def open():
+    """
+    Open the Prefect Cloud UI in the browser.
+    """
+    confirm_logged_in()
+
+    current_profile = prefect.context.get_settings_context().profile
+    if current_profile is None:
+        exit_with_error(
+            "There is no current profile set - set one with `prefect profile create"
+            " <name>` and `prefect profile use <name>`."
+        )
+
+    current_workspace = get_current_workspace(
+        await prefect.get_cloud_client().read_workspaces()
+    )
+    if current_workspace is None:
+        exit_with_error(
+            "There is no current workspace set - set one with `prefect cloud workspace"
+            " set --workspace <workspace>`."
+        )
+
+    ui_url = current_workspace.ui_url()
+
+    await run_sync_in_worker_thread(webbrowser.open_new_tab, ui_url)
+
+    exit_with_success(f"Opened {current_workspace.handle!r} in browser.")
 
 
 @workspace_app.command()

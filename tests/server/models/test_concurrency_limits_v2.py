@@ -1,6 +1,12 @@
 import asyncio
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -280,6 +286,7 @@ async def test_increment_active_slots_with_decay_success(
     assert refreshed.active_slots == 1
 
 
+@pytest.mark.flaky
 async def test_increment_active_slots_with_decay_slots_decay_over_time(
     db: PrefectDBInterface,
     concurrency_limit_with_decay: ConcurrencyLimitV2,

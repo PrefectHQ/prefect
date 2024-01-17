@@ -27,7 +27,12 @@ from typing import (
 )
 from unittest.mock import Mock
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
@@ -232,7 +237,7 @@ def visit_collection(
     `visit_fn` can be used to alter the element if `return_data` is set.
 
     Note that when using `return_data` a copy of each collection is created to avoid
-    mutating the original object. This may have significant performance penalities and
+    mutating the original object. This may have significant performance penalties and
     should only be used if you intend to transform the collection.
 
     Supported types:
@@ -368,6 +373,8 @@ def visit_collection(
                 # Use `object.__setattr__` to avoid errors on immutable models
                 object.__setattr__(model_instance, attr, getattr(expr, attr))
 
+            # Preserve data about which fields were explicitly set on the original model
+            object.__setattr__(model_instance, "__fields_set__", expr.__fields_set__)
             result = model_instance
         else:
             result = None

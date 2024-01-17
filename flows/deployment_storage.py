@@ -10,7 +10,7 @@ import prefect
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 
-# The version oldest verison this test runs with
+# The version oldest version this test runs with
 SUPPORTED_VERSION = "2.6.0"
 
 
@@ -67,7 +67,7 @@ def main():
     os.makedirs("/tmp/integration-flows/execution", exist_ok=True)
 
     env = os.environ.copy()
-    env["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
+    env["PREFECT__FLOW_RUN_ID"] = str(flow_run.id)
     subprocess.check_call(
         [sys.executable, "-m", "prefect.engine"],
         env=env,

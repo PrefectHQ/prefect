@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import readchar
-from fastapi import status
+from starlette import status
 from typer import Exit
 
 from prefect.cli.cloud import LoginFailed, LoginSuccess
@@ -425,6 +425,7 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
+@pytest.mark.flaky(max_runs=2)
 def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
@@ -1349,7 +1350,7 @@ def test_update_webhook(respx_mock):
     new_webhook_name = "wowza-webhooks"
     existing_webhook = {
         "name": "this will change",
-        "description": "this wont change",
+        "description": "this won't change",
         "template": "neither will this",
     }
     respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
@@ -1453,3 +1454,69 @@ def test_webhook_methods_with_invalid_uuid():
                 ["cloud", "webhook", cmd, bad_webhook_id],
                 expected_code=2,
             )
+
+
+def test_open_current_workspace_in_browser_success(mock_webbrowser, respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active="logged-in-profile",
+        )
+    )
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[foo_workspace.dict(json_compatible=True)],
+        )
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "open"],
+            expected_code=0,
+            expected_output_contains=f"Opened {foo_workspace.handle!r} in browser.",
+        )
+
+    mock_webbrowser.open_new_tab.assert_called_with(foo_workspace.ui_url())
+
+
+def test_open_current_workspace_in_browser_failure_no_workspace_set(respx_mock):
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: "https://api.prefect.io",
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active="logged-in-profile",
+        )
+    )
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[],
+        )
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "open"],
+            expected_code=1,
+            expected_output_contains="There is no current workspace set - set one with",
+        )

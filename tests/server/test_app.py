@@ -1,5 +1,5 @@
 import pytest
-from fastapi.testclient import TestClient
+from prefect._vendor.fastapi.testclient import TestClient
 
 from prefect.server.api.server import create_app
 from prefect.settings import PREFECT_UI_API_URL
@@ -35,6 +35,8 @@ def test_app_exposes_ui_settings():
         "work_pools",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
+        "enhanced_cancellation",
     }
 
 
@@ -53,4 +55,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "artifacts",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
+        "enhanced_cancellation",
     }

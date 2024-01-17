@@ -1,5 +1,4 @@
 ---
-icon: octicons/plug-16
 description: Check out the pre-built tasks and flows in the Prefect Integrations library.
 hide:
   - toc
@@ -19,7 +18,7 @@ tags:
 
 # Integrations
 
-Prefect integrations are organized into collections of pre-built [tasks](/concepts/tasks/), [flows](/concepts/flows/), [blocks](/concepts/blocks/) and more that are installable as PyPI packages. 
+Prefect integrations are organized into collections of pre-built [tasks](/concepts/tasks/), [flows](/concepts/flows/), [blocks](/concepts/blocks/) and more that are installable as PyPI packages.
 
 <!-- The code below is a jinja2 template that will be rendered by generate_catalog.py -->
 <div class="collection-grid">

@@ -10,7 +10,7 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@master \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@706cb730a2efbc1032226af3937207223cb07e05 \
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 """
@@ -81,7 +81,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-getting-started/"
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 # redirects added 2023-03-21
@@ -193,7 +193,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-quickstart/" 
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[redirects]]
@@ -261,12 +261,10 @@ from = "/ui/rate-limits/"
 to = "/cloud/rate-limits/"
 status = 301
 
-
 [[redirects]]
 from = "/cloud/overview/"
 to = "/cloud/"
 status = 301
-
 
 [[redirects]]
 from = "/api-ref/prefect/blocks/storage/"
@@ -276,10 +274,13 @@ status = 301
 [[redirects]]
 from = "/api-ref/prefect/deployments/"
 to = "/api-ref/prefect/deployments/deployments/"
+status = 301
 
 [[redirects]]
 from = "/tutorial/deployments-ux/"
 to = "/tutorial/deployments/"
+status = 301
+
 [[redirects]]
 from = "/ui/blocks/"
 to = "/concepts/blocks/"
@@ -341,7 +342,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-quickstart/"
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[redirects]]
@@ -376,7 +377,7 @@ status = 301
 
 [[redirects]]
 from = "/guides/cloud-run-push-work-pools/"
-to = "/guides/push-work-pools/"
+to = "/guides/deployment/push-work-pools/"
 status = 301
 
 [[redirects]]
@@ -425,9 +426,40 @@ to = "/concepts/deployments/"
 status = 301
 
 [[redirects]]
-from = "/guides/deployment/helm-worker"
-to = "/guides/deployment/kubernetes"
+from = "/guides/deployment/helm-worker/"
+to = "/guides/deployment/kubernetes/"
 status = 301
+
+[[redirects]]
+from = "/guides/deployment/docker/"
+to = "/guides/docker/"
+status = 301
+
+[[redirects]]
+from = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
+status = 301
+
+[[redirects]]
+from = "/cloud/organizations/*"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/guides/deployment/aci/"
+to = "/guides/deployment/serverless-workers/"
+status = 301
+
+[[redirects]]
+from = "/contributing/common-mistakes/"
+to = "/guides/troubleshooting/"
+status = 301
+
+[[redirects]]
+from = "/concepts/incidents/"
+to = "/cloud/incidents/"
+status = 301
+
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
@@ -547,7 +579,7 @@ Referrer-Policy = "same-origin"
 X-Permitted-Cross-Domain-Policies = "none"
 
 # Permissions-Policy controls the features that the site can request.
-#
+
 # https://developer.chrome.com/en/docs/privacy-sandbox/permissions-policy/
 # https://github.com/w3c/webappsec-permissions-policy/blob/main/features.md
 Permissions-Policy = """\

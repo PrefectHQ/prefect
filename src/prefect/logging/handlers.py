@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 import traceback
+import uuid
 import warnings
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Type, Union
@@ -14,7 +15,6 @@ from rich.theme import Theme
 from typing_extensions import Self
 
 import prefect.context
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
@@ -26,6 +26,7 @@ from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_LOGGING_COLORS,
+    PREFECT_LOGGING_INTERNAL_LEVEL,
     PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
@@ -51,11 +52,15 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
     async def _handle_batch(self, items: List):
         try:
             await self._client.create_logs(items)
-        except Exception:
+        except Exception as e:
             # Roughly replicate the behavior of the stdlib logger error handling
             if logging.raiseExceptions and sys.stderr:
                 sys.stderr.write("--- Error logging to API ---\n")
-                traceback.print_exc(file=sys.stderr)
+                if PREFECT_LOGGING_INTERNAL_LEVEL.value() == "DEBUG":
+                    traceback.print_exc(file=sys.stderr)
+                else:
+                    # Only log the exception message in non-DEBUG mode
+                    sys.stderr.write(str(e))
 
     @asynccontextmanager
     async def _lifespan(self):
@@ -208,8 +213,15 @@ class APILogHandler(logging.Handler):
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
         # from the standard lib `handleError` method if something goes wrong and
         # prevents malformed logs from entering the queue
+        try:
+            is_uuid_like = isinstance(flow_run_id, uuid.UUID) or (
+                isinstance(flow_run_id, str) and uuid.UUID(flow_run_id)
+            )
+        except ValueError:
+            is_uuid_like = False
+
         log = LogCreate(
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run_id if is_uuid_like else None,
             task_run_id=task_run_id,
             name=record.name,
             level=record.levelno,
@@ -278,17 +290,3 @@ class PrefectConsoleHandler(logging.StreamHandler):
             raise
         except Exception:
             self.handleError(record)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `APILogHandler` instead.")
-class OrionHandler(APILogHandler):
-    """
-    Deprecated. Use `APILogHandler` instead.
-    """
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `APILogWorker` instead.")
-class OrionLogWorker(APILogWorker):
-    """
-    Deprecated. Use `APILogWorker` instead.
-    """

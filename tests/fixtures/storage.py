@@ -8,8 +8,8 @@ from typing import Any, Optional
 import anyio
 import httpx
 import pytest
-from fastapi import Body, FastAPI, status
-from fastapi.exceptions import RequestValidationError
+from prefect._vendor.fastapi import Body, FastAPI, status
+from prefect._vendor.fastapi.exceptions import RequestValidationError
 
 from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import validation_exception_handler

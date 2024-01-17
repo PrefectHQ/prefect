@@ -94,6 +94,24 @@ class TestTags:
             assert task_run.tags == ["foo", "bar"]
 
 
+class TestRunCount:
+    async def test_run_count_is_attribute(self):
+        assert "run_count" in dir(task_run)
+
+    async def test_run_count_is_zero_when_not_set(self):
+        assert task_run.run_count == 0
+
+    async def test_run_count_returns_run_count_when_present_dynamically(self):
+        assert task_run.run_count == 0
+
+        with TaskRunContext.construct(
+            task_run=TaskRun.construct(id="foo", run_count=10)
+        ):
+            assert task_run.run_count == 10
+
+        assert task_run.run_count == 0
+
+
 class TestParameters:
     async def test_parameters_is_attribute(self):
         assert "parameters" in dir(task_run)

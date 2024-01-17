@@ -3,13 +3,21 @@ import enum
 import json
 import math
 import os
+import shlex
 import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import yaml
-from pydantic import Field, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
+
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -82,7 +90,7 @@ class KubernetesJob(Infrastructure):
         stream_output: If set, stream output from the job to local standard output.
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob"
 
     type: Literal["kubernetes-job"] = Field(
@@ -184,7 +192,7 @@ class KubernetesJob(Infrastructure):
         )
         if incompatible:
             raise ValueError(
-                "Job has incompatble values for the following attributes: "
+                "Job has incompatible values for the following attributes: "
                 f"{', '.join(incompatible)}"
             )
         return value
@@ -351,6 +359,69 @@ class KubernetesJob(Infrastructure):
 
     def preview(self):
         return yaml.dump(self.build_job())
+
+    def get_corresponding_worker_type(self):
+        return "kubernetes"
+
+    async def generate_work_pool_base_job_template(self):
+        from prefect.workers.utilities import (
+            get_default_base_job_template_for_infrastructure_type,
+        )
+
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            self.get_corresponding_worker_type()
+        )
+        assert (
+            base_job_template is not None
+        ), "Failed to retrieve default base job template."
+        for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
+            if key == "command":
+                base_job_template["variables"]["properties"]["command"]["default"] = (
+                    shlex.join(value)
+                )
+            elif key in [
+                "type",
+                "block_type_slug",
+                "_block_document_id",
+                "_block_document_name",
+                "_is_anonymous",
+                "job",
+                "customizations",
+            ]:
+                continue
+            elif key == "image_pull_policy":
+                base_job_template["variables"]["properties"]["image_pull_policy"][
+                    "default"
+                ] = value.value
+            elif key == "cluster_config":
+                base_job_template["variables"]["properties"]["cluster_config"][
+                    "default"
+                ] = {
+                    "$ref": {
+                        "block_document_id": str(self.cluster_config._block_document_id)
+                    }
+                }
+            elif key in base_job_template["variables"]["properties"]:
+                base_job_template["variables"]["properties"][key]["default"] = value
+            else:
+                self.logger.warning(
+                    f"Variable {key!r} is not supported by Kubernetes work pools."
+                    " Skipping."
+                )
+
+        custom_job_manifest = self.dict(exclude_unset=True, exclude_defaults=True).get(
+            "job"
+        )
+        if custom_job_manifest:
+            job_manifest = self.build_job()
+        else:
+            job_manifest = copy.deepcopy(
+                base_job_template["job_configuration"]["job_manifest"]
+            )
+            job_manifest = self.customizations.apply(job_manifest)
+        base_job_template["job_configuration"]["job_manifest"] = job_manifest
+
+        return base_job_template
 
     def build_job(self) -> KubernetesManifest:
         """Builds the Kubernetes Job Manifest"""

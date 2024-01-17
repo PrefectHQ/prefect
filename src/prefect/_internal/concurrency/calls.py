@@ -120,7 +120,7 @@ class Future(concurrent.futures.Future):
                 if self._cancel_scope is None:
                     return False
                 elif not self._cancel_scope.cancelled():
-                    # Perfom cancellation
+                    # Perform cancellation
                     if not self._cancel_scope.cancel():
                         return False
 
@@ -253,7 +253,9 @@ class Call(Generic[T]):
                 # If an event loop is available, return a task to be awaited
                 # Note we must create a task for context variables to propagate
                 logger.debug(
-                    "Scheduling coroutine for call %r in running loop %r", self, loop
+                    "Scheduling coroutine for call %r in running loop %r",
+                    self,
+                    loop,
                 )
                 task = self.context.run(loop.create_task, self._run_async(coro))
 
@@ -312,7 +314,14 @@ class Call(Generic[T]):
         try:
             with set_current_call(self):
                 with self.future.enforce_sync_deadline() as cancel_scope:
-                    result = self.fn(*self.args, **self.kwargs)
+                    try:
+                        result = self.fn(*self.args, **self.kwargs)
+                    finally:
+                        # Forget this call's arguments in order to free up any memory
+                        # that may be referenced by them; after a call has happened,
+                        # there's no need to keep a reference to them
+                        self.args = None
+                        self.kwargs = None
 
             # Return the coroutine for async execution
             if inspect.isawaitable(result):
@@ -342,7 +351,14 @@ class Call(Generic[T]):
         try:
             with set_current_call(self):
                 with self.future.enforce_async_deadline() as cancel_scope:
-                    result = await coro
+                    try:
+                        result = await coro
+                    finally:
+                        # Forget this call's arguments in order to free up any memory
+                        # that may be referenced by them; after a call has happened,
+                        # there's no need to keep a reference to them
+                        self.args = None
+                        self.kwargs = None
         except CancelledError:
             # Report cancellation
             if cancel_scope.timedout():
@@ -366,7 +382,7 @@ class Call(Generic[T]):
         """
         Execute the call and return its result.
 
-        All executions during excecution of the call are re-raised.
+        All executions during execution of the call are re-raised.
         """
         coro = self.run()
 
@@ -383,10 +399,15 @@ class Call(Generic[T]):
 
     def __repr__(self) -> str:
         name = getattr(self.fn, "__name__", str(self.fn))
-        call_args = ", ".join(
-            [repr(arg) for arg in self.args]
-            + [f"{key}={repr(val)}" for key, val in self.kwargs.items()]
-        )
+
+        args, kwargs = self.args, self.kwargs
+        if args is None or kwargs is None:
+            call_args = "<dropped>"
+        else:
+            call_args = ", ".join(
+                [repr(arg) for arg in args]
+                + [f"{key}={repr(val)}" for key, val in kwargs.items()]
+            )
 
         # Enforce a maximum length
         if len(call_args) > 100:

@@ -3,7 +3,14 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 
 from prefect.client import get_client
@@ -409,7 +416,7 @@ class TestCountFlowsModels:
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
-        repsonse = await client.post(
+        response = await client.post(
             "/flows/count",
             json=json.loads(
                 json.dumps(
@@ -418,13 +425,13 @@ class TestCountFlowsModels:
                 )
             ),
         )
-        assert repsonse.json() == expected
+        assert response.json() == expected
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
-        repsonse = await client.post(
+        response = await client.post(
             "/flows/filter",
             json=json.loads(
                 json.dumps(
@@ -433,7 +440,7 @@ class TestCountFlowsModels:
                 )
             ),
         )
-        assert len({r["id"] for r in repsonse.json()}) == expected
+        assert len({r["id"] for r in response.json()}) == expected
 
 
 class TestCountFlowRunModels:
@@ -632,19 +639,19 @@ class TestCountFlowRunModels:
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
-        repsonse = await client.post(
+        response = await client.post(
             "/flow_runs/count",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
         )
-        assert repsonse.json() == expected
+        assert response.json() == expected
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
-        repsonse = await client.post(
+        response = await client.post(
             "/flow_runs/filter",
             json=json.loads(
                 json.dumps(
@@ -653,7 +660,7 @@ class TestCountFlowRunModels:
                 )
             ),
         )
-        assert len({r["id"] for r in repsonse.json()}) == expected
+        assert len({r["id"] for r in response.json()}) == expected
 
 
 class TestCountTaskRunsModels:
@@ -795,19 +802,19 @@ class TestCountTaskRunsModels:
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
-        repsonse = await client.post(
+        response = await client.post(
             "/task_runs/count",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
         )
-        assert repsonse.json() == expected
+        assert response.json() == expected
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
-        repsonse = await client.post(
+        response = await client.post(
             "/task_runs/filter",
             json=json.loads(
                 json.dumps(
@@ -816,7 +823,7 @@ class TestCountTaskRunsModels:
                 )
             ),
         )
-        assert len({r["id"] for r in repsonse.json()}) == expected
+        assert len({r["id"] for r in response.json()}) == expected
 
 
 class TestCountDeploymentModels:
@@ -973,7 +980,7 @@ class TestCountDeploymentModels:
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
-        repsonse = await client.post(
+        response = await client.post(
             "/deployments/count",
             json=json.loads(
                 json.dumps(
@@ -982,13 +989,13 @@ class TestCountDeploymentModels:
                 )
             ),
         )
-        assert repsonse.json() == expected
+        assert response.json() == expected
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
-        repsonse = await client.post(
+        response = await client.post(
             "/deployments/filter",
             json=json.loads(
                 json.dumps(
@@ -997,4 +1004,4 @@ class TestCountDeploymentModels:
                 )
             ),
         )
-        assert len({r["id"] for r in repsonse.json()}) == expected
+        assert len({r["id"] for r in response.json()}) == expected

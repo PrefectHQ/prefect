@@ -9,36 +9,43 @@ search:
 ---
 # Artifacts
 
-Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or REST API. They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI. Artifacts make it easy to track and monitor the objects that your flows produce and update over time. 
+Artifacts are persisted outputs such as tables, Markdown, or links.
+They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI.
+Artifacts make it easy to track and monitor the objects that your flows produce and update over time.
 
-Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices &mdash; including the ability to display tables, Markdown, and links to external data.
+![Markdown artifact sales report screenshot](/img/ui/md-artifact-info.png)
 
-## Artifacts Overview
+Published artifacts may be associated with a particular task run or flow run.
+Artifacts can also be created outside of any flow run context.
 
-Whether you're publishing links, markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your workflow. With artifacts, you can easily manage and share information with your team, providing valuable insights and context.
+Whether you're publishing links, Markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your workflows.
+
+With artifacts, you can easily manage and share information with your team, providing valuable insights and context.
 
 Common use cases for artifacts include:
 
 - Debugging: By publishing data that you care about in the UI, you can easily see when and where your results were written. If an artifact doesn't look the way you expect, you can find out which flow run last updated it, and you can click through a link in the artifact to a storage location (such as an S3 bucket).
 - Data quality checks: Artifacts can be used to publish data quality checks from in-progress tasks. This can help ensure that data quality is maintained throughout the pipeline. During long-running tasks such as ML model training, you might use artifacts to publish performance graphs. This can help you visualize how well your models are performing and make adjustments as needed. You can also track the versions of these artifacts over time, making it easier to identify changes in your data.
-- Documentation: Artifacts can be used to publish documentation and sample data to help you keep track of your work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important. 
+- Documentation: Artifacts can be used to publish documentation and sample data to help you keep track of your work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important.
 
-## Creating Artifacts
+## Creating artifacts
 
-Creating artifacts allows you to publish data from task and flow runs or outside of a flow run context. Currently, you can render three artifact types: links, markdown, and tables.
+Creating artifacts allows you to publish data from task and flow runs or outside of a flow run context.
+Currently, you can render three artifact types: links, Markdown, and tables.
 
 !!! note "Artifacts render individually"
-    Please note that every artifact created within a task will be displayed as an individual artifact in the Prefect UI. This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact. 
-    
+    Please note that every artifact created within a task will be displayed as an individual artifact in the Prefect UI.
+    This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact.
+
     Unlike the `print()` command, where you can concatenate multiple calls to include additional items in a report, within a task, these commands must be used multiple times if necessary. 
     
     To create artifacts like reports or summaries using `create_markdown_artifact()`, compile your message string separately and then pass it to `create_markdown_artifact()` to create the complete artifact.
 
-### Creating Link Artifacts
+### Creating link artifacts
 
-To create a link artifact, use the `create_link_artifact()` function. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
-
-
+To create a link artifact, use the `create_link_artifact()` function.
+To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time.
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
 
 ```python
 from prefect import flow, task
@@ -70,11 +77,14 @@ if __name__ == "__main__":
 ```
 
 !!! tip Specify multiple artifacts with the same key for artifact lineage
-    You can specify multiple artifacts with the same key to more easily track something very specific that you care about, such as irregularities in your data pipeline. 
+    You can specify multiple artifacts with the same key to more easily track something very specific that you care about, such as irregularities in your data pipeline.
 
-After running the above flows, you can find your new artifacts in the Artifacts page of the UI. You can click into the "irregular data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
+After running the above flows, you can find your new artifacts in the Artifacts page of the UI.
+Click into the "irregular-data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
 
-Here, you'll also be able to view information about your artifact such as its associated flow run or task run id, previous and future versions of the artifact (multiple artifacts can have the same key in order to show lineage), the data you've stored (in this case a markdown-rendered link), an optional markdown description, and when the artifact was created or updated.
+![Link artifact details with multiple versions](/img/ui/link-artifact-info.png)
+
+Here, you'll also be able to view information about your artifact such as its associated flow run or task run id, previous and future versions of the artifact (multiple artifacts can have the same key in order to show lineage), the data you've stored (in this case a Markdown-rendered link), an optional Markdown description, and when the artifact was created or updated.
 
 To make the links more readable for you and your collaborators, you can pass in a `link_text` argument for your link artifacts:
 
@@ -93,11 +103,19 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
-In the above example, the `create_link_artifact` method is used within a flow to create a link artifact with a key of `my-important-link`. The `link` parameter is used to specify the external resource to be linked to, and `link_text` is used to specify the text to be displayed for the link. An optional `description` could also be added for context.
 
-### Creating Markdown Artifacts
+In the above example, the `create_link_artifact` method is used within a flow to create a link artifact with a key of `my-important-link`.
+The `link` parameter is used to specify the external resource to be linked to, and `link_text` is used to specify the text to be displayed for the link.
+An optional `description` could also be added for context.
 
-To create a markdown artifact, you can use the `create_markdown_artifact()` function. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+### Creating Markdown artifacts
+
+To create a Markdown artifact, you can use the `create_markdown_artifact()` function.
+To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time.
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
+
+!!! warning "Don't indent Markdown"
+    Markdown in mult-line strings must be unindented to be interpreted correctly.
 
 ```python
 from prefect import flow, task
@@ -150,11 +168,17 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-After running the above flow, you should see your "gtm-report" artifact in the Artifacts page of the UI. As with all artifacts, you'll be able to view the associated flow run or task run id, previous and future versions of the artifact, your rendered markdown data, and your optional markdown description.
+After running the above flow, you should see your "gtm-report" artifact in the Artifacts page of the UI.
 
-### Create Table Artifacts
+![Markdown sales report screenshot](/img/ui/md-artifact-info.png)
 
-You can create a table artifact by calling `create_table_artifact()`. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+As with all artifacts, you'll be able to view the associated flow run or task run id, previous and future versions of the artifact, your rendered Markdown data, and your optional Markdown description.
+
+### Create table artifacts
+
+You can create a table artifact by calling `create_table_artifact()`.
+To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time.
+Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
 
 !!! note
     The `create_table_artifact()` function accepts a `table` argument, which can be provided as either a list of lists, a list of dictionaries, or a dictionary of lists.
@@ -178,53 +202,49 @@ if __name__ == "__main__":
     my_fn()
 ```
 
-As you can see, you don't need to create an artifact in a flow run context. You can use it however you like and still get the benefits in the Prefect UI.
+![Table artifact with customer info](/img/ui/table-artifact-info.png)
+As you can see, you don't need to create an artifact in a flow run context.
+You can create one anywhere in a Python script and see it in the Prefect UI.
 
-## Managing Artifacts
+## Managing artifacts
 
-### Reading Artifacts
+### Reading artifacts
 
-In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time. Additionally, you can inspect all versions of an artifact with a given key by running:
+In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time.
+Additionally, you can inspect all versions of an artifact with a given key by running:
 
-<div class="terminal">
 ```bash
-$ prefect artifact inspect <my-key>
+prefect artifact inspect <my_key>
 ```
-</div>
 
 or view all artifacts by running:
 
-<div class="terminal">
 ```bash
-$ prefect artifact ls
+prefect artifact ls
 ```
-</div>
 
 You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/read_artifacts_api_accounts__account_id__workspaces__workspace_id__artifacts_filter_post) to programmatically filter your results.
 
-### Deleting Artifacts
+### Deleting artifacts
 
 You can delete an artifact directly using the CLI to delete specific artifacts with a given key or id:
 
-<div class="terminal">
 ```bash
-$ prefect artifact delete <my-key>
+prefect artifact delete <my_key>
 ```
-</div>
 
-<div class="terminal">
 ```bash
-$ prefect artifact delete --id <my-id>
+prefect artifact delete --id <my_id>
 ```
-</div>
 
-Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
+Alternatively, you can delete artifacts using the [Prefect REST API](https://docs.prefect.io/latest/api-ref/rest-api-reference/#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
 
 ## Artifacts API
 
-Prefect provides the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically. With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
+Prefect provides the [Prefect REST API](https://docs.prefect.io/latest/api-ref/rest-api-reference/#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically.
+With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
 
-For example, to read the 5 most recently created markdown, table, and link artifacts, you can do the following:
+For example, to read the five most recently created Markdown, table, and link artifacts, you can run the following:
 
 ```python
 import requests

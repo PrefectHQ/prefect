@@ -127,15 +127,18 @@ IMAGE_LABELS = {
 def build_image(
     context: Path,
     dockerfile: str = "Dockerfile",
+    tag: Optional[str] = None,
     pull: bool = False,
     platform: str = None,
     stream_progress_to: Optional[TextIO] = None,
+    **kwargs,
 ) -> str:
     """Builds a Docker image, returning the image ID
 
     Args:
         context: the root directory for the Docker build context
         dockerfile: the path to the Dockerfile, relative to the context
+        tag: the tag to give this image
         pull: True to pull the base image during the build
         stream_progress_to: an optional stream (like sys.stdout, or an io.TextIO) that
             will collect the build output as it is reported by Docker
@@ -150,15 +153,19 @@ def build_image(
     if not Path(context).exists():
         raise ValueError(f"Context path {context} does not exist")
 
+    kwargs = {key: kwargs[key] for key in kwargs if key not in ["decode", "labels"]}
+
     image_id = None
     with docker_client() as client:
         events = client.api.build(
             path=str(context),
+            tag=tag,
             dockerfile=dockerfile,
             pull=pull,
             decode=True,
             labels=IMAGE_LABELS,
             platform=platform,
+            **kwargs,
         )
 
         try:
@@ -499,10 +506,41 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     return image_name, tag
 
 
+def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
+    """
+    Splits a Docker repository path into its namespace and repository components.
+
+    Args:
+        repository_path: The Docker repository path to split.
+
+    Returns:
+        Tuple[Optional[str], str]: A tuple containing the namespace and repository components.
+            - namespace (Optional[str]): The Docker namespace, combining the registry and organization. None if not present.
+            - repository (Optionals[str]): The repository name.
+    """
+    parts = repository_path.split("/", 2)
+
+    # Check if the path includes a registry and organization or just organization/repository
+    if len(parts) == 3 or (len(parts) == 2 and ("." in parts[0] or ":" in parts[0])):
+        # Namespace includes registry and organization
+        namespace = "/".join(parts[:-1])
+        repository = parts[-1]
+    elif len(parts) == 2:
+        # Only organization/repository provided, so namespace is just the first part
+        namespace = parts[0]
+        repository = parts[1]
+    else:
+        # No namespace provided
+        namespace = None
+        repository = parts[0]
+
+    return namespace, repository
+
+
 def format_outlier_version_name(version: str):
     """
     Formats outlier docker version names to pass `packaging.version.parse` validation
-    - Current cases are simple, but creats stub for more complicated formatting if eventually needed.
+    - Current cases are simple, but creates stub for more complicated formatting if eventually needed.
     - Example outlier versions that throw a parsing exception:
       - "20.10.0-ce" (variant of community edition label)
       - "20.10.0-ee" (variant of enterprise edition label)
@@ -514,3 +552,46 @@ def format_outlier_version_name(version: str):
         str: value that can pass `packaging.version.parse` validation
     """
     return version.replace("-ce", "").replace("-ee", "")
+
+
+@contextmanager
+def generate_default_dockerfile(context: Optional[Path] = None):
+    """
+    Generates a default Dockerfile used for deploying flows. The Dockerfile is written
+    to a temporary file and yielded. The temporary file is removed after the context
+    manager exits.
+
+    Args:
+        - context: The context to use for the Dockerfile. Defaults to
+            the current working directory.
+    """
+    if not context:
+        context = Path.cwd()
+    lines = []
+    base_image = get_prefect_image_name()
+    lines.append(f"FROM {base_image}")
+    dir_name = context.name
+
+    if (context / "requirements.txt").exists():
+        lines.append(f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt")
+        lines.append(
+            f"RUN python -m pip install -r /opt/prefect/{dir_name}/requirements.txt"
+        )
+
+    lines.append(f"COPY . /opt/prefect/{dir_name}/")
+    lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
+
+    temp_dockerfile = context / "Dockerfile"
+    if Path(temp_dockerfile).exists():
+        raise RuntimeError(
+            "Failed to generate Dockerfile. Dockerfile already exists in the"
+            " current directory."
+        )
+
+    with Path(temp_dockerfile).open("w") as f:
+        f.writelines(line + "\n" for line in lines)
+
+    try:
+        yield temp_dockerfile
+    finally:
+        temp_dockerfile.unlink()

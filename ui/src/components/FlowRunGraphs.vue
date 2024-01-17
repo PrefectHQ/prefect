@@ -1,36 +1,30 @@
 <template>
   <div class="flow-run-graphs" :class="classes.root">
-    <div class="flow-run-graphs__graphs" :class="classes.graph">
-      <FlowRunTimeline
-        class="flow-run-graphs__timeline"
+    <div class="flow-run-graphs__graphs">
+      <FlowRunGraph
+        v-model:fullscreen="fullscreen"
+        v-model:viewport="dateRange"
+        v-model:selected="selectedNode"
         :flow-run="flowRun"
-        height="340px"
-        :selected-node="selectedNode"
-        @selection="selectNode"
-        @update:fullscreen="(event: boolean) => isFullscreen = event"
+        class="flow-run-graphs__flow-run"
       />
     </div>
-    <div
-      class="flow-run-graphs__panel-container"
-      :class="classes.panel"
-    >
-      <div class="flow-run-graphs__panel-content">
-        <FlowRunTimelineSelectionPanel
-          :selected-node="selectedNode"
-          :floating="isFullscreen"
-          @dismiss="closePanel"
-        />
-      </div>
+    <div class="flow-run-graphs__panel p-background">
+      <FlowRunGraphSelectionPanel
+        v-model:node="selectedNode"
+        :floating="fullscreen"
+      />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { NodeSelectionEvent } from '@prefecthq/graphs'
   import {
-    FlowRunTimeline,
+    FlowRunGraph,
+    RunGraphNodeSelection,
+    RunGraphViewportDateRange,
     FlowRun,
-    FlowRunTimelineSelectionPanel
+    FlowRunGraphSelectionPanel
   } from '@prefecthq/prefect-ui-library'
   import { computed, ref } from 'vue'
 
@@ -38,101 +32,69 @@
     flowRun: FlowRun,
   }>()
 
-  const isFullscreen = ref(false)
-  const selectedNode = ref<NodeSelectionEvent | null>(null)
-  const panelOpen = ref(false)
+  const dateRange = ref<RunGraphViewportDateRange>()
+
+  const fullscreen = ref(false)
+  const selectedNode = ref<RunGraphNodeSelection | null>(null)
 
   const classes = computed(() => {
     return {
       root: {
-        'flow-run-graphs--fullscreen': isFullscreen.value,
-      },
-      graph: {
-        'flow-run-graphs__graphs--panel-open': panelOpen.value,
-      },
-      panel: {
-        'flow-run-graphs__panel-container--panel-open': panelOpen.value,
+        'flow-run-graphs--fullscreen': fullscreen.value,
+        'flow-run-graphs--show-panel': Boolean(selectedNode.value),
       },
     }
   })
-
-  function selectNode(event: NodeSelectionEvent | null): void {
-    selectedNode.value = event
-    panelOpen.value = !!event
-  }
-
-  function closePanel(): void {
-    panelOpen.value = false
-  }
 </script>
 
 <style>
-.flow-run-graphs {
-  --flow-run-graphs-panel-width: 320px;
-  @apply
+.flow-run-graphs { @apply
   relative
+  grid
+  grid-cols-1
+  gap-2
+  overflow-hidden;
+  --flow-run-graphs-panel-width: 320px;
 }
+
 .flow-run-graphs--fullscreen { @apply
+  z-20
   static
 }
 
-.flow-run-graphs__timeline { @apply
-  rounded-default
-  overflow-hidden
+.flow-run-graphs__graphs { @apply
+  transition-[width];
+  width: 100%;
 }
 
-.flow-run-graphs__panel-container {
-  @apply
-  absolute
-  top-0
-  right-0
-  bottom-0
-  z-20
-  w-0
-  max-w-full
-  opacity-0
+.flow-run-graphs--show-panel .flow-run-graphs__graphs {
+  width: calc(100% - var(--flow-run-graphs-panel-width) - theme(spacing.2));
+}
+
+.flow-run-graphs__flow-run { @apply
   overflow-hidden
+  rounded
 }
-.flow-run-graphs__panel-container--panel-open {
-  width: var(--flow-run-graphs-panel-width);
-  transition: none;
-  @apply
-  opacity-100
-}
-.flow-run-graphs__panel-content {
-  width: var(--flow-run-graphs-panel-width);
-  @apply
+
+.flow-run-graphs__panel { @apply
   absolute
-  h-full
-  max-w-full
+  right-0
+  top-0
+  bottom-0
   translate-x-full
   transition-transform
-  duration-300
-}
-.flow-run-graphs__panel-container--panel-open .flow-run-graphs__panel-content { @apply
-  translate-x-0
+  rounded;
+  width: var(--flow-run-graphs-panel-width)
 }
 
-.flow-run-graphs--fullscreen .flow-run-graphs__panel-container { @apply
-  h-auto
+.flow-run-graphs--fullscreen .flow-run-graphs__panel { @apply
+  bg-floating
   top-4
   right-4
   bottom-auto
 }
-.flow-run-graphs--fullscreen .flow-run-graphs__panel-content { @apply
-  static
-  h-auto
-}
 
-@screen sm {
-  .flow-run-graphs__graphs--panel-open {
-    width: calc(100% - var(--flow-run-graphs-panel-width));
-    @apply
-    pr-2
-  }
-  .flow-run-graphs--fullscreen .flow-run-graphs__graphs--panel-open { @apply
-    w-full
-    z-20
-  }
+.flow-run-graphs--show-panel .flow-run-graphs__panel { @apply
+  translate-x-0
 }
 </style>

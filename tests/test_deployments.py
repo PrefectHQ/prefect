@@ -9,7 +9,14 @@ import pytest
 import respx
 import yaml
 from httpx import Response
-from pydantic.error_wrappers import ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas.schedules import RRuleSchedule
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1.error_wrappers import ValidationError
+else:
+    from pydantic.error_wrappers import ValidationError
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -119,6 +126,24 @@ class TestDeploymentBasicInterface:
 
         assert deployment.triggers[0].name == "TEST__automation_1"
         assert deployment.triggers[1].name == "run-it"
+
+    def test_enforce_parameter_schema_defaults_to_none(self):
+        """
+        enforce_parameter_schema defaults to None to allow for backwards compatibility
+        with older servers
+        """
+        d = Deployment(name="foo")
+        assert d.enforce_parameter_schema is None
+
+    def test_schedule_rrule_count_param_raises(self):
+        with pytest.raises(
+            ValueError,
+            match="RRule schedules with `COUNT` are not supported.",
+        ):
+            Deployment(
+                name="foo",
+                schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1;COUNT=1"),
+            )
 
 
 class TestDeploymentLoad:
@@ -340,7 +365,7 @@ class TestDeploymentBuild:
         )
         assert d.path == "/opt/prefect/flows"
 
-        # can be overriden
+        # can be overridden
         d = await Deployment.build_from_flow(
             flow=flow_function,
             name="foo",
@@ -605,6 +630,21 @@ async def test_deployment(patch_import, tmp_path):
     return d, deployment_id
 
 
+@pytest.fixture
+async def test_deployment_with_parameter_schema(patch_import, tmp_path):
+    d = Deployment(
+        name="TEST",
+        flow_name="fn",
+        enforce_parameter_schema=True,
+        parameter_openapi_schema={
+            "type": "object",
+            "properties": {"1": {"type": "string"}, "2": {"type": "string"}},
+        },
+    )
+    deployment_id = await d.apply()
+    return d, deployment_id
+
+
 class TestDeploymentApply:
     async def test_deployment_apply_updates_concurrency_limit(
         self,
@@ -707,6 +747,25 @@ class TestDeploymentApply:
         dep = await prefect_client.read_deployment(dep_id)
 
         assert dep is not None
+
+    async def test_deployment_apply_with_enforce_parameter_schema(
+        self, flow_function_dict_parameter, prefect_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function_dict_parameter,
+            name="foo",
+            enforce_parameter_schema=True,
+            parameters=dict(dict_param={1: "a", 2: "b"}),
+        )
+
+        assert d.flow_name == flow_function_dict_parameter.name
+        assert d.name == "foo"
+        assert d.enforce_parameter_schema is True
+
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        assert dep.enforce_parameter_schema is True
 
 
 class TestRunDeployment:
@@ -1028,7 +1087,7 @@ class TestRunDeployment:
 
         assert flow_run_a.id == flow_run_b.id
 
-    async def test_links_to_parent_flow_run_when_used_in_flow(
+    async def test_links_to_parent_flow_run_when_used_in_flow_by_default(
         self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
     ):
         d, deployment_id = test_deployment
@@ -1047,6 +1106,24 @@ class TestRunDeployment:
         task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
         assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
+
+    async def test_optionally_does_not_link_to_parent_flow_run_when_used_in_flow(
+        self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
+    ):
+        d, deployment_id = test_deployment
+
+        @flow
+        async def foo():
+            return await run_deployment(
+                f"{d.flow_name}/{d.name}",
+                timeout=0,
+                poll_interval=0,
+                as_subflow=False,
+            )
+
+        parent_state = await foo(return_state=True)
+        child_flow_run = await parent_state.result()
+        assert child_flow_run.parent_task_run_id is None
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_links_to_parent_flow_run_when_used_in_task_without_flow_context(

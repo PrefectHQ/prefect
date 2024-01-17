@@ -20,8 +20,8 @@ WORKDIR /opt/ui
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        # Required for arm64 builds
-        chromium \
+    # Required for arm64 builds
+    chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install a newer npm to avoid esbuild errors
@@ -29,11 +29,10 @@ RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
-RUN npm ci install
+RUN npm ci
 
 # Build static UI files
 COPY ./ui .
-ENV PREFECT_UI_SERVE_BASE="/"
 RUN npm run build
 
 
@@ -46,8 +45,8 @@ WORKDIR /opt/prefect
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        gpg \
-        git=1:2.* \
+    gpg \
+    git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy the repository in; requires full git history for versions to generate correctly
@@ -96,16 +95,16 @@ WORKDIR /opt/prefect
 # - git: Required for retrieving workflows from git sources
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        tini=0.19.* \
-        build-essential \
-        git=1:2.* \
+    tini=0.19.* \
+    build-essential \
+    git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
-RUN python -m pip install --no-cache-dir pip==22.3.1
+RUN python -m pip install --no-cache-dir pip==23.3.1
 
 # Install the base requirements separately so they cache
-COPY requirements.txt ./
+COPY requirements-client.txt requirements.txt ./
 RUN pip install --upgrade --upgrade-strategy eager --no-cache-dir -r requirements.txt
 
 # Install prefect from the sdist

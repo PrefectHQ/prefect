@@ -3,8 +3,15 @@ from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
-import pydantic
-from fastapi import status
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
+from starlette import status
 
 import prefect.context
 import prefect.settings
@@ -16,6 +23,8 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
+
+PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 
 
 def get_cloud_client(
@@ -34,7 +43,7 @@ def get_cloud_client(
         host = host or PREFECT_CLOUD_API_URL.value()
     else:
         configured_url = prefect.settings.PREFECT_API_URL.value()
-        host = re.sub(r"accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
+        host = re.sub(PARSE_API_URL_REGEX, "", configured_url)
 
     return CloudClient(
         host=host,
@@ -79,7 +88,11 @@ class CloudClient:
         return pydantic.parse_obj_as(List[Workspace], await self.get("/me/workspaces"))
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
-        return await self.get("collections/views/aggregate-worker-metadata")
+        configured_url = prefect.settings.PREFECT_API_URL.value()
+        account_id, workspace_id = re.findall(PARSE_API_URL_REGEX, configured_url)[0]
+        return await self.get(
+            f"accounts/{account_id}/workspaces/{workspace_id}/collections/work_pool_types"
+        )
 
     async def __aenter__(self):
         await self._client.__aenter__()

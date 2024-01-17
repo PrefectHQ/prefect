@@ -405,3 +405,20 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
 
     assert start_at_scheduled_time == expected_start_time
     assert start_in_scheduled_time == expected_start_time
+
+
+async def test_print_parameter_validation_error(deployment_with_parameter_schema, flow):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "deployment",
+            "run",
+            f"{flow.name}/{deployment_with_parameter_schema.name}",
+            "-p",
+            "x=1",
+        ],
+        expected_code=1,
+        expected_output_contains=(
+            "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
+        ),
+    )

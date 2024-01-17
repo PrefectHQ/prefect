@@ -11,25 +11,25 @@ search:
 
 # Workspaces <span class="badge cloud"></span>
 
-A workspace is a discrete environment within Prefect Cloud for your flows and deployments. Workspaces are only available to Prefect Cloud accounts.
+A workspace is a discrete environment within Prefect Cloud for your workflows and blocks.
+Workspaces are available to Prefect Cloud accounts only.
 
-Workspaces could be used in any way you like to organize or compartmentalize your workflows. For example, you could use separate workspaces to isolate dev, staging, and prod environments, or to provide separation between different teams.
+Workspaces can be used to organize and compartmentalize your workflows.
+For example, you can use separate workspaces to isolate dev, staging, and prod environments, or to provide separation between different teams.
 
-### Workspaces overview
-
-When you first log into Prefect Cloud, you will be prompted to create your own initial workspace. After creating your workspace, you'll be able to view flow runs, flows, deployments, and other workspace-specific features in the Prefect Cloud UI.
+When you first log into Prefect Cloud, you will be prompted to create your own initial workspace.
+After creating your workspace, you'll be able to view flow runs, flows, deployments, and other workspace-specific features in the Prefect Cloud UI.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
-Select the **Workspaces Icon** to see all of the workspaces you can access. 
+Select a workspace name in the navigation menu to see all workspaces you can access.
 
 ![Viewing all available workspaces in the Prefect Cloud UI.](/img/ui/all-workspaces.png)
 
 Your list of available workspaces may include:
 
-- Your own personal workspaces.
-- Workspaces owned by other users, who have invited you to their workspace as a collaborator.
-- Workspaces in an [organization](/ui/organizations/) to which you've been invited and have been given access to organization workspaces.
+- Your own account's workspace.
+- Workspaces in an account to which you've been invited and have been given access as an Admin or Member.
 
 !!! cloud-ad "Workspace-specific features"
     Each workspace keeps track of its own:
@@ -39,95 +39,94 @@ Your list of available workspaces may include:
     - [Deployments](/concepts/deployments/)
     - [Work pools](/concepts/work-pools/)
     - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
-    - [Automations](../automations/)
+    - [Automations](/concepts/automations/)
 
-Your user permissions within workspaces may vary. [Organizations](/ui/organizations/) can assign roles and permissions at the workspace level.
+Your user permissions within workspaces may vary.
+Account admins can assign roles and permissions at the workspace level.
 
 ## Create a workspace
 
-On the **Workspaces** page, select the **+** icon to create a new workspace. You'll be prompted to configure:
+On the Account Workspaces dropdown or the **Workspaces** page select the **+** icon to create a new workspace.
 
-- The workspace owner &mdash; the user account or organization managing the workspace.
-- A handle, or name, for the workspace. This name must be unique within your account or organization.
+You'll be prompted to configure:
+
+- The **Workspace Owner** from the dropdown account menu options.
+- The **Workspace Name** must be unique within the account.
 - An optional description for the workspace.
 
 ![Creating a new workspace in the Prefect Cloud UI.](/img/ui/create-workspace.png)
 
-Select **Create** to actually create the new workspace. The number of available workspaces varies by [Prefect Cloud plan](https://www.prefect.io/pricing/). See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces or users. 
+Select **Create** to create the new workspace.
+The number of available workspaces varies by [Prefect Cloud plan](https://www.prefect.io/pricing/).
+See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces or users.
 
 ## Workspace settings
 
-Within a workspace, select **Workspace Settings** to view or edit workspace details.  
+Within a workspace, select **Settings -> General** to view or edit workspace details.  
 
 ![Managing a workspace in the Prefect Cloud UI.](/img/ui/workspace-settings.png)
 
-The options menu enables you to edit workspace details or delete the workspace.
+On this page you can edit workspace details or delete the workspace.
 
 !!! warning "Deleting a workspace"
     Deleting a workspace deletes all deployments, flow run history, work pools, and notifications configured in workspace.
 
-## Workspace collaborators
+## Workspace access <span class="badge pro"></span> <span class="badge enterprise"></span>
 
-Personal account users may invite _workspace collaborators_, users who can join, view, and run flows in your workspaces.
+Within a Prefect Cloud Pro or Enterprise tier account, Workspace Owners can invite other people to be members and provision [service accounts](/ui/service-accounts/) to a workspace.
+In addition to giving the user access to the workspace, a Workspace Owner assigns a [workspace role](/ui/roles/) to the user.
+The role specifies the scope of permissions for the user within the workspace.
 
-In your workspace, select **Workspace Collaborators**. If you've previously invited collaborators, you'll see them listed.
+As a Workspace Owner, select **Workspaces -> Sharing** to manage members and service accounts for the workspace.
 
-![Managing collaborators in a workspace in the Prefect Cloud UI.](/img/ui/workspace-collaborators.png)
-
-To invite a user to become a workspace collaborator, select the **+** icon. You'll be prompted for the email address of the person you'd like to invite. Add the email address, then select **Send** to initiate the invitation. 
-
-If the user does not already have a Prefect Cloud account, they will be able to create one when accepting the workspace collaborator invitation.
-
-To delete a workspace collaborator, select **Remove** from the menu on the left side of the user's information on this page.
-
-## Workspace sharing <span class="badge orgs"></span>
-
-Within a Prefect Cloud [organization](/ui/organizations/), Admins and workspace Owners may invite users and [service accounts](/ui/service-accounts/) to work in an organization workspace. In addition to giving the user access to the workspace, the Admin or Owner assigns a [workspace role](/ui/roles/) to the user. The role specifies the scope of permissions for the user within the workspace.
-
-In an organization workspace, select **Workspace Sharing** to manage users and service accounts for the workspace. If you've previously invited users and service accounts, you'll see them listed.
+If you've previously invited individuals to your account or provisioned service accounts, you'll see them listed here.
 
 ![Managing sharing in a workspace in the Prefect Cloud UI.](/img/ui/workspace-sharing.png)
 
-To invite a user to become a workspace collaborator, select the Members **+** icon. You can select from a list of existing organization members. 
+To invite someone to an account, select the Members **+** icon. You can select from a list of existing account members.
 
-Select a Workspace Role for the user. This will be the initial role for the user within the workspace. A workspace Owner can change this role at any time.
+Select a Role for the user.
+This will be the initial role for the user within the workspace. A workspace Owner can change this role at any time.
 
-Select **Send** to initiate the invitation. 
+Select **Send** to initiate the invitation.
 
-To add a service account to a workspace, select the Service Accounts **+** icon. You can select from a list of existing service accounts configured for the organization. Select a Workspace Role for the service account. This will be the initial role for the service account within the workspace. A workspace Owner can change this role at any time. Select **Share** to finalize adding the service account.
+To add a service account to a workspace, select the Service Accounts **+** icon.
+You can select from a list of configured service accounts.
+Select a Workspace Role for the service account. This will be the initial role for the service account within the workspace.
+A workspace Owner can change this role at any time. Select **Share** to finalize adding the service account.
 
-To delete a workspace collaborator or service account, select **Remove** from the menu on the right side of the user or service account information on this page.
+To remove a workspace member or service account, select **Remove** from the menu on the right side of the user or service account information on this page.
 
 ## Workspace transfer
 
-Workspace transfer enables you to move an existing workspace from one account to another. For example, you may transfer a workspace from a personal account to an organization.
+Workspace transfer enables you to move an existing workspace from one account to another.
 
-Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work pools, and logs. 
+Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work pools, and logs.
 
 !!! note "Workspace transfer permissions"
-    Workspace transfer must be initiated or approved by a user with admin priviliges for the workspace to be transferred.
-
-    For example, if you are transferring a personal workspace to an organization, the owner of the personal account is the default admin for that account and must initiate or approve the transfer.
+    Workspace transfer must be initiated or approved by a user with admin privileges for the workspace to be transferred.
 
     To initiate a workspace transfer between personal accounts, contact [support@prefect.io](mailto:support@prefect.io).
 
 ### Transfer a workspace
 
-To transfer a workspace, select **Workspace Settings** within the workspace. Then, from the options menu, select **Transfer** to initiate the workspace transfer process.
+To transfer a workspace, select **Settings**  -> **General** within the workspace.
+Then, from the three dot menu in the upper right of the page, select **Transfer**.
 
 ![Initiating a workspace transfer in the Prefect Cloud UI.](/img/ui/workspace-transfer.png)
 
-The **Transfer Workspace** page shows the workspace to be transferred on the left. Select the target account or organization for the workspace on the right. You may also change the handle of the workspace during the transfer process.
-
-![Selecting a workspace transfer target in the Prefect Cloud UI.](/img/ui/workspace-transfer-options.png)
-
-Select **Transfer** to transfer the workspace. 
+The **Transfer Workspace** page shows the workspace to be transferred on the left.
+Select the target account for the workspace on the right.
 
 !!! tip "Workspace transfer impact on accounts"
-    Workspace transfer may impact resource usage and costs for source and target account or organization. 
+    Workspace transfer may impact resource usage and costs for source and target accounts.
 
-    When you transfer a workspace, users, API keys, and service accounts may lose access to the workspace. Audit log will no longer track activity on the workspace. Flow runs ending outside of the destination account’s flow run retention period will be removed. You may also need to update Prefect CLI profiles and execution environment settings to access the workspace's new location.
+    When you transfer a workspace, users, API keys, and service accounts may lose access to the workspace. 
+    Audit log will no longer track activity on the workspace. 
+    Flow runs ending outside of the destination account’s flow run retention period will be removed. 
+    You may also need to update Prefect CLI profiles and execution environment settings to access the workspace's new location.
 
     You may also incur new charges in the target account to accommodate the transferred workspace.
 
-    The **Transfer Workspace** page outlines the impacts of transferring the selected workspace to the selected target. Please review these notes carefully before selecting **Transfer** to transfer the workspace.
+    The **Transfer Workspace** page outlines the impacts of transferring the selected workspace to the selected target. 
+    Please review these notes carefully before selecting **Transfer** to transfer the workspace.

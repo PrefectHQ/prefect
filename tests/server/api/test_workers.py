@@ -1,9 +1,16 @@
 from typing import List
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
-from fastapi import status
+from starlette import status
 
 import prefect
 from prefect.client.schemas.actions import WorkPoolCreate
@@ -463,6 +470,7 @@ class TestReadWorkPool:
         result = pydantic.parse_obj_as(WorkPool, response.json())
         assert result.name == work_pool.name
         assert result.id == work_pool.id
+        assert result.status == schemas.statuses.WorkPoolStatus.NOT_READY.value
 
     async def test_read_invalid_config(self, client):
         response = await client.get("/work_pools/does-not-exist")
@@ -511,6 +519,25 @@ class TestReadWorkPools:
         response = await client.post("/work_pools/filter")
         assert response.status_code == 200
         assert len(response.json()) == 4
+
+
+class TestCountWorkPools:
+    @pytest.fixture(autouse=True)
+    async def create_work_pools(self, client):
+        for name in ["C", "B", "A"]:
+            await client.post("/work_pools/", json=dict(name=name, type="test"))
+
+    async def test_count_work_pools(self, client):
+        response = await client.post("/work_pools/count")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == 3
+
+    async def test_count_work_pools_applies_filter(self, client):
+        response = await client.post(
+            "/work_pools/count", json={"work_pools": {"name": {"any_": ["A"]}}}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == 1
 
 
 class TestCreateWorkQueue:
@@ -636,6 +663,76 @@ class TestUpdateWorkQueue:
         assert result.is_paused
 
 
+class TestWorkPoolStatus:
+    async def test_work_pool_status_with_online_worker(self, client, work_pool):
+        """Work pools with an online work should have a status of READY."""
+        await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker"),
+        )
+
+        response = await client.get(f"/work_pools/{work_pool.name}")
+        assert response.status_code == status.HTTP_200_OK
+
+        result = pydantic.parse_obj_as(WorkPool, response.json())
+        assert result.status == schemas.statuses.WorkPoolStatus.READY
+
+    async def test_work_pool_status_with_offline_worker(
+        self, client, work_pool, session, db
+    ):
+        """Work pools with only offline workers should have a status of NOT_READY."""
+        now = pendulum.now("UTC")
+
+        insert_stmt = (await db.insert(db.Worker)).values(
+            name="old-worker",
+            work_pool_id=work_pool.id,
+            last_heartbeat_time=now.subtract(minutes=5),
+        )
+
+        await session.execute(insert_stmt)
+        await session.commit()
+
+        response = await client.get(f"/work_pools/{work_pool.name}")
+        result = pydantic.parse_obj_as(WorkPool, response.json())
+
+        assert result.status == schemas.statuses.WorkPoolStatus.NOT_READY
+
+    async def test_work_pool_status_with_no_workers(self, client, work_pool):
+        """Work pools with no workers should have a status of NOT_READY."""
+        response = await client.get(f"/work_pools/{work_pool.name}")
+        result = pydantic.parse_obj_as(WorkPool, response.json())
+
+        assert result.status == schemas.statuses.WorkPoolStatus.NOT_READY
+
+    async def test_work_pool_status_for_paused_work_pool(self, client, work_pool):
+        """Work pools that are paused should have a status of PAUSED."""
+        # Pause work pool
+        await client.patch(f"/work_pools/{work_pool.name}", json=dict(is_paused=True))
+
+        # Heartbeat worker
+        await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker"),
+        )
+
+        response = await client.get(f"/work_pools/{work_pool.name}")
+        assert response.status_code == status.HTTP_200_OK
+
+        result = pydantic.parse_obj_as(WorkPool, response.json())
+        assert result.is_paused
+        assert result.status == schemas.statuses.WorkPoolStatus.PAUSED
+
+    async def test_work_pool_status_for_prefect_agent_work_pool(
+        self, client, prefect_agent_work_pool
+    ):
+        """Work pools that are Prefect Agent work pools should have `null` for status."""
+        response = await client.get(f"/work_pools/{prefect_agent_work_pool.name}")
+        assert response.status_code == status.HTTP_200_OK
+
+        result = pydantic.parse_obj_as(WorkPool, response.json())
+        assert result.status is None
+
+
 class TestWorkerProcess:
     async def test_heartbeat_worker(self, client, work_pool):
         workers_response = await client.post(
@@ -658,6 +755,7 @@ class TestWorkerProcess:
         assert len(workers_response.json()) == 1
         assert workers_response.json()[0]["name"] == "test-worker"
         assert pendulum.parse(workers_response.json()[0]["last_heartbeat_time"]) > dt
+        assert workers_response.json()[0]["status"] == "ONLINE"
 
     async def test_heartbeat_worker_requires_name(self, client, work_pool):
         response = await client.post(f"/work_pools/{work_pool.name}/workers/heartbeat")
@@ -691,6 +789,66 @@ class TestWorkerProcess:
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 1
         assert workers_response.json()[0]["name"] == "another-worker"
+
+    async def test_heartbeat_accepts_heartbeat_interval(self, client, work_pool):
+        await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker", heartbeat_interval_seconds=60),
+        )
+
+        workers_response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/filter",
+        )
+        assert len(workers_response.json()) == 1
+        assert workers_response.json()[0]["heartbeat_interval_seconds"] == 60
+
+    async def test_worker_with_old_heartbeat_has_offline_status(
+        self, client, work_pool, session, db
+    ):
+        now = pendulum.now("UTC")
+
+        insert_stmt = (await db.insert(db.Worker)).values(
+            name="old-worker",
+            work_pool_id=work_pool.id,
+            last_heartbeat_time=now.subtract(minutes=5),
+        )
+
+        await session.execute(insert_stmt)
+        await session.commit()
+
+        workers_response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/filter",
+        )
+        assert len(workers_response.json()) == 1
+        assert workers_response.json()[0]["status"] == "OFFLINE"
+
+    async def test_worker_status_accounts_for_heartbeat_interval(
+        self, client, work_pool, session, db
+    ):
+        """
+        Worker status should use the heartbeat interval to determine if a worker is
+        offline.
+
+        This test sets an abnormally small heartbeat interval and then checks that the
+        worker is still considered offline than it would by default.
+        """
+        now = pendulum.now("UTC")
+
+        insert_stmt = (await db.insert(db.Worker)).values(
+            name="old-worker",
+            work_pool_id=work_pool.id,
+            last_heartbeat_time=now.subtract(seconds=10),
+            heartbeat_interval_seconds=1,
+        )
+
+        await session.execute(insert_stmt)
+        await session.commit()
+
+        workers_response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/filter",
+        )
+        assert len(workers_response.json()) == 1
+        assert workers_response.json()[0]["status"] == "OFFLINE"
 
 
 class TestGetScheduledRuns:
@@ -824,6 +982,20 @@ class TestGetScheduledRuns:
     @pytest.fixture
     def work_queues(self, setup):
         return setup["work_queues"]
+
+    @pytest.fixture
+    async def deployment(self, setup, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                tags=["test"],
+                flow_id=flow.id,
+                work_queue_id=setup["work_queues"]["wq_aa"].id,
+            ),
+        )
+        await session.commit()
+        return deployment
 
     async def test_get_all_runs(self, client, work_pools):
         response = await client.post(
@@ -1005,3 +1177,23 @@ class TestGetScheduledRuns:
         for work_queue in work_queues:
             assert work_queue.last_polled is not None
             assert work_queue.last_polled > now
+
+    async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
+        self, client, work_pools, deployment
+    ):
+        assert deployment.last_polled is None
+        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert deployment_response.status_code == status.HTTP_200_OK
+        assert deployment_response.json()["status"] == "NOT_READY"
+
+        # trigger a poll of the work queue, which should update the deployment status
+        deployment_work_pool_name = work_pools["wp_a"].name
+        queue_response = await client.post(
+            f"/work_pools/{deployment_work_pool_name}/get_scheduled_flow_runs",
+        )
+        assert queue_response.status_code == status.HTTP_200_OK
+
+        # get the updated deployment
+        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert updated_deployment_response.status_code == status.HTTP_200_OK
+        assert updated_deployment_response.json()["status"] == "READY"

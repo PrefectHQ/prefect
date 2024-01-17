@@ -15,7 +15,13 @@ from uuid import UUID
 import anyio
 import pendulum
 import yaml
-from pydantic import BaseModel, Field, parse_obj_as, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, validator
+else:
+    from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
@@ -57,14 +63,22 @@ async def run_deployment(
     tags: Optional[Iterable[str]] = None,
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
-):
+    as_subflow: Optional[bool] = True,
+) -> FlowRun:
     """
     Create a flow run for a deployment and return it after completion or a timeout.
 
-    This function will return when the created flow run enters any terminal state or
-    the timeout is reached. If the timeout is reached and the flow run has not reached
-    a terminal state, it will still be returned. When using a timeout, we suggest
-    checking the state of the flow run if completion is important moving forward.
+    By default, this function blocks until the flow run finishes executing.
+    Specify a timeout (in seconds) to wait for the flow run to execute before
+    returning flow run metadata. To return immediately, without waiting for the
+    flow run to execute, set `timeout=0`.
+
+    Note that if you specify a timeout, this function will return the flow run
+    metadata whether or not the flow run finished executing.
+
+    If called within a flow or task, the flow run this function creates will
+    be linked to the current flow run as a subflow. Disable this behavior by
+    passing `as_subflow=False`.
 
     Args:
         name: The deployment id or deployment name in the form:
@@ -74,10 +88,10 @@ async def run_deployment(
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             the flow run to start now.
         flow_run_name: A name for the created flow run
-        timeout: The amount of time to wait for the flow run to complete before
-            returning. Setting `timeout` to 0 will return the flow run immediately.
-            Setting `timeout` to None will allow this function to poll indefinitely.
-            Defaults to None
+        timeout: The amount of time to wait (in seconds) for the flow run to
+            complete before returning. Setting `timeout` to 0 will return the flow
+            run metadata immediately. Setting `timeout` to None will allow this
+            function to poll indefinitely. Defaults to None.
         poll_interval: The number of seconds between polls
         tags: A list of tags to associate with this flow run; note that tags are used
             only for organizational purposes.
@@ -85,6 +99,8 @@ async def run_deployment(
             prevent creating multiple flow runs.
         work_queue_name: The name of a work queue to use for this run. Defaults to
             the default work queue for the deployment.
+        as_subflow: Whether or not to link the flow run as a subflow of the current
+            flow or task run.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
@@ -111,7 +127,7 @@ async def run_deployment(
 
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
-    if flow_run_ctx or task_run_ctx:
+    if as_subflow and (flow_run_ctx or task_run_ctx):
         # This was called from a flow. Link the flow run as a subflow.
         from prefect.engine import (
             Pending,
@@ -187,7 +203,10 @@ async def run_deployment(
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: FlowRun, client: PrefectClient, ignore_storage: bool = False
+    flow_run: FlowRun,
+    client: PrefectClient,
+    ignore_storage: bool = False,
+    storage_base_path: Optional[str] = None,
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
@@ -198,6 +217,10 @@ async def load_flow_from_flow_run(
     deployment = await client.read_deployment(flow_run.deployment_id)
     logger = flow_run_logger(flow_run)
 
+    runner_storage_base_path = storage_base_path or os.environ.get(
+        "PREFECT__STORAGE_BASE_PATH"
+    )
+
     if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
         if deployment.storage_document_id:
@@ -207,10 +230,19 @@ async def load_flow_from_flow_run(
             storage_block = Block._from_block_document(storage_document)
         else:
             basepath = deployment.path or Path(deployment.manifest_path).parent
+            if runner_storage_base_path:
+                basepath = str(basepath).replace(
+                    "$STORAGE_BASE_PATH", runner_storage_base_path
+                )
             storage_block = LocalFileSystem(basepath=basepath)
 
-        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
-        await storage_block.get_directory(from_path=deployment.path, local_path=".")
+        from_path = (
+            str(deployment.path).replace("$STORAGE_BASE_PATH", runner_storage_base_path)
+            if runner_storage_base_path and deployment.path
+            else deployment.path
+        )
+        logger.info(f"Downloading flow code from storage at {from_path!r}")
+        await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
         logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
@@ -294,6 +326,8 @@ class Deployment(BaseModel):
         entrypoint: The path to the entrypoint for the workflow, always relative to the
             `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
 
     Examples:
 
@@ -489,6 +523,14 @@ class Deployment(BaseModel):
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
+    # defaults to None to allow for backwards compatibility
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the Prefect API should enforce the parameter schema for"
+            " this deployment."
+        ),
+    )
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -543,6 +585,19 @@ class Deployment(BaseModel):
 
         return field_value
 
+    @validator("schedule")
+    def validate_schedule(cls, value):
+        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
+        if value:
+            rrule_value = getattr(value, "rrule", None)
+            if rrule_value and "COUNT" in rrule_value.upper():
+                raise ValueError(
+                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
+                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
+                    " number of flow runs."
+                )
+        return value
+
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
@@ -590,7 +645,13 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage", "timestamp", "triggers"}
+                    {
+                        "infrastructure",
+                        "storage",
+                        "timestamp",
+                        "triggers",
+                        "enforce_parameter_schema",
+                    }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -743,6 +804,7 @@ class Deployment(BaseModel):
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
             if client.server_type == ServerType.CLOUD:

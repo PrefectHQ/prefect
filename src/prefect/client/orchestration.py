@@ -2,21 +2,37 @@ import asyncio
 import datetime
 import warnings
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Union,
+)
 from uuid import UUID
 
 import httpcore
 import httpx
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI, status
+from starlette import status
 
 import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
     ArtifactCreate,
@@ -33,6 +49,8 @@ from prefect.client.schemas.actions import (
     FlowRunCreate,
     FlowRunNotificationPolicyCreate,
     FlowRunUpdate,
+    GlobalConcurrencyLimitCreate,
+    GlobalConcurrencyLimitUpdate,
     LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
@@ -65,6 +83,7 @@ from prefect.client.schemas.objects import (
     Constant,
     Deployment,
     Flow,
+    FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
     Log,
@@ -76,9 +95,11 @@ from prefect.client.schemas.objects import (
     Worker,
     WorkPool,
     WorkQueue,
+    WorkQueueStatusDetail,
 )
 from prefect.client.schemas.responses import (
     DeploymentResponse,
+    FlowRunResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -111,7 +132,7 @@ if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
     from prefect.tasks import Task as TaskObject
 
-from prefect.client.base import PrefectHttpxClient, app_lifespan_context
+from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
 
 
 class ServerType(AutoEnum):
@@ -177,7 +198,7 @@ class PrefectClient:
 
     def __init__(
         self,
-        api: Union[str, FastAPI],
+        api: Union[str, ASGIApp],
         *,
         api_key: str = None,
         api_basic_auth: str = None,
@@ -191,9 +212,6 @@ class PrefectClient:
             httpx_settings.setdefault("verify", False)
 
         if api_version is None:
-            # deferred import to avoid importing the entire server unless needed
-            from prefect.server.api.server import SERVER_API_VERSION
-
             api_version = SERVER_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
@@ -203,7 +221,7 @@ class PrefectClient:
 
         # Context management
         self._exit_stack = AsyncExitStack()
-        self._ephemeral_app: Optional[FastAPI] = None
+        self._ephemeral_app: Optional[ASGIApp] = None
         self.manage_lifespan = True
         self.server_type: ServerType
 
@@ -251,7 +269,7 @@ class PrefectClient:
             )
 
         # Connect to an in-process application
-        elif isinstance(api, FastAPI):
+        elif isinstance(api, ASGIApp):
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
 
@@ -274,7 +292,7 @@ class PrefectClient:
         else:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
-                " 'str' or 'FastAPI'"
+                " 'str' or 'ASGIApp/FastAPI'"
             )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
@@ -672,7 +690,7 @@ class PrefectClient:
             httpx.RequestError: If requests fails
         """
         try:
-            await self._client.delete(f"/flow_runs/{flow_run_id}"),
+            await self._client.delete(f"/flow_runs/{flow_run_id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1028,15 +1046,43 @@ class PrefectClient:
                 raise
         return WorkQueue.parse_obj(response.json())
 
+    async def read_work_queue_status(
+        self,
+        id: UUID,
+    ) -> WorkQueueStatusDetail:
+        """
+        Read a work queue status.
+
+        Args:
+            id: the id of the work queue to load
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            WorkQueueStatus: an instantiated WorkQueueStatus object
+        """
+        try:
+            response = await self._client.get(f"/work_queues/{id}/status")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return WorkQueueStatusDetail.parse_obj(response.json())
+
     async def match_work_queues(
         self,
         prefixes: List[str],
+        work_pool_name: Optional[str] = None,
     ) -> List[WorkQueue]:
         """
         Query the Prefect API for work queues with names with a specific prefix.
 
         Args:
             prefixes: a list of strings used to match work queue name prefixes
+            work_pool_name: an optional work pool name to scope the query to
 
         Returns:
             a list of WorkQueue model representations
@@ -1048,6 +1094,7 @@ class PrefectClient:
 
         while True:
             new_queues = await self.read_work_queues(
+                work_pool_name=work_pool_name,
                 offset=current_page * page_length,
                 limit=page_length,
                 work_queue_filter=WorkQueueFilter(
@@ -1296,6 +1343,34 @@ class PrefectClient:
         response = await self._client.post("/block_schemas/filter", json={})
         return pydantic.parse_obj_as(List[BlockSchema], response.json())
 
+    async def get_most_recent_block_schema_for_block_type(
+        self,
+        block_type_id: UUID,
+    ) -> Optional[BlockSchema]:
+        """
+        Fetches the most recent block schema for a specified block type ID.
+
+        Args:
+            block_type_id: The ID of the block type.
+
+        Raises:
+            httpx.RequestError: If the request fails for any reason.
+
+        Returns:
+            The most recent block schema or None.
+        """
+        try:
+            response = await self._client.post(
+                "/block_schemas/filter",
+                json={
+                    "block_schemas": {"block_type_id": {"any_": [str(block_type_id)]}},
+                    "limit": 1,
+                },
+            )
+        except httpx.HTTPStatusError:
+            raise
+        return BlockSchema.parse_obj(response.json()[0]) if response.json() else None
+
     async def read_block_document(
         self,
         block_document_id: UUID,
@@ -1319,6 +1394,9 @@ class PrefectClient:
         Returns:
             A block document or None.
         """
+        assert (
+            block_document_id is not None
+        ), "Unexpected ID on block document. Was it persisted?"
         try:
             response = await self._client.get(
                 f"/block_documents/{block_document_id}",
@@ -1336,7 +1414,7 @@ class PrefectClient:
         name: str,
         block_type_slug: str,
         include_secrets: bool = True,
-    ):
+    ) -> BlockDocument:
         """
         Read the block document with the specified name that corresponds to a
         specific block type name.
@@ -1404,6 +1482,35 @@ class PrefectClient:
         )
         return pydantic.parse_obj_as(List[BlockDocument], response.json())
 
+    async def read_block_documents_by_type(
+        self,
+        block_type_slug: str,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+        include_secrets: bool = True,
+    ) -> List[BlockDocument]:
+        """Retrieve block documents by block type slug.
+
+        Args:
+            block_type_slug: The block type slug.
+            offset: an offset
+            limit: the number of blocks to return
+            include_secrets: whether to include secret values
+
+        Returns:
+            A list of block documents
+        """
+        response = await self._client.get(
+            f"/block_types/slug/{block_type_slug}/block_documents",
+            params=dict(
+                offset=offset,
+                limit=limit,
+                include_secrets=include_secrets,
+            ),
+        )
+
+        return pydantic.parse_obj_as(List[BlockDocument], response.json())
+
     async def create_deployment(
         self,
         flow_id: UUID,
@@ -1424,6 +1531,7 @@ class PrefectClient:
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
+        enforce_parameter_schema: Optional[bool] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1463,6 +1571,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             pull_steps=pull_steps,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
 
         if work_pool_name is not None:
@@ -1480,6 +1589,9 @@ class PrefectClient:
 
         if deployment_create.pull_steps is None:
             exclude.add("pull_steps")
+
+        if deployment_create.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
 
         json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
@@ -1522,14 +1634,19 @@ class PrefectClient:
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
             infra_overrides=deployment.infra_overrides,
+            enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 
         if getattr(deployment, "work_pool_name", None) is not None:
             deployment_update.work_pool_name = deployment.work_pool_name
 
+        exclude = set()
+        if deployment.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
+
         await self._client.patch(
             f"/deployments/{deployment.id}",
-            json=deployment_update.dict(json_compatible=True),
+            json=deployment_update.dict(json_compatible=True, exclude=exclude),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:
@@ -1700,18 +1817,23 @@ class PrefectClient:
                 raise
         return FlowRun.parse_obj(response.json())
 
-    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+    async def resume_flow_run(
+        self, flow_run_id: UUID, run_input: Optional[Dict] = None
+    ) -> OrchestrationResult:
         """
         Resumes a paused flow run.
 
         Args:
             flow_run_id: the flow run ID of interest
+            run_input: the input to resume the flow run with
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
         try:
-            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
+            response = await self._client.post(
+                f"/flow_runs/{flow_run_id}/resume", json={"run_input": run_input}
+            )
         except httpx.HTTPStatusError:
             raise
 
@@ -2101,7 +2223,7 @@ class PrefectClient:
         limit: int = None,
         offset: int = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,
-    ) -> None:
+    ) -> List[Log]:
         """
         Read flow and task run logs.
         """
@@ -2146,7 +2268,12 @@ class PrefectClient:
 
         return await resolve_inner(datadoc)
 
-    async def send_worker_heartbeat(self, work_pool_name: str, worker_name: str):
+    async def send_worker_heartbeat(
+        self,
+        work_pool_name: str,
+        worker_name: str,
+        heartbeat_interval_seconds: Optional[float] = None,
+    ):
         """
         Sends a worker heartbeat for a given work pool.
 
@@ -2156,7 +2283,10 @@ class PrefectClient:
         """
         await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json={"name": worker_name},
+            json={
+                "name": worker_name,
+                "heartbeat_interval_seconds": heartbeat_interval_seconds,
+            },
         )
 
     async def read_workers_for_work_pool(
@@ -2272,10 +2402,23 @@ class PrefectClient:
         work_pool_name: str,
         work_pool: WorkPoolUpdate,
     ):
-        await self._client.patch(
-            f"/work_pools/{work_pool_name}",
-            json=work_pool.dict(json_compatible=True, exclude_unset=True),
-        )
+        """
+        Updates a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool to update.
+            work_pool: Fields to update in the work pool.
+        """
+        try:
+            await self._client.patch(
+                f"/work_pools/{work_pool_name}",
+                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def delete_work_pool(
         self,
@@ -2340,6 +2483,25 @@ class PrefectClient:
 
         return pydantic.parse_obj_as(List[WorkQueue], response.json())
 
+    async def get_scheduled_flow_runs_for_deployments(
+        self,
+        deployment_ids: List[UUID],
+        scheduled_before: Optional[datetime.datetime] = None,
+        limit: Optional[int] = None,
+    ):
+        body: Dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
+        if scheduled_before:
+            body["scheduled_before"] = str(scheduled_before)
+        if limit:
+            body["limit"] = limit
+
+        response = await self._client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=body,
+        )
+
+        return pydantic.parse_obj_as(List[FlowRunResponse], response.json())
+
     async def get_scheduled_flow_runs_for_work_pool(
         self,
         work_pool_name: str,
@@ -2371,7 +2533,6 @@ class PrefectClient:
             f"/work_pools/{work_pool_name}/get_scheduled_flow_runs",
             json=body,
         )
-
         return pydantic.parse_obj_as(List[WorkerFlowRunResponse], response.json())
 
     async def create_artifact(
@@ -2569,6 +2730,125 @@ class PrefectClient:
             },
         )
 
+    async def create_global_concurrency_limit(
+        self, concurrency_limit: GlobalConcurrencyLimitCreate
+    ) -> UUID:
+        response = await self._client.post(
+            "/v2/concurrency_limits/",
+            json=concurrency_limit.dict(json_compatible=True, exclude_unset=True),
+        )
+        return UUID(response.json()["id"])
+
+    async def update_global_concurrency_limit(
+        self, name: str, concurrency_limit: GlobalConcurrencyLimitUpdate
+    ) -> httpx.Response:
+        try:
+            response = await self._client.patch(
+                f"/v2/concurrency_limits/{name}",
+                json=concurrency_limit.dict(json_compatible=True, exclude_unset=True),
+            )
+            return response
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def delete_global_concurrency_limit_by_name(
+        self, name: str
+    ) -> httpx.Response:
+        try:
+            response = await self._client.delete(f"/v2/concurrency_limits/{name}")
+            return response
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_global_concurrency_limit_by_name(
+        self, name: str
+    ) -> Dict[str, object]:
+        try:
+            response = await self._client.get(f"/v2/concurrency_limits/{name}")
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_global_concurrency_limits(
+        self, limit: int = 10, offset: int = 0
+    ) -> List[Dict[str, object]]:
+        response = await self._client.post(
+            "/v2/concurrency_limits/filter",
+            json={
+                "limit": limit,
+                "offset": offset,
+            },
+        )
+        return response.json()
+
+    async def create_flow_run_input(
+        self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
+    ):
+        """
+        Creates a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+            value: The input value.
+            sender: The sender of the input.
+        """
+
+        # Initialize the input to ensure that the key is valid.
+        FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
+
+        response = await self._client.post(
+            f"/flow_runs/{flow_run_id}/input",
+            json={"key": key, "value": value, "sender": sender},
+        )
+        response.raise_for_status()
+
+    async def filter_flow_run_input(
+        self, flow_run_id: UUID, key_prefix: str, limit: int, exclude_keys: Set[str]
+    ) -> List[FlowRunInput]:
+        response = await self._client.post(
+            f"/flow_runs/{flow_run_id}/input/filter",
+            json={
+                "prefix": key_prefix,
+                "limit": limit,
+                "exclude_keys": list(exclude_keys),
+            },
+        )
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[FlowRunInput], response.json())
+
+    async def read_flow_run_input(self, flow_run_id: UUID, key: str) -> str:
+        """
+        Reads a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+        """
+        response = await self._client.get(f"/flow_runs/{flow_run_id}/input/{key}")
+        response.raise_for_status()
+        return response.content.decode()
+
+    async def delete_flow_run_input(self, flow_run_id: UUID, key: str):
+        """
+        Deletes a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+        """
+        response = await self._client.delete(f"/flow_runs/{flow_run_id}/input/{key}")
+        response.raise_for_status()
+
     async def __aenter__(self):
         """
         Start the client.
@@ -2629,10 +2909,3 @@ class PrefectClient:
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectClient` instead.")
-class OrionClient(PrefectClient):
-    """
-    Deprecated. Use `PrefectClient` instead.
-    """

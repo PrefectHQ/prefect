@@ -1,9 +1,5 @@
 """
-<span class="badge-api beta"/>
-
 Module containing the Process worker used for executing flow runs as subprocesses.
-
-Note this module is in **beta**. The interfaces within may change without notice.
 
 To start a Process worker, run the following command:
 
@@ -31,12 +27,18 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, validator
+else:
+    from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.utilities.filesystem import relative_path_to_current_platform
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -98,10 +100,17 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
         self.env = {**os.environ, **self.env}
         self.command = (
-            f"{sys.executable} -m prefect.engine"
+            f"{get_sys_executable()} -m prefect.engine"
             if self.command == self._base_flow_run_command()
             else self.command
         )
+
+    def _base_flow_run_command(self) -> str:
+        """
+        Override the base flow run command because enhanced cancellation doesn't
+        work with the process worker.
+        """
+        return "python -m prefect.engine"
 
 
 class ProcessVariables(BaseVariables):
@@ -140,7 +149,7 @@ class ProcessWorker(BaseWorker):
     _documentation_url = (
         "https://docs.prefect.io/latest/api-ref/prefect/workers/process/"
     )
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
 
     async def run(
         self,
@@ -150,7 +159,7 @@ class ProcessWorker(BaseWorker):
     ):
         command = configuration.command
         if not command:
-            command = f"{sys.executable} -m prefect.engine"
+            command = f"{get_sys_executable()} -m prefect.engine"
 
         flow_run_logger = self.get_flow_run_logger(flow_run)
 

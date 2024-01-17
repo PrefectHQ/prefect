@@ -32,6 +32,9 @@ When a flow runs, the execution environment needs access to its code.
 Flow code is not stored in a Prefect server database instance or Prefect Cloud. 
 When deploying a flow, you have several flow code storage options.
 
+This guide discusses storage options with a focus on deployments created with a the interactive CLI experience or a `prefect.yaml` file. 
+If you'd like to create your deployments using Python code, see the discussion of flow code storage on the `.deploy` tab of [Deploying Flows to Work pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments).
+
 ## Option 1: Local storage
 
 Local flow code storage is often used with a Local Subprocess work pool for initial experimentation. 
@@ -68,7 +71,7 @@ Prefect supports each of these platforms.
 
 ### Creating a deployment with git-based storage
 
-Run `prefect deploy` from within a git repository and create a new deployment. You will see a series of prompts. Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment.
+Run `prefect deploy` from the root directory of the git repository and create a new deployment. You will see a series of prompts. Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment.
 
 Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. Select "y" and you will be prompted to confirm the URL of your git repository and the branch name, as in the example below:
 
@@ -121,7 +124,7 @@ Creating access tokens differs for each provider.
 
     In your repository in the GitLab UI, select *Settings->Repository->Project Access Tokens* and check *read_repository* under *Select scopes*.
 
-If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file, create the block via code or the Prefect UI and reference it like this:
+If you want to configure a Secret block ahead of time, create the block via code or the Prefect UI and reference it in your `prefect.yaml` file.
 
 ```yaml
 
@@ -179,8 +182,8 @@ Alternatively, you can create a Credentials block ahead of time and reference it
     ```
 
 !!! warning "Push your code"
-    When you make a change to your code, Prefect does push your code to your git-based version control platform. 
-    You need to do push your code manually or as part of your CI/CD pipeline. 
+    When you make a change to your code, Prefect does not push your code to your git-based version control platform. 
+    You need to push your code manually or as part of your CI/CD pipeline. 
     This design decision is an intentional one to avoid confusion about the git history and push process.
 
 ## Option 3: Docker-based storage
@@ -198,8 +201,8 @@ Another popular way to store your flow code is to include it in a Docker image. 
     - Azure Container Instances - Push
     - Google Cloud Run - Push
 
-1. Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in. See the [Docker guide](/guides/deployment/docker/) for more info.
-1. Run `prefect deploy` to create a deployment. 
+1. Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in. See the [Workers and Work Pools page of the tutorial](/tutorial/workers/) for more info.
+1. Run `prefect deploy` from the root of your repository to create a deployment. 
 1. Upon deployment run the worker will pull the Docker image and spin up a container. 
 1. The flow code baked into the image will run inside the container. 
 

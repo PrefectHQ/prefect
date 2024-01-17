@@ -408,7 +408,7 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
     """
     Run calls concurrently and gather their results.
 
-    Unlike `asyncio.gather` this expects to receieve _callables_ not _coroutines_.
+    Unlike `asyncio.gather` this expects to receive _callables_ not _coroutines_.
     This matches `anyio` semantics.
     """
     keys = []
@@ -416,3 +416,22 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
         for call in calls:
             keys.append(tg.start_soon(call))
     return [tg.get_result(key) for key in keys]
+
+
+class LazySemaphore:
+    def __init__(self, initial_value_func):
+        self._semaphore = None
+        self._initial_value_func = initial_value_func
+
+    async def __aenter__(self):
+        self._initialize_semaphore()
+        await self._semaphore.__aenter__()
+        return self._semaphore
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._semaphore.__aexit__(exc_type, exc, tb)
+
+    def _initialize_semaphore(self):
+        if self._semaphore is None:
+            initial_value = self._initial_value_func()
+            self._semaphore = asyncio.Semaphore(initial_value)

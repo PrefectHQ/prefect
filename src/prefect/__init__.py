@@ -15,6 +15,11 @@ __version__ = __version_info__["version"]
 __module_path__ = pathlib.Path(__file__).parent
 # The absolute path to the root of the repository, only valid for use during development
 __development_base_path__ = __module_path__.parents[1]
+
+# The absolute path to the built UI within the Python module, used by
+# `prefect server start` to serve a dynamic build of the UI
+__ui_static_subpath__ = __module_path__ / "server" / "ui_build"
+
 # The absolute path to the built UI within the Python module
 __ui_static_path__ = __module_path__ / "server" / "ui"
 
@@ -35,6 +40,7 @@ if sys.version_info < (3, 8):
 
 # Import user-facing API
 from prefect.runner import Runner, serve
+from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow
@@ -43,7 +49,7 @@ from prefect.context import tags
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
-from prefect.engine import pause_flow_run, resume_flow_run
+from prefect.engine import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
 import prefect.variables
@@ -100,7 +106,6 @@ from prefect._internal.compatibility.deprecated import (
     register_renamed_module,
 )
 
-register_renamed_module("prefect.orion", "prefect.server", start_date="Feb 2023")
 register_renamed_module(
     "prefect.client.orchestration",
     "prefect.client.orchestration",
@@ -170,4 +175,9 @@ __all__ = [
     "Task",
     "unmapped",
     "Runner",
+    "serve",
+    "deploy",
+    "pause_flow_run",
+    "resume_flow_run",
+    "suspend_flow_run",
 ]

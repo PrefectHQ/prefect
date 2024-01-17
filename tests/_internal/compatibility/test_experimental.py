@@ -1,7 +1,13 @@
 import re
 
 import pytest
-from pydantic import BaseModel, ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, ValidationError
+else:
+    from pydantic import BaseModel, ValidationError
 
 from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
@@ -466,6 +472,8 @@ def test_enabled_experiments_with_opt_in():
         "artifacts",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
+        "enhanced_cancellation",
     }
 
 
@@ -476,4 +484,6 @@ def test_enabled_experiments_without_opt_in():
         "artifacts",
         "events_client",
         "workspace_dashboard",
+        "deployment_status",
+        "enhanced_cancellation",
     }

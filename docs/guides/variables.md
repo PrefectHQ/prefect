@@ -22,8 +22,8 @@ While variable values are most commonly loaded during flow runtime, they can be 
 
 You can create, read, edit and delete variables via the Prefect UI, API, and CLI. Names must adhere to traditional variable naming conventions:
 
-- have less than or equal to 255 characters.
-- only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
+- Have no more than 255 characters.
+- Only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
 - be unique.
 
 Values must:
@@ -38,7 +38,7 @@ You can see all the variables in your Prefect server instance or Prefect Cloud w
 
 To create a new variable, select the **+** button next to the header of the **Variables** page. Enter the name and value of the variable.
 
-![variables-ui](/img/concepts/variables-ui.png)
+![variables-ui](/img/ui/variables-ui.png)
 
 ### Via the REST API
 
@@ -80,7 +80,7 @@ print(answer)
 # 42
 ```
 
-### In Project steps
+### In `prefect.yaml` deployment steps
 
 In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize deployment steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a deployment `pull` step:
 

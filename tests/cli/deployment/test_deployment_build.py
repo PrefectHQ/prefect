@@ -154,6 +154,48 @@ async def ensure_default_agent_pool_exists(session):
 
 
 class TestSchedules:
+    def test_passing_no_schedule_and_cron_schedules_to_build_exits_with_error(
+        self, patch_import, tmp_path
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--no-schedule",
+                "--cron",
+                "0 4 * * *",
+                "--timezone",
+                "Europe/Berlin",
+            ],
+            expected_code=1,
+            expected_output="Only one schedule type can be provided.",
+            temp_dir=tmp_path,
+        )
+
+    def test_passing_no_schedule_to_build(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--no-schedule",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.schedule is None
+
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
             [
@@ -414,7 +456,7 @@ class TestParameterOverrides:
                 "--params",
                 '{"which": "parameter"}',
                 "--param",
-                "shouldbe:used",
+                "should-be:used",
             ],
             expected_code=1,
             temp_dir=tmp_path,

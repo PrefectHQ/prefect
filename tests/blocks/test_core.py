@@ -8,7 +8,13 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+else:
+    from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -1361,6 +1367,25 @@ class TestSaveBlock:
         assert loaded_new_block._block_type_id == new_block._block_type_id
 
         assert loaded_new_block == new_block
+
+    async def test_save_block_with_name_inferred_from_loaded_document(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
+
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save a block document without a name.",
+        ):
+            await new_block.save()
+
+        await new_block.save("new-block")
+
+        new_python_instance = await NewBlock.load("new-block")
+        new_python_instance.a = "baz"
+        await new_python_instance.save(overwrite=True)
+
+        loaded_new_block = await NewBlock.load("new-block")
+        assert loaded_new_block.a == "baz"
+        assert loaded_new_block.b == "bar"
 
     async def test_save_anonymous_block(self, NewBlock):
         new_anon_block = NewBlock(a="foo", b="bar")

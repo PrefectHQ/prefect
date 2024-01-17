@@ -4,12 +4,21 @@ from unittest.mock import MagicMock, call
 
 import anyio
 import pendulum
-import pydantic
+from packaging import version
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+    from pydantic.v1 import Field
+else:
+    import pydantic
+    from pydantic import Field
+
 import pytest
-from pydantic import Field
 
 import prefect
-import prefect.server.schemas as schemas
+import prefect.client.schemas as schemas
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
@@ -24,7 +33,13 @@ from prefect.server import models
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_WORKER_PREFETCH_SECONDS,
+    get_current_settings,
+    temporary_settings,
+)
 from prefect.states import Cancelled, Cancelling, Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
@@ -72,6 +87,17 @@ async def variables(prefect_client: PrefectClient):
     await prefect_client._client.post(
         "/variables/", json={"name": "test_variable_2", "value": "test_value_2"}
     )
+
+
+@pytest.fixture
+def enable_enhanced_cancellation():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: True,
+            PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: False,
+        }
+    ):
+        yield
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(
@@ -354,9 +380,8 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
 
     assert (
         f"Flow run {flow_run.id!r} was created from deployment"
-        f" {deployment.name!r} which is configured with a storage block. Workers"
-        " currently only support local storage. Please use an agent to execute this"
-        " flow run."
+        f" {deployment.name!r} which is configured with a storage block. Please use an"
+        + " agent to execute this flow run."
         in caplog.text
     )
 
@@ -477,7 +502,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.objects.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
@@ -516,7 +541,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.objects.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
@@ -1317,7 +1342,7 @@ class TestPrepareForFlowRun:
         assert job_config.env == {
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
-            "PREFECT__FLOW_RUN_ID": flow_run.id.hex,
+            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1326,7 +1351,27 @@ class TestPrepareForFlowRun:
             "prefect.io/version": prefect.__version__,
         }
         assert job_config.name == "my-job-name"
-        assert job_config.command == "python -m prefect.engine"
+        assert job_config.command == "prefect flow-run execute"
+
+    def test_prepare_for_flow_run_with_enhanced_cancellation(
+        self, job_config, flow_run, enable_enhanced_cancellation
+    ):
+        job_config.prepare_for_flow_run(flow_run)
+
+        assert job_config.env == {
+            **get_current_settings().to_environment_variables(exclude_unset=True),
+            "MY_VAR": "foo",
+            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+        }
+        assert job_config.labels == {
+            "my-label": "foo",
+            "prefect.io/flow-run-id": str(flow_run.id),
+            "prefect.io/flow-run-name": flow_run.name,
+            "prefect.io/version": prefect.__version__,
+        }
+        assert job_config.name == "my-job-name"
+        # only thing that changes is the command
+        assert job_config.command == "prefect flow-run execute"
 
     def test_prepare_for_flow_run_with_deployment_and_flow(
         self, job_config, flow_run, deployment, flow
@@ -1336,7 +1381,7 @@ class TestPrepareForFlowRun:
         assert job_config.env == {
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
-            "PREFECT__FLOW_RUN_ID": flow_run.id.hex,
+            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1349,7 +1394,7 @@ class TestPrepareForFlowRun:
             "prefect.io/flow-name": flow.name,
         }
         assert job_config.name == "my-job-name"
-        assert job_config.command == "python -m prefect.engine"
+        assert job_config.command == "prefect flow-run execute"
 
 
 def legacy_named_cancelling_state(**kwargs):
@@ -1357,6 +1402,13 @@ def legacy_named_cancelling_state(**kwargs):
 
 
 class TestCancellation:
+    @pytest.fixture(autouse=True)
+    def disable_enhanced_cancellation(self, disable_enhanced_cancellation):
+        """
+        Workers only cancel flow runs when enhanced cancellation is disabled.
+        These tests are for the legacy cancellation behavior.
+        """
+
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
@@ -1732,6 +1784,7 @@ class TestCancellation:
         # No need for state message update
         assert post_flow_run.state.message is None
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
@@ -1822,6 +1875,34 @@ class TestCancellation:
         )
         assert "Cancellation cannot be guaranteed." in caplog.text
 
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_skips_with_runner(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        caplog,
+        cancelling_constructor,
+        enable_enhanced_cancellation,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            await worker.sync_with_backend()
+            await worker.check_for_cancelled_flow_runs()
+
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        # shouldn't change state
+        assert post_flow_run.state.type == cancelling_constructor().type
+
+        assert "Skipping cancellation because flow run" in caplog.text
+        assert "is using enhanced cancellation" in caplog.text
+
 
 async def test_get_flow_run_logger(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
@@ -1885,55 +1966,105 @@ async def test_worker_set_last_polled_time(
     work_pool,
 ):
     now = pendulum.now("utc")
-    # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
-    pendulum.set_test_now(now)
 
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        # initially, the worker should have _last_polled_time set to now
-        assert worker._last_polled_time == now
+    # https://github.com/PrefectHQ/prefect/issues/11619
+    # Pendulum 3 Test Case
+    if version.parse(pendulum.__version__) >= version.parse("3.0"):
+        # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
+        with pendulum.travel_to(now, freeze=True):
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+                # initially, the worker should have _last_polled_time set to now
+                assert worker._last_polled_time == now
 
-        # some arbitrary delta forward
-        now2 = now.add(seconds=49)
-        pendulum.set_test_now(now2)
-        await worker.get_and_submit_flow_runs()
-        assert worker._last_polled_time == now2
+                # some arbitrary delta forward
+                now2 = now.add(seconds=49)
+                with pendulum.travel_to(now2, freeze=True):
+                    await worker.get_and_submit_flow_runs()
+                    assert worker._last_polled_time == now2
 
-        # some arbitrary datetime
-        now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
-        pendulum.set_test_now(now3)
-        await worker.get_and_submit_flow_runs()
-        assert worker._last_polled_time == now3
+                # some arbitrary datetime
+                now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
+                with pendulum.travel_to(now3, freeze=True):
+                    await worker.get_and_submit_flow_runs()
+                    assert worker._last_polled_time == now3
 
-        # cleanup mock
-        pendulum.set_test_now()
+    # Pendulum 2 Test Case
+    else:
+        pendulum.set_test_now(now)
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            # initially, the worker should have _last_polled_time set to now
+            assert worker._last_polled_time == now
+
+            # some arbitrary delta forward
+            now2 = now.add(seconds=49)
+            pendulum.set_test_now(now2)
+            await worker.get_and_submit_flow_runs()
+            assert worker._last_polled_time == now2
+
+            # some arbitrary datetime
+            now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
+            pendulum.set_test_now(now3)
+            await worker.get_and_submit_flow_runs()
+            assert worker._last_polled_time == now3
+
+            # cleanup mock
+            pendulum.set_test_now()
 
 
 async def test_worker_last_polled_health_check(
     work_pool,
 ):
     now = pendulum.now("utc")
-    # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
-    pendulum.set_test_now(now)
 
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        resp = worker.is_worker_still_polling(query_interval_seconds=10)
-        assert resp is True
+    # https://github.com/PrefectHQ/prefect/issues/11619
+    # Pendulum 3 Test Case
+    if version.parse(pendulum.__version__) >= version.parse("3.0"):
+        # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
+        pendulum.travel_to(now, freeze=True)
 
-        pendulum.set_test_now(now.add(seconds=299))
-        resp = worker.is_worker_still_polling(query_interval_seconds=10)
-        assert resp is True
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is True
 
-        pendulum.set_test_now(now.add(seconds=301))
-        resp = worker.is_worker_still_polling(query_interval_seconds=10)
-        assert resp is False
+            with pendulum.travel(seconds=299):
+                resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                assert resp is True
 
-        pendulum.set_test_now(now.add(minutes=30))
-        resp = worker.is_worker_still_polling(query_interval_seconds=60)
-        assert resp is True
+            with pendulum.travel(seconds=301):
+                resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                assert resp is False
 
-        pendulum.set_test_now(now.add(minutes=30, seconds=1))
-        resp = worker.is_worker_still_polling(query_interval_seconds=60)
-        assert resp is False
+            with pendulum.travel(minutes=30):
+                resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                assert resp is True
 
-        # cleanup mock
-        pendulum.set_test_now()
+            with pendulum.travel(minutes=30, seconds=1):
+                resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                assert resp is False
+
+    # Pendulum 2 Test Case
+    else:
+        pendulum.set_test_now(now)
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is True
+
+            pendulum.set_test_now(now.add(seconds=299))
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is True
+
+            pendulum.set_test_now(now.add(seconds=301))
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is False
+
+            pendulum.set_test_now(now.add(minutes=30))
+            resp = worker.is_worker_still_polling(query_interval_seconds=60)
+            assert resp is True
+
+            pendulum.set_test_now(now.add(minutes=30, seconds=1))
+            resp = worker.is_worker_still_polling(query_interval_seconds=60)
+            assert resp is False
+
+            # cleanup mock
+            pendulum.set_test_now()

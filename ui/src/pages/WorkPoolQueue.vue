@@ -19,7 +19,7 @@
         </template>
 
         <template #runs>
-          <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
+          <FlowRunFilteredList :filter="flowRunFilter" prefix="runs" />
         </template>
       </p-tabs>
 
@@ -59,7 +59,7 @@
     }
     return `Your work pool ${workPoolQueue.value.name} is ready to go!`
   })
-  const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool ${workPoolName.value} --work-queue ${workPoolQueueName.value}`)
+  const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool "${workPoolName.value}" --work-queue "${workPoolQueueName.value}"`)
   const codeBannerSubtitle = computed(() => `Work queues are scoped to a work pool to allow ${isAgentWorkPool.value ? 'agents' : 'workers'} to pull from groups of queues with different priorities.`)
 
   const { filter: flowRunFilter } = useFlowRunsFilter({

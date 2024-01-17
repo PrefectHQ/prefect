@@ -3,13 +3,24 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
+import jsonschema
+import orjson
 import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, status
-from fastapi.responses import ORJSONResponse
+from prefect._vendor.fastapi import (
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Response,
+    status,
+)
+from prefect._vendor.fastapi.responses import ORJSONResponse, PlainTextResponse
+from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -18,9 +29,14 @@ from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.models.flow_runs import DependencyResult
+from prefect.server.exceptions import FlowRunGraphTooLarge
+from prefect.server.models.flow_runs import (
+    DependencyResult,
+    read_flow_run_graph,
+)
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
@@ -233,7 +249,7 @@ async def read_flow_run(
 
 
 @router.get("/{id}/graph")
-async def read_flow_run_graph(
+async def read_flow_run_graph_v1(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[DependencyResult]:
@@ -246,13 +262,43 @@ async def read_flow_run_graph(
         )
 
 
+@router.get("/{id:uuid}/graph-v2")
+async def read_flow_run_graph_v2(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    since: datetime.datetime = Query(
+        datetime.datetime.min,
+        description="Only include runs that start or end after this time.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> Graph:
+    """
+    Get a graph of the tasks and subflow runs for the given flow run
+    """
+    async with db.session_context() as session:
+        try:
+            return await read_flow_run_graph(
+                session=session,
+                flow_run_id=flow_run_id,
+                since=since,
+            )
+        except FlowRunGraphTooLarge as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+
+
 @router.post("/{id}/resume")
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
+    run_input: Optional[Dict] = Body(default=None, embed=True),
     response: Response = None,
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
+    ),
+    task_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.provide_task_policy
     ),
     orchestration_parameters: dict = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
@@ -280,6 +326,46 @@ async def resume_flow_run(
 
         orchestration_parameters.update({"api-version": api_version})
 
+        keyset = state.state_details.run_input_keyset
+
+        if keyset:
+            run_input = run_input or {}
+
+            schema_json = await models.flow_run_input.read_flow_run_input(
+                session=session, flow_run_id=flow_run.id, key=keyset["schema"]
+            )
+
+            if schema_json is None:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Run input schema not found."
+                    ),
+                )
+
+            try:
+                schema = orjson.loads(schema_json.value)
+            except orjson.JSONDecodeError:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Run input schema is not valid JSON."
+                    ),
+                )
+
+            try:
+                jsonschema.validate(run_input, schema)
+            except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason=f"Run input validation failed: {exc.message}"
+                    ),
+                )
+
         if state.state_details.pause_reschedule:
             orchestration_result = await models.flow_runs.set_flow_run_state(
                 session=session,
@@ -297,6 +383,22 @@ async def resume_flow_run(
                 state=schemas.states.Running(),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
+            )
+
+        if (
+            keyset
+            and run_input
+            and orchestration_result.status == schemas.responses.SetStateStatus.ACCEPT
+        ):
+            # The state change is accepted, go ahead and store the validated
+            # run input.
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run_id,
+                    key=keyset["response"],
+                    value=orjson.dumps(run_input).decode("utf-8"),
+                ),
             )
 
         # set the 201 if a new state was created
@@ -416,3 +518,109 @@ async def set_flow_run_state(
         response.status_code = status.HTTP_200_OK
 
     return orchestration_result
+
+
+@router.post("/{id}/input", status_code=status.HTTP_201_CREATED)
+async def create_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    key: str = Body(..., description="The input key"),
+    value: bytes = Body(..., description="The value of the input"),
+    sender: Optional[str] = Body(None, description="The sender of the input"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    """
+    Create a key/value input for a flow run.
+    """
+    async with db.session_context() as session:
+        try:
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run_id,
+                    key=key,
+                    sender=sender,
+                    value=value.decode(),
+                ),
+            )
+            await session.commit()
+
+        except IntegrityError as exc:
+            if "unique constraint" in str(exc).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A flow run input with this key already exists.",
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+                )
+
+
+@router.post("/{id}/input/filter")
+async def filter_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    prefix: str = Body(..., description="The input key prefix", embed=True),
+    limit: int = Body(
+        1, description="The maximum number of results to return", embed=True
+    ),
+    exclude_keys: List[str] = Body(
+        [], description="Exclude inputs with these keys", embed=True
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> List[schemas.core.FlowRunInput]:
+    """
+    Filter flow run inputs by key prefix
+    """
+    async with db.session_context() as session:
+        return await models.flow_run_input.filter_flow_run_input(
+            session=session,
+            flow_run_id=flow_run_id,
+            prefix=prefix,
+            limit=limit,
+            exclude_keys=exclude_keys,
+        )
+
+
+@router.get("/{id}/input/{key}")
+async def read_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    key: str = Path(..., description="The input key", alias="key"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> PlainTextResponse:
+    """
+    Create a value from a flow run input
+    """
+
+    async with db.session_context() as session:
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=flow_run_id, key=key
+        )
+
+    if flow_run_input:
+        return PlainTextResponse(flow_run_input.value)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow run input not found"
+        )
+
+
+@router.delete("/{id}/input/{key}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_flow_run_input(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    key: str = Path(..., description="The input key", alias="key"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    """
+    Delete a flow run input
+    """
+
+    async with db.session_context() as session:
+        deleted = await models.flow_run_input.delete_flow_run_input(
+            session=session, flow_run_id=flow_run_id, key=key
+        )
+        await session.commit()
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Flow run input not found"
+            )

@@ -68,11 +68,11 @@ async def related_resources_from_run_context(
     if not flow_run_context and not task_run_context:
         return []
 
-    flow_run_id: UUID = (
-        flow_run_context.flow_run.id
-        if flow_run_context
-        else task_run_context.task_run.flow_run_id
-    )
+    flow_run_id: Optional[UUID] = getattr(
+        getattr(flow_run_context, "flow_run", None), "id", None
+    ) or getattr(getattr(task_run_context, "task_run", None), "flow_run_id", None)
+    if flow_run_id is None:
+        return []
 
     related_objects: list[ResourceCacheEntry] = []
 

@@ -12,15 +12,26 @@ from typing import (
 )
 from uuid import UUID
 
+import orjson
 import pendulum
-from pydantic import Field, HttpUrl, conint, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
+else:
+    from pydantic import Field, HttpUrl, conint, root_validator, validator
+
 from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_with_banned_characters,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.settings import PREFECT_CLOUD_API_URL
+from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
 
@@ -64,6 +75,28 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
+class WorkPoolStatus(AutoEnum):
+    """Enumeration of work pool statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
+
+
+class WorkerStatus(AutoEnum):
+    """Enumeration of worker statuses."""
+
+    ONLINE = AutoEnum.auto()
+    OFFLINE = AutoEnum.auto()
+
+
+class DeploymentStatus(AutoEnum):
+    """Enumeration of deployment statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
@@ -76,7 +109,9 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
     pause_key: str = None
+    run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
+    retriable: bool = None
 
 
 class State(ObjectBaseModel, Generic[R]):
@@ -605,8 +640,8 @@ class Constant(TaskRunInput):
 
 class TaskRun(ObjectBaseModel):
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run id of the task run."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
     )
     task_key: str = Field(
         default=..., description="A unique identifier for the task being run."
@@ -744,6 +779,16 @@ class Workspace(PrefectBaseModel):
             f"/workspaces/{self.workspace_id}"
         )
 
+    def ui_url(self) -> str:
+        """
+        Generate the UI URL for accessing this workspace
+        """
+        return (
+            f"{PREFECT_CLOUD_UI_URL.value()}"
+            f"/account/{self.account_id}"
+            f"/workspace/{self.workspace_id}"
+        )
+
     def __hash__(self):
         return hash(self.handle)
 
@@ -813,6 +858,7 @@ class BlockDocument(ObjectBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
+    block_type_name: Optional[str] = Field(None, description="A block type name")
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
@@ -934,6 +980,10 @@ class Deployment(ObjectBaseModel):
             " be scheduled."
         ),
     )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The last time the deployment was polled for status updates.",
+    )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
@@ -977,6 +1027,12 @@ class Deployment(ObjectBaseModel):
         default=None,
         description=(
             "The id of the work pool queue to which this deployment is assigned."
+        ),
+    )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
         ),
     )
 
@@ -1111,8 +1167,8 @@ class Log(ObjectBaseModel):
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
     timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run ID associated with the log."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run ID associated with the log."
     )
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
@@ -1191,7 +1247,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
     ) -> bool:
         """
-        Given empirical information about the state of the work queue, evaulate its health status.
+        Given empirical information about the state of the work queue, evaluate its health status.
 
         Args:
             late_runs: the count of late runs for the work queue.
@@ -1311,12 +1367,23 @@ class WorkPool(ObjectBaseModel):
     concurrency_limit: Optional[conint(ge=0)] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    status: Optional[WorkPoolStatus] = Field(
+        default=None, description="The current status of the work pool."
+    )
 
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
     default_queue_id: UUID = Field(
         None, description="The id of the pool's default queue."
     )
+
+    @property
+    def is_push_pool(self) -> bool:
+        return self.type.endswith(":push")
+
+    @property
+    def is_managed_pool(self) -> bool:
+        return self.type.endswith(":managed")
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -1353,6 +1420,16 @@ class Worker(ObjectBaseModel):
     )
     last_heartbeat_time: datetime.datetime = Field(
         None, description="The last time the worker process sent a heartbeat."
+    )
+    heartbeat_interval_seconds: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of seconds to expect between heartbeats sent by the worker."
+        ),
+    )
+    status: WorkerStatus = Field(
+        WorkerStatus.OFFLINE,
+        description="Current status of the worker.",
     )
 
 
@@ -1461,4 +1538,53 @@ class Variable(ObjectBaseModel):
         default_factory=list,
         description="A list of variable tags",
         example=["tag-1", "tag-2"],
+    )
+
+
+class FlowRunInput(ObjectBaseModel):
+    flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
+    key: str = Field(description="The key of the input.")
+    value: str = Field(description="The value of the input.")
+    sender: Optional[str] = Field(description="The sender of the input.")
+
+    @property
+    def decoded_value(self) -> Any:
+        """
+        Decode the value of the input.
+
+        Returns:
+            Any: the decoded value
+        """
+        return orjson.loads(self.value)
+
+    @validator("key", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_alphanumeric_dashes_only(v)
+        return v
+
+
+class GlobalConcurrencyLimit(ObjectBaseModel):
+    """An ORM representation of a global concurrency limit"""
+
+    name: str = Field(description="The name of the global concurrency limit.")
+    limit: int = Field(
+        description=(
+            "The maximum number of slots that can be occupied on this concurrency"
+            " limit."
+        )
+    )
+    active: Optional[bool] = Field(
+        default=True,
+        description="Whether or not the concurrency limit is in an active state.",
+    )
+    active_slots: Optional[int] = Field(
+        default=0,
+        description="Number of tasks currently using a concurrency slot.",
+    )
+    slot_decay_per_second: Optional[int] = Field(
+        default=0,
+        description=(
+            "Controls the rate at which slots are released when the concurrency limit"
+            " is used as a rate limit."
+        ),
     )

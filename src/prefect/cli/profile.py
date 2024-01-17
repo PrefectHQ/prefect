@@ -7,9 +7,9 @@ from typing import Optional
 
 import httpx
 import typer
-from fastapi import status
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+from starlette import status
 
 import prefect.context
 import prefect.settings
@@ -271,7 +271,7 @@ async def check_orion_connection():
         return ConnectionStatus.CLOUD_UNAUTHORIZED
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-            # if the route does not exist, attmpt to connect as a hosted Prefect
+            # if the route does not exist, attempt to connect as a hosted Prefect
             # instance
             try:
                 # inform the user if Prefect API endpoints exist, but there are

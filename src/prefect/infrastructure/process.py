@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import os
+import shlex
 import signal
 import socket
 import subprocess
@@ -12,13 +13,20 @@ from typing import Dict, Tuple, Union
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import Literal
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import get_sys_executable, run_process
 
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
@@ -69,7 +77,7 @@ class Process(Infrastructure):
             a tmp directory will be used.
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
     _documentation_url = "https://docs.prefect.io/concepts/infrastructure/#process"
 
     type: Literal["process"] = Field(
@@ -238,7 +246,44 @@ class Process(Infrastructure):
         return {key: value for key, value in env.items() if value is not None}
 
     def _base_flow_run_command(self):
-        return [sys.executable, "-m", "prefect.engine"]
+        return [get_sys_executable(), "-m", "prefect.engine"]
+
+    def get_corresponding_worker_type(self):
+        return "process"
+
+    async def generate_work_pool_base_job_template(self):
+        from prefect.workers.utilities import (
+            get_default_base_job_template_for_infrastructure_type,
+        )
+
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            self.get_corresponding_worker_type(),
+        )
+        assert (
+            base_job_template is not None
+        ), "Failed to generate default base job template for Process worker."
+        for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
+            if key == "command":
+                base_job_template["variables"]["properties"]["command"]["default"] = (
+                    shlex.join(value)
+                )
+            elif key in [
+                "type",
+                "block_type_slug",
+                "_block_document_id",
+                "_block_document_name",
+                "_is_anonymous",
+            ]:
+                continue
+            elif key in base_job_template["variables"]["properties"]:
+                base_job_template["variables"]["properties"][key]["default"] = value
+            else:
+                self.logger.warning(
+                    f"Variable {key!r} is not supported by Process work pools."
+                    " Skipping."
+                )
+
+        return base_job_template
 
 
 class ProcessResult(InfrastructureResult):

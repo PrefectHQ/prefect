@@ -2,10 +2,18 @@ from datetime import timedelta
 from typing import List
 
 import pendulum
-import pydantic
+from packaging import version
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 import sqlalchemy as sa
-from fastapi import Response, status
+from prefect._vendor.fastapi import Response, status
 
 from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states
@@ -109,10 +117,20 @@ async def data(db, work_queue):
         f_1 = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
         await create_flow(flow=core.Flow(name="f-2", tags=["db"]))
 
+        # Pendulum renamed 'period' method to 'interval' in 3.0
+        # and changed weeks to start on Mondays
+        # https://github.com/PrefectHQ/prefect/issues/11619
+        if version.parse(pendulum.__version__) >= version.parse("3.0"):
+            pendulum_interval = pendulum.interval
+            weekend_days = (5, 6)
+        else:
+            weekend_days = (0, 6)
+            pendulum_interval = pendulum.period
+
         # have a completed flow every 12 hours except weekends
-        for d in pendulum.period(dt.subtract(days=14), dt).range("hours", 12):
+        for d in pendulum_interval(dt.subtract(days=14), dt).range("hours", 12):
             # skip weekends
-            if d.day_of_week in (0, 6):
+            if d.day_of_week in weekend_days:
                 continue
 
             await create_flow_run(
@@ -125,7 +143,7 @@ async def data(db, work_queue):
             )
 
         # have a failed flow every 36 hours except the last 3 days
-        for d in pendulum.period(dt.subtract(days=14), dt).range("hours", 36):
+        for d in pendulum_interval(dt.subtract(days=14), dt).range("hours", 36):
             # skip recent runs
             if dt.subtract(days=3) <= d < dt:
                 continue
@@ -139,7 +157,7 @@ async def data(db, work_queue):
             )
 
         # a few running runs in the last two days
-        for d in pendulum.period(dt.subtract(days=2), dt).range("hours", 6):
+        for d in pendulum_interval(dt.subtract(days=2), dt).range("hours", 6):
             await create_flow_run(
                 flow_run=core.FlowRun(
                     flow_id=f_1.id,
@@ -149,7 +167,9 @@ async def data(db, work_queue):
             )
 
         # schedule new runs
-        for d in pendulum.period(dt.subtract(days=1), dt.add(days=3)).range("hours", 6):
+        for d in pendulum_interval(dt.subtract(days=1), dt.add(days=3)).range(
+            "hours", 6
+        ):
             await create_flow_run(
                 flow_run=core.FlowRun(
                     flow_id=f_1.id,
@@ -251,9 +271,10 @@ async def test_history_returns_maximum_items(client, route):
 
     # only first 500 items returned
     assert len(response.json()) == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert min([r["interval_start"] for r in response.json()]) == str(dt)
-    assert max([r["interval_start"] for r in response.json()]) == str(
-        dt.add(minutes=499)
+    assert min([r["interval_start"] for r in response.json()]) == dt.isoformat()
+    assert (
+        max([r["interval_start"] for r in response.json()])
+        == dt.add(minutes=499).isoformat()
     )
 
 

@@ -1,5 +1,6 @@
 import json
 import re
+import shlex
 import sys
 import urllib.parse
 import warnings
@@ -8,7 +9,14 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import packaging.version
-from pydantic import Field, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, validator
+else:
+    from pydantic import Field, validator
+
 from typing_extensions import Literal
 
 import prefect
@@ -47,7 +55,7 @@ class ImagePullPolicy(AutoEnum):
 
 
 class BaseDockerLogin(Block, ABC):
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
@@ -282,7 +290,7 @@ class DockerContainer(Infrastructure):
     )
 
     _block_type_name = "Docker Container"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer"
 
     @validator("labels")
@@ -377,6 +385,57 @@ class DockerContainer(Infrastructure):
             return json.dumps(self._build_container_settings(docker_client))
         finally:
             docker_client.close()
+
+    async def generate_work_pool_base_job_template(self):
+        from prefect.workers.utilities import (
+            get_default_base_job_template_for_infrastructure_type,
+        )
+
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            self.get_corresponding_worker_type()
+        )
+        if base_job_template is None:
+            return await super().generate_work_pool_base_job_template()
+        for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
+            if key == "command":
+                base_job_template["variables"]["properties"]["command"]["default"] = (
+                    shlex.join(value)
+                )
+            elif key == "image_registry":
+                self.logger.warning(
+                    "Image registry blocks are not supported by Docker"
+                    " work pools. Please authenticate to your registry using"
+                    " the `docker login` command on your worker instances."
+                )
+            elif key in [
+                "type",
+                "block_type_slug",
+                "_block_document_id",
+                "_block_document_name",
+                "_is_anonymous",
+            ]:
+                continue
+            elif key == "image_pull_policy":
+                new_value = None
+                if value == ImagePullPolicy.ALWAYS:
+                    new_value = "Always"
+                elif value == ImagePullPolicy.NEVER:
+                    new_value = "Never"
+                elif value == ImagePullPolicy.IF_NOT_PRESENT:
+                    new_value = "IfNotPresent"
+
+                base_job_template["variables"]["properties"][key]["default"] = new_value
+            elif key in base_job_template["variables"]["properties"]:
+                base_job_template["variables"]["properties"][key]["default"] = value
+            else:
+                self.logger.warning(
+                    f"Variable {key!r} is not supported by Docker work pools. Skipping."
+                )
+
+        return base_job_template
+
+    def get_corresponding_worker_type(self):
+        return "docker"
 
     def _get_infrastructure_pid(self, container_id: str) -> str:
         """Generates a Docker infrastructure_pid string in the form of
@@ -618,8 +677,8 @@ class DockerContainer(Infrastructure):
                     )
                 else:
                     self.logger.exception(
-                        "An unexpected Docker API error occured while streaming output "
-                        f"from container {container.name}."
+                        "An unexpected Docker API error occurred while streaming"
+                        f" output from container {container.name}."
                     )
 
             container.reload()

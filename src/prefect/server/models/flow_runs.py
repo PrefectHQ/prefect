@@ -25,9 +25,11 @@ from prefect.server.orchestration.global_policy import GlobalFlowPolicy
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import FlowOrchestrationContext
 from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.server.schemas.states import State
 from prefect.server.utilities.schemas import PrefectBaseModel
+from prefect.settings import PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES
 
 
 @inject_db
@@ -35,7 +37,7 @@ async def create_flow_run(
     session: AsyncSession,
     flow_run: schemas.core.FlowRun,
     db: PrefectDBInterface,
-    orchestration_parameters: dict = None,
+    orchestration_parameters: Optional[dict] = None,
 ):
     """Creates a new flow run.
 
@@ -264,7 +266,7 @@ async def read_flow_runs(
         flow_filter: only select flow runs whose flows match these filters
         flow_run_filter: only select flow runs match these filters
         task_run_filter: only select flow runs whose task runs match these filters
-        deployment_filter: only sleect flow runs whose deployments match these filters
+        deployment_filter: only select flow runs whose deployments match these filters
         offset: Query offset
         limit: Query limit
         sort: Query sort
@@ -519,3 +521,21 @@ async def set_flow_run_state(
         )
 
     return result
+
+
+@inject_db
+async def read_flow_run_graph(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run_id: UUID,
+    since: datetime.datetime = datetime.datetime.min,
+) -> Graph:
+    """Given a flow run, return the graph of it's task and subflow runs. If a `since`
+    datetime is provided, only return items that may have changed since that time."""
+    return await db.queries.flow_run_graph_v2(
+        db=db,
+        session=session,
+        flow_run_id=flow_run_id,
+        since=since,
+        max_nodes=PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES.value(),
+    )

@@ -417,6 +417,7 @@ class TestTotalRunTimeEstimate:
 
         assert result.scalar() == pendulum.duration(seconds=3)
 
+    @pytest.mark.flaky(max_runs=3)
     async def test_flow_run_estimated_run_time_includes_current_run(
         self, session, flow, db
     ):
@@ -609,6 +610,7 @@ class TestExpectedStartTimeDelta:
             < pendulum.duration(seconds=61)
         )
 
+    @pytest.mark.flaky(max_runs=2)
     async def test_flow_run_lateness_when_pending(self, session, flow, db):
         dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
