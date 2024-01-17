@@ -12,7 +12,7 @@ from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from typing import List
-from unittest.mock import MagicMock, call, create_autospec
+from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
 
@@ -3409,11 +3409,8 @@ class TestFlowServe:
         limit = 42
         await test_flow.serve("test", limit=limit)
 
-        runner_mock.assert_called_once()
-        _, kwargs = runner_mock.call_args
-        assert kwargs["limit"] == limit, (
-            f"Runner was not instantiated with correct limit, expected {limit}, got"
-            f" {kwargs['limit']}"
+        runner_mock.assert_called_once_with(
+            name="test", pause_on_shutdown=ANY, limit=limit
         )
 
 
