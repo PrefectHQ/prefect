@@ -3402,6 +3402,20 @@ class TestFlowServe:
 
         mock_runner_start.assert_awaited_once()
 
+    async def test_serve_passes_limit_specification_to_runner(self, monkeypatch):
+        runner_mock = MagicMock(return_value=AsyncMock())
+        monkeypatch.setattr("prefect.runner.Runner", runner_mock)
+
+        limit = 42
+        await test_flow.serve("test", limit=limit)
+
+        runner_mock.assert_called_once()
+        _, kwargs = runner_mock.call_args
+        assert kwargs["limit"] == limit, (
+            f"Runner was not instantiated with correct limit, expected {limit}, got"
+            f" {kwargs['limit']}"
+        )
+
 
 class MockStorage:
     """
