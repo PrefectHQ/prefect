@@ -1456,6 +1456,16 @@ The base URL path to serve the Prefect UI from.
 Defaults to the root path.
 """
 
+PREFECT_UI_STATIC_DIRECTORY = Setting(
+    str,
+    default=None,
+)
+"""
+The directory to serve static files from. This should be used when running into permissions issues
+when attempting to serve the UI from the default directory (for example when running in a Docker container)
+"""
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 
