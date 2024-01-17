@@ -1441,7 +1441,7 @@ class TestFlowParameterTypes:
 
         assert my_flow() == data
 
-    def test_subflow_parameters_can_be_pydantic_types_from_task_future(self):
+    def test_subflow_parameters_can_be_pydantic_models_from_task_future(self):
         @flow
         def my_flow():
             return my_subflow(identity.submit(ParameterTestModel(data=1)))
@@ -1456,7 +1456,7 @@ class TestFlowParameterTypes:
 
         assert my_flow() == ParameterTestModel(data=1)
 
-    def test_subflow_parameter_annotations_can_be_non_pydantic_classes(self):
+    def test_subflow_parameter_annotations_can_be_normal_classes(self):
         class Test:
             pass
 
