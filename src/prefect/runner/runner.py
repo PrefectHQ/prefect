@@ -86,7 +86,7 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import is_async_fn, sync_compatible
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
 
 __all__ = ["Runner", "serve"]
@@ -337,7 +337,7 @@ class Runner:
                 runner.start()
             ```
         """
-        signal.signal(signal.SIGTERM, self.handle_sigterm)
+        _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
 
@@ -820,8 +820,8 @@ class Runner:
         except anyio.WouldBlock:
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                " in progress. You can control this limit by adjusting the"
-                " PREFECT_RUNNER_PROCESS_LIMIT setting."
+                " in progress. You can control this limit by passing a `limit` value"
+                " to `serve` or adjusting the PREFECT_RUNNER_PROCESS_LIMIT setting."
             )
             return False
 
@@ -1133,6 +1133,7 @@ async def serve(
     *args: RunnerDeployment,
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
+    limit: Optional[int] = None,
     **kwargs,
 ):
     """
@@ -1142,6 +1143,9 @@ async def serve(
         *args: A list of deployments to serve.
         pause_on_shutdown: A boolean for whether or not to automatically pause
             deployment schedules on shutdown.
+        print_starting_message: Whether or not to print message to the console
+            on startup.
+        limit: The maximum number of runs that can be executed concurrently.
         **kwargs: Additional keyword arguments to pass to the runner.
 
     Examples:
@@ -1174,7 +1178,7 @@ async def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
-    runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
         await runner.add_deployment(deployment)
 

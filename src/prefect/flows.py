@@ -33,6 +33,7 @@ from typing import (
 from uuid import UUID
 
 from prefect._vendor.fastapi.encoders import jsonable_encoder
+from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -117,6 +118,7 @@ from prefect.utilities.visualization import (
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
+F = TypeVar("F", bound="Flow")  # The type of the flow
 
 logger = get_logger("flows")
 
@@ -373,7 +375,7 @@ class Flow(Generic[P, R]):
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    ):
+    ) -> Self:
         """
         Create a new flow from the current object, updating provided options.
 
@@ -428,7 +430,7 @@ class Flow(Generic[P, R]):
             >>> assert state.result() == 4
 
         """
-        return Flow(
+        new_flow = Flow(
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
@@ -467,6 +469,9 @@ class Flow(Generic[P, R]):
             on_cancellation=on_cancellation or self.on_cancellation,
             on_crashed=on_crashed or self.on_crashed,
         )
+        new_flow._storage = self._storage
+        new_flow._entrypoint = self._entrypoint
+        return new_flow
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -618,6 +623,8 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
+        if not name.endswith(".py"):
+            raise_on_name_with_banned_characters(name)
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
@@ -675,6 +682,7 @@ class Flow(Generic[P, R]):
         enforce_parameter_schema: bool = False,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
+        limit: Optional[int] = None,
         webserver: bool = False,
     ):
         """
@@ -703,6 +711,7 @@ class Flow(Generic[P, R]):
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
+            limit: The maximum number of runs that can be executed concurrently.
             webserver: Whether or not to start a monitoring webserver for this flow.
 
         Examples:
@@ -739,7 +748,7 @@ class Flow(Generic[P, R]):
         # Non filepath strings will pass through unchanged
         name = Path(name).stem
 
-        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
+        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
         deployment_id = await runner.add_flow(
             self,
             name=name,
@@ -775,12 +784,12 @@ class Flow(Generic[P, R]):
     @classmethod
     @sync_compatible
     async def from_source(
-        cls,
+        cls: Type[F],
         source: Union[str, RunnerStorage, ReadableDeploymentStorage],
         entrypoint: str,
-    ) -> "Flow":
+    ) -> F:
         """
-        Loads a flow from a remote s ource.
+        Loads a flow from a remote source.
 
         Args:
             source: Either a URL to a git repository or a storage object.
@@ -807,7 +816,7 @@ class Flow(Generic[P, R]):
             my_flow()
             ```
 
-            Load a flow from a private git repository:
+            Load a flow from a private git repository using an access token stored in a `Secret` block:
 
             ```python
             from prefect import flow
@@ -817,7 +826,7 @@ class Flow(Generic[P, R]):
             my_flow = flow.from_source(
                 source=GitRepository(
                     url="https://github.com/org/repo.git",
-                    access_token=Secret.load("github-access-token").get(),
+                    credentials={"access_token": Secret.load("github-access-token")}
                 ),
                 entrypoint="flows.py:my_flow",
             )

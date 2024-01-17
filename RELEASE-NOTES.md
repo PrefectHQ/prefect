@@ -1,5 +1,200 @@
 # Prefect Release Notes
 
+## Release 2.14.14
+
+## Support for custom prefect.yaml deployment configuration files
+
+You can now specify a `prefect.yaml` deployment configuration file while running `prefect deploy` by using the 
+`--prefect-file` command line argument. This means that your configuration files can be in any directory 
+and can follow your own naming conventions. Using this feature provides more flexibility in defining 
+and managing your deployments.
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11511
+- https://github.com/PrefectHQ/prefect/pull/11624
+
+## Toggle Deployment Schedule Status via `prefect.yaml`
+
+You can now toggle your deployment schedules between `active` and `inactive` in your `prefect.yaml` configuration file. This enables you to create deployments with initially _inactive_ schedules, allowing for thorough testing or staged rollouts!
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11608
+
+## Support for Python 3.12
+
+You can now install `prefect` using Python 3.12! This support is experimental and will be hardened in future releases.
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11306
+
+### Enhancements
+- Add an option through the CLI and Python client to remove schedules from deployments — https://github.com/PrefectHQ/prefect/pull/11353
+- Add client methods to interact with global concurrency limit APIs — https://github.com/PrefectHQ/prefect/pull/11415
+- Make `name` optional when saving an existing block — https://github.com/PrefectHQ/prefect/pull/11592
+- Make marking a flow as a subflow in `run_deployment`  optional — https://github.com/PrefectHQ/prefect/pull/11611
+- Improve IDE support for `PrefectObjectRegistry.register_instances` decorated classes — https://github.com/PrefectHQ/prefect/pull/11617
+- Make the UI accessible via reverse proxy and add a `--no-install` flag to `prefect dev build-ui` — https://github.com/PrefectHQ/prefect/pull/11489
+- Improve UI build during `prefect server start` - https://github.com/PrefectHQ/prefect/pull/11493
+- Improve error message in `.deploy` — https://github.com/PrefectHQ/prefect/pull/11615
+
+### Fixes
+- Use default values (if any) when no run input is provided upon `resume` — https://github.com/PrefectHQ/prefect/pull/11598
+- Prevent deployments with `RRule` schedules containing `COUNT` — https://github.com/PrefectHQ/prefect/pull/11600
+- Fix flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578 & https://github.com/PrefectHQ/prefect/pull/11616
+- Raise `StepExecutionError` on non-zero `run_shell_script` return code during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11604
+
+### Experimental
+- Enable flow runs to receive typed input from external sources — https://github.com/PrefectHQ/prefect/pull/11573
+
+### Documentation
+- Fix non-rendering link in Docker guide — https://github.com/PrefectHQ/prefect/pull/11574
+- Update deployment and flow concept docs — https://github.com/PrefectHQ/prefect/pull/11576
+- Add examples for custom triggers to automations docs — https://github.com/PrefectHQ/prefect/pull/11589
+- Add send/receive documentation to `run_input` module docstring — https://github.com/PrefectHQ/prefect/pull/11591
+- Add automations guide — https://github.com/PrefectHQ/prefect/pull/10559
+- Fix storage guide links and reference — https://github.com/PrefectHQ/prefect/pull/11602
+- Fix typo in `prefect deploy` guide — https://github.com/PrefectHQ/prefect/pull/11606
+- Fix imports in human-in-the-loop workflows guide example — https://github.com/PrefectHQ/prefect/pull/11612
+- Add missing imports to human-in-the-loop workflows example — https://github.com/PrefectHQ/prefect/pull/11614
+- Fix formatting in `prefect deploy` guide — https://github.com/PrefectHQ/prefect/pull/11562
+- Remove "Notification blocks must be pre-configured" warning from automations docs — https://github.com/PrefectHQ/prefect/pull/11569
+- Update work pools concept docs example to use correct entrypoint — https://github.com/PrefectHQ/prefect/pull/11584
+- Add incident, metric, and deployment status info to automations docs - https://github.com/PrefectHQ/prefect/pull/11625
+
+### New Contributors
+- @brett-koonce made their first contribution in https://github.com/PrefectHQ/prefect/pull/11562
+- @jitvimol made their first contribution in https://github.com/PrefectHQ/prefect/pull/11584
+- @oz-elhassid made their first contribution in https://github.com/PrefectHQ/prefect/pull/11353
+- @Zyntogz made their first contribution in https://github.com/PrefectHQ/prefect/pull/11415
+- @Andrew-S-Rosen made their first contribution in https://github.com/PrefectHQ/prefect/pull/11578
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.13...2.14.14
+
+## Release 2.14.13
+
+## Access default work pool configurations in an air-gapped environment
+Those who run Prefect server in an environment where arbitrary outbound internet traffic is not allowed were previously unable to retrieve up-to-date default work pool configurations (via the UI or otherwise). You can now access the worker metadata needed to access the corresponding work pool configurations in your server even in such an air-gapped environment. Upon each release of `prefect`, the most recent version of this worker metadata will be embedded in the `prefect` package so that it can be used as a fallback if the outbound call to retrieve the real-time metadata fails.
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11503
+
+## Introducing conditional task retries for enhanced workflow control
+In this release, we're excited to introduce the ability to conditionally retry tasks by passing in an argument to `retry_condition_fn` in your task decorator, enabling more nuanced and flexible retry mechanisms. This adds a significant level of control and efficiency, particularly in handling complex or unpredictable task outcomes. For more information on usage, check out our [docs](https://github.com/PrefectHQ/prefect/pull/11535)!
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11500
+
+### Enhancements
+- Add `prefect cloud open` to open current workspace in browser from CLI — https://github.com/PrefectHQ/prefect/pull/11519
+- Implement `SendNotification` action type for programmatic Automations — https://github.com/PrefectHQ/prefect/pull/11471
+- Display work queue status details via CLI — https://github.com/PrefectHQ/prefect/pull/11545
+- Allow users to add date ranges "Around a time" when filtering by date - https://github.com/PrefectHQ/prefect-design/pull/1069
+
+### Fixes
+- Validate deployment name in `.deploy` — https://github.com/PrefectHQ/prefect/pull/11539
+- Ensure `flow.from_source` handles remote git repository updates — https://github.com/PrefectHQ/prefect/pull/11547
+
+### Documentation
+- Add documentation for Incidents feature in Prefect Cloud 
+    — https://github.com/PrefectHQ/prefect/pull/11504
+    - https://github.com/PrefectHQ/prefect/pull/11532
+    - https://github.com/PrefectHQ/prefect/pull/11506
+    - https://github.com/PrefectHQ/prefect/pull/11508
+- Add security README — https://github.com/PrefectHQ/prefect/pull/11520
+- Add conditional pause example to flow documentation — https://github.com/PrefectHQ/prefect/pull/11536
+- Add API modules to Python SDK docs — https://github.com/PrefectHQ/prefect/pull/11538
+- Update human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11497
+- Improve formatting in quickstart and tutorial — https://github.com/PrefectHQ/prefect/pull/11502
+- Fix typo in quickstart — https://github.com/PrefectHQ/prefect/pull/11498
+- Fix broken link — https://github.com/PrefectHQ/prefect/pull/11507
+- Fix method name typo in tasks tutorial — https://github.com/PrefectHQ/prefect/pull/11523
+- Remove redundant word typo — https://github.com/PrefectHQ/prefect/pull/11528
+
+### Collections
+- Add `LambdaFunction` block to `prefect-aws` to easily configure and invoke AWS Lambda functions - https://github.com/PrefectHQ/prefect-aws/pull/355
+
+### Contributors
+- @yifanmai made their first contribution in https://github.com/PrefectHQ/prefect/pull/11523
+- @dominictarro
+- @ConstantinoSchillebeeckx
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.12...2.14.13
+
+## Release 2.14.12
+
+### Increased customization of date and time filters across the UI
+
+Building on the enhancements to the dashboard we made in last week's release, we've updated the flow runs page to support relative time spans such as "Past 7 days". These changes make it easier to quickly see what's recently occurred (e.g. "Past 1 hour") and what's coming up next (e.g. "Next 15 minutes"). You can also select and filter by specific date and time ranges. 
+
+We have also updated saved filters on the flow runs page so you can save date ranges as part of a custom filter. For example, it's now possible to create a view of the past 6 hours of runs for a specific work pool!
+
+The Flows page uses the same updated date and time filters so you have more control over how you filter and view runs. 
+
+View a demonstration here: [![short loom video demo](https://github.com/PrefectHQ/prefect/assets/42048900/4dc01ec0-0776-49b4-bbc4-a1472c612e4f)](https://www.loom.com/share/95113969257d4cffa48ad13f943f950f?sid=b20bc27c-0dc2-40be-a627-a2148942c427) 
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11473
+- https://github.com/PrefectHQ/prefect/pull/11481
+
+### Get type-checked input from humans in the loop
+
+Human-in-the-loop flows just got an upgrade. You can now pause or suspend a flow and wait for type-checked input. To get started, declare the structure of the input data using a Pydantic model, and Prefect will render a form dynamically in the UI when a human resumes the flow. Form validation will ensure that the data conforms to your Pydantic model, and your flow will receive the input.
+
+<img width="472" alt="image" src="https://github.com/PrefectHQ/prefect/assets/97182/ac743557-e872-4b48-a61e-c74c95e076f0">
+
+Prefect's new `RunInput` class powers this experience. `RunInput` is a subclass of Pydantic's `BaseModel`. Here's an example of a `RunInput` that uses dates, literals, and nested Pydantic models to show you what's possible:
+
+```python
+class Person(RunInput):
+    first_name: str
+    last_name: str
+    birthday: datetime.date
+    likes_tofu: bool
+    age: int = Field(gt=0, lt=150)
+    shirt_size: Literal[ShirtSize.SMALL, ShirtSize.MEDIUM, ShirtSize.LARGE,
+                        ShirtSize.XLARGE]
+    shirt_color: Literal["red", "blue", "green"]
+    preferred_delivery_time: datetime.datetime
+    shipping_address: ShippingAddress
+    billing_address: BillingAddress | SameAsShipping = Field(
+        title="", default_factory=SameAsShipping
+    )
+```
+
+Check out our [guide on how to create human-in-the-loop flows](https://docs.prefect.io/latest/guides/creating-human-in-the-loop-workflows/) to learn more!
+
+### Enhancements
+- Update default pause/suspend timeout to 1 hour — https://github.com/PrefectHQ/prefect/pull/11437
+
+### Fixes
+- Resolve environment variables during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11463
+- Fix prompt and role assignment in `ContainerInstanceProvisioner` — https://github.com/PrefectHQ/prefect/pull/11440
+- Ensure dashboard header is responsive to varying tag and date input sizes — https://github.com/PrefectHQ/prefect/pull/11427
+- Fix error when deploying a remotely loaded flow with options — https://github.com/PrefectHQ/prefect/pull/11484
+
+### Experimental
+- Remove title/description from `RunInput` model — https://github.com/PrefectHQ/prefect/pull/11438
+
+### Documentation
+- Add guide to optimizing your code for big data — https://github.com/PrefectHQ/prefect/pull/11225
+- Add guide for integrating Prefect with CI/CD via GitHub Actions — https://github.com/PrefectHQ/prefect/pull/11443
+- Expand upon managed execution and provisioned infrastructure push work pool in tutorial — https://github.com/PrefectHQ/prefect/pull/11444
+- Revise Quickstart to include benefits, remote execution, and core concepts — https://github.com/PrefectHQ/prefect/pull/11461
+- Add additions to human-in-the-loop documentation — https://github.com/PrefectHQ/prefect/pull/11487
+- Rename guide on reading and writing data to and from cloud provider storage - https://github.com/PrefectHQ/prefect/pull/11441
+- Update formatting and work pool docs — https://github.com/PrefectHQ/prefect/pull/11479
+- Add documentation for `wait_for_input` — https://github.com/PrefectHQ/prefect/pull/11404
+- Fix typo in documentation on`prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11488
+- Add troubleshooting instructions for agents — https://github.com/PrefectHQ/prefect/pull/11475
+- Update README example and language - https://github.com/PrefectHQ/prefect/pull/11171
+- Fix workers graph rendering — https://github.com/PrefectHQ/prefect/pull/11455
+
+### Contributors
+- @1beb made their first contribution in https://github.com/PrefectHQ/prefect/pull/11475
+- @KMDgit made their first contribution in https://github.com/PrefectHQ/prefect/pull/11488
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.11...2.14.12
+
 ## Release 2.14.11
 
 ### Customize resource names when provisioning infrastructure for push work pools

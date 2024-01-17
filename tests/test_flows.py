@@ -5,13 +5,14 @@ import inspect
 import os
 import signal
 import sys
+import threading
 import time
 from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from typing import List
-from unittest.mock import MagicMock, call, create_autospec
+from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
 
@@ -82,6 +83,8 @@ def test_flow():
 
 @pytest.fixture
 def mock_sigterm_handler():
+    if threading.current_thread() != threading.main_thread():
+        pytest.skip("Can't test signal handlers from a thread")
     mock = MagicMock()
 
     def handler(*args, **kwargs):
@@ -3255,6 +3258,10 @@ class TestFlowToDeployment:
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
+    async def test_to_deployment_invalid_name_raises(self):
+        with pytest.raises(InvalidNameError, match="contains an invalid character"):
+            await test_flow.to_deployment("test/deployment")
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -3395,6 +3402,17 @@ class TestFlowServe:
 
         mock_runner_start.assert_awaited_once()
 
+    async def test_serve_passes_limit_specification_to_runner(self, monkeypatch):
+        runner_mock = MagicMock(return_value=AsyncMock())
+        monkeypatch.setattr("prefect.runner.Runner", runner_mock)
+
+        limit = 42
+        await test_flow.serve("test", limit=limit)
+
+        runner_mock.assert_called_once_with(
+            name="test", pause_on_shutdown=ANY, limit=limit
+        )
+
 
 class MockStorage:
     """
@@ -3435,7 +3453,7 @@ class TestFlowFromSource:
     async def test_load_flow_from_source_with_storage(self):
         storage = MockStorage()
 
-        loaded_flow = await Flow.from_source(
+        loaded_flow: Flow = await Flow.from_source(
             entrypoint="flows.py:test_flow", source=storage
         )
 
@@ -3450,6 +3468,18 @@ class TestFlowFromSource:
         loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
 
         deployment = loaded_flow.to_deployment(name="test")
+
+        assert deployment.storage == storage
+
+    def test_loaded_flow_can_be_updated_with_options(self):
+        storage = MockStorage()
+        storage.set_base_path(Path.cwd())
+
+        loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+        flow_with_options = loaded_flow.with_options(name="with_options")
+
+        deployment = flow_with_options.to_deployment(name="test")
 
         assert deployment.storage == storage
 
