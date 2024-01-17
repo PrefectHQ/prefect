@@ -17,6 +17,8 @@ from uuid import UUID, uuid4
 import httpcore
 import httpx
 import pendulum
+import os
+import certifi
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -207,6 +209,11 @@ class PrefectClient:
 
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
+        else:
+            cert_file = os.environ.get("SSL_CERT_FILE")
+            if not cert_file:
+                cert_file = certifi.where()
+            httpx_settings.setdefault("verify", cert_file)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
