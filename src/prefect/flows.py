@@ -1289,6 +1289,9 @@ def flow(
         flow_run_name: An optional name to distinguish runs of this flow; this name can
             be provided as a string template with the flow's parameters as variables,
             or a function that returns a string.
+        retries: An optional number of times to retry on flow run failure.
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            flow after failure. This is only applicable if `retries` is nonzero.
         task_runner: An optional task runner to use for task execution within the flow; if
             not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
@@ -1302,9 +1305,6 @@ def flow(
             type; for example, if a parameter is defined as `x: int` and "5" is passed,
             it will be resolved to `5`. If set to `False`, no validation will be
             performed on flow parameters.
-        retries: An optional number of times to retry on flow run failure.
-        retry_delay_seconds: An optional number of seconds to wait before retrying the
-            flow after failure. This is only applicable if `retries` is nonzero.
         persist_result: An optional toggle indicating whether the result of this flow
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
@@ -1318,6 +1318,8 @@ def flow(
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        cache_result_in_memory: An optional toggle indicating whether the cached result of
+            a running the flow should be stored in memory. Defaults to `True`.
         log_prints: If set, `print` statements in the flow will be redirected to the
             Prefect logger for the flow run. Defaults to `None`, which indicates that
             the value from the parent flow should be used. If this is a parent flow,
