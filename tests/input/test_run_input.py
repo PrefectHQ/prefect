@@ -478,7 +478,7 @@ def test_automatic_input_receive_works_sync(flow_run):
 
     received = []
     for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=2, poll_interval=0.1
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
     ):
         received.append(city)
 
