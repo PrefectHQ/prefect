@@ -17,7 +17,7 @@
 - Add a new UI setting to customize the served static directory — https://github.com/PrefectHQ/prefect/pull/11648
 
 ### Documentation
-- Fix retry handler example code in tasks concept documentation — https://github.com/PrefectHQ/prefect/pull/11633
+- Fix retry handler example code in task concept docs — https://github.com/PrefectHQ/prefect/pull/11633
 - Fix docstring example in `from_source` — https://github.com/PrefectHQ/prefect/pull/11634
 - Add an active incident screenshot to the documentation — https://github.com/PrefectHQ/prefect/pull/11647
 - Add clarification on work queues being a feature of hybrid work pools only — https://github.com/PrefectHQ/prefect/pull/11651
