@@ -13,7 +13,7 @@
 
 ### Fixes
 - Fix block reference resolution in `prefect.yaml` and support accessing block fields using keypaths — https://github.com/PrefectHQ/prefect/pull/10938
-- Avoid rerunning task runs forced to Completed state — https://github.com/PrefectHQ/prefect/pull/11385
+- Avoid rerunning task runs forced to `COMPLETED` state — https://github.com/PrefectHQ/prefect/pull/11385
 - Add a new UI setting to customize the served static directory — https://github.com/PrefectHQ/prefect/pull/11648
 
 ### Documentation
