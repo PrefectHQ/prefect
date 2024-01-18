@@ -219,7 +219,7 @@ class AddUnknownResult(BaseOrchestrationRule):
     has an unknown result.
     """
 
-    FROM_STATES = [StateType.FAILED, StateType.CRASHED, StateType.COMPLETED]
+    FROM_STATES = [StateType.FAILED, StateType.CRASHED]
     TO_STATES = [StateType.COMPLETED]
 
     async def before_transition(
@@ -697,9 +697,6 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             return
 
         # Only allow departure from a happily completed state if the result is not persisted
-        # and the result is not a placeholder for unknown results. We record an unknown result
-        # when a task run is forced to complete from a failed or crashed state.
-
         if (
             initial_state.is_completed()
             and initial_state.data
@@ -768,7 +765,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
             initial_state.is_completed()
             and not proposed_state.is_final()
             and initial_state.data
-            and initial_state.data.get("type") not in ["unpersisted", "unknown"]
+            and initial_state.data.get("type") != "unpersisted"
         ):
             await self.reject_transition(None, "Run is already COMPLETED.")
             return

@@ -18,6 +18,7 @@ from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, flow_runs
 from prefect.server.orchestration.core_policy import (
+    AddUnknownResult,
     BypassCancellingScheduledFlowRuns,
     CacheInsertion,
     CacheRetrieval,
@@ -761,39 +762,6 @@ class TestPermitRerunningFailedTaskRuns:
         assert ctx.proposed_state.name == "Retrying"
         assert ctx.run.flow_run_run_count == 2
 
-    async def test_allows_rerunning_tasks_with_unknown_results(
-        self,
-        session,
-        initialize_orchestration,
-    ):
-        rerun_policy = [
-            HandleTaskTerminalStateTransitions,
-            UpdateFlowRunTrackerOnTasks,
-        ]
-        initial_state_type = states.StateType.FAILED
-        proposed_state_type = states.StateType.COMPLETED
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            "task",
-            *intended_transition,
-            flow_retries=10,
-        )
-        ctx.initial_state.data = UnknownResult
-        flow_run = await ctx.flow_run()
-        flow_run.run_count = 3
-        ctx.run.flow_run_run_count = 3
-        ctx.run.run_count = 2
-
-        async with contextlib.AsyncExitStack() as stack:
-            for rule in rerun_policy:
-                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
-
-        assert ctx.response_status == SetStateStatus.ACCEPT
-        assert ctx.run.run_count == 2
-        assert ctx.proposed_state.name == "Completed"
-        assert ctx.run.flow_run_run_count == 3
-
 
 class TestTaskRetryingRule:
     async def test_retry_potential_failures(
@@ -1286,7 +1254,9 @@ class TestTransitionsFromTerminalStatesRule:
         ],
         ids=transition_names,
     )
-    @pytest.mark.parametrize("result_type", [PersistedResult, LiteralResult])
+    @pytest.mark.parametrize(
+        "result_type", [PersistedResult, LiteralResult, UnknownResult]
+    )
     async def test_transitions_from_completed_to_non_final_states_rejected_with_persisted_result(
         self,
         session,
@@ -2995,3 +2965,68 @@ class TestHandleCancellingScheduledFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.CANCELLING
+
+
+@pytest.mark.parametrize("run_type", ["task", "flow"])
+class TestAddUnknownResultRule:
+    @pytest.mark.parametrize(
+        "result_type,initial_state_type",
+        list(
+            product(
+                (PersistedResult,), (states.StateType.FAILED, states.StateType.CRASHED)
+            )
+        ),
+    )
+    async def test_saves_unknown_result_if_last_state_used_persisted_results(
+        self,
+        session,
+        initialize_orchestration,
+        run_type,
+        result_type,
+        initial_state_type,
+    ):
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=result_type.construct().dict() if result_type else None,
+        )
+
+        async with AddUnknownResult(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.proposed_state.data.get("type") == "unknown"
+
+    @pytest.mark.parametrize(
+        "result_type,initial_state_type",
+        list(
+            product(
+                (UnpersistedResult, LiteralResult),
+                (states.StateType.FAILED, states.StateType.CRASHED),
+            )
+        ),
+    )
+    async def test_does_not_save_unknown_result_if_last_result_did_not_use_persisted_results(
+        self,
+        session,
+        initialize_orchestration,
+        run_type,
+        result_type,
+        initial_state_type,
+    ):
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=result_type.construct().dict() if result_type else None,
+        )
+
+        async with AddUnknownResult(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        if ctx.proposed_state.data:
+            assert ctx.proposed_state.data.get("type") != "unknown"
