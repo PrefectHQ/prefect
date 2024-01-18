@@ -1,5 +1,46 @@
 # Prefect Release Notes
 
+## Release 2.14.16
+
+### Enhancements
+- Add the `wait_for_flow_run` method to `PrefectClient` to allow waiting for a flow run to complete — https://github.com/PrefectHQ/prefect/pull/11305
+- Add a provisioner for `Modal` push work pools — https://github.com/PrefectHQ/prefect/pull/11665
+- Add a workflow to publish OSS UI components automatically on OSS releases — https://github.com/PrefectHQ/prefect/pull/11655
+- Expose the `limit` kwarg in `serve` — https://github.com/PrefectHQ/prefect/pull/11645
+- Add methods supporting modification and suppression of flow run notification policies — https://github.com/PrefectHQ/prefect/pull/11163
+
+### Fixes
+- Fix block reference resolution in `prefect.yaml` and support accessing block fields using keypaths — https://github.com/PrefectHQ/prefect/pull/10938
+- Avoid rerunning task runs forced to Completed state — https://github.com/PrefectHQ/prefect/pull/11385
+- Add a new UI setting to customize the served static directory — https://github.com/PrefectHQ/prefect/pull/11648
+
+### Documentation
+- Fix retry handler example code in tasks concept documentation — https://github.com/PrefectHQ/prefect/pull/11633
+- Fix docstring example in `from_source` — https://github.com/PrefectHQ/prefect/pull/11634
+- Add an active incident screenshot to the documentation — https://github.com/PrefectHQ/prefect/pull/11647
+- Updates work queues docs to clarify that work queues are currently a feature of hybrid work pools only — https://github.com/PrefectHQ/prefect/pull/11651
+- Update interactive workflow guide description and heading — https://github.com/PrefectHQ/prefect/pull/11663
+- Add API reference documentation for `wait_for_flow_run` — https://github.com/PrefectHQ/prefect/pull/11668
+- Remove duplicate line in `prefect-deploy.md` — https://github.com/PrefectHQ/prefect/pull/11644
+- Update the README to clearly mention running the Python file before starting server — https://github.com/PrefectHQ/prefect/pull/11643
+- Fix typo in `Modal` infrastructure documentation — https://github.com/PrefectHQ/prefect/pull/11676
+
+## New Contributors
+* @N-Demir made their first contribution in https://github.com/PrefectHQ/prefect/pull/11633
+* @sgbaird made their first contribution in https://github.com/PrefectHQ/prefect/pull/11644
+* @bjarneschroeder made their first contribution in https://github.com/PrefectHQ/prefect/pull/10938
+* @Fizzizist made their first contribution in https://github.com/PrefectHQ/prefect/pull/11305
+* @NeodarZ made their first contribution in https://github.com/PrefectHQ/prefect/pull/11163
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.15...2.14.16
+
+## Release 2.14.15
+
+### Fixes
+- Fix an issue where setting `UI_SERVE_BASE` to an empty string or "/" led to incorrect asset urlsct/pull/11628
+
+**All changes**: 2.14.14...2.14.15
+
 ## Release 2.14.14
 
 ## Support for custom prefect.yaml deployment configuration files
