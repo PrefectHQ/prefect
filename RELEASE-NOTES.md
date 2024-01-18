@@ -2,6 +2,30 @@
 
 ## Release 2.14.16
 
+### Support for access block fields in `prefect.yaml` templating
+
+You can now access fields on blocks used in your `prefect.yaml` files. This enables you to use values stored in blocks to provide dynamic configuration for attributes like your `work_pool_name` and `job_variables`.
+
+Here's what it looks like in action:
+
+```yaml
+deployments:
+- name: test
+  version: 0.1
+  tags: []
+  description: "Example flow"
+  schedule: {}
+  entrypoint: "flow.py:example_flow"
+  parameters: {}
+  work_pool:
+    name: "{{ prefect.blocks.json.default-config.value.work_pool }}"
+    work_queue: "{{ prefect.blocks.json.default-config.value.work_queue }}"
+```
+
+In the above example, we use fields from a `JSON` block to configure which work pool and queue we deploy our flow to. We can update where our flow is deployed to by updating the referenced block without needing to change our `prefect.yaml` at all!
+
+Many thanks to @bjarneschroeder for contributing this functionality! Check out this PR for implementation details: https://github.com/PrefectHQ/prefect/pull/10938
+
 ### Enhancements
 - Add the `wait_for_flow_run` method to `PrefectClient` to allow waiting for a flow run to complete — https://github.com/PrefectHQ/prefect/pull/11305
 - Add a provisioner for `Modal` push work pools — https://github.com/PrefectHQ/prefect/pull/11665
@@ -10,7 +34,6 @@
 - Enhancements to sending and receiving flow run inputs by automatically converting types to `RunInput` subclasses — https://github.com/PrefectHQ/prefect/pull/11636
 
 ### Fixes
-- Fix block reference resolution in `prefect.yaml` and support accessing block fields using keypaths — https://github.com/PrefectHQ/prefect/pull/10938
 - Avoid rerunning task runs forced to `COMPLETED` state — https://github.com/PrefectHQ/prefect/pull/11385
 - Add a new UI setting to customize the served static directory — https://github.com/PrefectHQ/prefect/pull/11648
 
