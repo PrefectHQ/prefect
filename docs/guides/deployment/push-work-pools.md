@@ -12,6 +12,7 @@ tags:
     - Google Cloud Run
     - serverless
     - Amazon Web Services
+    - Modal
     - push work pools
 search:
   boost: 2
@@ -21,11 +22,11 @@ search:
 # Push Work to Serverless Computing Infrastructure <span class="badge cloud"></span>
 
 Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without running a worker.
-Push work pools currently support execution in GCP Cloud Run Jobs, Azure Container Instances, and AWS ECS Tasks.
+Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, and Modal.
 
 In this guide you will:
 
-- Create a push work pool that sends work to Google Cloud Run, Amazon Elastic Container Service (AWS ECS), or Azure Container Instances (ACI)
+- Create a push work pool that sends work to Amazon Elastic Container Service (AWS ECS), Azure Container Instances (ACI), Google Cloud Run, or Modal
 - Deploy a flow to that work pool
 - Execute a flow without having to run a worker or agent process to poll for flow runs
 
@@ -139,6 +140,24 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
     - artifactregistry.repositories.create
 
     Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
+
+=== "Modal"
+
+    Install `modal` by running:
+
+    <div class="terminal">
+    ```bash
+    pip install modal
+    ```
+    </div>
+
+    Create a Modal API token by running:
+
+    <div class="terminal">
+    ```bash
+    modal token new
+    ```
+    </div>
 
 
 ### Automatically creating a new push work pool and provisioning infrastructure
@@ -394,6 +413,18 @@ Here's the command to create a new push work pool and configure the necessary in
 
         This will build an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to the repository.
 
+=== "Modal"
+    <div class="terminal">
+
+    ```bash
+    prefect work-pool create --type modal:push --provision-infra my-modal-pool 
+    ```
+
+    </div>
+
+    Using the `--provision-infra` flag will trigger the creation of a `ModalCredentials` block in your Prefect Cloud workspace. This block will store your Modal API token, which is used to authenticate with Modal's API. By default, the token for your current Modal profile will be used for the new `ModalCredentials` block. If Prefect is unable to discover a Modal API token for your current profile, you will be prompted to create a new one.
+
+
 That's it!
 You're ready to create and schedule deployments that use your new push work pool.
 Reminder that no worker is needed to run flows with a push work pool.
@@ -519,6 +550,14 @@ In the examples below, we'll create a push work pool via the Prefect Cloud UI.
 
     Once the Service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
 
+=== "Modal"
+
+    A Modal API token is required to push work to Modal.
+
+    Create a Modal API token by navigating to **Settings** in the Modal UI. In the **API Tokens** section of the Settings page, click **New Token**.
+
+    Copy the token ID and token secret and store them somewhere safe for use in the next section.
+
 ### Work pool configuration
 
 Our push work pool will store information about what type of infrastructure our flow will run on, what default values to provide to compute jobs, and other important execution environment parameters. Because our push work pool needs to integrate securely with your serverless infrastructure, we need to start by storing our credentials in Prefect Cloud, which we'll do by making a block.
@@ -551,6 +590,12 @@ Our push work pool will store information about what type of infrastructure our 
 
     Provide any other optional information and create your block.
 
+=== "Modal"
+
+    Navigate to the blocks page, click create new block, and select Modal Credentials for the type.
+
+    For use in a push work pool, this block must have the token ID and token secret stored in the Token ID and Token Secret fields, respectively.
+
 ### Creating a push work pool
 
 Now navigate to the work pools page.
@@ -572,6 +617,12 @@ Click **Create** to start configuring your push work pool by selecting a push op
     Each step has several optional fields that are detailed in the [work pools documentation](/concepts/work-pools/). 
     Select the block you created under the GCP Credentials field. 
     This will allow Prefect Cloud to securely interact with your GCP project.
+
+=== "Modal"
+
+    Each step has several optional fields that are detailed in the [work pools documentation](/concepts/work-pools/). 
+    Select the block you created under the Modal Credentials field. 
+    This will allow Prefect Cloud to securely interact with your Modal account.
 
 Create your pool and you are ready to deploy flows to your Push work pool.
 
