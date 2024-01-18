@@ -276,6 +276,7 @@ nav:
                 - "prefect.events": api-ref/prefect/events.md
                 - "prefect.filesystems": api-ref/prefect/filesystems.md
                 - "prefect.flows": api-ref/prefect/flows.md
+                - "prefect.flow_runs": api-ref/prefect/flow_runs.md
                 - "prefect.futures": api-ref/prefect/futures.md
                 - "prefect.infrastructure": api-ref/prefect/infrastructure.md
                 - "prefect.input":
