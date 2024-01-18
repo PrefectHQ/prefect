@@ -22,7 +22,7 @@
 - Update interactive workflow guide description and heading — https://github.com/PrefectHQ/prefect/pull/11663
 - Add API reference documentation for `wait_for_flow_run` — https://github.com/PrefectHQ/prefect/pull/11668
 - Remove duplicate line in `prefect deploy` docs — https://github.com/PrefectHQ/prefect/pull/11644
-- Update the README to clearly mention running the Python file before starting server — https://github.com/PrefectHQ/prefect/pull/11643
+- Update README to clearly mention running the Python file before starting server — https://github.com/PrefectHQ/prefect/pull/11643
 - Fix typo in `Modal` infrastructure documentation — https://github.com/PrefectHQ/prefect/pull/11676
 
 ## New Contributors
