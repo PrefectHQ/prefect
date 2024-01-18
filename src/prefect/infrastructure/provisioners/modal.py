@@ -173,7 +173,7 @@ class ModalPushProvisioner:
                 (
                     "To configure your Modal push work pool we'll need to store a Modal"
                     " token with Prefect Cloud as a block. We'll pull the token from"
-                    " your local Modal configuration or create a new a new token if we"
+                    " your local Modal configuration or create a new token if we"
                     " can't find one. Would you like to continue?"
                 ),
                 console=self.console,
