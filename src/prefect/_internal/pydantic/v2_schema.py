@@ -35,7 +35,7 @@ def is_v2_type(v) -> bool:
         return True
 
     try:
-        return v.__module__.startswith("pydantic")
+        return v.__module__.startswith("pydantic.types")
     except AttributeError:
         return False
 
