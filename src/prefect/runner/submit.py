@@ -16,7 +16,6 @@ from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_PROCESS_LIMIT,
-    PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_PORT,
 )
@@ -35,32 +34,6 @@ async def get_current_run_count() -> int:
         )
         response.raise_for_status()
         return response.json()
-
-
-async def _run_prefect_callable_and_retrieve_run(
-    prefect_callable: Union[Flow, Task],
-    parameters: Dict[str, Any],
-) -> FlowRun:
-    """
-    This function exists only to capture the flow_run that is created
-    while directly executing a flow. It does so by injecting its own
-    on_completion callback. This should only be called if flow run
-    submission to the Runner's webserver failed.
-    """
-    _flow_run: Optional[FlowRun] = None
-
-    async def store_run_id(flow, flow_run, state):
-        nonlocal _flow_run
-        _flow_run = flow_run
-
-    prefect_callable.on_completion = (prefect_callable.on_completion or []) + [
-        store_run_id
-    ]
-
-    result = prefect_callable(**parameters)
-    if inspect.isawaitable(result):
-        result = await result
-    return _flow_run
 
 
 async def _submit_flow_to_runner(
@@ -171,16 +144,18 @@ async def submit_to_runner(
     if not PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
         raise ValueError(
             "The `submit_to_runner` utility requires the `Runner` webserver to be"
-            " built with extra endpoints enabled. To enable this, set the"
+            " running and built with extra endpoints enabled. To enable this, set the"
             " `PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS` setting to `True`."
         )
 
     parameters = parameters or {}
     if isinstance(parameters, List):
         return_single = False
-    if isinstance(parameters, dict):
+    elif isinstance(parameters, dict):
         parameters = [parameters]
         return_single = True
+    else:
+        raise TypeError("Parameters must be a dictionary or a list of dictionaries.")
 
     submitted_runs = []
     unsubmitted_parameters = []
@@ -190,44 +165,26 @@ async def submit_to_runner(
             flow_run = await _submit_flow_to_runner(
                 prefect_callable, p, retry_failed_submissions
             )
-        except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
-            if PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER.value():
-                logger.warning(
-                    "The `submit_to_runner` utility failed to connect to the `Runner`"
-                    " webserver, and blocking failover is enabled. The utility will"
-                    " block until the flow run completes. You can disable this behavior"
-                    " by configuring the"
-                    " `PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER` setting to"
-                    " `False`, which will raise an error immediately."
-                )
-                unsubmitted_parameters.append(p)
-            else:
-                raise RuntimeError(
-                    "The `submit_to_runner` utility failed to connect to the `Runner`"
-                    " webserver. To enable blocking failover, set the"
-                    " `PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER` setting to"
-                    " `True`."
-                ) from exc
-        else:
             if inspect.isawaitable(flow_run):
                 flow_run = await flow_run
             submitted_runs.append(flow_run)
+        except httpx.ConnectError as exc:
+            raise RuntimeError(
+                "Failed to connect to the `Runner` webserver. Ensure that the server is"
+                " running and reachable."
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                unsubmitted_parameters.append(p)
+            else:
+                raise exc
 
     if unsubmitted_parameters:
-        blocking_runs = await asyncio.gather(
-            *[
-                _run_prefect_callable_and_retrieve_run(prefect_callable, p)
-                for p in unsubmitted_parameters
-            ]
-        )
-        submitted_runs.extend(blocking_runs)
-
-    if (diff := len(parameters) - len(submitted_runs)) > 0:
         logger.warning(
-            f"Failed to submit {diff} runs to the runner, as all of the available "
-            f"{PREFECT_RUNNER_PROCESS_LIMIT.value()} slots were occupied. To "
-            "increase the number of available slots, configure the"
-            "`PREFECT_RUNNER_PROCESS_LIMIT` setting."
+            f"Failed to submit {len(unsubmitted_parameters)} runs to the runner, as all"
+            f" of the available {PREFECT_RUNNER_PROCESS_LIMIT.value()} slots were"
+            " occupied. To increase the number of available slots, configure"
+            " the`PREFECT_RUNNER_PROCESS_LIMIT` setting."
         )
 
     # If one run was submitted, return the corresponding FlowRun directly

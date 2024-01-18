@@ -1395,7 +1395,7 @@ Number of missed polls before a runner is considered unhealthy by its webserver.
 
 PREFECT_RUNNER_SERVER_HOST = Setting(
     str,
-    default="0.0.0.0",
+    default="localhost",
     value_callback=check_for_deprecated_runner_server_host,
 )
 """
@@ -1419,12 +1419,6 @@ The log level of the runner's webserver.
 PREFECT_RUNNER_SERVER_ENABLE = Setting(bool, default=False)
 """
 Whether or not to enable the runner's webserver.
-"""
-
-PREFECT_RUNNER_SERVER_ENABLE_BLOCKING_FAILOVER = Setting(bool, default=True)
-"""
-Whether or not to execute runs in a blocking fashion (on the main thread) if
-the runner's webserver is unavailable to accept submissions to the runner.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
