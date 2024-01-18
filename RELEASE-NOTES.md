@@ -10,7 +10,6 @@
 - Add methods supporting modification and suppression of flow run notification policies — https://github.com/PrefectHQ/prefect/pull/11163
 - Enhancements to sending and receiving flow run inputs — https://github.com/PrefectHQ/prefect/pull/11636
 
-
 ### Fixes
 - Fix block reference resolution in `prefect.yaml` and support accessing block fields using keypaths — https://github.com/PrefectHQ/prefect/pull/10938
 - Avoid rerunning task runs forced to `COMPLETED` state — https://github.com/PrefectHQ/prefect/pull/11385
