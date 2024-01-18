@@ -220,10 +220,11 @@ async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
         "base",
-        "-r",
+        "-1",
         help=(
-            "The revision to pass to `alembic downgrade`. If not provided, runs all"
-            " migrations."
+            "The revision to pass to `alembic downgrade`. If not provided, "
+            "downgrades to the most recent revision. Use 'base' to run all "
+            "migrations."
         ),
     ),
     dry_run: bool = typer.Option(
