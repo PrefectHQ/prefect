@@ -454,7 +454,7 @@ async def test_automatic_input_receive_multiple_values(flow_run):
     async def receive():
         received = []
         async for city in receive_input(
-            Tuple[str, str], flow_run_id=flow_run.id, timeout=3, poll_interval=0.1
+            Tuple[str, str], flow_run_id=flow_run.id, timeout=1, poll_interval=0.1
         ):
             received.append(city)
         return received
