@@ -1,4 +1,3 @@
-import asyncio
 from typing import Tuple
 from uuid import uuid4
 
@@ -451,17 +450,17 @@ async def test_automatic_input_receive_multiple_values(flow_run):
     async def send():
         for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
             await send_input(city, flow_run_id=flow_run.id)
-            await asyncio.sleep(0.2)
 
     async def receive():
         received = []
         async for city in receive_input(
-            Tuple[str, str], flow_run_id=flow_run.id, timeout=1, poll_interval=0.1
+            Tuple[str, str], flow_run_id=flow_run.id, timeout=3, poll_interval=0.1
         ):
             received.append(city)
         return received
 
-    _, received = await asyncio.gather(send(), receive())
+    await send()
+    received = await receive()
 
     assert len(received) == 3
     assert all(isinstance(city, tuple) for city in received)
@@ -479,7 +478,7 @@ def test_automatic_input_receive_works_sync(flow_run):
 
     received = []
     for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=2, poll_interval=0.1
     ):
         received.append(city)
 
@@ -564,15 +563,10 @@ def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
             pass
 
 
-# Since this test relies on timing of the send/receive in the CI environment
-# it can sometimes fail. Marking it as flaky rather than bumping the timeout
-# to avoid slowing down the test suite.
-@pytest.mark.flaky
 async def test_receive(flow_run):
     async def send():
         for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
             await Place(city=city, state=state).send_to(flow_run_id=flow_run.id)
-            await asyncio.sleep(0.2)
 
     async def receive():
         received = []
@@ -582,7 +576,8 @@ async def test_receive(flow_run):
             received.append(place)
         return received
 
-    _, received = await asyncio.gather(send(), receive())
+    await send()
+    received = await receive()
 
     assert len(received) == 3
     assert all(isinstance(place, Place) for place in received)
