@@ -165,7 +165,7 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.results import BaseResult, ResultFactory
+from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
@@ -174,6 +174,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
 )
 from prefect.states import (
+    Completed,
     Paused,
     Pending,
     Running,
@@ -1934,6 +1935,22 @@ async def orchestrate_task_run(
         task_run=task_run, initial_state=None, validated_state=task_run.state
     )
     last_state = task_run.state
+
+    # Completed states with persisted results should have result data. If it's missing,
+    # this could be a manual state transition, so we should use the Unknown result type
+    # to represent that we know we don't know the result.
+    if (
+        last_state
+        and last_state.is_completed()
+        and result_factory.persist_result
+        and not last_state.data
+    ):
+        state = await propose_state(
+            client,
+            state=Completed(data=await UnknownResult.create()),
+            task_run_id=task_run.id,
+            force=True,
+        )
 
     # Transition from `PENDING` -> `RUNNING`
     try:

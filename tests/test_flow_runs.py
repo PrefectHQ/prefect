@@ -19,7 +19,7 @@ async def test_create_then_wait_for_flow_run(prefect_client):
     )
     assert isinstance(flow_run, client_schemas.FlowRun)
 
-    lookup = await wait_for_flow_run(prefect_client, flow_run.id, poll_interval=0)
+    lookup = await wait_for_flow_run(flow_run.id, poll_interval=0)
     # Estimates will not be equal since time has passed
     assert lookup == flow_run
     assert flow_run.state.is_final()
@@ -37,4 +37,4 @@ async def test_create_then_wait_timeout(prefect_client):
     assert isinstance(flow_run, client_schemas.FlowRun)
 
     with pytest.raises(FlowRunWaitTimeout):
-        await wait_for_flow_run(prefect_client, flow_run.id, timeout=0)
+        await wait_for_flow_run(flow_run.id, timeout=0)
