@@ -510,6 +510,7 @@ class ORMFlowRun(ORMRun):
     )
 
     infrastructure_pid = sa.Column(sa.String)
+    infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
 
     @declared_attr
     def infrastructure_document_id(cls):
