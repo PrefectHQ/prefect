@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from copy import deepcopy
 from pathlib import Path
@@ -110,7 +111,7 @@ class GitRepository:
     def __init__(
         self,
         url: str,
-        credentials: Union[GitCredentials, Block, None] = None,
+        credentials: Union[GitCredentials, Block, Dict[str, Any], None] = None,
         name: Optional[str] = None,
         branch: Optional[str] = None,
         include_submodules: bool = False,
@@ -218,35 +219,49 @@ class GitRepository:
             if self._include_submodules:
                 cmd += ["--recurse-submodules"]
             cmd += ["--depth", "1"]
-            await run_process(cmd, cwd=self.destination)
-        else:
-            self._logger.debug("Cloning repository %s", self._url)
-            # Clone the repository if it doesn't exist at the destination
-
-            repository_url = self._repository_url_with_credentials
-
-            cmd = [
-                "git",
-                "clone",
-                repository_url,
-            ]
-            if self._branch:
-                cmd += ["--branch", self._branch]
-            if self._include_submodules:
-                cmd += ["--recurse-submodules"]
-
-            # Limit git history and set path to clone to
-            cmd += ["--depth", "1", str(self.destination)]
-
             try:
-                await run_process(cmd)
+                await run_process(cmd, cwd=self.destination)
+                self._logger.debug("Successfully pulled latest changes")
             except subprocess.CalledProcessError as exc:
-                # Hide the command used to avoid leaking the access token
-                exc_chain = None if self._credentials else exc
-                raise RuntimeError(
-                    f"Failed to clone repository {self._url!r} with exit code"
-                    f" {exc.returncode}."
-                ) from exc_chain
+                self._logger.error(
+                    f"Failed to pull latest changes with exit code {exc}"
+                )
+                shutil.rmtree(self.destination)
+                await self._clone_repo()
+
+        else:
+            await self._clone_repo()
+
+    async def _clone_repo(self):
+        """
+        Clones the repository into the local destination.
+        """
+        self._logger.debug("Cloning repository %s", self._url)
+
+        repository_url = self._repository_url_with_credentials
+
+        cmd = [
+            "git",
+            "clone",
+            repository_url,
+        ]
+        if self._branch:
+            cmd += ["--branch", self._branch]
+        if self._include_submodules:
+            cmd += ["--recurse-submodules"]
+
+        # Limit git history and set path to clone to
+        cmd += ["--depth", "1", str(self.destination)]
+
+        try:
+            await run_process(cmd)
+        except subprocess.CalledProcessError as exc:
+            # Hide the command used to avoid leaking the access token
+            exc_chain = None if self._credentials else exc
+            raise RuntimeError(
+                f"Failed to clone repository {self._url!r} with exit code"
+                f" {exc.returncode}."
+            ) from exc_chain
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):

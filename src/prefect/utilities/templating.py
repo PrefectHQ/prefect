@@ -189,6 +189,43 @@ async def resolve_block_document_references(
     Once the block document is retrieved from the API, the data of the block document
     is used to replace the reference.
 
+    Accessing Values:
+    -----------------
+    To access different values in a block document, use dot notation combined with the block document's prefix, slug, and block name.
+
+    For a block document with the structure:
+    ```json
+    {
+        "value": {
+            "key": {
+                "nested-key": "nested-value"
+            },
+            "list": [
+                {"list-key": "list-value"},
+                1,
+                2
+            ]
+        }
+    }
+    ```
+    examples of value resolution are as follows:
+
+    1. Accessing a nested dictionary:
+       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.key
+       Example: Returns {"nested-key": "nested-value"}
+
+    2. Accessing a specific nested value:
+       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.key.nested-key
+       Example: Returns "nested-value"
+
+    3. Accessing a list element's key-value:
+       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.list[0].list-key
+       Example: Returns "list-value"
+
+    Default Resolution for System Blocks:
+    -------------------------------------
+    For system blocks, which only contain a `value` attribute, this attribute is resolved by default.
+
     Args:
         template: The template to resolve block documents in
 
@@ -225,18 +262,34 @@ async def resolve_block_document_references(
             and list(placeholders)[0].full_match == template
             and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
         ):
-            block_type_slug, block_document_name = (
+            # value_keypath will be a list containing a dot path if additional
+            # attributes are accessed and an empty list otherwise.
+            block_type_slug, block_document_name, *value_keypath = (
                 list(placeholders)[0]
                 .name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "")
-                .split(".")
+                .split(".", 2)
             )
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
-            # Handling for system blocks like Secret that have a value field
-            # These blocks will be replaced by variables in the future and this
-            # logic can be removed at that time.
-            value = block_document.data.get("value", block_document.data)
+            value = block_document.data
+
+            # resolving system blocks to their data for backwards compatibility
+            if len(value) == 1 and "value" in value:
+                # only resolve the value if the keypath is not already pointing to "value"
+                if len(value_keypath) == 0 or value_keypath[0][:5] != "value":
+                    value = value["value"]
+
+            # resolving keypath/block attributes
+            if len(value_keypath) > 0:
+                value_keypath: str = value_keypath[0]
+                value = get_from_dict(value, value_keypath, default=NotSet)
+                if value is NotSet:
+                    raise ValueError(
+                        f"Invalid template: {template!r}. Could not resolve the"
+                        " keypath in the block document data."
+                    )
+
             return value
         else:
             raise ValueError(

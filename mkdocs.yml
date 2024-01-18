@@ -154,6 +154,7 @@ nav:
                 - Variables: guides/variables.md
                 - Prefect Client: guides/using-the-client.md
                 - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
+                - Automations: guides/automations.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - CI/CD: guides/ci-cd.md
@@ -170,6 +171,7 @@ nav:
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
+                - Flow Code Storage: guides/deployment/storage-guide.md
                 - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
                 - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
@@ -274,6 +276,7 @@ nav:
                 - "prefect.events": api-ref/prefect/events.md
                 - "prefect.filesystems": api-ref/prefect/filesystems.md
                 - "prefect.flows": api-ref/prefect/flows.md
+                - "prefect.flow_runs": api-ref/prefect/flow_runs.md
                 - "prefect.futures": api-ref/prefect/futures.md
                 - "prefect.infrastructure": api-ref/prefect/infrastructure.md
                 - "prefect.input":
