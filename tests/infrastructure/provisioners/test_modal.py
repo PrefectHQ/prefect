@@ -38,9 +38,10 @@ def mock_run_process():
 
 
 @pytest.fixture
-def mock_modal():
-    with patch("prefect.infrastructure.provisioners.modal.modal") as mock:
-        yield mock
+def mock_modal(monkeypatch):
+    mock = MagicMock()
+    monkeypatch.setattr("prefect.infrastructure.provisioners.modal.modal", mock)
+    yield mock
 
 
 @pytest.fixture
