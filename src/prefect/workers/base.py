@@ -966,9 +966,10 @@ class BaseWorker(abc.ABC):
     ) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         flow = await self._client.read_flow(flow_run.flow_id)
+        infra_overrides = flow_run.infra_overrides or deployment.infra_overrides or {}
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            values=deployment.infra_overrides or {},
+            values=infra_overrides,
             client=self._client,
         )
         configuration.prepare_for_flow_run(
