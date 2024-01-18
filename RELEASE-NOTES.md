@@ -7,7 +7,7 @@
 - Add a provisioner for `Modal` push work pools — https://github.com/PrefectHQ/prefect/pull/11665
 - Expose the `limit` kwarg in `serve` to increase its visibility — https://github.com/PrefectHQ/prefect/pull/11645
 - Add methods supporting modification and suppression of flow run notification policies — https://github.com/PrefectHQ/prefect/pull/11163
-- Enhancements to sending and receiving flow run inputs — https://github.com/PrefectHQ/prefect/pull/11636
+- Enhancements to sending and receiving flow run inputs by automatically converting types to `RunInput` subclasses — https://github.com/PrefectHQ/prefect/pull/11636
 
 ### Fixes
 - Fix block reference resolution in `prefect.yaml` and support accessing block fields using keypaths — https://github.com/PrefectHQ/prefect/pull/10938
