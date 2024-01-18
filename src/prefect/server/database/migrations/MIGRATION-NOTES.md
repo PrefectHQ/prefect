@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `infra_overrides` to `FlowRun`
+SQLite: `ee97fbae08cd`
+Postgres: `2f527b22d5e5`
+
 # Add `sender` to `FlowRunInput`
 SQLite: `c63a0a6dc787`
 Postgres: `6b63c51c31b4`
