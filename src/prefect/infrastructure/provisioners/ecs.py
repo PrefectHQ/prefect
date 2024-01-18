@@ -31,7 +31,7 @@ from prefect.settings import (
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.importtools import lazy_import
 
-boto3 = docker = lazy_import("boto3")
+boto3 = lazy_import("boto3")
 
 current_console = contextvars.ContextVar("console", default=Console())
 
