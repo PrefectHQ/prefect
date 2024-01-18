@@ -325,7 +325,20 @@ class AutomaticRunInput(RunInput):
         # we need to find the key we saved with "list" as the type (not
         # "List[int]"). Calling __name__.lower() on a type annotation like
         # List[int] produces the string "list", which is what we need.
-        class_name = f"{_type.__name__.lower()}AutomaticRunInput"
+        if hasattr(_type, "__name__"):
+            type_prefix = _type.__name__.lower()
+        elif hasattr(_type, "_name"):
+            # On Python 3.9 and earlier, type annotation values don't have a
+            # __name__ attribute, but they do have a _name.
+            type_prefix = _type._name.lower()
+        else:
+            # If we can't identify a type name that we can use as a key
+            # prefix that will match an input, we'll have to use
+            # "AutomaticRunInput" as the generic name. This will match all
+            # automatic inputs sent to the flow run, rather than a specific
+            # type.
+            type_prefix = ""
+        class_name = f"{type_prefix}AutomaticRunInput"
 
         new_cls: Type["AutomaticRunInput"] = pydantic.create_model(
             class_name, **fields, __base__=AutomaticRunInput
