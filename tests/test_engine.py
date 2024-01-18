@@ -23,7 +23,7 @@ else:
 import prefect.flows
 from prefect import engine, flow, task
 from prefect._internal.compatibility.experimental import ExperimentalFeature
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
@@ -54,7 +54,7 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.input import RunInput, read_flow_run_input
-from prefect.results import ResultFactory
+from prefect.results import ResultFactory, UnknownResult
 from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
@@ -1983,6 +1983,49 @@ class TestOrchestrateTaskRun:
             " 'Failed' and will attempt to run again..."
             in caplog.text
         )
+
+    async def test_proposes_unknown_result_if_state_is_completed_and_result_data_is_missing(
+        self,
+        mock_anyio_sleep,
+        prefect_client: PrefectClient,
+        flow_run,
+        result_factory,
+        local_filesystem,
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task()
+        def my_task():
+            return 1
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Completed(data=None),
+            dynamic_key="0",
+        )
+
+        result_factory.persist_result = True
+
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+        )
+
+        result = await state.result()
+        assert result is None
+        assert isinstance(state.data, UnknownResult)
 
 
 class TestBeginTaskRun:
