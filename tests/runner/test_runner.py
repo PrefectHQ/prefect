@@ -369,7 +369,7 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.flaky
+    @pytest.mark.skip(reason="This test is too flaky")
     async def test_runner_can_cancel_flow_runs(
         self, prefect_client: PrefectClient, caplog
     ):
