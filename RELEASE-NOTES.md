@@ -41,7 +41,7 @@
 ### Fixes
 - Fix an issue where setting `UI_SERVE_BASE` to an empty string or "/" led to incorrect asset urlsct/pull/11628
 
-**All changes**: 2.14.14...2.14.15
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.14...2.14.15
 
 ## Release 2.14.14
 
