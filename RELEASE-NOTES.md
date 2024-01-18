@@ -5,8 +5,7 @@
 ### Enhancements
 - Add the `wait_for_flow_run` method to `PrefectClient` to allow waiting for a flow run to complete — https://github.com/PrefectHQ/prefect/pull/11305
 - Add a provisioner for `Modal` push work pools — https://github.com/PrefectHQ/prefect/pull/11665
-- Add a workflow to publish OSS UI components automatically on OSS releases — https://github.com/PrefectHQ/prefect/pull/11655
-- Expose the `limit` kwarg in `serve` — https://github.com/PrefectHQ/prefect/pull/11645
+- Expose the `limit` kwarg in `serve` to increase its visibility — https://github.com/PrefectHQ/prefect/pull/11645
 - Add methods supporting modification and suppression of flow run notification policies — https://github.com/PrefectHQ/prefect/pull/11163
 - Enhancements to sending and receiving flow run inputs — https://github.com/PrefectHQ/prefect/pull/11636
 
@@ -38,7 +37,7 @@
 ## Release 2.14.15
 
 ### Fixes
-- Fix an issue where setting `UI_SERVE_BASE` to an empty string or "/" led to incorrect asset urlsct/pull/11628
+- Fix an issue where setting `UI_SERVE_BASE` to an empty string or "/" led to incorrect asset urls - https://github.com/PrefectHQ/prefect/pull/11628
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.14...2.14.15
 
