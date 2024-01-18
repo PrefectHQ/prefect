@@ -64,6 +64,7 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
+    infra_overrides: Optional[Dict[str, Any]] = None,
 ) -> FlowRun:
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -101,6 +102,7 @@ async def run_deployment(
             the default work queue for the deployment.
         as_subflow: Whether or not to link the flow run as a subflow of the current
             flow or task run.
+        infra_overrides: A dictionary of infrastructure overrides to apply at runtime.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
@@ -183,6 +185,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
+        infra_overrides=infra_overrides,
     )
 
     flow_run_id = flow_run.id

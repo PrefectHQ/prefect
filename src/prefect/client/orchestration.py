@@ -502,6 +502,7 @@ class PrefectClient:
         idempotency_key: str = None,
         parent_task_run_id: UUID = None,
         work_queue_name: str = None,
+        infra_overrides: Optional[Dict[str, Any]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -525,6 +526,7 @@ class PrefectClient:
             work_queue_name: An optional work queue name to add this run to. If not provided,
                 will default to the deployment's set work queue.  If one is provided that does not
                 exist, a new work queue will be created within the deployment's work pool.
+            infra_overrides: Optional overrides to apply to the flow run's infrastructure.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -545,6 +547,7 @@ class PrefectClient:
             name=name,
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
+            infra_overrides=infra_overrides,
         )
 
         # done separately to avoid including this field in payloads sent to older API versions

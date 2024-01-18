@@ -363,6 +363,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(objects.FlowRun)
+    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields
