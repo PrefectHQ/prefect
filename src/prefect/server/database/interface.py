@@ -62,7 +62,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Run all upgrade migrations"""
         await run_sync_in_worker_thread(alembic_upgrade)
 
-    async def run_migrations_downgrade(self, revision: str = "base"):
+    async def run_migrations_downgrade(self, revision: str = "-1"):
         """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade, revision=revision)
 
