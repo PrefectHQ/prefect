@@ -20,7 +20,7 @@
 - Fix retry handler example code in tasks concept documentation — https://github.com/PrefectHQ/prefect/pull/11633
 - Fix docstring example in `from_source` — https://github.com/PrefectHQ/prefect/pull/11634
 - Add an active incident screenshot to the documentation — https://github.com/PrefectHQ/prefect/pull/11647
-- Updates work queues docs to clarify that work queues are currently a feature of hybrid work pools only — https://github.com/PrefectHQ/prefect/pull/11651
+- Add clarification on work queues being a feature of hybrid work pools only — https://github.com/PrefectHQ/prefect/pull/11651
 - Update interactive workflow guide description and heading — https://github.com/PrefectHQ/prefect/pull/11663
 - Add API reference documentation for `wait_for_flow_run` — https://github.com/PrefectHQ/prefect/pull/11668
 - Remove duplicate line in `prefect deploy` docs — https://github.com/PrefectHQ/prefect/pull/11644
