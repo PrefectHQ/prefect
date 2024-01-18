@@ -422,7 +422,7 @@ Here's the command to create a new push work pool and configure the necessary in
 
     </div>
 
-    Using the `--provision-infra` flag will trigger the creation of a `ModalCredentials` block in your Prefect Cloud workspace. This block will store your Modal API token, which is used to authenticate with Modal's API. By default, the token for your current Modal profile will be used for the new `ModalCredentials` block. If we are unable to discover a Modal API token for your current profile, you will be prompted to create a new one.
+    Using the `--provision-infra` flag will trigger the creation of a `ModalCredentials` block in your Prefect Cloud workspace. This block will store your Modal API token, which is used to authenticate with Modal's API. By default, the token for your current Modal profile will be used for the new `ModalCredentials` block. If Prefect is unable to discover a Modal API token for your current profile, you will be prompted to create a new one.
 
 
 That's it!
