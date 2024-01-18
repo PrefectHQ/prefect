@@ -554,7 +554,7 @@ In the examples below, we'll create a push work pool via the Prefect Cloud UI.
 
     A Modal API token is required to push work to Modal.
 
-    Create a Modal API token by navigating to Settings in the Modal UI. In the API Tokens section of the Settings page, click *New Token*.
+    Create a Modal API token by navigating to **Settings** in the Modal UI. In the **API Tokens** section of the Settings page, click **New Token**.
 
     Copy the token ID and token secret and store them somewhere safe for use in the next section.
 
