@@ -337,6 +337,7 @@ class FlowRunCreate(ActionBaseModel):
     context: dict = FieldFrom(objects.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
+    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(objects.FlowRun)
     empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
     tags: List[str] = FieldFrom(objects.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)

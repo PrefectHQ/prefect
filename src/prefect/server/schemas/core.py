@@ -279,6 +279,10 @@ class FlowRun(ORMBaseModel):
         default=None,
         description="The id of the flow run as returned by an infrastructure block.",
     )
+    infra_overrides: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Overrides to apply to the base infrastructure block at runtime.",
+    )
     created_by: Optional[CreatedBy] = Field(
         default=None,
         description="Optional information about the creator of this flow run.",

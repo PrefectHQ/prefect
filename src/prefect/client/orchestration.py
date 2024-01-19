@@ -569,6 +569,7 @@ class PrefectClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: "prefect.states.State" = None,
+        infra_overrides: Optional[Dict[str, Any]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -583,6 +584,7 @@ class PrefectClient:
                 run identifier in the parent flow
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            infra_overrides: Optional overrides to apply to the flow run's infrastructure.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -612,6 +614,7 @@ class PrefectClient:
                 retries=flow.retries,
                 retry_delay=flow.retry_delay_seconds,
             ),
+            infra_overrides=infra_overrides,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)

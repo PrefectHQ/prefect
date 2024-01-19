@@ -193,6 +193,7 @@ class FlowRunResponse(ORMBaseModel):
     auto_scheduled: bool = FieldFrom(schemas.core.FlowRun)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    infra_overrides: Dict[str, Any] = FieldFrom(schemas.core.FlowRun)
     created_by: Optional[CreatedBy] = FieldFrom(schemas.core.FlowRun)
     work_pool_id: Optional[UUID] = Field(
         default=None,
