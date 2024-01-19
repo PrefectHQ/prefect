@@ -26,16 +26,6 @@ from prefect.utilities.asyncutils import sync_compatible
 logger = get_logger("webserver")
 
 
-async def get_current_run_count() -> int:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
-            f":{PREFECT_RUNNER_SERVER_PORT.value()}/run_count"
-        )
-        response.raise_for_status()
-        return response.json()
-
-
 async def _submit_flow_to_runner(
     flow: Flow,
     parameters: Dict[str, Any],
