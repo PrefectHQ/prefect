@@ -966,7 +966,17 @@ class BaseWorker(abc.ABC):
     ) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         flow = await self._client.read_flow(flow_run.flow_id)
-        infra_overrides = flow_run.infra_overrides or deployment.infra_overrides or {}
+
+        flow_run_infra_overrides = (
+            flow_run.infra_overrides if flow_run.infra_overrides else {}
+        )
+        deployment_infra_overrides = (
+            deployment.infra_overrides if deployment.infra_overrides else {}
+        )
+
+        # Merge dictionaries with priority to flow_run
+        infra_overrides = {**deployment_infra_overrides, **flow_run_infra_overrides}
+
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
             values=infra_overrides,
