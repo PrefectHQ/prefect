@@ -222,6 +222,8 @@ prefect server database downgrade -y -r d20618ce678e
 ```
 </div>
 
+To downgrade all migrations, use the `base` revision.
+
 See the [contributing docs](/contributing/overview/#adding-database-migrations) for information on how to create new database migrations.
 
 ## Notifications
