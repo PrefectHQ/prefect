@@ -46,6 +46,16 @@ def mock_webserver(monkeypatch):
     )
 
 
+@pytest.fixture
+def mock_webserver_not_running(monkeypatch):
+    async def mock_submit_flow_to_runner(*_, **__):
+        raise httpx.ConnectError("Mocked connection error")
+
+    monkeypatch.setattr(
+        "prefect.runner.submit._submit_flow_to_runner", mock_submit_flow_to_runner
+    )
+
+
 @pytest.fixture(autouse=True)
 def runner_settings():
     with temporary_settings(
@@ -106,9 +116,12 @@ async def test_submission_with_optional_parameters(mock_webserver):
     assert flow_run.parameters == {}
 
 
-def test_submission_raises_if_webserver_not_running():
+def test_submission_raises_if_webserver_not_running(mock_webserver_not_running):
     with temporary_settings({PREFECT_RUNNER_SERVER_ENABLE: False}):
-        with pytest.raises((httpx.HTTPStatusError, RuntimeError)):
+        with pytest.raises(
+            (httpx.ConnectTimeout, RuntimeError),
+            match="Ensure that the server is running",
+        ):
             submit_to_runner(identity, {"d": {"input": 9001}})
 
 
