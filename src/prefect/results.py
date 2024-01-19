@@ -613,3 +613,41 @@ class PersistedResultBlob(pydantic.BaseModel):
 
     def to_bytes(self) -> bytes:
         return self.json().encode()
+
+
+class UnknownResult(BaseResult):
+    """
+    Result type for unknown results. Typipcally used to represent the result
+    of tasks that were forced from a failure state into a completed state.
+
+    The value for this result is always None and is not persisted to external
+    result storage, but orchestration treats the result the same as persisted
+    results when determining orchestration rules, such as whether to rerun a
+    completed task.
+    """
+
+    type = "unknown"
+    value: None
+
+    def has_cached_object(self) -> bool:
+        # This result type always has the object cached in memory
+        return True
+
+    @sync_compatible
+    async def get(self) -> R:
+        return self.value
+
+    @classmethod
+    @sync_compatible
+    async def create(
+        cls: "Type[UnknownResult]",
+        obj: R = None,
+    ) -> "UnknownResult[R]":
+        if obj is not None:
+            raise TypeError(
+                f"Unsupported type {type(obj).__name__!r} for unknown result. "
+                "Only None is supported."
+            )
+
+        description = "Unknown result persisted to Prefect."
+        return cls(value=obj, artifact_type="result", artifact_description=description)

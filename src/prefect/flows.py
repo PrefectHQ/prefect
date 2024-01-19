@@ -689,6 +689,7 @@ class Flow(Generic[P, R]):
         enforce_parameter_schema: bool = False,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
+        limit: Optional[int] = None,
         webserver: bool = False,
     ):
         """
@@ -717,6 +718,7 @@ class Flow(Generic[P, R]):
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
+            limit: The maximum number of runs that can be executed concurrently.
             webserver: Whether or not to start a monitoring webserver for this flow.
 
         Examples:
@@ -753,7 +755,7 @@ class Flow(Generic[P, R]):
         # Non filepath strings will pass through unchanged
         name = Path(name).stem
 
-        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
+        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
         deployment_id = await runner.add_flow(
             self,
             name=name,
