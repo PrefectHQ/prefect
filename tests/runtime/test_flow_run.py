@@ -9,6 +9,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
 from prefect.runtime import flow_run
+from prefect.settings import PREFECT_UI_URL
 
 
 class TestAttributeAccessPatterns:
@@ -519,3 +520,31 @@ class TestParentDeploymentId:
             name="PREFECT__FLOW_RUN_ID", value=str(parent_flow_run_no_deployment.id)
         )
         assert flow_run.parent_deployment_id is None
+
+
+class TestURL:
+    async def test_url_is_attribute(self):
+        assert "url" in dir(flow_run)
+
+    async def test_url_is_none_when_id_not_set(self):
+        assert flow_run.url is None
+
+    async def test_url_returns_correct_url_when_id_present(self):
+        test_id = "12345"
+        expected_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{test_id}"
+
+        with FlowRunContext.construct(flow_run=FlowRun.construct(id=test_id)):
+            assert flow_run.url == expected_url
+
+        assert flow_run.url is None
+
+    async def test_url_pulls_from_api_when_needed(self, monkeypatch, prefect_client):
+        run = await prefect_client.create_flow_run(flow=flow(lambda: None, name="test"))
+
+        assert flow_run.url is None
+
+        expected_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{str(run.id)}"
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert flow_run.url == expected_url

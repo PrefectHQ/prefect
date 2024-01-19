@@ -26,6 +26,7 @@ import pendulum
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.settings import PREFECT_UI_URL
 
 __all__ = [
     "id",
@@ -37,6 +38,7 @@ __all__ = [
     "parent_flow_run_id",
     "parent_deployment_id",
     "run_count",
+    "url",
 ]
 
 
@@ -248,6 +250,13 @@ def get_parent_deployment_id() -> Dict[str, Any]:
     return parent_flow_run.deployment_id if parent_flow_run else None
 
 
+def get_flow_run_url() -> Optional[str]:
+    flow_run_id = get_id()
+    if flow_run_id is None:
+        return None
+    return f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run_id}"
+
+
 FIELDS = {
     "id": get_id,
     "tags": get_tags,
@@ -258,4 +267,5 @@ FIELDS = {
     "parent_flow_run_id": get_parent_flow_run_id,
     "parent_deployment_id": get_parent_deployment_id,
     "run_count": get_run_count,
+    "url": get_flow_run_url,
 }
