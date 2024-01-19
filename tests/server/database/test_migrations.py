@@ -41,7 +41,7 @@ async def test_orion_full_migration_works_with_data_in_db(sample_db_data):
     Tests that downgrade migrations work when the database has data in it.
     """
     try:
-        await run_sync_in_worker_thread(alembic_downgrade)
+        await run_sync_in_worker_thread(alembic_downgrade, revision="base")
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
 

@@ -56,15 +56,15 @@ class PrefectDBInterface(metaclass=DBSingleton):
 
     async def drop_db(self):
         """Drop the database"""
-        await self.run_migrations_downgrade()
+        await self.run_migrations_downgrade(revision="base")
 
     async def run_migrations_upgrade(self):
         """Run all upgrade migrations"""
         await run_sync_in_worker_thread(alembic_upgrade)
 
-    async def run_migrations_downgrade(self):
+    async def run_migrations_downgrade(self, revision: str = "-1"):
         """Run all downgrade migrations"""
-        await run_sync_in_worker_thread(alembic_downgrade)
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revision)
 
     async def is_db_connectable(self):
         """
