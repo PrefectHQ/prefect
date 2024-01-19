@@ -1068,6 +1068,22 @@ class TestRunDeployment:
 
         assert sorted(flow_run.tags) == ["I", "love", "prefect"]
 
+    def test_accepts_infra_overrides(self, test_deployment):
+        d, deployment_id = test_deployment
+        infra_overrides = {
+            "override_1": "override_1_value",
+            "nested": {"override_2": "override_2_value"},
+        }
+
+        flow_run = run_deployment(
+            f"{d.flow_name}/{d.name}",
+            infra_overrides=infra_overrides,
+            timeout=0,
+            poll_interval=0,
+        )
+
+        assert flow_run.infra_overrides == infra_overrides
+
     def test_accepts_idempotency_key(self, test_deployment):
         d, deployment_id = test_deployment
 
