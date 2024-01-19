@@ -38,7 +38,7 @@ class TestAlembicCommands:
         alembic_downgrade()
         args, kwargs = mocked.call_args
         assert mocked.call_count == 1
-        assert args[1] == "base"
+        assert args[1] == "-1"
         # sql == dry_run
         assert kwargs["sql"] is False
 
@@ -89,7 +89,9 @@ class TestAlembicCommands:
         try:
             jobs = []
             for _ in range(0, 2):
-                jobs.append(run_sync_in_worker_thread(alembic_downgrade))
+                jobs.append(
+                    run_sync_in_worker_thread(alembic_downgrade, revision="base")
+                )
                 jobs.append(run_sync_in_worker_thread(alembic_upgrade))
             await asyncio.gather(*jobs)
         finally:
