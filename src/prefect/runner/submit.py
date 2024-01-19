@@ -171,7 +171,9 @@ async def submit_to_runner(
         except httpx.ConnectError as exc:
             raise RuntimeError(
                 "Failed to connect to the `Runner` webserver. Ensure that the server is"
-                " running and reachable."
+                " running and reachable. You can run the webserver either by starting"
+                " your `serve` process with `webserver=True`, or by setting"
+                " `PREFECT_RUNNER_SERVER_ENABLE=True`."
             ) from exc
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429:
