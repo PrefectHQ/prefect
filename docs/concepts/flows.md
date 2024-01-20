@@ -855,13 +855,23 @@ Flows can be retrieved from remote storage using the [`flow.from_source`](/api-r
 from prefect import flow
 
 my_flow = flow.from_source(
-    source="https://github.com/org/repo.git",
-    entrypoint="flows.py:my_flow"
+    source="https://github.com/PrefectHQ/prefect.git",
+    entrypoint="flows/hello_world.py:hello"
 )
 
 if __name__ == "__main__":
     my_flow()
 ```
+
+<div class="terminal">
+
+```bash
+16:40:33.818 | INFO    | prefect.engine - Created flow run 'muscular-perch' for flow 'hello'
+16:40:34.048 | INFO    | Flow run 'muscular-perch' - Hello world!
+16:40:34.706 | INFO    | Flow run 'muscular-perch' - Finished in state Completed()
+```
+
+</div>
 
 A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
 
