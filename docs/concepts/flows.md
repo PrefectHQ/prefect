@@ -1088,7 +1088,8 @@ Execution will block and wait for resumption.
 When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. 
 Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
 
-For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating human in the loop workflows](/guides/creating-human-in-the-loop-workflows/) guide.
+For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating interactive workflows](/guides/creating-interactive-workflows/) guide.
+
 
 ## Canceling a flow run
 
