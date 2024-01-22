@@ -53,7 +53,10 @@ async def critical_service_loop(
 
     while True:
         try:
-            logger.debug(f"Starting run of {workload!r}")
+            workload_display_name = (
+                workload.__name__ if hasattr(workload, "__name__") else workload
+            )
+            logger.debug(f"Starting run of {workload_display_name!r}")
             await workload()
 
             # Reset the backoff count on success; we may want to consider resetting
