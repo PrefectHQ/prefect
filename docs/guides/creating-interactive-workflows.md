@@ -5,6 +5,8 @@ tags:
     - pause
     - suspend
     - input
+    - human-in-the-loop workflows
+    - interactive workflows
 search:
   boost: 2
 ---
