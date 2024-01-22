@@ -960,6 +960,14 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
+        if (
+            initial_state is None
+            or proposed_state is None
+            or initial_state.state_details is None
+            or proposed_state.state_details is None
+        ):
+            return
+
         initial_transition_id = getattr(
             initial_state.state_details, "transition_id", None
         )
@@ -967,8 +975,8 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
             proposed_state.state_details, "transition_id", None
         )
         if (
-            initial_transition_id
-            and proposed_transition_id
+            initial_transition_id is not None
+            and proposed_transition_id is not None
             and initial_transition_id == proposed_transition_id
         ):
             await self.reject_transition(
