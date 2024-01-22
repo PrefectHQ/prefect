@@ -1675,7 +1675,7 @@ class TestCancellation:
         cancelling_constructor,
         work_pool,
     ):
-        expected_changed_fields = {"type", "name", "timestamp", "id"}
+        expected_changed_fields = {"type", "name", "timestamp", "id", "state_details"}
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
