@@ -13,6 +13,7 @@ else:
 
 import pytest
 from packaging.version import Version
+from pydantic import SecretStr
 
 from prefect.exceptions import ParameterBindError
 from prefect.utilities import callables
@@ -445,6 +446,51 @@ class TestFunctionToSchema:
                 },
                 "Color": enum_schema,
             },
+        }
+
+    def test_function_with_secretstr(self):
+        def f(x: SecretStr):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "position": 0,
+                    "format": "password",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+            },
+            "required": ["x"],
+        }
+
+    @pytest.mark.skipif(
+        not HAS_PYDANTIC_V2, reason="pydantic v1 module only present in pydantic v2"
+    )
+    def test_function_with_v1_secretstr_from_compat_module(self):
+        import pydantic.v1 as pydantic
+
+        def f(x: pydantic.SecretStr):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "position": 0,
+                    "format": "password",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+            },
+            "required": ["x"],
         }
 
 
