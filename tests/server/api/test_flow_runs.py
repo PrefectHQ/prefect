@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -946,6 +946,41 @@ class TestResumeFlowrun:
 
         return flow_run
 
+    @pytest.fixture
+    async def paused_flow_run_waiting_for_input_with_default(
+        self,
+        session,
+        flow,
+    ):
+        class SimpleInput(RunInput):
+            approved: Optional[bool] = True
+
+        state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(state)
+        state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, flow_version="1.0", state=state
+            ),
+        )
+
+        assert flow_run
+
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="paused-1-schema",
+                value=orjson.dumps(SimpleInput.schema()).decode(),
+            ),
+        )
+
+        await session.commit()
+
+        return flow_run
+
     async def test_resuming_blocking_pauses(
         self, blocking_paused_flow_run, client, session
     ):
@@ -1010,7 +1045,16 @@ class TestResumeFlowrun:
         )
         assert resumed_run.state.type == "FAILED"
 
-    async def test_cannot_resume_flow_run_waiting_for_input_without_input(
+    async def test_resume_flow_run_waiting_for_input_without_input_succeeds_with_defaults(
+        self, client, paused_flow_run_waiting_for_input_with_default
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+    async def test_resume_flow_run_waiting_for_input_without_input_fails_if_required(
         self,
         client,
         paused_flow_run_waiting_for_input,
@@ -1022,7 +1066,7 @@ class TestResumeFlowrun:
         assert response.json()["status"] == "REJECT"
         assert (
             response.json()["details"]["reason"]
-            == "Flow run was expecting input but none was provided."
+            == "Run input validation failed: 'approved' is a required property"
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1286,6 +1330,78 @@ class TestSetFlowRunState:
             )
             <= 10
         )
+
+    @pytest.fixture
+    async def pending_flow_run(self, session, flow):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, flow_version="0.1", state=schemas.states.Pending()
+            ),
+        )
+        await session.commit()
+        return model
+
+    async def test_pending_to_pending(self, pending_flow_run, client):
+        response = await client.post(
+            f"flow_runs/{pending_flow_run.id}/set_state",
+            json=dict(state=dict(type="PENDING", name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+        assert (
+            api_response.details.reason
+            == "This run is in a PENDING state and cannot transition to a PENDING"
+            " state."
+        )
+
+    @pytest.fixture
+    async def transition_id(self) -> UUID:
+        return uuid4()
+
+    @pytest.fixture
+    async def pending_flow_run_with_transition_id(self, session, flow, transition_id):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id,
+                flow_version="0.1",
+                state=schemas.states.Pending(
+                    state_details={"transition_id": str(transition_id)}
+                ),
+            ),
+        )
+        await session.commit()
+        return model
+
+    async def test_pending_to_pending_same_transition_id(
+        self,
+        pending_flow_run_with_transition_id,
+        client,
+        transition_id,
+    ):
+        response = await client.post(
+            f"flow_runs/{pending_flow_run_with_transition_id.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="PENDING",
+                    name="Test State",
+                    state_details={"transition_id": str(transition_id)},
+                )
+            ),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.REJECT
+        assert (
+            api_response.details.reason
+            == "This run has already made this state transition."
+        )
+        # the transition is rejected and the returned state should be the existing state in the db
+        assert api_response.state.id == pending_flow_run_with_transition_id.state_id
 
 
 class TestManuallyRetryingFlowRuns:

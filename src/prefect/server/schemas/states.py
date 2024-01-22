@@ -66,6 +66,7 @@ class StateDetails(PrefectBaseModel):
     run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
     retriable: bool = None
+    transition_id: Optional[UUID] = None
 
 
 class StateBaseModel(IDBaseModel):

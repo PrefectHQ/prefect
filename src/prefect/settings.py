@@ -389,6 +389,42 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
+def check_for_deprecated_runner_server_host(settings, value):
+    deprecated_value = PREFECT_WORKER_WEBSERVER_HOST.value_from(
+        settings, bypass_callback=True
+    )
+    if deprecated_value is not None:
+        warnings.warn(
+            (
+                "`PREFECT_WORKER_WEBSERVER_HOST` is set and will be used instead of"
+                " `PREFECT_RUNNER_SERVER_HOST` for backwards compatibility."
+                " `PREFECT_WORKER_WEBSERVER_HOST` is deprecated, set"
+                " `PREFECT_RUNNER_SERVER_HOST` instead."
+            ),
+            DeprecationWarning,
+        )
+
+    return deprecated_value or value
+
+
+def check_for_deprecated_runner_server_port(settings, value):
+    deprecated_value = PREFECT_WORKER_WEBSERVER_PORT.value_from(
+        settings, bypass_callback=True
+    )
+    if deprecated_value is not None:
+        warnings.warn(
+            (
+                "`PREFECT_WORKER_WEBSERVER_PORT` is set and will be used instead of"
+                " `PREFECT_RUNNER_SERVER_PORT` for backwards compatibility."
+                " `PREFECT_WORKER_WEBSERVER_PORT` is deprecated, set"
+                " `PREFECT_RUNNER_SERVER_PORT` instead."
+            ),
+            DeprecationWarning,
+        )
+
+    return deprecated_value or value
+
+
 def warn_on_misconfigured_api_url(values):
     """
     Validator for settings warning if the API URL is misconfigured.
@@ -1357,12 +1393,20 @@ PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE = Setting(int, default=2)
 Number of missed polls before a runner is considered unhealthy by its webserver.
 """
 
-PREFECT_RUNNER_SERVER_HOST = Setting(str, default="0.0.0.0")
+PREFECT_RUNNER_SERVER_HOST = Setting(
+    str,
+    default="localhost",
+    value_callback=check_for_deprecated_runner_server_host,
+)
 """
 The host address the runner's webserver should bind to.
 """
 
-PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8080)
+PREFECT_RUNNER_SERVER_PORT = Setting(
+    int,
+    default=8080,
+    value_callback=check_for_deprecated_runner_server_port,
+)
 """
 The port the runner's webserver should bind to.
 """
@@ -1370,6 +1414,11 @@ The port the runner's webserver should bind to.
 PREFECT_RUNNER_SERVER_LOG_LEVEL = Setting(str, default="error")
 """
 The log level of the runner's webserver.
+"""
+
+PREFECT_RUNNER_SERVER_ENABLE = Setting(bool, default=False)
+"""
+Whether or not to enable the runner's webserver.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
@@ -1388,12 +1437,24 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
-PREFECT_WORKER_WEBSERVER_HOST = Setting(str, default="0.0.0.0")
+PREFECT_WORKER_WEBSERVER_HOST = Setting(
+    str,
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Jan 2024",
+    deprecated_help="Use `PREFECT_RUNNER_SERVER_HOST` instead",
+)
 """
 The host address the worker's webserver should bind to.
 """
 
-PREFECT_WORKER_WEBSERVER_PORT = Setting(int, default=8080)
+PREFECT_WORKER_WEBSERVER_PORT = Setting(
+    int,
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Jan 2024",
+    deprecated_help="Use `PREFECT_RUNNER_SERVER_PORT` instead",
+)
 """
 The port the worker's webserver should bind to.
 """
@@ -1402,6 +1463,7 @@ PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False
 """
 Whether or not to enable experimental worker webserver endpoints.
 """
+
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
@@ -1445,6 +1507,26 @@ The default Docker namespace to use when building images.
 
 Can be either an organization/username or a registry URL with an organization/username.
 """
+
+PREFECT_UI_SERVE_BASE = Setting(
+    str,
+    default="/",
+)
+"""
+The base URL path to serve the Prefect UI from.
+
+Defaults to the root path.
+"""
+
+PREFECT_UI_STATIC_DIRECTORY = Setting(
+    str,
+    default=None,
+)
+"""
+The directory to serve static files from. This should be used when running into permissions issues
+when attempting to serve the UI from the default directory (for example when running in a Docker container)
+"""
+
 
 # Deprecated settings ------------------------------------------------------------------
 

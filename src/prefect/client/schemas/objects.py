@@ -112,6 +112,7 @@ class StateDetails(PrefectBaseModel):
     run_input_keyset: Optional[Dict[str, str]] = None
     refresh_cache: bool = None
     retriable: bool = None
+    transition_id: Optional[UUID] = None
 
 
 class State(ObjectBaseModel, Generic[R]):
@@ -1561,3 +1562,30 @@ class FlowRunInput(ObjectBaseModel):
     def validate_name_characters(cls, v):
         raise_on_name_alphanumeric_dashes_only(v)
         return v
+
+
+class GlobalConcurrencyLimit(ObjectBaseModel):
+    """An ORM representation of a global concurrency limit"""
+
+    name: str = Field(description="The name of the global concurrency limit.")
+    limit: int = Field(
+        description=(
+            "The maximum number of slots that can be occupied on this concurrency"
+            " limit."
+        )
+    )
+    active: Optional[bool] = Field(
+        default=True,
+        description="Whether or not the concurrency limit is in an active state.",
+    )
+    active_slots: Optional[int] = Field(
+        default=0,
+        description="Number of tasks currently using a concurrency slot.",
+    )
+    slot_decay_per_second: Optional[int] = Field(
+        default=0,
+        description=(
+            "Controls the rate at which slots are released when the concurrency limit"
+            " is used as a rate limit."
+        ),
+    )

@@ -1,5 +1,139 @@
 # Prefect Release Notes
 
+## Release 2.14.16
+
+### Support for access block fields in `prefect.yaml` templating
+
+You can now access fields on blocks used in your `prefect.yaml` files. This enables you to use values stored in blocks to provide dynamic configuration for attributes like your `work_pool_name` and `job_variables`.
+
+Here's what it looks like in action:
+
+```yaml
+deployments:
+- name: test
+  version: 0.1
+  tags: []
+  description: "Example flow"
+  schedule: {}
+  entrypoint: "flow.py:example_flow"
+  parameters: {}
+  work_pool:
+    name: "{{ prefect.blocks.json.default-config.value.work_pool }}"
+    work_queue: "{{ prefect.blocks.json.default-config.value.work_queue }}"
+```
+
+In the above example, we use fields from a `JSON` block to configure which work pool and queue we deploy our flow to. We can update where our flow is deployed to by updating the referenced block without needing to change our `prefect.yaml` at all!
+
+Many thanks to @bjarneschroeder for contributing this functionality! Check out this PR for implementation details: https://github.com/PrefectHQ/prefect/pull/10938
+
+### Enhancements
+- Add the `wait_for_flow_run` method to `PrefectClient` to allow waiting for a flow run to complete — https://github.com/PrefectHQ/prefect/pull/11305
+- Add a provisioner for `Modal` push work pools — https://github.com/PrefectHQ/prefect/pull/11665
+- Expose the `limit` kwarg in `serve` to increase its visibility — https://github.com/PrefectHQ/prefect/pull/11645
+- Add methods supporting modification and suppression of flow run notification policies — https://github.com/PrefectHQ/prefect/pull/11163
+- Enhancements to sending and receiving flow run inputs by automatically converting types to `RunInput` subclasses — https://github.com/PrefectHQ/prefect/pull/11636
+
+### Fixes
+- Avoid rerunning task runs forced to `COMPLETED` state — https://github.com/PrefectHQ/prefect/pull/11385
+- Add a new UI setting to customize the served static directory — https://github.com/PrefectHQ/prefect/pull/11648
+
+### Documentation
+- Fix retry handler example code in task concept docs — https://github.com/PrefectHQ/prefect/pull/11633
+- Fix docstring example in `from_source` — https://github.com/PrefectHQ/prefect/pull/11634
+- Add an active incident screenshot to the documentation — https://github.com/PrefectHQ/prefect/pull/11647
+- Add clarification on work queues being a feature of hybrid work pools only — https://github.com/PrefectHQ/prefect/pull/11651
+- Update interactive workflow guide description and heading — https://github.com/PrefectHQ/prefect/pull/11663
+- Add API reference documentation for `wait_for_flow_run` — https://github.com/PrefectHQ/prefect/pull/11668
+- Remove duplicate line in `prefect deploy` docs — https://github.com/PrefectHQ/prefect/pull/11644
+- Update README to clearly mention running the Python file before starting server — https://github.com/PrefectHQ/prefect/pull/11643
+- Fix typo in `Modal` infrastructure documentation — https://github.com/PrefectHQ/prefect/pull/11676
+
+## New Contributors
+* @N-Demir made their first contribution in https://github.com/PrefectHQ/prefect/pull/11633
+* @sgbaird made their first contribution in https://github.com/PrefectHQ/prefect/pull/11644
+* @bjarneschroeder made their first contribution in https://github.com/PrefectHQ/prefect/pull/10938
+* @Fizzizist made their first contribution in https://github.com/PrefectHQ/prefect/pull/11305
+* @NeodarZ made their first contribution in https://github.com/PrefectHQ/prefect/pull/11163
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.15...2.14.16
+
+## Release 2.14.15
+
+### Fixes
+- Fix an issue where setting `UI_SERVE_BASE` to an empty string or "/" led to incorrect asset urls - https://github.com/PrefectHQ/prefect/pull/11628
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.14...2.14.15
+
+## Release 2.14.14
+
+## Support for custom prefect.yaml deployment configuration files
+
+You can now specify a `prefect.yaml` deployment configuration file while running `prefect deploy` by using the 
+`--prefect-file` command line argument. This means that your configuration files can be in any directory 
+and can follow your own naming conventions. Using this feature provides more flexibility in defining 
+and managing your deployments.
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11511
+- https://github.com/PrefectHQ/prefect/pull/11624
+
+## Toggle Deployment Schedule Status via `prefect.yaml`
+
+You can now toggle your deployment schedules between `active` and `inactive` in your `prefect.yaml` configuration file. This enables you to create deployments with initially _inactive_ schedules, allowing for thorough testing or staged rollouts!
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11608
+
+## Support for Python 3.12
+
+You can now install `prefect` using Python 3.12! This support is experimental and will be hardened in future releases.
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11306
+
+### Enhancements
+- Add an option through the CLI and Python client to remove schedules from deployments — https://github.com/PrefectHQ/prefect/pull/11353
+- Add client methods to interact with global concurrency limit APIs — https://github.com/PrefectHQ/prefect/pull/11415
+- Make `name` optional when saving an existing block — https://github.com/PrefectHQ/prefect/pull/11592
+- Make marking a flow as a subflow in `run_deployment`  optional — https://github.com/PrefectHQ/prefect/pull/11611
+- Improve IDE support for `PrefectObjectRegistry.register_instances` decorated classes — https://github.com/PrefectHQ/prefect/pull/11617
+- Make the UI accessible via reverse proxy and add a `--no-install` flag to `prefect dev build-ui` — https://github.com/PrefectHQ/prefect/pull/11489
+- Improve UI build during `prefect server start` - https://github.com/PrefectHQ/prefect/pull/11493
+- Improve error message in `.deploy` — https://github.com/PrefectHQ/prefect/pull/11615
+
+### Fixes
+- Use default values (if any) when no run input is provided upon `resume` — https://github.com/PrefectHQ/prefect/pull/11598
+- Prevent deployments with `RRule` schedules containing `COUNT` — https://github.com/PrefectHQ/prefect/pull/11600
+- Fix flows with class-based type hints based on `from __future__ import annotations` — https://github.com/PrefectHQ/prefect/pull/11578 & https://github.com/PrefectHQ/prefect/pull/11616
+- Raise `StepExecutionError` on non-zero `run_shell_script` return code during `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/11604
+
+### Experimental
+- Enable flow runs to receive typed input from external sources — https://github.com/PrefectHQ/prefect/pull/11573
+
+### Documentation
+- Fix non-rendering link in Docker guide — https://github.com/PrefectHQ/prefect/pull/11574
+- Update deployment and flow concept docs — https://github.com/PrefectHQ/prefect/pull/11576
+- Add examples for custom triggers to automations docs — https://github.com/PrefectHQ/prefect/pull/11589
+- Add send/receive documentation to `run_input` module docstring — https://github.com/PrefectHQ/prefect/pull/11591
+- Add automations guide — https://github.com/PrefectHQ/prefect/pull/10559
+- Fix storage guide links and reference — https://github.com/PrefectHQ/prefect/pull/11602
+- Fix typo in `prefect deploy` guide — https://github.com/PrefectHQ/prefect/pull/11606
+- Fix imports in human-in-the-loop workflows guide example — https://github.com/PrefectHQ/prefect/pull/11612
+- Add missing imports to human-in-the-loop workflows example — https://github.com/PrefectHQ/prefect/pull/11614
+- Fix formatting in `prefect deploy` guide — https://github.com/PrefectHQ/prefect/pull/11562
+- Remove "Notification blocks must be pre-configured" warning from automations docs — https://github.com/PrefectHQ/prefect/pull/11569
+- Update work pools concept docs example to use correct entrypoint — https://github.com/PrefectHQ/prefect/pull/11584
+- Add incident, metric, and deployment status info to automations docs - https://github.com/PrefectHQ/prefect/pull/11625
+
+### New Contributors
+- @brett-koonce made their first contribution in https://github.com/PrefectHQ/prefect/pull/11562
+- @jitvimol made their first contribution in https://github.com/PrefectHQ/prefect/pull/11584
+- @oz-elhassid made their first contribution in https://github.com/PrefectHQ/prefect/pull/11353
+- @Zyntogz made their first contribution in https://github.com/PrefectHQ/prefect/pull/11415
+- @Andrew-S-Rosen made their first contribution in https://github.com/PrefectHQ/prefect/pull/11578
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.13...2.14.14
+
 ## Release 2.14.13
 
 ## Access default work pool configurations in an air-gapped environment

@@ -160,7 +160,7 @@ def my_flow(name: str, date: datetime.datetime):
     pass
 
 # creates a flow run called 'marvin-on-Thursday'
-my_flow(name="marvin", date=datetime.datetime.utcnow())
+my_flow(name="marvin", date=datetime.datetime.now(datetime.timezone.utc))
 ```
 
 Additionally this setting also accepts a function that returns a string for the flow run name:
@@ -170,7 +170,7 @@ import datetime
 from prefect import flow
 
 def generate_flow_run_name():
-    date = datetime.datetime.utcnow()
+    date = datetime.datetime.now(datetime.timezone.utc)
 
     return f"{date:%A}-is-a-nice-day"
 
@@ -478,7 +478,7 @@ from datetime import datetime
 @flow
 def what_day_is_it(date: datetime = None):
     if date is None:
-        date = datetime.utcnow()
+        date = datetime.now(timezone.utc)
     print(f"It was {date.strftime('%A')} on {date.isoformat()}")
 
 what_day_is_it("2021-01-01T02:00:19.180906")
@@ -855,13 +855,23 @@ Flows can be retrieved from remote storage using the [`flow.from_source`](/api-r
 from prefect import flow
 
 my_flow = flow.from_source(
-    source="https://github.com/org/repo.git",
-    entrypoint="flows.py:my_flow"
+    source="https://github.com/PrefectHQ/prefect.git",
+    entrypoint="flows/hello_world.py:hello"
 )
 
 if __name__ == "__main__":
     my_flow()
 ```
+
+<div class="terminal">
+
+```bash
+16:40:33.818 | INFO    | prefect.engine - Created flow run 'muscular-perch' for flow 'hello'
+16:40:34.048 | INFO    | Flow run 'muscular-perch' - Hello world!
+16:40:34.706 | INFO    | Flow run 'muscular-perch' - Finished in state Completed()
+```
+
+</div>
 
 A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
 
@@ -906,7 +916,7 @@ if __name__ == "__main__":
 ## Pausing or suspending a flow run
 
 Prefect provides you with the ability to halt a flow run with two functions that are similar, but slightly different.
-When a flow run is paused, code execution is stopped and the process continues to run. 
+When a flow run is paused, code execution is stopped and the process continues to run.
 When a flow run is suspended, code execution is stopped and so is the process.
 
 ### Pausing a flow run
@@ -1037,6 +1047,16 @@ Suspended flow runs can be resumed by clicking the **Resume** button in the Pref
 resume_flow_run(FLOW_RUN_ID)
 ```
 
+!!! note "Subflows can't be suspended independently of their parent run"
+    You can't suspend a subflow run independently of its parent flow run.
+
+    If you use a flow to schedule a flow run with `run_deployment`, the
+    scheduled flow run will be linked to the calling flow as a subflow run by
+    default. This means you won't be able to suspend the scheduled flow run
+    independently of the calling flow. Call `run_deployment` with
+    `as_subflow=False` to disable this linking if you need to be able to suspend
+    the scheduled flow run independently of the calling flow.
+    
 ## Waiting for input when pausing or suspending a flow run
 
 !!! warning "Experimental"
@@ -1071,13 +1091,15 @@ async def greet_user():
 
     logger.info(f"Hello, {user_input.name}!")
 ```
+
 Running this flow will create a flow run. The flow run will advance until code execution reaches `pause_flow_run`, at which point it will move into a `Paused` state. 
 Execution will block and wait for resumption. 
 
 When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model. 
 Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data. 
 
-For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating human in the loop workflows](/guides/creating-human-in-the-loop-workflows/) guide.
+For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating interactive workflows](/guides/creating-interactive-workflows/) guide.
+
 
 ## Canceling a flow run
 
@@ -1130,7 +1152,7 @@ While the cancellation process is robust, there are a few issues than can occur:
     ```
     </div>
 
-    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/)Slack or with a [Github](https://github.com/PrefectHQ/prefect) issue.
+    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/) or with a [Github](https://github.com/PrefectHQ/prefect) issue.
 
 ### Cancel via the CLI
 

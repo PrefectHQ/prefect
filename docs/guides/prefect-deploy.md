@@ -208,7 +208,7 @@ Use the tabs below to explore these two deployment creation options.
 
     if __name__ == "__main__":
         buy.deploy(
-            name="my-custom-dockerfile-deployment",", 
+            name="my-custom-dockerfile-deployment", 
             work_pool_name="my-docker-pool", 
             image=DeploymentImage(
                 name="my_image",
@@ -325,8 +325,6 @@ Use the tabs below to explore these two deployment creation options.
     Generally, you can just push your code to GitHub, without rebuilding your deployment. 
     The exception is if something that the server needs to know about changes, such as the flow entrypoint parameters. 
     Rerunning the Python script with `.deploy` will update your deployment on the server with the new flow code.
-
-    If you want to pull your flow code from private git-based storage,
 
     If you need to provide additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
 
@@ -463,6 +461,11 @@ Use the tabs below to explore these two deployment creation options.
     The `prefect.yaml` file contains deployment configuration for deployments created from this file, default instructions for how to build and push any necessary code artifacts (such as Docker images), and default instructions for pulling a deployment in remote execution environments (e.g., cloning a GitHub repository).
 
     Any deployment configuration can be overridden via options available on the `prefect deploy` CLI command when creating a deployment.
+
+    !!! tip "`prefect.yaml` file flexibility"
+        In older versions of Prefect, this file had to be in the root of your repository or project directory and named `prefect.yaml`. Now this file can be located in a directory outside the project or a subdirectory inside the project. It can be named differently, provided the filename ends in `.yaml`. You can even have multiple `prefect.yaml` files with the same name in different directories. By default, `prefect deploy` will use a `prefect.yaml` file in the project's root directory. To use a custom deployment configuration file, supply the new  `--prefect-file` CLI argument when running the `deploy` command from the root of your project directory: 
+        
+        `prefect deploy --prefect-file path/to/my_file.yaml`
 
     The base structure for `prefect.yaml` is as follows:
 
@@ -883,6 +886,10 @@ These deployments can be managed independently of one another, allowing you to d
     Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments to be version controlled and deployed with a single command.
 
     New deployment declarations can be added to the `prefect.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to select deployment declarations when using the `prefect deploy` command.
+    
+    !!! warning
+        When using a `prefect.yaml` file that is in another directory or differently named, remember that the value for 
+        the deployment `entrypoint` must be relative to the root directory of the project.  
 
     For example, consider the following `prefect.yaml` file:
 

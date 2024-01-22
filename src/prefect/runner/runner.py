@@ -55,7 +55,11 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._internal.concurrency.api import (
+    create_call,
+    from_async,
+    from_sync,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -81,11 +85,16 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
+    PREFECT_RUNNER_SERVER_ENABLE,
     PREFECT_UI_URL,
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.asyncutils import is_async_fn, sync_compatible
+from prefect.utilities.asyncutils import (
+    asyncnullcontext,
+    is_async_fn,
+    sync_compatible,
+)
 from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
 
@@ -173,6 +182,7 @@ class Runner:
         )
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
+        self._loop = asyncio.get_event_loop()
 
     @sync_compatible
     async def add_deployment(
@@ -341,7 +351,7 @@ class Runner:
 
         webserver = webserver if webserver is not None else self.webserver
 
-        if webserver:
+        if webserver or PREFECT_RUNNER_SERVER_ENABLE.value():
             # we'll start the ASGI server in a separate thread so that
             # uvicorn does not block the main thread
             server_thread = threading.Thread(
@@ -388,11 +398,18 @@ class Runner:
                     )
                 )
 
+    def execute_in_background(self, func, *args, **kwargs):
+        """
+        Executes a function in the background.
+        """
+
+        return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
+
     async def cancel_all(self):
         runs_to_cancel = []
 
         # done to avoid dictionary size changing during iteration
-        for flow_run_id, info in self._flow_run_process_map.items():
+        for info in self._flow_run_process_map.values():
             runs_to_cancel.append(info["flow_run"])
         if runs_to_cancel:
             for run in runs_to_cancel:
@@ -423,7 +440,9 @@ class Runner:
                 "Exception encountered while shutting down", exc_info=True
             )
 
-    async def execute_flow_run(self, flow_run_id: UUID):
+    async def execute_flow_run(
+        self, flow_run_id: UUID, entrypoint: Optional[str] = None
+    ):
         """
         Executes a single flow run with the given ID.
 
@@ -431,7 +450,9 @@ class Runner:
         the flow run process has exited.
         """
         self.pause_on_shutdown = False
-        async with self:
+        context = self if not self.started else asyncnullcontext()
+
+        async with context:
             if not self._acquire_limit_slot(flow_run_id):
                 return
 
@@ -441,7 +462,11 @@ class Runner:
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
                     pid = await self._runs_task_group.start(
-                        self._submit_run_and_capture_errors, flow_run
+                        partial(
+                            self._submit_run_and_capture_errors,
+                            flow_run=flow_run,
+                            entrypoint=entrypoint,
+                        ),
                     )
 
                     self._flow_run_process_map[flow_run.id] = dict(
@@ -478,6 +503,7 @@ class Runner:
         self,
         flow_run: "FlowRun",
         task_status: Optional[anyio.abc.TaskStatus] = None,
+        entrypoint: Optional[str] = None,
     ):
         """
         Runs the given flow run in a subprocess.
@@ -507,9 +533,12 @@ class Runner:
         env = get_current_settings().to_environment_variables(exclude_unset=True)
         env.update(
             {
-                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+                **{
+                    "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
+                    "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+                },
+                **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
             }
         )
         env.update(**os.environ)  # is this really necessary??
@@ -793,6 +822,15 @@ class Runner:
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
 
+    def has_slots_available(self) -> bool:
+        """
+        Determine if the flow run limit has been reached.
+
+        Returns:
+            - bool: True if the limit has not been reached, False otherwise.
+        """
+        return self._limiter.available_tokens > 0
+
     def _acquire_limit_slot(self, flow_run_id: str) -> bool:
         """
         Enforces flow run limit set on runner.
@@ -820,8 +858,8 @@ class Runner:
         except anyio.WouldBlock:
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                " in progress. You can control this limit by adjusting the"
-                " PREFECT_RUNNER_PROCESS_LIMIT setting."
+                " in progress. You can control this limit by passing a `limit` value"
+                " to `serve` or adjusting the PREFECT_RUNNER_PROCESS_LIMIT setting."
             )
             return False
 
@@ -834,7 +872,9 @@ class Runner:
             self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     async def _submit_scheduled_flow_runs(
-        self, flow_run_response: List["FlowRun"]
+        self,
+        flow_run_response: List["FlowRun"],
+        entrypoints: Optional[List[str]] = None,
     ) -> List["FlowRun"]:
         """
         Takes a list of FlowRuns and submits the referenced flow runs
@@ -842,7 +882,7 @@ class Runner:
         """
         submittable_flow_runs = flow_run_response
         submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
-        for flow_run in submittable_flow_runs:
+        for i, flow_run in enumerate(submittable_flow_runs):
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
 
@@ -853,8 +893,13 @@ class Runner:
                 )
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
-                    self._submit_run,
-                    flow_run,
+                    partial(
+                        self._submit_run,
+                        flow_run=flow_run,
+                        entrypoint=(
+                            entrypoints[i] if entrypoints else None
+                        ),  # TODO: avoid relying on index
+                    )
                 )
             else:
                 break
@@ -866,7 +911,7 @@ class Runner:
             )
         )
 
-    async def _submit_run(self, flow_run: "FlowRun") -> None:
+    async def _submit_run(self, flow_run: "FlowRun", entrypoint: Optional[str] = None):
         """
         Submits a given flow run for execution by the runner.
         """
@@ -876,7 +921,11 @@ class Runner:
 
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
-                self._submit_run_and_capture_errors, flow_run
+                partial(
+                    self._submit_run_and_capture_errors,
+                    flow_run=flow_run,
+                    entrypoint=entrypoint,
+                ),
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
@@ -892,7 +941,10 @@ class Runner:
         self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
-        self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
+        self,
+        flow_run: "FlowRun",
+        task_status: Optional[anyio.abc.TaskStatus] = None,
+        entrypoint: Optional[str] = None,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
@@ -900,6 +952,7 @@ class Runner:
             status_code = await self._run_process(
                 flow_run=flow_run,
                 task_status=task_status,
+                entrypoint=entrypoint,
             )
         except Exception as exc:
             if not task_status._future.done():
@@ -1133,6 +1186,7 @@ async def serve(
     *args: RunnerDeployment,
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
+    limit: Optional[int] = None,
     **kwargs,
 ):
     """
@@ -1142,6 +1196,9 @@ async def serve(
         *args: A list of deployments to serve.
         pause_on_shutdown: A boolean for whether or not to automatically pause
             deployment schedules on shutdown.
+        print_starting_message: Whether or not to print message to the console
+            on startup.
+        limit: The maximum number of runs that can be executed concurrently.
         **kwargs: Additional keyword arguments to pass to the runner.
 
     Examples:
@@ -1174,7 +1231,7 @@ async def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
-    runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
         await runner.add_deployment(deployment)
 

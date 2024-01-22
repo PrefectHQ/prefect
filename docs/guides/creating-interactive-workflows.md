@@ -1,5 +1,5 @@
 ---
-description: Learn how to create human-in-the-loop workflows with Prefect.
+description: Learn how to create interactive workflows with Prefect.
 tags:
     - flow run
     - pause
@@ -9,7 +9,7 @@ search:
   boost: 2
 ---
 
-# Creating Human-in-the-Loop Workflows
+# Creating Interactive Workflows
 !!! warning "Experimental"
 
     The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
@@ -24,6 +24,7 @@ When a flow run is paused or suspended, you can receive input from the user. Thi
 To receive input you must use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` functions. This parameter accepts a subclass of `prefect.input.RunInput`. `RunInput` is a subclass of `pydantic.BaseModel` and can be used to define the input that you want to receive:
 
 ```python
+from prefect import flow, pause_flow_run
 from prefect.input import RunInput
 
 class UserNameInput(RunInput):
@@ -97,7 +98,7 @@ In the example, we use Pydantic's `validator` decorator to define a custom valid
 
 ```python
 import pydantic
-from prefect import flow
+from prefect import flow, pause_flow_run
 from prefect.input import RunInput
 
 
@@ -123,8 +124,10 @@ If a user chooses any size and color combination other than `small` and `green`,
 However, what if you don't want the flow run to fail? One way to handle this case is to use a `while` loop and pause again if the `ValidationError` exception is raised:
 
 ```python
+from typing import Literal
+
 import pydantic
-from prefect import flow, get_run_logger
+from prefect import flow, get_run_logger, pause_flow_run
 from prefect.input import RunInput
 
 

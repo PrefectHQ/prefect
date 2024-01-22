@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, call
 
 import anyio
 import pendulum
+from packaging import version
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -1674,7 +1675,7 @@ class TestCancellation:
         cancelling_constructor,
         work_pool,
     ):
-        expected_changed_fields = {"type", "name", "timestamp", "id"}
+        expected_changed_fields = {"type", "name", "timestamp", "id", "state_details"}
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
@@ -1965,55 +1966,105 @@ async def test_worker_set_last_polled_time(
     work_pool,
 ):
     now = pendulum.now("utc")
-    # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
-    pendulum.set_test_now(now)
 
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        # initially, the worker should have _last_polled_time set to now
-        assert worker._last_polled_time == now
+    # https://github.com/PrefectHQ/prefect/issues/11619
+    # Pendulum 3 Test Case
+    if version.parse(pendulum.__version__) >= version.parse("3.0"):
+        # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
+        with pendulum.travel_to(now, freeze=True):
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+                # initially, the worker should have _last_polled_time set to now
+                assert worker._last_polled_time == now
 
-        # some arbitrary delta forward
-        now2 = now.add(seconds=49)
-        pendulum.set_test_now(now2)
-        await worker.get_and_submit_flow_runs()
-        assert worker._last_polled_time == now2
+                # some arbitrary delta forward
+                now2 = now.add(seconds=49)
+                with pendulum.travel_to(now2, freeze=True):
+                    await worker.get_and_submit_flow_runs()
+                    assert worker._last_polled_time == now2
 
-        # some arbitrary datetime
-        now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
-        pendulum.set_test_now(now3)
-        await worker.get_and_submit_flow_runs()
-        assert worker._last_polled_time == now3
+                # some arbitrary datetime
+                now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
+                with pendulum.travel_to(now3, freeze=True):
+                    await worker.get_and_submit_flow_runs()
+                    assert worker._last_polled_time == now3
 
-        # cleanup mock
-        pendulum.set_test_now()
+    # Pendulum 2 Test Case
+    else:
+        pendulum.set_test_now(now)
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            # initially, the worker should have _last_polled_time set to now
+            assert worker._last_polled_time == now
+
+            # some arbitrary delta forward
+            now2 = now.add(seconds=49)
+            pendulum.set_test_now(now2)
+            await worker.get_and_submit_flow_runs()
+            assert worker._last_polled_time == now2
+
+            # some arbitrary datetime
+            now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
+            pendulum.set_test_now(now3)
+            await worker.get_and_submit_flow_runs()
+            assert worker._last_polled_time == now3
+
+            # cleanup mock
+            pendulum.set_test_now()
 
 
 async def test_worker_last_polled_health_check(
     work_pool,
 ):
     now = pendulum.now("utc")
-    # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
-    pendulum.set_test_now(now)
 
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        resp = worker.is_worker_still_polling(query_interval_seconds=10)
-        assert resp is True
+    # https://github.com/PrefectHQ/prefect/issues/11619
+    # Pendulum 3 Test Case
+    if version.parse(pendulum.__version__) >= version.parse("3.0"):
+        # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
+        pendulum.travel_to(now, freeze=True)
 
-        pendulum.set_test_now(now.add(seconds=299))
-        resp = worker.is_worker_still_polling(query_interval_seconds=10)
-        assert resp is True
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is True
 
-        pendulum.set_test_now(now.add(seconds=301))
-        resp = worker.is_worker_still_polling(query_interval_seconds=10)
-        assert resp is False
+            with pendulum.travel(seconds=299):
+                resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                assert resp is True
 
-        pendulum.set_test_now(now.add(minutes=30))
-        resp = worker.is_worker_still_polling(query_interval_seconds=60)
-        assert resp is True
+            with pendulum.travel(seconds=301):
+                resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                assert resp is False
 
-        pendulum.set_test_now(now.add(minutes=30, seconds=1))
-        resp = worker.is_worker_still_polling(query_interval_seconds=60)
-        assert resp is False
+            with pendulum.travel(minutes=30):
+                resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                assert resp is True
 
-        # cleanup mock
-        pendulum.set_test_now()
+            with pendulum.travel(minutes=30, seconds=1):
+                resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                assert resp is False
+
+    # Pendulum 2 Test Case
+    else:
+        pendulum.set_test_now(now)
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is True
+
+            pendulum.set_test_now(now.add(seconds=299))
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is True
+
+            pendulum.set_test_now(now.add(seconds=301))
+            resp = worker.is_worker_still_polling(query_interval_seconds=10)
+            assert resp is False
+
+            pendulum.set_test_now(now.add(minutes=30))
+            resp = worker.is_worker_still_polling(query_interval_seconds=60)
+            assert resp is True
+
+            pendulum.set_test_now(now.add(minutes=30, seconds=1))
+            resp = worker.is_worker_still_polling(query_interval_seconds=60)
+            assert resp is False
+
+            # cleanup mock
+            pendulum.set_test_now()

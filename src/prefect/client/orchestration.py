@@ -12,7 +12,7 @@ from typing import (
     Set,
     Union,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpcore
 import httpx
@@ -48,7 +48,10 @@ from prefect.client.schemas.actions import (
     FlowCreate,
     FlowRunCreate,
     FlowRunNotificationPolicyCreate,
+    FlowRunNotificationPolicyUpdate,
     FlowRunUpdate,
+    GlobalConcurrencyLimitCreate,
+    GlobalConcurrencyLimitUpdate,
     LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
@@ -682,7 +685,7 @@ class PrefectClient:
             httpx.RequestError: If requests fails
         """
         try:
-            await self._client.delete(f"/flow_runs/{flow_run_id}"),
+            await self._client.delete(f"/flow_runs/{flow_run_id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1916,6 +1919,7 @@ class PrefectClient:
         """
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
+        state_create.state_details.transition_id = uuid4()
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
@@ -2175,6 +2179,75 @@ class PrefectClient:
             raise httpx.RequestError(f"Malformed response: {response}")
 
         return UUID(policy_id)
+
+    async def delete_flow_run_notification_policy(
+        self,
+        id: UUID,
+    ) -> None:
+        """
+        Delete a flow run notification policy by id.
+
+        Args:
+            id: UUID of the flow run notification policy to delete.
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        try:
+            await self._client.delete(f"/flow_run_notification_policies/{id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def update_flow_run_notification_policy(
+        self,
+        id: UUID,
+        block_document_id: Optional[UUID] = None,
+        is_active: Optional[bool] = None,
+        tags: Optional[List[str]] = None,
+        state_names: Optional[List[str]] = None,
+        message_template: Optional[str] = None,
+    ) -> None:
+        """
+        Update a notification policy for flow runs
+
+        Args:
+            id: UUID of the notification policy
+            block_document_id: The block document UUID
+            is_active: Whether the notification policy is active
+            tags: List of flow tags
+            state_names: List of state names
+            message_template: Notification message template
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        params = {}
+        if block_document_id is not None:
+            params["block_document_id"] = block_document_id
+        if is_active is not None:
+            params["is_active"] = is_active
+        if tags is not None:
+            params["tags"] = tags
+        if state_names is not None:
+            params["state_names"] = state_names
+        if message_template is not None:
+            params["message_template"] = message_template
+
+        policy = FlowRunNotificationPolicyUpdate(**params)
+
+        try:
+            await self._client.patch(
+                f"/flow_run_notification_policies/{id}",
+                json=policy.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_flow_run_notification_policies(
         self,
@@ -2721,6 +2794,66 @@ class PrefectClient:
                 "occupancy_seconds": occupancy_seconds,
             },
         )
+
+    async def create_global_concurrency_limit(
+        self, concurrency_limit: GlobalConcurrencyLimitCreate
+    ) -> UUID:
+        response = await self._client.post(
+            "/v2/concurrency_limits/",
+            json=concurrency_limit.dict(json_compatible=True, exclude_unset=True),
+        )
+        return UUID(response.json()["id"])
+
+    async def update_global_concurrency_limit(
+        self, name: str, concurrency_limit: GlobalConcurrencyLimitUpdate
+    ) -> httpx.Response:
+        try:
+            response = await self._client.patch(
+                f"/v2/concurrency_limits/{name}",
+                json=concurrency_limit.dict(json_compatible=True, exclude_unset=True),
+            )
+            return response
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def delete_global_concurrency_limit_by_name(
+        self, name: str
+    ) -> httpx.Response:
+        try:
+            response = await self._client.delete(f"/v2/concurrency_limits/{name}")
+            return response
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_global_concurrency_limit_by_name(
+        self, name: str
+    ) -> Dict[str, object]:
+        try:
+            response = await self._client.get(f"/v2/concurrency_limits/{name}")
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_global_concurrency_limits(
+        self, limit: int = 10, offset: int = 0
+    ) -> List[Dict[str, object]]:
+        response = await self._client.post(
+            "/v2/concurrency_limits/filter",
+            json={
+                "limit": limit,
+                "offset": offset,
+            },
+        )
+        return response.json()
 
     async def create_flow_run_input(
         self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None

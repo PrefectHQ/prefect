@@ -5,7 +5,7 @@ import json
 import sys
 import textwrap
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -579,7 +579,7 @@ async def run(
                         "RETURN_AS_TIMEZONE_AWARE": False,
                         "PREFER_DATES_FROM": "future",
                         "RELATIVE_BASE": datetime.fromtimestamp(
-                            now.timestamp(), tz=pendulum.tz.UTC
+                            now.timestamp(), tz=timezone.utc
                         ),
                     },
                 )

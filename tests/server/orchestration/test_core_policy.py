@@ -8,11 +8,17 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.results import LiteralResult, PersistedResult, UnpersistedResult
+from prefect.results import (
+    LiteralResult,
+    PersistedResult,
+    UnknownResult,
+    UnpersistedResult,
+)
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, flow_runs
 from prefect.server.orchestration.core_policy import (
+    AddUnknownResult,
     BypassCancellingScheduledFlowRuns,
     CacheInsertion,
     CacheRetrieval,
@@ -22,6 +28,7 @@ from prefect.server.orchestration.core_policy import (
     HandlePausingFlows,
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
+    PreventDuplicateTransitions,
     PreventPendingTransitions,
     PreventRunningTasksFromStoppedFlows,
     ReleaseTaskConcurrencySlots,
@@ -1248,7 +1255,9 @@ class TestTransitionsFromTerminalStatesRule:
         ],
         ids=transition_names,
     )
-    @pytest.mark.parametrize("result_type", [PersistedResult, LiteralResult])
+    @pytest.mark.parametrize(
+        "result_type", [PersistedResult, LiteralResult, UnknownResult]
+    )
     async def test_transitions_from_completed_to_non_final_states_rejected_with_persisted_result(
         self,
         session,
@@ -2957,3 +2966,170 @@ class TestHandleCancellingScheduledFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.CANCELLING
+
+
+@pytest.mark.parametrize("run_type", ["task", "flow"])
+class TestAddUnknownResultRule:
+    @pytest.mark.parametrize(
+        "result_type,initial_state_type",
+        list(
+            product(
+                (PersistedResult,), (states.StateType.FAILED, states.StateType.CRASHED)
+            )
+        ),
+    )
+    async def test_saves_unknown_result_if_last_state_used_persisted_results(
+        self,
+        session,
+        initialize_orchestration,
+        run_type,
+        result_type,
+        initial_state_type,
+    ):
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=result_type.construct().dict() if result_type else None,
+        )
+
+        async with AddUnknownResult(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.proposed_state.data.get("type") == "unknown"
+
+    @pytest.mark.parametrize(
+        "result_type,initial_state_type",
+        list(
+            product(
+                (UnpersistedResult, LiteralResult),
+                (states.StateType.FAILED, states.StateType.CRASHED),
+            )
+        ),
+    )
+    async def test_does_not_save_unknown_result_if_last_result_did_not_use_persisted_results(
+        self,
+        session,
+        initialize_orchestration,
+        run_type,
+        result_type,
+        initial_state_type,
+    ):
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=result_type.construct().dict() if result_type else None,
+        )
+
+        async with AddUnknownResult(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        if ctx.proposed_state.data:
+            assert ctx.proposed_state.data.get("type") != "unknown"
+
+
+class TestPreventDuplicateTransitions:
+    async def test_no_transition_ids(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session, "flow", *transition, initial_details=None, proposed_details=None
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # neither state has a transition id in the state details
+        # so nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_proposed_state_no_transition_id(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details={"transition_id": uuid4()},
+            proposed_details=None,
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # proposed state is missing a transition id so
+        # nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_initial_state_no_transition_id(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details=None,
+            proposed_details={"transition_id": uuid4()},
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # initial state is missing a transition id so
+        # nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_different_transition_ids(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details={"transition_id": uuid4()},
+            proposed_details={"transition_id": uuid4()},
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # states have different transition ids to nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_same_transition_id(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        transition_id = uuid4()
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details={"transition_id": transition_id},
+            proposed_details={"transition_id": transition_id},
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # states have the same transition id so the transition should be rejected
+        assert ctx.response_status == SetStateStatus.REJECT

@@ -1,3 +1,64 @@
+"""
+This module contains functions that allow sending type-checked `RunInput` data
+to flows at runtime. Flows can send back responses, establishing two-way
+channels with senders. These functions are particularly useful for systems that
+require ongoing data transfer or need to react to input quickly.
+real-time interaction and efficient data handling. It's designed to facilitate
+dynamic communication within distributed or microservices-oriented systems,
+making it ideal for scenarios requiring continuous data synchronization and
+processing. It's particularly useful for systems that require ongoing data
+input and output.
+
+The following is an example of two flows. One sends a random number to the
+other and waits for a response. The other receives the number, squares it, and
+sends the result back. The sender flow then prints the result.
+
+Sender flow:
+
+```python
+import random
+from uuid import UUID
+from prefect import flow, get_run_logger
+from prefect.input import RunInput
+
+class NumberData(RunInput):
+    number: int
+
+
+@flow
+async def sender_flow(receiver_flow_run_id: UUID):
+    logger = get_run_logger()
+
+    the_number = random.randint(1, 100)
+
+    await NumberData(number=the_number).send_to(receiver_flow_run_id)
+
+    receiver = NumberData.receive(flow_run_id=receiver_flow_run_id)
+    squared = await receiver.next()
+
+    logger.info(f"{the_number} squared is {squared.number}")
+```
+
+Receiver flow:
+```python
+import random
+from uuid import UUID
+from prefect import flow, get_run_logger
+from prefect.input import RunInput
+
+class NumberData(RunInput):
+    number: int
+
+
+@flow
+async def receiver_flow():
+    async for data in NumberData.receive():
+        squared = data.number ** 2
+        data.respond(NumberData(number=squared))
+```
+"""
+
+
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -119,7 +180,10 @@ class RunInput(pydantic.BaseModel):
         """
         flow_run_id = ensure_flow_run_id(flow_run_id)
         value = await read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
-        instance = cls(**value)
+        if value:
+            instance = cls(**value)
+        else:
+            instance = cls()
         instance._metadata = RunInputMetadata(
             key=keyset["response"], sender=None, receiver=flow_run_id
         )
@@ -216,6 +280,101 @@ class RunInput(pydantic.BaseModel):
             flow_run_id=flow_run_id,
         )
 
+    @classmethod
+    def subclass_from_base_model_type(
+        cls, model_cls: Type[pydantic.BaseModel]
+    ) -> Type["RunInput"]:
+        """
+        Create a new `RunInput` subclass from the given `pydantic.BaseModel`
+        subclass.
+
+        Args:
+            - model_cls (pydantic.BaseModel subclass): the class from which
+                to create the new `RunInput` subclass
+        """
+        return type(f"{model_cls.__name__}RunInput", (RunInput, model_cls), {})  # type: ignore
+
+
+class AutomaticRunInput(RunInput):
+    value: Any
+
+    @classmethod
+    @sync_compatible
+    async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):
+        """
+        Load the run input response from the given key.
+
+        Args:
+            - keyset (Keyset): the keyset to load the input for
+            - flow_run_id (UUID, optional): the flow run ID to load the input for
+        """
+        instance = await super().load(keyset, flow_run_id=flow_run_id)
+        return instance.value
+
+    @classmethod
+    def subclass_from_type(cls, _type: Type[T]) -> Type["AutomaticRunInput"]:
+        """
+        Create a new `AutomaticRunInput` subclass from the given type.
+        """
+        fields = {"value": (_type, ...)}
+
+        # Sending a value to a flow run that relies on an AutomaticRunInput will
+        # produce a key prefix that includes the type name. For example, if the
+        # value is a list, the key will include "list" as the type. If the user
+        # then tries to receive the value with a type annotation like List[int],
+        # we need to find the key we saved with "list" as the type (not
+        # "List[int]"). Calling __name__.lower() on a type annotation like
+        # List[int] produces the string "list", which is what we need.
+        if hasattr(_type, "__name__"):
+            type_prefix = _type.__name__.lower()
+        elif hasattr(_type, "_name"):
+            # On Python 3.9 and earlier, type annotation values don't have a
+            # __name__ attribute, but they do have a _name.
+            type_prefix = _type._name.lower()
+        else:
+            # If we can't identify a type name that we can use as a key
+            # prefix that will match an input, we'll have to use
+            # "AutomaticRunInput" as the generic name. This will match all
+            # automatic inputs sent to the flow run, rather than a specific
+            # type.
+            type_prefix = ""
+        class_name = f"{type_prefix}AutomaticRunInput"
+
+        new_cls: Type["AutomaticRunInput"] = pydantic.create_model(
+            class_name, **fields, __base__=AutomaticRunInput
+        )
+        return new_cls
+
+    @classmethod
+    def receive(cls, *args, **kwargs):
+        if kwargs.get("key_prefix") is None:
+            kwargs["key_prefix"] = f"{cls.__name__.lower()}-auto"
+
+        return GetAutomaticInputHandler(run_input_cls=cls, *args, **kwargs)
+
+
+def run_input_subclass_from_type(_type: Type[T]) -> Type[RunInput]:
+    """
+    Create a new `RunInput` subclass from the given type.
+    """
+    try:
+        is_class = issubclass(_type, object)
+    except TypeError:
+        is_class = False
+
+    if not is_class:
+        # Could be something like a typing._GenericAlias, so pass it through to
+        # Pydantic to see if we can create a model from it.
+        return AutomaticRunInput.subclass_from_type(_type)
+    if issubclass(_type, RunInput):
+        return _type
+    elif issubclass(_type, pydantic.BaseModel):
+        return RunInput.subclass_from_base_model_type(_type)
+    else:
+        # As a fall-through for a type that isn't a `RunInput` subclass or
+        # `pydantic.BaseModel` subclass, pass it through to Pydantic.
+        return AutomaticRunInput.subclass_from_type(_type)
+
 
 class GetInputHandler(Generic[T]):
     def __init__(
@@ -291,6 +450,19 @@ class GetInputHandler(Generic[T]):
                     return self.to_instance(flow_run_inputs[0])
 
 
+class GetAutomaticInputHandler(GetInputHandler):
+    def __init__(self, *args, **kwargs):
+        self.with_metadata = kwargs.pop("with_metadata", False)
+        super().__init__(*args, **kwargs)
+
+    def to_instance(self, flow_run_input: "FlowRunInput") -> Any:
+        run_input = self.run_input_cls.load_from_flow_run_input(flow_run_input)
+
+        if self.with_metadata:
+            return run_input
+        return run_input.value
+
+
 async def _send_input(
     flow_run_id: UUID,
     run_input: "RunInput",
@@ -304,4 +476,42 @@ async def _send_input(
 
     await create_flow_run_input_from_model(
         key=key, flow_run_id=flow_run_id, model_instance=run_input, sender=sender
+    )
+
+
+@sync_compatible
+async def send_input(
+    value: Any,
+    flow_run_id: UUID,
+    sender: Optional[str] = None,
+    key_prefix: Optional[str] = None,
+):
+    input_cls = run_input_subclass_from_type(type(value))
+    await _send_input(
+        flow_run_id=flow_run_id,
+        run_input=input_cls(value=value),
+        sender=sender,
+        key_prefix=key_prefix,
+    )
+
+
+def receive_input(
+    _type: type,
+    timeout: Optional[float] = 3600,
+    poll_interval: float = 10,
+    raise_timeout_error: bool = False,
+    exclude_keys: Optional[Set[str]] = None,
+    key_prefix: Optional[str] = None,
+    flow_run_id: Optional[UUID] = None,
+    with_metadata: bool = False,
+) -> RunInput:
+    input_cls = run_input_subclass_from_type(_type)
+    return input_cls.receive(
+        timeout=timeout,
+        poll_interval=poll_interval,
+        raise_timeout_error=raise_timeout_error,
+        exclude_keys=exclude_keys,
+        key_prefix=key_prefix,
+        flow_run_id=flow_run_id,
+        with_metadata=with_metadata,
     )

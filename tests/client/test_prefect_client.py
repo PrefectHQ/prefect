@@ -34,6 +34,9 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
     ArtifactCreate,
+    BlockDocumentCreate,
+    GlobalConcurrencyLimitCreate,
+    GlobalConcurrencyLimitUpdate,
     LogCreate,
     VariableCreate,
     WorkPoolCreate,
@@ -409,7 +412,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
-    @pytest.mark.flaky(max_runs=3)
+    @pytest.mark.skip("Test is too flaky")
     async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(lifespan=make_lifespan(startup, shutdown))
@@ -1231,6 +1234,79 @@ async def test_create_then_read_flow_run_notification_policy(
     assert response[0].state_names == state_names
 
 
+async def test_create_then_update_flow_run_notification_policy(
+    prefect_client, block_document
+):
+    message_template = "Updated test message template!"
+    state_names = ["FAILED"]
+    tags = ["1.0"]
+
+    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
+        block_document_id=block_document.id,
+        is_active=True,
+        tags=[],
+        state_names=["COMPLETED"],
+        message_template="Test message template!",
+    )
+
+    new_block_document = await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            data={"url": "http://127.0.0.1"},
+            block_schema_id=block_document.block_schema_id,
+            block_type_id=block_document.block_type_id,
+            is_anonymous=True,
+        )
+    )
+
+    await prefect_client.update_flow_run_notification_policy(
+        id=notification_policy_id,
+        block_document_id=new_block_document.id,
+        is_active=False,
+        tags=tags,
+        state_names=state_names,
+        message_template=message_template,
+    )
+
+    response: List[FlowRunNotificationPolicy] = (
+        await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": False})
+        )
+    )
+
+    assert len(response) == 1
+    assert response[0].id == notification_policy_id
+    assert response[0].block_document_id == new_block_document.id
+    assert response[0].message_template == message_template
+    assert not response[0].is_active
+    assert response[0].tags == tags
+    assert response[0].state_names == state_names
+
+
+async def test_create_then_delete_flow_run_notification_policy(
+    prefect_client, block_document
+):
+    message_template = "Test message template!"
+    state_names = ["COMPLETED"]
+
+    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
+        block_document_id=block_document.id,
+        is_active=True,
+        tags=[],
+        state_names=state_names,
+        message_template=message_template,
+    )
+
+    await prefect_client.delete_flow_run_notification_policy(notification_policy_id)
+
+    response: List[FlowRunNotificationPolicy] = (
+        await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+        )
+    )
+
+    assert len(response) == 0
+
+
 async def test_read_filtered_logs(session, prefect_client, deployment):
     flow_runs = [uuid4() for i in range(5)]
     logs = [
@@ -1967,3 +2043,59 @@ async def test_prefect_client_follow_redirects():
     # do not follow redirects by default during unit tests
     async with PrefectClient(api=app) as client:
         assert client._client.follow_redirects is False
+
+
+async def test_global_concurrency_limit_create(prefect_client):
+    response_uuid = await prefect_client.create_global_concurrency_limit(
+        GlobalConcurrencyLimitCreate(name="global-create-test", limit=42)
+    )
+    assert response_uuid == UUID(
+        (
+            await prefect_client.read_global_concurrency_limit_by_name(
+                name="global-create-test"
+            )
+        ).get("id")
+    )
+
+
+async def test_global_concurrency_limit_delete(prefect_client):
+    await prefect_client.create_global_concurrency_limit(
+        GlobalConcurrencyLimitCreate(name="global-delete-test", limit=42)
+    )
+    assert len(await prefect_client.read_global_concurrency_limits()) == 1
+    await prefect_client.delete_global_concurrency_limit_by_name(
+        name="global-delete-test"
+    )
+    assert len(await prefect_client.read_global_concurrency_limits()) == 0
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.delete_global_concurrency_limit_by_name(
+            name="global-delete-test"
+        )
+
+
+async def test_global_concurrency_limit_update(prefect_client):
+    await prefect_client.create_global_concurrency_limit(
+        GlobalConcurrencyLimitCreate(name="global-update-test", limit=42)
+    )
+    await prefect_client.update_global_concurrency_limit(
+        name="global-update-test",
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            limit=1, name="global-update-test-new"
+        ),
+    )
+    assert len(await prefect_client.read_global_concurrency_limits()) == 1
+    assert (
+        await prefect_client.read_global_concurrency_limit_by_name(
+            name="global-update-test-new"
+        )
+    ).get("limit") == 1
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.update_global_concurrency_limit(
+            name="global-update-test",
+            concurrency_limit=GlobalConcurrencyLimitUpdate(limit=1),
+        )
+
+
+async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.read_global_concurrency_limit_by_name(name="not-here")
