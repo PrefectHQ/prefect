@@ -30,16 +30,26 @@ def is_v2_model(v) -> bool:
     return False
 
 
-def has_v2_model_as_param(signature: inspect.Signature) -> bool:
+def is_v2_type(v) -> bool:
+    if is_v2_model(v):
+        return True
+
+    try:
+        return v.__module__.startswith("pydantic.types")
+    except AttributeError:
+        return False
+
+
+def has_v2_type_as_param(signature: inspect.Signature) -> bool:
     parameters = signature.parameters.values()
     for p in parameters:
         # check if this parameter is a v2 model
-        if is_v2_model(p.annotation):
+        if is_v2_type(p.annotation):
             return True
 
         # check if this parameter is a collection of types
         for v in typing.get_args(p.annotation):
-            if is_v2_model(v):
+            if is_v2_type(v):
                 return True
     return False
 

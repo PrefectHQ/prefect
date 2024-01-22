@@ -14,7 +14,7 @@ if HAS_PYDANTIC_V2:
 
     from prefect._internal.pydantic.v2_schema import (
         create_v2_schema,
-        has_v2_model_as_param,
+        has_v2_type_as_param,
         process_v2_params,
     )
 else:
@@ -323,7 +323,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     class ModelConfig:
         arbitrary_types_allowed = True
 
-    if HAS_PYDANTIC_V2 and has_v2_model_as_param(signature):
+    if HAS_PYDANTIC_V2 and has_v2_type_as_param(signature):
         create_schema = create_v2_schema
         process_params = process_v2_params
     else:
