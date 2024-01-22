@@ -521,6 +521,7 @@ async def run(
     watch_interval: int = typer.Option(
         5, "--watch-interval", help="Polling interval for `--watch`."
     ),
+    timeout: int = typer.Option(None, "--timeout", help="Timeout for `--watch`."),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -662,8 +663,18 @@ async def run(
         )
         if watch:
             app.console.print("Watching flow run...")
-            flow_run_id = flow_run.id
-            wait_for_flow_run(flow_run_id, watch_interval=watch_interval)
+            flow_run_final_state = wait_for_flow_run(
+                flow_run.id,
+                timeout=timeout,
+                poll_interval=watch_interval,
+                client=client,
+            )
+            app.console.print(
+                f"Flow run finished with state {flow_run_final_state.name}."
+            )
+            if flow_run_final_state.is_completed():
+                exit(0)
+            exit(1)
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
