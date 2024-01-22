@@ -8,14 +8,14 @@ from prefect import __version__ as PREFECT_VERSION
 
 
 def inject_schemas_into_openapi(
-    webserver: FastAPI, deployment_schemas: Dict[str, Any]
+    webserver: FastAPI, schemas_to_inject: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Augments the webserver's OpenAPI schema with additional schemas from deployments.
+    Augments the webserver's OpenAPI schema with additional schemas from deployments / flows / tasks.
 
     Args:
         webserver: The FastAPI instance representing the webserver.
-        deployment_schemas: A dictionary of deployment schemas to integrate.
+        schemas_to_inject: A dictionary of OpenAPI schemas to integrate.
 
     Returns:
         The augmented OpenAPI schema dictionary.
@@ -24,25 +24,25 @@ def inject_schemas_into_openapi(
         title="FastAPI Prefect Runner", version=PREFECT_VERSION, routes=webserver.routes
     )
 
-    augmented_schema = merge_definitions(deployment_schemas, openapi_schema)
+    augmented_schema = merge_definitions(schemas_to_inject, openapi_schema)
     return update_refs_to_components(augmented_schema)
 
 
 def merge_definitions(
-    deployment_schemas: Dict[str, Any], openapi_schema: Dict[str, Any]
+    injected_schemas: Dict[str, Any], openapi_schema: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Integrates definitions from deployment schemas into the OpenAPI components.
+    Integrates definitions from injected schemas into the OpenAPI components.
 
     Args:
-        deployment_schemas: A dictionary of deployment-specific schemas.
+        injected_schemas: A dictionary of deployment-specific schemas.
         openapi_schema: The base OpenAPI schema to update.
     """
     openapi_schema_copy = deepcopy(openapi_schema)
     components = openapi_schema_copy.setdefault("components", {}).setdefault(
         "schemas", {}
     )
-    for definitions in deployment_schemas.values():
+    for definitions in injected_schemas.values():
         if "definitions" in definitions:
             for def_name, def_schema in definitions["definitions"].items():
                 def_schema_copy = deepcopy(def_schema)
