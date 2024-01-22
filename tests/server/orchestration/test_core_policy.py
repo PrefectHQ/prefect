@@ -28,6 +28,7 @@ from prefect.server.orchestration.core_policy import (
     HandlePausingFlows,
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
+    PreventDuplicateTransitions,
     PreventPendingTransitions,
     PreventRunningTasksFromStoppedFlows,
     ReleaseTaskConcurrencySlots,
@@ -3030,3 +3031,105 @@ class TestAddUnknownResultRule:
 
         if ctx.proposed_state.data:
             assert ctx.proposed_state.data.get("type") != "unknown"
+
+
+class TestPreventDuplicateTransitions:
+    async def test_no_transition_ids(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session, "flow", *transition, initial_details=None, proposed_details=None
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # neither state has a transition id in the state details
+        # so nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_proposed_state_no_transition_id(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details={"transition_id": uuid4()},
+            proposed_details=None,
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # proposed state is missing a transition id so
+        # nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_initial_state_no_transition_id(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details=None,
+            proposed_details={"transition_id": uuid4()},
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # initial state is missing a transition id so
+        # nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_different_transition_ids(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details={"transition_id": uuid4()},
+            proposed_details={"transition_id": uuid4()},
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # states have different transition ids to nothing should occur
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_same_transition_id(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.PENDING, StateType.PENDING)
+        transition_id = uuid4()
+        context = await initialize_orchestration(
+            session,
+            "flow",
+            *transition,
+            initial_details={"transition_id": transition_id},
+            proposed_details={"transition_id": transition_id},
+        )
+
+        async with PreventDuplicateTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()  # type: ignore[attr-defined]
+
+        # states have the same transition id so the transition should be rejected
+        assert ctx.response_status == SetStateStatus.REJECT

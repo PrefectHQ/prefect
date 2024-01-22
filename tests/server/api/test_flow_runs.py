@@ -1331,6 +1331,78 @@ class TestSetFlowRunState:
             <= 10
         )
 
+    @pytest.fixture
+    async def pending_flow_run(self, session, flow):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, flow_version="0.1", state=schemas.states.Pending()
+            ),
+        )
+        await session.commit()
+        return model
+
+    async def test_pending_to_pending(self, pending_flow_run, client):
+        response = await client.post(
+            f"flow_runs/{pending_flow_run.id}/set_state",
+            json=dict(state=dict(type="PENDING", name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+        assert (
+            api_response.details.reason
+            == "This run is in a PENDING state and cannot transition to a PENDING"
+            " state."
+        )
+
+    @pytest.fixture
+    async def transition_id(self) -> UUID:
+        return uuid4()
+
+    @pytest.fixture
+    async def pending_flow_run_with_transition_id(self, session, flow, transition_id):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id,
+                flow_version="0.1",
+                state=schemas.states.Pending(
+                    state_details={"transition_id": str(transition_id)}
+                ),
+            ),
+        )
+        await session.commit()
+        return model
+
+    async def test_pending_to_pending_same_transition_id(
+        self,
+        pending_flow_run_with_transition_id,
+        client,
+        transition_id,
+    ):
+        response = await client.post(
+            f"flow_runs/{pending_flow_run_with_transition_id.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="PENDING",
+                    name="Test State",
+                    state_details={"transition_id": str(transition_id)},
+                )
+            ),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.REJECT
+        assert (
+            api_response.details.reason
+            == "This run has already made this state transition."
+        )
+        # the transition is rejected and the returned state should be the existing state in the db
+        assert api_response.state.id == pending_flow_run_with_transition_id.state_id
+
 
 class TestManuallyRetryingFlowRuns:
     async def test_manual_flow_run_retries(
