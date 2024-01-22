@@ -15,7 +15,6 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import wait_for_flow_run
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
@@ -39,6 +38,7 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
+from prefect.flow_runs import wait_for_flow_run
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
@@ -663,16 +663,16 @@ async def run(
         )
         if watch:
             app.console.print("Watching flow run...")
-            flow_run_final_state = wait_for_flow_run(
+            flow_run_final = await wait_for_flow_run(
                 flow_run.id,
                 timeout=timeout,
                 poll_interval=watch_interval,
                 client=client,
+                log_states=True,
             )
-            app.console.print(
-                f"Flow run finished with state {flow_run_final_state.name}."
-            )
-            if flow_run_final_state.is_completed():
+            final_flow_state = flow_run_final.state
+            app.console.print(f"Flow run finished with state {final_flow_state.name}.")
+            if final_flow_state.is_completed():
                 exit(0)
             exit(1)
 

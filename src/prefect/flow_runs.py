@@ -7,6 +7,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.exceptions import FlowRunWaitTimeout
+from prefect.logging import get_logger
 
 
 @inject_client
@@ -15,6 +16,7 @@ async def wait_for_flow_run(
     timeout: Optional[int] = 10800,
     poll_interval: int = 5,
     client: Optional[PrefectClient] = None,
+    log_states: bool = False,
 ) -> FlowRun:
     """
     Waits for the prefect flow run to finish and returns the FlowRun
@@ -75,6 +77,8 @@ async def wait_for_flow_run(
         while True:
             flow_run = await client.read_flow_run(flow_run_id)
             flow_state = flow_run.state
+            if log_states:
+                get_logger("prefect").info(f"{flow_run_id}:{flow_state}")
             if flow_state and flow_state.is_final():
                 return flow_run
             await anyio.sleep(poll_interval)
