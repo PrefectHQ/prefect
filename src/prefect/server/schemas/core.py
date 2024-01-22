@@ -559,7 +559,7 @@ class Deployment(ORMBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: list[DeploymentSchedule] = Field(
+    schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
     infra_overrides: Dict[str, Any] = Field(

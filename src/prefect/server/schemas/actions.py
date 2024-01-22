@@ -175,7 +175,7 @@ class DeploymentCreate(ActionBaseModel):
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
     paused: bool = FieldFrom(schemas.core.Deployment)
-    schedules: list[DeploymentScheduleCreate] = Field(
+    schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
@@ -296,7 +296,7 @@ class DeploymentUpdate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
     paused: bool = FieldFrom(schemas.core.Deployment)
-    schedules: list[DeploymentScheduleCreate] = Field(
+    schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )

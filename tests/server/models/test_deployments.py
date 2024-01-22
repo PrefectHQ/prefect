@@ -1,4 +1,5 @@
 import datetime
+from typing import List
 from uuid import uuid4
 
 import anyio
@@ -1123,7 +1124,7 @@ class TestUpdateDeploymentLastPolled:
 async def deployment_schedules(
     session: AsyncSession,
     deployment,
-) -> list[schemas.core.DeploymentSchedule]:
+) -> List[schemas.core.DeploymentSchedule]:
     schedules = [
         schemas.actions.DeploymentScheduleCreate(
             schedule=schemas.schedules.IntervalSchedule(
@@ -1195,7 +1196,7 @@ class TestDeploymentSchedules:
         self,
         session: AsyncSession,
         deployment,
-        deployment_schedules: list[schemas.core.DeploymentSchedule],
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
     ):
         schedules = await models.deployments.read_deployment_schedules(
             session=session,
@@ -1209,7 +1210,7 @@ class TestDeploymentSchedules:
         self,
         session: AsyncSession,
         deployment,
-        deployment_schedules: list[schemas.core.DeploymentSchedule],
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
     ):
         schedules = await models.deployments.read_deployment_schedules(
             session=session,
@@ -1227,7 +1228,7 @@ class TestDeploymentSchedules:
         self,
         session: AsyncSession,
         deployment,
-        deployment_schedules: list[schemas.core.DeploymentSchedule],
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
     ):
         assert deployment_schedules[0].active is True
 
@@ -1255,7 +1256,7 @@ class TestDeploymentSchedules:
         self,
         session: AsyncSession,
         deployment_2,
-        deployment_schedules: list[schemas.core.DeploymentSchedule],
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
     ):
         assert deployment_schedules[0].active is True
         assert deployment_schedules[0].deployment_id != deployment_2.id
@@ -1276,7 +1277,7 @@ class TestDeploymentSchedules:
         self,
         session: AsyncSession,
         deployment,
-        deployment_schedules: list[schemas.core.DeploymentSchedule],
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
     ):
         assert await models.deployments.delete_deployment_schedule(
             session=session,
@@ -1295,7 +1296,7 @@ class TestDeploymentSchedules:
         self,
         session: AsyncSession,
         deployment_2,
-        deployment_schedules: list[schemas.core.DeploymentSchedule],
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
     ):
         assert deployment_schedules[0].active is True
         assert deployment_schedules[0].deployment_id != deployment_2.id
@@ -1314,7 +1315,7 @@ class TestDeploymentSchedules:
         self,
         session: AsyncSession,
         deployment,
-        deployment_schedules: list[schemas.core.DeploymentSchedule],
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
     ):
         schedules = await models.deployments.read_deployment_schedules(
             session=session,

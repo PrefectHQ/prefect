@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 
 import pendulum
@@ -765,8 +765,8 @@ async def create_deployment_schedules(
     db: PrefectDBInterface,
     session: AsyncSession,
     deployment_id: UUID,
-    schedules: list[schemas.actions.DeploymentScheduleCreate],
-) -> list[schemas.core.DeploymentSchedule]:
+    schedules: List[schemas.actions.DeploymentScheduleCreate],
+) -> List[schemas.core.DeploymentSchedule]:
     """
     Creates a deployment's schedules.
 
@@ -796,8 +796,10 @@ async def read_deployment_schedules(
     db: PrefectDBInterface,
     session: AsyncSession,
     deployment_id: UUID,
-    deployment_schedule_filter: schemas.filters.DeploymentScheduleFilter | None = None,
-) -> list[schemas.core.DeploymentSchedule]:
+    deployment_schedule_filter: Optional[
+        schemas.filters.DeploymentScheduleFilter
+    ] = None,
+) -> List[schemas.core.DeploymentSchedule]:
     """
     Reads a deployment's schedules.
 
