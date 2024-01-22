@@ -153,7 +153,7 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.input.run_input import run_input_subclass_from_type
@@ -412,10 +412,20 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
+
+    entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+
     try:
-        flow = await load_flow_from_flow_run(flow_run, client=client)
+        flow = (
+            load_flow_from_entrypoint(entrypoint)
+            if entrypoint
+            else await load_flow_from_flow_run(flow_run, client=client)
+        )
     except Exception:
-        message = "Flow could not be retrieved from deployment."
+        message = (
+            "Flow could not be retrieved from"
+            f" {'entrypoint' if entrypoint else 'deployment'}."
+        )
         flow_run_logger(flow_run).exception(message)
         state = await exception_to_failed_state(message=message)
         await client.set_flow_run_state(

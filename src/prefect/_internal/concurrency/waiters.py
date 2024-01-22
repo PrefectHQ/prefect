@@ -66,7 +66,7 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
 
 class Waiter(Portal, abc.ABC, Generic[T]):
     """
-    A waiter allows a waiting for a call while routing callbacks to the
+    A waiter allows waiting for a call while routing callbacks to the
     the current thread.
 
     Calls sent back to the waiter will be executed when waiting for the result.
