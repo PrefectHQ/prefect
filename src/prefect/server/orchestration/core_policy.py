@@ -940,8 +940,8 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
     """
     Prevent duplicate transitions from being made right after one another.
 
-    This rule allow for clients to set an optional transition_id on a state. If the next
-    transition that run makes has the same transition_id, the transition will be
+    This rule allows for clients to set an optional transition_id on a state. If the
+    run's next transition has the same transition_id, the transition will be
     rejected and the existing state will be returned.
 
     This allows for clients to make state transition requests without worrying about
