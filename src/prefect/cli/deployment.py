@@ -9,13 +9,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import anyio
 import pendulum
 import typer
 import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
+from prefect import wait_for_flow_run
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
@@ -518,6 +518,9 @@ async def run(
         "--start-at",
     ),
     watch: bool = typer.Option(None, "--watch", help="Poll flowrun until completion."),
+    watch_interval: int = typer.Option(
+        5, "--watch-interval", help="Polling interval for `--watch`."
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -660,19 +663,7 @@ async def run(
         if watch:
             app.console.print("Watching flow run...")
             flow_run_id = flow_run.id
-            while True:
-                flow_run = await client.read_flow_run(flow_run_id)
-                flow_state = flow_run.state
-                if flow_state and flow_state.is_final():
-                    app.console.print(f"Flow run finished in state: {flow_state.name}")
-                    if flow_state.is_completed():
-                        exit(0)
-                    exit(1)
-                app.console.print(
-                    f"└── {datetime_local_tz.to_datetime_string()} Flow run state :"
-                    f" {flow_state.name}"
-                )
-                await anyio.sleep(5)
+            wait_for_flow_run(flow_run_id, watch_interval=watch_interval)
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
