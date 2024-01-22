@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import anyio
 import pendulum
 import typer
 import yaml
@@ -516,6 +517,7 @@ async def run(
         None,
         "--start-at",
     ),
+    watch: bool = typer.Option(None, "--watch", help="Poll flowrun until completion."),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -631,30 +633,46 @@ async def run(
             else:
                 raise
 
-    if PREFECT_UI_URL:
-        run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
-    else:
-        run_url = "<no dashboard available>"
+        if PREFECT_UI_URL:
+            run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
+        else:
+            run_url = "<no dashboard available>"
 
-    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
-    scheduled_display = (
-        datetime_local_tz.to_datetime_string()
-        + " "
-        + datetime_local_tz.tzname()
-        + human_dt_diff
-    )
+        datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+        scheduled_display = (
+            datetime_local_tz.to_datetime_string()
+            + " "
+            + datetime_local_tz.tzname()
+            + human_dt_diff
+        )
 
-    app.console.print(f"Created flow run {flow_run.name!r}.")
-    app.console.print(
-        textwrap.dedent(
-            f"""
-        └── UUID: {flow_run.id}
-        └── Parameters: {flow_run.parameters}
-        └── Scheduled start time: {scheduled_display}
-        └── URL: {run_url}
-        """
-        ).strip()
-    )
+        app.console.print(f"Created flow run {flow_run.name!r}.")
+        app.console.print(
+            textwrap.dedent(
+                f"""
+            └── UUID: {flow_run.id}
+            └── Parameters: {flow_run.parameters}
+            └── Scheduled start time: {scheduled_display}
+            └── URL: {run_url}
+            """
+            ).strip()
+        )
+        if watch:
+            app.console.print("Watching flow run...")
+            flow_run_id = flow_run.id
+            while True:
+                flow_run = await client.read_flow_run(flow_run_id)
+                flow_state = flow_run.state
+                if flow_state and flow_state.is_final():
+                    app.console.print(f"Flow run finished in state: {flow_state.name}")
+                    if flow_state.is_completed():
+                        exit(0)
+                    exit(1)
+                app.console.print(
+                    f"└── {datetime_local_tz.to_datetime_string()} Flow run state :"
+                    f" {flow_state.name}"
+                )
+                await anyio.sleep(5)
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
