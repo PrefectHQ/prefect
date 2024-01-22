@@ -422,3 +422,21 @@ async def test_print_parameter_validation_error(deployment_with_parameter_schema
             "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
         ),
     )
+
+
+async def test_run_deployment_watch_pass(
+    deployment_name: str, prefect_client: prefect.PrefectClient, deployment
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["deployment", "run", deployment_name, "--watch"],
+        expected_code=0,
+    )
+
+    flow_runs = await prefect_client.read_flow_runs()
+    assert len(flow_runs) == 1
+    flow_run = flow_runs[0]
+
+    assert flow_run.deployment_id == deployment.id
+
+    assert flow_run.state.is_successful()
