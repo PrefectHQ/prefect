@@ -39,7 +39,11 @@ def upgrade():
             nullable=False,
         ),
         sa.Column(
-            "schedule", prefect.server.utilities.database.Pydantic(), nullable=False
+            "schedule",
+            prefect.server.utilities.database.Pydantic(
+                prefect.server.schemas.schedules.SCHEDULE_TYPES
+            ),
+            nullable=False,
         ),
         sa.Column("active", sa.Boolean(), nullable=False),
         sa.Column(
@@ -72,6 +76,24 @@ def upgrade():
     op.create_index(
         op.f("ix_deployment__paused"), "deployment", ["paused"], unique=False
     )
+
+    backfill_schedules = """
+        INSERT INTO deployment_schedule (deployment_id, schedule, active)
+        SELECT
+            d.id AS deployment_id,
+            d.schedule,
+            d.is_schedule_active AS active
+        FROM
+            deployment d
+        WHERE
+            d.schedule IS NOT NULL;
+    """
+    backfill_paused = """
+        UPDATE deployment SET paused = NOT is_schedule_active where paused = is_schedule_active;
+    """
+
+    op.execute(sa.text(backfill_schedules))
+    op.execute(sa.text(backfill_paused))
 
 
 def downgrade():

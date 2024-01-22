@@ -5,6 +5,7 @@ import anyio
 import pendulum
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.schemas import filters
@@ -1116,3 +1117,218 @@ class TestUpdateDeploymentLastPolled:
         )
         assert updated_deployment.last_polled is not None
         assert updated_deployment.last_polled > pendulum.now("UTC").subtract(minutes=1)
+
+
+@pytest.fixture
+async def deployment_schedules(
+    session: AsyncSession,
+    deployment,
+) -> list[schemas.core.DeploymentSchedule]:
+    schedules = [
+        schemas.actions.DeploymentScheduleCreate(
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1)
+            ),
+            active=True,
+        ),
+        schemas.actions.DeploymentScheduleCreate(
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=2)
+            ),
+            active=False,
+        ),
+        schemas.actions.DeploymentScheduleCreate(
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=3)
+            ),
+            active=True,
+        ),
+    ]
+
+    created = await models.deployments.create_deployment_schedules(
+        session=session,
+        schedules=schedules,
+        deployment_id=deployment.id,
+    )
+
+    return created
+
+
+class TestDeploymentSchedules:
+    async def test_can_create_schedules(
+        self,
+        session,
+        deployment,
+    ):
+        schedules = [
+            schemas.actions.DeploymentScheduleCreate(
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                active=True,
+            ),
+            schemas.actions.DeploymentScheduleCreate(
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=2)
+                ),
+                active=False,
+            ),
+        ]
+
+        created = await models.deployments.create_deployment_schedules(
+            session=session,
+            schedules=schedules,
+            deployment_id=deployment.id,
+        )
+
+        assert len(created) == 2
+
+        assert created[0].deployment_id == deployment.id
+        assert created[0].schedule == schedules[0].schedule
+        assert created[0].active == schedules[0].active
+
+        assert created[1].deployment_id == deployment.id
+        assert created[1].schedule == schedules[1].schedule
+        assert created[1].active == schedules[1].active
+
+    async def test_can_read_schedules(
+        self,
+        session: AsyncSession,
+        deployment,
+        deployment_schedules: list[schemas.core.DeploymentSchedule],
+    ):
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+
+        existing = {s.id for s in deployment_schedules}
+        assert {s.id for s in schedules} == existing
+
+    async def test_read_can_filter_by_active(
+        self,
+        session: AsyncSession,
+        deployment,
+        deployment_schedules: list[schemas.core.DeploymentSchedule],
+    ):
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            deployment_schedule_filter=schemas.filters.DeploymentScheduleFilter(
+                active=schemas.filters.DeploymentScheduleFilterActive(eq_=False)
+            ),
+        )
+
+        assert len(schedules) > 0
+        assert len(schedules) < len(deployment_schedules)
+        assert all(s.active is False for s in schedules)
+
+    async def test_can_update_schedule(
+        self,
+        session: AsyncSession,
+        deployment,
+        deployment_schedules: list[schemas.core.DeploymentSchedule],
+    ):
+        assert deployment_schedules[0].active is True
+
+        assert await models.deployments.update_deployment_schedule(
+            session=session,
+            deployment_id=deployment.id,
+            deployment_schedule_id=deployment_schedules[0].id,
+            schedule=schemas.actions.DeploymentScheduleUpdate(active=False),
+        )
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+
+        the_one = next(
+            schedule
+            for schedule in schedules
+            if schedule.id == deployment_schedules[0].id
+        )
+
+        assert the_one.active is False
+
+    async def test_cannot_update_schedule_incorrect_deployment_id(
+        self,
+        session: AsyncSession,
+        deployment_2,
+        deployment_schedules: list[schemas.core.DeploymentSchedule],
+    ):
+        assert deployment_schedules[0].active is True
+        assert deployment_schedules[0].deployment_id != deployment_2.id
+
+        # As a security measure we require that the deployment_id also be
+        # passed into the update call to prevent a user from updating a
+        # schedule for a different deployment.
+        result = await models.deployments.update_deployment_schedule(
+            session=session,
+            deployment_id=deployment_2.id,
+            deployment_schedule_id=deployment_schedules[0].id,
+            schedule=schemas.actions.DeploymentScheduleUpdate(active=False),
+        )
+
+        assert result is False
+
+    async def test_can_delete_schedule(
+        self,
+        session: AsyncSession,
+        deployment,
+        deployment_schedules: list[schemas.core.DeploymentSchedule],
+    ):
+        assert await models.deployments.delete_deployment_schedule(
+            session=session,
+            deployment_id=deployment.id,
+            deployment_schedule_id=deployment_schedules[0].id,
+        )
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+
+        assert deployment_schedules[0].id not in {s.id for s in schedules}
+
+    async def test_cannot_delete_schedule_incorrect_deployment_id(
+        self,
+        session: AsyncSession,
+        deployment_2,
+        deployment_schedules: list[schemas.core.DeploymentSchedule],
+    ):
+        assert deployment_schedules[0].active is True
+        assert deployment_schedules[0].deployment_id != deployment_2.id
+
+        # As a security measure we require that the deployment_id also be
+        # passed into the delete call to prevent a user from updating a
+        # schedule for a different deployment.
+        result = await models.deployments.delete_deployment_schedule(
+            session=session,
+            deployment_id=deployment_2.id,
+            deployment_schedule_id=deployment_schedules[0].id,
+        )
+        assert result is False
+
+    async def test_can_delete_all_schedules(
+        self,
+        session: AsyncSession,
+        deployment,
+        deployment_schedules: list[schemas.core.DeploymentSchedule],
+    ):
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+        assert len(schedules) == len(deployment_schedules) > 0
+
+        assert await models.deployments.delete_schedules_for_deployment(
+            session=session,
+            deployment_id=deployment.id,
+        )
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+        assert len(schedules) == 0

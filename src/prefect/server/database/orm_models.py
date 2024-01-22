@@ -896,7 +896,7 @@ class ORMDeployment:
         return sa.orm.relationship(
             "DeploymentSchedule",
             lazy="selectin",
-            order_by=sa.desc("DeploymentSchedule.updated"),
+            order_by=sa.desc(sa.text("updated")),
         )
 
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
