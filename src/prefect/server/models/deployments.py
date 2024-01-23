@@ -575,7 +575,7 @@ async def _generate_scheduled_flow_runs(
     if not deployment:
         return []
 
-    deployment_schedules = await read_deployment_schedules(
+    active_deployment_schedules = await read_deployment_schedules(
         session=session,
         deployment_id=deployment.id,
         deployment_schedule_filter=schemas.filters.DeploymentScheduleFilter(
@@ -583,7 +583,7 @@ async def _generate_scheduled_flow_runs(
         ),
     )
 
-    for deployment_schedule in deployment_schedules:
+    for deployment_schedule in active_deployment_schedules:
         dates = []
 
         # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
