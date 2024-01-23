@@ -528,7 +528,7 @@ async def run(
         "--watch-interval",
         help="How often to poll the flow run for state changes (in seconds).",
     ),
-    timeout: int = typer.Option(None, "--timeout", help="Timeout for `--watch`."),
+    timeout: int = typer.Option(None, "--timeout", "-t", help="Timeout for `--watch`."),
 ):
     """
     Create a flow run for the given flow and deployment.

@@ -440,23 +440,26 @@ async def test_print_parameter_validation_error(deployment_with_parameter_schema
 
 
 @pytest.mark.parametrize(
-    "test_case, mock_response, expected_output, expected_code",
+    "test_case, mock_wait_for_flow_run, timeout, expected_output, expected_code",
     [
         (
             "pass",
             AsyncMock(return_value=completed_flow_run()),
+            None,
             "Flow run finished successfully",
             0,
         ),
         (
             "fail",
             AsyncMock(return_value=failed_flow_run()),
+            None,
             "Flow run finished in state 'Failed'",
             1,
         ),
         (
             "timeout",
-            AsyncMock(side_effect=FlowRunWaitTimeout("Timeout occurred")),
+            AsyncMock(side_effect=FlowRunWaitTimeout("time's up")),
+            10,
             "Timeout occurred",
             1,
         ),
@@ -469,15 +472,19 @@ async def test_run_deployment_watch(
     deployment_name,
     prefect_client,
     test_case,
-    mock_response,
+    mock_wait_for_flow_run,
+    timeout,
     expected_output,
     expected_code,
 ):
-    monkeypatch.setattr("prefect.cli.deployment.wait_for_flow_run", mock_response)
+    monkeypatch.setattr(
+        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
+    )
 
     deployment_run_with_watch_command = partial(
         invoke_and_assert,
-        command=["deployment", "run", deployment_name, "-w"],
+        command=["deployment", "run", deployment_name, "-w"]
+        + (["-t", str(timeout)] if timeout else []),
         expected_output_contains=expected_output,
         expected_code=expected_code,
     )
@@ -494,9 +501,9 @@ async def test_run_deployment_watch(
 
     assert flow_run.state.is_scheduled()
 
-    mock_response.assert_awaited_once_with(
+    mock_wait_for_flow_run.assert_awaited_once_with(
         flow_run.id,
-        timeout=ANY,
+        timeout=timeout,
         poll_interval=ANY,
         log_states=ANY,
     )
