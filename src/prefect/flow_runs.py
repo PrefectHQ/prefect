@@ -9,8 +9,6 @@ from prefect.client.utilities import inject_client
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.logging import get_logger
 
-logger = get_logger(__name__)
-
 
 @inject_client
 async def wait_for_flow_run(
@@ -75,19 +73,16 @@ async def wait_for_flow_run(
             ```
     """
     assert client is not None, "Client injection failed"
-
-    try:
-        with anyio.move_on_after(timeout):
-            while True:
-                flow_run = await client.read_flow_run(flow_run_id)
-                flow_state = flow_run.state
-                if log_states:
-                    logger.info(f"Flow run is in state {flow_run.state.name}")
-                if flow_state and flow_state.is_final():
-                    return flow_run
-                await anyio.sleep(poll_interval)
-    except TimeoutError as exc:
-        raise FlowRunWaitTimeout(
-            f"Flow run with ID {flow_run_id} exceeded watch timeout of"
-            f" {timeout} seconds"
-        ) from exc
+    logger = get_logger()
+    with anyio.move_on_after(timeout):
+        while True:
+            flow_run = await client.read_flow_run(flow_run_id)
+            flow_state = flow_run.state
+            if log_states:
+                logger.info(f"Flow run is in state {repr(flow_run.state.name)}")
+            if flow_state and flow_state.is_final():
+                return flow_run
+            await anyio.sleep(poll_interval)
+    raise FlowRunWaitTimeout(
+        f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
+    )

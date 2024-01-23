@@ -518,10 +518,15 @@ async def run(
         "--start-at",
     ),
     watch: bool = typer.Option(
-        None, "--watch", help="Poll flow run until a terminal state is reached."
+        None,
+        "--watch",
+        "-w",
+        help="Whether to poll the flow run until a terminal state is reached.",
     ),
     watch_interval: int = typer.Option(
-        5, "--watch-interval", help="Polling interval for `--watch`."
+        5,
+        "--watch-interval",
+        help="How often to poll the flow run for state changes (in seconds).",
     ),
     timeout: int = typer.Option(None, "--timeout", help="Timeout for `--watch`."),
 ):
@@ -664,19 +669,24 @@ async def run(
             ).strip()
         )
         if watch:
-            app.console.print("Watching flow run...")
-            flow_run_final = await wait_for_flow_run(
-                flow_run.id,
-                timeout=timeout,
-                poll_interval=watch_interval,
-                log_states=True,
-            )
-            final_flow_state = flow_run_final.state
-            if final_flow_state.is_completed():
-                exit_with_success(
-                    f"Flow run finished successfully in {final_flow_state.name!r}."
+            try:
+                app.console.print("Watching flow run...")
+                flow_run_final = await wait_for_flow_run(
+                    flow_run.id,
+                    timeout=timeout,
+                    poll_interval=watch_interval,
+                    log_states=True,
                 )
-            exit_with_error(f"Flow run finished with state {final_flow_state.name}.")
+                final_flow_state = flow_run_final.state
+                if final_flow_state.is_completed():
+                    exit_with_success(
+                        f"Flow run finished successfully in {final_flow_state.name!r}."
+                    )
+                exit_with_error(
+                    f"Flow run finished with state {final_flow_state.name}."
+                )
+            except KeyboardInterrupt:
+                exit_with_error("Stopped watching flow run.")
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
