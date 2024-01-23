@@ -82,6 +82,7 @@ Client-side execution and orchestration of flows and tasks.
 """
 import asyncio
 import contextlib
+import inspect
 import logging
 import os
 import random
@@ -213,6 +214,7 @@ R = TypeVar("R")
 T = TypeVar("T", bound=RunInput)
 EngineReturnType = Literal["future", "state", "result"]
 
+NUM_CHARS_DYNAMIC_KEY = 8
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
@@ -1389,10 +1391,27 @@ def enter_task_run_engine(
 
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
-        raise RuntimeError(
-            "Tasks cannot be run outside of a flow. To call the underlying task"
-            " function outside of a flow use `task.fn()`."
+        get_logger("prefect.engine").debug(
+            f"Task {task.name!r} was called outside of a flow run context."
+            " This task will be submitted to the API for execution."
         )
+        module = task.fn.__module__
+        if module in ("__main__", "__prefect_loader__"):
+            module_name = inspect.getfile(task.fn)
+            module = module_name if module_name != "__main__" else module
+
+        task_entrypoint = f"{module}:{task.fn.__name__}"
+        emit_event(
+            event="bespoke_task_run_scheduled_event",
+            resource={
+                "prefect.resource.id": f"prefect.task.{id(task)}",
+            },
+            payload={
+                "parameters": parameters,
+                "task_entrypoint": task_entrypoint,
+            },
+        )
+        return
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -1603,14 +1622,22 @@ async def create_task_run_future(
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-    task_run_name = f"{task.name}-{dynamic_key}"
+    task_run_name = (
+        f"{task.name}-{dynamic_key}"
+        if flow_run_context and flow_run_context.flow_run
+        else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
+    )
 
     # Generate a future
     future = PrefectFuture(
         name=task_run_name,
         key=uuid4(),
         task_runner=task_runner,
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
+        asynchronous=(
+            task.isasync and flow_run_context.flow.isasync
+            if flow_run_context and flow_run_context.flow
+            else task.isasync
+        ),
     )
 
     # Create and submit the task run in the background
@@ -1698,7 +1725,7 @@ async def create_task_run(
     task_run = await flow_run_context.client.create_task_run(
         task=task,
         name=name,
-        flow_run_id=flow_run_context.flow_run.id,
+        flow_run_id=flow_run_context.flow_run.id if flow_run_context.flow_run else None,
         dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
@@ -2572,7 +2599,12 @@ async def propose_state(
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
-    if task.task_key not in context.task_run_dynamic_keys:
+    if context.flow_run is None:  # this is an autonomous task run
+        context.task_run_dynamic_keys[task.task_key] = getattr(
+            task, "dynamic_key", str(uuid4())
+        )
+
+    elif task.task_key not in context.task_run_dynamic_keys:
         context.task_run_dynamic_keys[task.task_key] = 0
     else:
         context.task_run_dynamic_keys[task.task_key] += 1
