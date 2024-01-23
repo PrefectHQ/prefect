@@ -79,7 +79,7 @@ async def wait_for_flow_run(
             flow_run = await client.read_flow_run(flow_run_id)
             flow_state = flow_run.state
             if log_states:
-                logger.info(f"Flow run is in state {repr(flow_run.state.name)}")
+                logger.info(f"Flow run is in state {flow_run.state.name!r}")
             if flow_state and flow_state.is_final():
                 return flow_run
             await anyio.sleep(poll_interval)

@@ -9,7 +9,7 @@ from pendulum.duration import Duration
 import prefect
 from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
-from prefect.states import Completed, Running
+from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -33,8 +33,8 @@ def completed_flow_run():
 
 
 @pytest.fixture
-def running_flow_run():
-    return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Running())
+def failed_flow_run():
+    return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Failed())
 
 
 async def test_run_deployment_only_creates_one_flow_run(
@@ -474,6 +474,40 @@ async def test_run_deployment_watch_pass(
     )
 
 
+async def test_run_deployment_watch_fail(
+    monkeypatch,
+    deployment,
+    deployment_name,
+    failed_flow_run,
+    prefect_client,
+):
+    mock_wait_for_flow_run = AsyncMock(return_value=failed_flow_run)
+    monkeypatch.setattr(
+        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
+    )
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["deployment", "run", deployment_name, "-w"],
+        expected_output_contains="Flow run finished in state 'Failed'",
+        expected_code=1,
+    )
+
+    flow_runs = await prefect_client.read_flow_runs()
+    assert len(flow_runs) == 1
+    flow_run = flow_runs[0]
+
+    assert flow_run.deployment_id == deployment.id
+
+    assert flow_run.state.is_scheduled()
+
+    mock_wait_for_flow_run.assert_awaited_once_with(
+        flow_run.id,
+        timeout=ANY,
+        poll_interval=ANY,
+        log_states=ANY,
+    )
+
+
 async def test_run_deployment_watch_timeout(
     monkeypatch,
     deployment,
@@ -490,7 +524,7 @@ async def test_run_deployment_watch_timeout(
     with pytest.raises(FlowRunWaitTimeout):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=["deployment", "run", deployment_name, "--watch"],
+            command=["deployment", "run", deployment_name, "-w"],
             expected_output_contains="Timeout occurred",
             expected_code=1,
         )

@@ -669,24 +669,22 @@ async def run(
             ).strip()
         )
         if watch:
-            try:
-                app.console.print("Watching flow run...")
-                flow_run_final = await wait_for_flow_run(
-                    flow_run.id,
-                    timeout=timeout,
-                    poll_interval=watch_interval,
-                    log_states=True,
+            app.console.print("Watching flow run...")
+            flow_run_final = await wait_for_flow_run(
+                flow_run.id,
+                timeout=timeout,
+                poll_interval=watch_interval,
+                log_states=True,
+            )
+            final_flow_state = flow_run_final.state
+            if final_flow_state.is_completed():
+                exit_with_success(
+                    f"Flow run finished successfully in {final_flow_state.name!r}."
                 )
-                final_flow_state = flow_run_final.state
-                if final_flow_state.is_completed():
-                    exit_with_success(
-                        f"Flow run finished successfully in {final_flow_state.name!r}."
-                    )
-                exit_with_error(
-                    f"Flow run finished with state {final_flow_state.name}."
-                )
-            except KeyboardInterrupt:
-                exit_with_error("Stopped watching flow run.")
+            exit_with_error(
+                f"Flow run finished in state {final_flow_state.name!r}.",
+                code=1,
+            )
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
