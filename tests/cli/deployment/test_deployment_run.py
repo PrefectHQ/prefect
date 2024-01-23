@@ -458,7 +458,7 @@ async def test_print_parameter_validation_error(deployment_with_parameter_schema
         ),
         (
             "timeout",
-            AsyncMock(side_effect=FlowRunWaitTimeout("time's up")),
+            AsyncMock(side_effect=FlowRunWaitTimeout("Timeout occurred")),
             10,
             "Timeout occurred",
             1,
