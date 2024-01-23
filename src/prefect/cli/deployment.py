@@ -532,14 +532,15 @@ async def run(
         None, "--timeout", "-wt", help="Timeout for `--watch`."
     ),
     tags: List[str] = typer.Option(
-        [], "-t", "--tag", help="Tag(s) to be applied to flow run"
+        [], "--tag", "-t", help="Tag(s) to be applied to flow run"
     ),
 ):
     """
     Create a flow run for the given flow and deployment.
 
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
-    The flow run will not execute until an agent starts.
+    The flow run will not execute until an worker starts.
+    To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
 
