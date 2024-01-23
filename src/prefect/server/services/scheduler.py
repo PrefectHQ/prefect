@@ -147,8 +147,7 @@ class Scheduler(LoopService):
                 isouter=True,
             )
             .where(
-                db.Deployment.is_schedule_active.is_(True),
-                db.Deployment.schedule.is_not(None),
+                db.Deployment.paused.is_not(True),
             )
             .group_by(db.Deployment.id)
             # having EITHER fewer than three runs OR runs not scheduled far enough out
@@ -302,8 +301,7 @@ class RecentDeploymentsScheduler(Scheduler):
         query = (
             sa.select(db.Deployment.id)
             .where(
-                db.Deployment.is_schedule_active.is_(True),
-                db.Deployment.schedule.is_not(None),
+                db.Deployment.paused.is_not(True),
                 # use a slightly larger window than the loop interval to pick up
                 # any deployments that were created *while* the scheduler was
                 # last running (assuming the scheduler takes less than one

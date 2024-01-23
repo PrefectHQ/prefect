@@ -570,51 +570,59 @@ async def _generate_scheduled_flow_runs(
     """
     runs = []
 
-    # retrieve the deployment
     deployment = await session.get(db.Deployment, deployment_id)
 
-    if not deployment or not deployment.schedule or not deployment.is_schedule_active:
+    if not deployment:
         return []
 
-    dates = []
+    active_deployment_schedules = await read_deployment_schedules(
+        session=session,
+        deployment_id=deployment.id,
+        deployment_schedule_filter=schemas.filters.DeploymentScheduleFilter(
+            active=schemas.filters.DeploymentScheduleFilterActive(eq_=True)
+        ),
+    )
 
-    # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
-    for dt in deployment.schedule._get_dates_generator(
-        n=max_runs, start=start_time, end=end_time
-    ):
-        dates.append(dt)
+    for deployment_schedule in active_deployment_schedules:
+        dates = []
 
-        # at any point, if we satisfy both of the minimums, we can stop
-        if len(dates) >= min_runs and dt >= (start_time + min_time):
-            break
+        # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
+        for dt in deployment_schedule.schedule._get_dates_generator(
+            n=max_runs, start=start_time, end=end_time
+        ):
+            dates.append(dt)
 
-    tags = deployment.tags
-    if auto_scheduled:
-        tags = ["auto-scheduled"] + tags
+            # at any point, if we satisfy both of the minimums, we can stop
+            if len(dates) >= min_runs and dt >= (start_time + min_time):
+                break
 
-    for date in dates:
-        runs.append(
-            {
-                "id": uuid4(),
-                "flow_id": deployment.flow_id,
-                "deployment_id": deployment_id,
-                "work_queue_name": deployment.work_queue_name,
-                "work_queue_id": deployment.work_queue_id,
-                "parameters": deployment.parameters,
-                "infrastructure_document_id": deployment.infrastructure_document_id,
-                "idempotency_key": f"scheduled {deployment.id} {date}",
-                "tags": tags,
-                "auto_scheduled": auto_scheduled,
-                "state": schemas.states.Scheduled(
-                    scheduled_time=date,
-                    message="Flow run scheduled",
-                ).dict(),
-                "state_type": schemas.states.StateType.SCHEDULED,
-                "state_name": "Scheduled",
-                "next_scheduled_start_time": date,
-                "expected_start_time": date,
-            }
-        )
+        tags = deployment.tags
+        if auto_scheduled:
+            tags = ["auto-scheduled"] + tags
+
+        for date in dates:
+            runs.append(
+                {
+                    "id": uuid4(),
+                    "flow_id": deployment.flow_id,
+                    "deployment_id": deployment_id,
+                    "work_queue_name": deployment.work_queue_name,
+                    "work_queue_id": deployment.work_queue_id,
+                    "parameters": deployment.parameters,
+                    "infrastructure_document_id": deployment.infrastructure_document_id,
+                    "idempotency_key": f"scheduled {deployment.id} {date}",
+                    "tags": tags,
+                    "auto_scheduled": auto_scheduled,
+                    "state": schemas.states.Scheduled(
+                        scheduled_time=date,
+                        message="Flow run scheduled",
+                    ).dict(),
+                    "state_type": schemas.states.StateType.SCHEDULED,
+                    "state_name": "Scheduled",
+                    "next_scheduled_start_time": date,
+                    "expected_start_time": date,
+                }
+            )
 
     return runs
 
