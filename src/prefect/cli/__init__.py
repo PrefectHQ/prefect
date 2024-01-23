@@ -15,6 +15,7 @@ import prefect.cli.config
 import prefect.cli.deploy
 import prefect.cli.deployment
 import prefect.cli.dev
+import prefect.cli.events
 import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.kubernetes
