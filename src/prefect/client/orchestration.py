@@ -12,7 +12,7 @@ from typing import (
     Set,
     Union,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpcore
 import httpx
@@ -1925,6 +1925,7 @@ class PrefectClient:
         """
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
+        state_create.state_details.transition_id = uuid4()
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
