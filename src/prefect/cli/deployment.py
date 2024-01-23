@@ -528,7 +528,12 @@ async def run(
         "--watch-interval",
         help="How often to poll the flow run for state changes (in seconds).",
     ),
-    timeout: int = typer.Option(None, "--timeout", "-t", help="Timeout for `--watch`."),
+    timeout: int = typer.Option(
+        None, "--timeout", "-wt", help="Timeout for `--watch`."
+    ),
+    tags: List[str] = typer.Option(
+        [], "-t", "--tag", help="Tag(s) to be applied to flow run", multiple=True
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -634,6 +639,7 @@ async def run(
                 deployment.id,
                 parameters=parameters,
                 state=Scheduled(scheduled_time=scheduled_start_time),
+                tags=tags,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")

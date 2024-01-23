@@ -484,7 +484,7 @@ async def test_run_deployment_watch(
     deployment_run_with_watch_command = partial(
         invoke_and_assert,
         command=["deployment", "run", deployment_name, "-w"]
-        + (["-t", str(timeout)] if timeout else []),
+        + (["--timeout", str(timeout)] if timeout else []),
         expected_output_contains=expected_output,
         expected_code=expected_code,
     )
