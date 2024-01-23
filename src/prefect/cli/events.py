@@ -11,7 +11,7 @@ app.add_typer(events_app, aliases=["event"])
 
 
 @events_app.command()
-async def subscribe():
+async def stream():
     """Subscribes to the event stream of a workspace, printing each event"""
     EventFilter(event=EventNameFilter(prefix=["prefect.flow-run."]))
 
