@@ -1,4 +1,5 @@
 import uuid
+from functools import partial
 from unittest.mock import ANY, AsyncMock
 
 import pendulum
@@ -27,12 +28,10 @@ def frozen_now(monkeypatch):
     yield now
 
 
-@pytest.fixture
 def completed_flow_run():
     return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Completed())
 
 
-@pytest.fixture
 def failed_flow_run():
     return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Failed())
 
@@ -440,102 +439,62 @@ async def test_print_parameter_validation_error(deployment_with_parameter_schema
     )
 
 
-async def test_run_deployment_watch_pass(
+@pytest.mark.parametrize(
+    "test_case, mock_response, expected_output, expected_code",
+    [
+        (
+            "pass",
+            AsyncMock(return_value=completed_flow_run()),
+            "Flow run finished successfully",
+            0,
+        ),
+        (
+            "fail",
+            AsyncMock(return_value=failed_flow_run()),
+            "Flow run finished in state 'Failed'",
+            1,
+        ),
+        (
+            "timeout",
+            AsyncMock(side_effect=FlowRunWaitTimeout("Timeout occurred")),
+            "Timeout occurred",
+            1,
+        ),
+    ],
+    ids=["watch-pass", "watch-fail", "watch-timeout"],
+)
+async def test_run_deployment_watch(
     monkeypatch,
     deployment,
     deployment_name,
-    completed_flow_run,
     prefect_client,
+    test_case,
+    mock_response,
+    expected_output,
+    expected_code,
 ):
-    mock_wait_for_flow_run = AsyncMock(return_value=completed_flow_run)
-    monkeypatch.setattr(
-        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
-    )
-    await run_sync_in_worker_thread(
-        invoke_and_assert,
-        command=["deployment", "run", deployment_name, "--watch"],
-        expected_output_contains="Flow run finished successfully",
-        expected_code=0,
-    )
+    monkeypatch.setattr("prefect.cli.deployment.wait_for_flow_run", mock_response)
 
-    flow_runs = await prefect_client.read_flow_runs()
-    assert len(flow_runs) == 1
-    flow_run = flow_runs[0]
-
-    assert flow_run.deployment_id == deployment.id
-
-    assert flow_run.state.is_scheduled()
-
-    mock_wait_for_flow_run.assert_awaited_once_with(
-        flow_run.id,
-        timeout=ANY,
-        poll_interval=ANY,
-        log_states=ANY,
-    )
-
-
-async def test_run_deployment_watch_fail(
-    monkeypatch,
-    deployment,
-    deployment_name,
-    failed_flow_run,
-    prefect_client,
-):
-    mock_wait_for_flow_run = AsyncMock(return_value=failed_flow_run)
-    monkeypatch.setattr(
-        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
-    )
-    await run_sync_in_worker_thread(
+    deployment_run_with_watch_command = partial(
         invoke_and_assert,
         command=["deployment", "run", deployment_name, "-w"],
-        expected_output_contains="Flow run finished in state 'Failed'",
-        expected_code=1,
+        expected_output_contains=expected_output,
+        expected_code=expected_code,
     )
 
-    flow_runs = await prefect_client.read_flow_runs()
-    assert len(flow_runs) == 1
-    flow_run = flow_runs[0]
+    if test_case == "timeout":
+        with pytest.raises(FlowRunWaitTimeout):
+            await run_sync_in_worker_thread(deployment_run_with_watch_command)
+    else:
+        await run_sync_in_worker_thread(deployment_run_with_watch_command)
 
+    assert len(flow_runs := await prefect_client.read_flow_runs()) == 1
+    flow_run = flow_runs[0]
     assert flow_run.deployment_id == deployment.id
 
     assert flow_run.state.is_scheduled()
 
-    mock_wait_for_flow_run.assert_awaited_once_with(
-        flow_run.id,
-        timeout=ANY,
-        poll_interval=ANY,
-        log_states=ANY,
-    )
-
-
-async def test_run_deployment_watch_timeout(
-    monkeypatch,
-    deployment,
-    deployment_name,
-    prefect_client,
-):
-    mock_wait_for_flow_run = AsyncMock(
-        side_effect=FlowRunWaitTimeout("Timeout occurred")
-    )
-    monkeypatch.setattr(
-        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
-    )
-
-    with pytest.raises(FlowRunWaitTimeout):
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=["deployment", "run", deployment_name, "-w"],
-            expected_output_contains="Timeout occurred",
-            expected_code=1,
-        )
-
-    assert len(flow_runs := await prefect_client.read_flow_runs()) == 1
-
-    flow_run = flow_runs[0]
-
-    assert flow_run.deployment_id == deployment.id
-
-    mock_wait_for_flow_run.assert_awaited_once_with(
+    mock_response.assert_awaited_once_with(
         flow_run.id,
         timeout=ANY,
         poll_interval=ANY,
