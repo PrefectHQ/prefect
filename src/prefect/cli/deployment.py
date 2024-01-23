@@ -532,7 +532,7 @@ async def run(
         None, "--timeout", "-wt", help="Timeout for `--watch`."
     ),
     tags: List[str] = typer.Option(
-        [], "-t", "--tag", help="Tag(s) to be applied to flow run", multiple=True
+        [], "-t", "--tag", help="Tag(s) to be applied to flow run"
     ),
 ):
     """
