@@ -517,7 +517,9 @@ async def run(
         None,
         "--start-at",
     ),
-    watch: bool = typer.Option(None, "--watch", help="Poll flowrun until completion."),
+    watch: bool = typer.Option(
+        None, "--watch", help="Poll flow run until a terminal state is reached."
+    ),
     watch_interval: int = typer.Option(
         5, "--watch-interval", help="Polling interval for `--watch`."
     ),
@@ -667,14 +669,14 @@ async def run(
                 flow_run.id,
                 timeout=timeout,
                 poll_interval=watch_interval,
-                client=client,
                 log_states=True,
             )
             final_flow_state = flow_run_final.state
-            app.console.print(f"Flow run finished with state {final_flow_state.name}.")
             if final_flow_state.is_completed():
-                exit(0)
-            exit(1)
+                exit_with_success(
+                    f"Flow run finished successfully in {final_flow_state.name!r}."
+                )
+            exit_with_error(f"Flow run finished with state {final_flow_state.name}.")
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:

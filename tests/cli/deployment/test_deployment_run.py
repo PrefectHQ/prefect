@@ -1,9 +1,14 @@
+import uuid
+from unittest.mock import AsyncMock
+
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
 from pendulum.duration import Duration
 
 import prefect
+from prefect.client.schemas.objects import FlowRun
+from prefect.states import Completed
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -19,6 +24,11 @@ def frozen_now(monkeypatch):
     now = pendulum.now("UTC")
     monkeypatch.setattr("pendulum.now", lambda *_: now)
     yield now
+
+
+@pytest.fixture
+def completed_flow_run():
+    return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Completed())
 
 
 async def test_run_deployment_only_creates_one_flow_run(
@@ -425,11 +435,20 @@ async def test_print_parameter_validation_error(deployment_with_parameter_schema
 
 
 async def test_run_deployment_watch_pass(
-    deployment_name: str, prefect_client: prefect.PrefectClient, deployment
+    deployment_name: str,
+    prefect_client: prefect.PrefectClient,
+    deployment,
+    monkeypatch,
+    completed_flow_run,
 ):
+    mock_wait_for_flow_run = AsyncMock(return_value=completed_flow_run)
+    monkeypatch.setattr(
+        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
+    )
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["deployment", "run", deployment_name, "--watch"],
+        expected_output_contains="Flow run finished successfully",
         expected_code=0,
     )
 
@@ -439,4 +458,11 @@ async def test_run_deployment_watch_pass(
 
     assert flow_run.deployment_id == deployment.id
 
-    assert flow_run.state.is_successful()
+    assert flow_run.state.is_scheduled()
+
+    mock_wait_for_flow_run.assert_awaited_once_with(
+        flow_run.id,
+        timeout=None,
+        poll_interval=5,
+        log_states=True,
+    )
