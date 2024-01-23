@@ -7,10 +7,10 @@ import pytest
 from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import Deployment
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure
 from prefect.server.database.orm_models import ORMDeployment
-from prefect.server.schemas.core import Deployment
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,

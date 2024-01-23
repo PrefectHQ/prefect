@@ -4,12 +4,13 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.api.workers import WorkerLookups
@@ -56,7 +57,9 @@ async def _delete_scheduled_runs(
 
 @inject_db
 async def create_deployment(
-    session: sa.orm.Session, deployment: schemas.core.Deployment, db: PrefectDBInterface
+    session: AsyncSession,
+    deployment: schemas.core.Deployment,
+    db: PrefectDBInterface,
 ):
     """Upserts a deployment.
 
@@ -74,7 +77,10 @@ async def create_deployment(
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
     deployment.updated = pendulum.now("UTC")
 
-    insert_values = deployment.dict(shallow=True, exclude_unset=True)
+    schedules = deployment.schedules
+    insert_values = deployment.dict(
+        shallow=True, exclude_unset=True, exclude={"schedules"}
+    )
 
     insert_stmt = (
         (await db.insert(db.Deployment))
@@ -85,7 +91,7 @@ async def create_deployment(
                 **deployment.dict(
                     shallow=True,
                     exclude_unset=True,
-                    exclude={"id", "created", "created_by"},
+                    exclude={"id", "created", "created_by", "schedules"},
                 ),
             },
         )
@@ -105,12 +111,31 @@ async def create_deployment(
     )
     result = await session.execute(query)
     model = result.scalar()
+    if not model:
+        return None
 
-    # because this could upsert a different schedule, delete any runs from the old
-    # deployment
+    # Because this was possibly an upsert, we need to delete any existing
+    # schedules and any runs from the old deployment.
+
     await _delete_scheduled_runs(
         session=session, deployment_id=model.id, db=db, auto_scheduled_only=True
     )
+
+    await delete_schedules_for_deployment(session=session, deployment_id=model.id)
+
+    if schedules:
+        await create_deployment_schedules(
+            session=session,
+            deployment_id=model.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule.schedule, active=schedule.active  # type: ignore[call-arg]
+                )
+                for schedule in schedules
+            ],
+        )
+
+        session.expire(model, ["schedules"])
 
     return model
 
@@ -134,6 +159,8 @@ async def update_deployment(
 
     """
 
+    schedules = deployment.schedules
+
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
     update_data = deployment.dict(
@@ -141,6 +168,9 @@ async def update_deployment(
         exclude_unset=True,
         exclude={"work_pool_name"},
     )
+
+    should_update_schedules = update_data.pop("schedules", None) is not None
+
     if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the
         # ID for that work pool queue.
@@ -180,6 +210,23 @@ async def update_deployment(
     await _delete_scheduled_runs(
         session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
+
+    if should_update_schedules:
+        # If schedules were provided, remove the existing schedules and
+        # replace them with the new ones.
+        await delete_schedules_for_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        await create_deployment_schedules(
+            session=session,
+            deployment_id=deployment_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule.schedule, active=schedule.active  # type: ignore[call-arg]
+                )
+                for schedule in schedules
+            ],
+        )
 
     return result.rowcount > 0
 
@@ -711,3 +758,147 @@ async def _update_deployment_last_polled(
         .values(last_polled=pendulum.now("UTC"))
     )
     await session.execute(query)
+
+
+@inject_db
+async def create_deployment_schedules(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    schedules: List[schemas.actions.DeploymentScheduleCreate],
+) -> List[schemas.core.DeploymentSchedule]:
+    """
+    Creates a deployment's schedules.
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+        schedules: a list of deployment schedule create actions
+    """
+
+    schedules_with_deployment_id = []
+    for schedule in schedules:
+        data = schedule.dict()
+        data["deployment_id"] = deployment_id
+        schedules_with_deployment_id.append(data)
+
+    models = [
+        db.DeploymentSchedule(**schedule) for schedule in schedules_with_deployment_id
+    ]
+    session.add_all(models)
+    await session.flush()
+
+    return [schemas.core.DeploymentSchedule.from_orm(m) for m in models]
+
+
+@inject_db
+async def read_deployment_schedules(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    deployment_schedule_filter: Optional[
+        schemas.filters.DeploymentScheduleFilter
+    ] = None,
+) -> List[schemas.core.DeploymentSchedule]:
+    """
+    Reads a deployment's schedules.
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+
+    Returns:
+        list[schemas.core.DeploymentSchedule]: the deployment's schedules
+    """
+
+    query = (
+        sa.select(db.DeploymentSchedule)
+        .where(db.DeploymentSchedule.deployment_id == deployment_id)
+        .order_by(db.DeploymentSchedule.updated.desc())
+    )
+
+    if deployment_schedule_filter:
+        query = query.where(deployment_schedule_filter.as_sql_filter(db))
+
+    result = await session.execute(query)
+
+    return [schemas.core.DeploymentSchedule.from_orm(s) for s in result.scalars().all()]
+
+
+@inject_db
+async def update_deployment_schedule(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    deployment_schedule_id: UUID,
+    schedule: schemas.actions.DeploymentScheduleUpdate,
+) -> bool:
+    """
+    Updates a deployment's schedules.
+
+    Args:
+        session: A database session
+        deployment_schedule_id: a deployment schedule id
+        schedule: a deployment schedule update action
+    """
+
+    result = await session.execute(
+        sa.update(db.DeploymentSchedule)
+        .where(
+            sa.and_(
+                db.DeploymentSchedule.id == deployment_schedule_id,
+                db.DeploymentSchedule.deployment_id == deployment_id,
+            )
+        )
+        .values(**schedule.dict(exclude_unset=True))
+    )
+
+    return result.rowcount > 0
+
+
+@inject_db
+async def delete_schedules_for_deployment(
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
+) -> bool:
+    """
+    Deletes a deployment schedule.
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+    """
+
+    result = await session.execute(
+        sa.delete(db.DeploymentSchedule).where(
+            db.DeploymentSchedule.deployment_id == deployment_id
+        )
+    )
+
+    return result.rowcount > 0
+
+
+@inject_db
+async def delete_deployment_schedule(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    deployment_schedule_id: UUID,
+) -> bool:
+    """
+    Deletes a deployment schedule.
+
+    Args:
+        session: A database session
+        deployment_schedule_id: a deployment schedule id
+    """
+
+    result = await session.execute(
+        sa.delete(db.DeploymentSchedule).where(
+            sa.and_(
+                db.DeploymentSchedule.id == deployment_schedule_id,
+                db.DeploymentSchedule.deployment_id == deployment_id,
+            )
+        )
+    )
+
+    return result.rowcount > 0
