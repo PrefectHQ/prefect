@@ -502,7 +502,7 @@ async def test_run_deployment_watch(
 
     assert flow_run.state.is_scheduled()
 
-    assert flow_run.tags == ["cool-tag", "test"]
+    assert set(flow_run.tags) == set(["cool-tag", "test"])
     mock_wait_for_flow_run.assert_awaited_once_with(
         flow_run.id,
         timeout=timeout,
