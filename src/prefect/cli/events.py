@@ -1,4 +1,5 @@
 import pendulum
+import websockets
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
@@ -14,13 +15,14 @@ async def subscribe():
     """Subscribes to the event stream of a workspace, printing each event"""
     EventFilter(event=EventNameFilter(prefix=["prefect.flow-run."]))
 
-    async with PrefectCloudEventSubscriber() as subscriber:
-        async for event in subscriber:
-            now = pendulum.now("UTC")
-            app.console.print(
-                str(event.id).partition("-")[0],
-                f"{event.occurred.isoformat()}",
-                f" ({(event.occurred - now).total_seconds():>6,.2f})",
-                f"\\[[bold green]{event.event}[/]]",
-                event.resource.id,
-            )
+    while True:
+        try:
+            async with PrefectCloudEventSubscriber() as subscriber:
+                async for event in subscriber:
+                    pendulum.now("UTC")
+                    app.console.print(event.json())
+        except websockets.exceptions.ConnectionClosedError as e:
+            app.console.print(f"Connection closed, retrying... ({e})")
+        except Exception as e:
+            app.console.print(f"An unexpected error occurred: {e}")
+            break  # Exit the loop on unexpected errors
