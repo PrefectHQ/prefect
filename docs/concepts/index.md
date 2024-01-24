@@ -24,7 +24,6 @@ search:
 | __[States](/concepts/states)__                     | Rich objects that capture the status of a particular task run or flow run.                                                                            |
 | __[Blocks](/concepts/blocks)__                     | Prefect primitives that enable the storage of configuration and provide a UI interface.          |
 | __[Task Runners](/concepts/task-runners)__         | Configure how tasks are run - concurrently, in parallel, or in a distributed environment. |
-| __[Events](/concepts/events)__                     | Notifications of changes that provide observability and can act as automation triggers.         |
 | __[Automations](/concepts/automations)__           | Configure actions that Prefect executes automatically based on trigger conditions.         |
 
 |  Block and Agent-Based Deployments                 | Description   |
@@ -34,4 +33,4 @@ search:
 | __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
 | __[Agents](/concepts/agents)__                           | Like untyped workers. |
 
-Many features specific to [Prefect Cloud](/cloud/) are in their own subheading.
+Many features specific to [Prefect Cloud](/cloud/) are in their own navigation subheading.

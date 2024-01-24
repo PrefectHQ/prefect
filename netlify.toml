@@ -397,8 +397,8 @@ to = "/guides/webhooks/"
 status = 301
 
 [[redirects]]
-from = "/cloud/events/"
-to = "/concepts/events/"
+from = "/concepts/events/"
+to = "/cloud/events/"
 status = 301
 
 [[redirects]]
