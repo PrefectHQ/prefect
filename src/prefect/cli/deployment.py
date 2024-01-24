@@ -676,7 +676,7 @@ async def run(
             ).strip()
         )
         if watch:
-            app.console.print("Watching flow run...")
+            app.console.print(f"Watching flow run '{flow_run.name!r}'...")
             flow_run_final = await wait_for_flow_run(
                 flow_run.id,
                 timeout=timeout,
