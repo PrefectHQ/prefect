@@ -14,54 +14,104 @@ search:
 # Creating Interactive Workflows
 !!! warning "Experimental"
 
-    The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
+    Flow interactivity is an experimental feature. The interface or behavior of this feature may change without warning in future releases.
 
     If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/) or with a [Github](https://github.com/PrefectHQ/prefect) issue.
 
+Flows can now pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. Flows can also send and receive type-checked input at any time while running, without pausing or suspending. This guide will show you how to use these features to build *interactive workflows*. 
 
-When a flow run is paused or suspended, you can receive input from the user. This is useful when you need to ask the user for additional information or feedback before resuming the flow run.
+## Pausing or suspending a flow until it receives input
 
-## Waiting for input
+You can pause or suspend a flow until it receives input from a user in Prefect's UI. This is useful when you need to ask for additional information or feedback before resuming a flow. Such workflows are often called [human-in-the-loop](https://hai.stanford.edu/news/humans-loop-design-interactive-ai-systems) (HITL) systems.
 
-To receive input you must use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` functions. This parameter accepts a subclass of `prefect.input.RunInput`. `RunInput` is a subclass of `pydantic.BaseModel` and can be used to define the input that you want to receive:
+!!! note "What is human-in-the-loop interactivity used for?"
+
+    Approval workflows that pause to ask a human to confirm whether a workflow should continue are very common in the business world. Certain types of [machine learning training](https://link.springer.com/article/10.1007/s10462-022-10246-w) and artificial intelligence workflows benefit from incorporating HITL design.
+
+### Waiting for input
+
+To receive input while paused or suspended you must use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` functions. This parameter accepts one of the following:
+
+- A type like `int` or `str`
+- A `pydantic.BaseModel` subclass
+- A subclass of `prefect.input.RunInput`
+  
+The simplest way to pause or suspend and wait for input is to pass a type:
 
 ```python
 from prefect import flow, pause_flow_run
-from prefect.input import RunInput
 
-class UserNameInput(RunInput):
-    name: str
-```
-
-In this case we are defining a `UserNameInput` class that will receive a `name` string from the user. You can then use this class in the `wait_for_input` parameter:
-
-```python
 @flow
 async def greet_user():
     logger = get_run_logger()
 
-    user_input = await pause_flow_run(
-        wait_for_input=UserNameInput
-    )
+    user_input = await pause_flow_run(wait_for_input=str)
 
     logger.info(f"Hello, {user_input.name}!")
 ```
 
-When the flow run is paused, the user will be prompted to enter a name. If the user does not enter a name, the flow run will not resume. If the user enters a name, the flow run will resume and the `user_input` variable will contain the name that the user entered.
+In this example, the flow run will pause until a user clicks the Resume button in the Prefect UI, enters a name, and submits the form.
 
-## Providing initial data
+!!! note "What types can you pass for `wait_for_input`?"
+
+    When you pass a type like `int` as an argument for the `wait_for_input` parameter to `pause_flow_run` or `suspend_flow_run`, Prefect automatically creates a Pydantic model containing one field annotated with the type you specified. This means you can use [any type annotation that Pydantic accepts](https://docs.pydantic.dev/1.10/usage/types/) as a field.
+  
+Instead of a basic type, you can pass in a `pydantic.BaseModel` class. This is useful if you already have `BaseModels` you want to use:
+
+```python
+from prefect import flow, pause_flow_run
+from pydantic import BaseModel
+
+
+class User(BaseModel):
+    name: str
+    age: int
+
+
+@flow
+async def greet_user():
+    logger = get_run_logger()
+
+    user = await pause_flow_run(wait_for_input=User)
+
+    logger.info(f"Hello, {user.name}!")
+```
+
+!!! note "`BaseModel` subclasses are upgraded to `RunInput` subclasses automatically"
+
+    When you pass a `pydantic.BaseModel` subclass as the `wait_for_input` argument to `pause_flow_run` or `suspend_flow_run`, Prefect automatically creates a `RunInput` class with the same behavior as your `BaseModel` and uses that instead.
+    
+    `RunInput` subclasses contain extra logic that allows Prefect to send them to flow runs and receive them from flow runs at runtime. You shouldn't notice any difference!
+
+Finally, for advanced use cases like overriding how Prefect stores flow run inputs, you can create a `RunInput` subclass to use as the `wait_for_input` argument to `pause_flow_run` or `suspend_flow_run`.
+
+```python
+from prefect.input import RunInput
+
+class UserInput(RunInput):
+    name: str
+    age: int
+```
+
+### Providing initial data
 
 You can set default values for fields in your model by using the `with_initial_data` method. This is useful when you want to provide default values for the fields in your own `RunInput` subclasses.
 
-Expanding on the example above, you could default the `name` field to something anonymous.
+Expanding on the example above, you could default the `name` field to "anonymous."
 
 ```python
+from prefect.input import RunInput
+
+class UserInput(RunInput):
+    name: str
+    age: int
+
 @flow
 async def greet_user():
     logger = get_run_logger()
 
     user_input = await pause_flow_run(
-        wait_for_input=UserNameInput.with_initial_data(name="anonymous")
+        wait_for_input=UserInput.with_initial_data(name="anonymous")
     )
 
     if user_input.name == "anonymous":
@@ -70,12 +120,12 @@ async def greet_user():
         logger.info(f"Hello, {user_input.name}!")
 ```
 
-## Handling custom validation
+### Handling custom validation
 
-Prefect uses the fields and type hints on your `RunInput` subclass to validate the general structure of input your flow run receives, but you might require more complex validation. If you do, you can use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
+Prefect uses the fields and type hints on your `RunInput` or `BaseModel` subclass to validate the general structure of input your flow run receives, but you might require more complex validation. If you do, you can use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
 
 !!! warning "Custom validation runs after the flow run resumes"
-    Prefect transforms the type annotations in your `RunInput` class to a JSON schema and use that schema in the UI to do client-side validation. However, custom validation requires running logic defined in your `RunInput` class. This happens *after the flow resumes*, so you'll probably want to handle it explicitly in your flow. Continue reading for an example best practice.
+    Prefect transforms the type annotations in your `RunInput` or `BaseModel` class to a JSON schema and uses that schema in the UI for client-side validation. However, custom validation requires running logic defined in your `RunInput` class. This happens *after the flow resumes*, so you'll probably want to handle it explicitly in your flow. Continue reading for an example best practice.
 
 The following is an example `RunInput` class that uses a custom field validator:
 
@@ -162,3 +212,8 @@ def get_shirt_order():
 This code will cause the flow run to continually pause until the user enters a valid age.
 
 As an additional step, you may want to use an [automation](/concepts/automations) or [notification](/concepts/notifications/) to alert the user to the error.
+
+## Sending and receiving input
+
+Use the `send_input` and `receive_input` functions to send input to a flow run or receive input from a flow run.
+
