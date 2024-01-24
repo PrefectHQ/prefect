@@ -21,7 +21,6 @@ search:
 | __[Schedules](/concepts/schedules)__               | Tell the Prefect API how to create new flow runs for you automatically on a specified cadence.     |
 | __[Results](/concepts/results)__                   | The data returned by a flow or a task.                                 |
 | __[Artifacts](/concepts/artifacts)__               | Formatted outputs rendered in the Prefect UI, such as markdown, tables, or links.  
-| __[Incidents](/concepts/incidents)__               | Identify, rectify and document issues in mission-critical workflows.       |
 | __[States](/concepts/states)__                     | Rich objects that capture the status of a particular task run or flow run.                                                                            |
 | __[Blocks](/concepts/blocks)__                     | Prefect primitives that enable the storage of configuration and provide a UI interface.          |
 | __[Task Runners](/concepts/task-runners)__         | Configure how tasks are run - concurrently, in parallel, or in a distributed environment. |
@@ -34,4 +33,4 @@ search:
 | __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
 | __[Agents](/concepts/agents)__                           | Like untyped workers. |
 
-Many features specific to [Prefect Cloud](/cloud/) are in their own subheading.
+Many features specific to [Prefect Cloud](/cloud/) are in their own navigation subheading.
