@@ -524,7 +524,7 @@ async def run(
         help="Whether to poll the flow run until a terminal state is reached.",
     ),
     watch_interval: int = typer.Option(
-        5,
+        None,
         "--watch-interval",
         help="How often to poll the flow run for state changes (in seconds).",
     ),
