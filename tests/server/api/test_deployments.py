@@ -286,6 +286,32 @@ class TestCreateDeployment:
         )
         assert data["is_schedule_active"] is schedules[0].active
 
+    async def test_create_deployment_with_no_schedules_flag_on_populates_legacy_schedule_as_none(
+        self,
+        client,
+        flow,
+        infrastructure_document_id,
+    ):
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            schedules=[],
+        ).dict(json_compatible=True)
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        data = response.json()
+        assert data["schedule"] is None
+        assert data["is_schedule_active"] == (not data["paused"])
+
     async def test_default_work_queue_name_is_none(self, session, client, flow):
         data = DeploymentCreate(
             name="My Deployment", manifest_path="", flow_id=flow.id
