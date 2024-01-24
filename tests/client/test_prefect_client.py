@@ -660,7 +660,7 @@ async def test_create_then_read_deployment(
         name="test-deployment",
         version="git-commit-hash",
         manifest_path="path/file.json",
-        schedule=schedule,
+        schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         infrastructure_document_id=infrastructure_document_id,

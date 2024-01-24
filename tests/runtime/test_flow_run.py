@@ -9,6 +9,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
 from prefect.runtime import flow_run
+from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
 
 
 class TestAttributeAccessPatterns:
@@ -519,3 +520,51 @@ class TestParentDeploymentId:
             name="PREFECT__FLOW_RUN_ID", value=str(parent_flow_run_no_deployment.id)
         )
         assert flow_run.parent_deployment_id is None
+
+
+class TestURL:
+    @pytest.mark.parametrize("url_type", ["api_url", "ui_url"])
+    async def test_url_is_attribute(self, url_type):
+        assert url_type in dir(flow_run)
+
+    @pytest.mark.parametrize("url_type", ["api_url", "ui_url"])
+    async def test_url_is_none_when_id_not_set(self, url_type):
+        assert getattr(flow_run, url_type) is None
+
+    @pytest.mark.parametrize(
+        "url_type, base_url_value",
+        [("api_url", PREFECT_API_URL.value()), ("ui_url", PREFECT_UI_URL.value())],
+    )
+    async def test_url_returns_correct_url_when_id_present(
+        self,
+        url_type,
+        base_url_value,
+    ):
+        test_id = "12345"
+        expected_url = f"{base_url_value}/flow-runs/flow-run/{test_id}"
+
+        with FlowRunContext.construct(flow_run=FlowRun.construct(id=test_id)):
+            assert getattr(flow_run, url_type) == expected_url
+
+        assert not getattr(flow_run, url_type)
+
+    @pytest.mark.parametrize(
+        "url_type, base_url_value",
+        [("api_url", PREFECT_API_URL.value()), ("ui_url", PREFECT_UI_URL.value())],
+    )
+    async def test_url_pulls_from_api_when_needed(
+        self,
+        monkeypatch,
+        prefect_client,
+        url_type,
+        base_url_value,
+    ):
+        run = await prefect_client.create_flow_run(flow=flow(lambda: None, name="test"))
+
+        assert not getattr(flow_run, url_type)
+
+        expected_url = f"{base_url_value}/flow-runs/flow-run/{str(run.id)}"
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert getattr(flow_run, url_type) == expected_url

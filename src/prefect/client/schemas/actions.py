@@ -82,6 +82,12 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = FieldFrom(objects.Flow)
 
 
+@copy_model_fields
+class DeploymentScheduleCreate(ActionBaseModel):
+    active: bool = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+
+
 @experimental_field(
     "work_pool_name",
     group="work_pools",
@@ -127,6 +133,11 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(objects.Deployment)
     flow_id: UUID = FieldFrom(objects.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(objects.Deployment)
+    paused: Optional[bool] = FieldFrom(objects.Deployment)
+    schedules: List[DeploymentScheduleCreate] = Field(
+        default_factory=list,
+        description="A list of schedules for the deployment.",
+    )
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(

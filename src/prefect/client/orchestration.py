@@ -12,7 +12,7 @@ from typing import (
     Set,
     Union,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpcore
 import httpx
@@ -44,6 +44,7 @@ from prefect.client.schemas.actions import (
     ConcurrencyLimitCreate,
     DeploymentCreate,
     DeploymentFlowRunCreate,
+    DeploymentScheduleCreate,
     DeploymentUpdate,
     FlowCreate,
     FlowRunCreate,
@@ -1512,6 +1513,7 @@ class PrefectClient:
         name: str,
         version: str = None,
         schedule: SCHEDULE_TYPES = None,
+        schedules: List[SCHEDULE_TYPES] = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
         work_queue_name: str = None,
@@ -1525,6 +1527,7 @@ class PrefectClient:
         infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
+        paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
         enforce_parameter_schema: Optional[bool] = None,
     ) -> UUID:
@@ -1548,11 +1551,16 @@ class PrefectClient:
         Returns:
             the ID of the deployment in the backend
         """
+
+        schedules = schedules or []
+        deployment_schedules = [
+            DeploymentScheduleCreate(schedule=schedule) for schedule in schedules
+        ]
+
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
             version=version,
-            schedule=schedule,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
@@ -1565,6 +1573,9 @@ class PrefectClient:
             infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
+            paused=paused,
+            schedule=schedule,
+            schedules=deployment_schedules,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )
@@ -1581,6 +1592,9 @@ class PrefectClient:
 
         if deployment_create.is_schedule_active is None:
             exclude.add("is_schedule_active")
+
+        if deployment_create.paused is None:
+            exclude.add("paused")
 
         if deployment_create.pull_steps is None:
             exclude.add("pull_steps")
@@ -1919,6 +1933,7 @@ class PrefectClient:
         """
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
+        state_create.state_details.transition_id = uuid4()
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
