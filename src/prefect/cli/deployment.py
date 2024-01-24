@@ -557,7 +557,10 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-
+        if watch_interval and not watch:
+            exit_with_error(
+                "`--watch-interval` can only be used with `--watch`.",
+            )
     cli_params = _load_json_key_values(params, "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
@@ -651,47 +654,47 @@ async def run(
             else:
                 raise
 
-        if PREFECT_UI_URL:
-            run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
-        else:
-            run_url = "<no dashboard available>"
+    if PREFECT_UI_URL:
+        run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
+    else:
+        run_url = "<no dashboard available>"
 
-        datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
-        scheduled_display = (
-            datetime_local_tz.to_datetime_string()
-            + " "
-            + datetime_local_tz.tzname()
-            + human_dt_diff
-        )
+    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    scheduled_display = (
+        datetime_local_tz.to_datetime_string()
+        + " "
+        + datetime_local_tz.tzname()
+        + human_dt_diff
+    )
 
-        app.console.print(f"Created flow run {flow_run.name!r}.")
-        app.console.print(
-            textwrap.dedent(
-                f"""
-            └── UUID: {flow_run.id}
-            └── Parameters: {flow_run.parameters}
-            └── Scheduled start time: {scheduled_display}
-            └── URL: {run_url}
-            """
-            ).strip()
+    app.console.print(f"Created flow run {flow_run.name!r}.")
+    app.console.print(
+        textwrap.dedent(
+            f"""
+        └── UUID: {flow_run.id}
+        └── Parameters: {flow_run.parameters}
+        └── Scheduled start time: {scheduled_display}
+        └── URL: {run_url}
+        """
+        ).strip()
+    )
+    if watch:
+        app.console.print("Watching flow run...")
+        finished_flow_run = await wait_for_flow_run(
+            flow_run.id,
+            timeout=timeout,
+            poll_interval=watch_interval,
+            log_states=True,
         )
-        if watch:
-            app.console.print(f"Watching flow run '{flow_run.name!r}'...")
-            flow_run_final = await wait_for_flow_run(
-                flow_run.id,
-                timeout=timeout,
-                poll_interval=watch_interval,
-                log_states=True,
+        finished_flow_run_state = finished_flow_run.state
+        if finished_flow_run_state.is_completed():
+            exit_with_success(
+                f"Flow run finished successfully in {finished_flow_run_state.name!r}."
             )
-            final_flow_state = flow_run_final.state
-            if final_flow_state.is_completed():
-                exit_with_success(
-                    f"Flow run finished successfully in {final_flow_state.name!r}."
-                )
-            exit_with_error(
-                f"Flow run finished in state {final_flow_state.name!r}.",
-                code=1,
-            )
+        exit_with_error(
+            f"Flow run finished in state {finished_flow_run_state.name!r}.",
+            code=1,
+        )
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
