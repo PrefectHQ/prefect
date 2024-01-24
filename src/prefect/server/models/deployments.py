@@ -207,6 +207,9 @@ async def update_deployment(
         )
         update_data["work_queue_id"] = work_queue.id
 
+    if "is_schedule_active" in update_data:
+        update_data["paused"] = not update_data["is_schedule_active"]
+
     update_stmt = (
         sa.update(db.Deployment)
         .where(db.Deployment.id == deployment_id)
