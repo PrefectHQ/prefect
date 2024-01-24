@@ -557,7 +557,7 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-        if not watch and watch_interval != 5:
+        if watch_interval and not watch:
             exit_with_error(
                 "`--watch-interval` can only be used with `--watch`.",
             )
@@ -679,6 +679,7 @@ async def run(
         ).strip()
     )
     if watch:
+        watch_interval = 5 if watch_interval is None else watch_interval
         app.console.print("Watching flow run...")
         finished_flow_run = await wait_for_flow_run(
             flow_run.id,
