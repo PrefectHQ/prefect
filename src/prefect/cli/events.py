@@ -60,7 +60,7 @@ async def stream(format: StreamFormat = StreamFormat, output_file: str = None):
             if isinstance(exc, (KeyboardInterrupt, asyncio.exceptions.CancelledError)):
                 app.console.print("Exiting...")
                 break
-            if isinstance(exc, PermissionError, IOError):
+            if isinstance(exc, (PermissionError, IOError)):
                 app.console.print(f"Error writing to file: {exc}")
                 break
             else:
