@@ -665,7 +665,7 @@ async def work_queue_check_for_deployment(
 async def read_deployment_schedules(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> list[schemas.core.DeploymentSchedule]:
+) -> List[schemas.core.DeploymentSchedule]:
     async with db.session_context() as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
