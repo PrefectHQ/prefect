@@ -246,7 +246,7 @@ class DeploymentResponse(ORMBaseModel):
     )
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
     paused: bool = FieldFrom(schemas.core.Deployment)
-    schedules: list[schemas.core.DeploymentSchedule] = FieldFrom(
+    schedules: List[schemas.core.DeploymentSchedule] = FieldFrom(
         schemas.core.Deployment
     )
     infra_overrides: Dict[str, Any] = FieldFrom(schemas.core.Deployment)

@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Callable
+from typing import Callable, Optional
 from uuid import UUID, uuid4
 
 import pytest
@@ -12,7 +12,7 @@ from prefect.server import models, schemas
 
 @pytest.fixture
 def schedules_url():
-    def _url_builder(deployment_id: UUID, schedule_id: UUID | None = None):
+    def _url_builder(deployment_id: UUID, schedule_id: Optional[UUID] = None):
         base = f"/deployments/{deployment_id}/schedules"
         if schedule_id:
             return base + f"/{schedule_id}"
