@@ -528,7 +528,7 @@ async def run(
         "--watch-interval",
         help="How often to poll the flow run for state changes (in seconds).",
     ),
-    timeout: int = typer.Option(
+    watch_timeout: int = typer.Option(
         None, "--timeout", "-wt", help="Timeout for `--watch`."
     ),
     tags: List[str] = typer.Option(
@@ -683,7 +683,7 @@ async def run(
         app.console.print("Watching flow run...")
         finished_flow_run = await wait_for_flow_run(
             flow_run.id,
-            timeout=timeout,
+            timeout=watch_timeout,
             poll_interval=watch_interval,
             log_states=True,
         )
