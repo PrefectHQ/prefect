@@ -99,6 +99,41 @@ async def create_deployment(
 
     await session.execute(insert_stmt)
 
+    # Get the id of the deployment we just created or updated
+    result = await session.execute(
+        sa.select(db.Deployment.id).where(
+            sa.and_(
+                db.Deployment.flow_id == deployment.flow_id,
+                db.Deployment.name == deployment.name,
+            )
+        )
+    )
+    deployment_id = result.scalar_one_or_none()
+
+    if not deployment_id:
+        return None
+
+    # Because this was possibly an upsert, we need to delete any existing
+    # schedules and any runs from the old deployment.
+
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
+    )
+
+    await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
+
+    if schedules:
+        await create_deployment_schedules(
+            session=session,
+            deployment_id=deployment_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule.schedule, active=schedule.active  # type: ignore[call-arg]
+                )
+                for schedule in schedules
+            ],
+        )
+
     query = (
         sa.select(db.Deployment)
         .where(
@@ -110,34 +145,7 @@ async def create_deployment(
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    model = result.scalar()
-    if not model:
-        return None
-
-    # Because this was possibly an upsert, we need to delete any existing
-    # schedules and any runs from the old deployment.
-
-    await _delete_scheduled_runs(
-        session=session, deployment_id=model.id, db=db, auto_scheduled_only=True
-    )
-
-    await delete_schedules_for_deployment(session=session, deployment_id=model.id)
-
-    if schedules:
-        await create_deployment_schedules(
-            session=session,
-            deployment_id=model.id,
-            schedules=[
-                schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule.schedule, active=schedule.active  # type: ignore[call-arg]
-                )
-                for schedule in schedules
-            ],
-        )
-
-        session.expire(model, ["schedules"])
-
-    return model
+    return result.scalar()
 
 
 @inject_db
@@ -198,6 +206,9 @@ async def update_deployment(
             session=session, name=update_data["work_queue_name"], db=db
         )
         update_data["work_queue_id"] = work_queue.id
+
+    if "is_schedule_active" in update_data:
+        update_data["paused"] = not update_data["is_schedule_active"]
 
     update_stmt = (
         sa.update(db.Deployment)

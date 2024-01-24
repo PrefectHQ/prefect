@@ -675,9 +675,14 @@ class TestScheduledRuns:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 manifest_path="file.json",
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1)
-                ),
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1)
+                        ),
+                        active=True,
+                    ),
+                ],
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -698,9 +703,14 @@ class TestScheduledRuns:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 manifest_path="file.json",
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1)
-                ),
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1)
+                        ),
+                        active=True,
+                    ),
+                ],
                 flow_id=flow.id,
                 tags=tags,
             ),
@@ -724,9 +734,14 @@ class TestScheduledRuns:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 manifest_path="file.json",
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1)
-                ),
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1)
+                        ),
+                        active=True,
+                    ),
+                ],
                 flow_id=flow.id,
                 tags=tags,
             ),
@@ -751,9 +766,14 @@ class TestScheduledRuns:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 manifest_path="file.json",
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1)
-                ),
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1)
+                        ),
+                        active=True,
+                    ),
+                ],
                 flow_id=flow.id,
                 work_queue_name="wq-test-runs",
             ),
@@ -777,9 +797,14 @@ class TestScheduledRuns:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 manifest_path="file.json",
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1)
-                ),
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1)
+                        ),
+                        active=True,
+                    ),
+                ],
                 flow_id=flow.id,
                 parameters=parameters,
             ),
@@ -1125,6 +1150,10 @@ async def deployment_schedules(
     session: AsyncSession,
     deployment,
 ) -> List[schemas.core.DeploymentSchedule]:
+    await models.deployments.delete_schedules_for_deployment(
+        session=session, deployment_id=deployment.id
+    )
+
     schedules = [
         schemas.actions.DeploymentScheduleCreate(
             schedule=schemas.schedules.IntervalSchedule(

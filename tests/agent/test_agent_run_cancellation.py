@@ -54,6 +54,7 @@ async def _create_test_deployment_from_orm(
         **updated_deployment.dict(
             exclude=api_deployment._reset_fields().union(
                 {
+                    "schedules",
                     "is_schedule_active",
                     "created_by",
                     "updated_by",
