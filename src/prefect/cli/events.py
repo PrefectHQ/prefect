@@ -1,3 +1,4 @@
+import asyncio
 from enum import Enum
 
 import orjson
@@ -19,9 +20,15 @@ class StreamFormat(str, Enum):
 
 @events_app.command()
 async def stream(format: StreamFormat = StreamFormat, output_file: str = None):
-    """Subscribes to the event stream of a workspace, printing each event"""
+    """Subscribes to the event stream of a workspace, printing each event
+    as it is received. By default, events are printed as JSON, but can be
+    printed as text by passing `--format text`.
+    Text format is of the form: `2021-01-01T00:00:00.000000+00:00 [event] id`
+    format: str, optional (default: "json") Format to print events in. Can be "json" or "text".
+    output_file: str, optional (default: None) File to write events to. If not provided, events are printed to stdout.
+    """
     EventFilter(event=EventNameFilter(prefix=["prefect.flow-run."]))
-
+    app.console.print("Subscribing to event stream...")
     while True:
         try:
             async with PrefectCloudEventSubscriber() as subscriber:
@@ -33,9 +40,7 @@ async def stream(format: StreamFormat = StreamFormat, output_file: str = None):
                                     (orjson.dumps(event.dict(), default=str).decode())
                                 )
                         else:
-                            app.console.print(
-                                (orjson.dumps(event.dict(), default=str).decode())
-                            )
+                            print((orjson.dumps(event.dict(), default=str).decode()))
                     if format == "text":
                         if output_file:
                             with open(output_file, "a") as f:
@@ -44,15 +49,20 @@ async def stream(format: StreamFormat = StreamFormat, output_file: str = None):
                                 )
                         else:
                             app.console.print(
-                                f"{event.occurred.isoformat()}",
+                                f"{event.occurred.isoformat()} ",
                                 f"\\[[bold green]{event.event}[/]]",
-                                event.resource.id,
+                                f" {event.id}",
                             )
-        except websockets.exceptions.ConnectionClosedError as e:
-            app.console.print(f"Connection closed, retrying... ({e})")
-        except KeyboardInterrupt:
-            app.console.print("Exiting...")
-            break
-        except Exception as e:
-            app.console.print(f"An unexpected error occurred: {e}")
-            break  # Exit the loop on unexpected errors
+
+        except Exception as exc:
+            if isinstance(exc, websockets.exceptions.ConnectionClosedError):
+                app.console.print(f"Connection closed, retrying... ({exc})")
+            if isinstance(exc, (KeyboardInterrupt, asyncio.exceptions.CancelledError)):
+                app.console.print("Exiting...")
+                break
+            if isinstance(exc, PermissionError, IOError):
+                app.console.print(f"Error writing to file: {exc}")
+                break
+            else:
+                app.console.print(f"An unexpected error occurred: {exc}")
+                break  # Exit the loop on unexpected errors
