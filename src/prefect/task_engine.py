@@ -37,7 +37,7 @@ EngineReturnType = Literal["future", "state", "result"]
 
 
 @sync_compatible
-async def submit_autonomous_task(
+async def submit_autonomous_task_to_engine(
     task: Task,
     parameters: Optional[Dict] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
