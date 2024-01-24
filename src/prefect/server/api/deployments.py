@@ -718,7 +718,7 @@ async def update_deployment_schedule(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
-    async with db.session_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -745,7 +745,7 @@ async def delete_deployment_schedule(
     schedule_id: UUID = Path(..., description="The schedule id", alias="schedule_id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
-    async with db.session_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
         )
