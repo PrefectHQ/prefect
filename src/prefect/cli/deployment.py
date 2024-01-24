@@ -557,7 +557,7 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-        if watch_interval and not watch:
+        if not watch and watch_interval != 5:
             exit_with_error(
                 "`--watch-interval` can only be used with `--watch`.",
             )
