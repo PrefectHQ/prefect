@@ -539,7 +539,7 @@ async def run(
     Create a flow run for the given flow and deployment.
 
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
-    The flow run will not execute until an worker starts.
+    The flow run will not execute until a worker starts.
     To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
