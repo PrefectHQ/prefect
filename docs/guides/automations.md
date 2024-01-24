@@ -419,4 +419,4 @@ deployments:
 
 You've seen how to create automations via the UI, REST API, and a triggers defined in a `prefect.yaml` deployment definition.
 
-To learn more about events that can act as automation triggers, see the [events docs](/concepts/events/).  To learn more about event webhooks in particular, see the [webhooks guide](/guides/webhooks/)
+To learn more about events that can act as automation triggers, see the [events docs](/concepts/events/).  To learn more about event webhooks in particular, see the [webhooks guide](/guides/webhooks/).
