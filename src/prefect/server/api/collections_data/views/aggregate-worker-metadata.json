@@ -716,6 +716,7 @@
           "labels": "{{ labels }}",
           "name": "{{ name }}",
           "image": "{{ image }}",
+          "registry_credentials": "{{ registry_credentials }}",
           "image_pull_policy": "{{ image_pull_policy }}",
           "networks": "{{ networks }}",
           "network_mode": "{{ network_mode }}",
@@ -761,6 +762,15 @@
               "description": "The image reference of a container image to use for created jobs. If not set, the latest Prefect image will be used.",
               "example": "docker.io/prefecthq/prefect:2-latest",
               "type": "string"
+            },
+            "registry_credentials": {
+              "title": "Registry Credentials",
+              "description": "Credentials for logging into a Docker registry to pull images from.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/DockerRegistryCredentials"
+                }
+              ]
             },
             "image_pull_policy": {
               "title": "Image Pull Policy",
@@ -823,6 +833,49 @@
               "description": "Give extended privileges to created container.",
               "default": false,
               "type": "boolean"
+            }
+          },
+          "definitions": {
+            "DockerRegistryCredentials": {
+              "title": "DockerRegistryCredentials",
+              "description": "Store credentials for interacting with a Docker Registry.",
+              "type": "object",
+              "properties": {
+                "username": {
+                  "title": "Username",
+                  "description": "The username to log into the registry with.",
+                  "type": "string"
+                },
+                "password": {
+                  "title": "Password",
+                  "description": "The password to log into the registry with.",
+                  "type": "string",
+                  "writeOnly": true,
+                  "format": "password"
+                },
+                "registry_url": {
+                  "title": "Registry Url",
+                  "description": "The URL to the registry. Generally, \"http\" or \"https\" can be omitted.",
+                  "example": "index.docker.io",
+                  "type": "string"
+                },
+                "reauth": {
+                  "title": "Reauth",
+                  "description": "Whether or not to reauthenticate on each interaction.",
+                  "default": true,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "username",
+                "password",
+                "registry_url"
+              ],
+              "block_type_slug": "docker-registry-credentials",
+              "secret_fields": [
+                "password"
+              ],
+              "block_schema_references": {}
             }
           }
         }
