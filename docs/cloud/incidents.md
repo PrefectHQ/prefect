@@ -10,7 +10,7 @@ search:
 
 ## Overview
 
-Incidents are a Prefect Cloud feature to help your team manage workflow disruptions. Incidents help you identify, resolve, and document issues with mission-critical workflows. This system enhances operational efficiency by automating the incident management process and providing a centralized platform for collaboration and compliance.
+Incidents are a Prefect Cloud feature to help your team manage workflow disruptions. With incidents, you can identify, resolve, and document issues with mission-critical workflows. This system enhances operational efficiency by automating the incident management process and providing a centralized platform for collaboration and compliance.
 
 ## What are incidents?
 
