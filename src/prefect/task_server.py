@@ -1,7 +1,9 @@
+import asyncio
 import signal
 import sys
 from functools import partial
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
+from uuid import UUID
 
 import anyio
 import anyio.abc
@@ -12,11 +14,14 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.filters import TaskRunFilter
 from prefect.client.schemas.objects import TaskRun
 from prefect.logging.loggers import get_logger
+from prefect.results import LiteralResult, ResultFactory
 from prefect.settings import PREFECT_RUNNER_POLL_FREQUENCY
 from prefect.task_engine import submit_autonomous_task_to_engine
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import _register_signal
 from prefect.utilities.services import critical_service_loop
+
+logger = get_logger("task_server")
 
 
 class TaskServer:
@@ -92,7 +97,7 @@ class TaskServer:
         self.last_polled = pendulum.now("UTC")
         await self._submit_pending_task_runs(task_run_response=runs_response)
 
-    async def _get_pending_task_runs(self) -> list[TaskRun]:
+    async def _get_pending_task_runs(self) -> List[TaskRun]:
         return await self._client.read_task_runs(
             task_run_filter=TaskRunFilter(
                 state=dict(name=dict(any_=["Scheduled"])), tags=dict(all_=self.tags)
@@ -117,7 +122,25 @@ class TaskServer:
 
                 continue
 
-            self._runs_task_group.start_soon(submit_autonomous_task_to_engine, task)
+            self._logger.info(repr(task_run.state))
+
+            # The ID of the parameters for this run are stored in the Scheduled state's
+            # data value. If the data value is None, then the task run was created with
+            # no/empty parameters
+            parameters = {}
+            if isinstance(task_run.state.data, LiteralResult):
+                parameter_id = UUID(task_run.state.data.value)
+                task.persist_result = True
+                factory = await ResultFactory.from_task(task)
+                parameters = await factory.read_parameters(parameter_id)
+
+            self._runs_task_group.start_soon(
+                partial(
+                    submit_autonomous_task_to_engine,
+                    task=task,
+                    parameters=parameters,
+                )
+            )
 
     async def __aenter__(self):
         self._logger.debug("Starting task server...")
@@ -135,3 +158,16 @@ class TaskServer:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
+
+
+def serve(
+    *tasks: Task,
+    query_seconds: Optional[int] = None,
+    tags: Optional[Iterable[str]] = None,
+):
+    async def run_server():
+        task_server = TaskServer(*tasks, query_seconds=query_seconds, tags=tags)
+        await task_server.start()
+
+    asyncio.run(run_server())
+    

@@ -166,7 +166,7 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.results import BaseResult, ResultFactory, UnknownResult
+from prefect.results import BaseResult, LiteralResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
@@ -1392,7 +1392,7 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
 
     if not flow_run_context:
-        return _submit_task_run(task=task)
+        return _submit_task_run(task=task, parameters=parameters)
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -2925,15 +2925,32 @@ def _emit_task_run_state_change_event(
 
 
 @sync_compatible
-async def _submit_task_run(task: Task) -> TaskRun:
+async def _submit_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
     async with get_client() as client:
-        return await client.create_task_run(
+        scheduled = Scheduled()
+
+        if parameters:
+            parameters_id = uuid4()
+            scheduled.data = LiteralResult(value=parameters_id)
+            task.persist_result = True
+            factory = await ResultFactory.from_task(task, client=client)
+            await factory.store_parameters(parameters_id, parameters)
+
+        task_run = await client.create_task_run(
             task=task,
             flow_run_id=None,
             dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
             extra_tags={"autonomous"}.union(task.tags),
-            state=Scheduled(),
+            state=scheduled,
         )
+
+        engine_logger.info(
+            "Submitted run of task %s with ID %s",
+            task.name,
+            task_run.id,
+        )
+
+    return task_run
 
 
 if __name__ == "__main__":
