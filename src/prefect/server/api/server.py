@@ -501,9 +501,7 @@ def create_app(
             and services will be disabled.
     """
     settings = settings or prefect.settings.get_current_settings()
-    env_variables = settings.to_environment_variables()
-    settings_key = hash(tuple((key, value) for key, value in env_variables.items()))
-    cache_key = (settings_key, ephemeral)    
+    cache_key = (settings.hash_key(), ephemeral)
 
     if cache_key in APP_CACHE and not ignore_cache:
         return APP_CACHE[cache_key]
