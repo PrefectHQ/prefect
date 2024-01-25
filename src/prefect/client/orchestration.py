@@ -10,6 +10,7 @@ from typing import (
     List,
     Optional,
     Set,
+    Tuple,
     Union,
 )
 from uuid import UUID, uuid4
@@ -84,6 +85,7 @@ from prefect.client.schemas.objects import (
     ConcurrencyLimit,
     Constant,
     Deployment,
+    DeploymentSchedule,
     Flow,
     FlowRunInput,
     FlowRunNotificationPolicy,
@@ -1806,6 +1808,39 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+    async def create_deployment_schedules(
+        self,
+        deployment_id: UUID,
+        schedules: List[Tuple[SCHEDULE_TYPES, bool]],
+    ) -> UUID:
+        """
+        Create a deployment schedule.
+
+        Args:
+            deployment_id: the deployment ID
+            schedules: a list of tuples containing the schedule to create
+                       and whether it should be active.
+
+        Raises:
+            httpx.RequestError: if the deployment was not created for any reason
+
+        Returns:
+            the list of schedules created in the backend
+        """
+        deployment_schedule_create = [
+            DeploymentScheduleCreate(schedule=schedule[0], active=schedule[1])
+            for schedule in schedules
+        ]
+
+        json = [
+            deployment_schedule_create.dict(json_compatible=True)
+            for deployment_schedule_create in deployment_schedule_create
+        ]
+        response = await self._client.post(
+            f"/deployments/{deployment_id}/schedules", json=json
+        )
+        return pydantic.parse_obj_as(List[DeploymentSchedule], response.json())
 
     async def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
         """

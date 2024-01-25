@@ -22,6 +22,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.filters import FlowFilter
+from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -331,6 +332,11 @@ async def create_schedule(
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
+    active: Optional[bool] = typer.Option(
+        True,
+        "--active",
+        help="Whether the schedule is active. Defaults to True.",
+    ),
 ):
     """
     Create a schedule for a given deployment.
@@ -401,8 +407,9 @@ async def create_schedule(
         except ObjectNotFound:
             return exit_with_error(f"Deployment {name!r} not found!")
 
-        await client.create_deployment_schedules(deployment.id, [schedule])
-        exit_with_success("Created deployment schedule!")
+        await client.create_deployment_schedules(deployment.id, [(schedule, active)])
+        noun = "schedule" if len(deployment.schedules) == 1 else "schedules"
+        exit_with_success(f"Created deployment {noun}!")
 
 
 @schedule_app.command("rm")
@@ -460,32 +467,56 @@ async def resume_schedule(
 
 
 @schedule_app.command("ls")
-async def list_schedules(name: str = None):
+async def list_schedules(deployment_name: str):
     """
     View all schedules for a deployment.
     """
-    assert_deployment_name_format(name)
+    assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
-            deployment = await client.read_deployment_by_name(name)
+            deployment = await client.read_deployment_by_name(deployment_name)
         except ObjectNotFound:
-            return exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-        flow = await client.read_flow(deployment.flow_id)
+        await client.read_flow(deployment.flow_id)
 
-    def sort_by_created_key(schedule: "DeploymentSchedule"):  # noqa
+    def sort_by_created_key(schedule: DeploymentSchedule):  # noqa
         return pendulum.now("utc") - schedule.created
+
+    def schedule_type(schedule: DeploymentSchedule):
+        if isinstance(schedule.schedule, IntervalSchedule):
+            return "interval"
+        elif isinstance(schedule.schedule, CronSchedule):
+            return "cron"
+        elif isinstance(schedule.schedule, RRuleSchedule):
+            return "rrule"
+        else:
+            return "unknown"
+
+    def schedule_details(schedule: DeploymentSchedule):
+        if isinstance(schedule.schedule, IntervalSchedule):
+            return f"interval: {schedule.schedule.interval}s"
+        elif isinstance(schedule.schedule, CronSchedule):
+            return f"cron: {schedule.schedule.cron}"
+        elif isinstance(schedule.schedule, RRuleSchedule):
+            return f"rrule: {schedule.schedule.rrule}"
+        else:
+            return "unknown"
 
     table = Table(
         title="Deployment Schedules",
     )
-    table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("ID", style="blue", no_wrap=True)
+    table.add_column("Type", style="cyan", no_wrap=True)
+    table.add_column("Schedule", style="cyan", no_wrap=True)
+    table.add_column("Active", style="purple", no_wrap=True)
 
     for schedule in sorted(deployment.schedules, key=sort_by_created_key):
         table.add_row(
-            f"{flow.name}/[bold]{deployment.name}[/]",
             str(schedule.id),
+            schedule_type(schedule),
+            schedule_details(schedule),
+            str(schedule.active),
         )
 
     app.console.print(table)
