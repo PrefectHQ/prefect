@@ -2,6 +2,87 @@
 
 ## Release 2.14.17
 
+### **Experimental**: Non-blocking submission of flow runs to the `Runner` web server
+You can now submit runs of served flows without blocking the main thread, from inside or outside a flow run. If submitting flows from inside a parent flow, these submitted runs will be tracked as subflows of the parent flow run.
+
+<img width="1159" alt="Prefect flow run graph screenshot" src="https://github.com/PrefectHQ/prefect/assets/31014960/9c2787bb-fb00-49d9-8611-80ad7584bda0">
+
+In order to use this feature, you must:
+- enable the experimental `Runner` webserver endpoints via
+    ```console
+    prefect config set PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS=True
+    ```
+- ensure the `Runner` web server is enabled, either by:
+    - passing `webserver=True` to your `serve` call
+    - enabling the webserver via
+    ```console
+    prefect config set PREFECT_RUNNER_SERVER_ENABLE=True
+    ```
+    
+You can then submit any flow available in the import space of the served flow, and you can submit multiple runs at once. If submitting flows from a parent flow, you may optionally block the parent flow run from completing until all submitted runs are complete with `wait_for_submitted_runs()`.
+
+<details>
+    <summary>Click for an example</summary>
+
+```python
+import time
+
+from pydantic import BaseModel
+
+from prefect import flow, serve, task
+from prefect.runner import submit_to_runner, wait_for_submitted_runs
+
+
+class Foo(BaseModel):
+    bar: str
+    baz: int
+
+
+class ParentFoo(BaseModel):
+    foo: Foo
+    x: int = 42
+
+@task
+def noop():
+    pass
+
+@flow(log_prints=True)
+async def child(foo: Foo = Foo(bar="hello", baz=42)):
+    print(f"received {foo.bar} and {foo.baz}")
+    print("going to sleep")
+    noop()
+    time.sleep(20)
+
+
+@task
+def foo():
+    time.sleep(2)
+
+@flow(log_prints=True)
+def parent(parent_foo: ParentFoo = ParentFoo(foo=Foo(bar="hello", baz=42))):
+    print(f"I'm a parent and I received {parent_foo=}")
+
+    submit_to_runner(
+        child, [{"foo": Foo(bar="hello", baz=i)} for i in range(9)]
+    )
+    
+    foo.submit()
+    
+    wait_for_submitted_runs() # optionally block until all submitted runs are complete
+    
+
+if __name__ == "__main__":
+    # either enable the webserver via `webserver=True` or via
+    # `prefect config set PREFECT_RUNNER_SERVER_ENABLE=True`
+    serve(parent.to_deployment(__file__), limit=10, webserver=True)
+```
+
+</details>
+
+This feature is experimental and subject to change. Please try it out and let us know what you think!
+
+See [the PR](https://github.com/PrefectHQ/prefect/pull/11476) for implementation details.
+
 ### Enhancements
 - Add `url` to `runtime.flow_run` — https://github.com/PrefectHQ/prefect/pull/11686
 - Add ability to subpath the `/ui-settings` endpoint — https://github.com/PrefectHQ/prefect/pull/11701
