@@ -335,8 +335,8 @@ def create_api_app(
 
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
-    ui_app.add_middleware(GZipMiddleware)
     base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
+    stripped_base_url = base_url.rstrip("/")
     static_dir = (
         prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
         or prefect.__ui_static_subpath__
@@ -348,7 +348,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         mimetypes.init()
         mimetypes.add_type("application/javascript", ".js")
 
-    @ui_app.get("/ui-settings")
+    @ui_app.get(f"{stripped_base_url}/ui-settings")
     def ui_settings():
         return {
             "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
@@ -375,7 +375,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         replace_placeholder_string_in_files(
             static_dir,
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
-            base_url.rstrip("/"),
+            stripped_base_url,
         )
 
         # Create a file to indicate that the static files have been copied
@@ -383,6 +383,8 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # when the server is restarted
         with open(os.path.join(static_dir, reference_file_name), "w") as f:
             f.write(base_url)
+
+    ui_app.add_middleware(GZipMiddleware)
 
     if (
         os.path.exists(prefect.__ui_static_path__)
