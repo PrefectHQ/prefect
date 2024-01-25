@@ -82,7 +82,6 @@ Client-side execution and orchestration of flows and tasks.
 """
 import asyncio
 import contextlib
-import inspect
 import logging
 import os
 import random
@@ -1384,34 +1383,15 @@ def enter_task_run_engine(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     mapped: bool,
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]:
     """
     Sync entrypoint for task calls
     """
 
     flow_run_context = FlowRunContext.get()
-    if not flow_run_context:
-        get_logger("prefect.engine").debug(
-            f"Task {task.name!r} was called outside of a flow run context."
-            " This task will be submitted to the API for execution."
-        )
-        module = task.fn.__module__
-        if module in ("__main__", "__prefect_loader__"):
-            module_name = inspect.getfile(task.fn)
-            module = module_name if module_name != "__main__" else module
 
-        task_entrypoint = f"{module}:{task.fn.__name__}"
-        emit_event(
-            event="bespoke_task_run_scheduled_event",
-            resource={
-                "prefect.resource.id": f"prefect.task.{id(task)}",
-            },
-            payload={
-                "parameters": parameters,
-                "task_entrypoint": task_entrypoint,
-            },
-        )
-        return
+    if not flow_run_context:
+        return _submit_task_run(task=task)
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -2942,6 +2922,18 @@ def _emit_task_run_state_change_event(
         },
         follows=follows,
     )
+
+
+@sync_compatible
+async def _submit_task_run(task: Task) -> TaskRun:
+    async with get_client() as client:
+        return await client.create_task_run(
+            task=task,
+            flow_run_id=None,
+            dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
+            extra_tags={"autonomous"}.union(task.tags),
+            state=Pending(),
+        )
 
 
 if __name__ == "__main__":
