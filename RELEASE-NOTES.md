@@ -5,7 +5,7 @@
 ### **Experimental**: Non-blocking submission of flow runs to the `Runner` web server
 You can now submit runs of served flows without blocking the main thread, from inside or outside a flow run. If submitting flows from inside a parent flow, these submitted runs will be tracked as subflows of the parent flow run.
 
-<img width="1159" alt="image" src="https://github.com/PrefectHQ/prefect/assets/31014960/9c2787bb-fb00-49d9-8611-80ad7584bda0">
+<img width="1159" alt="Prefect flow run graph screenshot" src="https://github.com/PrefectHQ/prefect/assets/31014960/9c2787bb-fb00-49d9-8611-80ad7584bda0">
 
 In order to use this feature, you must:
 - enable the experimental `Runner` webserver endpoints via
