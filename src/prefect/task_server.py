@@ -1,7 +1,7 @@
 import signal
 import sys
 from functools import partial
-from typing import Optional
+from typing import Iterable, Optional
 
 import anyio
 import anyio.abc
@@ -24,9 +24,11 @@ class TaskServer:
         self,
         *tasks: Task,
         query_seconds: Optional[int] = None,
+        tags: Optional[Iterable[str]] = None,
     ):
         self.tasks: list[Task] = tasks
         self.query_seconds: int = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
+        self.tags: Iterable[str] = tags or ["autonomous"]
         self.last_polled: Optional[pendulum.DateTime] = None
         self.started = False
         self.stopping = False
@@ -85,25 +87,25 @@ class TaskServer:
     async def _get_and_submit_task_runs(self):
         if self.stopping:
             return
-        runs_response = await self._get_scheduled_task_runs()
-        self._logger.debug(f"Found {len(runs_response)} task runs")
+        runs_response = await self._get_pending_task_runs()
+        self._logger.debug(f"Found {len(runs_response)} task run(s)")
         self.last_polled = pendulum.now("UTC")
-        await self._submit_scheduled_task_runs(task_run_response=runs_response)
+        await self._submit_pending_task_runs(task_run_response=runs_response)
 
-    async def _get_scheduled_task_runs(self) -> list[TaskRun]:
+    async def _get_pending_task_runs(self) -> list[TaskRun]:
         return await self._client.read_task_runs(
             task_run_filter=TaskRunFilter(
-                state=dict(name=dict(any_=["Pending"])), tags=dict(all_=["autonomous"])
+                state=dict(name=dict(any_=["Scheduled"])), tags=dict(all_=self.tags)
             ),
         )
 
-    async def _submit_scheduled_task_runs(self, task_run_response):
+    async def _submit_pending_task_runs(self, task_run_response):
         for task_run in task_run_response:
             self._logger.debug(
                 f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
             )
 
-            task = next((t for t in self.tasks if t.name in task_run.dynamic_key), None)
+            task = next((t for t in self.tasks if t.name in task_run.task_key), None)
 
             if not task:
                 self._logger.warning(
@@ -115,9 +117,7 @@ class TaskServer:
 
                 continue
 
-            self._runs_task_group.start_soon(
-                partial(submit_autonomous_task_to_engine, task)
-            )
+            self._runs_task_group.start_soon(submit_autonomous_task_to_engine, task)
 
     async def __aenter__(self):
         self._logger.debug("Starting task server...")
