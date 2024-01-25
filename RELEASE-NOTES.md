@@ -84,12 +84,12 @@ This feature is experimental and subject to change. Please try it out and let us
 See [the PR](https://github.com/PrefectHQ/prefect/pull/11476) for implementation details.
 
 ### Enhancements
-- Add `url` to `runtime.flow_run` — https://github.com/PrefectHQ/prefect/pull/11686
+- Add `url` to `prefect.runtime.flow_run` — https://github.com/PrefectHQ/prefect/pull/11686
 - Add ability to subpath the `/ui-settings` endpoint — https://github.com/PrefectHQ/prefect/pull/11701
 
 ### Fixes
 - Handle `pydantic` v2 types in schema generation for flow parameters — https://github.com/PrefectHQ/prefect/pull/11656
-- Increase flow run resiliency by gracefully handling PENDING to PENDING state transitions — https://github.com/PrefectHQ/prefect/pull/11695
+- Increase flow run resiliency by gracefully handling `PENDING` to `PENDING` state transitions — https://github.com/PrefectHQ/prefect/pull/11695
 
 ### Experimental
 - Add endpoint to `Runner` web server to allow running an flow available to a `Runner` instance — https://github.com/PrefectHQ/prefect/pull/11476
@@ -97,17 +97,16 @@ See [the PR](https://github.com/PrefectHQ/prefect/pull/11476) for implementation
 ### Documentation
 - Add documentation for `cache_result_in_memory` argument for `flow` decorator — https://github.com/PrefectHQ/prefect/pull/11669
 - Add runnable example of `flow.from_source()` — https://github.com/PrefectHQ/prefect/pull/11690
-- Make Creating interactive workflows guide easier to find via search — https://github.com/PrefectHQ/prefect/pull/11704
+- Improve discoverability of creating interactive workflows guide — https://github.com/PrefectHQ/prefect/pull/11704
 - Fix typo in automations guide — https://github.com/PrefectHQ/prefect/pull/11716
-- Add Events and remove Incidents from Concepts index page — https://github.com/PrefectHQ/prefect/pull/11708
+- Remove events and incidents from concepts index page — https://github.com/PrefectHQ/prefect/pull/11708
 - Remove subflow task tag concurrency warning — https://github.com/PrefectHQ/prefect/pull/11725
-- Remove line from `Pausing a flow` docs saying you can `pause` from the UI — https://github.com/PrefectHQ/prefect/pull/11730
-- Update wording for Jinja templating guide in automations concept doc for readability — https://github.com/PrefectHQ/prefect/pull/11729
-- Fix broken links — https://github.com/PrefectHQ/prefect/pull/11692
-- Fix typo in flows concept doc — https://github.com/PrefectHQ/prefect/pull/11693
+- Remove misleading line on pausing a flow run from the UI — https://github.com/PrefectHQ/prefect/pull/11730
+- Improve readability of Jinja templating guide in automations concept doc — https://github.com/PrefectHQ/prefect/pull/11729
+- Resolve links to relocated interactive workflows guide — https://github.com/PrefectHQ/prefect/pull/11692
+- Fix typo in flows concept documentation — https://github.com/PrefectHQ/prefect/pull/11693
 
 ### Contributors
-
 - @sgbaird
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.16...2.14.17
