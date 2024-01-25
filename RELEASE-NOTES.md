@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Add `url` to `runtime.flow_run` — https://github.com/PrefectHQ/prefect/pull/11686
+- Add ability to subpath the `/ui-settings` endpoint — https://github.com/PrefectHQ/prefect/pull/11701
 
 ### Fixes
 - Handle `pydantic` v2 types in schema generation for flow parameters — https://github.com/PrefectHQ/prefect/pull/11656
