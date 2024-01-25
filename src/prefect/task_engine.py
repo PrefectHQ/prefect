@@ -5,7 +5,6 @@ from typing import (
     Iterable,
     Optional,
     Type,
-    TypeVar,
 )
 
 import anyio
@@ -14,24 +13,14 @@ from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.orchestration import get_client
-from prefect.context import (
-    FlowRunContext,
-)
+from prefect.context import FlowRunContext
 from prefect.engine import begin_task_map, get_task_call_return_value
 from prefect.futures import PrefectFuture
-from prefect.input import RunInput
 from prefect.results import ResultFactory
-from prefect.task_runners import (
-    BaseTaskRunner,
-    SequentialTaskRunner,
-)
+from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.tasks import Task
-from prefect.utilities.asyncutils import (
-    sync_compatible,
-)
+from prefect.utilities.asyncutils import sync_compatible
 
-R = TypeVar("R")
-T = TypeVar("T", bound=RunInput)
 EngineReturnType = Literal["future", "state", "result"]
 
 
@@ -70,8 +59,6 @@ async def submit_autonomous_task_to_engine(
                 task_runner=task_runner,
             )
             if task.isasync:
-                # we await this call, the run_task function is sync compatible
-                # so the user will await it if they are in an async context
                 return await from_async.wait_for_call_in_loop_thread(begin_run)
             else:
                 return from_sync.wait_for_call_in_loop_thread(begin_run)

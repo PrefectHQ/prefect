@@ -179,6 +179,7 @@ from prefect.states import (
     Paused,
     Pending,
     Running,
+    Scheduled,
     State,
     Suspended,
     exception_to_crashed_state,
@@ -2160,7 +2161,7 @@ async def orchestrate_task_run(
                     await _check_task_failure_retriable(task, task_run, terminal_state)
                 )
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
-
+            breakpoint()
             last_event = _emit_task_run_state_change_event(
                 task_run=task_run,
                 initial_state=last_state,
@@ -2932,7 +2933,7 @@ async def _submit_task_run(task: Task) -> TaskRun:
             flow_run_id=None,
             dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
             extra_tags={"autonomous"}.union(task.tags),
-            state=Pending(),
+            state=Scheduled(),
         )
 
 
