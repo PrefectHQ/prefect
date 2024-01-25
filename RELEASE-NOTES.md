@@ -79,6 +79,10 @@ You can then submit any flow available in the import space of the served flow, a
 
 </details>
 
+This feature is experimental and subject to change. Please try it out and let us know what you think!
+
+See [the PR](https://github.com/PrefectHQ/prefect/pull/11476) for implementation details.
+
 ### Enhancements
 - Add `url` to `runtime.flow_run` — https://github.com/PrefectHQ/prefect/pull/11686
 - Add ability to subpath the `/ui-settings` endpoint — https://github.com/PrefectHQ/prefect/pull/11701
