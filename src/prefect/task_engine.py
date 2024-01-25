@@ -44,6 +44,7 @@ async def submit_autonomous_task_to_engine(
     return_type: EngineReturnType = "future",
     task_runner: Optional[Type[BaseTaskRunner]] = None,
 ) -> Any:
+    parameters = parameters or {}
     async with AsyncExitStack() as stack:
         with FlowRunContext(
             flow=None,
