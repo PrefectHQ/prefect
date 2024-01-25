@@ -8,6 +8,7 @@ import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 import pendulum
 import typer
@@ -412,58 +413,101 @@ async def create_schedule(
         exit_with_success(f"Created deployment {noun}!")
 
 
-@schedule_app.command("rm")
-async def remove_schedule(
-    name: str,
+@schedule_app.command("delete")
+async def delete_schedule(
+    deployment_name: str,
+    schedule_id: str,
+    assume_yes: Optional[bool] = typer.Option(
+        False,
+        "--accept-yes",
+        "-y",
+        help="Accept the confirmation prompt without prompting",
+    ),
 ):
     """
-    Remove a deployment schedule by ID.
+    Delete a deployment schedule by ID.
     """
-    assert_deployment_name_format(name)
+    assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
-            deployment = await client.read_deployment_by_name(name)
+            deployment = await client.read_deployment_by_name(deployment_name)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {deployment_name} not found!")
 
-        await client.update_deployment(deployment, is_schedule_active=True)
-        exit_with_success(f"Resumed schedule for deployment {name}")
+        try:
+            schedule = [s for s in deployment.schedules if s.id == UUID(schedule_id)][0]
+        except IndexError:
+            return exit_with_error("Deployment schedule not found!")
+
+        if not assume_yes and not typer.prompt(
+            f"Are you sure you want to delete this schedule: {schedule.schedule} (y/n)",
+        ):
+            return exit_with_error("Deletion cancelled.")
+
+        try:
+            await client.delete_deployment_schedule(deployment.id, schedule_id)
+        except ObjectNotFound:
+            exit_with_error("Deployment schedule not found!")
+
+        exit_with_success(f"Deleted deployment schedule {schedule_id}")
 
 
 @schedule_app.command("pause")
-async def pause_schedule(
-    name: str,
-):
+async def pause_schedule(deployment_name: str, schedule_id: str):
     """
     Pause a deployment schedule by ID.
     """
-    assert_deployment_name_format(name)
+    assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
-            deployment = await client.read_deployment_by_name(name)
+            deployment = await client.read_deployment_by_name(deployment_name)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-        await client.update_deployment(deployment, is_schedule_active=False)
-        exit_with_success(f"Paused schedule for deployment {name}")
+        try:
+            schedule = [s for s in deployment.schedules if s.id == UUID(schedule_id)][0]
+        except IndexError:
+            return exit_with_error("Deployment schedule not found!")
+
+        if not schedule.active:
+            return exit_with_error(
+                f"Deployment schedule {schedule_id} is already inactive"
+            )
+
+        await client.update_deployment_schedule(
+            deployment.id, schedule_id, active=False
+        )
+        exit_with_success(
+            f"Paused schedule {schedule.schedule} for deployment {deployment_name}"
+        )
 
 
 @schedule_app.command("resume")
-async def resume_schedule(
-    name: str,
-):
+async def resume_schedule(deployment_name: str, schedule_id: str):
     """
     Resume a deployment schedule by ID.
     """
-    assert_deployment_name_format(name)
+    assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
-            deployment = await client.read_deployment_by_name(name)
+            deployment = await client.read_deployment_by_name(deployment_name)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-        await client.update_deployment(deployment, is_schedule_active=True)
-        exit_with_success(f"Resumed schedule for deployment {name}")
+        try:
+            schedule = [s for s in deployment.schedules if s.id == UUID(schedule_id)][0]
+        except IndexError:
+            return exit_with_error("Deployment schedule not found!")
+
+        if schedule.active:
+            return exit_with_error(
+                f"Deployment schedule {schedule_id} is already active"
+            )
+
+        await client.update_deployment_schedule(deployment.id, schedule_id, active=True)
+        exit_with_success(
+            f"Resumed schedule {schedule.schedule} for deployment {deployment_name}"
+        )
 
 
 @schedule_app.command("ls")
@@ -507,14 +551,12 @@ async def list_schedules(deployment_name: str):
         title="Deployment Schedules",
     )
     table.add_column("ID", style="blue", no_wrap=True)
-    table.add_column("Type", style="cyan", no_wrap=True)
     table.add_column("Schedule", style="cyan", no_wrap=True)
     table.add_column("Active", style="purple", no_wrap=True)
 
     for schedule in sorted(deployment.schedules, key=sort_by_created_key):
         table.add_row(
             str(schedule.id),
-            schedule_type(schedule),
             schedule_details(schedule),
             str(schedule.active),
         )
@@ -523,23 +565,29 @@ async def list_schedules(deployment_name: str):
 
 
 @schedule_app.command("clear")
-async def clear_schedule(
-    name: str,
+async def clear_schedules(
+    deployment_name: str,
+    assume_yes: Optional[bool] = typer.Option(
+        False,
+        "--accept-yes",
+        "-y",
+        help="Accept the confirmation prompt without prompting",
+    ),
 ):
     """
     Clear all schedules for a deployment.
     """
-    assert_deployment_name_format(name)
+    assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
-            deployment = await client.read_deployment_by_name(name)
+            deployment = await client.read_deployment_by_name(deployment_name)
         except ObjectNotFound:
-            return exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
         flow = await client.read_flow(deployment.flow_id)
 
         # Get input from user: confirm removal of all schedules
-        if not typer.prompt(
+        if not assume_yes and not typer.prompt(
             "Are you sure you want to clear all schedules for this deployment? (y/n)",
             type=bool,
         ):
@@ -547,15 +595,16 @@ async def clear_schedule(
 
         for schedule in deployment.schedules:
             try:
-                await client.delete_deployment_schedule(schedule.id)
+                await client.delete_deployment_schedule(deployment.id, schedule.id)
             except ObjectNotFound:
-                # Warn user that schedule was not found
                 pass
 
-        exit_with_success(f"Cleared all schedules for deployment {flow.name}/{name}")
+        exit_with_success(
+            f"Cleared all schedules for deployment {flow.name}/{deployment_name}"
+        )
 
 
-@schedule_app.command("set-schedule", hidden=True)
+@deployment_app.command("set-schedule", hidden=True)
 async def _set_schedule(
     name: str,
     interval: Optional[float] = typer.Option(

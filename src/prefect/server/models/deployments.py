@@ -869,7 +869,7 @@ async def update_deployment_schedule(
                 db.DeploymentSchedule.deployment_id == deployment_id,
             )
         )
-        .values(**schedule.dict(exclude_unset=True))
+        .values(**schedule.dict(exclude_none=True))
     )
 
     return result.rowcount > 0

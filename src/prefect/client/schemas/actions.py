@@ -88,6 +88,12 @@ class DeploymentScheduleCreate(ActionBaseModel):
     schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
 
 
+@copy_model_fields
+class DeploymentScheduleUpdate(ActionBaseModel):
+    active: bool = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+
+
 @experimental_field(
     "work_pool_name",
     group="work_pools",
