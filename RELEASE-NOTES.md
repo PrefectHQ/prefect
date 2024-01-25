@@ -91,9 +91,6 @@ See [the PR](https://github.com/PrefectHQ/prefect/pull/11476) for implementation
 - Handle `pydantic` v2 types in schema generation for flow parameters — https://github.com/PrefectHQ/prefect/pull/11656
 - Increase flow run resiliency by gracefully handling `PENDING` to `PENDING` state transitions — https://github.com/PrefectHQ/prefect/pull/11695
 
-### Experimental
-- Add endpoint to `Runner` web server to allow running an flow available to a `Runner` instance — https://github.com/PrefectHQ/prefect/pull/11476
-
 ### Documentation
 - Add documentation for `cache_result_in_memory` argument for `flow` decorator — https://github.com/PrefectHQ/prefect/pull/11669
 - Add runnable example of `flow.from_source()` — https://github.com/PrefectHQ/prefect/pull/11690
