@@ -24,58 +24,58 @@ You can then submit any flow available in the import space of the served flow, a
 <details>
     <summary>Click for an example</summary>
 
-    ```python
-    import time
+```python
+import time
 
-    from pydantic import BaseModel
+from pydantic import BaseModel
 
-    from prefect import flow, serve, task
-    from prefect.runner import submit_to_runner, wait_for_submitted_runs
-
-
-    class Foo(BaseModel):
-        bar: str
-        baz: int
+from prefect import flow, serve, task
+from prefect.runner import submit_to_runner, wait_for_submitted_runs
 
 
-    class ParentFoo(BaseModel):
-        foo: Foo
-        x: int = 42
-
-    @task
-    def noop():
-        pass
-
-    @flow(log_prints=True)
-    async def child(foo: Foo = Foo(bar="hello", baz=42)):
-        print(f"received {foo.bar} and {foo.baz}")
-        print("going to sleep")
-        noop()
-        time.sleep(20)
+class Foo(BaseModel):
+    bar: str
+    baz: int
 
 
-    @task
-    def foo():
-        time.sleep(2)
+class ParentFoo(BaseModel):
+    foo: Foo
+    x: int = 42
 
-    @flow(log_prints=True)
-    def parent(parent_foo: ParentFoo = ParentFoo(foo=Foo(bar="hello", baz=42))):
-        print(f"I'm a parent and I received {parent_foo=}")
+@task
+def noop():
+    pass
 
-        submit_to_runner(
-            child, [{"foo": Foo(bar="hello", baz=i)} for i in range(9)]
-        )
-        
-        foo.submit()
-        
-        wait_for_submitted_runs() # optionally block until all submitted runs are complete
-        
+@flow(log_prints=True)
+async def child(foo: Foo = Foo(bar="hello", baz=42)):
+    print(f"received {foo.bar} and {foo.baz}")
+    print("going to sleep")
+    noop()
+    time.sleep(20)
 
-    if __name__ == "__main__":
-        # either enable the webserver via `webserver=True` or via
-        # `prefect config set PREFECT_RUNNER_SERVER_ENABLE=True`
-        serve(parent.to_deployment(__file__), limit=10, webserver=True)
-    ```
+
+@task
+def foo():
+    time.sleep(2)
+
+@flow(log_prints=True)
+def parent(parent_foo: ParentFoo = ParentFoo(foo=Foo(bar="hello", baz=42))):
+    print(f"I'm a parent and I received {parent_foo=}")
+
+    submit_to_runner(
+        child, [{"foo": Foo(bar="hello", baz=i)} for i in range(9)]
+    )
+    
+    foo.submit()
+    
+    wait_for_submitted_runs() # optionally block until all submitted runs are complete
+    
+
+if __name__ == "__main__":
+    # either enable the webserver via `webserver=True` or via
+    # `prefect config set PREFECT_RUNNER_SERVER_ENABLE=True`
+    serve(parent.to_deployment(__file__), limit=10, webserver=True)
+```
 
 </details>
 
