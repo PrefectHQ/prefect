@@ -631,9 +631,6 @@ Task tag limits are checked whenever a task run attempts to enter a [`Running` s
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds (or the value specified by the `PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS` setting).
 
-!!! warning "Concurrency limits in subflows"
-    Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
-
 ### Configuring concurrency limits
 
 !!! tip "Flow run concurrency limits are set at a work pool and/or work queue level"
