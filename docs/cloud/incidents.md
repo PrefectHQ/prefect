@@ -1,10 +1,7 @@
 ---
 description: Incidents in Prefect Cloud help identify, rectify and document issues in mission-critical workflows.
 tags:
-    - UI
-    - flow runs
-    - triggers
-    - Prefect Cloud
+    - incidents
 search:
   boost: 2
 ---
@@ -13,13 +10,13 @@ search:
 
 ## Overview
 
-Incidents in Prefect Cloud is an advanced feature designed to optimize the management of workflow disruptions. It serves as a proactive tool for data-driven teams, helping them identify, rectify, and document issues in mission-critical workflows. This system enhances operational efficiency by automating the incident management process and providing a centralized platform for collaboration and compliance.
+Incidents are a Prefect Cloud feature to help your team manage workflow disruptions. Incidents help you identify, resolve, and document issues with mission-critical workflows. This system enhances operational efficiency by automating the incident management process and providing a centralized platform for collaboration and compliance.
 
 ## What are incidents?
 
-Incidents are formal declarations of disruptions to a workspace. With [automations](#incident-automations), activity in that workspace can be paused when an incident is created and resumed when it is resolved.
+Incidents are formal declarations of disruptions to a workspace. With [automations](#incident-automations), activity in a workspace can be paused when an incident is created and resumed when it is resolved.
 
-Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud now enables users to effectively and automatically track and manage these incidents, ensuring minimal impact on operational continuity.
+Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud enables users to effectively and automatically track and manage these incidents, ensuring minimal impact on operational continuity.
 
 ![Incidents in the Prefect Cloud UI](/img/ui/incidents-dashboard.png)
 
