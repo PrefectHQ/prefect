@@ -2,13 +2,15 @@ import asyncio
 from enum import Enum
 
 import orjson
+import typer
 import websockets
 from anyio import open_file
 
 from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.events.clients import PrefectCloudEventSubscriber
-from prefect.events.filters import EventFilter, EventNameFilter
+from prefect.events.filters import EventFilter
 
 events_app = PrefectTyper(name="events", help="Commands for working with events.")
 app.add_typer(events_app, aliases=["event"])
@@ -20,19 +22,31 @@ class StreamFormat(str, Enum):
 
 
 @events_app.command()
-async def stream(format: StreamFormat = StreamFormat.json, output_file: str = None):
+async def stream(
+    format: StreamFormat = typer.option(
+        StreamFormat.json, "--format", help="Output format (json or text)"
+    ),
+    output_file: str = typer.Option(
+        None, "--output-file", help="File to write events to"
+    ),
+    event_filter: str = typer.Option(None, "--event-filter", help="Event filter"),
+):
     """Subscribes to the event stream of a workspace, printing each event
     as it is received. By default, events are printed as JSON, but can be
     printed as text by passing `--format text`.
     """
-    EventFilter(event=EventNameFilter(prefix=["prefect.flow-run."]))
     app.console.print("Subscribing to event stream...")
-    await process_events(format, output_file)
 
-
-async def process_events(format, output_file):
     try:
-        async with PrefectCloudEventSubscriber() as subscriber:
+        if event_filter:
+            try:
+                filter_dict = orjson.loads(event_filter)
+                EventFilter(**filter_dict)  # Construct the filter object
+            except orjson.JSONDecodeError:
+                exit_with_error("Invalid JSON format for filter specification")
+                raise exit_with_error()
+
+        async with PrefectCloudEventSubscriber(filter=event_filter) as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
     except (
@@ -47,35 +61,22 @@ async def process_events(format, output_file):
 
 async def handle_event(event, format, output_file):
     if format == StreamFormat.json:
-        await write_event_json(event, output_file)
+        event_data = orjson.dumps(event.dict(), default=str).decode()
     elif format == StreamFormat.text:
-        await write_event_text(event, output_file)
-
-
-async def write_event_json(event, output_file):
-    event_data = orjson.dumps(event.dict(), default=str).decode()
-    await write_to_output(event_data, output_file)
-
-
-async def write_event_text(event, output_file):
-    event_data = f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
-    await write_to_output(event_data, output_file)
-
-
-async def write_to_output(data, output_file):
+        event_data = f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
     if output_file:
         async with open_file(output_file, "a") as f:
-            await f.write(data + "\n")
+            await f.write(event_data + "\n")
     else:
-        print(data)
+        print(event_data)
 
 
 def handle_error(exc):
     if isinstance(exc, websockets.exceptions.ConnectionClosedError):
-        app.console.print(f"Connection closed, retrying... ({exc})")
+        exit_with_error(f"Connection closed, retrying... ({exc})")
     elif isinstance(exc, (KeyboardInterrupt, asyncio.exceptions.CancelledError)):
-        app.console.print("Exiting...")
+        exit_with_error("Exiting...")
     elif isinstance(exc, (PermissionError)):
-        app.console.print(f"Error writing to file: {exc}")
+        exit_with_error(f"Error writing to file: {exc}")
     else:
-        app.console.print(f"An unexpected error occurred: {exc}")
+        exit_with_error(f"An unexpected error occurred: {exc}")
