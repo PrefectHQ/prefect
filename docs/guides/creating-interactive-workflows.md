@@ -403,7 +403,7 @@ async def sender():
 
 There's more going on here than in `greeter`, so let's take a closer look at the pieces.
 
-First, we use `run_deployment` to start a `greeter` flow run. This means we must have a worker or `flow.serve()` running in separate process. That process will begin running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because, of course, it's running a loop and will only exit when we send `EXIT_SIGNAL`.
+First, we use `run_deployment` to start a `greeter` flow run. This means we must have a worker or `flow.serve()` running in separate process. That process will begin running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when we send `EXIT_SIGNAL`.
 
 Next, what's going on with `greetings_seen`? This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs *another loop* when it calls `async for greeting in receive_input(...)`. As we saw earlier in this guide, `receive_input` always starts at the beginning of all input this flow run received. Keeping track of the inputs we've already seen in the `greetings_seen` set allows us to pass this set in for the `exclude_keys` parameter each time we reenter the loop and call `receive_input` again.
 
