@@ -312,7 +312,7 @@ async def greeter():
 !!! note "Run inputs have keys, not IDs"
     Prefect stores run inputs in key-value storage, so the easiest way to keep track of inputs your flow run has seen is by saving the *key* of each run input. The key for a run input is stored in the `metadata.key` field on a `RunInput` instance.
 
-Keeping track of seen input keys
+#### Keeping track of seen input keys
 
 That means we need to keep track of inputs we've seen, which we do by adding the *key* of the flow run input to the `seen_greetings` set.
 
