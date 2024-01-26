@@ -133,15 +133,19 @@ class TaskServer:
                 factory = await ResultFactory.from_task(task)
                 try:
                     parameters = await factory.read_parameters(parameters_id)
-                except Exception:
-                    self._logger.info("Failed to read parameters for task run")
+                except Exception as exc:
+                    self._logger.info(
+                        f"Failed to read parameters for task run {task_run.id}: {exc}"
+                    )
+                    await self._client._client.delete(
+                        f"/task_runs/{task_run.id}"
+                    )  # while testing, delete the task run
                     continue
 
-            print(
-                "PARAMS ",
+            self._logger.debug(
+                "Parameters: %r and state data: %r",
                 parameters,
-                "DATA ",
-                task_run.state.data,
+                task_run.state.state_details,
             )
 
             self._runs_task_group.start_soon(

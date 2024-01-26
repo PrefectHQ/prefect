@@ -14,7 +14,10 @@ from typing_extensions import Literal
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
-from prefect.engine import begin_task_map, get_task_call_return_value
+from prefect.engine import (
+    begin_task_map,
+    get_task_call_return_value,
+)
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
