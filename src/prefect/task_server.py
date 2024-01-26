@@ -88,6 +88,11 @@ class TaskServer:
                 "Exception encountered while shutting down", exc_info=True
             )
 
+    async def run_once(self):
+        """Runs one iteration of the task server's polling cycle (used for testing)"""
+        async with self._runs_task_group:
+            await self._get_and_submit_task_runs()
+
     async def _get_and_submit_task_runs(self):
         if self.stopping:
             return
