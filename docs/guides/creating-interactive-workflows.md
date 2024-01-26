@@ -224,7 +224,7 @@ Use the `send_input` and `receive_input` functions to send input to a flow run o
 
 The most important parameter to the `send_input` and `receive_input` functions is `run_type`, which should one of the following:
 
-- A type like `int` or `str`
+- A type such as `int` or `str`
 - A `pydantic.BaseModel` subclass
 - A subclass of `prefect.input.RunInput`
 
