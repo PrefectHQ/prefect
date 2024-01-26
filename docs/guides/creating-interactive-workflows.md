@@ -232,7 +232,7 @@ Let's look at some examples! We'll check out `receive_input` first, followed by 
 
 ### Receiving input
 
-To get us started, the following flow uses `receive_input` to continually receive names and print a personalized greeting for each name it receives:
+The following flow uses `receive_input` to continually receive names and print a personalized greeting for each name it receives:
 
 ```python
 from prefect import flow
