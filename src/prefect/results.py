@@ -392,6 +392,7 @@ class ResultFactory(pydantic.BaseModel):
         ), "Unexpected storage block ID. Was it persisted?"
         data = self.serializer.dumps(parameters)
         blob = PersistedResultBlob(serializer=self.serializer, data=data)
+        logger.info(f"STORING PARAMS {self.storage_block} {blob}")
         await self.storage_block.write_path(
             f"parameters/{identifier}", content=blob.to_bytes()
         )
