@@ -129,7 +129,7 @@ async def greet_user():
 Prefect uses the fields and type hints on your `RunInput` or `BaseModel` subclass to validate the general structure of input your flow run receives, but you might require more complex validation. If you do, you can use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
 
 !!! warning "Custom validation runs after the flow run resumes"
-Prefect transforms the type annotations in your `RunInput` or `BaseModel` class to a JSON schema and uses that schema in the UI for client-side validation. However, custom validation requires running logic defined in your `RunInput` class. This happens _after the flow resumes_, so you'll probably want to handle it explicitly in your flow. Continue reading for an example best practice.
+Prefect transforms the type annotations in your `RunInput` or `BaseModel` class to a JSON schema and uses that schema in the UI for client-side validation. However, custom validation requires running logic defined in your `RunInput` class. Validation happens _after the flow resumes_, so you'll probably want to handle it explicitly in your flow. Continue reading for an example best practice.
 
 The following is an example `RunInput` class that uses a custom field validator:
 
@@ -227,7 +227,7 @@ Use the `send_input` and `receive_input` functions to send input to a flow run o
 
 The most important parameter to the `send_input` and `receive_input` functions is `run_type`, which should be one of the following:
 
-- A type like `int` or `str`
+- A type such as `int` or `str`
 - A `pydantic.BaseModel` subclass
 - A subclass of `prefect.input.RunInput`
 
@@ -240,7 +240,7 @@ Let's look at some examples! We'll check out `receive_input` first, followed by 
 
 ### Receiving input
 
-To get us started, the following flow uses `receive_input` to continually receive names and print a personalized greeting for each name it receives:
+The following flow uses `receive_input` to continually receive names and print a personalized greeting for each name it receives:
 
 ```python
 from prefect import flow
@@ -322,7 +322,7 @@ async def greeter():
 !!! note "Run inputs have keys, not IDs"
     Prefect stores run inputs in key-value storage, so the easiest way to keep track of inputs your flow run has seen is by saving the *key* of each run input. The key for a run input is stored in the `metadata.key` field on a `RunInput` instance.
 
-Keeping track of seen input keys
+#### Keeping track of seen input keys
 
 That means we need to keep track of inputs we've seen, which we do by adding the *key* of the flow run input to the `seen_greetings` set.
 
@@ -413,10 +413,10 @@ async def sender():
 
 There's more going on here than in `greeter`, so let's take a closer look at the pieces.
 
-First, we use `run_deployment` to start a `greeter` flow run. This means we must have a worker or `flow.serve()` running in separate process. That process will begin running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because, of course, it's running a loop and will only exit when we send `EXIT_SIGNAL`.
+First, we use `run_deployment` to start a `greeter` flow run. This means we must have a worker or `flow.serve()` running in separate process. That process will begin running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when we send `EXIT_SIGNAL`.
 
 Next, what's going on with `greetings_seen`? This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs *another loop* when it calls `async for greeting in receive_input(...)`. As we saw earlier in this guide, `receive_input` always starts at the beginning of all input this flow run received. Keeping track of the inputs we've already seen in the `greetings_seen` set allows us to pass this set in for the `exclude_keys` parameter each time we reenter the loop and call `receive_input` again.
 
-Next, we let the terminal user who ran this flow exit by entering the string "q" or "quit," and when that happens, we also seend the `greeter` flow an exit signal so it will shut down too.
+Next, we let the terminal user who ran this flow exit by entering the string `q` or `quit`. When that happens, we send the `greeter` flow an exit signal so it will shut down too.
 
 Net, we send the new name to `greeter`. We know that `greeter` is going to send back a greeting as a string, so we immediately begin waiting for new string input. When we receive the greeting, we print it, note the key as one we've seen, and break out of the `async for greeting in receive_inpu(...)` loop to continue the loop that gets terminal input.
