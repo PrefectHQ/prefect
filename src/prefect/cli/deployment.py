@@ -520,7 +520,6 @@ async def run(
     watch: bool = typer.Option(
         None,
         "--watch",
-        "-w",
         help="Whether to poll the flow run until a terminal state is reached.",
     ),
     watch_interval: int = typer.Option(
@@ -529,10 +528,10 @@ async def run(
         help="How often to poll the flow run for state changes (in seconds).",
     ),
     watch_timeout: int = typer.Option(
-        None, "--timeout", "-wt", help="Timeout for `--watch`."
+        None, "--watch-timeout", help="Timeout for `--watch`."
     ),
     tags: List[str] = typer.Option(
-        [], "--tag", "-t", help="Tag(s) to be applied to flow run"
+        [], "--tag", help="Tag(s) to be applied to flow run"
     ),
 ):
     """
