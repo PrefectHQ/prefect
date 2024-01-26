@@ -3,7 +3,6 @@ import signal
 import sys
 from functools import partial
 from typing import Iterable, List, Optional
-from uuid import UUID
 
 import anyio
 import anyio.abc
@@ -14,7 +13,7 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.filters import TaskRunFilter
 from prefect.client.schemas.objects import TaskRun
 from prefect.logging.loggers import get_logger
-from prefect.results import LiteralResult, ResultFactory
+from prefect.results import ResultFactory
 from prefect.settings import PREFECT_RUNNER_POLL_FREQUENCY
 from prefect.task_engine import submit_autonomous_task_to_engine
 from prefect.utilities.asyncutils import sync_compatible
@@ -125,14 +124,25 @@ class TaskServer:
             self._logger.info(repr(task_run.state))
 
             # The ID of the parameters for this run are stored in the Scheduled state's
-            # data value. If the data value is None, then the task run was created with
-            # no/empty parameters
+            # state_details. If there is no parameters_id, then the task was created
+            # without parameters.
             parameters = {}
-            if isinstance(task_run.state.data, LiteralResult):
-                parameter_id = UUID(task_run.state.data.value)
+            if hasattr(task_run.state.state_details, "task_parameters_id"):
+                parameters_id = task_run.state.state_details.task_parameters_id
                 task.persist_result = True
                 factory = await ResultFactory.from_task(task)
-                parameters = await factory.read_parameters(parameter_id)
+                try:
+                    parameters = await factory.read_parameters(parameters_id)
+                except Exception:
+                    self._logger.info("Failed to read parameters for task run")
+                    continue
+
+            print(
+                "PARAMS ",
+                parameters,
+                "DATA ",
+                task_run.state.data,
+            )
 
             self._runs_task_group.start_soon(
                 partial(

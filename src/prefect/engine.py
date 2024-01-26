@@ -166,7 +166,7 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.results import BaseResult, LiteralResult, ResultFactory, UnknownResult
+from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
@@ -2931,7 +2931,10 @@ async def _submit_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
 
         if parameters:
             parameters_id = uuid4()
-            scheduled.data = LiteralResult(value=parameters_id)
+            scheduled.state_details.task_parameters_id = parameters_id
+
+            # TODO: We want to use result storage for parameters, but we'll need
+            # a better way to use it than this.
             task.persist_result = True
             factory = await ResultFactory.from_task(task, client=client)
             await factory.store_parameters(parameters_id, parameters)
