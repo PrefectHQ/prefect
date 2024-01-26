@@ -31,11 +31,14 @@ You can pause or suspend a flow until it receives input from a user in Prefect's
 
 ### Waiting for input
 
-To receive input while paused or suspended you must use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` functions. This parameter accepts one of the following:
+To receive input while paused or suspended use the `wait_for_input` parameter in the `pause_flow_run` or `suspend_flow_run` functions. This parameter accepts one of the following:
 
-- A type like `int` or `str`
+- A built-in type like `int` or `str`, or a built-in collection like `List[int]`
 - A `pydantic.BaseModel` subclass
 - A subclass of `prefect.input.RunInput`
+
+!!! tip "When to use a `RunModel` or `BaseModel` instead of a built-in type"
+    There are a few reasons to use a `RunModel` or `BaseModel`. The first is that when you let Prefect automatically create one of these classes for your input type, the field that users will see in Prefect's UI when they click "Resume" on a flow run is named `value` and has no help text to suggest what the field is. If you create a `RunInput` or `BaseModel`, you can change details like the field name, help text, and default value, and users will see those reflected in the in the "Resume" form.
 
 The simplest way to pause or suspend and wait for input is to pass a type:
 
@@ -43,10 +46,10 @@ The simplest way to pause or suspend and wait for input is to pass a type:
 from prefect import flow, pause_flow_run
 
 @flow
-async def greet_user():
+def greet_user():
     logger = get_run_logger()
 
-    user_input = await pause_flow_run(wait_for_input=str)
+    user_input = pause_flow_run(wait_for_input=str)
 
     logger.info(f"Hello, {user_input.name}!")
 ```
@@ -55,9 +58,9 @@ In this example, the flow run will pause until a user clicks the Resume button i
 
 !!! note "What types can you pass for `wait_for_input`?"
 
-    When you pass a type like `int` as an argument for the `wait_for_input` parameter to `pause_flow_run` or `suspend_flow_run`, Prefect automatically creates a Pydantic model containing one field annotated with the type you specified. This means you can use [any type annotation that Pydantic accepts](https://docs.pydantic.dev/1.10/usage/types/) as a field.
+    When you pass a built-in type such as `int` as an argument for the `wait_for_input` parameter to `pause_flow_run` or `suspend_flow_run`, Prefect automatically creates a Pydantic model containing one field annotated with the type you specified. This means you can use [any type annotation that Pydantic accepts for model fields](https://docs.pydantic.dev/1.10/usage/types/) with these functions.
 
-Instead of a basic type, you can pass in a `pydantic.BaseModel` class. This is useful if you already have `BaseModels` you want to use:
+Instead of a built-in type, you can pass in a `pydantic.BaseModel` class. This is useful if you already have `BaseModels` you want to use:
 
 ```python
 from prefect import flow, pause_flow_run
@@ -222,11 +225,16 @@ Use the `send_input` and `receive_input` functions to send input to a flow run o
 
     You might want to send or receive input without pausing or suspending in scenarios where the flow run is designed to handle real-time data. For instance, in a live monitoring system, you might need to update certain parameters based on the incoming data without interrupting the flow. Another use is having a long-running flow that continually responds to runtime input with low latency. For example, if you're building a chatbot, you could have a flow that starts a GPT Assistant and manages a conversation thread.
 
-The most important parameter to the `send_input` and `receive_input` functions is `run_type`, which should one of the following:
+The most important parameter to the `send_input` and `receive_input` functions is `run_type`, which should be one of the following:
 
 - A type like `int` or `str`
 - A `pydantic.BaseModel` subclass
 - A subclass of `prefect.input.RunInput`
+
+!!! type "When to use a `BaseModel` or `RunInput` instead of a built-in type"
+    When you send and receive input with `send_input` and `receive_input` does not involve generating forms in the UI, so how an input type like `List[in]` might appear in the UI is not an issue. However, when you find yourself using nested collection types, such as lists of tuples, e.g. `List[Tuple[str, float]])`, consider placing the field in an explicit `BaseModel` or `RunInput`. This is so that validation will happen  validating the data sent  Prefect may not be able to prevent your flow from receiving collections of the wrong type, especially if you are receiving nested collection types, such as lists of tuples, e.g. (`List[Tuple[str, float]])`. In a case like lists of tuples,  we know exactly what you want to receive, but we can't always tell if an input 
+
+
 
 Let's look at some examples! We'll check out `receive_input` first, followed by `send_input`, and then we'll see the two functions working together.
 
@@ -263,7 +271,7 @@ async def greeter_flow():
 
 ```
 
-Notice that we are now printing `name_input.value`. When Prefect generates a `RunInput` for you from a basic type, the `RunInput` class has a single field, `value`, that uses a type annotation matching the type you specified. So if you call `receive_input` like this: `receive_input(str, with_metadata=True)`, that's equivalent to manually creating the following `RunInput` class and `receive_input` call:
+Notice that we are now printing `name_input.value`. When Prefect generates a `RunInput` for you from a built-in type, the `RunInput` class has a single field, `value`, that uses a type annotation matching the type you specified. So if you call `receive_input` like this: `receive_input(str, with_metadata=True)`, that's equivalent to manually creating the following `RunInput` class and `receive_input` call:
 
 ```python
 from prefect import flow
@@ -278,8 +286,10 @@ async def greeter_flow():
         print(f"Hello, {name_input.value}!")
 ```
 
+
+
 !!! warning "The type used in `receive_input` and `send_input` must match"
-For a flow to receive input, the sender must use the same type that the receiver is receiving. This means that if the receiver is receiving `GreeterInput`, the sender must send `GreeterInput`. If the receiver is receiving `GreeterInput` and the sender sends `str` input that Prefect automatically upgrades to a `RunInput` class, the types won't match, so the receiving flow run won't receive the input.
+    For a flow to receive input, the sender must use the same type that the receiver is receiving. This means that if the receiver is receiving `GreeterInput`, the sender must send `GreeterInput`. If the receiver is receiving `GreeterInput` and the sender sends `str` input that Prefect automatically upgrades to a `RunInput` class, the types won't match, so the receiving flow run won't receive the input.
 
 ### Keeping track of inputs you've already seen
 
