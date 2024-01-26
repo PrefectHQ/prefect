@@ -23,7 +23,7 @@ class StreamFormat(str, Enum):
 
 @events_app.command()
 async def stream(
-    format: StreamFormat = typer.option(
+    format: StreamFormat = typer.Option(
         StreamFormat.json, "--format", help="Output format (json or text)"
     ),
     output_file: str = typer.Option(
@@ -41,12 +41,19 @@ async def stream(
         if event_filter:
             try:
                 filter_dict = orjson.loads(event_filter)
-                EventFilter(**filter_dict)  # Construct the filter object
+                constructed_event_filter = EventFilter(
+                    **filter_dict
+                )  # Construct the filter object
             except orjson.JSONDecodeError:
                 exit_with_error("Invalid JSON format for filter specification")
                 raise exit_with_error()
+            except AttributeError:
+                exit_with_error("Invalid filter specification")
+                raise exit_with_error()
 
-        async with PrefectCloudEventSubscriber(filter=event_filter) as subscriber:
+        async with PrefectCloudEventSubscriber(
+            filter=constructed_event_filter
+        ) as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
     except (
