@@ -407,6 +407,6 @@ First, we use `run_deployment` to start a `greeter` flow run. This means we must
 
 Next, what's going on with `greetings_seen`? This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs *another loop* when it calls `async for greeting in receive_input(...)`. As we saw earlier in this guide, `receive_input` always starts at the beginning of all input this flow run received. Keeping track of the inputs we've already seen in the `greetings_seen` set allows us to pass this set in for the `exclude_keys` parameter each time we reenter the loop and call `receive_input` again.
 
-Next, we let the terminal user who ran this flow exit by entering the string "q" or "quit," and when that happens, we also seend the `greeter` flow an exit signal so it will shut down too.
+Next, we let the terminal user who ran this flow exit by entering the string `q` or `quit`. When that happens, we send the `greeter` flow an exit signal so it will shut down too.
 
 Net, we send the new name to `greeter`. We know that `greeter` is going to send back a greeting as a string, so we immediately begin waiting for new string input. When we receive the greeting, we print it, note the key as one we've seen, and break out of the `async for greeting in receive_inpu(...)` loop to continue the loop that gets terminal input.
