@@ -1660,6 +1660,14 @@ class Settings(SettingsFieldsMixin):
         settings.__fields_set__.intersection_update(self.__fields_set__)
         return settings
 
+    def hash_key(self) -> str:
+        """
+        Return a hash key for the settings object.  This is needed since some
+        settings may be unhashable.  An example is lists.
+        """
+        env_variables = self.to_environment_variables()
+        return str(hash(tuple((key, value) for key, value in env_variables.items())))
+
     def to_environment_variables(
         self, include: Iterable[Setting] = None, exclude_unset: bool = False
     ) -> Dict[str, str]:
