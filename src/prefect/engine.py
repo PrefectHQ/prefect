@@ -2928,7 +2928,6 @@ def _emit_task_run_state_change_event(
 async def _submit_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
     async with get_client() as client:
         scheduled = Scheduled()
-        engine_logger.info(f"SUBMIT TASK RUN {parameters}")
 
         if parameters:
             parameters_id = uuid4()

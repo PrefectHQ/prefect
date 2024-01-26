@@ -253,7 +253,6 @@ class ORMTaskRunState:
         if not self.result_artifact_id:
             # do not try to load the relationship if there's no artifact id
             return None
-        print("HEY ", self.id)
         return self._result_artifact.data
 
     @declared_attr
