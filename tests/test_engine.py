@@ -23,7 +23,7 @@ else:
 import prefect.flows
 from prefect import engine, flow, task
 from prefect._internal.compatibility.experimental import ExperimentalFeature
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
@@ -54,7 +54,7 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.input import RunInput, read_flow_run_input
-from prefect.results import ResultFactory
+from prefect.results import ResultFactory, UnknownResult
 from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
@@ -355,6 +355,48 @@ class TestBlockingPause:
         flow_input = await flow_run_state.result()
         assert isinstance(flow_input, FlowInput)
         assert flow_input.x == 42
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+    async def test_paused_flows_can_receive_automatic_input(self, prefect_client):
+        flow_run_id = None
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            age = await pause_flow_run(int, timeout=10, poll_interval=2)
+            return age
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            await resume_flow_run(flow_run_id, run_input={"value": 42})
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        age = await flow_run_state.result()
+        assert isinstance(age, int)
+        assert age == 42
 
         # Ensure that the flow run did create the corresponding schema input
         schema = await read_flow_run_input(
@@ -849,6 +891,61 @@ class TestSuspendFlowRun:
 
         flow_input = await state.result()
         assert flow_input.x == 42
+
+    async def test_suspend_can_receive_automatic_input(
+        self, deployment, session, prefect_client
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            if not context.flow_run.deployment_id:
+                # Ensure that the flow run has a deployment id so it's
+                # suspendable.
+                from prefect.server.models.flow_runs import update_flow_run
+
+                await update_flow_run(
+                    session,
+                    context.flow_run.id,
+                    FlowRun.construct(deployment_id=deployment.id),
+                )
+                await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            age = await suspend_flow_run(int)
+
+            return age
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        assert flow_run_id
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        keyset = flow_run.state.state_details.run_input_keyset
+
+        schema = await read_flow_run_input(
+            key=keyset["schema"], flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+        await resume_flow_run(flow_run_id, run_input={"value": 42})
+
+        state = await begin_flow_run(
+            flow=suspending_flow,
+            flow_run=flow_run,
+            parameters={},
+            client=prefect_client,
+            user_thread=threading.current_thread(),
+        )
+
+        age = await state.result()
+        assert age == 42
 
 
 class TestOrchestrateTaskRun:
@@ -1983,6 +2080,49 @@ class TestOrchestrateTaskRun:
             " 'Failed' and will attempt to run again..."
             in caplog.text
         )
+
+    async def test_proposes_unknown_result_if_state_is_completed_and_result_data_is_missing(
+        self,
+        mock_anyio_sleep,
+        prefect_client: PrefectClient,
+        flow_run,
+        result_factory,
+        local_filesystem,
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task()
+        def my_task():
+            return 1
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Completed(data=None),
+            dynamic_key="0",
+        )
+
+        result_factory.persist_result = True
+
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+        )
+
+        result = await state.result()
+        assert result is None
+        assert isinstance(state.data, UnknownResult)
 
 
 class TestBeginTaskRun:

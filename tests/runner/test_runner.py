@@ -9,6 +9,7 @@ from pathlib import Path
 from textwrap import dedent
 from time import sleep
 from typing import List
+from unittest import mock
 from unittest.mock import MagicMock
 
 import anyio
@@ -36,6 +37,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
+    PREFECT_RUNNER_SERVER_ENABLE,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -369,7 +371,7 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.flaky
+    @pytest.mark.skip(reason="This test is too flaky")
     async def test_runner_can_cancel_flow_runs(
         self, prefect_client: PrefectClient, caplog
     ):
@@ -416,7 +418,9 @@ class TestRunner:
             await runner.stop()
             tg.cancel_scope.cancel()
 
-        assert flow_run.state.is_cancelled()
+        assert (
+            flow_run.state.is_cancelled()
+        ), f"Flow run state not cancelled: {flow_run.state.name=!r}"
         # check to make sure on_cancellation hook was called
         assert "This flow was cancelled!" in caplog.text
 
@@ -1078,6 +1082,20 @@ class TestServer:
 
         runner.last_polled = pendulum.now("utc")
         assert health_check().status_code == status.HTTP_200_OK
+
+    @pytest.mark.parametrize("enabled", [True, False])
+    async def test_webserver_start_flag(self, enabled: bool):
+        with temporary_settings(updates={PREFECT_RUNNER_SERVER_ENABLE: enabled}):
+            with mock.patch("prefect.runner.runner.threading.Thread") as mocked_thread:
+                runner = Runner()
+                await runner.start(run_once=True)
+
+            if enabled:
+                mocked_thread.assert_called_once()
+                mocked_thread.return_value.start.assert_called_once()
+            if not enabled:
+                mocked_thread.assert_not_called()
+                mocked_thread.return_value.start.assert_not_called()
 
 
 class TestDeploy:

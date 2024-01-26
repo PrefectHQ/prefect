@@ -34,6 +34,7 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
     ArtifactCreate,
+    BlockDocumentCreate,
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
     LogCreate,
@@ -411,7 +412,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
-    @pytest.mark.flaky(max_runs=5)
+    @pytest.mark.skip("Test is too flaky")
     async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(lifespan=make_lifespan(startup, shutdown))
@@ -1231,6 +1232,79 @@ async def test_create_then_read_flow_run_notification_policy(
     assert response[0].is_active
     assert response[0].tags == []
     assert response[0].state_names == state_names
+
+
+async def test_create_then_update_flow_run_notification_policy(
+    prefect_client, block_document
+):
+    message_template = "Updated test message template!"
+    state_names = ["FAILED"]
+    tags = ["1.0"]
+
+    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
+        block_document_id=block_document.id,
+        is_active=True,
+        tags=[],
+        state_names=["COMPLETED"],
+        message_template="Test message template!",
+    )
+
+    new_block_document = await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            data={"url": "http://127.0.0.1"},
+            block_schema_id=block_document.block_schema_id,
+            block_type_id=block_document.block_type_id,
+            is_anonymous=True,
+        )
+    )
+
+    await prefect_client.update_flow_run_notification_policy(
+        id=notification_policy_id,
+        block_document_id=new_block_document.id,
+        is_active=False,
+        tags=tags,
+        state_names=state_names,
+        message_template=message_template,
+    )
+
+    response: List[FlowRunNotificationPolicy] = (
+        await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": False})
+        )
+    )
+
+    assert len(response) == 1
+    assert response[0].id == notification_policy_id
+    assert response[0].block_document_id == new_block_document.id
+    assert response[0].message_template == message_template
+    assert not response[0].is_active
+    assert response[0].tags == tags
+    assert response[0].state_names == state_names
+
+
+async def test_create_then_delete_flow_run_notification_policy(
+    prefect_client, block_document
+):
+    message_template = "Test message template!"
+    state_names = ["COMPLETED"]
+
+    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
+        block_document_id=block_document.id,
+        is_active=True,
+        tags=[],
+        state_names=state_names,
+        message_template=message_template,
+    )
+
+    await prefect_client.delete_flow_run_notification_policy(notification_policy_id)
+
+    response: List[FlowRunNotificationPolicy] = (
+        await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+        )
+    )
+
+    assert len(response) == 0
 
 
 async def test_read_filtered_logs(session, prefect_client, deployment):

@@ -48,11 +48,11 @@ from prefect.runner.storage import (
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
-    from pydantic import BaseModel as V2BaseModel
     from pydantic import ValidationError as V2ValidationError
     from pydantic.v1 import BaseModel as V1BaseModel
     from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 
+    from ._internal.pydantic.v2_schema import is_v2_type
     from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
     from ._internal.pydantic.v2_validated_func import (
         V2ValidatedFunction as ValidatedFunction,
@@ -350,6 +350,13 @@ class Flow(Generic[P, R]):
         self._storage: Optional[RunnerStorage] = None
         self._entrypoint: Optional[str] = None
 
+        module = fn.__module__
+        if module in ("__main__", "__prefect_loader__"):
+            module_name = inspect.getfile(fn)
+            module = module_name if module_name != "__main__" else module
+
+        self._entrypoint = f"{module}:{fn.__name__}"
+
     def with_options(
         self,
         *,
@@ -490,13 +497,13 @@ class Flow(Generic[P, R]):
             has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
                 isinstance(o, V1BaseModel) for o in kwargs.values()
             )
-            has_v2_models = any(isinstance(o, V2BaseModel) for o in args) or any(
-                isinstance(o, V2BaseModel) for o in kwargs.values()
+            has_v2_types = any(is_v2_type(o) for o in args) or any(
+                is_v2_type(o) for o in kwargs.values()
             )
 
-            if has_v1_models and has_v2_models:
+            if has_v1_models and has_v2_types:
                 raise ParameterTypeError(
-                    "Cannot mix Pydantic v1 and v2 models as arguments to a flow."
+                    "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
                 )
 
             if has_v1_models:
@@ -682,6 +689,7 @@ class Flow(Generic[P, R]):
         enforce_parameter_schema: bool = False,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
+        limit: Optional[int] = None,
         webserver: bool = False,
     ):
         """
@@ -710,6 +718,7 @@ class Flow(Generic[P, R]):
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
+            limit: The maximum number of runs that can be executed concurrently.
             webserver: Whether or not to start a monitoring webserver for this flow.
 
         Examples:
@@ -746,7 +755,7 @@ class Flow(Generic[P, R]):
         # Non filepath strings will pass through unchanged
         name = Path(name).stem
 
-        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
+        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
         deployment_id = await runner.add_flow(
             self,
             name=name,
@@ -1291,6 +1300,9 @@ def flow(
         flow_run_name: An optional name to distinguish runs of this flow; this name can
             be provided as a string template with the flow's parameters as variables,
             or a function that returns a string.
+        retries: An optional number of times to retry on flow run failure.
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            flow after failure. This is only applicable if `retries` is nonzero.
         task_runner: An optional task runner to use for task execution within the flow; if
             not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
@@ -1304,9 +1316,6 @@ def flow(
             type; for example, if a parameter is defined as `x: int` and "5" is passed,
             it will be resolved to `5`. If set to `False`, no validation will be
             performed on flow parameters.
-        retries: An optional number of times to retry on flow run failure.
-        retry_delay_seconds: An optional number of seconds to wait before retrying the
-            flow after failure. This is only applicable if `retries` is nonzero.
         persist_result: An optional toggle indicating whether the result of this flow
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
@@ -1320,6 +1329,8 @@ def flow(
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        cache_result_in_memory: An optional toggle indicating whether the cached result of
+            a running the flow should be stored in memory. Defaults to `True`.
         log_prints: If set, `print` statements in the flow will be redirected to the
             Prefect logger for the flow run. Defaults to `None`, which indicates that
             the value from the parent flow should be used. If this is a parent flow,

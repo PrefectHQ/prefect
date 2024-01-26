@@ -153,9 +153,10 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.input import RunInput, keyset_from_paused_state
+from prefect.input.run_input import run_input_subclass_from_type
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
@@ -165,7 +166,7 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.results import BaseResult, ResultFactory
+from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
@@ -174,6 +175,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
 )
 from prefect.states import (
+    Completed,
     Paused,
     Pending,
     Running,
@@ -410,10 +412,20 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
+
+    entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+
     try:
-        flow = await load_flow_from_flow_run(flow_run, client=client)
+        flow = (
+            load_flow_from_entrypoint(entrypoint)
+            if entrypoint
+            else await load_flow_from_flow_run(flow_run, client=client)
+        )
     except Exception:
-        message = "Flow could not be retrieved from deployment."
+        message = (
+            "Flow could not be retrieved from"
+            f" {'entrypoint' if entrypoint else 'deployment'}."
+        )
         flow_run_logger(flow_run).exception(message)
         state = await exception_to_failed_state(message=message)
         await client.set_flow_run_state(
@@ -972,6 +984,18 @@ async def pause_flow_run(
     ...
 
 
+@overload
+async def pause_flow_run(
+    wait_for_input: Type[Any],
+    flow_run_id: UUID = None,
+    timeout: int = 3600,
+    poll_interval: int = 10,
+    reschedule: bool = False,
+    key: str = None,
+) -> Any:
+    ...
+
+
 @sync_compatible
 @deprecated_parameter(
     "flow_run_id", start_date="Dec 2023", help="Use `suspend_flow_run` instead."
@@ -986,7 +1010,7 @@ async def pause_flow_run(
     "wait_for_input", group="flow_run_input", when=lambda y: y is not None
 )
 async def pause_flow_run(
-    wait_for_input: Optional[Type[T]] = None,
+    wait_for_input: Optional[Union[Type[T], Type[Any]]] = None,
     flow_run_id: UUID = None,
     timeout: int = 3600,
     poll_interval: int = 10,
@@ -1023,11 +1047,12 @@ async def pause_flow_run(
             the number of pauses observed by the flow so far, and prevents pauses that
             use the "reschedule" option from running the same pause twice. A custom key
             can be supplied for custom pausing behavior.
-        wait_for_input: a subclass of `RunInput`. If provided when the flow pauses, the
-            flow will wait for the input to be provided before resuming. If the flow is
-            resumed without providing the input, the flow will fail. If the flow is
-            resumed with the input, the flow will resume and the input will be loaded
-            and returned from this function.
+        wait_for_input: a subclass of `RunInput` or any type supported by
+            Pydantic. If provided when the flow pauses, the flow will wait for the
+            input to be provided before resuming. If the flow is resumed without
+            providing the input, the flow will fail. If the flow is resumed with the
+            input, the flow will resume and the input will be loaded and returned
+            from this function.
 
     Example:
     ```python
@@ -1074,7 +1099,7 @@ async def _in_process_pause(
     reschedule=False,
     key: str = None,
     client=None,
-    wait_for_input: Optional[Type[RunInput]] = None,
+    wait_for_input: Optional[Union[Type[RunInput], Type[Any]]] = None,
 ) -> Optional[RunInput]:
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
@@ -1095,6 +1120,7 @@ async def _in_process_pause(
     )
 
     if wait_for_input:
+        wait_for_input = run_input_subclass_from_type(wait_for_input)
         run_input_keyset = keyset_from_paused_state(proposed_state)
         proposed_state.state_details.run_input_keyset = run_input_keyset
 
@@ -1205,13 +1231,24 @@ async def suspend_flow_run(
     ...
 
 
+@overload
+async def suspend_flow_run(
+    wait_for_input: Type[Any],
+    flow_run_id: Optional[UUID] = None,
+    timeout: Optional[int] = 3600,
+    key: Optional[str] = None,
+    client: PrefectClient = None,
+) -> Any:
+    ...
+
+
 @sync_compatible
 @inject_client
 @experimental_parameter(
     "wait_for_input", group="flow_run_input", when=lambda y: y is not None
 )
 async def suspend_flow_run(
-    wait_for_input: Optional[Type[T]] = None,
+    wait_for_input: Optional[Union[Type[T], Type[Any]]] = None,
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
@@ -1239,12 +1276,12 @@ async def suspend_flow_run(
             defaults to a random string and prevents suspends from running the
             same suspend twice. A custom key can be supplied for custom
             suspending behavior.
-        wait_for_input: a subclass of `RunInput`. If provided when the flow
-            suspends, the flow will wait for the input to be provided before
-            resuming. If the flow is resumed without providing the input, the
-            flow will fail. If the flow is resumed with the input, the flow
-            will resume and the input will be loaded and returned from this
-            function.
+        wait_for_input: a subclass of `RunInput` or any type supported by
+            Pydantic. If provided when the flow suspends, the flow will remain
+            suspended until receiving the input before resuming. If the flow is
+            resumed without providing the input, the flow will fail. If the flow is
+            resumed with the input, the flow will resume and the input will be
+            loaded and returned from this function.
     """
     context = FlowRunContext.get()
 
@@ -1277,6 +1314,7 @@ async def suspend_flow_run(
     proposed_state = Suspended(timeout_seconds=timeout, pause_key=pause_key)
 
     if wait_for_input:
+        wait_for_input = run_input_subclass_from_type(wait_for_input)
         run_input_keyset = keyset_from_paused_state(proposed_state)
         proposed_state.state_details.run_input_keyset = run_input_keyset
 
@@ -1934,6 +1972,22 @@ async def orchestrate_task_run(
         task_run=task_run, initial_state=None, validated_state=task_run.state
     )
     last_state = task_run.state
+
+    # Completed states with persisted results should have result data. If it's missing,
+    # this could be a manual state transition, so we should use the Unknown result type
+    # to represent that we know we don't know the result.
+    if (
+        last_state
+        and last_state.is_completed()
+        and result_factory.persist_result
+        and not last_state.data
+    ):
+        state = await propose_state(
+            client,
+            state=Completed(data=await UnknownResult.create()),
+            task_run_id=task_run.id,
+            force=True,
+        )
 
     # Transition from `PENDING` -> `RUNNING`
     try:

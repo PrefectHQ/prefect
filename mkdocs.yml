@@ -153,7 +153,7 @@ nav:
                 - Runtime Context: guides/runtime-context.md
                 - Variables: guides/variables.md
                 - Prefect Client: guides/using-the-client.md
-                - Human-in-the-Loop Workflows: guides/creating-human-in-the-loop-workflows.md
+                - Interactive Workflows: guides/creating-interactive-workflows.md
                 - Automations: guides/automations.md
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
@@ -189,7 +189,6 @@ nav:
           - States: concepts/states.md
           - Blocks: concepts/blocks.md
           - Task Runners: concepts/task-runners.md
-          - Events: concepts/events.md
           - Automations: concepts/automations.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
@@ -210,6 +209,7 @@ nav:
                 - Teams: cloud/users/teams.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
+          - Events: cloud/events.md
           - Incidents: cloud/incidents.md
     - Integrations:
           - integrations/index.md
@@ -276,6 +276,7 @@ nav:
                 - "prefect.events": api-ref/prefect/events.md
                 - "prefect.filesystems": api-ref/prefect/filesystems.md
                 - "prefect.flows": api-ref/prefect/flows.md
+                - "prefect.flow_runs": api-ref/prefect/flow_runs.md
                 - "prefect.futures": api-ref/prefect/futures.md
                 - "prefect.infrastructure": api-ref/prefect/infrastructure.md
                 - "prefect.input":

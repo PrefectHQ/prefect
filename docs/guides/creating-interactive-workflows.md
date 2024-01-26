@@ -1,15 +1,17 @@
 ---
-description: Learn how to create human-in-the-loop workflows with Prefect.
+description: Learn how to create interactive workflows with Prefect.
 tags:
     - flow run
     - pause
     - suspend
     - input
+    - human-in-the-loop workflows
+    - interactive workflows
 search:
   boost: 2
 ---
 
-# Creating Human-in-the-Loop Workflows
+# Creating Interactive Workflows
 !!! warning "Experimental"
 
     The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature. The interface or behavior of this feature may change without warning in future releases. 
