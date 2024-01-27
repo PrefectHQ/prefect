@@ -255,7 +255,7 @@ async def greeter_flow():
 
 When you pass a type like `str` into `receive_input`, Prefect creates a `RunInput` class to manage your input automatically. When your flow receives input of this type, Prefect uses this `RunInput` class to validate the input, and if validation succeeds, your flow sees the input in the type you specified. So in this example, if the flow received a valid string as input, the variable `name_input` contains the string.
 
-If, instead, you specify a `BaseModel`, Prefect upgrades your `BaseModel` to a `RunInput` class, and the variable your flow sees -- in this case, `name_input` -- is a `RunInput` instance. Of course, if you pass in a `RunInput` class, no upgrade is needed, and you'll get a `RunInput` instance.
+If, instead, you specify a `BaseModel`, Prefect upgrades your `BaseModel` to a `RunInput` class, and the variable your flow sees &mdash in this case, `name_input` &mdash is a `RunInput` instance. Of course, if you pass in a `RunInput` class, no upgrade is needed, and you'll get a `RunInput` instance.
 
 If you prefer to keep things simple and pass types like `str` into `receive_input`, you need access to the generated `RunInput` instance, pass `with_metadata=True` to `receive_input`:
 
@@ -293,38 +293,94 @@ async def greeter_flow():
 
 ### Keeping track of inputs you've already seen
 
-By default, each time you call `receive_input`, you get an iterator that iterates over all known inputs, starting with the first received. There are common situations in which you'll want to keep track of inputs you've already seen and avoid seeing them again when you call `receive_input`, such as:
-
-1. The flow receiving input is designed to suspend and resume later
-2. The flow receiving input calls `receive_input` in a loop (we'll see an example of this later in this guide)
-
-The first case requires saving the list of seen inputs somewhere that a future flow run can see them, e.g. a `JSONBlock` scoped to a workspace or other external storage. The second case is easier: you can use a `set` within your flow:
+By default, each time you call `receive_input`, you get an iterator that iterates over all known inputs, starting with the first received. The iterator will keep track of your current position as you iterate over it, or call `next()`. If you're using the iterator in a loop, you should probably assign it to a variable:
 
 ```python
-from prefect import flow
+from prefect import flow, get_client
+from prefect.deployments.deployments import run_deployment
+from prefect.input.run_input import receive_input, send_input
+
+EXIT_SIGNAL = "__EXIT__"
+
+
+@flow
+async def sender():
+    greeter_flow_run = await run_deployment(
+        "greeter/send-receive", timeout=0, as_subflow=False
+    )
+    client = get_client()
+    
+    # Assigning the `receive_input` iterator to a variable outside of the the
+    # `while True` loop allows us to continue iterating over inputs in
+    # subsequent passes through the while loop without losing our position.
+    receiver = receive_input(str, with_metadata=True, timeout=None, poll_interval=0.1)
+
+    while True:
+        name = input("What is your name? ")
+        if not name:
+            continue
+
+        if name == "q" or name == "quit":
+            await send_input(EXIT_SIGNAL, flow_run_id=greeter_flow_run.id)
+            print("Goodbye!")
+            break
+
+        await send_input(name, flow_run_id=greeter_flow_run.id)
+
+        # If we hadn't saved the `receive_input` iterator to a variable and instead
+        # called `receive_input` here, we would always start with the first run
+        # input this flow run received.
+        async for greeting in receiver:
+            print(greeting)
+            break
+```
+
+So, an iterator helps to keep track of the inputs your flow has already received. But what if you want your flow to suspend and then resume later, picking up where it left off? In that case, you will need to save the keys of the inputs you've seen so that the flow can read them back out when it resumes. You might use a [Block](/concepts/blocks/), such as a `JSONBlock`, scoped to a workspace.
+
+The following flow receives input for 30 seconds then suspends itself, which exits the flow and tears down infrastructure:
+
+```python
+from prefect import flow, get_run_logger, suspend_flow_run
+from prefect.blocks.system import JSON
+from prefect.context import get_run_context
 from prefect.input.run_input import receive_input
+
+
+EXIT_SIGNAL = "__EXIT__"
 
 
 @flow
 async def greeter():
-    # In this case, there is no reason to save inputs, so this just shows
-    # how it works. Later in this guide, you will see an example where we
-    # really do need to save the seen inputs!
-    seen_names = set()
+    logger = get_run_logger()
+    run_context = get_run_context()
+    assert run_context.flow_run, "Could not see my flow run ID"
 
-    async for name_input in receive_input(
-        str, with_metadata=True, poll_interval=0.1, timeout=None, exclude_keys=seen_names
-    ):
-        await name_input.respond(f"Hello, {name_input.value}!")
-        seen_names.add(name_input.metadata.key)
+    block_name = f"{run_context.flow_run.id}-seen-ids"
+
+    try:
+        seen_keys_block = await JSON.load(block_name)
+    except ValueError:
+        seen_keys_block = JSON(
+            value=[],
+        )
+
+    try:
+        async for name_input in receive_input(
+            str, with_metadata=True, poll_interval=0.1, timeout=30, exclude_keys=seen_keys_block.value
+        ):
+            if name_input.value == EXIT_SIGNAL:
+                print("Goodbye!")
+                return
+            await name_input.respond(f"Hello, {name_input.value}!")
+
+            seen_keys_block.value.append(name_input.metadata.key)
+            await seen_keys_block.save(name=block_name, overwrite=True)
+    except TimeoutError:
+        logger.info("Suspending greeter after 30 seconds of idle time")
+        await suspend_flow_run(timeout=10000)
 ```
 
-!!! note "Run inputs have keys, not IDs"
-    Prefect stores run inputs in key-value storage, so the easiest way to keep track of inputs your flow run has seen is by saving the *key* of each run input. The key for a run input is stored in the `metadata.key` field on a `RunInput` instance.
-
-#### Keeping track of seen input keys
-
-That means we need to keep track of inputs we've seen, which we do by adding the *key* of the flow run input to the `seen_greetings` set.
+As this flow processes name input, it adds the *key* of the flow run input to the `seen_keys_block`. When the flow later suspends and then resumes, it reads the keys it has already seen out of the JSON Block and passes them as the `exlude_keys` parameter to `receive_input`.
 
 ### Responding to the input's sender
 
