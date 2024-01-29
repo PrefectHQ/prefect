@@ -189,7 +189,6 @@ nav:
           - States: concepts/states.md
           - Blocks: concepts/blocks.md
           - Task Runners: concepts/task-runners.md
-          - Events: concepts/events.md
           - Automations: concepts/automations.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
@@ -210,6 +209,7 @@ nav:
                 - Teams: cloud/users/teams.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
+          - Events: cloud/events.md
           - Incidents: cloud/incidents.md
     - Integrations:
           - integrations/index.md
