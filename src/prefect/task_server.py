@@ -24,6 +24,22 @@ logger = get_logger("task_server")
 
 
 class TaskServer:
+    """This class is responsible for serving tasks that may be executed autonomously
+    (i.e., without a parent flow run).
+
+    When `start()` is called, the task server will begin polling for pending task runs
+    every `query_seconds` seconds. When a pending task run is found, the task server
+    will submit the task run to the engine for execution, using `submit_autonomous_task_to_engine`
+    to construct a minimal `EngineContext` for the task run.
+
+    Args:
+        - tasks (Iterable[Task]): A list of tasks to be served by the task server.
+        - query_seconds (int, optional): The number of seconds to wait between polling
+            for pending task runs. Defaults to the value of `PREFECT_RUNNER_POLL_FREQUENCY`.
+        - tags (Iterable[str], optional): A list of tags to filter pending task runs by.
+            Defaults to `["autonomous"]`.
+    """
+
     def __init__(
         self,
         *tasks: Task,
