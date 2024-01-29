@@ -633,13 +633,13 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         default=None, description="A list of task run flow run ids to include"
     )
 
-    is_none: bool = Field(
+    is_null_: bool = Field(
         default=False, description="Filter for task runs with None as their flow run id"
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
-        if self.is_none is True:
+        if self.is_null_ is True:
             filters.append(db.TaskRun.flow_run_id.is_(None))
         else:
             if self.any_ is not None:
