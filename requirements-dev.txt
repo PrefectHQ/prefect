@@ -13,7 +13,7 @@ mkdocs-material
 mkdocstrings-python
 mike
 mock; python_version < '3.8'
-moto
+moto < 5
 mypy
 numpy
 pillow
