@@ -1835,7 +1835,7 @@ class TestFlowRunInput:
         )
         assert response.status_code == 404
 
-    async def test_paused_flow_run_waiting_for_input_stores_if_not_respnose_key(
+    async def test_paused_flow_run_waiting_for_input_stores_if_not_response_key(
         self,
         client: AsyncClient,
         session: AsyncSession,
