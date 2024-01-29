@@ -1362,7 +1362,7 @@ PREFECT_RUNNER_SERVER_HOST = Setting(str, default="localhost")
 The host address the runner's webserver should bind to.
 """
 
-PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8081)
+PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8080)
 """
 The port the runner's webserver should bind to.
 """
