@@ -533,7 +533,7 @@ async def _handle_paused_flow_run_input(
     if schema_json is None:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail=f"{state.type} flow run's input schema was not found",
+            detail=f"{state.type.value} flow run's input schema was not found",
         )
 
     try:
@@ -541,7 +541,7 @@ async def _handle_paused_flow_run_input(
     except orjson.JSONDecodeError:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail=f"{state.type} flow run's input schema is not valid JSON",
+            detail=f"{state.type.value} flow run's input schema is not valid JSON",
         )
 
     try:

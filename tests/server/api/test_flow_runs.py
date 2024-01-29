@@ -1835,7 +1835,7 @@ class TestFlowRunInput:
         )
         assert response.status_code == 404
 
-    async def test_paused_flow_run_waiting_for_input_stores_if_not_response_key(
+    async def test_paused_flow_run_waiting_for_input_stores_if_not_respnose_key(
         self,
         client: AsyncClient,
         session: AsyncSession,
@@ -1954,8 +1954,7 @@ class TestFlowRunInput:
 
         assert response.status_code == 400
         assert (
-            response.json()["detail"]
-            == "StateType.PAUSED flow run's input schema was not found"
+            response.json()["detail"] == "PAUSED flow run's input schema was not found"
         )
 
     async def test_paused_flow_run_waiting_for_input_schema_invalid_json(
@@ -1988,7 +1987,7 @@ class TestFlowRunInput:
         assert response.status_code == 400
         assert (
             response.json()["detail"]
-            == "StateType.PAUSED flow run's input schema is not valid JSON"
+            == "PAUSED flow run's input schema is not valid JSON"
         )
 
     async def test_paused_flow_run_waiting_for_input_invalid_input(
