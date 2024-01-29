@@ -80,6 +80,7 @@ def test_python_environment_not_autodetected_with_dockerfile():
     assert not packager.python_environment
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.service("docker")
 async def test_packaging_a_flow_to_local_docker_daemon(prefect_base_image: str):
     packager = DockerPackager(
@@ -98,6 +99,7 @@ async def test_packaging_a_flow_to_local_docker_daemon(prefect_base_image: str):
     assert manifest.flow_name == "howdy"
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.service("docker")
 async def test_packaging_a_flow_to_registry(prefect_base_image: str, registry: str):
     packager = DockerPackager(
@@ -117,6 +119,7 @@ async def test_packaging_a_flow_to_registry(prefect_base_image: str, registry: s
     assert manifest.flow_name == "howdy"
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.service("docker")
 async def test_packaging_a_flow_to_registry_without_scheme(
     prefect_base_image: str, registry: str
@@ -165,6 +168,7 @@ def howdy_context(prefect_base_image: str, tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.service("docker")
 async def test_unpackaging_outside_container(howdy_context: Path):
     # This test is contrived to pretend we're in a Docker container right now and giving
@@ -179,6 +183,7 @@ async def test_unpackaging_outside_container(howdy_context: Path):
     assert unpackaged_howdy("dude") == "howdy, dude!"
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.service("docker")
 async def test_packager_sets_manifest_flow_parameter_schema(howdy_context: Path):
     packager = DockerPackager(
@@ -189,6 +194,7 @@ async def test_packager_sets_manifest_flow_parameter_schema(howdy_context: Path)
     assert manifest.flow_parameter_schema == parameter_schema(howdy.fn)
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.service("docker")
 @pytest.mark.flaky(max_runs=3)
 async def test_unpackaging_inside_container(
@@ -205,6 +211,7 @@ async def test_unpackaging_inside_container(
     assert_unpackaged_flow_works(docker, manifest)
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.service("docker")
 @pytest.mark.flaky(max_runs=3)
 async def test_custom_dockerfile_unpackaging(howdy_context: Path, docker: DockerClient):

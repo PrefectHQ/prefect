@@ -143,6 +143,7 @@ def test_image_builder_must_be_entered(contexts: Path):
         builder.copy(contexts / "tiny" / "hello.txt", "hello.txt")
 
 
+@pytest.mark.timeout(120)
 def test_image_builder_allocates_temporary_context(prefect_base_image: str):
     with ImageBuilder(prefect_base_image) as image:
         assert image.context
@@ -158,6 +159,7 @@ def test_image_builder_accepts_alternative_base_image():
         assert image.dockerfile_lines == ["FROM busybox"]
 
 
+@pytest.mark.timeout(120)
 def test_from_prefect_image(docker: DockerClient, prefect_base_image: str):
     with ImageBuilder(prefect_base_image) as image:
         image.add_line("RUN echo Woooo, building")
@@ -168,6 +170,7 @@ def test_from_prefect_image(docker: DockerClient, prefect_base_image: str):
     assert output == prefect.__version__
 
 
+@pytest.mark.timeout(120)
 def test_copying_file(contexts: Path, docker: DockerClient, prefect_base_image: str):
     with ImageBuilder(prefect_base_image) as image:
         image.add_line("WORKDIR /tiny/")
@@ -179,6 +182,7 @@ def test_copying_file(contexts: Path, docker: DockerClient, prefect_base_image: 
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_copied_paths_are_resolved(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -194,6 +198,7 @@ def test_copied_paths_are_resolved(
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_copying_file_to_absolute_location(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -207,6 +212,7 @@ def test_copying_file_to_absolute_location(
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_copying_file_to_posix_path(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -220,6 +226,7 @@ def test_copying_file_to_posix_path(
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_copying_directory(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -233,6 +240,7 @@ def test_copying_directory(
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_copying_directory_to_absolute_location(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -246,6 +254,7 @@ def test_copying_directory_to_absolute_location(
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_copying_file_from_alternative_base(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -259,6 +268,7 @@ def test_copying_file_from_alternative_base(
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_can_use_working_tree_as_context(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -272,6 +282,7 @@ def test_can_use_working_tree_as_context(
     assert output == "Can't bear oceans."
 
 
+@pytest.mark.timeout(120)
 def test_cannot_already_have_a_dockerfile_in_context(
     contexts: Path, prefect_base_image: str
 ):
