@@ -250,7 +250,7 @@ async def greeter_flow():
         print(f"Hello, {name_input}!")  # Prints "Hello, andrew!" if flow received "andrew"
 ```
 
-When you pass a type like `str` into `receive_input`, Prefect creates a `RunInput` class to manage your input automatically. When your flow receives input of this type, Prefect uses this `RunInput` class to validate the input, and if validation succeeds, your flow sees the input in the type you specified. So in this example, if the flow received a valid string as input, the variable `name_input` contains the string.
+When you pass a type such as `str` into `receive_input`, Prefect creates a `RunInput` class to manage your input automatically. When your flow receives input of this type, Prefect uses this `RunInput` class to validate the input. If the validation succeeds, your flow sees the input in the type you specified. In this example, if the flow received a valid string as input, the variable `name_input` would contain the string value.
 
 If, instead, you specify a `BaseModel`, Prefect upgrades your `BaseModel` to a `RunInput` class, and the variable your flow sees &mdash in this case, `name_input` &mdash is a `RunInput` instance. Of course, if you pass in a `RunInput` class, no upgrade is needed, and you'll get a `RunInput` instance.
 
