@@ -169,6 +169,7 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_TASK_SCHEDULING,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -1392,7 +1393,10 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
 
     if not flow_run_context:
-        return _submit_task_run(task=task, parameters=parameters)
+        if PREFECT_EXPERIMENTAL_TASK_SCHEDULING.value():
+            return _submit_task_run(task=task, parameters=parameters)
+
+        raise RuntimeError("Tasks cannot be run outside of a flow")
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -1658,14 +1662,18 @@ async def create_task_run_then_submit(
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> None:
-    task_run = await create_task_run(
-        task=task,
-        name=task_run_name,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        dynamic_key=task_run_dynamic_key,
-        wait_for=wait_for,
-        extra_task_inputs=extra_task_inputs,
+    task_run = (
+        await create_task_run(
+            task=task,
+            name=task_run_name,
+            flow_run_context=flow_run_context,
+            parameters=parameters,
+            dynamic_key=task_run_dynamic_key,
+            wait_for=wait_for,
+            extra_task_inputs=extra_task_inputs,
+        )
+        if not flow_run_context.autonomous_task_run
+        else flow_run_context.autonomous_task_run
     )
 
     # Attach the task run to the future to support `get_state` operations
@@ -1807,7 +1815,7 @@ async def begin_task_run(
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
         else:
-            # Otherwise, retrieve a new client
+            # Otherwise, retrieve a new clien`t
             client = await stack.enter_async_context(get_client())
             interruptible = False
             await stack.enter_async_context(anyio.create_task_group())
@@ -2210,7 +2218,7 @@ async def orchestrate_task_run(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
     )
-
+    logger.warning(f"Task run {task_run.name!r} finished in state {display_state}")
     return state
 
 

@@ -13,7 +13,8 @@ from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.orchestration import get_client
-from prefect.context import FlowRunContext
+from prefect.client.schemas.objects import TaskRun
+from prefect.context import EngineContext
 from prefect.engine import (
     begin_task_map,
     get_task_call_return_value,
@@ -30,6 +31,7 @@ EngineReturnType = Literal["future", "state", "result"]
 @sync_compatible
 async def submit_autonomous_task_to_engine(
     task: Task,
+    task_run: TaskRun,
     parameters: Optional[Dict] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
@@ -38,9 +40,10 @@ async def submit_autonomous_task_to_engine(
 ) -> Any:
     parameters = parameters or {}
     async with AsyncExitStack() as stack:
-        with FlowRunContext(
+        with EngineContext(
             flow=None,
             flow_run=None,
+            autonomous_task_run=task_run,
             task_runner=await stack.enter_async_context(
                 (task_runner if task_runner else SequentialTaskRunner()).start()
             ),

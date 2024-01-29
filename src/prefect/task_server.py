@@ -157,6 +157,7 @@ class TaskServer:
                 partial(
                     submit_autonomous_task_to_engine,
                     task=task,
+                    task_run=task_run,
                     parameters=parameters,
                 )
             )
@@ -183,9 +184,13 @@ def serve(
     *tasks: Task,
     query_seconds: Optional[int] = None,
     tags: Optional[Iterable[str]] = None,
+    run_once: bool = False,
 ):
     async def run_server():
         task_server = TaskServer(*tasks, query_seconds=query_seconds, tags=tags)
-        await task_server.start()
+        if run_once:
+            await task_server.run_once()
+        else:
+            await task_server.start()
 
     asyncio.run(run_server())
