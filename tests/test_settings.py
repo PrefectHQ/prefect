@@ -243,6 +243,14 @@ class TestSettingsClass:
         # generating the environment variables
         assert "PREFECT_UI_API_URL" not in settings.to_environment_variables()
 
+    def test_settings_hash_key(self):
+        settings = Settings(PREFECT_TEST_MODE=True)
+        diff_settings = Settings(PREFECT_TEST_MODE=False)
+
+        assert settings.hash_key() == settings.hash_key()
+
+        assert settings.hash_key() != diff_settings.hash_key()
+
     @pytest.mark.parametrize(
         "log_level_setting",
         [

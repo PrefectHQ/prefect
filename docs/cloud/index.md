@@ -82,24 +82,26 @@ Each workspace keeps track of its own:
 - [Deployments](/concepts/deployments/)
 - [Work pools](/concepts/work-pools/)
 - [Blocks](/concepts/blocks/) and [storage](/concepts/storage/)
-- [Automations](/cloud/automations/)
+- [Events](/cloud/events/)
+- [Automations](/concepts/automations/)
+- [Incidents](/cloud/incidents/)
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
 ## Events
 
-Prefect Cloud allows you to see your [events](/cloud/events/). Events provide information about the state of your workflows, and can be used to trigger [automations](/cloud/automations/).
+Prefect Cloud allows you to see your [events](/cloud/events/). Events provide information about the state of your workflows, and can be used as [automation](/concepts/automations/) triggers.
 
 ![Prefect UI](/img/ui/event-feed.png)
 
 ## Automations
 
-Prefect Cloud [automations](/cloud/automations/) provide additional notification capabilities beyond those in a self-hosted open-source Prefect server.
-Automations also enable you to create event-driven workflows.
+Prefect Cloud [automations](/concepts/automations/) provide additional notification capabilities beyond those in a self-hosted open-source Prefect server.
+Automations also enable you to create event-driven workflows, toggle resources such as schedules and work pools, and declare incidents.
 
 ## Incidents <span class="badge pro"></span> <span class="badge enterprise"></span> <span class="badge beta"/>
 
-Prefect Cloud's [incidents](/concepts/incidents/)  help teams identify, rectify, and document issues in mission-critical workflows.
+Prefect Cloud's [incidents](/cloud/incidents/) help teams identify, rectify, and document issues in mission-critical workflows.
 Incidents are formal declarations of disruptions to a workspace.
 With [automations](/cloud/incidents/#incident-automations)), activity in that workspace can be paused when an incident is created and resumed when it is resolved.
 
@@ -117,7 +119,7 @@ See the [service accounts](/cloud/users/service-accounts/) documentation for mor
 ## Roles and custom permissions <span class="badge pro"> </span><span class="badge enterprise"></span>
 
 Role-based access controls (RBAC) enable you to assign users a role with permissions to perform certain activities within an account or a workspace.
-See the [role-based access controls (RBAC)](../cloud/users/roles/) documentation for more information about managing user roles in a Prefect Cloud account.
+See the [role-based access controls (RBAC)](/cloud/users/roles/) documentation for more information about managing user roles in a Prefect Cloud account.
 
 ## Single Sign-on (SSO) <span class="badge pro"></span> <span class="badge enterprise"></span>
 
