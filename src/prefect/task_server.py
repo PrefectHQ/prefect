@@ -120,7 +120,8 @@ class TaskServer:
     async def _get_pending_task_runs(self) -> List[TaskRun]:
         return await self._client.read_task_runs(
             task_run_filter=TaskRunFilter(
-                state=dict(name=dict(any_=["Scheduled"])), tags=dict(all_=self.tags)
+                state=dict(name=dict(any_=["Scheduled"])),
+                flow_run_id=dict(is_none=True),
             ),
         )
 

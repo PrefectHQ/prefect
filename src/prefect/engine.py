@@ -169,7 +169,7 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_TASK_SCHEDULING,
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -1393,7 +1393,7 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
 
     if not flow_run_context:
-        if PREFECT_EXPERIMENTAL_TASK_SCHEDULING.value():
+        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
             return _submit_task_run(task=task, parameters=parameters)
 
         raise RuntimeError("Tasks cannot be run outside of a flow")
@@ -1737,7 +1737,10 @@ async def submit_task_run(
 ) -> PrefectFuture:
     logger = get_run_logger(flow_run_context)
 
-    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+    if (
+        task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL
+        and not flow_run_context.autonomous_task_run
+    ):
         logger.info(f"Executing {task_run.name!r} immediately...")
 
     future = await task_runner.submit(
@@ -2950,7 +2953,6 @@ async def _submit_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
             task=task,
             flow_run_id=None,
             dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
-            extra_tags={"autonomous"}.union(task.tags),
             state=scheduled,
         )
 
