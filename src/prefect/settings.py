@@ -1395,7 +1395,7 @@ Can be used to compensate for infrastructure start up time for a worker.
 
 PREFECT_WORKER_WEBSERVER_HOST = Setting(
     str,
-    default="localhost",
+    default="0.0.0.0",
 )
 """
 The host address the worker's webserver should bind to.
