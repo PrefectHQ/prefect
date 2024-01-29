@@ -1854,14 +1854,13 @@ class TestFlowRunInput:
 
         assert response.status_code == 201
 
-        key = response.json()["key"]
-        assert key == "not-the-response-key"
-
         flow_run_input = await models.flow_run_input.read_flow_run_input(
-            session=session, flow_run_id=paused_flow_run_waiting_for_input.id, key=key
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input.id,
+            key="not-the-response-key",
         )
         assert flow_run_input.flow_run_id == paused_flow_run_waiting_for_input.id
-        assert flow_run_input.key == key
+        assert flow_run_input.key == "not-the-response-key"
         assert orjson.loads(flow_run_input.value) == {"approved": True}
 
         flow_run = await models.flow_runs.read_flow_run(
