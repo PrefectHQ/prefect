@@ -465,38 +465,43 @@ class GetAutomaticInputHandler(GetInputHandler):
 
 async def _send_input(
     flow_run_id: UUID,
-    run_input: "RunInput",
+    run_input: Any,
     sender: Optional[str] = None,
     key_prefix: Optional[str] = None,
 ):
+    if isinstance(run_input, RunInput):
+        _run_input = run_input
+    else:
+        input_cls = run_input_subclass_from_type(type(run_input))
+        _run_input = input_cls(value=run_input)
+
     if key_prefix is None:
-        key_prefix = f"{run_input.__class__.__name__.lower()}-auto"
+        key_prefix = f"{_run_input.__class__.__name__.lower()}-auto"
 
     key = f"{key_prefix}-{uuid4()}"
 
     await create_flow_run_input_from_model(
-        key=key, flow_run_id=flow_run_id, model_instance=run_input, sender=sender
+        key=key, flow_run_id=flow_run_id, model_instance=_run_input, sender=sender
     )
 
 
 @sync_compatible
 async def send_input(
-    value: Any,
+    run_input: Any,
     flow_run_id: UUID,
     sender: Optional[str] = None,
     key_prefix: Optional[str] = None,
 ):
-    input_cls = run_input_subclass_from_type(type(value))
     await _send_input(
         flow_run_id=flow_run_id,
-        run_input=input_cls(value=value),
+        run_input=run_input,
         sender=sender,
         key_prefix=key_prefix,
     )
 
 
 def receive_input(
-    _type: type,
+    input_type: type,
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
@@ -504,8 +509,8 @@ def receive_input(
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
-) -> RunInput:
-    input_cls = run_input_subclass_from_type(_type)
+):
+    input_cls = run_input_subclass_from_type(input_type)
     return input_cls.receive(
         timeout=timeout,
         poll_interval=poll_interval,
