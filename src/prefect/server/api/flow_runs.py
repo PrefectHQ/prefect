@@ -520,6 +520,82 @@ async def set_flow_run_state(
     return orchestration_result
 
 
+async def _handle_paused_flow_run_input(
+    session, flow_run, run_input, flow_policy, orchestration_parameters
+):
+    state = flow_run.state
+    keyset = state.state_details.run_input_keyset
+
+    schema_json = await models.flow_run_input.read_flow_run_input(
+        session=session, flow_run_id=flow_run.id, key=keyset["schema"]
+    )
+
+    if schema_json is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"{state.type} flow run's input schema was not found",
+        )
+
+    try:
+        schema = orjson.loads(schema_json.value)
+    except orjson.JSONDecodeError:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"{state.type} flow run's input schema is not valid JSON",
+        )
+
+    try:
+        parsed_run_input = orjson.loads(run_input)
+    except orjson.JSONDecodeError as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Run input was not valid JSON: {exc.msg}",
+        )
+
+    try:
+        jsonschema.validate(parsed_run_input, schema)
+    except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Run input did not match expected schema: {exc.message}",
+        )
+
+    if state.state_details.pause_reschedule:
+        orchestration_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=schemas.states.Scheduled(
+                name="Resuming", scheduled_time=pendulum.now("UTC")
+            ),
+            flow_policy=flow_policy,
+            orchestration_parameters=orchestration_parameters,
+        )
+    else:
+        orchestration_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=schemas.states.Running(),
+            flow_policy=flow_policy,
+            orchestration_parameters=orchestration_parameters,
+        )
+
+    if orchestration_result.status != schemas.responses.SetStateStatus.ACCEPT:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Could not resume {state.type} flow run:"
+                f" {orchestration_result.details.reason}"
+            ),
+        )
+
+    # If the resume state change was accepted, store the flow run input.
+    return schemas.core.FlowRunInput(
+        flow_run_id=flow_run.id,
+        key=keyset["response"],
+        value=orjson.dumps(parsed_run_input).decode("utf-8"),
+    )
+
+
 @router.post("/{id}/input", status_code=status.HTTP_201_CREATED)
 async def create_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
@@ -527,20 +603,59 @@ async def create_flow_run_input(
     value: bytes = Body(..., description="The value of the input"),
     sender: Optional[str] = Body(None, description="The sender of the input"),
     db: PrefectDBInterface = Depends(provide_database_interface),
+    flow_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.provide_flow_policy
+    ),
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_flow_orchestration_parameters
+    ),
 ):
     """
     Create a key/value input for a flow run.
+
+    If the flow run is paused or suspended, the input will be validated against
+    the run input schema that the flow run expects. If the input matches and
+    validates, the flow run will resume. If it matches and doesn't validate,
+    the client will receive an error.
+
+    If the flow run was not paused or suspended, or if the input is not what
+    the flow run is waiting for, the input will be stored without validation,
+    and, in the case of a paused or suspended flow run, the flow run will not
+    resume.
     """
-    async with db.session_context() as session:
+
+    async with db.session_context(begin_transaction=True) as session:
+        flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
+
+        if not flow_run:
+            raise HTTPException(status_code=404, detail="Flow run not found.")
+
+        state = flow_run.state
+        run_input = value.decode()
+
+        if (
+            state
+            and state.type == schemas.states.StateType.PAUSED
+            and state.state_details.run_input_keyset
+            and state.state_details.run_input_keyset["response"] == key
+        ):
+            # If the flow run is paused and is waiting for this input, validate
+            # the input against the run input schema stored in the paused state.
+            flow_run_input = await _handle_paused_flow_run_input(
+                session, flow_run, run_input, flow_policy, orchestration_parameters
+            )
+        else:
+            flow_run_input = schemas.core.FlowRunInput(
+                flow_run_id=flow_run_id,
+                key=key,
+                sender=sender,
+                value=run_input,
+            )
+
         try:
             await models.flow_run_input.create_flow_run_input(
                 session=session,
-                flow_run_input=schemas.core.FlowRunInput(
-                    flow_run_id=flow_run_id,
-                    key=key,
-                    sender=sender,
-                    value=value.decode(),
-                ),
+                flow_run_input=flow_run_input,
             )
             await session.commit()
 

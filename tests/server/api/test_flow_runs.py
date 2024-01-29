@@ -8,6 +8,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.server.database.interface import PrefectDBInterface
+from prefect.states import Suspended
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -1571,6 +1573,89 @@ class TestFlowRunLateness:
 
 class TestFlowRunInput:
     @pytest.fixture
+    async def paused_flow_run_waiting_for_input(
+        self,
+        session,
+        flow,
+    ):
+        class SimpleInput(RunInput):
+            approved: bool
+
+        state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(state)
+        state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, flow_version="1.0", state=state
+            ),
+        )
+
+        assert flow_run
+
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="paused-1-schema",
+                value=orjson.dumps(SimpleInput.schema()).decode(),
+            ),
+        )
+
+        await session.commit()
+
+        return flow_run
+
+    @pytest.fixture
+    async def suspended_flow_run_waiting_for_input(
+        self,
+        session,
+        flow,
+    ):
+        class SimpleInput(RunInput):
+            approved: bool
+
+        state = Suspended(pause_key="1")
+        keyset = keyset_from_paused_state(state)
+        state.state_details.run_input_keyset = keyset
+
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=core.Deployment(
+                name="",
+                flow_id=flow.id,
+                manifest_path="file.json",
+            ),
+        )
+        await session.commit()
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=state,
+                deployment_id=deployment.id,
+            ),
+        )
+
+        assert flow_run
+
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="suspended-1-schema",
+                value=orjson.dumps(SimpleInput.schema()).decode(),
+            ),
+        )
+
+        await session.commit()
+
+        return flow_run
+
+    @pytest.fixture
     async def flow_run_input(self, session: AsyncSession, flow_run):
         flow_run_input = await models.flow_run_input.create_flow_run_input(
             session=session,
@@ -1749,3 +1834,198 @@ class TestFlowRunInput:
             f"/flow_runs/{flow_run_input.flow_run_id}/input/missing-key",
         )
         assert response.status_code == 404
+
+    async def test_paused_flow_run_waiting_for_input_stores_if_not_respnose_key(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        paused_flow_run_waiting_for_input,
+    ):
+        # The flow run is paused and waiting for input at a specific key. We're
+        # submitting the input at a different key, so we expect the API to store
+        # the input but NOT resume the flow.
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="not-the-response-key",
+                value='{"approved": true}',
+            ),
+        )
+
+        assert response.status_code == 201
+
+        key = response.json()["key"]
+        assert key == "not-the-response-key"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=paused_flow_run_waiting_for_input.id, key=key
+        )
+        assert flow_run_input.flow_run_id == paused_flow_run_waiting_for_input.id
+        assert flow_run_input.key == key
+        assert orjson.loads(flow_run_input.value) == {"approved": True}
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=paused_flow_run_waiting_for_input.id
+        )
+        assert flow_run.state.type == "PAUSED"
+
+    async def test_paused_flow_run_waiting_for_input_resumes_if_using_response_key(
+        self,
+        client: AsyncClient,
+        paused_flow_run_waiting_for_input,
+        db: PrefectDBInterface,
+    ):
+        # The flow run is suspended and waiting for input at a specific key. We're
+        # submitting the input with this key, so we expect the API to store
+        # the input AND resume the flow.
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="paused-1-response",
+                value='{"approved": true}',
+            ),
+        )
+
+        assert response.status_code == 201
+
+        async with db.session_context() as session:
+            flow_run_input = await models.flow_run_input.read_flow_run_input(
+                session=session,
+                flow_run_id=paused_flow_run_waiting_for_input.id,
+                key="paused-1-response",
+            )
+            assert flow_run_input.flow_run_id == paused_flow_run_waiting_for_input.id
+            assert orjson.loads(flow_run_input.value) == {"approved": True}
+
+            flow_run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=paused_flow_run_waiting_for_input.id
+            )
+            assert flow_run.state.type == StateType.RUNNING
+
+    async def test_suspended_flow_run_waiting_for_input_resumes_if_using_response_key(
+        self,
+        client: AsyncClient,
+        suspended_flow_run_waiting_for_input,
+        db: PrefectDBInterface,
+    ):
+        # The flow run is paused and waiting for input at a specific key. We're
+        # submitting the input with this key, so we expect the API to store
+        # the input and schedule the flow.
+        response = await client.post(
+            f"/flow_runs/{suspended_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="suspended-1-response",
+                value='{"approved": true}',
+            ),
+        )
+
+        assert response.status_code == 201
+
+        async with db.session_context() as session:
+            flow_run_input = await models.flow_run_input.read_flow_run_input(
+                session=session,
+                flow_run_id=suspended_flow_run_waiting_for_input.id,
+                key="suspended-1-response",
+            )
+            assert flow_run_input.flow_run_id == suspended_flow_run_waiting_for_input.id
+            assert orjson.loads(flow_run_input.value) == {"approved": True}
+
+            flow_run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=suspended_flow_run_waiting_for_input.id
+            )
+            assert flow_run.state.type == StateType.SCHEDULED
+
+    async def test_paused_flow_run_waiting_for_input_no_schema(
+        self,
+        client: AsyncClient,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.delete(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input/paused-1-schema",
+        )
+        assert response.status_code == 204
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="paused-1-response",
+                value='{"approved": true}',
+            ),
+        )
+
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "StateType.PAUSED flow run's input schema was not found"
+        )
+
+    async def test_paused_flow_run_waiting_for_input_schema_invalid_json(
+        self,
+        client: AsyncClient,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.delete(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input/paused-1-schema",
+        )
+        assert response.status_code == 204
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="paused-1-schema",
+                value="not json",
+            ),
+        )
+        assert response.status_code == 201
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="paused-1-response",
+                value='{"approved": true}',
+            ),
+        )
+
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "StateType.PAUSED flow run's input schema is not valid JSON"
+        )
+
+    async def test_paused_flow_run_waiting_for_input_invalid_input(
+        self,
+        client: AsyncClient,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="paused-1-response",
+                value='{"first_name": "Andrew"}',
+            ),
+        )
+
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "Run input did not match expected schema: Additional "
+            "properties are not allowed ('first_name' was unexpected)"
+        )
+
+    async def test_paused_flow_run_waiting_for_input_not_json(
+        self,
+        client: AsyncClient,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="paused-1-response",
+                value="not json",
+            ),
+        )
+
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"] == "Run input was not valid JSON: invalid literal"
+        )
