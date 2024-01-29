@@ -1728,7 +1728,7 @@ class TestOrchestrateTaskRun:
         self, mock_anyio_sleep, prefect_client, flow_run, result_factory
     ):
         with temporary_settings(
-            updates={PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS: "43"}
+            updates={PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS: [3, 5, 9]}
         ):
             # the flow run must be running prior to running tasks
             await prefect_client.set_flow_run_state(
@@ -1739,14 +1739,14 @@ class TestOrchestrateTaskRun:
             # Define a task that fails once and then succeeds
             mock = MagicMock()
 
-            @task(retries=1)
+            @task(retries=3)
             def flaky_function():
                 mock()
 
-                if mock.call_count == 2:
+                if mock.call_count == 4:
                     return 1
 
-                raise ValueError("try again, but only once")
+                raise ValueError("try again")
 
             # Create a task run to test
             task_run = await prefect_client.create_task_run(
@@ -1757,7 +1757,7 @@ class TestOrchestrateTaskRun:
             )
 
             # Actually run the task
-            with mock_anyio_sleep.assert_sleeps_for(43):
+            with mock_anyio_sleep.assert_sleeps_for(17):
                 await orchestrate_task_run(
                     task=flaky_function,
                     task_run=task_run,
@@ -1768,6 +1768,8 @@ class TestOrchestrateTaskRun:
                     client=prefect_client,
                     log_prints=False,
                 )
+
+            assert mock_anyio_sleep.await_count == 3
 
     async def test_retry_condition_fn_retries_after_failure(
         self, mock_anyio_sleep, prefect_client, flow_run, result_factory
