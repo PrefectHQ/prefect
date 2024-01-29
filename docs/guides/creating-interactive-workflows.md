@@ -13,13 +13,10 @@ search:
 
 # Creating Interactive Workflows
 
-!!! warning "Experimental"
-
-    Flow interactivity is an experimental feature. The interface or behavior of this feature may change without warning in future releases.
-
-    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/) or with a [Github](https://github.com/PrefectHQ/prefect) issue.
-
 Flows can now pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. Flows can also send and receive type-checked input at any time while running, without pausing or suspending. This guide will show you how to use these features to build _interactive workflows_.
+
+!!! note "A note on async Python syntax"
+    Most of the example code in this section uses async Python functions and `await`. However, as with other Prefect features, you can call these functions with or without `await`.
 
 ## Pausing or suspending a flow until it receives input
 
@@ -253,11 +250,11 @@ async def greeter_flow():
         print(f"Hello, {name_input}!")  # Prints "Hello, andrew!" if flow received "andrew"
 ```
 
-When you pass a type like `str` into `receive_input`, Prefect creates a `RunInput` class to manage your input automatically. When your flow receives input of this type, Prefect uses this `RunInput` class to validate the input, and if validation succeeds, your flow sees the input in the type you specified. So in this example, if the flow received a valid string as input, the variable `name_input` contains the string.
+When you pass a type such as `str` into `receive_input`, Prefect creates a `RunInput` class to manage your input automatically. When your flow receives input of this type, Prefect uses this `RunInput` class to validate the input. If the validation succeeds, your flow sees the input in the type you specified. In this example, if the flow received a valid string as input, the variable `name_input` would contain the string value.
 
 If, instead, you specify a `BaseModel`, Prefect upgrades your `BaseModel` to a `RunInput` class, and the variable your flow sees &mdash in this case, `name_input` &mdash is a `RunInput` instance. Of course, if you pass in a `RunInput` class, no upgrade is needed, and you'll get a `RunInput` instance.
 
-If you prefer to keep things simple and pass types like `str` into `receive_input`, you need access to the generated `RunInput` instance, pass `with_metadata=True` to `receive_input`:
+If you prefer to keep things simple and pass types such as `str` into `receive_input`, you need access to the generated `RunInput` instance. Pass `with_metadata=True` to `receive_input`:
 
 ```python
 from prefect import flow
@@ -293,7 +290,7 @@ async def greeter_flow():
 
 ### Keeping track of inputs you've already seen
 
-By default, each time you call `receive_input`, you get an iterator that iterates over all known inputs, starting with the first received. The iterator will keep track of your current position as you iterate over it, or call `next()`. If you're using the iterator in a loop, you should probably assign it to a variable:
+By default, each time you call `receive_input`, you get an iterator that iterates over all known inputs, starting with the first received. The iterator will keep track of your current position as you iterate over it, or you can call `next()` to explicitly get the next input. If you're using the iterator in a loop, you should probably assign it to a variable:
 
 ```python
 from prefect import flow, get_client
@@ -327,13 +324,14 @@ async def sender():
 
         await send_input(name, flow_run_id=greeter_flow_run.id)
 
-        # If we hadn't saved the `receive_input` iterator to a variable and instead
-        # called `receive_input` here, we would always start with the first run
-        # input this flow run received.
-        async for greeting in receiver:
-            print(greeting)
-            break
-```
+        # Saving the iterator outside of the while loop and calling next() on
+        # each iteration of the loop ensures that we're always getting the
+        # newest greeting. If we had instead called `receive_input` here, we
+        # would always get the _first_ greeting this flow received, print it,
+        # and then ask for a new name.
+        greeting = await receiver.next()
+        print(greeting)
+``
 
 So, an iterator helps to keep track of the inputs your flow has already received. But what if you want your flow to suspend and then resume later, picking up where it left off? In that case, you will need to save the keys of the inputs you've seen so that the flow can read them back out when it resumes. You might use a [Block](/concepts/blocks/), such as a `JSONBlock`, scoped to a workspace.
 
@@ -384,12 +382,12 @@ As this flow processes name input, it adds the *key* of the flow run input to th
 
 ### Responding to the input's sender
 
-When your flow receives input from another flow, Prefect knows who the _sender_ was, so the receiving flow can respond by calling the `respond` method on the `RunInput` instance the flow received. There are a couple of requirements:
+When your flow receives input from another flow, Prefect knows the sending flow run ID, so the receiving flow can respond by calling the `respond` method on the `RunInput` instance the flow received. There are a couple of requirements:
 
 1. You will need to pass in a `BaseModel` or `RunInput`, or use `with_metadata=True`
-2. The sending flow must be receiving the same type.
+2. The flow you are responding to must receive the same type of input you send in order to see it.
 
-The `respond` method is equivalent to calling `send_input(..., flow_run_id=sending_flow_run.id)`, but your flow doesn't need to know the sending flow run's ID.
+The `respond` method is equivalent to calling `send_input(..., flow_run_id=sending_flow_run.id)`, but with `respond`, your flow doesn't need to know the sending flow run's ID.
 
 Now that we know about `respond`, let's make our `greeter_flow` respond to name inputs instead of printing them:
 
@@ -430,7 +428,7 @@ With a `greeter` flow in place, now we're ready to create the flow that sends `g
 
 ### Sending input
 
-You can send input to a flow with the `send_input` function. This works similarly to `receive_input`, taking the same types for the `run_input` argument (basic types like `str`, `BaseModel` subclasses, and `RunInput` subclasses).
+You can send input to a flow with the `send_input` function. This works similarly to `receive_input` and, like that function, accepts the same `run_input` argument, which can be a built-in type such as `str`, or else a `BaseModel` or `RunInput` subclass.
 
 !!! note "When can you send input to a flow run?"
     You can send input to a flow run as soon as you have the flow run's ID. The flow does not have to be receiving input for you to send input. If you send a flow input before it is receiving, it will see your input when it calls `receive_input` (as long as the types in the `send_input` and `receive_input` calls match!)
@@ -443,14 +441,18 @@ async def sender():
     greeter_flow_run = await run_deployment(
         "greeter/send-receive", timeout=0, as_subflow=False
     )
-
-    greetings_seen = set()
+    receiver = receive_input(str, timeout=None, poll_interval=0.1)
+    client = get_client()
 
     while True:
+        flow_run = await client.read_flow_run(greeter_flow_run.id)
+        
+        if not flow_run.state or not flow_run.state.is_running():
+            continue
+ 
         name = input("What is your name? ")
         if not name:
             continue
-
 
         if name == "q" or name == "quit":
             await send_input(EXIT_SIGNAL, flow_run_id=greeter_flow_run.id)
@@ -458,21 +460,131 @@ async def sender():
             break
 
         await send_input(name, flow_run_id=greeter_flow_run.id)
-
-        async for greeting in receive_input(
-            str, with_metadata=True, exclude_keys=greetings_seen, timeout=None, poll_interval=0.1
-        ):
-            print(greeting)
-            greetings_seen.add(greeting.metadata.key)
-            break
+        greeting = await receiver.next()
+        print(greeting)
 ```
 
 There's more going on here than in `greeter`, so let's take a closer look at the pieces.
 
 First, we use `run_deployment` to start a `greeter` flow run. This means we must have a worker or `flow.serve()` running in separate process. That process will begin running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when we send `EXIT_SIGNAL`.
 
-Next, what's going on with `greetings_seen`? This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs *another loop* when it calls `async for greeting in receive_input(...)`. As we saw earlier in this guide, `receive_input` always starts at the beginning of all input this flow run received. Keeping track of the inputs we've already seen in the `greetings_seen` set allows us to pass this set in for the `exclude_keys` parameter each time we reenter the loop and call `receive_input` again.
+Next, we capture the iterator returned by `receive_input` as `receiver`. This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs `receiver.next()` to wait until it receives the response from `greeter`.
 
 Next, we let the terminal user who ran this flow exit by entering the string `q` or `quit`. When that happens, we send the `greeter` flow an exit signal so it will shut down too.
 
-Net, we send the new name to `greeter`. We know that `greeter` is going to send back a greeting as a string, so we immediately begin waiting for new string input. When we receive the greeting, we print it, note the key as one we've seen, and break out of the `async for greeting in receive_inpu(...)` loop to continue the loop that gets terminal input.
+Finally, we send the new name to `greeter`. We know that `greeter` is going to send back a greeting as a string, so we immediately wait for new string input. When we receive the greeting, we print it and continue the loop that gets terminal input.
+
+### Seeing a complete example
+
+Finally, let's see a complete example of using `send_input` and `receive_input`. Here is what the `greeter` and `sender` flows look like together:
+
+```python
+import asyncio
+import sys
+from prefect import flow, get_client
+from prefect.blocks.system import JSON
+from prefect.context import get_run_context
+from prefect.deployments.deployments import run_deployment
+from prefect.input.run_input import receive_input, send_input
+
+
+EXIT_SIGNAL = "__EXIT__"
+
+
+@flow
+async def greeter():
+    run_context = get_run_context()
+    assert run_context.flow_run, "Could not see my flow run ID"
+
+    block_name = f"{run_context.flow_run.id}-seen-ids"
+
+    try:
+        seen_keys_block = await JSON.load(block_name)
+    except ValueError:
+        seen_keys_block = JSON(
+            value=[],
+        )
+
+    async for name_input in receive_input(
+        str, with_metadata=True, poll_interval=0.1, timeout=None
+    ):
+        if name_input.value == EXIT_SIGNAL:
+            print("Goodbye!")
+            return
+        await name_input.respond(f"Hello, {name_input.value}!")
+
+        seen_keys_block.value.append(name_input.metadata.key)
+        await seen_keys_block.save(name=block_name, overwrite=True)
+
+
+@flow
+async def sender():
+    greeter_flow_run = await run_deployment(
+        "greeter/send-receive", timeout=0, as_subflow=False
+    )
+    receiver = receive_input(str, timeout=None, poll_interval=0.1)
+    client = get_client()
+
+    while True:
+        flow_run = await client.read_flow_run(greeter_flow_run.id)
+
+        if not flow_run.state or not flow_run.state.is_running():
+            continue
+
+        name = input("What is your name? ")
+        if not name:
+            continue
+
+        if name == "q" or name == "quit":
+            await send_input(EXIT_SIGNAL, flow_run_id=greeter_flow_run.id)
+            print("Goodbye!")
+            break
+
+        await send_input(name, flow_run_id=greeter_flow_run.id)
+        greeting = await receiver.next()
+        print(greeting)
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "greeter":
+        asyncio.run(greeter.serve(name="send-receive"))
+    elif sys.argv[1] == "sender":
+        asyncio.run(sender())
+``` 
+
+To run the example, you'll need a Python environment with Prefect installed, pointed at either open-source Prefect or Prefect Cloud.
+
+With your environment set up, start a flow runner in one terminal with the following command:
+    $ python <filename> greeter
+    
+For example, with Prefect Cloud, you should see output like this:
+```
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Your flow 'greeter' is being served and polling for scheduled runs!                              │
+│                                                                                                  │
+│ To trigger a run for this flow, use the following command:                                       │
+│                                                                                                  │
+│         $ prefect deployment run 'greeter/send-receive'                                          │
+│                                                                                                  │
+│ You can also run your flow via the Prefect UI:                                                   │
+│ https://app.prefect.cloud/account/...(a URL for your account)                                    │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+Then start the greeter in another process in another terminal:
+    $ python <filename> sender
+
+You should see:
+```
+11:38:41.800 | INFO    | prefect.engine - Created flow run 'gregarious-owl' for flow 'sender'
+11:38:41.802 | INFO    | Flow run 'gregarious-owl' - View at https://app.prefect.cloud/account/...
+What is your name?
+```
+
+Type a name and press the enter key to see a greeting, and you'll see sending and receiving in action:
+
+```
+What is your name? andrew
+Hello, andrew!
+```
