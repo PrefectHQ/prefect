@@ -13,13 +13,10 @@ search:
 
 # Creating Interactive Workflows
 
-!!! warning "Experimental"
-
-    Flow interactivity is an experimental feature. The interface or behavior of this feature may change without warning in future releases.
-
-    If you encounter any issues, please let us know in [Slack](https://www.prefect.io/slack/) or with a [Github](https://github.com/PrefectHQ/prefect) issue.
-
 Flows can now pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. Flows can also send and receive type-checked input at any time while running, without pausing or suspending. This guide will show you how to use these features to build _interactive workflows_.
+
+!!! note "A note on async Python syntax"
+    Most of the example code in this section uses async Python functions and `await`. However, as with other Prefect features, you can call these functions with or without `await`.
 
 ## Pausing or suspending a flow until it receives input
 
