@@ -311,6 +311,24 @@ async def test_respond_raises_exception_no_sender_in_input():
         await person.respond(Place(city="New York", state="NY"))
 
 
+async def test_respond_uses_automatic_input_if_needed(flow_run):
+    flow_run_input = FlowRunInput(
+        flow_run_id=uuid4(),
+        key="person-response",
+        value=orjson.dumps(
+            {"name": "Bob", "email": "bob@example.com", "human": True}
+        ).decode(),
+        sender=f"prefect.flow-run.{flow_run.id}",
+    )
+
+    person = Person.load_from_flow_run_input(flow_run_input)
+    await person.respond("hey")
+
+    message = await receive_input(str, flow_run_id=flow_run.id).next()
+    assert isinstance(message, str)
+    assert message == "hey"
+
+
 async def test_automatic_input_send_to(flow_run):
     await send_input(1, flow_run_id=flow_run.id)
 
