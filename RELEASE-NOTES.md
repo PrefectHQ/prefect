@@ -3,7 +3,7 @@
 ## Release 2.14.18
 
 ### Fixes
-- Fix environment variable not accepting lists — https://github.com/PrefectHQ/prefect/pull/11722
+- Allow prefect settings to accept lists — https://github.com/PrefectHQ/prefect/pull/11722
 - Revert deprecation of worker webserver setting — https://github.com/PrefectHQ/prefect/pull/11758
 
 ### Documentation
