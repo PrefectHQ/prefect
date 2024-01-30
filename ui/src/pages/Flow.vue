@@ -12,7 +12,7 @@
       </template>
 
       <template #deployments>
-        <DeploymentsList :filter="deploymentsFilter" />
+        <DeploymentsList :filter="deploymentsFilter" prefix="deployments" />
       </template>
 
       <template #runs>
