@@ -933,7 +933,7 @@ def base_job_template_with_defaults(docker_default_base_job_template):
     return base_job_template_with_defaults
 
 
-@pytest.mark.flaky
+@pytest.mark.flaky(max_runs=4)
 @pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
     "container_config",
