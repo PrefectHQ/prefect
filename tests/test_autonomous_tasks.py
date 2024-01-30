@@ -4,7 +4,7 @@ from prefect import task
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultFactory
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_TASK_SCHEDULING,
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
 )
 from prefect.utilities.asyncutils import sync_compatible
@@ -26,7 +26,7 @@ def local_filesystem():
 def allow_experimental_task_scheduling():
     with temporary_settings(
         {
-            PREFECT_EXPERIMENTAL_TASK_SCHEDULING: True,
+            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
             # PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-filesystem/test-fs",
         }
     ):
@@ -64,7 +64,7 @@ def async_foo_task_with_result_storage(async_foo_task, local_filesystem):
 
 
 def test_task_submission_fails_when_experimental_flag_off(foo_task):
-    with temporary_settings({PREFECT_EXPERIMENTAL_TASK_SCHEDULING: False}):
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}):
         with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
             foo_task.submit(42)
 

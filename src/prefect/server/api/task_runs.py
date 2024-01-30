@@ -2,26 +2,46 @@
 Routes for interacting with task run objects.
 """
 
+import asyncio
 import datetime
+import sys
 from typing import List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from prefect._vendor.fastapi import (
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    Response,
+    WebSocket,
+    status,
+)
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
+logger = get_logger("server.api")
+
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
+
+
+if sys.version_info >= (3, 10):
+    scheduled_task_runs: asyncio.Queue[schemas.core.TaskRun] = asyncio.Queue()
+else:
+    scheduled_task_runs = asyncio.Queue()
 
 
 @router.post("/")
@@ -57,7 +77,18 @@ async def create_task_run(
 
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    return model
+
+    new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(model)
+
+    # Place autonomously scheduled task runs onto a notification queue for the websocket
+    if (
+        new_task_run.flow_run_id is None
+        and new_task_run.state
+        and new_task_run.state.is_scheduled()
+    ):
+        await scheduled_task_runs.put(new_task_run)
+
+    return new_task_run
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -244,3 +275,21 @@ async def set_task_run_state(
         response.status_code = status.HTTP_200_OK
 
     return orchestration_result
+
+
+@router.websocket("/subscriptions/scheduled")
+async def scheduled_task_subscription(
+    websocket: WebSocket,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    websocket = await subscriptions.accept_prefect_socket(websocket)
+    if not websocket:
+        return
+
+    try:
+        while True:
+            task_run = await scheduled_task_runs.get()
+            await websocket.send_json(task_run.dict(json_compatible=True))
+
+    except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+        pass  # it's fine if a client disconnects either normally or abnormally
