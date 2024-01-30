@@ -22,6 +22,10 @@
       <template #workers>
         <WorkersTable :work-pool-name="workPoolName" />
       </template>
+
+      <template #deployments>
+        <DeploymentsList :filter="deploymentsFilter" />
+      </template>
     </p-tabs>
 
     <template #well>
@@ -41,7 +45,9 @@
     useFlowRunsFilter,
     useTabs,
     WorkersTable,
-    CodeBanner
+    CodeBanner,
+    DeploymentsList,
+    useDeploymentsFilter
   } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -62,6 +68,7 @@
     { label: 'Runs' },
     { label: 'Work Queues' },
     { label: 'Workers', hidden: isAgentWorkPool.value },
+    { label: 'Deployments' },
   ])
 
   const tab = useRouteQueryParam('tab', 'Details')
@@ -71,6 +78,12 @@
   const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool "${workPool.value?.name}"`)
 
   const { filter: flowRunFilter } = useFlowRunsFilter({
+    workPools: {
+      name: [workPoolName.value],
+    },
+  })
+
+  const { filter: deploymentsFilter } = useDeploymentsFilter({
     workPools: {
       name: [workPoolName.value],
     },
