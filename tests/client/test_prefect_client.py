@@ -1220,7 +1220,7 @@ async def test_create_then_read_autonomous_task_runs(prefect_client):
     assert all(isinstance(task_run, TaskRun) for task_run in [task_run_1, task_run_2])
 
     autonotask_runs = await prefect_client.read_task_runs(
-        task_run_filter=TaskRunFilter(flow_run_id=dict(is_none=True))
+        task_run_filter=TaskRunFilter(flow_run_id=dict(is_null_=True))
     )
 
     assert len(autonotask_runs) == 2
