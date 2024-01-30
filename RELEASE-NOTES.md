@@ -1,5 +1,27 @@
 # Prefect Release Notes
 
+## Release 2.14.18
+
+### Fixes
+- Fix environment variable not accepting lists — https://github.com/PrefectHQ/prefect/pull/11722
+- Revert deprecation of worker webserver setting — https://github.com/PrefectHQ/prefect/pull/11758
+
+### Documentation
+- Detail `send_input` and `receive_input` — https://github.com/PrefectHQ/prefect/pull/11724
+
+### Uncategorized
+- Clarify that interval schedules use an anchor not start date — https://github.com/PrefectHQ/prefect/pull/11767
+
+## New Contributors
+* @clefelhocz2 made their first contribution in https://github.com/PrefectHQ/prefect/pull/11722
+### Contributors
+- @abrookins
+- @clefelhocz2
+- @zhen0
+- @zzstoatzz
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.17...preview
+
 ## Release 2.14.17
 
 ### **Experimental**: Non-blocking submission of flow runs to the `Runner` web server
