@@ -65,7 +65,6 @@ else:
     V2ValidationError = None
 
 from rich.console import Console
-from rich.panel import Panel
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
@@ -785,7 +784,7 @@ class Flow(Generic[P, R]):
                 )
 
             console = Console()
-            console.print(Panel(help_message))
+            console.print(help_message, soft_wrap=True)
         await runner.start(webserver=webserver)
 
     @classmethod
