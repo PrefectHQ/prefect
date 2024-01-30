@@ -626,6 +626,27 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         return filters
 
 
+class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
+    """Filter by `TaskRun.flow_run_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of task run flow run ids to include"
+    )
+
+    is_null_: bool = Field(
+        default=False, description="Filter for task runs with None as their flow run id"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.is_null_ is True:
+            filters.append(db.TaskRun.flow_run_id.is_(None))
+        else:
+            if self.any_ is not None:
+                filters.append(db.TaskRun.flow_run_id.in_(self.any_))
+        return filters
+
+
 class TaskRunFilterId(PrefectFilterBaseModel):
     """Filter by `TaskRun.id`."""
 
@@ -810,6 +831,9 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
         default=None, description="Filter criteria for `TaskRun.subflow_run`"
     )
+    flow_run_id: Optional[TaskRunFilterFlowRunId] = Field(
+        default=None, description="Filter criteria for `TaskRun.flow_run_id`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -826,6 +850,8 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.start_time.as_sql_filter(db))
         if self.subflow_runs is not None:
             filters.append(self.subflow_runs.as_sql_filter(db))
+        if self.flow_run_id is not None:
+            filters.append(self.flow_run_id.as_sql_filter(db))
 
         return filters
 
