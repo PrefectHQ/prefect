@@ -14,11 +14,6 @@
 
 ## New Contributors
 * @clefelhocz2 made their first contribution in https://github.com/PrefectHQ/prefect/pull/11722
-### Contributors
-- @abrookins
-- @clefelhocz2
-- @zhen0
-- @zzstoatzz
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.17...2.14.18
 
