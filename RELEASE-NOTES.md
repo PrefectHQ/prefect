@@ -20,7 +20,7 @@
 - @zhen0
 - @zzstoatzz
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.17...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.17...2.14.18
 
 ## Release 2.14.17
 
