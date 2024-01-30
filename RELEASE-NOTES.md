@@ -7,7 +7,7 @@
 - Revert deprecation of worker webserver setting — https://github.com/PrefectHQ/prefect/pull/11758
 
 ### Documentation
-- Detail `send_input` and `receive_input` — https://github.com/PrefectHQ/prefect/pull/11724
+- Expand docs on interactive flows, detailing `send_input` and `receive_input` — https://github.com/PrefectHQ/prefect/pull/11724
 - Clarify that interval schedules use an anchor not start date — https://github.com/PrefectHQ/prefect/pull/11767
 
 ## New Contributors
