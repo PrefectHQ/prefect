@@ -116,7 +116,7 @@ This behaves like `fcron` and enables you to, for example, define a job that exe
   
 ## Interval
 
-An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in the deployment YAML file.
+An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in the deployment YAML file:
 
 ```yaml
 schedule:
