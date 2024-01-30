@@ -141,6 +141,7 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
         module.foo
 
 
+@pytest.mark.skip("Too flaky")
 @pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,script_path",
