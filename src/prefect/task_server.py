@@ -14,7 +14,10 @@ from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
+    PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
+)
 from prefect.task_engine import submit_autonomous_task_to_engine
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.processutils import _register_signal
@@ -50,8 +53,12 @@ class TaskServer:
 
         self._client = get_client()
 
+        if not asyncio.get_event_loop().is_running():
+            raise RuntimeError(
+                "TaskServer must be initialized within an async context."
+            )
+
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
     def handle_sigterm(self, signum, frame):
         """
@@ -70,8 +77,7 @@ class TaskServer:
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         async with asyncnullcontext() if self.started else self:
-            async with self._loops_task_group as tg:
-                tg.start_soon(self._subscribe_to_task_scheduling)
+            await self._subscribe_to_task_scheduling()
 
     @sync_compatible
     async def stop(self):
@@ -85,15 +91,6 @@ class TaskServer:
         logger.info("Stopping task server...")
         self.started = False
         self.stopping = True
-        try:
-            self._loops_task_group.cancel_scope.cancel()
-        except Exception:
-            logger.exception("Exception encountered while shutting down", exc_info=True)
-
-    async def run_once(self):
-        """Runs one iteration of the task server's polling cycle (used for testing)"""
-        async with self._runs_task_group:
-            await self._get_and_submit_task_runs()
 
     async def _subscribe_to_task_scheduling(self):
         subscription = Subscription(TaskRun, "/task_runs/subscriptions/scheduled")
@@ -171,16 +168,38 @@ class TaskServer:
             await self._client.__aexit__(*exc_info)
 
 
-def serve(
-    *tasks: Task,
-    tags: Optional[Iterable[str]] = None,
-    run_once: bool = False,
-):
-    async def run_server():
-        task_server = TaskServer(*tasks, tags=tags)
-        if run_once:
-            await task_server.run_once()
-        else:
-            await task_server.start()
+@sync_compatible
+async def serve(*tasks: Task, tags: Optional[Iterable[str]] = None):
+    """Serve the provided tasks so that they may be executed autonomously.
 
-    asyncio.run(run_server())
+    Args:
+        - tasks: A list of tasks to serve. When a scheduled task run is found for a
+            given task, the task run will be submitted to the engine for execution.
+        - tags: A list of tags to apply to the task server. Defaults to `["autonomous"]`.
+
+    Example:
+        ```python
+        from prefect import task
+        from prefect.task_server import serve
+
+        @task(log_prints=True)
+        def say(message: str):
+            print(message)
+
+        @task(log_prints=True)
+        def yell(message: str):
+            print(message.upper())
+
+        # starts a long-lived process that listens scheduled runs of these tasks
+        if __name__ == "__main__":
+            serve(say, yell)
+        ```
+    """
+    if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+        raise RuntimeError(
+            "To enable task scheduling, set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING"
+            " to True."
+        )
+
+    task_server = TaskServer(*tasks, tags=tags)
+    await task_server.start()
