@@ -9,6 +9,19 @@ from websockets.exceptions import ConnectionClosed
 NORMAL_DISCONNECT_EXCEPTIONS = (IOError, ConnectionClosed)
 
 
+async def ping_pong(websocket: WebSocket):
+    try:
+        await websocket.send_json({"type": "ping"})
+
+        response = await websocket.receive_json()
+        if response.get("type") == "pong":
+            return True
+        else:
+            return False
+    except Exception:
+        return False
+
+
 async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
     subprotocols = websocket.headers.get("Sec-WebSocket-Protocol", "").split(",")
     if "prefect" not in subprotocols:
