@@ -169,6 +169,7 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -179,6 +180,7 @@ from prefect.states import (
     Paused,
     Pending,
     Running,
+    Scheduled,
     State,
     Suspended,
     exception_to_crashed_state,
@@ -213,6 +215,7 @@ R = TypeVar("R")
 T = TypeVar("T", bound=RunInput)
 EngineReturnType = Literal["future", "state", "result"]
 
+NUM_CHARS_DYNAMIC_KEY = 8
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
@@ -1382,16 +1385,19 @@ def enter_task_run_engine(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     mapped: bool,
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-    """
-    Sync entrypoint for task calls
-    """
+) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]:
+    """Sync entrypoint for task calls"""
 
     flow_run_context = FlowRunContext.get()
+
     if not flow_run_context:
+        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            return _create_autonomous_task_run(task=task, parameters=parameters)
+
         raise RuntimeError(
-            "Tasks cannot be run outside of a flow. To call the underlying task"
-            " function outside of a flow use `task.fn()`."
+            "Tasks cannot be run outside of a flow"
+            " - if you meant to submit an autonomous task, you need to set"
+            " `prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=true`"
         )
 
     if TaskRunContext.get():
@@ -1603,14 +1609,22 @@ async def create_task_run_future(
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-    task_run_name = f"{task.name}-{dynamic_key}"
+    task_run_name = (
+        f"{task.name}-{dynamic_key}"
+        if flow_run_context and flow_run_context.flow_run
+        else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
+    )
 
     # Generate a future
     future = PrefectFuture(
         name=task_run_name,
         key=uuid4(),
         task_runner=task_runner,
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
+        asynchronous=(
+            task.isasync and flow_run_context.flow.isasync
+            if flow_run_context and flow_run_context.flow
+            else task.isasync
+        ),
     )
 
     # Create and submit the task run in the background
@@ -1650,14 +1664,18 @@ async def create_task_run_then_submit(
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> None:
-    task_run = await create_task_run(
-        task=task,
-        name=task_run_name,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        dynamic_key=task_run_dynamic_key,
-        wait_for=wait_for,
-        extra_task_inputs=extra_task_inputs,
+    task_run = (
+        await create_task_run(
+            task=task,
+            name=task_run_name,
+            flow_run_context=flow_run_context,
+            parameters=parameters,
+            dynamic_key=task_run_dynamic_key,
+            wait_for=wait_for,
+            extra_task_inputs=extra_task_inputs,
+        )
+        if not flow_run_context.autonomous_task_run
+        else flow_run_context.autonomous_task_run
     )
 
     # Attach the task run to the future to support `get_state` operations
@@ -1698,7 +1716,7 @@ async def create_task_run(
     task_run = await flow_run_context.client.create_task_run(
         task=task,
         name=name,
-        flow_run_id=flow_run_context.flow_run.id,
+        flow_run_id=flow_run_context.flow_run.id if flow_run_context.flow_run else None,
         dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
@@ -1721,7 +1739,10 @@ async def submit_task_run(
 ) -> PrefectFuture:
     logger = get_run_logger(flow_run_context)
 
-    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+    if (
+        task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL
+        and not flow_run_context.autonomous_task_run
+    ):
         logger.info(f"Executing {task_run.name!r} immediately...")
 
     future = await task_runner.submit(
@@ -1799,7 +1820,7 @@ async def begin_task_run(
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
         else:
-            # Otherwise, retrieve a new client
+            # Otherwise, retrieve a new clien`t
             client = await stack.enter_async_context(get_client())
             interruptible = False
             await stack.enter_async_context(anyio.create_task_group())
@@ -2153,7 +2174,6 @@ async def orchestrate_task_run(
                     await _check_task_failure_retriable(task, task_run, terminal_state)
                 )
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
-
             last_event = _emit_task_run_state_change_event(
                 task_run=task_run,
                 initial_state=last_state,
@@ -2203,7 +2223,7 @@ async def orchestrate_task_run(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
     )
-
+    logger.warning(f"Task run {task_run.name!r} finished in state {display_state}")
     return state
 
 
@@ -2572,7 +2592,12 @@ async def propose_state(
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
-    if task.task_key not in context.task_run_dynamic_keys:
+    if context.flow_run is None:  # this is an autonomous task run
+        context.task_run_dynamic_keys[task.task_key] = getattr(
+            task, "dynamic_key", str(uuid4())
+        )
+
+    elif task.task_key not in context.task_run_dynamic_keys:
         context.task_run_dynamic_keys[task.task_key] = 0
     else:
         context.task_run_dynamic_keys[task.task_key] += 1
@@ -2910,6 +2935,34 @@ def _emit_task_run_state_change_event(
         },
         follows=follows,
     )
+
+
+@sync_compatible
+async def _create_autonomous_task_run(
+    task: Task, parameters: Dict[str, Any]
+) -> TaskRun:
+    async with get_client() as client:
+        scheduled = Scheduled()
+        if parameters:
+            parameters_id = uuid4()
+            scheduled.state_details.task_parameters_id = parameters_id
+
+            # TODO: We want to use result storage for parameters, but we'll need
+            # a better way to use it than this.
+            task.persist_result = True
+            factory = await ResultFactory.from_task(task, client=client)
+            await factory.store_parameters(parameters_id, parameters)
+
+        task_run = await client.create_task_run(
+            task=task,
+            flow_run_id=None,
+            dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
+            state=scheduled,
+        )
+
+        engine_logger.debug(f"Submitted run of task {task.name!r} for execution")
+
+    return task_run
 
 
 if __name__ == "__main__":
