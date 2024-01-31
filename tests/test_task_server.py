@@ -38,7 +38,7 @@ def async_foo_task():
 
 @pytest.fixture
 async def task_server(foo_task):
-    return TaskServer(foo_task)
+    return TaskServer(foo_task, tags={"tag1", "tag2"})
 
 
 async def test_task_server_basic_context_management(task_server):
@@ -96,6 +96,16 @@ class TestServe:
         mock_task_server_start.assert_called_once()
 
         task_run = foo_task.submit(42)
+
+        assert isinstance(task_run, TaskRun)
+
+        assert task_run.state.is_scheduled()
+
+    async def test_serve_basic_async_task(self, async_foo_task, mock_task_server_start):
+        await serve(async_foo_task)
+        mock_task_server_start.assert_called_once()
+
+        task_run = await async_foo_task.submit()
 
         assert isinstance(task_run, TaskRun)
 

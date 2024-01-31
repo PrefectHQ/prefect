@@ -20,6 +20,7 @@ from prefect.settings import (
 )
 from prefect.task_engine import submit_autonomous_task_to_engine
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.collections import distinct
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
@@ -140,6 +141,8 @@ class TaskServer:
         logger.debug(
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
+
+        task_run.tags = distinct(task_run.tags + list(self.tags))
 
         self._runs_task_group.start_soon(
             partial(
