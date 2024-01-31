@@ -52,7 +52,6 @@ import anyio.abc
 import pendulum
 import sniffio
 from rich.console import Console, Group
-from rich.panel import Panel
 from rich.table import Table
 
 from prefect._internal.concurrency.api import (
@@ -1260,7 +1259,9 @@ async def serve(
             )
 
         console = Console()
-        console.print(Panel(Group(help_message_top, table, help_message_bottom)))
+        console.print(
+            Group(help_message_top, table, help_message_bottom), soft_wrap=True
+        )
 
     await runner.start()
 

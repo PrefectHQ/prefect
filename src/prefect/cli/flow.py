@@ -5,7 +5,6 @@ Command line interface for working with flows.
 from typing import List, Optional
 
 import typer
-from rich.panel import Panel
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
@@ -158,5 +157,6 @@ async def serve(
             "\nYou can also run your flow via the Prefect UI:"
             f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
         )
-    app.console.print(Panel(help_message))
+
+    app.console.print(help_message, soft_wrap=True)
     await runner.start()

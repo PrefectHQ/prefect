@@ -94,7 +94,9 @@ if HAS_PYDANTIC_V2:
     from prefect._internal.pydantic.v2_schema import create_v2_schema
 
 T = TypeVar("T", bound="RunInput")
-Keyset = Dict[Union[Literal["response"], Literal["schema"]], str]
+Keyset = Dict[
+    Union[Literal["description"], Literal["response"], Literal["schema"]], str
+]
 
 
 def keyset_from_paused_state(state: "State") -> Keyset:
@@ -123,6 +125,7 @@ def keyset_from_base_key(base_key: str) -> Keyset:
         - Dict[str, str]: the keyset
     """
     return {
+        "description": f"{base_key}-description",
         "response": f"{base_key}-response",
         "schema": f"{base_key}-schema",
     }
@@ -138,6 +141,7 @@ class RunInput(pydantic.BaseModel):
     class Config:
         extra = "forbid"
 
+    _description: Optional[str] = pydantic.PrivateAttr(default=None)
     _metadata: RunInputMetadata = pydantic.PrivateAttr()
 
     @property
@@ -167,6 +171,14 @@ class RunInput(pydantic.BaseModel):
         await create_flow_run_input(
             key=keyset["schema"], value=schema, flow_run_id=flow_run_id
         )
+
+        description = cls._description if isinstance(cls._description, str) else None
+        if description:
+            await create_flow_run_input(
+                key=keyset["description"],
+                value=description,
+                flow_run_id=flow_run_id,
+            )
 
     @classmethod
     @sync_compatible
@@ -206,18 +218,27 @@ class RunInput(pydantic.BaseModel):
         return instance
 
     @classmethod
-    def with_initial_data(cls: Type[T], **kwargs: Any) -> Type[T]:
+    def with_initial_data(
+        cls: Type[T], description: Optional[str] = None, **kwargs: Any
+    ) -> Type[T]:
         """
         Create a new `RunInput` subclass with the given initial data as field
         defaults.
 
         Args:
-            - kwargs (Any): the initial data
+            - description (str, optional): a description to show when resuming
+                a flow run that requires input
+            - kwargs (Any): the initial data to populate the subclass
         """
         fields = {}
         for key, value in kwargs.items():
             fields[key] = (type(value), value)
-        return pydantic.create_model(cls.__name__, **fields, __base__=cls)
+        model = pydantic.create_model(cls.__name__, **fields, __base__=cls)
+
+        if description is not None:
+            model._description = description
+
+        return model
 
     @sync_compatible
     async def respond(
@@ -465,38 +486,43 @@ class GetAutomaticInputHandler(GetInputHandler):
 
 async def _send_input(
     flow_run_id: UUID,
-    run_input: "RunInput",
+    run_input: Any,
     sender: Optional[str] = None,
     key_prefix: Optional[str] = None,
 ):
+    if isinstance(run_input, RunInput):
+        _run_input = run_input
+    else:
+        input_cls = run_input_subclass_from_type(type(run_input))
+        _run_input = input_cls(value=run_input)
+
     if key_prefix is None:
-        key_prefix = f"{run_input.__class__.__name__.lower()}-auto"
+        key_prefix = f"{_run_input.__class__.__name__.lower()}-auto"
 
     key = f"{key_prefix}-{uuid4()}"
 
     await create_flow_run_input_from_model(
-        key=key, flow_run_id=flow_run_id, model_instance=run_input, sender=sender
+        key=key, flow_run_id=flow_run_id, model_instance=_run_input, sender=sender
     )
 
 
 @sync_compatible
 async def send_input(
-    value: Any,
+    run_input: Any,
     flow_run_id: UUID,
     sender: Optional[str] = None,
     key_prefix: Optional[str] = None,
 ):
-    input_cls = run_input_subclass_from_type(type(value))
     await _send_input(
         flow_run_id=flow_run_id,
-        run_input=input_cls(value=value),
+        run_input=run_input,
         sender=sender,
         key_prefix=key_prefix,
     )
 
 
 def receive_input(
-    _type: type,
+    input_type: type,
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
@@ -504,8 +530,8 @@ def receive_input(
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
-) -> RunInput:
-    input_cls = run_input_subclass_from_type(_type)
+):
+    input_cls = run_input_subclass_from_type(input_type)
     return input_cls.receive(
         timeout=timeout,
         poll_interval=poll_interval,
