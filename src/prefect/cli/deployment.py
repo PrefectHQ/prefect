@@ -333,7 +333,7 @@ async def create_schedule(
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
-    active: Optional[bool] = typer.Option(
+    active: bool = typer.Option(
         True,
         "--active",
         help="Whether the schedule is active. Defaults to True.",
@@ -416,7 +416,7 @@ async def create_schedule(
 @schedule_app.command("delete")
 async def delete_schedule(
     deployment_name: str,
-    schedule_id: str,
+    schedule_id: UUID,
     assume_yes: Optional[bool] = typer.Option(
         False,
         "--accept-yes",
@@ -428,6 +428,7 @@ async def delete_schedule(
     Delete a deployment schedule by ID.
     """
     assert_deployment_name_format(deployment_name)
+
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(deployment_name)
@@ -435,7 +436,7 @@ async def delete_schedule(
             return exit_with_error(f"Deployment {deployment_name} not found!")
 
         try:
-            schedule = [s for s in deployment.schedules if s.id == UUID(schedule_id)][0]
+            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
         except IndexError:
             return exit_with_error("Deployment schedule not found!")
 
@@ -453,11 +454,12 @@ async def delete_schedule(
 
 
 @schedule_app.command("pause")
-async def pause_schedule(deployment_name: str, schedule_id: str):
+async def pause_schedule(deployment_name: str, schedule_id: UUID):
     """
     Pause a deployment schedule by ID.
     """
     assert_deployment_name_format(deployment_name)
+
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(deployment_name)
@@ -465,7 +467,7 @@ async def pause_schedule(deployment_name: str, schedule_id: str):
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
         try:
-            schedule = [s for s in deployment.schedules if s.id == UUID(schedule_id)][0]
+            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
         except IndexError:
             return exit_with_error("Deployment schedule not found!")
 
@@ -483,11 +485,12 @@ async def pause_schedule(deployment_name: str, schedule_id: str):
 
 
 @schedule_app.command("resume")
-async def resume_schedule(deployment_name: str, schedule_id: str):
+async def resume_schedule(deployment_name: str, schedule_id: UUID):
     """
     Resume a deployment schedule by ID.
     """
     assert_deployment_name_format(deployment_name)
+
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(deployment_name)
@@ -495,7 +498,7 @@ async def resume_schedule(deployment_name: str, schedule_id: str):
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
         try:
-            schedule = [s for s in deployment.schedules if s.id == UUID(schedule_id)][0]
+            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
         except IndexError:
             return exit_with_error("Deployment schedule not found!")
 
@@ -668,7 +671,7 @@ async def _pause_schedule(
         try:
             deployment = await client.read_deployment_by_name(name)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {name!r} not found!")
 
         await client.update_deployment(deployment, is_schedule_active=False)
         exit_with_success(f"Paused schedule for deployment {name}")

@@ -1814,14 +1814,14 @@ class PrefectClient:
         self,
         deployment_id: UUID,
         schedules: List[Tuple[SCHEDULE_TYPES, bool]],
-    ) -> UUID:
+    ) -> List[DeploymentSchedule]:
         """
         Create deployment schedules.
 
         Args:
             deployment_id: the deployment ID
             schedules: a list of tuples containing the schedule to create
-                       and whether it should be active.
+                       and whether or not it should be active.
 
         Raises:
             httpx.RequestError: if the schedules were not created for any reason
@@ -1873,7 +1873,7 @@ class PrefectClient:
         schedule_id: UUID,
         active: Optional[bool] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-    ) -> DeploymentSchedule:
+    ):
         """
         Update a deployment schedule by ID.
 
@@ -1893,7 +1893,7 @@ class PrefectClient:
             kwargs["schedule"] = schedule
 
         deployment_schedule_update = DeploymentScheduleUpdate(**kwargs)
-        json = deployment_schedule_update.dict(json_compatible=True)
+        json = deployment_schedule_update.dict(json_compatible=True, exclude_unset=True)
 
         try:
             await self._client.patch(
