@@ -37,14 +37,20 @@ logger = get_logger("server.api")
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
 
-_scheduled_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue[schemas.core.TaskRun]] = {}
-_retry_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue[schemas.core.TaskRun]] = {}
+_scheduled_task_runs_queues: Dict[
+    asyncio.AbstractEventLoop, asyncio.Queue[schemas.core.TaskRun]
+] = {}
+_retry_task_runs_queues: Dict[
+    asyncio.AbstractEventLoop, asyncio.Queue[schemas.core.TaskRun]
+] = {}
+
 
 def scheduled_task_runs_queue() -> asyncio.Queue[schemas.core.TaskRun]:
     loop = asyncio.get_event_loop()
     if loop not in _scheduled_task_runs_queues:
         _scheduled_task_runs_queues[loop] = asyncio.Queue()
     return _scheduled_task_runs_queues[loop]
+
 
 def retry_task_runs_queue() -> asyncio.Queue[schemas.core.TaskRun]:
     loop = asyncio.get_event_loop()
@@ -316,7 +322,6 @@ async def scheduled_task_subscription(
                 # If sending fails, put the task back into the retry queue
                 await retry_queue.put(task_run)
                 break  # Exit the loop to handle the disconnection
-
 
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
         pass  # Handle normal disconnections
