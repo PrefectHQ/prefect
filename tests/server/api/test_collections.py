@@ -3,13 +3,6 @@ import respx
 from httpx import Response
 
 
-@pytest.fixture(scope="function", autouse=True)
-def reset_cache():
-    from prefect.server.api.collections import GLOBAL_COLLECTIONS_VIEW_CACHE
-
-    GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
-
-
 class TestReadCollectionViews:
     def collection_view_url(self, view):
         return (

@@ -2,6 +2,8 @@ import httpx
 import pytest
 import respx
 
+from prefect.server.api import collections
+
 FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
     "job_configuration": {
         "fake": "{{ fake_var }}",
@@ -378,9 +380,17 @@ def docker_default_base_job_template():
     }
 
 
+@pytest.fixture(autouse=True)
+def cleared_collection_registry_cache():
+    collections.GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
+    yield
+    collections.GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
+
+
 @pytest.fixture()
 def mock_collection_registry(
-    docker_default_base_job_template, k8s_default_base_job_template
+    docker_default_base_job_template,
+    k8s_default_base_job_template,
 ):
     mock_body = {
         "prefect": {
@@ -421,6 +431,7 @@ def mock_collection_registry(
             }
         },
     }
+
     with respx.mock(
         assert_all_mocked=False,
         assert_all_called=False,
