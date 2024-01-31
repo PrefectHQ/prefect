@@ -31,6 +31,7 @@ from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING
 
 logger = get_logger("server.api")
 
@@ -93,7 +94,8 @@ async def create_task_run(
 
     # Place autonomously scheduled task runs onto a notification queue for the websocket
     if (
-        new_task_run.flow_run_id is None
+        PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
+        and new_task_run.flow_run_id is None
         and new_task_run.state
         and new_task_run.state.is_scheduled()
     ):
