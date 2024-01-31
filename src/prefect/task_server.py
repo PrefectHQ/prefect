@@ -14,11 +14,9 @@ from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
-from prefect.settings import (
-    PREFECT_RUNNER_POLL_FREQUENCY,
-)
+from prefect.settings import PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS
 from prefect.task_engine import submit_autonomous_task_to_engine
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
@@ -28,27 +26,23 @@ class TaskServer:
     """This class is responsible for serving tasks that may be executed autonomously
     (i.e., without a parent flow run).
 
-    When `start()` is called, the task server will begin polling for pending task runs
-    every `query_seconds` seconds. When a pending task run is found, the task server
+    When `start()` is called, the task server will subscribe to the task run scheduling
+    topic and poll for scheduled task runs. When a scheduled task run is found, it
     will submit the task run to the engine for execution, using `submit_autonomous_task_to_engine`
     to construct a minimal `EngineContext` for the task run.
 
     Args:
-        - tasks (Iterable[Task]): A list of tasks to be served by the task server.
-        - query_seconds (int, optional): The number of seconds to wait between polling
-            for pending task runs. Defaults to the value of `PREFECT_RUNNER_POLL_FREQUENCY`.
-        - tags (Iterable[str], optional): A list of tags to filter pending task runs by.
-            Defaults to `["autonomous"]`.
+        - tasks: A list of tasks to serve. These tasks will be submitted to the engine
+            when a scheduled task run is found.
+        - tags: A list of tags to apply to the task server. Defaults to `["autonomous"]`.
     """
 
     def __init__(
         self,
         *tasks: Task,
-        query_seconds: Optional[int] = None,
         tags: Optional[Iterable[str]] = None,
     ):
         self.tasks: list[Task] = tasks
-        self.query_seconds: int = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self.tags: Iterable[str] = tags or ["autonomous"]
         self.last_polled: Optional[pendulum.DateTime] = None
         self.started = False
@@ -75,9 +69,9 @@ class TaskServer:
         """
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
-        async with self as task_server:
+        async with asyncnullcontext() if self.started else self:
             async with self._loops_task_group as tg:
-                tg.start_soon(task_server._subscribe_to_task_scheduling)
+                tg.start_soon(self._subscribe_to_task_scheduling)
 
     @sync_compatible
     async def stop(self):
@@ -88,6 +82,7 @@ class TaskServer:
                 " calling .start()"
             )
 
+        logger.info("Stopping task server...")
         self.started = False
         self.stopping = True
         try:
@@ -102,6 +97,7 @@ class TaskServer:
 
     async def _subscribe_to_task_scheduling(self):
         subscription = Subscription(TaskRun, "/task_runs/subscriptions/scheduled")
+        logger.debug(f"Created: {subscription}")
         async for task_run in subscription:
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             await self._submit_pending_task_run(task_run)
@@ -114,14 +110,13 @@ class TaskServer:
         task = next((t for t in self.tasks if t.name in task_run.task_key), None)
 
         if not task:
-            logger.warning(f"Task {task_run.name!r} not found in task server registry.")
-            await self._client._client.delete(
-                f"/task_runs/{task_run.id}"
-            )  # while testing, delete the task run
+            if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
+                logger.warning(
+                    f"Task {task_run.name!r} not found in task server registry."
+                )
+                await self._client._client.delete(f"/task_runs/{task_run.id}")
 
             return
-
-        logger.info(repr(task_run.state))
 
         # The ID of the parameters for this run are stored in the Scheduled state's
         # state_details. If there is no parameters_id, then the task was created
@@ -134,18 +129,19 @@ class TaskServer:
             try:
                 parameters = await factory.read_parameters(parameters_id)
             except Exception as exc:
-                logger.info(
-                    f"Failed to read parameters for task run {task_run.id}: {exc}"
+                logger.exception(
+                    f"Failed to read parameters for task run {task_run.id!r}",
+                    exc_info=exc,
                 )
-                await self._client._client.delete(
-                    f"/task_runs/{task_run.id}"
-                )  # while testing, delete the task run
+                if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
+                    logger.info(
+                        f"Deleting task run {task_run.id!r} because it failed to submit"
+                    )
+                    await self._client._client.delete(f"/task_runs/{task_run.id}")
                 return
 
         logger.debug(
-            "Parameters: %r and state data: %r",
-            parameters,
-            task_run.state.state_details,
+            f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
 
         self._runs_task_group.start_soon(
@@ -177,12 +173,11 @@ class TaskServer:
 
 def serve(
     *tasks: Task,
-    query_seconds: Optional[int] = None,
     tags: Optional[Iterable[str]] = None,
     run_once: bool = False,
 ):
     async def run_server():
-        task_server = TaskServer(*tasks, query_seconds=query_seconds, tags=tags)
+        task_server = TaskServer(*tasks, tags=tags)
         if run_once:
             await task_server.run_once()
         else:
