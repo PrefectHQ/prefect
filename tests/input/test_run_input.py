@@ -69,7 +69,7 @@ def test_keyset_from_paused_state_non_paused_state_raises_exception():
         keyset_from_paused_state(Running())
 
 
-async def test_save_schema(flow_run_context):
+async def test_save_stores_schema(flow_run_context):
     keyset = keyset_from_base_key("person")
     await Person.save(keyset)
     schema = await read_flow_run_input(key=keyset["schema"])
@@ -78,6 +78,13 @@ async def test_save_schema(flow_run_context):
         "email",
         "human",
     }
+
+
+async def test_save_stores_provided_description(flow_run_context):
+    keyset = keyset_from_base_key("person")
+    await Person.with_initial_data(description="Testing").save(keyset)
+    description = await read_flow_run_input(key=keyset["description"])
+    assert description == "Testing"
 
 
 def test_save_works_sync(flow_run_context):
