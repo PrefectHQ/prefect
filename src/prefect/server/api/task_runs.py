@@ -40,8 +40,10 @@ router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
 if sys.version_info >= (3, 10):
     scheduled_task_runs: asyncio.Queue[schemas.core.TaskRun] = asyncio.Queue()
+    retry_task_runs: asyncio.Queue[schemas.core.TaskRun] = asyncio.Queue()
 else:
     scheduled_task_runs = asyncio.Queue()
+    retry_task_runs = asyncio.Queue()
 
 
 @router.post("/")
@@ -288,8 +290,24 @@ async def scheduled_task_subscription(
 
     try:
         while True:
-            task_run = await scheduled_task_runs.get()
-            await websocket.send_json(task_run.dict(json_compatible=True))
+            # First, check if there's anything in the retry queue
+            if not retry_task_runs.empty():
+                task_run = await retry_task_runs.get()
+            else:
+                task_run = await scheduled_task_runs.get()
+
+            try:
+                # Attempt to send the task run
+                await websocket.send_json(task_run.dict(json_compatible=True))
+                logger.debug(f"Sent task run {task_run.id!r} to websocket client")
+            except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+                # If sending fails, put the task back into the retry queue
+                logger.debug(
+                    f"Failed to send task run {task_run.id!r} to client, "
+                    " - placing back into retry queue"
+                )
+                await retry_task_runs.put(task_run)
+                break  # Exit the loop to handle the disconnection
 
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-        pass  # it's fine if a client disconnects either normally or abnormally
+        pass  # Handle normal disconnections
