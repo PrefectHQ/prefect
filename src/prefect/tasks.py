@@ -660,18 +660,35 @@ class Task(Generic[P, R]):
     ) -> State[T]:
         ...
 
+    @overload
+    def submit(
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> TaskRun:
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Awaitable[TaskRun]:
+        ...
+
     def submit(
         self,
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    ) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun, Awaitable[TaskRun]]:
         """
-        Submit a run of the task to a worker.
+        Submit a run of the task to the engine.
 
-        Must be called within a flow function. If writing an async task, this call must
-        be awaited.
+        If writing an async task, this call must be awaited.
+
+        If called from within a flow function,
 
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,

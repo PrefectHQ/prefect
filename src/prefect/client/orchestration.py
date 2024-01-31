@@ -1961,7 +1961,7 @@ class PrefectClient:
     async def create_task_run(
         self,
         task: "TaskObject",
-        flow_run_id: UUID,
+        flow_run_id: Optional[UUID],
         dynamic_key: str,
         name: str = None,
         extra_tags: Iterable[str] = None,
