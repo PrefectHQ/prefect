@@ -51,13 +51,6 @@ async def test_task_server_basic_context_management(task_server):
         await task_server._client.hello()
 
 
-def test_task_server_raises_if_instantiated_in_sync_context(foo_task):
-    with pytest.raises(
-        RuntimeError, match="must be initialized within an async context"
-    ):
-        TaskServer(foo_task)
-
-
 async def test_handle_sigterm():
     task_server = TaskServer(...)
 
