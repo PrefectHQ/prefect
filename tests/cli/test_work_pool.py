@@ -51,13 +51,6 @@ def interactive_console(monkeypatch):
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
-@pytest.fixture(autouse=True)
-def reset_cache():
-    from prefect.server.api.collections import GLOBAL_COLLECTIONS_VIEW_CACHE
-
-    GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
-
-
 class TestCreate:
     @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_work_pool(self, prefect_client, mock_collection_registry):
