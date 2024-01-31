@@ -4,8 +4,7 @@ Routes for interacting with task run objects.
 
 import asyncio
 import datetime
-import sys
-from typing import List
+from typing import Dict, List
 from uuid import UUID
 
 import pendulum
@@ -38,10 +37,14 @@ logger = get_logger("server.api")
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
 
-if sys.version_info >= (3, 10):
-    scheduled_task_runs: asyncio.Queue[schemas.core.TaskRun] = asyncio.Queue()
-else:
-    scheduled_task_runs = asyncio.Queue()
+_scheduled_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue] = {}
+
+
+def scheduled_task_runs_queue() -> asyncio.Queue:
+    loop = asyncio.get_event_loop()
+    if loop not in _scheduled_task_runs_queues:
+        _scheduled_task_runs_queues[loop] = asyncio.Queue()
+    return _scheduled_task_runs_queues[loop]
 
 
 @router.post("/")
@@ -86,7 +89,7 @@ async def create_task_run(
         and new_task_run.state
         and new_task_run.state.is_scheduled()
     ):
-        await scheduled_task_runs.put(new_task_run)
+        await scheduled_task_runs_queue().put(new_task_run)
 
     return new_task_run
 
@@ -288,7 +291,7 @@ async def scheduled_task_subscription(
 
     try:
         while True:
-            task_run = await scheduled_task_runs.get()
+            task_run: schemas.core.TaskRun = await scheduled_task_runs_queue().get()
             await websocket.send_json(task_run.dict(json_compatible=True))
 
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
