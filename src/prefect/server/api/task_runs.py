@@ -37,22 +37,18 @@ logger = get_logger("server.api")
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
 
-_scheduled_task_runs_queues: Dict[
-    asyncio.AbstractEventLoop, asyncio.Queue[schemas.core.TaskRun]
-] = {}
-_retry_task_runs_queues: Dict[
-    asyncio.AbstractEventLoop, asyncio.Queue[schemas.core.TaskRun]
-] = {}
+_scheduled_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue] = {}
+_retry_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue] = {}
 
 
-def scheduled_task_runs_queue() -> asyncio.Queue[schemas.core.TaskRun]:
+def scheduled_task_runs_queue() -> asyncio.Queue:
     loop = asyncio.get_event_loop()
     if loop not in _scheduled_task_runs_queues:
         _scheduled_task_runs_queues[loop] = asyncio.Queue()
     return _scheduled_task_runs_queues[loop]
 
 
-def retry_task_runs_queue() -> asyncio.Queue[schemas.core.TaskRun]:
+def retry_task_runs_queue() -> asyncio.Queue:
     loop = asyncio.get_event_loop()
     if loop not in _retry_task_runs_queues:
         _retry_task_runs_queues[loop] = asyncio.Queue()
@@ -293,35 +289,30 @@ async def set_task_run_state(
 
 
 @router.websocket("/subscriptions/scheduled")
-async def scheduled_task_subscription(
-    websocket: WebSocket,
-    db: PrefectDBInterface = Depends(provide_database_interface),
-):
+async def scheduled_task_subscription(websocket: WebSocket):
     websocket = await subscriptions.accept_prefect_socket(websocket)
     if not websocket:
         return
 
-    # Access the correct queues for the current event loop
     scheduled_queue = scheduled_task_runs_queue()
     retry_queue = retry_task_runs_queue()
 
-    try:
-        while True:
-            task_run: schemas.core.TaskRun = None
-            # First, check if there's anything in the retry queue
-            if not retry_queue.empty():
-                task_run = await retry_queue.get()
-            else:
-                task_run = await scheduled_queue.get()
+    while True:
+        task_run: schemas.core.TaskRun = None
+        # First, check if there's anything in the retry queue
+        if not retry_queue.empty():
+            task_run = await retry_queue.get()
+        else:
+            task_run = await scheduled_queue.get()
 
-            try:
-                # Attempt to send the task run
-                await websocket.send_json(task_run.dict(json_compatible=True))
-                # Log or handle successful send if needed
-            except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-                # If sending fails, put the task back into the retry queue
-                await retry_queue.put(task_run)
-                break  # Exit the loop to handle the disconnection
+        try:
+            await websocket.send_json(task_run.dict(json_compatible=True))
 
-    except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-        pass  # Handle normal disconnections
+            await subscriptions.ping_pong(websocket)
+
+            logger.debug(f"Sent task run {task_run.id!r} to websocket")
+
+        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            # If sending fails or pong fails, put the task back into the retry queue
+            await retry_queue.put(task_run)
+            break

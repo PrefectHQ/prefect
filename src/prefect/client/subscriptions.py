@@ -33,7 +33,15 @@ class Subscription(Generic[S]):
         while True:
             try:
                 await self._ensure_connected()
-                return self.model.parse_raw(await self._websocket.recv())
+                message = await self._websocket.recv()
+
+                message_data = orjson.loads(message)
+
+                if message_data.get("type") == "ping":
+                    await self._websocket.send(orjson.dumps({"type": "pong"}).decode())
+                    continue
+
+                return self.model.parse_raw(message)
             except (
                 ConnectionRefusedError,
                 websockets.exceptions.ConnectionClosedError,
