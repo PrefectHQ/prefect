@@ -13,7 +13,7 @@ search:
 
 # Creating Interactive Workflows
 
-Flows can now pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. Flows can also send and receive type-checked input at any time while running, without pausing or suspending. This guide will show you how to use these features to build _interactive workflows_.
+Flows can pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. Flows can also send and receive type-checked input at any time while running, without pausing or suspending. This guide will show you how to use these features to build _interactive workflows_.
 
 !!! note "A note on async Python syntax"
     Most of the example code in this section uses async Python functions and `await`. However, as with other Prefect features, you can call these functions with or without `await`.
@@ -46,9 +46,9 @@ from prefect import flow, pause_flow_run
 def greet_user():
     logger = get_run_logger()
 
-    user_input = pause_flow_run(wait_for_input=str)
+    user = pause_flow_run(wait_for_input=str)
 
-    logger.info(f"Hello, {user_input.name}!")
+    logger.info(f"Hello, {user}!")
 ```
 
 In this example, the flow run will pause until a user clicks the Resume button in the Prefect UI, enters a name, and submits the form.
@@ -110,7 +110,7 @@ async def greet_user():
 
 You can set default values for fields in your model by using the `with_initial_data` method. This is useful when you want to provide default values for the fields in your own `RunInput` class.
 
-Expanding on the example above, you could default the `name` field to "anonymous."
+Expanding on the example above, you could make the `name` field default to "anonymous":
 
 ```python
 from prefect.input import RunInput
@@ -370,7 +370,7 @@ async def sender():
         print(greeting)
 ```
 
-So, an iterator helps to keep track of the inputs your flow has already received. But what if you want your flow to suspend and then resume later, picking up where it left off? In that case, you will need to save the keys of the inputs you've seen so that the flow can read them back out when it resumes. You might use a [Block](/concepts/blocks/), such as a `JSONBlock`, scoped to a workspace.
+So, an iterator helps to keep track of the inputs your flow has already received. But what if you want your flow to suspend and then resume later, picking up where it left off? In that case, you will need to save the keys of the inputs you've seen so that the flow can read them back out when it resumes. You might use a [Block](/concepts/blocks/), such as a `JSONBlock`.
 
 The following flow receives input for 30 seconds then suspends itself, which exits the flow and tears down infrastructure:
 
