@@ -63,9 +63,12 @@ class Subscription(Generic[S]):
             if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
                 raise Exception(
                     "Unable to authenticate to the subscription. Please "
-                    "ensure the provided PREFECT_API_KEY you are using is "
+                    "ensure the provided `PREFECT_API_KEY` you are using is "
                     "valid for this environment."
                 ) from e
             raise
         else:
             self._websocket = websocket
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}[{self.model.__name__}]"

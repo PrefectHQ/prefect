@@ -1386,17 +1386,19 @@ def enter_task_run_engine(
     task_runner: Optional[BaseTaskRunner],
     mapped: bool,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]:
-    """
-    Sync entrypoint for task calls
-    """
+    """Sync entrypoint for task calls"""
 
     flow_run_context = FlowRunContext.get()
 
     if not flow_run_context:
         if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            return _submit_task_run(task=task, parameters=parameters)
+            return _create_autonomous_task_run(task=task, parameters=parameters)
 
-        raise RuntimeError("Tasks cannot be run outside of a flow")
+        raise RuntimeError(
+            "Tasks cannot be run outside of a flow"
+            " - if you meant to submit an autonomous task, you need to set"
+            " `prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=true`"
+        )
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -2936,7 +2938,9 @@ def _emit_task_run_state_change_event(
 
 
 @sync_compatible
-async def _submit_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
+async def _create_autonomous_task_run(
+    task: Task, parameters: Dict[str, Any]
+) -> TaskRun:
     async with get_client() as client:
         scheduled = Scheduled()
         if parameters:
@@ -2956,11 +2960,7 @@ async def _submit_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
             state=scheduled,
         )
 
-        engine_logger.info(
-            "Submitted run of task %s with ID %s",
-            task.name,
-            task_run.id,
-        )
+        engine_logger.debug(f"Submitted run of task {task.name!r} for execution")
 
     return task_run
 
