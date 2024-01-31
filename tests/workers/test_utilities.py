@@ -25,13 +25,6 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 }
 
 
-@pytest.fixture(autouse=True)
-def reset_cache():
-    from prefect.server.api.collections import GLOBAL_COLLECTIONS_VIEW_CACHE
-
-    GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
-
-
 @pytest.fixture
 async def mock_collection_registry_not_available():
     with respx.mock as respx_mock:
