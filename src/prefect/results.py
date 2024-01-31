@@ -5,6 +5,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Generic,
     Optional,
     Tuple,
@@ -12,6 +13,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from uuid import UUID
 
 from typing_extensions import Self
 
@@ -51,7 +53,7 @@ if TYPE_CHECKING:
 
 ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
-LITERAL_TYPES = {type(None), bool}
+LITERAL_TYPES = {type(None), bool, UUID}
 
 
 def DEFAULT_STORAGE_KEY_FN():
@@ -382,6 +384,27 @@ class ResultFactory(pydantic.BaseModel):
             serializer=self.serializer,
             cache_object=should_cache_object,
         )
+
+    @sync_compatible
+    async def store_parameters(self, identifier: UUID, parameters: Dict[str, Any]):
+        assert (
+            self.storage_block_id is not None
+        ), "Unexpected storage block ID. Was it persisted?"
+        data = self.serializer.dumps(parameters)
+        blob = PersistedResultBlob(serializer=self.serializer, data=data)
+        await self.storage_block.write_path(
+            f"parameters/{identifier}", content=blob.to_bytes()
+        )
+
+    @sync_compatible
+    async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
+        assert (
+            self.storage_block_id is not None
+        ), "Unexpected storage block ID. Was it persisted?"
+        blob = PersistedResultBlob.parse_raw(
+            await self.storage_block.read_path(f"parameters/{identifier}")
+        )
+        return self.serializer.loads(blob.data)
 
 
 @add_type_dispatch

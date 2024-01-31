@@ -113,6 +113,7 @@ class StateDetails(PrefectBaseModel):
     refresh_cache: bool = None
     retriable: bool = None
     transition_id: Optional[UUID] = None
+    task_parameters_id: Optional[UUID] = None
 
 
 class State(ObjectBaseModel, Generic[R]):

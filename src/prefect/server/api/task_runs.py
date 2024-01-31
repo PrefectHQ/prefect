@@ -2,26 +2,58 @@
 Routes for interacting with task run objects.
 """
 
+import asyncio
 import datetime
-from typing import List
+from typing import Dict, List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from prefect._vendor.fastapi import (
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    Response,
+    WebSocket,
+    status,
+)
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING
+
+logger = get_logger("server.api")
 
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
+
+
+_scheduled_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue] = {}
+_retry_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue] = {}
+
+
+def scheduled_task_runs_queue() -> asyncio.Queue:
+    loop = asyncio.get_event_loop()
+    if loop not in _scheduled_task_runs_queues:
+        _scheduled_task_runs_queues[loop] = asyncio.Queue()
+    return _scheduled_task_runs_queues[loop]
+
+
+def retry_task_runs_queue() -> asyncio.Queue:
+    loop = asyncio.get_event_loop()
+    if loop not in _retry_task_runs_queues:
+        _retry_task_runs_queues[loop] = asyncio.Queue()
+    return _retry_task_runs_queues[loop]
 
 
 @router.post("/")
@@ -57,7 +89,19 @@ async def create_task_run(
 
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    return model
+
+    new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(model)
+
+    # Place autonomously scheduled task runs onto a notification queue for the websocket
+    if (
+        PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
+        and new_task_run.flow_run_id is None
+        and new_task_run.state
+        and new_task_run.state.is_scheduled()
+    ):
+        await scheduled_task_runs_queue().put(new_task_run)
+
+    return new_task_run
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -244,3 +288,33 @@ async def set_task_run_state(
         response.status_code = status.HTTP_200_OK
 
     return orchestration_result
+
+
+@router.websocket("/subscriptions/scheduled")
+async def scheduled_task_subscription(websocket: WebSocket):
+    websocket = await subscriptions.accept_prefect_socket(websocket)
+    if not websocket:
+        return
+
+    scheduled_queue = scheduled_task_runs_queue()
+    retry_queue = retry_task_runs_queue()
+
+    while True:
+        task_run: schemas.core.TaskRun = None
+        # First, check if there's anything in the retry queue
+        if not retry_queue.empty():
+            task_run = await retry_queue.get()
+        else:
+            task_run = await scheduled_queue.get()
+
+        try:
+            await websocket.send_json(task_run.dict(json_compatible=True))
+
+            await subscriptions.ping_pong(websocket)
+
+            logger.debug(f"Sent task run {task_run.id!r} to websocket")
+
+        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            # If sending fails or pong fails, put the task back into the retry queue
+            await retry_queue.put(task_run)
+            break
