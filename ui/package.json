@@ -10,7 +10,7 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-ui-library": "2.4.32",
+    "@prefecthq/prefect-ui-library": "2.4.33",
     "@prefecthq/prefect-design": "2.3.0",
     "@prefecthq/vue-charts": "2.0.3",
     "@prefecthq/vue-compositions": "1.7.1",
