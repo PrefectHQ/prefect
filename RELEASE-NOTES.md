@@ -40,6 +40,10 @@ Please enter your details below:
         logger.info(f"Hello, {user_input.name}!")
 ```
 
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11776
+- https://github.com/PrefectHQ/prefect/pull/11799
+
 ### Enhancements
 - Enhanced `RunInput` saving to include descriptions, improving clarity and documentation for flow inputs — https://github.com/PrefectHQ/prefect/pull/11776
 - Improved type hinting for automatic run inputs, enhancing the developer experience and code readability — https://github.com/PrefectHQ/prefect/pull/11796
