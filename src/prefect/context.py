@@ -49,7 +49,6 @@ from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
@@ -234,7 +233,7 @@ class EngineContext(RunContext):
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
     autonomous_task_run: Optional[TaskRun] = None
-    task_runner: BaseTaskRunner
+    task_runner: Any
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 

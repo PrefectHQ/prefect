@@ -21,9 +21,9 @@ from prefect.engine import (
 )
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
+from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 
 EngineReturnType = Literal["future", "state", "result"]
 
@@ -32,19 +32,17 @@ EngineReturnType = Literal["future", "state", "result"]
 async def submit_autonomous_task_to_engine(
     task: Task,
     task_run: TaskRun,
+    task_runner: Type[BaseTaskRunner],
     parameters: Optional[Dict] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
-    task_runner: Optional[Type[BaseTaskRunner]] = None,
 ) -> Any:
     async with AsyncExitStack() as stack:
-        if task_runner and not task_runner._started:
+        if not task_runner._started:
             task_runner_ctx = await stack.enter_async_context(task_runner.start())
         else:
-            task_runner_ctx = task_runner or await stack.enter_async_context(
-                SequentialTaskRunner().start()
-            )
+            task_runner_ctx = asyncnullcontext()
         parameters = parameters or {}
         with EngineContext(
             flow=None,
