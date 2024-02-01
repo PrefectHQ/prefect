@@ -38,15 +38,19 @@ async def submit_autonomous_task_to_engine(
     return_type: EngineReturnType = "future",
     task_runner: Optional[Type[BaseTaskRunner]] = None,
 ) -> Any:
-    parameters = parameters or {}
     async with AsyncExitStack() as stack:
+        if task_runner and not task_runner._started:
+            task_runner_ctx = await stack.enter_async_context(task_runner.start())
+        else:
+            task_runner_ctx = task_runner or await stack.enter_async_context(
+                SequentialTaskRunner().start()
+            )
+        parameters = parameters or {}
         with EngineContext(
             flow=None,
             flow_run=None,
             autonomous_task_run=task_run,
-            task_runner=await stack.enter_async_context(
-                (task_runner if task_runner else SequentialTaskRunner()).start()
-            ),
+            task_runner=task_runner_ctx,
             client=await stack.enter_async_context(get_client()),
             parameters=parameters,
             result_factory=await ResultFactory.from_task(task),

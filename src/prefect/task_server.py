@@ -1,8 +1,9 @@
 import asyncio
 import signal
 import sys
+from contextlib import AsyncExitStack
 from functools import partial
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Type
 
 import anyio
 import anyio.abc
@@ -19,6 +20,7 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.task_engine import submit_autonomous_task_to_engine
+from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import distinct
 from prefect.utilities.processutils import _register_signal
@@ -44,15 +46,18 @@ class TaskServer:
     def __init__(
         self,
         *tasks: Task,
+        task_runner: Optional[Type[BaseTaskRunner]] = None,
         tags: Optional[Iterable[str]] = None,
     ):
         self.tasks: list[Task] = tasks
+        self.task_runner: Type[BaseTaskRunner] = task_runner or SequentialTaskRunner()
         self.tags: Iterable[str] = tags or ["autonomous"]
         self.last_polled: Optional[pendulum.DateTime] = None
-        self.started = False
-        self.stopping = False
+        self.started: bool = False
+        self.stopping: bool = False
 
         self._client = get_client()
+        self._exit_stack = AsyncExitStack()
 
         if not asyncio.get_event_loop().is_running():
             raise RuntimeError(
@@ -150,14 +155,16 @@ class TaskServer:
                 task=task,
                 task_run=task_run,
                 parameters=parameters,
+                task_runner=self.task_runner,
             )
         )
 
     async def __aenter__(self):
         logger.debug("Starting task server...")
-        self._client = get_client()
-        await self._client.__aenter__()
-        await self._runs_task_group.__aenter__()
+
+        self._client = await self._exit_stack.enter_async_context(get_client())
+        await self._exit_stack.enter_async_context(self._runs_task_group)
+        await self._exit_stack.enter_async_context(self.task_runner.start())
 
         self.started = True
         return self
@@ -165,10 +172,8 @@ class TaskServer:
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task server...")
         self.started = False
-        if self._runs_task_group:
-            await self._runs_task_group.__aexit__(*exc_info)
-        if self._client:
-            await self._client.__aexit__(*exc_info)
+
+        await self._exit_stack.__aexit__(*exc_info)
 
 
 @sync_compatible
