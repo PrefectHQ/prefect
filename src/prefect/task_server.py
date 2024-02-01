@@ -54,7 +54,7 @@ class TaskServer:
         self.tags: Iterable[str] = tags or ["autonomous"]
         self.last_polled: Optional[pendulum.DateTime] = None
         self.started: bool = False
-        self.stopping: bool = False
+        self.stopped: bool = False
 
         self._client = get_client()
         self._exit_stack = AsyncExitStack()
@@ -96,7 +96,7 @@ class TaskServer:
 
         logger.info("Stopping task server...")
         self.started = False
-        self.stopping = True
+        self.stopped = True
 
     async def _subscribe_to_task_scheduling(self):
         subscription = Subscription(TaskRun, "/task_runs/subscriptions/scheduled")
