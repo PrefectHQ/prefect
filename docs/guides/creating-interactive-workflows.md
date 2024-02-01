@@ -135,9 +135,9 @@ async def greet_user():
 
 When a user sees the form for this input, the name field will contain "anonymous" as the default.
 
-### Providing a description with markdown and runtime data
+### Providing a description and runtime data
 
-You can provide a dynamic, markdown, description that will appear in the Prefect UI when the flow run pauses. This feature enables context-specific prompts, enhancing clarity and user interaction. Building on the example above:
+You can provide a dynamic, markdown description that will appear in the Prefect UI when the flow run pauses. This feature enables context-specific prompts, enhancing clarity and user interaction. Building on the example above:
 
 ```python
 from datetime import datetime
