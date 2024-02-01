@@ -591,7 +591,7 @@ async def clear_schedules(
         exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
 
 
-@deployment_app.command("set-schedule", hidden=True)
+@deployment_app.command("set-schedule")
 async def _set_schedule(
     name: str,
     interval: Optional[float] = typer.Option(
@@ -678,7 +678,7 @@ async def _set_schedule(
             )
 
 
-@deployment_app.command("pause-schedule", hidden=True)
+@deployment_app.command("pause-schedule")
 async def _pause_schedule(
     name: str,
 ):
@@ -705,7 +705,7 @@ async def _pause_schedule(
         return await pause_schedule(name, deployment.schedules[0].id)
 
 
-@deployment_app.command("resume-schedule", hidden=True)
+@deployment_app.command("resume-schedule")
 async def _resume_schedule(
     name: str,
 ):
