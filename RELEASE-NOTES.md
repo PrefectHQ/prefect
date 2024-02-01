@@ -3,7 +3,7 @@
 ## Release 2.14.19
 
 ## Dynamic descriptions for paused and suspended flow runs
-You can now include dynamic, markdown-formatted descriptions when pausing or suspending a flow run for human input. This description will be shown in the Prefect UI alongside the form when a user is resuming the flow run. Enabling developers to give context and instructions to users when they need to provide input.
+You can now include dynamic, markdown-formatted descriptions when pausing or suspending a flow run for human input. This description will be shown in the Prefect UI alongside the form when a user is resuming the flow run, enabling developers to give context and instructions to users when they need to provide input.
 
 ```python
 from datetime import datetime
