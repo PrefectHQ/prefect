@@ -4,21 +4,19 @@ from prefect._vendor.fastapi import (
     WebSocket,
 )
 from starlette.status import WS_1002_PROTOCOL_ERROR, WS_1008_POLICY_VIOLATION
+from starlette.websockets import WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 
-NORMAL_DISCONNECT_EXCEPTIONS = (IOError, ConnectionClosed)
+NORMAL_DISCONNECT_EXCEPTIONS = (IOError, ConnectionClosed, WebSocketDisconnect)
 
 
 async def ping_pong(websocket: WebSocket):
-    try:
-        await websocket.send_json({"type": "ping"})
+    await websocket.send_json({"type": "ping"})
 
-        response = await websocket.receive_json()
-        if response.get("type") == "pong":
-            return True
-        else:
-            return False
-    except Exception:
+    response = await websocket.receive_json()
+    if response.get("type") == "pong":
+        return True
+    else:
         return False
 
 
