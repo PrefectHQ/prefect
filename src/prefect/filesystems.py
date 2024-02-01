@@ -689,7 +689,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         description=(
             "Blob Container in Azure Storage Account. If set the 'bucket_path' will"
             " be interpreted using the following URL format:"
-            "'az://<container>@<storage_account>.dfs.core.windows.net/<bucket_path>'"
+            "'az://<container>@<storage_account>.dfs.core.windows.net/<bucket_path>'."
         ),
     )
     _remote_file_system: RemoteFileSystem = None
