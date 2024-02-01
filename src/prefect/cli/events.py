@@ -46,23 +46,15 @@ async def stream(
                 )  # Construct the filter object
             except orjson.JSONDecodeError:
                 exit_with_error("Invalid JSON format for filter specification")
-                raise exit_with_error()
             except AttributeError:
                 exit_with_error("Invalid filter specification")
-                raise exit_with_error()
 
         async with PrefectCloudEventSubscriber(
             filter=constructed_event_filter
         ) as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
-    except (
-        websockets.exceptions.ConnectionClosedError,
-        KeyboardInterrupt,
-        asyncio.exceptions.CancelledError,
-        PermissionError,
-        IOError,
-    ) as exc:
+    except Exception as exc:
         handle_error(exc)
 
 
