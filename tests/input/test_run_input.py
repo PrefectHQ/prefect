@@ -588,6 +588,14 @@ def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
             pass
 
 
+async def test_automatic_input_receive_run_input_subclass(flow_run):
+    await send_input(Place(city="New York", state="NY"), flow_run_id=flow_run.id)
+
+    received = await receive_input(Place, flow_run_id=flow_run.id, timeout=0).next()
+    assert received.city == "New York"
+    assert received.state == "NY"
+
+
 async def test_receive(flow_run):
     async def send():
         for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
