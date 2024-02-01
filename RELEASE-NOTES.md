@@ -1,5 +1,12 @@
 # Prefect Release Notes
 
+## Release 2.14.20
+
+### Fixes
+- Fix runtime bug causing missing work queues in UI — https://github.com/PrefectHQ/prefect/pull/11807
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.19...2.14.20
+
 ## Release 2.14.19
 
 ## Dynamic descriptions for paused and suspended flow runs
