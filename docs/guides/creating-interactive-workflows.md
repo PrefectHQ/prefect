@@ -46,9 +46,9 @@ from prefect import flow, pause_flow_run
 def greet_user():
     logger = get_run_logger()
 
-    user_input = pause_flow_run(wait_for_input=str)
+    user = pause_flow_run(wait_for_input=str)
 
-    logger.info(f"Hello, {user_input.name}!")
+    logger.info(f"Hello, {user}!")
 ```
 
 In this example, the flow run will pause until a user clicks the Resume button in the Prefect UI, enters a name, and submits the form.
