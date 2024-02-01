@@ -50,6 +50,7 @@ from prefect.client.schemas.filters import (
     FlowRunNotificationPolicyFilter,
     LogFilter,
     LogFilterFlowRunId,
+    TaskRunFilter,
 )
 from prefect.client.schemas.objects import (
     Flow,
@@ -1203,6 +1204,39 @@ async def test_set_then_read_task_run_state(prefect_client):
     assert isinstance(run.state, State)
     assert run.state.type == StateType.COMPLETED
     assert run.state.message == "Test!"
+
+
+async def test_create_then_read_autonomous_task_runs(prefect_client):
+    @task
+    def foo():
+        pass
+
+    flow_run = await prefect_client.create_flow_run(foo)
+
+    task_run_1 = await prefect_client.create_task_run(
+        foo, flow_run_id=None, dynamic_key="0"
+    )
+    task_run_2 = await prefect_client.create_task_run(
+        foo, flow_run_id=None, dynamic_key="1"
+    )
+    task_run_3 = await prefect_client.create_task_run(
+        foo, flow_run_id=flow_run.id, dynamic_key="2"
+    )
+    assert all(
+        isinstance(task_run, TaskRun)
+        for task_run in [task_run_1, task_run_2, task_run_3]
+    )
+
+    autonotask_runs = await prefect_client.read_task_runs(
+        task_run_filter=TaskRunFilter(flow_run_id=dict(is_null_=True))
+    )
+
+    assert len(autonotask_runs) == 2
+
+    assert {task_run.id for task_run in autonotask_runs} == {
+        task_run_1.id,
+        task_run_2.id,
+    }
 
 
 async def test_create_then_read_flow_run_notification_policy(

@@ -7,6 +7,7 @@ tags:
     - events
     - triggers
     - Prefect Cloud
+    - automations
 search:
   boost: 2
 ---
@@ -383,11 +384,11 @@ Automation notifications support sending notifications via any predefined block 
 
 ![Configuring notifications for an automation in Prefect Cloud.](/img/ui/automations-notifications.png)
 
-## Templating notifications with Jinja
+## Templating with Jinja
 
-The notification body can include templated variables using [Jinja](https://palletsprojects.com/p/jinja/) syntax. Templated variable enable you to include details relevant to automation trigger, such as a flow or pool name.
+Automation actions can access templated variables through [Jinja](https://palletsprojects.com/p/jinja/) syntax. Templated variables enable you to dynamically include details from an automation trigger, such as a flow or pool name.
 
-Jinja templated variable syntax wraps the variable name in double curly brackets, like `{{ variable }}`.
+Jinja templated variable syntax wraps the variable name in double curly brackets, like this: `{{ variable }}`.
 
 You can access properties of the underlying flow run objects including:
 
