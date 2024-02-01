@@ -16,6 +16,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.logging import get_run_logger
+from prefect.runner.storage import ModuleFunction
 
 if PYDANTIC_VERSION.startswith("2."):
     pass
@@ -141,7 +142,7 @@ async def command(
 async def serve(
     command: str,
     name: str = typer.Option(help="Name of the flow to serve"),
-    cwd: str = typer.Option(None, help="Working directory for the flow"),
+    cwd: str = typer.Option(None, help="Working directory for the shell command"),
     cron_schedule: str = typer.Option(None, help="Cron schedule for the flow"),
 ):
     """
@@ -149,7 +150,15 @@ async def serve(
     """
     CronSchedule(cron_schedule) if cron_schedule else None
     # Call the shell_run_command flow with provided arguments
-    await shell_run_command.serve(
-        name=name,
-        parameters={"command": command, "cwd": cwd},
+    # await shell_run_command.serve(
+    #     name=name,
+    #     parameters={"command": command, "cwd": cwd},
+    # )
+    module_storage = ModuleFunction(
+        module_path="prefect.cli.command", function_name="shell_run_command"
     )
+    flow_from_source = await shell_run_command.from_source(
+        source=module_storage,
+        entrypoint="shell_run_command.py:shell_run_command",
+    )
+    await flow_from_source.serve(name=name, parameters={"command": command, "cwd": cwd})
