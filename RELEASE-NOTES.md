@@ -41,13 +41,13 @@ Please enter your details below:
 ```
 
 ### Enhancements
-- Enhanced RunInput saving to include descriptions, improving clarity and documentation for flow inputs — https://github.com/PrefectHQ/prefect/pull/11776
+- Enhanced `RunInput` saving to include descriptions, improving clarity and documentation for flow inputs — https://github.com/PrefectHQ/prefect/pull/11776
 - Improved type hinting for automatic run inputs, enhancing the developer experience and code readability — https://github.com/PrefectHQ/prefect/pull/11796
 - Extended Azure filesystem support with the addition of `azure_storage_container` for more flexible storage options — https://github.com/PrefectHQ/prefect/pull/11784
 - Added deployment details to work pool information, offering a more comprehensive view of work pool usage — https://github.com/PrefectHQ/prefect/pull/11766
 
 ### Fixes
-- Updated UI to make links within panels interactive, enhancing user navigation and experience — https://github.com/PrefectHQ/prefect/pull/11774
+- Updated terminal based deployment operations to make links within panels interactive, enhancing user navigation and experience — https://github.com/PrefectHQ/prefect/pull/11774
 
 ### Documentation
 - Revised Key-Value (KV) integration documentation for improved clarity and updated authorship details — https://github.com/PrefectHQ/prefect/pull/11770
