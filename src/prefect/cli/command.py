@@ -155,7 +155,7 @@ async def serve(
     #     parameters={"command": command, "cwd": cwd},
     # )
     module_storage = ModuleFunction(
-        module_path="prefect.cli.command", function_name="shell_run_command"
+        module="prefect.cli.command", function_name="shell_run_command"
     )
     flow_from_source = await shell_run_command.from_source(
         source=module_storage,

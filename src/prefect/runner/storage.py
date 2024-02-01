@@ -600,14 +600,13 @@ class ModuleFunction:
         Initialize a Storage object.
 
         Args:
-            module_import (str): The import path of the module containing the function. If relative, the package argument must be provided.
+            module (str): The module containing the function to be stored.
             function_name (str): The name of the function to be stored.
-            package (Optional[str], optional): The name of the package containing the module. Defaults to None.
+            package (Optional[str], optional): The package containing the module. Defaults to None.
             storage_base_path (Optional[str], optional): The base path for storing the function. Defaults to None.
             name (Optional[str], optional): The name of the storage object. Defaults to None.
         """
-
-        self.module = importlib.import_module(module, package)
+        self.module = module  # to_qualified_name(module)
         self.function_name = function_name
         self._storage_base_path = (
             Path(storage_base_path) if storage_base_path else Path(tempfile.mkdtemp())
