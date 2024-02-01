@@ -70,6 +70,8 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -93,7 +95,9 @@ if TYPE_CHECKING:
 if HAS_PYDANTIC_V2:
     from prefect._internal.pydantic.v2_schema import create_v2_schema
 
-T = TypeVar("T", bound="RunInput")
+R = TypeVar("R", bound="RunInput")
+T = TypeVar("T")
+
 Keyset = Dict[
     Union[Literal["description"], Literal["response"], Literal["schema"]], str
 ]
@@ -219,8 +223,8 @@ class RunInput(pydantic.BaseModel):
 
     @classmethod
     def with_initial_data(
-        cls: Type[T], description: Optional[str] = None, **kwargs: Any
-    ) -> Type[T]:
+        cls: Type[R], description: Optional[str] = None, **kwargs: Any
+    ) -> Type[R]:
         """
         Create a new `RunInput` subclass with the given initial data as field
         defaults.
@@ -316,12 +320,12 @@ class RunInput(pydantic.BaseModel):
         return type(f"{model_cls.__name__}RunInput", (RunInput, model_cls), {})  # type: ignore
 
 
-class AutomaticRunInput(RunInput):
-    value: Any
+class AutomaticRunInput(RunInput, Generic[T]):
+    value: T
 
     @classmethod
     @sync_compatible
-    async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):
+    async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> T:
         """
         Load the run input response from the given key.
 
@@ -333,7 +337,7 @@ class AutomaticRunInput(RunInput):
         return instance.value
 
     @classmethod
-    def subclass_from_type(cls, _type: Type[T]) -> Type["AutomaticRunInput"]:
+    def subclass_from_type(cls, _type: Type[T]) -> Type["AutomaticRunInput[T]"]:
         """
         Create a new `AutomaticRunInput` subclass from the given type.
         """
@@ -374,33 +378,30 @@ class AutomaticRunInput(RunInput):
         return GetAutomaticInputHandler(run_input_cls=cls, *args, **kwargs)
 
 
-def run_input_subclass_from_type(_type: Type[T]) -> Type[RunInput]:
+def run_input_subclass_from_type(
+    _type: Union[Type[R], Type[T], pydantic.BaseModel]
+) -> Union[Type[AutomaticRunInput[T]], Type[R]]:
     """
     Create a new `RunInput` subclass from the given type.
     """
     try:
-        is_class = issubclass(_type, object)
+        if issubclass(_type, RunInput):
+            return cast(Type[R], _type)
+        elif issubclass(_type, pydantic.BaseModel):
+            return cast(Type[R], RunInput.subclass_from_base_model_type(_type))
     except TypeError:
-        is_class = False
+        pass
 
-    if not is_class:
-        # Could be something like a typing._GenericAlias, so pass it through to
-        # Pydantic to see if we can create a model from it.
-        return AutomaticRunInput.subclass_from_type(_type)
-    if issubclass(_type, RunInput):
-        return _type
-    elif issubclass(_type, pydantic.BaseModel):
-        return RunInput.subclass_from_base_model_type(_type)
-    else:
-        # As a fall-through for a type that isn't a `RunInput` subclass or
-        # `pydantic.BaseModel` subclass, pass it through to Pydantic.
-        return AutomaticRunInput.subclass_from_type(_type)
+    # Could be something like a typing._GenericAlias or any other type that
+    # isn't a `RunInput` subclass or `pydantic.BaseModel` subclass. Try passing
+    # it to AutomaticRunInput to see if we can create a model from it.
+    return cast(Type[AutomaticRunInput[T]], AutomaticRunInput.subclass_from_type(_type))
 
 
-class GetInputHandler(Generic[T]):
+class GetInputHandler(Generic[R]):
     def __init__(
         self,
-        run_input_cls: Type[T],
+        run_input_cls: Type[R],
         key_prefix: str,
         timeout: Optional[float] = 3600,
         poll_interval: float = 10,
@@ -422,7 +423,7 @@ class GetInputHandler(Generic[T]):
     def __iter__(self):
         return self
 
-    def __next__(self) -> T:
+    def __next__(self) -> R:
         try:
             return self.next()
         except TimeoutError:
@@ -433,7 +434,7 @@ class GetInputHandler(Generic[T]):
     def __aiter__(self):
         return self
 
-    async def __anext__(self) -> T:
+    async def __anext__(self) -> R:
         try:
             return await self.next()
         except TimeoutError:
@@ -454,11 +455,11 @@ class GetInputHandler(Generic[T]):
 
         return flow_run_inputs
 
-    def to_instance(self, flow_run_input: "FlowRunInput") -> T:
+    def to_instance(self, flow_run_input: "FlowRunInput") -> R:
         return self.run_input_cls.load_from_flow_run_input(flow_run_input)
 
     @sync_compatible
-    async def next(self) -> T:
+    async def next(self) -> R:
         flow_run_inputs = await self.filter_for_inputs()
         if flow_run_inputs:
             return self.to_instance(flow_run_inputs[0])
@@ -471,12 +472,22 @@ class GetInputHandler(Generic[T]):
                     return self.to_instance(flow_run_inputs[0])
 
 
-class GetAutomaticInputHandler(GetInputHandler):
+class GetAutomaticInputHandler(GetInputHandler, Generic[T]):
     def __init__(self, *args, **kwargs):
         self.with_metadata = kwargs.pop("with_metadata", False)
         super().__init__(*args, **kwargs)
 
-    def to_instance(self, flow_run_input: "FlowRunInput") -> Any:
+    def __next__(self) -> T:
+        return cast(T, super().__next__())
+
+    async def __anext__(self) -> T:
+        return cast(T, await super().__anext__())
+
+    @sync_compatible
+    async def next(self) -> T:
+        return cast(T, await super().next())
+
+    def to_instance(self, flow_run_input: "FlowRunInput") -> T:
         run_input = self.run_input_cls.load_from_flow_run_input(flow_run_input)
 
         if self.with_metadata:
@@ -521,8 +532,9 @@ async def send_input(
     )
 
 
+@overload
 def receive_input(
-    input_type: type,
+    input_type: Type[R],
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
@@ -530,14 +542,52 @@ def receive_input(
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
-):
+) -> GetInputHandler[R]:
+    ...
+
+
+@overload
+def receive_input(
+    input_type: Type[T],
+    timeout: Optional[float] = 3600,
+    poll_interval: float = 10,
+    raise_timeout_error: bool = False,
+    exclude_keys: Optional[Set[str]] = None,
+    key_prefix: Optional[str] = None,
+    flow_run_id: Optional[UUID] = None,
+    with_metadata: bool = False,
+) -> GetAutomaticInputHandler[T]:
+    ...
+
+
+def receive_input(
+    input_type: Union[Type[R], Type[T]],
+    timeout: Optional[float] = 3600,
+    poll_interval: float = 10,
+    raise_timeout_error: bool = False,
+    exclude_keys: Optional[Set[str]] = None,
+    key_prefix: Optional[str] = None,
+    flow_run_id: Optional[UUID] = None,
+    with_metadata: bool = False,
+) -> Union[GetAutomaticInputHandler[T], GetInputHandler[R]]:
     input_cls = run_input_subclass_from_type(input_type)
-    return input_cls.receive(
-        timeout=timeout,
-        poll_interval=poll_interval,
-        raise_timeout_error=raise_timeout_error,
-        exclude_keys=exclude_keys,
-        key_prefix=key_prefix,
-        flow_run_id=flow_run_id,
-        with_metadata=with_metadata,
-    )
+
+    if issubclass(input_cls, AutomaticRunInput):
+        return input_cls.receive(
+            timeout=timeout,
+            poll_interval=poll_interval,
+            raise_timeout_error=raise_timeout_error,
+            exclude_keys=exclude_keys,
+            key_prefix=key_prefix,
+            flow_run_id=flow_run_id,
+            with_metadata=with_metadata,
+        )
+    else:
+        return input_cls.receive(
+            timeout=timeout,
+            poll_interval=poll_interval,
+            raise_timeout_error=raise_timeout_error,
+            exclude_keys=exclude_keys,
+            key_prefix=key_prefix,
+            flow_run_id=flow_run_id,
+        )
