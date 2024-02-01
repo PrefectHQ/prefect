@@ -518,16 +518,16 @@ async def run(
         "--start-at",
     ),
     watch: bool = typer.Option(
-        None,
+        False,
         "--watch",
         help="Whether to poll the flow run until a terminal state is reached.",
     ),
-    watch_interval: int = typer.Option(
+    watch_interval: Optional[int] = typer.Option(
         None,
         "--watch-interval",
         help="How often to poll the flow run for state changes (in seconds).",
     ),
-    watch_timeout: int = typer.Option(
+    watch_timeout: Optional[int] = typer.Option(
         None, "--watch-timeout", help="Timeout for `--watch`."
     ),
     tags: List[str] = typer.Option(
