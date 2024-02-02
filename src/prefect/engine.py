@@ -2200,7 +2200,6 @@ async def orchestrate_task_run(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
     )
-    logger.warning(f"Task run {task_run.name!r} finished in state {display_state}")
     return state
 
 
