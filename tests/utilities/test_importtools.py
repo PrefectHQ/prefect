@@ -141,7 +141,6 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
         module.foo
 
 
-@pytest.mark.skip("Too flaky")
 @pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,script_path",
@@ -178,6 +177,7 @@ def test_import_object_from_script_with_relative_imports(
     with tmpchdir(working_directory):
         foobar = import_object(f"{script_path}:foobar")
 
+    assert callable(foobar), f"Expected callable, got {foobar!r}"
     assert foobar() == "foobar"
 
 
