@@ -17,6 +17,7 @@ from prefect._vendor.fastapi import (
     WebSocket,
     status,
 )
+from typing_extensions import Self
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -279,7 +280,7 @@ async def set_task_run_state(
 
 
 class TaskQueue:
-    _task_queues: Dict[str, "TaskQueue"] = {}
+    _task_queues: Dict[str, Self] = {}
     _scheduled_tasks_already_restored: bool = False
 
     default_scheduled_max_size: int = (
@@ -309,7 +310,7 @@ class TaskQueue:
         cls._queue_size_configs[task_key] = (scheduled_size, retry_size)
 
     @classmethod
-    def for_key(cls, task_key: str) -> "TaskQueue":
+    def for_key(cls, task_key: str) -> Self:
         if task_key not in cls._task_queues:
             sizes = cls._queue_size_configs.get(
                 task_key, (cls.default_scheduled_max_size, cls.default_retry_max_size)
