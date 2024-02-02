@@ -17,6 +17,7 @@ from prefect._vendor.fastapi import (
     WebSocket,
     status,
 )
+from typing_extensions import Self
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -38,24 +39,6 @@ logger = get_logger("server.api")
 
 
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
-
-
-_scheduled_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue] = {}
-_retry_task_runs_queues: Dict[asyncio.AbstractEventLoop, asyncio.Queue] = {}
-
-
-def scheduled_task_runs_queue() -> asyncio.Queue:
-    loop = asyncio.get_event_loop()
-    if loop not in _scheduled_task_runs_queues:
-        _scheduled_task_runs_queues[loop] = asyncio.Queue()
-    return _scheduled_task_runs_queues[loop]
-
-
-def retry_task_runs_queue() -> asyncio.Queue:
-    loop = asyncio.get_event_loop()
-    if loop not in _retry_task_runs_queues:
-        _retry_task_runs_queues[loop] = asyncio.Queue()
-    return _retry_task_runs_queues[loop]
 
 
 @router.post("/")
@@ -101,7 +84,7 @@ async def create_task_run(
         and new_task_run.state
         and new_task_run.state.is_scheduled()
     ):
-        await scheduled_task_runs_queue().put(new_task_run)
+        await TaskQueue.enqueue(new_task_run)
 
     return new_task_run
 
@@ -292,71 +275,146 @@ async def set_task_run_state(
     return orchestration_result
 
 
+class TaskQueue:
+    _task_queues: Dict[str, Self] = {}
+    _scheduled_tasks_already_restored: bool = False
+
+    task_key: str
+
+    _scheduled_queue: asyncio.Queue
+    _retry_queue: asyncio.Queue
+
+    @classmethod
+    async def enqueue(cls, task_run: schemas.core.TaskRun) -> None:
+        await cls.for_key(task_run.task_key).put(task_run)
+
+    @classmethod
+    def for_key(cls, task_key: str) -> Self:
+        if task_key not in cls._task_queues:
+            cls._task_queues[task_key] = cls(task_key)
+        return cls._task_queues[task_key]
+
+    @classmethod
+    def reset(cls) -> None:
+        """A unit testing utility to reset the state of the task queues subsystem"""
+        cls._task_queues.clear()
+        cls._scheduled_tasks_already_restored = False
+
+    def __init__(self, task_key: str):
+        self.task_key = task_key
+        self._scheduled_queue = asyncio.Queue()
+        self._retry_queue = asyncio.Queue()
+
+    async def get(self) -> schemas.core.TaskRun:
+        # First, check if there's anything in the retry queue
+        try:
+            return self._retry_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            return await self._scheduled_queue.get()
+
+    async def put(self, task_run: schemas.core.TaskRun) -> None:
+        await self._scheduled_queue.put(task_run)
+
+    async def retry(self, task_run: schemas.core.TaskRun) -> None:
+        await self._retry_queue.put(task_run)
+
+    @classmethod
+    @inject_db
+    async def restore_scheduled_tasks_if_necessary(cls, db: PrefectDBInterface):
+        """Restores scheduled task runs from the database, if necessary."""
+        if cls._scheduled_tasks_already_restored:
+            return
+
+        cls._scheduled_tasks_already_restored = True
+
+        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            return
+
+        async with db.session_context() as session:
+            task_runs = await models.task_runs.read_task_runs(
+                session=session,
+                task_run_filter=filters.TaskRunFilter(
+                    flow_run_id=filters.TaskRunFilterFlowRunId(is_null_=True),
+                    state=filters.TaskRunFilterState(
+                        type=filters.TaskRunFilterStateType(
+                            any_=[states.StateType.SCHEDULED]
+                        )
+                    ),
+                ),
+            )
+
+        if not task_runs:
+            return
+
+        for task_run_model in task_runs:
+            task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(
+                task_run_model
+            )
+            await cls.for_key(task_run.task_key).retry(task_run)
+
+        logger.info("Restored %s scheduled task runs", len(task_runs))
+
+
+class MultiQueue:
+    """A queue that can pull tasks from from any of a number of task queues"""
+
+    _queues: List[TaskQueue]
+
+    def __init__(self, task_keys: List[str]):
+        self._queues = [TaskQueue.for_key(task_key) for task_key in task_keys]
+
+    async def get(self) -> schemas.core.TaskRun:
+        """Gets the next task_run from any of the given queues"""
+        await TaskQueue.restore_scheduled_tasks_if_necessary()
+
+        # This implements a "race" among the queue.get() calls for each of the queues
+        # by waiting for the first one to finish, reenqueing any ties, and then
+        # cancelling any others
+
+        loop = asyncio.get_event_loop()
+        gets = [loop.create_task(queue.get()) for queue in self._queues]
+
+        finishers, losers = await asyncio.wait(
+            gets, return_when=asyncio.FIRST_COMPLETED
+        )
+
+        winner, *placers = finishers
+        for future in placers:
+            task_run = future.result()
+            await TaskQueue.for_key(task_run.task_key).retry(task_run)
+
+        for task in losers:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        return winner.result()
+
+
 @router.websocket("/subscriptions/scheduled")
 async def scheduled_task_subscription(websocket: WebSocket):
     websocket = await subscriptions.accept_prefect_socket(websocket)
     if not websocket:
         return
 
-    await restore_scheduled_tasks()
+    subscription = await websocket.receive_json()
+    task_keys = subscription.get("keys", [])
+    if not task_keys:
+        return
 
-    scheduled_queue = scheduled_task_runs_queue()
-    retry_queue = retry_task_runs_queue()
+    subscribed_queue = MultiQueue(task_keys)
 
     while True:
-        task_run: schemas.core.TaskRun
-
-        try:
-            # First, check if there's anything in the retry queue
-            task_run = retry_queue.get_nowait()
-        except asyncio.QueueEmpty:
-            task_run = await scheduled_queue.get()
+        task_run = await subscribed_queue.get()
 
         try:
             await websocket.send_json(task_run.dict(json_compatible=True))
 
             await subscriptions.ping_pong(websocket)
 
-            logger.debug(f"Sent task run {task_run.id!r} to websocket")
-
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
-            await retry_queue.put(task_run)
+            await TaskQueue.for_key(task_run.task_key).retry(task_run)
             break
-
-
-_scheduled_tasks_already_restored: bool = False
-
-
-@inject_db
-async def restore_scheduled_tasks(db: PrefectDBInterface):
-    global _scheduled_tasks_already_restored
-    if _scheduled_tasks_already_restored:
-        return
-
-    _scheduled_tasks_already_restored = True
-
-    if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-        return
-
-    async with db.session_context() as session:
-        task_runs = await models.task_runs.read_task_runs(
-            session=session,
-            task_run_filter=filters.TaskRunFilter(
-                flow_run_id=filters.TaskRunFilterFlowRunId(is_null_=True),
-                state=filters.TaskRunFilterState(
-                    type=filters.TaskRunFilterStateType(
-                        any_=[states.StateType.SCHEDULED]
-                    )
-                ),
-            ),
-        )
-
-    if not task_runs:
-        return
-
-    queue = retry_task_runs_queue()
-    for task_run in task_runs:
-        queue.put_nowait(schemas.core.TaskRun.from_orm(task_run))
-
-    logger.info("Restored %s scheduled task runs", len(task_runs))

@@ -4,7 +4,7 @@ from prefect import Task, task
 from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultFactory
-from prefect.server.api.task_runs import scheduled_task_runs_queue
+from prefect.server.api.task_runs import TaskQueue
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
@@ -37,14 +37,9 @@ def allow_experimental_task_scheduling():
 
 @pytest.fixture(autouse=True)
 async def clear_scheduled_task_queues():
-    queue = scheduled_task_runs_queue()
-    while not queue.empty():
-        queue.get_nowait()
-
+    TaskQueue.reset()
     yield
-
-    while not queue.empty():
-        queue.get_nowait()
+    TaskQueue.reset()
 
 
 @pytest.fixture
@@ -127,9 +122,7 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     task_run: TaskRun = await foo_task_with_result_storage.submit(42)
     assert task_run.state.is_scheduled()
 
-    queue = scheduled_task_runs_queue()
-    assert queue.qsize() == 1
-    enqueued: TaskRun = queue.get_nowait()
+    enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
 
     # The server-side task run through API-like serialization for comparison
     enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
