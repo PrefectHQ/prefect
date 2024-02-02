@@ -155,7 +155,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
-from prefect.input import RunInput, keyset_from_paused_state
+from prefect.input import keyset_from_paused_state
 from prefect.input.run_input import run_input_subclass_from_type
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogHandler
@@ -212,7 +212,7 @@ from prefect.utilities.pydantic import PartialModel
 from prefect.utilities.text import truncated_to
 
 R = TypeVar("R")
-T = TypeVar("T", bound=RunInput)
+T = TypeVar("T")
 EngineReturnType = Literal["future", "state", "result"]
 
 NUM_CHARS_DYNAMIC_KEY = 8
@@ -987,18 +987,6 @@ async def pause_flow_run(
     ...
 
 
-@overload
-async def pause_flow_run(
-    wait_for_input: Type[Any],
-    flow_run_id: UUID = None,
-    timeout: int = 3600,
-    poll_interval: int = 10,
-    reschedule: bool = False,
-    key: str = None,
-) -> Any:
-    ...
-
-
 @sync_compatible
 @deprecated_parameter(
     "flow_run_id", start_date="Dec 2023", help="Use `suspend_flow_run` instead."
@@ -1013,13 +1001,13 @@ async def pause_flow_run(
     "wait_for_input", group="flow_run_input", when=lambda y: y is not None
 )
 async def pause_flow_run(
-    wait_for_input: Optional[Union[Type[T], Type[Any]]] = None,
+    wait_for_input: Optional[Type[T]] = None,
     flow_run_id: UUID = None,
     timeout: int = 3600,
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
-):
+) -> Optional[T]:
     """
     Pauses the current flow run by blocking execution until resumed.
 
@@ -1102,8 +1090,8 @@ async def _in_process_pause(
     reschedule=False,
     key: str = None,
     client=None,
-    wait_for_input: Optional[Union[Type[RunInput], Type[Any]]] = None,
-) -> Optional[RunInput]:
+    wait_for_input: Optional[T] = None,
+) -> Optional[T]:
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
@@ -1234,29 +1222,18 @@ async def suspend_flow_run(
     ...
 
 
-@overload
-async def suspend_flow_run(
-    wait_for_input: Type[Any],
-    flow_run_id: Optional[UUID] = None,
-    timeout: Optional[int] = 3600,
-    key: Optional[str] = None,
-    client: PrefectClient = None,
-) -> Any:
-    ...
-
-
 @sync_compatible
 @inject_client
 @experimental_parameter(
     "wait_for_input", group="flow_run_input", when=lambda y: y is not None
 )
 async def suspend_flow_run(
-    wait_for_input: Optional[Union[Type[T], Type[Any]]] = None,
+    wait_for_input: Optional[Type[T]] = None,
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
-):
+) -> Optional[T]:
     """
     Suspends a flow run by stopping code execution until resumed.
 
