@@ -542,6 +542,20 @@ def start_of_test() -> pendulum.DateTime:
 
 @pytest.fixture(autouse=True)
 def reruns_delay(request):
+    """
+    Pytest fixture that applies a rerun delay to tests marked with 'reruns_delay'.
+
+    Args:
+        request (FixtureRequest): The request object provided by pytest.
+
+    Usage:
+        Mark a test function with the 'reruns_delay' marker to apply a rerun delay.
+
+    Example:
+        @pytest.mark.reruns_delay(3)  # Apply a 3-second delay on test reruns
+        def test_example():
+            assert some_condition()
+    """
     delay_marker = request.node.get_closest_marker("reruns_delay")
     if delay_marker:
         delay = delay_marker.args[0] if delay_marker.args else 1  # default to 1 sec
@@ -555,8 +569,25 @@ def reruns_delay(request):
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
-    This hook will be called after the test run. It will print the marker report
-    for the test.
+    Pytest hook that prints the marker report for tests marked with 'reruns_delay'.
+
+    This hook will be called after the test run.
+
+    Args:
+        item (pytest.Item): The pytest item representing the test.
+        call (pytest.CallInfo): Information about the test call and its outcome.
+
+    Usage:
+        This hook automatically checks for the 'reruns_delay' marker and prints
+        a report if a test marked with it fails.
+
+    Example:
+        # In your test module, mark a test function with 'reruns_delay':
+        @pytest.mark.reruns_delay
+        def test_example():
+            assert some_condition()
+
+        When this test fails, the hook will print a report about the 'reruns_delay' marker.
     """
     outcome = yield
     report = outcome.get_result()
