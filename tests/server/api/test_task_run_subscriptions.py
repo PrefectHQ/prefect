@@ -1,9 +1,11 @@
+import asyncio
 import json
 from asyncio import AbstractEventLoop, CancelledError, gather
 from collections import Counter
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Callable, List
 from unittest import mock
+from unittest.mock import patch
 from uuid import uuid4
 
 import anyio
@@ -29,10 +31,10 @@ from prefect.settings import (
 )
 from prefect.states import Scheduled
 
-pytestmark = pytest.mark.skip(
-    "Task run subscription tests are temporarily disabled until we can reduce "
-    "their noise level"
-)
+# pytestmark = pytest.mark.skip(
+#     "Task run subscription tests are temporarily disabled until we can reduce "
+#     "their noise level"
+# )
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -371,3 +373,69 @@ async def test_server_restores_scheduled_task_runs_at_startup(
 
             received = json.loads(await socket.recv())
             assert received["id"] == str(stored_run.id)
+
+
+class TestQueueLimit:
+    async def test_task_queue_scheduled_size_limit(self):
+        task_key = "test_limit"
+        max_scheduled_size = 2
+
+        task_runs.TaskQueue.configure_task_key(
+            task_key, scheduled_size=max_scheduled_size, retry_size=1
+        )
+
+        queue = task_runs.TaskQueue.for_key(task_key)
+
+        for _ in range(max_scheduled_size):
+            task_run = TaskRun(
+                id=uuid4(),
+                flow_run_id=None,
+                task_key=task_key,
+                dynamic_key=f"{task_key}-1",
+            )
+            await queue.put(task_run)
+
+        with patch("asyncio.sleep", return_value=None), pytest.raises(
+            asyncio.TimeoutError
+        ):
+            extra_task_run = TaskRun(
+                id=uuid4(),
+                flow_run_id=None,
+                task_key=task_key,
+                dynamic_key=f"{task_key}-2",
+            )
+            await asyncio.wait_for(queue.put(extra_task_run), timeout=0.01)
+
+        assert (
+            queue._scheduled_queue.qsize() == max_scheduled_size
+        ), "Queue size should be at its configured limit"
+
+    async def test_task_queue_retry_size_limit(self):
+        task_key = "test_retry_limit"
+        max_retry_size = 1
+
+        task_runs.TaskQueue.configure_task_key(
+            task_key, scheduled_size=2, retry_size=max_retry_size
+        )
+
+        queue = task_runs.TaskQueue.for_key(task_key)
+
+        task_run = TaskRun(
+            id=uuid4(), flow_run_id=None, task_key=task_key, dynamic_key=f"{task_key}-1"
+        )
+        await queue.retry(task_run)
+
+        with patch("asyncio.sleep", return_value=None), pytest.raises(
+            asyncio.TimeoutError
+        ):
+            extra_task_run = TaskRun(
+                id=uuid4(),
+                flow_run_id=None,
+                task_key=task_key,
+                dynamic_key=f"{task_key}-2",
+            )
+            await asyncio.wait_for(queue.retry(extra_task_run), timeout=0.01)
+
+        assert (
+            queue._retry_queue.qsize() == max_retry_size
+        ), "Retry queue size should be at its configured limit"
