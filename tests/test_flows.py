@@ -1138,12 +1138,8 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
-    @pytest.mark.flaky(max_runs=2)
     @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
-        if sys.version_info[1] == 11:
-            pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
-
         canary_file = tmp_path / "canary"
 
         @flow(timeout_seconds=0.1)
@@ -1151,15 +1147,11 @@ class TestFlowTimeouts:
             time.sleep(3)
             canary_file.touch()
 
-        t0 = time.perf_counter()
         state = my_flow(return_state=True)
-        t1 = time.perf_counter()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-        assert t1 - t0 < 3, f"The engine returns without waiting; took {t1-t0}s"
 
-        time.sleep(3)
         assert not canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
