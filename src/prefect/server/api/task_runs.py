@@ -4,7 +4,7 @@ Routes for interacting with task run objects.
 
 import asyncio
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 
 import pendulum
@@ -33,7 +33,11 @@ from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
+    PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE,
+    PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE,
+)
 
 logger = get_logger("server.api")
 
@@ -279,8 +283,14 @@ class TaskQueue:
     _task_queues: Dict[str, Self] = {}
     _scheduled_tasks_already_restored: bool = False
 
-    task_key: str
+    default_scheduled_max_size: int = (
+        PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE.value()
+    )
+    default_retry_max_size: int = PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE.value()
 
+    _queue_size_configs: Dict[str, Tuple[int, int]] = {}
+
+    task_key: str
     _scheduled_queue: asyncio.Queue
     _retry_queue: asyncio.Queue
 
@@ -289,9 +299,23 @@ class TaskQueue:
         await cls.for_key(task_run.task_key).put(task_run)
 
     @classmethod
+    def configure_task_key(
+        cls,
+        task_key: str,
+        scheduled_size: Optional[int] = None,
+        retry_size: Optional[int] = None,
+    ):
+        scheduled_size = scheduled_size or cls.default_scheduled_max_size
+        retry_size = retry_size or cls.default_retry_max_size
+        cls._queue_size_configs[task_key] = (scheduled_size, retry_size)
+
+    @classmethod
     def for_key(cls, task_key: str) -> Self:
         if task_key not in cls._task_queues:
-            cls._task_queues[task_key] = cls(task_key)
+            sizes = cls._queue_size_configs.get(
+                task_key, (cls.default_scheduled_max_size, cls.default_retry_max_size)
+            )
+            cls._task_queues[task_key] = cls(task_key, *sizes)
         return cls._task_queues[task_key]
 
     @classmethod
@@ -300,10 +324,10 @@ class TaskQueue:
         cls._task_queues.clear()
         cls._scheduled_tasks_already_restored = False
 
-    def __init__(self, task_key: str):
+    def __init__(self, task_key: str, scheduled_queue_size: int, retry_queue_size: int):
         self.task_key = task_key
-        self._scheduled_queue = asyncio.Queue()
-        self._retry_queue = asyncio.Queue()
+        self._scheduled_queue = asyncio.Queue(maxsize=scheduled_queue_size)
+        self._retry_queue = asyncio.Queue(maxsize=retry_queue_size)
 
     async def get(self) -> schemas.core.TaskRun:
         # First, check if there's anything in the retry queue
