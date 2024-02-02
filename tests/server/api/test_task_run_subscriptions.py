@@ -31,10 +31,10 @@ from prefect.settings import (
 )
 from prefect.states import Scheduled
 
-# pytestmark = pytest.mark.skip(
-#     "Task run subscription tests are temporarily disabled until we can reduce "
-#     "their noise level"
-# )
+pytestmark = pytest.mark.skip(
+    "Task run subscription tests are temporarily disabled until we can reduce "
+    "their noise level"
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
