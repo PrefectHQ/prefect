@@ -46,9 +46,9 @@ from prefect import flow, pause_flow_run
 def greet_user():
     logger = get_run_logger()
 
-    user_input = pause_flow_run(wait_for_input=str)
+    user = pause_flow_run(wait_for_input=str)
 
-    logger.info(f"Hello, {user_input.name}!")
+    logger.info(f"Hello, {user}!")
 ```
 
 In this example, the flow run will pause until a user clicks the Resume button in the Prefect UI, enters a name, and submits the form.
@@ -134,6 +134,50 @@ async def greet_user():
 ```
 
 When a user sees the form for this input, the name field will contain "anonymous" as the default.
+
+### Providing a description with runtime data
+
+You can provide a dynamic, markdown description that will appear in the Prefect UI when the flow run pauses. This feature enables context-specific prompts, enhancing clarity and user interaction. Building on the example above:
+
+```python
+from datetime import datetime
+from prefect import flow, pause_flow_run, get_run_logger
+from prefect.input import RunInput
+
+
+class UserInput(RunInput):
+    name: str
+    age: int
+
+
+@flow
+async def greet_user():
+    logger = get_run_logger()
+    current_date = datetime.now().strftime("%B %d, %Y")
+
+    description_md = f"""
+**Welcome to the User Greeting Flow!**
+Today's Date: {current_date}
+
+Please enter your details below:
+- **Name**: What should we call you?
+- **Age**: Just a number, nothing more.
+"""
+
+    user_input = await pause_flow_run(
+        wait_for_input=UserInput.with_initial_data(
+            description=description_md, name="anonymous"
+        )
+    )
+
+    if user_input.name == "anonymous":
+        logger.info("Hello, stranger!")
+    else:
+        logger.info(f"Hello, {user_input.name}!")
+```
+
+When a user sees the form for this input, the given markdown will appear above the input fields.
+
 
 ### Handling custom validation
 

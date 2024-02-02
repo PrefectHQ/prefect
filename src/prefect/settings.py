@@ -1408,6 +1408,29 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 """
 The port the worker's webserver should bind to.
 """
+PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
+    bool,
+    default=True,
+)
+"""
+Whether or not to delete failed task submissions from the database.
+"""
+
+PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE = Setting(
+    int,
+    default=1000,
+)
+"""
+The maximum number of scheduled tasks to queue for submission.
+"""
+
+PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
+    int,
+    default=100,
+)
+"""
+The maximum number of retries to queue for submission.
+"""
 
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
@@ -1433,6 +1456,11 @@ Whether or not to enable the experimental workspace dashboard.
 PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
+"""
+Whether or not to enable experimental task scheduling.
 """
 
 # Defaults -----------------------------------------------------------------------------
