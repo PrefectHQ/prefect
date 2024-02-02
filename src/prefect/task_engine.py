@@ -22,7 +22,7 @@ from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 
 EngineReturnType = Literal["future", "state", "result"]
 
@@ -42,7 +42,7 @@ async def submit_autonomous_task_to_engine(
         if not task_runner._started:
             task_runner_ctx = await stack.enter_async_context(task_runner.start())
         else:
-            task_runner_ctx = asyncnullcontext()
+            task_runner_ctx = task_runner
         parameters = parameters or {}
         with EngineContext(
             flow=None,

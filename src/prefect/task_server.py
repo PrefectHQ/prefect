@@ -195,7 +195,7 @@ async def serve(
             given task, the task run will be submitted to the engine for execution.
         - task_runner: The task runner to use for executing the tasks. Defaults to
             `ConcurrentTaskRunner`.
-        - tags: A list of tags to add to task runs submitted by the task server.
+        - extra_tags: A list of tags to add to task runs submitted by the task server.
 
     Example:
         ```python
