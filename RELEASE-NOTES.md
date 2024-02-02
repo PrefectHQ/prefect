@@ -1,5 +1,208 @@
 # Prefect Release Notes
 
+## Release 2.14.20
+
+### Fixes
+- Fix runtime bug causing missing work queues in UI — https://github.com/PrefectHQ/prefect/pull/11807
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.19...2.14.20
+
+## Release 2.14.19
+
+## Dynamic descriptions for paused and suspended flow runs
+You can now include dynamic, markdown-formatted descriptions when pausing or suspending a flow run for human input. This description will be shown in the Prefect UI alongside the form when a user is resuming the flow run, enabling developers to give context and instructions to users when they need to provide input.
+
+```python
+from datetime import datetime
+from prefect import flow, pause_flow_run, get_run_logger
+from prefect.input import RunInput
+
+class UserInput(RunInput):
+    name: str
+    age: int
+
+@flow
+async def greet_user():
+    logger = get_run_logger()
+    current_date = datetime.now().strftime("%B %d, %Y")
+
+    description_md = f"""
+**Welcome to the User Greeting Flow!**
+Today's Date: {current_date}
+
+Please enter your details below:
+- **Name**: What should we call you?
+- **Age**: Just a number, nothing more.
+"""
+
+    user_input = await pause_flow_run(
+        wait_for_input=UserInput.with_initial_data(
+            description=description_md, name="anonymous"
+        )
+    )
+
+    if user_input.name == "anonymous":
+        logger.info("Hello, stranger!")
+    else:
+        logger.info(f"Hello, {user_input.name}!")
+```
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11776
+- https://github.com/PrefectHQ/prefect/pull/11799
+
+### Enhancements
+- Enhanced `RunInput` saving to include descriptions, improving clarity and documentation for flow inputs — https://github.com/PrefectHQ/prefect/pull/11776
+- Improved type hinting for automatic run inputs, enhancing the developer experience and code readability — https://github.com/PrefectHQ/prefect/pull/11796
+- Extended Azure filesystem support with the addition of `azure_storage_container` for more flexible storage options — https://github.com/PrefectHQ/prefect/pull/11784
+- Added deployment details to work pool information, offering a more comprehensive view of work pool usage — https://github.com/PrefectHQ/prefect/pull/11766
+
+### Fixes
+- Updated terminal based deployment operations to make links within panels interactive, enhancing user navigation and experience — https://github.com/PrefectHQ/prefect/pull/11774
+
+### Documentation
+- Revised Key-Value (KV) integration documentation for improved clarity and updated authorship details — https://github.com/PrefectHQ/prefect/pull/11770
+- Further refinements to interactive flows documentation, addressing feedback and clarifying usage — https://github.com/PrefectHQ/prefect/pull/11772
+- Standardized terminal output in documentation for consistency and readability — https://github.com/PrefectHQ/prefect/pull/11775
+- Corrected a broken link to agents in the work pool concepts documentation, improving resource accessibility — https://github.com/PrefectHQ/prefect/pull/11782
+- Updated examples for accuracy and to reflect current best practices — https://github.com/PrefectHQ/prefect/pull/11786
+- Added guidance on providing descriptions when pausing flow runs, enhancing operational documentation — https://github.com/PrefectHQ/prefect/pull/11799
+
+### Experimental
+- Implemented `TaskRunFilterFlowRunId` for both client and server, enhancing task run filtering capabilities — https://github.com/PrefectHQ/prefect/pull/11748
+- Introduced a subscription API for autonomous task scheduling, paving the way for more dynamic and flexible task execution — https://github.com/PrefectHQ/prefect/pull/11779
+- Conducted testing to ensure server-side scheduling of autonomous tasks, verifying system reliability and performance — https://github.com/PrefectHQ/prefect/pull/11793
+- Implemented a global collections metadata cache clearance between tests, improving test reliability and accuracy — https://github.com/PrefectHQ/prefect/pull/11794
+- Initiated task server testing, laying the groundwork for comprehensive server-side task management — https://github.com/PrefectHQ/prefect/pull/11797
+
+## New Contributors
+* @thomasfrederikhoeck made their first contribution in https://github.com/PrefectHQ/prefect/pull/11784
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.18...2.14.19
+
+## Release 2.14.18
+
+### Fixes
+- Allow prefect settings to accept lists — https://github.com/PrefectHQ/prefect/pull/11722
+- Revert deprecation of worker webserver setting — https://github.com/PrefectHQ/prefect/pull/11758
+
+### Documentation
+- Expand docs on interactive flows, detailing `send_input` and `receive_input` — https://github.com/PrefectHQ/prefect/pull/11724
+- Clarify that interval schedules use an anchor not start date — https://github.com/PrefectHQ/prefect/pull/11767
+
+## New Contributors
+* @clefelhocz2 made their first contribution in https://github.com/PrefectHQ/prefect/pull/11722
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.17...2.14.18
+
+## Release 2.14.17
+
+### **Experimental**: Non-blocking submission of flow runs to the `Runner` web server
+You can now submit runs of served flows without blocking the main thread, from inside or outside a flow run. If submitting flows from inside a parent flow, these submitted runs will be tracked as subflows of the parent flow run.
+
+<img width="1159" alt="Prefect flow run graph screenshot" src="https://github.com/PrefectHQ/prefect/assets/31014960/9c2787bb-fb00-49d9-8611-80ad7584bda0">
+
+In order to use this feature, you must:
+- enable the experimental `Runner` webserver endpoints via
+    ```console
+    prefect config set PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS=True
+    ```
+- ensure the `Runner` web server is enabled, either by:
+    - passing `webserver=True` to your `serve` call
+    - enabling the webserver via
+    ```console
+    prefect config set PREFECT_RUNNER_SERVER_ENABLE=True
+    ```
+    
+You can then submit any flow available in the import space of the served flow, and you can submit multiple runs at once. If submitting flows from a parent flow, you may optionally block the parent flow run from completing until all submitted runs are complete with `wait_for_submitted_runs()`.
+
+<details>
+    <summary>Click for an example</summary>
+
+```python
+import time
+
+from pydantic import BaseModel
+
+from prefect import flow, serve, task
+from prefect.runner import submit_to_runner, wait_for_submitted_runs
+
+
+class Foo(BaseModel):
+    bar: str
+    baz: int
+
+
+class ParentFoo(BaseModel):
+    foo: Foo
+    x: int = 42
+
+@task
+def noop():
+    pass
+
+@flow(log_prints=True)
+async def child(foo: Foo = Foo(bar="hello", baz=42)):
+    print(f"received {foo.bar} and {foo.baz}")
+    print("going to sleep")
+    noop()
+    time.sleep(20)
+
+
+@task
+def foo():
+    time.sleep(2)
+
+@flow(log_prints=True)
+def parent(parent_foo: ParentFoo = ParentFoo(foo=Foo(bar="hello", baz=42))):
+    print(f"I'm a parent and I received {parent_foo=}")
+
+    submit_to_runner(
+        child, [{"foo": Foo(bar="hello", baz=i)} for i in range(9)]
+    )
+    
+    foo.submit()
+    
+    wait_for_submitted_runs() # optionally block until all submitted runs are complete
+    
+
+if __name__ == "__main__":
+    # either enable the webserver via `webserver=True` or via
+    # `prefect config set PREFECT_RUNNER_SERVER_ENABLE=True`
+    serve(parent.to_deployment(__file__), limit=10, webserver=True)
+```
+
+</details>
+
+This feature is experimental and subject to change. Please try it out and let us know what you think!
+
+See [the PR](https://github.com/PrefectHQ/prefect/pull/11476) for implementation details.
+
+### Enhancements
+- Add `url` to `prefect.runtime.flow_run` — https://github.com/PrefectHQ/prefect/pull/11686
+- Add ability to subpath the `/ui-settings` endpoint — https://github.com/PrefectHQ/prefect/pull/11701
+
+### Fixes
+- Handle `pydantic` v2 types in schema generation for flow parameters — https://github.com/PrefectHQ/prefect/pull/11656
+- Increase flow run resiliency by gracefully handling `PENDING` to `PENDING` state transitions — https://github.com/PrefectHQ/prefect/pull/11695
+
+### Documentation
+- Add documentation for `cache_result_in_memory` argument for `flow` decorator — https://github.com/PrefectHQ/prefect/pull/11669
+- Add runnable example of `flow.from_source()` — https://github.com/PrefectHQ/prefect/pull/11690
+- Improve discoverability of creating interactive workflows guide — https://github.com/PrefectHQ/prefect/pull/11704
+- Fix typo in automations guide — https://github.com/PrefectHQ/prefect/pull/11716
+- Remove events and incidents from concepts index page — https://github.com/PrefectHQ/prefect/pull/11708
+- Remove subflow task tag concurrency warning — https://github.com/PrefectHQ/prefect/pull/11725
+- Remove misleading line on pausing a flow run from the UI — https://github.com/PrefectHQ/prefect/pull/11730
+- Improve readability of Jinja templating guide in automations concept doc — https://github.com/PrefectHQ/prefect/pull/11729
+- Resolve links to relocated interactive workflows guide — https://github.com/PrefectHQ/prefect/pull/11692
+- Fix typo in flows concept documentation — https://github.com/PrefectHQ/prefect/pull/11693
+
+### Contributors
+- @sgbaird
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.16...2.14.17
+
 ## Release 2.14.16
 
 ### Support for access block fields in `prefect.yaml` templating

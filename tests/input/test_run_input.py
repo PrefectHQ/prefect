@@ -69,7 +69,7 @@ def test_keyset_from_paused_state_non_paused_state_raises_exception():
         keyset_from_paused_state(Running())
 
 
-async def test_save_schema(flow_run_context):
+async def test_save_stores_schema(flow_run_context):
     keyset = keyset_from_base_key("person")
     await Person.save(keyset)
     schema = await read_flow_run_input(key=keyset["schema"])
@@ -78,6 +78,13 @@ async def test_save_schema(flow_run_context):
         "email",
         "human",
     }
+
+
+async def test_save_stores_provided_description(flow_run_context):
+    keyset = keyset_from_base_key("person")
+    await Person.with_initial_data(description="Testing").save(keyset)
+    description = await read_flow_run_input(key=keyset["description"])
+    assert description == "Testing"
 
 
 def test_save_works_sync(flow_run_context):
@@ -309,6 +316,24 @@ async def test_respond_raises_exception_no_sender_in_input():
 
     with pytest.raises(RuntimeError, match="Cannot respond"):
         await person.respond(Place(city="New York", state="NY"))
+
+
+async def test_respond_uses_automatic_input_if_needed(flow_run):
+    flow_run_input = FlowRunInput(
+        flow_run_id=uuid4(),
+        key="person-response",
+        value=orjson.dumps(
+            {"name": "Bob", "email": "bob@example.com", "human": True}
+        ).decode(),
+        sender=f"prefect.flow-run.{flow_run.id}",
+    )
+
+    person = Person.load_from_flow_run_input(flow_run_input)
+    await person.respond("hey")
+
+    message = await receive_input(str, flow_run_id=flow_run.id).next()
+    assert isinstance(message, str)
+    assert message == "hey"
 
 
 async def test_automatic_input_send_to(flow_run):
@@ -561,6 +586,14 @@ def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
             raise_timeout_error=True,
         ):
             pass
+
+
+async def test_automatic_input_receive_run_input_subclass(flow_run):
+    await send_input(Place(city="New York", state="NY"), flow_run_id=flow_run.id)
+
+    received = await receive_input(Place, flow_run_id=flow_run.id, timeout=0).next()
+    assert received.city == "New York"
+    assert received.state == "NY"
 
 
 async def test_receive(flow_run):
