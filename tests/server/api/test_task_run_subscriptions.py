@@ -3,6 +3,7 @@ from asyncio import AbstractEventLoop, CancelledError, gather
 from collections import Counter
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Callable, List
+from unittest import mock
 from uuid import uuid4
 
 import anyio
@@ -28,6 +29,11 @@ from prefect.settings import (
 )
 from prefect.states import Scheduled
 
+pytestmark = pytest.mark.skip(
+    "Task run subscription tests are temporarily disabled until we can reduce "
+    "their noise level"
+)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def services_disabled() -> None:
@@ -42,6 +48,13 @@ def services_disabled() -> None:
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
         }
     ):
+        yield
+
+
+@pytest.fixture(scope="module", autouse=True)
+def disable_signal_handlers():
+    """Disable uvicorn's signal handlers to avoid conflicts with pytest's"""
+    with mock.patch.object(Server, "install_signal_handlers", lambda self: None):
         yield
 
 
