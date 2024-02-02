@@ -22,6 +22,7 @@ import pathlib
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Generator, Optional
 from urllib.parse import urlsplit, urlunsplit
@@ -537,3 +538,30 @@ def disable_enhanced_cancellation():
 @pytest.fixture
 def start_of_test() -> pendulum.DateTime:
     return pendulum.now("UTC")
+
+
+@pytest.fixture(autouse=True)
+def reruns_delay(request):
+    delay_marker = request.node.get_closest_marker("reruns_delay")
+    if delay_marker:
+        delay = delay_marker.args[0] if delay_marker.args else 1  # default to 1 sec
+        if getattr(request.node, "_reruns", False):
+            logger.info(
+                f"Applying rerun delay of {delay} seconds for {request.node.name}"
+            )
+            time.sleep(delay)
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """
+    This hook will be called after the test run. It will print the marker report
+    for the test.
+    """
+    outcome = yield
+    report = outcome.get_result()
+
+    # Check for the `reruns_delay` marker before setting the `_reruns` attribute
+    reruns_delay_marker = item.get_closest_marker("reruns_delay")
+    if reruns_delay_marker and report.failed:
+        setattr(item, "_reruns", True)
