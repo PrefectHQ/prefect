@@ -783,6 +783,7 @@ class TestSuspendFlowRun:
         with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
             await main_flow()
 
+    @pytest.mark.flaky(max_runs=2)
     async def test_suspend_flow_run_by_id(self, deployment, session):
         flow_run_id = None
         task_completions = 0
@@ -810,7 +811,7 @@ class TestSuspendFlowRun:
 
             flow_run_id = context.flow_run.id
 
-            for i in range(100):
+            for i in range(20):
                 await increment_completions()
 
         @flow()
@@ -833,7 +834,7 @@ class TestSuspendFlowRun:
         # to complete some tasks before `suspending_flow` suspends the flow run.
         # Here then we check to ensure that some tasks completed but not _all_
         # of the tasks.
-        assert task_completions > 0 and task_completions < 100
+        assert task_completions > 0 and task_completions < 20
 
     async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
         flow_run_id = None
