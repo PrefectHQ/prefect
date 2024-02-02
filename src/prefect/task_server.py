@@ -98,9 +98,11 @@ class TaskServer:
         self.stopping = True
 
     async def _subscribe_to_task_scheduling(self):
-        subscription = Subscription(TaskRun, "/task_runs/subscriptions/scheduled")
-        logger.debug(f"Created: {subscription}")
-        async for task_run in subscription:
+        async for task_run in Subscription(
+            TaskRun,
+            "/task_runs/subscriptions/scheduled",
+            [task.task_key for task in self.tasks],
+        ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             await self._submit_pending_task_run(task_run)
 
