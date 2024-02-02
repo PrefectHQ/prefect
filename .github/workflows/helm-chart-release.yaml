@@ -13,7 +13,6 @@ jobs:
       - name: Get today's formatted date
         id: get_date
         run: |
-          short_sha=$(git rev-parse --short=7 HEAD)
           echo "value=$(date +'%Y.%-m.%-d')" >> $GITHUB_OUTPUT
       - name: Create prefect-helm release
         run: |
