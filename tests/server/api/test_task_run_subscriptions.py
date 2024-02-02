@@ -1,5 +1,6 @@
 import json
 from asyncio import AbstractEventLoop, CancelledError, gather
+from collections import Counter
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Callable, List
 from uuid import uuid4
@@ -93,15 +94,11 @@ async def prefect_server(
 
 @pytest.fixture(autouse=True)
 async def reset_task_queues():
-    task_runs._scheduled_task_runs_queues = {}
-    task_runs._retry_task_runs_queues = {}
-    task_runs._scheduled_tasks_already_restored = False
+    task_runs.TaskQueue.reset()
 
     yield
 
-    task_runs._scheduled_task_runs_queues = {}
-    task_runs._retry_task_runs_queues = {}
-    task_runs._scheduled_tasks_already_restored = False
+    task_runs.TaskQueue.reset()
 
 
 @pytest.fixture
@@ -113,6 +110,15 @@ async def auth_dance(socket: websockets.WebSocketClientProtocol) -> None:
     await socket.send(json.dumps({"type": "auth", "token": None}))
     response = await socket.recv()
     assert json.loads(response) == {"type": "auth_success"}
+
+    await socket.send(
+        json.dumps(
+            {
+                "type": "subscribe",
+                "keys": ["mytasks.taskA", "other_tasks.taskB"],
+            }
+        )
+    )
 
 
 @pytest.fixture
@@ -131,9 +137,12 @@ async def test_receiving_task_run(
     authenticated_socket: websockets.WebSocketClientProtocol,
 ):
     queued = TaskRun(
-        id=uuid4(), flow_run_id=None, task_key="runme", dynamic_key="runme-1"
+        id=uuid4(),
+        flow_run_id=None,
+        task_key="mytasks.taskA",
+        dynamic_key="mytasks.taskA-1",
     )
-    task_runs.scheduled_task_runs_queue().put_nowait(queued)
+    await task_runs.TaskQueue.enqueue(queued)
 
     received = TaskRun.parse_raw(await authenticated_socket.recv())
 
@@ -143,16 +152,25 @@ async def test_receiving_task_run(
 async def test_receiving_ping_between_each_run(
     authenticated_socket: websockets.WebSocketClientProtocol,
 ):
-    queue = task_runs.scheduled_task_runs_queue()
-    queue.put_nowait(
-        TaskRun(id=uuid4(), flow_run_id=None, task_key="runme", dynamic_key="runme-1")
+    await task_runs.TaskQueue.enqueue(
+        TaskRun(
+            id=uuid4(),
+            flow_run_id=None,
+            task_key="mytasks.taskA",
+            dynamic_key="mytasks.taskA-1",
+        )
     )
-    queue.put_nowait(
-        TaskRun(id=uuid4(), flow_run_id=None, task_key="runme", dynamic_key="runme-1")
+    await task_runs.TaskQueue.enqueue(
+        TaskRun(
+            id=uuid4(),
+            flow_run_id=None,
+            task_key="mytasks.taskA",
+            dynamic_key="mytasks.taskA-1",
+        )
     )
 
     run = json.loads(await authenticated_socket.recv())
-    assert run["task_key"] == "runme"
+    assert run["task_key"] == "mytasks.taskA"
 
     ping = json.loads(await authenticated_socket.recv())
     assert ping["type"] == "ping"
@@ -160,7 +178,7 @@ async def test_receiving_ping_between_each_run(
     await authenticated_socket.send(json.dumps({"type": "pong"}))
 
     run = json.loads(await authenticated_socket.recv())
-    assert run["task_key"] == "runme"
+    assert run["task_key"] == "mytasks.taskA"
 
     ping = json.loads(await authenticated_socket.recv())
     assert ping["type"] == "ping"
@@ -184,6 +202,54 @@ async def drain(
     return messages
 
 
+async def test_server_only_delivers_tasks_for_subscribed_keys(
+    authenticated_socket: websockets.WebSocketClientProtocol,
+):
+    await task_runs.TaskQueue.enqueue(
+        TaskRun(
+            id=uuid4(),
+            flow_run_id=None,
+            task_key="mytasks.taskA",
+            dynamic_key="mytasks.taskA-1",
+        )
+    )
+
+    await task_runs.TaskQueue.enqueue(
+        TaskRun(
+            id=uuid4(),
+            flow_run_id=None,
+            task_key="mytasks.taskA",
+            dynamic_key="mytasks.taskA-1",
+        )
+    )
+
+    # this one should not be delivered
+    await task_runs.TaskQueue.enqueue(
+        TaskRun(
+            id=uuid4(),
+            flow_run_id=None,
+            task_key="nope.not.this.one",
+            dynamic_key="nope.not.this.one-1",
+        )
+    )
+
+    await task_runs.TaskQueue.enqueue(
+        TaskRun(
+            id=uuid4(),
+            flow_run_id=None,
+            task_key="other_tasks.taskB",
+            dynamic_key="other_tasks.taskB-1",
+        )
+    )
+
+    received = await drain(authenticated_socket)
+
+    assert Counter(r.task_key for r in received) == {
+        "mytasks.taskA": 2,
+        "other_tasks.taskB": 1,
+    }
+
+
 @pytest.fixture
 async def another_socket(
     socket_url: str,
@@ -200,14 +266,15 @@ async def test_only_one_socket_gets_each_task_run(
     authenticated_socket: websockets.WebSocketClientProtocol,
     another_socket: websockets.WebSocketClientProtocol,
 ):
-    queue = task_runs.scheduled_task_runs_queue()
-
     queued: List[TaskRun] = []
     for _ in range(10):
         run = TaskRun(
-            id=uuid4(), flow_run_id=None, task_key="runme", dynamic_key="runme-1"
+            id=uuid4(),
+            flow_run_id=None,
+            task_key="mytasks.taskA",
+            dynamic_key="mytasks.taskA-1",
         )
-        queue.put_nowait(run)
+        await task_runs.TaskQueue.enqueue(run)
         queued.append(run)
 
     received1, received2 = await gather(
@@ -235,10 +302,13 @@ async def test_only_one_socket_gets_each_task_run(
 
 
 async def test_server_redelivers_unacknowledged_runs(socket_url: str):
-    queue = task_runs.scheduled_task_runs_queue()
-
-    run = TaskRun(id=uuid4(), flow_run_id=None, task_key="runme", dynamic_key="runme-1")
-    queue.put_nowait(run)
+    run = TaskRun(
+        id=uuid4(),
+        flow_run_id=None,
+        task_key="mytasks.taskA",
+        dynamic_key="mytasks.taskA-1",
+    )
+    await task_runs.TaskQueue.enqueue(run)
 
     async with websockets.connect(
         f"{socket_url}/task_runs/subscriptions/scheduled",
@@ -270,17 +340,14 @@ async def test_server_restores_scheduled_task_runs_at_startup(
     stored_run = TaskRun(
         id=uuid4(),
         flow_run_id=None,
-        task_key="runme",
-        dynamic_key="runme-1",
+        task_key="mytasks.taskA",
+        dynamic_key="mytasks.taskA-1",
         state=Scheduled(),
     )
     await models.task_runs.create_task_run(session, stored_run)
     await session.commit()
 
     async with running_prefect_server(event_loop, unused_tcp_port) as api_url:
-        # TODO: why isn't this startup item running?
-        await task_runs.restore_scheduled_tasks()
-
         socket_url = api_url.replace("http", "ws", 1)
 
         async with websockets.connect(

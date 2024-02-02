@@ -1,5 +1,5 @@
 import asyncio
-from typing import Generic, Type, TypeVar
+from typing import Generic, List, Type, TypeVar
 
 import orjson
 import websockets
@@ -8,17 +8,22 @@ from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
+from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+
+logger = get_logger(__name__)
 
 S = TypeVar("S", bound=IDBaseModel)
 
 
 class Subscription(Generic[S]):
-    def __init__(self, model: Type[S], path: str):
+    def __init__(self, model: Type[S], path: str, keys: List[str]):
         self.model = model
 
         base_url = PREFECT_API_URL.value().replace("http", "ws", 1)
         self.subscription_url = f"{base_url}{path}"
+
+        self.keys = keys
 
         self._connect = websockets.connect(
             self.subscription_url,
@@ -57,13 +62,19 @@ class Subscription(Generic[S]):
 
         websocket = await self._connect.__aenter__()
 
-        await websocket.send(
-            orjson.dumps({"type": "auth", "token": PREFECT_API_KEY.value()}).decode()
-        )
-
         try:
+            await websocket.send(
+                orjson.dumps(
+                    {"type": "auth", "token": PREFECT_API_KEY.value()}
+                ).decode()
+            )
+
             auth = orjson.loads(await websocket.recv())
             assert auth["type"] == "auth_success"
+
+            await websocket.send(
+                orjson.dumps({"type": "subscribe", "keys": self.keys}).decode()
+            )
         except (
             AssertionError,
             websockets.exceptions.ConnectionClosedError,
