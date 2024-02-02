@@ -20,7 +20,7 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.task_engine import submit_autonomous_task_to_engine
-from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
+from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import distinct
 from prefect.utilities.processutils import _register_signal
@@ -29,29 +29,31 @@ logger = get_logger("task_server")
 
 
 class TaskServer:
-    """This class is responsible for serving tasks that may be executed autonomously
-    (i.e., without a parent flow run).
+    """This class is responsible for serving tasks that may be executed autonomously by a
+    task runner in the engine.
 
     When `start()` is called, the task server will open a websocket connection to a
     server-side queue of scheduled task runs. When a scheduled task run is found, the
     scheduled task run is submitted to the engine for execution with a minimal `EngineContext`
-    for the task run to be subjected to orchestration rules.
+    so that the task run can be governed by orchestration rules.
 
     Args:
         - tasks: A list of tasks to serve. These tasks will be submitted to the engine
             when a scheduled task run is found.
-        - tags: A list of tags to apply to the task server. Defaults to `["autonomous"]`.
+        - task_runner: The task runner to use for executing the tasks. Defaults to
+            `ConcurrentTaskRunner`.
+        - extra_tags: A list of extra_tags to apply to submitted task runs.
     """
 
     def __init__(
         self,
         *tasks: Task,
         task_runner: Optional[Type[BaseTaskRunner]] = None,
-        tags: Optional[Iterable[str]] = None,
+        extra_tags: Optional[Iterable[str]] = None,
     ):
         self.tasks: list[Task] = tasks
-        self.task_runner: Type[BaseTaskRunner] = task_runner or SequentialTaskRunner()
-        self.tags: Iterable[str] = tags or ["autonomous"]
+        self.task_runner: Type[BaseTaskRunner] = task_runner or ConcurrentTaskRunner()
+        self.extra_tags: Iterable[str] = extra_tags or []
         self.last_polled: Optional[pendulum.DateTime] = None
         self.started: bool = False
         self.stopping: bool = False
@@ -148,7 +150,7 @@ class TaskServer:
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
 
-        task_run.tags = distinct(task_run.tags + list(self.tags))
+        task_run.tags = distinct(task_run.tags + list(self.extra_tags))
 
         self._runs_task_group.start_soon(
             partial(
@@ -157,6 +159,7 @@ class TaskServer:
                 task_run=task_run,
                 parameters=parameters,
                 task_runner=self.task_runner,
+                client=self._client,
             )
         )
 
@@ -181,14 +184,18 @@ class TaskServer:
 async def serve(
     *tasks: Task,
     task_runner: Optional[Type[BaseTaskRunner]] = None,
-    tags: Optional[Iterable[str]] = None,
+    extra_tags: Optional[Iterable[str]] = None,
 ):
-    """Serve the provided tasks so that they may be executed autonomously.
+    """Serve the provided tasks so that they may be submitted and executed to the engine.
+    Tasks do not need to be within a flow run context to be submitted and executed.
+    Ideally, you should `.submit` the same task object that you pass to `serve`.
 
     Args:
         - tasks: A list of tasks to serve. When a scheduled task run is found for a
             given task, the task run will be submitted to the engine for execution.
-        - tags: A list of tags to apply to the task server. Defaults to `["autonomous"]`.
+        - task_runner: The task runner to use for executing the tasks. Defaults to
+            `ConcurrentTaskRunner`.
+        - tags: A list of tags to add to task runs submitted by the task server.
 
     Example:
         ```python
@@ -214,5 +221,9 @@ async def serve(
             " to True."
         )
 
-    task_server = TaskServer(*tasks, task_runner=task_runner, tags=tags)
-    await task_server.start()
+    task_server = TaskServer(*tasks, task_runner=task_runner, extra_tags=extra_tags)
+    try:
+        await task_server.start()
+
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        logger.info("Task server interrupted, stopping...")

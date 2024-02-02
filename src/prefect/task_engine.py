@@ -8,7 +8,6 @@ from typing import (
 )
 
 import anyio
-from anyio import start_blocking_portal
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
@@ -37,6 +36,7 @@ async def submit_autonomous_task_to_engine(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
+    client=None,
 ) -> Any:
     async with AsyncExitStack() as stack:
         if not task_runner._started:
@@ -49,13 +49,10 @@ async def submit_autonomous_task_to_engine(
             flow_run=None,
             autonomous_task_run=task_run,
             task_runner=task_runner_ctx,
-            client=await stack.enter_async_context(get_client()),
+            client=client or await stack.enter_async_context(get_client()),
             parameters=parameters,
             result_factory=await ResultFactory.from_task(task),
             background_tasks=await stack.enter_async_context(anyio.create_task_group()),
-            sync_portal=(
-                stack.enter_context(start_blocking_portal()) if task.isasync else None
-            ),
         ) as flow_run_context:
             begin_run = create_call(
                 begin_task_map if mapped else get_task_call_return_value,

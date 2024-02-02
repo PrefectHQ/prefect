@@ -1748,7 +1748,10 @@ async def submit_task_run(
         ),
     )
 
-    if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
+    if (
+        task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL
+        and not flow_run_context.autonomous_task_run
+    ):
         logger.info(f"Submitted task run {task_run.name!r} for execution.")
 
     return future
