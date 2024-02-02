@@ -22,7 +22,6 @@ from prefect.settings import (
 from prefect.task_engine import submit_autonomous_task_to_engine
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
-from prefect.utilities.collections import distinct
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
@@ -42,7 +41,6 @@ class TaskServer:
             when a scheduled task run is found.
         - task_runner: The task runner to use for executing the tasks. Defaults to
             `ConcurrentTaskRunner`.
-        - extra_tags: A list of extra_tags to apply to submitted task runs.
     """
 
     def __init__(
@@ -150,8 +148,6 @@ class TaskServer:
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
 
-        task_run.tags = distinct(task_run.tags + list(self.extra_tags))
-
         self._runs_task_group.start_soon(
             partial(
                 submit_autonomous_task_to_engine,
@@ -195,7 +191,6 @@ async def serve(
             given task, the task run will be submitted to the engine for execution.
         - task_runner: The task runner to use for executing the tasks. Defaults to
             `ConcurrentTaskRunner`.
-        - extra_tags: A list of tags to add to task runs submitted by the task server.
 
     Example:
         ```python
@@ -221,7 +216,7 @@ async def serve(
             " to True."
         )
 
-    task_server = TaskServer(*tasks, task_runner=task_runner, extra_tags=extra_tags)
+    task_server = TaskServer(*tasks, task_runner=task_runner)
     try:
         await task_server.start()
 
