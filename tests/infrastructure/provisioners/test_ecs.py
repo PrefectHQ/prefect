@@ -6,7 +6,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 
 import boto3
 import pytest
-from moto import mock_ec2, mock_ecr, mock_ecs, mock_iam
+from moto import mock_aws
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
@@ -27,50 +27,19 @@ from prefect.infrastructure.provisioners.ecs import (
 from prefect.settings import PREFECT_API_BLOCKS_REGISTER_ON_START, temporary_settings
 
 
-@pytest.fixture
-def iam_policy_resource():
-    return IamPolicyResource(policy_name="prefect-ecs-policy")
-
-
 @pytest.fixture(autouse=True)
-def iam_mock():
-    mock = mock_iam()
-    mock.start()
-
-    yield
-
-    mock.stop()
-
-
-@pytest.fixture(autouse=True)
-def ecs_mock(monkeypatch):
+def start_mocking_aws(monkeypatch):
+    monkeypatch.setenv(
+        "MOTO_IAM_LOAD_MANAGED_POLICIES", "true"
+    )  # tell moto to explcitly load managed policies
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-    mock = mock_ecs()
-    mock.start()
-
-    yield
-
-    mock.stop()
+    with mock_aws():
+        yield
 
 
-@pytest.fixture(autouse=True)
-def ec2_mock():
-    mock = mock_ecr()
-    mock.start()
-
-    yield
-
-    mock.stop()
-
-
-@pytest.fixture(autouse=True)
-def ecr_mock():
-    mock = mock_ec2()
-    mock.start()
-
-    yield
-
-    mock.stop()
+@pytest.fixture
+def iam_policy_resource() -> IamPolicyResource:
+    return IamPolicyResource(policy_name="prefect-ecs-policy")
 
 
 @pytest.fixture
