@@ -1369,7 +1369,17 @@ def enter_task_run_engine(
 
     if not flow_run_context:
         if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            return _create_autonomous_task_run(task=task, parameters=parameters)
+            create_autonomous_task_run = create_call(
+                _create_autonomous_task_run, task=task, parameters=parameters
+            )
+            if task.isasync:
+                return from_async.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
+            else:
+                return from_sync.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
 
         raise RuntimeError(
             "Tasks cannot be run outside of a flow"
@@ -2913,7 +2923,6 @@ def _emit_task_run_state_change_event(
     )
 
 
-@sync_compatible
 async def _create_autonomous_task_run(
     task: Task, parameters: Dict[str, Any]
 ) -> TaskRun:

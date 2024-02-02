@@ -32,10 +32,10 @@ class TaskServer:
     """This class is responsible for serving tasks that may be executed autonomously
     (i.e., without a parent flow run).
 
-    When `start()` is called, the task server will subscribe to the task run scheduling
-    topic and poll for scheduled task runs. When a scheduled task run is found, it
-    will submit the task run to the engine for execution, using `submit_autonomous_task_to_engine`
-    to construct a minimal `EngineContext` for the task run.
+    When `start()` is called, the task server will open a websocket connection to a
+    server-side queue of scheduled task runs. When a scheduled task run is found, the
+    scheduled task run is submitted to the engine for execution with a minimal `EngineContext`
+    for the task run to be subjected to orchestration rules.
 
     Args:
         - tasks: A list of tasks to serve. These tasks will be submitted to the engine
@@ -54,7 +54,7 @@ class TaskServer:
         self.tags: Iterable[str] = tags or ["autonomous"]
         self.last_polled: Optional[pendulum.DateTime] = None
         self.started: bool = False
-        self.stopped: bool = False
+        self.stopping: bool = False
 
         self._client = get_client()
         self._exit_stack = AsyncExitStack()
@@ -94,9 +94,8 @@ class TaskServer:
                 " calling .start()"
             )
 
-        logger.info("Stopping task server...")
         self.started = False
-        self.stopped = True
+        self.stopping = True
 
     async def _subscribe_to_task_scheduling(self):
         subscription = Subscription(TaskRun, "/task_runs/subscriptions/scheduled")
@@ -177,7 +176,11 @@ class TaskServer:
 
 
 @sync_compatible
-async def serve(*tasks: Task, tags: Optional[Iterable[str]] = None):
+async def serve(
+    *tasks: Task,
+    task_runner: Optional[Type[BaseTaskRunner]] = None,
+    tags: Optional[Iterable[str]] = None,
+):
     """Serve the provided tasks so that they may be executed autonomously.
 
     Args:
@@ -209,5 +212,5 @@ async def serve(*tasks: Task, tags: Optional[Iterable[str]] = None):
             " to True."
         )
 
-    task_server = TaskServer(*tasks, tags=tags)
+    task_server = TaskServer(*tasks, task_runner=task_runner, tags=tags)
     await task_server.start()
