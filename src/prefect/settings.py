@@ -39,7 +39,6 @@ settings to be dynamically modified on retrieval. This allows us to make setting
 dependent on the value of other settings or perform other dynamic effects.
 
 """
-
 import logging
 import os
 import string
@@ -421,7 +420,9 @@ def warn_on_misconfigured_api_url(values):
             )
 
         if warnings_list:
-            example = 'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+            example = (
+                'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+            )
             warnings_list.append(example)
 
             warnings.warn("\n".join(warnings_list), stacklevel=2)
