@@ -1,6 +1,7 @@
 import pytest
 
-from prefect import task
+from prefect import Task, task
+from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultFactory
 from prefect.server.api.task_runs import scheduled_task_runs_queue
@@ -132,13 +133,17 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     assert parameters == dict(x=42)
 
 
-# awaiting imminent changes
-# @pytest.fixture
-# async def test_scheduled_tasks_are_enqueued_server_side(
-#     task_run: TaskRun = foo_task_with_result_storage.submit(42)
-#     assert task_run.state.is_scheduled()
+def test_scheduled_tasks_are_enqueued_server_side(
+    foo_task_with_result_storage: Task,
+):
+    task_run: TaskRun = foo_task_with_result_storage.submit(42)
+    assert task_run.state.is_scheduled()
 
-#     enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
+    queue = scheduled_task_runs_queue()
+    assert queue.qsize() == 1
+    enqueued: TaskRun = queue.get_nowait()
 
-#     # The server-side task run through API-like serialization for comparison
-#     enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
+    # The server-side task run through API-like serialization for comparison
+    enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
+
+    assert enqueued == task_run
