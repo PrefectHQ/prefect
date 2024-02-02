@@ -1,5 +1,5 @@
 import signal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -13,8 +13,12 @@ from prefect.task_server import TaskServer, serve
 
 
 @pytest.fixture(autouse=True)
-def enable_task_scheduling_delete_failed_submissions():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True}):
+def mock_settings():
+    with temporary_settings(
+        {
+            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
+        }
+    ):
         yield
 
 
@@ -37,18 +41,53 @@ def async_foo_task():
 
 
 @pytest.fixture
-async def task_server(foo_task):
-    return TaskServer(foo_task, tags={"tag1", "tag2"})
+def mock_task_server_start(monkeypatch):
+    monkeypatch.setattr(
+        "prefect.task_server.TaskServer.start", mock_start := AsyncMock()
+    )
+    return mock_start
 
 
-async def test_task_server_basic_context_management(task_server):
-    async with task_server:
+@pytest.fixture
+def task_task_runner_mock():
+    task_runner = MagicMock()
+    task_runner.start = MagicMock()
+    return task_runner
+
+
+@pytest.fixture
+def mock_create_subscription(monkeypatch):
+    monkeypatch.setattr(
+        "prefect.task_server.TaskServer._subscribe_to_task_scheduling",
+        create_subscription := AsyncMock(),
+    )
+    return create_subscription
+
+
+async def test_task_server_basic_context_management():
+    async with TaskServer(...) as task_server:
         assert task_server.started is True
         assert (await task_server._client.hello()).status_code == 200
 
     assert task_server.started is False
     with pytest.raises(RuntimeError, match="client has been closed"):
         await task_server._client.hello()
+
+
+@pytest.mark.usefixtures("mock_create_subscription")
+async def test_task_server_uses_same_task_runner_for_all_tasks(
+    task_task_runner_mock, foo_task
+):
+    task_server = TaskServer(foo_task, task_runner=task_task_runner_mock)
+
+    await task_server.start()
+
+    print(task_server.started)
+
+    foo_task.submit(x=42)
+    foo_task.submit(x=43)
+
+    task_task_runner_mock.start.assert_called_once()
 
 
 async def test_handle_sigterm():
@@ -69,13 +108,8 @@ async def test_handle_sigterm():
         mock_stop.assert_called_once()
 
 
+@pytest.mark.usefixtures("mock_task_server_start")
 class TestServe:
-    @pytest.fixture(autouse=True)
-    def mock_task_server_start(self, monkeypatch):
-        mock_start = AsyncMock()
-        monkeypatch.setattr("prefect.task_server.TaskServer.start", mock_start)
-        return mock_start
-
     async def test_serve_raises_if_task_scheduling_not_enabled(self, foo_task):
         with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}):
             with pytest.raises(
