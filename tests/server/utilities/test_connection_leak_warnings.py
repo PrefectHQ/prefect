@@ -2,7 +2,7 @@
 This test suite exists to reproduce the issue in
 https://github.com/PrefectHQ/prefect/issues/11820
 
-They shoulnd't be run as part of the normal test suite, but can be run manually with:
+They shouldn't be run as part of the normal test suite, but can be run manually with:
 
 TEST_CONNECTION_LEAK=true pytest tests/server/utilities/test_connection_leak_warnings.py
 """
