@@ -236,7 +236,7 @@ class EngineContext(RunContext):
     autonomous_task_run: Optional[TaskRun] = None
     task_runner: BaseTaskRunner
     log_prints: bool = False
-    parameters: Dict[str, Any]
+    parameters: Optional[Dict[str, Any]] = None
 
     # Result handling
     result_factory: ResultFactory

@@ -185,10 +185,9 @@ class ResultFactory(pydantic.BaseModel):
                 persist_result=(
                     flow.persist_result
                     if flow.persist_result is not None
-                    else
                     # !! Child flows persist their result by default if the it or the
                     #    parent flow uses a feature that requires it
-                    (
+                    else (
                         flow_features_require_result_persistence(flow)
                         or flow_features_require_child_result_persistence(ctx.flow)
                         or get_default_persist_setting()
@@ -209,10 +208,9 @@ class ResultFactory(pydantic.BaseModel):
                 persist_result=(
                     flow.persist_result
                     if flow.persist_result is not None
-                    else
                     # !! Flows persist their result by default if uses a feature that
                     #    requires it
-                    (
+                    else (
                         flow_features_require_result_persistence(flow)
                         or get_default_persist_setting()
                     )
@@ -246,10 +244,9 @@ class ResultFactory(pydantic.BaseModel):
         persist_result = (
             task.persist_result
             if task.persist_result is not None
-            else
             # !! Tasks persist their result by default if their parent flow uses a
             #    feature that requires it or the task uses a feature that requires it
-            (
+            else (
                 (
                     flow_features_require_child_result_persistence(ctx.flow)
                     if ctx
