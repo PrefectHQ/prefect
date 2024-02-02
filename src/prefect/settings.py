@@ -1416,6 +1416,22 @@ PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
 Whether or not to delete failed task submissions from the database.
 """
 
+PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE = Setting(
+    int,
+    default=1000,
+)
+"""
+The maximum number of scheduled tasks to queue for submission.
+"""
+
+PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
+    int,
+    default=100,
+)
+"""
+The maximum number of retries to queue for submission.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
