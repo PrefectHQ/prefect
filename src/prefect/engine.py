@@ -1369,7 +1369,17 @@ def enter_task_run_engine(
 
     if not flow_run_context:
         if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            return _create_autonomous_task_run(task=task, parameters=parameters)
+            create_autonomous_task_run = create_call(
+                _create_autonomous_task_run, task=task, parameters=parameters
+            )
+            if task.isasync:
+                return from_async.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
+            else:
+                return from_sync.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
 
         raise RuntimeError(
             "Tasks cannot be run outside of a flow"
@@ -1738,7 +1748,10 @@ async def submit_task_run(
         ),
     )
 
-    if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
+    if (
+        task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL
+        and not flow_run_context.autonomous_task_run
+    ):
         logger.info(f"Submitted task run {task_run.name!r} for execution.")
 
     return future
@@ -2200,7 +2213,6 @@ async def orchestrate_task_run(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
     )
-    logger.warning(f"Task run {task_run.name!r} finished in state {display_state}")
     return state
 
 
@@ -2914,7 +2926,6 @@ def _emit_task_run_state_change_event(
     )
 
 
-@sync_compatible
 async def _create_autonomous_task_run(
     task: Task, parameters: Dict[str, Any]
 ) -> TaskRun:
