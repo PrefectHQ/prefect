@@ -72,7 +72,6 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
             logger.warning("Failed to clean up Docker objects")
 
 
-@pytest.mark.timeout(120)
 @pytest.fixture(scope="session")
 def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     """Ensure that the prefect dev image is available and up-to-date"""
