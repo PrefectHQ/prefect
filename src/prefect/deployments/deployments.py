@@ -858,8 +858,9 @@ class Deployment(BaseModel):
         if not name:
             raise ValueError("A deployment name must be provided.")
 
+        # note that `deployment.load` only updates settings that were *not*
+        # provided at initialization
         flow.parameters.update(kwargs.get("parameters", {}))
-
         deployment = cls(name=name, **kwargs)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
