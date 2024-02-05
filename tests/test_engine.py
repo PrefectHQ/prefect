@@ -783,8 +783,7 @@ class TestSuspendFlowRun:
         with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
             await main_flow()
 
-    @pytest.mark.flaky(max_runs=2)
-    async def test_suspend_flow_run_by_id(self, deployment, session):
+    async def test_suspend_flow_run_by_id(self, prefect_client, deployment, session):
         flow_run_id = None
         task_completions = 0
 
@@ -794,7 +793,7 @@ class TestSuspendFlowRun:
             task_completions += 1
             await asyncio.sleep(0.1)
 
-        @flow()
+        @flow
         async def suspendable_flow():
             nonlocal flow_run_id
             context = get_run_context()
@@ -814,8 +813,7 @@ class TestSuspendFlowRun:
             for i in range(20):
                 await increment_completions()
 
-        @flow()
-        async def suspending_flow():
+        async def suspending_func():
             nonlocal flow_run_id
 
             while flow_run_id is None:
@@ -826,8 +824,8 @@ class TestSuspendFlowRun:
 
             await suspend_flow_run(flow_run_id=flow_run_id)
 
-        with pytest.raises(asyncio.exceptions.CancelledError):
-            await asyncio.gather(suspendable_flow(), suspending_flow())
+        with pytest.raises(PausedRun):
+            await asyncio.gather(suspendable_flow(), suspending_func())
 
         # When suspending a flow run by id, that flow run must use tasks for
         # the suspension to take place. This setup allows for `suspendable_flow`
@@ -835,6 +833,11 @@ class TestSuspendFlowRun:
         # Here then we check to ensure that some tasks completed but not _all_
         # of the tasks.
         assert task_completions > 0 and task_completions < 20
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        state = flow_run.state
+        assert state.is_paused()
+        assert state.name == "Suspended"
 
     async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
         flow_run_id = None
