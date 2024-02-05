@@ -417,10 +417,11 @@ class TestTotalRunTimeEstimate:
 
         assert result.scalar() == pendulum.duration(seconds=3)
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_flow_run_estimated_run_time_includes_current_run(
         self, session, flow, db
     ):
+        tolerance = datetime.timedelta(seconds=3)
+
         dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -436,11 +437,11 @@ class TestTotalRunTimeEstimate:
         )
 
         assert fr.total_run_time == datetime.timedelta(0)
-        # the estimated time is between 59 and 60 seconds
+        # the estimated time is between ~59 and ~60 seconds
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < fr.estimated_run_time
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
         # check SQL logic
@@ -449,9 +450,9 @@ class TestTotalRunTimeEstimate:
             sa.select(db.FlowRun.estimated_run_time).filter_by(id=fr.id)
         )
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < result.scalar()
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
     async def test_task_run_estimated_run_time_matches_total_run_time(
@@ -493,6 +494,8 @@ class TestTotalRunTimeEstimate:
     async def test_task_run_estimated_run_time_includes_current_run(
         self, session, flow_run, db
     ):
+        tolerance = datetime.timedelta(seconds=3)
+
         dt = pendulum.now("UTC").subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
             session=session,
@@ -511,11 +514,11 @@ class TestTotalRunTimeEstimate:
         )
 
         assert tr.total_run_time == datetime.timedelta(0)
-        # the estimated time is between 59 and 60 seconds
+        # the estimated time is between ~59 and ~60 seconds
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < tr.estimated_run_time
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
         # check SQL logic
@@ -525,9 +528,9 @@ class TestTotalRunTimeEstimate:
         )
 
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < result.scalar()
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
     async def test_estimated_run_time_in_correlated_subquery(self, session, flow, db):
