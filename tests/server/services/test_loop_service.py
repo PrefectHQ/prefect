@@ -6,7 +6,6 @@ import pendulum
 import pytest
 
 from prefect.server.services.loop_service import LoopService
-from prefect.testing.utilities import flaky_on_windows
 
 
 async def test_asyncio_sleep_accepts_negative_numbers():
@@ -105,7 +104,6 @@ async def test_loop_service_calls_on_start_on_stop_once():
     assert service.state == ["_on_start", "_on_stop"]
 
 
-@flaky_on_windows
 async def test_early_stop():
     """Test that stop criterion is evaluated without waiting for loop_seconds"""
 
@@ -132,7 +130,6 @@ async def test_early_stop():
     assert dt2 - dt < pendulum.duration(seconds=1)
 
 
-@flaky_on_windows
 async def test_stop_block_escapes_deadlock(caplog):
     """Test that calling a blocking stop inside the service eventually returns"""
 

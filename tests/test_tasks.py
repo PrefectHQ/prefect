@@ -35,7 +35,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
-from prefect.testing.utilities import exceptions_equal, flaky_on_windows
+from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
 
@@ -1152,7 +1152,6 @@ class TestTaskCaching:
         assert second_state.result() == 6
         assert third_state.result() == 6
 
-    @flaky_on_windows
     def test_cache_key_hits_with_future_expiration_are_cached(self):
         @task(
             cache_key_fn=lambda *_: "cache hit",
