@@ -414,7 +414,9 @@ class TestRunner:
                 if flow_run.state.is_cancelled():
                     break
             else:
-                raise AssertionError("Flow run did not cancel")
+                raise AssertionError(
+                    f"Flow run did not enter cancelled: {flow_run.state.name!r}"
+                )
 
             await runner.stop()
             tg.cancel_scope.cancel()
