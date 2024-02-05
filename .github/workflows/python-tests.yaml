@@ -45,6 +45,8 @@ concurrency:
 
 jobs:
   run-tests:
+    runs-on:
+      group: oss-larger-runners
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     strategy:
       matrix:
@@ -52,8 +54,6 @@ jobs:
           - "postgres:13"
           - "postgres:14"
           - "sqlite"
-        os:
-          - "oss-test-runner"
         python-version:
           - "3.8"
           - "3.9"
@@ -81,7 +81,6 @@ jobs:
 
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
     steps:
@@ -202,7 +201,7 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --ddtrace --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
           DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
@@ -238,14 +237,14 @@ jobs:
   # Run a smaller subset of tests with pydantic v1 installed, the
   # Python versions we support, and only on sqlite + postgres 14
   run-tests-pydantic-v1:
+    runs-on:
+      group: oss-larger-runners
     name: pydantic v1, python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     strategy:
       matrix:
         database:
           - "postgres:14"
           - "sqlite"
-        os:
-          - "oss-test-runner"
         python-version:
           - "3.8"
           - "3.9"
@@ -268,7 +267,6 @@ jobs:
 
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
     steps:
@@ -398,7 +396,7 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --ddtrace --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
           DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
