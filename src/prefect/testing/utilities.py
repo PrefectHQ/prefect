@@ -9,8 +9,6 @@ from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import Dict, List, Union
 
-import pytest
-
 import prefect.context
 import prefect.settings
 from prefect.blocks.core import Block
@@ -22,16 +20,6 @@ from prefect.results import PersistedResult
 from prefect.serializers import Serializer
 from prefect.server.database.dependencies import temporary_database_interface
 from prefect.states import State
-
-
-def flaky_on_windows(fn, **kwargs):
-    """
-    Mark a test as flaky for repeated test runs if on Windows.
-    """
-    if sys.platform == "win32":
-        return pytest.mark.flaky(**kwargs)(fn)
-    else:
-        return fn
 
 
 def exceptions_equal(a, b):
