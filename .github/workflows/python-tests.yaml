@@ -45,6 +45,8 @@ concurrency:
 
 jobs:
   run-tests:
+    runs-on:
+      group: oss-larger-runners
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     strategy:
       matrix:
@@ -52,8 +54,6 @@ jobs:
           - "postgres:13"
           - "postgres:14"
           - "sqlite"
-        os:
-          - "oss-test-runner"
         python-version:
           - "3.8"
           - "3.9"
@@ -81,7 +81,6 @@ jobs:
 
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
     steps:
@@ -238,14 +237,14 @@ jobs:
   # Run a smaller subset of tests with pydantic v1 installed, the
   # Python versions we support, and only on sqlite + postgres 14
   run-tests-pydantic-v1:
+    runs-on:
+      group: oss-larger-runners
     name: pydantic v1, python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     strategy:
       matrix:
         database:
           - "postgres:14"
           - "sqlite"
-        os:
-          - "oss-test-runner"
         python-version:
           - "3.8"
           - "3.9"
@@ -268,7 +267,6 @@ jobs:
 
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
     steps:
