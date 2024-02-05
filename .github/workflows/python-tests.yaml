@@ -82,7 +82,7 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 75
+    timeout-minutes: 45
 
     steps:
       - name: Display current test matrix
@@ -202,7 +202,13 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+          pytest tests -vvv --ddtrace --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+        env:
+          DD_CIVISIBILITY_AGENTLESS_ENABLED: true
+          DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
+          DD_SITE: datadoghq.com
+          DD_ENV: ci
+          DD_SERVICE: prefect
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -263,7 +269,7 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 75
+    timeout-minutes: 45
 
     steps:
       - name: Display current test matrix
@@ -392,16 +398,26 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+          pytest tests -vvv --ddtrace --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+        env:
+          DD_CIVISIBILITY_AGENTLESS_ENABLED: true
+          DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
+          DD_SITE: datadoghq.com
+          DD_ENV: ci
+          DD_SERVICE: prefect
 
-      - name: Create and Upload failure flag
+      - name: Create failure flag
         if: ${{ failure() }}
         id: create_failure_flag
         run: |
           sanitized_name="${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
           sanitized_name="${sanitized_name//:/-}"
-          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
-          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
+
+          timestamp=$(date -u +"%Y%m%dT%H%M%SZ")
+          unique_artifact_name="${sanitized_name}-failure-${timestamp}"
+
+          echo "Failure in $sanitized_name" > "${unique_artifact_name}.txt"
+          echo "artifact_name=${unique_artifact_name}" >> $GITHUB_OUTPUT
 
       - name: Upload failure flag
         if: ${{ failure() }}
