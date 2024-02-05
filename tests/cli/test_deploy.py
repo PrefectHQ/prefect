@@ -52,6 +52,7 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
@@ -78,59 +79,53 @@ def interactive_console(monkeypatch):
 
 @pytest.fixture
 def project_dir(tmp_path):
-    original_dir = os.getcwd()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        prefect_home = tmp_path / ".prefect"
-        prefect_home.mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path)
-        initialize_project()
-        yield tmp_path
-    else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        prefect_home = tmp_path / "three-seven" / ".prefect"
-        prefect_home.mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path / "three-seven")
-        initialize_project()
-        yield tmp_path / "three-seven"
-    os.chdir(original_dir)
+    with tmpchdir(tmp_path):
+        if sys.version_info >= (3, 8):
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+            prefect_home = tmp_path / ".prefect"
+            prefect_home.mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
+            yield tmp_path
+        else:
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+            prefect_home = tmp_path / "three-seven" / ".prefect"
+            prefect_home.mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
+            yield tmp_path / "three-seven"
 
 
 @pytest.fixture
 def project_dir_with_single_deployment_format(tmp_path):
-    original_dir = os.getcwd()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        prefect_home = tmp_path / ".prefect"
-        prefect_home.mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path)
-        initialize_project()
+    with tmpchdir(tmp_path):
+        if sys.version_info >= (3, 8):
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+            prefect_home = tmp_path / ".prefect"
+            prefect_home.mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
 
-        with open("prefect.yaml", "r") as f:
-            contents = yaml.safe_load(f)
+            with open("prefect.yaml", "r") as f:
+                contents = yaml.safe_load(f)
 
-        contents["deployments"][0]["schedule"] = None
+            contents["deployments"][0]["schedule"] = None
 
-        with open("deployment.yaml", "w") as f:
-            yaml.safe_dump(contents["deployments"][0], f)
+            with open("deployment.yaml", "w") as f:
+                yaml.safe_dump(contents["deployments"][0], f)
 
-        yield tmp_path
-    else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path / "three-seven")
-        initialize_project()
+            yield tmp_path
+        else:
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+            (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
 
-        with open("prefect.yaml", "r") as f:
-            contents = yaml.safe_load(f)
+            with open("prefect.yaml", "r") as f:
+                contents = yaml.safe_load(f)
 
-        contents["deployments"][0]["schedule"] = None
+            contents["deployments"][0]["schedule"] = None
 
-        with open("deployment.yaml", "w") as f:
-            yaml.safe_dump(contents["deployments"][0], f)
+            with open("deployment.yaml", "w") as f:
+                yaml.safe_dump(contents["deployments"][0], f)
 
-        yield tmp_path / "three-seven"
-    os.chdir(original_dir)
+            yield tmp_path / "three-seven"
 
 
 @pytest.fixture
@@ -5515,44 +5510,44 @@ class TestDeployWithoutEntrypoint:
         self, prefect_client: PrefectClient
     ):
         Path("test_nested_folder").mkdir()
-        os.chdir("test_nested_folder")
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy",
-            user_input=(
-                # Enter valid entrypoint from sibling directory
-                "../flows/hello.py:my_flow"
-                + readchar.key.ENTER
-                +
-                # Accept default deployment name
-                readchar.key.ENTER
-                +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
-                +
-                # Decline remote storage
-                "n"
-                + readchar.key.ENTER
-                +
-                # decline save user inputs
-                "n"
-                + readchar.key.ENTER
-            ),
-            expected_code=0,
-            expected_output_contains=[
-                "Flow entrypoint (expected format path/to/file.py:function_name)",
-                "Deployment 'An important name/default' successfully created",
-            ],
-        )
+        with tmpchdir("test_nested_folder"):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy",
+                user_input=(
+                    # Enter valid entrypoint from sibling directory
+                    "../flows/hello.py:my_flow"
+                    + readchar.key.ENTER
+                    +
+                    # Accept default deployment name
+                    readchar.key.ENTER
+                    +
+                    # decline schedule
+                    "n"
+                    + readchar.key.ENTER
+                    +
+                    # accept first work pool
+                    readchar.key.ENTER
+                    +
+                    # Decline remote storage
+                    "n"
+                    + readchar.key.ENTER
+                    +
+                    # decline save user inputs
+                    "n"
+                    + readchar.key.ENTER
+                ),
+                expected_code=0,
+                expected_output_contains=[
+                    "Flow entrypoint (expected format path/to/file.py:function_name)",
+                    "Deployment 'An important name/default' successfully created",
+                ],
+            )
 
-        deployment = await prefect_client.read_deployment_by_name(
-            name="An important name/default"
-        )
-        assert deployment.entrypoint == "../flows/hello.py:my_flow"
+            deployment = await prefect_client.read_deployment_by_name(
+                name="An important name/default"
+            )
+            assert deployment.entrypoint == "../flows/hello.py:my_flow"
 
 
 class TestCheckForMatchingDeployment:
