@@ -82,7 +82,7 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 75
+    timeout-minutes: 45
 
     steps:
       - name: Display current test matrix
@@ -269,7 +269,7 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 75
+    timeout-minutes: 45
 
     steps:
       - name: Display current test matrix
@@ -412,10 +412,10 @@ jobs:
         run: |
           sanitized_name="${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
           sanitized_name="${sanitized_name//:/-}"
-          
+
           timestamp=$(date -u +"%Y%m%dT%H%M%SZ")
           unique_artifact_name="${sanitized_name}-failure-${timestamp}"
-          
+
           echo "Failure in $sanitized_name" > "${unique_artifact_name}.txt"
           echo "artifact_name=${unique_artifact_name}" >> $GITHUB_OUTPUT
 
