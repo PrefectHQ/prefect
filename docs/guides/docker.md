@@ -95,6 +95,7 @@ if __name__ == "__main__":
 The next file we'll add to the `prefect-docker-guide` directory is a `requirements.txt`. We'll include all dependencies required for our `prefect-docker-guide-flow.py` script in the Docker image we'll build.
 
 ```bash
+# ensure you run this line from the top level of the `prefect-docker-guide` directory
 touch requirements.txt
 ```
 
