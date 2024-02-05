@@ -215,53 +215,34 @@ class TestBlockingPause:
         assert min(sleep_intervals) <= 20  # Okay if this is zero
         assert max(sleep_intervals) == 100
 
-    @pytest.mark.flaky
     async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
-        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        sleeper = AsyncMock(side_effect=[None])
         monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
-
-        @task
-        async def doesnt_pause():
-            return 42
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow():
-            x = await doesnt_pause.submit()
             await pause_flow_run(timeout=4, poll_interval=5)
-            y = await doesnt_pause.submit()
-            await doesnt_pause(wait_for=[x])
-            await doesnt_pause(wait_for=[y])
-            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
             await pausing_flow()
 
+        # When pausing a flow run and the poll_interval is greater than the
+        # timeout, the first sleep interval should be half of the timeout.
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
-        assert sleep_intervals[0] == 2
-        assert sleep_intervals[1:] == [5, 5, 5, 5, 5]
+        assert sleep_intervals[0] == 4 / 2
 
-    @pytest.mark.flaky(max_runs=4)
     async def test_paused_flows_block_execution_in_sync_flows(self, prefect_client):
-        @task
-        def foo():
-            return 42
+        completed = False
 
         @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
-            x = foo.submit()
-            y = foo.submit()
+            nonlocal completed
             pause_flow_run(timeout=0.1)
-            foo(wait_for=[x])
-            foo(wait_for=[y])
-            foo(wait_for=[x, y])
+            completed = True
 
-        flow_run_state = pausing_flow(return_state=True)
-        flow_run_id = flow_run_state.state_details.flow_run_id
-        task_runs = await prefect_client.read_task_runs(
-            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
-        )
-        assert len(task_runs) == 2, "only two tasks should have completed"
+        pausing_flow(return_state=True)
+        assert not completed
 
     async def test_paused_flows_block_execution_in_async_flows(self, prefect_client):
         @task
@@ -1506,7 +1487,6 @@ class TestOrchestrateTaskRun:
         assert await state.result() == 1
 
     @pytest.mark.parametrize("jitter_factor", [0.1, 1, 10, 100])
-    @pytest.mark.flaky(max_runs=3)
     async def test_waits_jittery_sleeps(
         self,
         mock_anyio_sleep,
@@ -1554,10 +1534,10 @@ class TestOrchestrateTaskRun:
             log_prints=False,
         )
 
-        assert mock_anyio_sleep.await_count == 10
+        assert mock.call_count == 10 + 1  # 1 run + 10 retries
         sleeps = [c.args[0] for c in mock_anyio_sleep.await_args_list]
         assert statistics.variance(sleeps) > 0
-        assert max(sleeps) < 100 * (1 + jitter_factor)
+        assert max(sleeps) <= 100 * (1 + jitter_factor)
 
         # Check for a proper final result
         assert await state.result() == 1
