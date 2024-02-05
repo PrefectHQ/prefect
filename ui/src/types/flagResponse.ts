@@ -3,3 +3,4 @@ export type FlagResponse =
 | "work_pools"
 | "artifacts"
 | "deployment_status"
+| "work_queue_status"
