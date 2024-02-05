@@ -124,7 +124,7 @@ async def test_from_async_call_soon_in_waiting_thread_allows_concurrency():
     async def sleep_then_set(n):
         # Sleep for an inverse amount so later tasks sleep less
         print(f"Starting task {n}")
-        await asyncio.sleep(1 / (n * 10))
+        await asyncio.sleep(4 - n)
         nonlocal last_task_run
         last_task_run = n
         print(f"Finished task {n}")
