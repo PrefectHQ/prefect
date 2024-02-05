@@ -67,7 +67,6 @@ from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     AsyncMock,
     exceptions_equal,
-    flaky_on_windows,
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
@@ -1184,7 +1183,6 @@ class TestFlowTimeouts:
         assert not completed
         assert not task_completed
 
-    @flaky_on_windows
     async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout

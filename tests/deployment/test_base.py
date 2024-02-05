@@ -1,5 +1,4 @@
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -18,24 +17,22 @@ from prefect.deployments.base import (
 )
 from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture(autouse=True)
 def project_dir(tmp_path):
-    original_dir = os.getcwd()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path)
-        yield tmp_path
-    else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path / "three-seven")
-        yield tmp_path / "three-seven"
-    os.chdir(original_dir)
+    with tmpchdir(tmp_path):
+        if sys.version_info >= (3, 8):
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+            (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            yield tmp_path
+        else:
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+            (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            yield tmp_path / "three-seven"
 
 
 class TestFindProject:
