@@ -18,9 +18,10 @@ from prefect.utilities.dockerutils import (
 
 from . import howdy
 
-pytestmark = pytest.mark.skip(
-    reason="These tests are incredibly brittle and causing noise."
-)
+pytestmark = [
+    pytest.mark.skip(reason="These tests are incredibly brittle and causing noise."),
+    pytest.mark.timeout(120.0),
+]
 with silence_docker_warnings():
     from docker import DockerClient
     from docker.models.containers import Container
