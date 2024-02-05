@@ -371,7 +371,6 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.skip(reason="This test is too flaky")
     async def test_runner_can_cancel_flow_runs(
         self, prefect_client: PrefectClient, caplog
     ):
@@ -403,7 +402,7 @@ class TestRunner:
             await prefect_client.set_flow_run_state(
                 flow_run_id=flow_run.id,
                 state=flow_run.state.copy(
-                    update={"name": "Cancelled", "type": StateType.CANCELLING}
+                    update={"name": "Cancelling", "type": StateType.CANCELLING}
                 ),
             )
 
@@ -414,14 +413,14 @@ class TestRunner:
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_cancelled():
                     break
+            else:
+                raise AssertionError(
+                    f"Flow run did not enter cancelled: {flow_run.state.name!r}"
+                )
 
             await runner.stop()
             tg.cancel_scope.cancel()
 
-        assert (
-            flow_run.state.is_cancelled()
-        ), f"Flow run state not cancelled: {flow_run.state.name=!r}"
-        # check to make sure on_cancellation hook was called
         assert "This flow was cancelled!" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
