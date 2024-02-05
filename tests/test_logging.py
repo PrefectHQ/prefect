@@ -274,7 +274,6 @@ class TestAPILogHandler:
         handler.close()
         mock_log_worker.drain_all.assert_not_called()
 
-    @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
         self, logger, handler, flow_run, prefect_client
     ):
@@ -286,7 +285,6 @@ class TestAPILogHandler:
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
-    @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_flush(
         self, logger, handler, flow_run, prefect_client
     ):
@@ -298,7 +296,6 @@ class TestAPILogHandler:
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
-    @pytest.mark.flaky
     async def test_sync_flush_from_async_context(
         self, logger, handler, flow_run, prefect_client
     ):
@@ -311,13 +308,11 @@ class TestAPILogHandler:
         logs = await prefect_client.read_logs()
         assert len(logs) == 1
 
-    @pytest.mark.flaky
     def test_sync_flush_from_global_event_loop(self, logger, handler, flow_run):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         with pytest.raises(RuntimeError, match="would block"):
             from_sync.call_soon_in_loop_thread(create_call(handler.flush)).result()
 
-    @pytest.mark.flaky
     def test_sync_flush_from_sync_context(self, logger, handler, flow_run):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.flush()
