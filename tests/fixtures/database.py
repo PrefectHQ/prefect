@@ -1,8 +1,10 @@
+import asyncio
 import datetime
 import warnings
 
 import pendulum
 import pytest
+from sqlalchemy.exc import InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
@@ -60,16 +62,30 @@ async def setup_db(database_engine, db):
 @pytest.fixture(autouse=True)
 async def clear_db(db):
     """
-    Delete all data from all tables after running each test.
+    Delete all data from all tables after running each test, attempting to handle
+    connection errors.
     """
-    yield
-    async with db.session_context(begin_transaction=True) as session:
-        await session.execute(db.Agent.__table__.delete())
-        # work pool has a circular dependency on pool queue; delete it first
-        await session.execute(db.WorkPool.__table__.delete())
 
-        for table in reversed(db.Base.metadata.sorted_tables):
-            await session.execute(table.delete())
+    async def execute_delete_op(operation):
+        for attempt in range(3):
+            try:
+                async with db.session_context(begin_transaction=True) as session:
+                    await session.execute(operation)
+                break
+            except InterfaceError:
+                if attempt < 2:
+                    print(f"Connection closed. Retrying ({attempt + 1}/3)...")
+                    await asyncio.sleep(1)  # Brief pause before retrying
+                else:
+                    raise
+
+    yield
+
+    await execute_delete_op(db.Agent.__table__.delete())
+    await execute_delete_op(db.WorkPool.__table__.delete())
+
+    for table in reversed(db.Base.metadata.sorted_tables):
+        await execute_delete_op(table.delete())
 
 
 @pytest.fixture
