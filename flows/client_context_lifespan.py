@@ -17,7 +17,6 @@ from unittest.mock import MagicMock
 import anyio
 from prefect._vendor.fastapi import FastAPI
 
-import prefect
 import prefect.context
 import prefect.exceptions
 from prefect.client.orchestration import PrefectClient
