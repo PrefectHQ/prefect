@@ -66,26 +66,29 @@ async def clear_db(db):
     connection errors.
     """
 
-    async def execute_delete_op(operation):
-        for attempt in range(3):
-            try:
-                async with db.session_context(begin_transaction=True) as session:
-                    await session.execute(operation)
-                break
-            except InterfaceError:
-                if attempt < 2:
-                    print(f"Connection closed. Retrying ({attempt + 1}/3)...")
-                    await asyncio.sleep(1)
-                else:
-                    raise
-
     yield
 
-    await execute_delete_op(db.Agent.__table__.delete())
-    await execute_delete_op(db.WorkPool.__table__.delete())
+    max_retries = 3
+    retry_delay = 1
 
-    for table in reversed(db.Base.metadata.sorted_tables):
-        await execute_delete_op(table.delete())
+    for attempt in range(max_retries):
+        try:
+            async with db.session_context(begin_transaction=True) as session:
+                await session.execute(db.Agent.__table__.delete())
+                await session.execute(db.WorkPool.__table__.delete())
+
+                for table in reversed(db.Base.metadata.sorted_tables):
+                    await session.execute(table.delete())
+                break
+        except InterfaceError:
+            if attempt < max_retries - 1:
+                print(
+                    "Connection issue. Retrying entire deletion operation"
+                    f" ({attempt + 1}/{max_retries})..."
+                )
+                await asyncio.sleep(retry_delay)
+            else:
+                raise
 
 
 @pytest.fixture
