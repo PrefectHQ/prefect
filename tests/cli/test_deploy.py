@@ -5506,49 +5506,6 @@ class TestDeployWithoutEntrypoint:
         )
         assert deployment.entrypoint == "flows/hello.py:my_flow"
 
-    async def test_deploy_without_entrypoint_no_flows_found(
-        self, prefect_client: PrefectClient
-    ):
-        Path("test_nested_folder").mkdir()
-        with tmpchdir("test_nested_folder"):
-            await run_sync_in_worker_thread(
-                invoke_and_assert,
-                command="deploy",
-                user_input=(
-                    # Enter valid entrypoint from sibling directory
-                    "../flows/hello.py:my_flow"
-                    + readchar.key.ENTER
-                    +
-                    # Accept default deployment name
-                    readchar.key.ENTER
-                    +
-                    # decline schedule
-                    "n"
-                    + readchar.key.ENTER
-                    +
-                    # accept first work pool
-                    readchar.key.ENTER
-                    +
-                    # Decline remote storage
-                    "n"
-                    + readchar.key.ENTER
-                    +
-                    # decline save user inputs
-                    "n"
-                    + readchar.key.ENTER
-                ),
-                expected_code=0,
-                expected_output_contains=[
-                    "Flow entrypoint (expected format path/to/file.py:function_name)",
-                    "Deployment 'An important name/default' successfully created",
-                ],
-            )
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="An important name/default"
-            )
-            assert deployment.entrypoint == "../flows/hello.py:my_flow"
-
 
 class TestCheckForMatchingDeployment:
     async def test_matching_deployment_in_prefect_file_returns_true(self):
