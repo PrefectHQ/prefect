@@ -337,6 +337,7 @@ async def _run_single_deploy(
 
     build_steps = deploy_config.get("build", actions.get("build")) or []
     push_steps = deploy_config.get("push", actions.get("push")) or []
+    pull_steps = deploy_config.get("pull", actions.get("pull")) or []
 
     deploy_config = await resolve_block_document_references(deploy_config)
     deploy_config = await resolve_variables(deploy_config)
@@ -600,7 +601,7 @@ async def _run_single_deploy(
         triggers = []
 
     pull_steps = (
-        deploy_config.get("pull")
+        pull_steps
         or actions.get("pull")
         or await _generate_default_pull_action(
             app.console,
