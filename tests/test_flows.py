@@ -78,6 +78,13 @@ from prefect.utilities.hashing import file_hash
 SLEEP_TIME = 10
 
 
+@pytest.fixture(scope="module")
+def event_loop_debug(event_loop):
+    event_loop.set_debug(True)
+    yield
+    event_loop.set_debug(False)
+
+
 @flow
 def test_flow():
     pass

@@ -13,6 +13,13 @@ FLOW_TIMEOUT = 0.1
 SLEEP_TIME = FLOW_TIMEOUT * 1000
 
 
+@pytest.fixture(scope="module")
+def event_loop_debug(event_loop):
+    event_loop.set_debug(True)
+    yield
+    event_loop.set_debug(False)
+
+
 def test_sync_flow_timeout():
     flow_completed = False
 
