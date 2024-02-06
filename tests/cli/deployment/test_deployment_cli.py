@@ -782,6 +782,149 @@ class TestUpdatingDeployments:
             expected_output_contains=error,
         )
 
+    def test_clear_schedule_deletes(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedule': {"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "clear",
+                "-y",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=0,
+            expected_output_contains="Cleared all schedules for deployment",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedules': []"],
+            expected_code=0,
+        )
+
+    def test_clear_schedule_raises_if_deployment_does_not_exist(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "clear",
+                "-y",
+                "rence-griffith/not-a-real-deployment",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "Deployment 'rence-griffith/not-a-real-deployment' not found!"
+            ),
+        )
+
+    def test_delete_schedule_deletes(self, flojo_deployment):
+        schedule_id = str(flojo_deployment.schedules[0].id)
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedule': {"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/test-deployment",
+                schedule_id,
+            ],
+            expected_code=0,
+            expected_output_contains="Deleted deployment schedule",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedules': []"],
+            expected_code=0,
+        )
+
+    def test_delete_schedule_raises_if_schedule_does_not_exist(self, flojo_deployment):
+        schedule_id = str(flojo_deployment.schedules[0].id)
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/test-deployment",
+                schedule_id,
+            ],
+            expected_code=0,
+            expected_output_contains=f"Deleted deployment schedule {schedule_id}",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedules': []"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/test-deployment",
+                schedule_id,
+            ],
+            expected_code=1,
+            expected_output_contains="Deployment schedule not found!",
+        )
+
+    def test_delete_schedule_raises_if_deployment_does_not_exist(
+        self, flojo_deployment
+    ):
+        schedule_id = str(flojo_deployment.schedules[0].id)
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/not-a-real-deployment",
+                schedule_id,
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "Deployment rence-griffith/not-a-real-deployment not found!"
+            ),
+        )
+
 
 class TestDeploymentRun:
     @pytest.fixture
