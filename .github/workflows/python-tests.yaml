@@ -52,6 +52,7 @@ jobs:
       matrix:
         database:
           - "postgres:14"
+#          - "sqlite"
         python-version:
           - "3.8"
           - "3.9"
@@ -60,7 +61,7 @@ jobs:
           - "3.12"
         pytest-options:
           - "--exclude-services"
-          - "--only-services"
+#          - "--only-services"
 
         include:
           # Include Docker image builds on the service test run, and disallow the test
