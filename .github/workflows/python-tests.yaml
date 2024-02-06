@@ -189,11 +189,11 @@ jobs:
         run: >
           pytest tests
           --numprocesses auto
-          --maxprocesses=8
+          --maxprocesses 8
           --dist loadscope
           --disable-docker-image-builds
           --exclude-service kubernetes
-          --durations=26
+          --durations 26
           --no-cov
           ${{ matrix.pytest-options }}
 
@@ -376,12 +376,13 @@ jobs:
         run: >
           pytest tests
           --numprocesses auto
-          --maxprocesses=8
+          --maxprocesses 8
           --dist loadscope
           --disable-docker-image-builds
           --exclude-service kubernetes
-          --durations=26
+          --durations 26
           --cov
+          --cov-config setup.cfg
           || true
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
