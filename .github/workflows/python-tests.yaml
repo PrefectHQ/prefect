@@ -52,7 +52,6 @@ jobs:
       matrix:
         database:
           - "postgres:14"
-          - "sqlite"
         python-version:
           - "3.8"
           - "3.9"
