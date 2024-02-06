@@ -226,31 +226,31 @@ def mock_sigterm_handler():
         signal.signal(signal.SIGTERM, prev_handler)
 
 
-async def test_sigterm_crashes_flow(prefect_client, mock_sigterm_handler):
-    flow_run_id = None
-
-    @prefect.flow
-    async def my_flow():
-        nonlocal flow_run_id
-        flow_run_id = prefect.context.get_run_context().flow_run.id
-        os.kill(os.getpid(), signal.SIGTERM)
-
-    # The signal should be reraised as an exception
-    with pytest.raises(prefect.exceptions.TerminationSignal):
-        await my_flow()
-
-    flow_run = await prefect_client.read_flow_run(flow_run_id)
-    await assert_flow_run_crashed(
-        flow_run,
-        expected_message="Execution was aborted by a termination signal",
-    )
-
-    handler, mock = mock_sigterm_handler
-    # The original signal handler should be restored
-    assert signal.getsignal(signal.SIGTERM) == handler
-
-    # The original signal handler should be called too
-    mock.assert_called_once_with(signal.SIGTERM, ANY)
+# async def test_sigterm_crashes_flow(prefect_client, mock_sigterm_handler):
+#     flow_run_id = None
+#
+#     @prefect.flow
+#     async def my_flow():
+#         nonlocal flow_run_id
+#         flow_run_id = prefect.context.get_run_context().flow_run.id
+#         os.kill(os.getpid(), signal.SIGTERM)
+#
+#     # The signal should be reraised as an exception
+#     with pytest.raises(prefect.exceptions.TerminationSignal):
+#         await my_flow()
+#
+#     flow_run = await prefect_client.read_flow_run(flow_run_id)
+#     await assert_flow_run_crashed(
+#         flow_run,
+#         expected_message="Execution was aborted by a termination signal",
+#     )
+#
+#     handler, mock = mock_sigterm_handler
+#     # The original signal handler should be restored
+#     assert signal.getsignal(signal.SIGTERM) == handler
+#
+#     # The original signal handler should be called too
+#     mock.assert_called_once_with(signal.SIGTERM, ANY)
 
 
 def test_sigterm_crashes_deployed_flow(

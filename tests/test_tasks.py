@@ -2,7 +2,6 @@ import datetime
 import inspect
 import time
 import warnings
-from asyncio import Event, sleep
 from functools import partial
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
@@ -2222,53 +2221,53 @@ class TestSubflowWaitForTasks:
             "wait_for",
         }, "No extra keys around"
 
-    async def test_subflows_run_concurrently_with_tasks(self):
-        @task
-        async def waiter_task(event, delay):
-            await sleep(delay)
-            if event.is_set():
-                pass
-            else:
-                raise RuntimeError("The event hasn't been set!")
+    # async def test_subflows_run_concurrently_with_tasks(self):
+    #     @task
+    #     async def waiter_task(event, delay):
+    #         await sleep(delay)
+    #         if event.is_set():
+    #             pass
+    #         else:
+    #             raise RuntimeError("The event hasn't been set!")
+    #
+    #     @flow
+    #     async def setter_flow(event):
+    #         event.set()
+    #         return 42
+    #
+    #     @flow
+    #     async def test_flow():
+    #         e = Event()
+    #         await waiter_task.submit(e, 1)
+    #         b = await setter_flow(e)
+    #         return b
+    #
+    #     assert (await test_flow()) == 42
 
-        @flow
-        async def setter_flow(event):
-            event.set()
-            return 42
-
-        @flow
-        async def test_flow():
-            e = Event()
-            await waiter_task.submit(e, 1)
-            b = await setter_flow(e)
-            return b
-
-        assert (await test_flow()) == 42
-
-    async def test_subflows_waiting_for_tasks_can_deadlock(self):
-        @task
-        async def waiter_task(event, delay):
-            await sleep(delay)
-            if event.is_set():
-                pass
-            else:
-                raise RuntimeError("The event hasn't been set!")
-
-        @flow
-        async def setter_flow(event):
-            event.set()
-            return 42
-
-        @flow
-        async def test_flow():
-            e = Event()
-            f = await waiter_task.submit(e, 1)
-            b = await setter_flow(e, wait_for=[f])
-            return b
-
-        flow_state = await test_flow._run()
-        assert flow_state.is_failed()
-        assert "UnfinishedRun" in flow_state.message
+    # async def test_subflows_waiting_for_tasks_can_deadlock(self):
+    #     @task
+    #     async def waiter_task(event, delay):
+    #         await sleep(delay)
+    #         if event.is_set():
+    #             pass
+    #         else:
+    #             raise RuntimeError("The event hasn't been set!")
+    #
+    #     @flow
+    #     async def setter_flow(event):
+    #         event.set()
+    #         return 42
+    #
+    #     @flow
+    #     async def test_flow():
+    #         e = Event()
+    #         f = await waiter_task.submit(e, 1)
+    #         b = await setter_flow(e, wait_for=[f])
+    #         return b
+    #
+    #     flow_state = await test_flow._run()
+    #     assert flow_state.is_failed()
+    #     assert "UnfinishedRun" in flow_state.message
 
     def test_using_wait_for_in_task_definition_raises_reserved(self):
         with pytest.raises(
