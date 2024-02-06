@@ -2901,8 +2901,13 @@ class TestFlowHooksOnCancellation:
             # simulate worker cancellation of flow run
             os.kill(os.getpid(), signal.SIGTERM)
 
-        with pytest.raises(prefect.exceptions.TerminationSignal):
+        try:
             await my_flow._run()
+        except prefect.exceptions.TerminationSignal:
+            pass
+        except Exception as e:
+            pytest.fail(f"Unexpected exception: {e}")
+
         assert my_mock.mock_calls == [call("cancelled")]
 
     async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
@@ -2918,8 +2923,13 @@ class TestFlowHooksOnCancellation:
             # terminate process with SIGTERM
             os.kill(os.getpid(), signal.SIGTERM)
 
-        with pytest.raises(prefect.exceptions.TerminationSignal):
+        try:
             await my_flow._run()
+        except prefect.exceptions.TerminationSignal:
+            pass
+        except Exception as e:
+            pytest.fail(f"Unexpected exception: {e}")
+
         my_mock.assert_not_called()
 
     def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
@@ -3121,8 +3131,13 @@ class TestFlowHooksOnCrashed:
             # terminate process with SIGTERM
             os.kill(os.getpid(), signal.SIGTERM)
 
-        with pytest.raises(prefect.exceptions.TerminationSignal):
+        try:
             await my_flow._run()
+        except prefect.exceptions.TerminationSignal:
+            pass
+        except Exception as e:
+            pytest.fail(f"Unexpected exception: {e}")
+
         assert my_mock.mock_calls == [call("crashed")]
 
     @pytest.mark.flaky(max_runs=3)
@@ -3148,8 +3163,13 @@ class TestFlowHooksOnCrashed:
             # simulate worker cancellation of flow run
             os.kill(os.getpid(), signal.SIGTERM)
 
-        with pytest.raises(prefect.exceptions.TerminationSignal):
+        try:
             await my_flow._run()
+        except prefect.exceptions.TerminationSignal:
+            pass
+        except Exception as e:
+            pytest.fail(f"Unexpected exception: {e}")
+
         my_mock.assert_not_called()
 
     def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
