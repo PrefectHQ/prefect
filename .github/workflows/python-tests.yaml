@@ -50,11 +50,11 @@ jobs:
     strategy:
       matrix:
         database:
-          - "postgres:14"
+          - "sqlite"
         python-version:
           - "3.12"
         pytest-options:
-          # - "--exclude-services"
+          - "--exclude-services"
           - "--only-services"
 
         include:
