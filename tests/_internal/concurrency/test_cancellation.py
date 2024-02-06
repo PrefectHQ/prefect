@@ -35,9 +35,39 @@ def mock_alarm_signal_handler():
         signal.signal(signal.SIGALRM, _previous_alarm_handler)
 
 
-@pytest.mark.parametrize(
-    "cls", [AlarmCancelScope, WatcherThreadCancelScope, AsyncCancelScope]
-)
+async def test_alarm_cancel_scope_repr():
+    scope = AlarmCancelScope()
+    assert "PENDING" in repr(scope)
+    assert "runtime" not in repr(scope)
+    assert hex(id(scope)) in repr(scope)
+
+    if threading.current_thread() is threading.main_thread():
+        with scope:
+            assert "RUNNING" in repr(scope)
+            assert "runtime" in repr(scope)
+
+        assert "COMPLETED" in repr(scope)
+        assert "runtime" in repr(scope)
+
+    if threading.current_thread() is threading.main_thread():
+        scope = AlarmCancelScope()
+        try:
+            with scope:
+                scope.cancel()
+        except CancelledError:
+            pass
+
+        assert "CANCELLED" in repr(scope)
+
+    scope = AlarmCancelScope(name="test")
+    assert hex(id(scope)) not in repr(scope)
+    assert "name='test'" in repr(scope)
+
+    scope = AlarmCancelScope(timeout=0.1)
+    assert "timeout=0.1" in repr(scope)
+
+
+@pytest.mark.parametrize("cls", [WatcherThreadCancelScope, AsyncCancelScope])
 async def test_cancel_scope_repr(cls):
     scope = cls()
     assert "PENDING" in repr(scope)
