@@ -5,11 +5,17 @@ from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
 import anyio
-from prefect._vendor.fastapi import FastAPI
+from packaging.version import Version
 
+import prefect
 import prefect.context
 import prefect.exceptions
 from prefect.client.orchestration import PrefectClient
+
+if Version(prefect.__version__) >= Version("2.13.0"):
+    from prefect._vendor.fastapi import FastAPI
+else:
+    from fastapi import FastAPI
 
 
 def make_lifespan(startup, shutdown) -> callable:
