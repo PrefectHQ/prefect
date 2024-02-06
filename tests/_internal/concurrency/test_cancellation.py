@@ -35,9 +35,8 @@ def mock_alarm_signal_handler():
         signal.signal(signal.SIGALRM, _previous_alarm_handler)
 
 
-@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
-async def test_alarm_cancel_scope_repr(cls=AlarmCancelScope):
-    scope = cls()
+async def test_alarm_cancel_scope_repr():
+    scope = AlarmCancelScope()
     assert "PENDING" in repr(scope)
     assert "runtime" not in repr(scope)
     assert hex(id(scope)) in repr(scope)
@@ -51,7 +50,7 @@ async def test_alarm_cancel_scope_repr(cls=AlarmCancelScope):
         assert "runtime" in repr(scope)
 
     if threading.current_thread() is threading.main_thread():
-        scope = cls()
+        scope = AlarmCancelScope()
         try:
             with scope:
                 scope.cancel()
@@ -60,11 +59,11 @@ async def test_alarm_cancel_scope_repr(cls=AlarmCancelScope):
 
         assert "CANCELLED" in repr(scope)
 
-    scope = cls(name="test")
+    scope = AlarmCancelScope(name="test")
     assert hex(id(scope)) not in repr(scope)
     assert "name='test'" in repr(scope)
 
-    scope = cls(timeout=0.1)
+    scope = AlarmCancelScope(timeout=0.1)
     assert "timeout=0.1" in repr(scope)
 
 
