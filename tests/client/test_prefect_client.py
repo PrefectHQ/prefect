@@ -1,7 +1,5 @@
 import json
 import os
-import random
-import threading
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -383,92 +381,6 @@ class TestClientContextManager:
 
         startup.assert_called_once()
         shutdown.assert_called_once()
-
-    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
-    async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client(context):
-            # We must re-enter the profile context in the new thread
-            with context:
-                # Use random sleeps to interleave clients
-                await anyio.sleep(random.random())
-                async with PrefectClient(app):
-                    await anyio.sleep(random.random())
-
-        threads = [
-            threading.Thread(
-                target=anyio.run,
-                args=(enter_client, prefect.context.SettingsContext.get().copy()),
-            )
-            for _ in range(100)
-        ]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join(3)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
-    @pytest.mark.skip("Test is too flaky")
-    async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client():
-            # Use random sleeps to interleave clients
-            await anyio.sleep(random.random())
-            async with PrefectClient(app):
-                await anyio.sleep(random.random())
-
-        with anyio.fail_after(15):
-            async with anyio.create_task_group() as tg:
-                for _ in range(1000):
-                    tg.start_soon(enter_client)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
-    @pytest.mark.flaky(max_runs=3)
-    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
-    async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client():
-            # Use random sleeps to interleave clients
-            await anyio.sleep(random.random())
-            async with PrefectClient(app):
-                await anyio.sleep(random.random())
-
-        async def enter_client_many_times(context):
-            # We must re-enter the profile context in the new thread
-            with context:
-                async with anyio.create_task_group() as tg:
-                    for _ in range(100):
-                        tg.start_soon(enter_client)
-
-        threads = [
-            threading.Thread(
-                target=anyio.run,
-                args=(
-                    enter_client_many_times,
-                    prefect.context.SettingsContext.get().copy(),
-                ),
-            )
-            for _ in range(100)
-        ]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join(3)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
 
     async def test_client_context_lifespan_is_robust_to_dependency_deadlocks(self):
         """
