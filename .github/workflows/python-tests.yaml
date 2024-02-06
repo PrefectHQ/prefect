@@ -54,7 +54,7 @@ jobs:
         python-version:
           - "3.12"
         pytest-options:
-          - "--exclude-services"
+          # - "--exclude-services"
           - "--only-services"
 
         include:
