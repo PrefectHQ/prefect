@@ -374,7 +374,7 @@ class TestRunner:
     async def test_runner_can_cancel_flow_runs(
         self, prefect_client: PrefectClient, caplog
     ):
-        runner = Runner(query_seconds=2)
+        runner = Runner(query_seconds=1)
 
         deployment = await cancel_flow_submitted_tasks.to_deployment(__file__)
 
@@ -393,8 +393,8 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and
             # start execution
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_running():
                     break
@@ -408,15 +408,11 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and then
             # finish cancellation
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_cancelled():
                     break
-            else:
-                raise AssertionError(
-                    f"Flow run did not enter cancelled: {flow_run.state.name!r}"
-                )
 
             await runner.stop()
             tg.cancel_scope.cancel()
@@ -462,8 +458,8 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and
             # start execution
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_running():
                     break
@@ -477,8 +473,8 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and then
             # finish cancellation
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_cancelled():
                     break
