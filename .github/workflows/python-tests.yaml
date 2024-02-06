@@ -187,7 +187,7 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --maxprocesses=8 --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+          pytest tests -vvv --numprocesses auto --maxprocesses=8 --dist loadscope --ddtrace --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
           DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
