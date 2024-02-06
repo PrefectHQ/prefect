@@ -22,7 +22,7 @@ from prefect.client.schemas import FlowRun
 from prefect.testing.utilities import AsyncMock
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 def event_loop_debug(event_loop):
     event_loop.set_debug(True)
     yield

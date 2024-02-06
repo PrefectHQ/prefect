@@ -78,7 +78,7 @@ from prefect.utilities.hashing import file_hash
 SLEEP_TIME = 10
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 def event_loop_debug(event_loop):
     event_loop.set_debug(True)
     yield
