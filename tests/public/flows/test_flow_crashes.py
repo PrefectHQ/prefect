@@ -22,13 +22,6 @@ from prefect.client.schemas import FlowRun
 from prefect.testing.utilities import AsyncMock
 
 
-@pytest.fixture(scope="module", autouse=True)
-def event_loop_debug(event_loop):
-    event_loop.set_debug(True)
-    yield
-    event_loop.set_debug(False)
-
-
 async def assert_flow_run_crashed(flow_run: FlowRun, expected_message: str):
     """
     Utility for asserting that flow runs are crashed.
