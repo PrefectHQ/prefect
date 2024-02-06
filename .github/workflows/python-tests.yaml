@@ -381,7 +381,7 @@ jobs:
           --disable-docker-image-builds
           --exclude-service kubernetes
           --durations=26
-          --no-cov
+          --cov
           || true
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
