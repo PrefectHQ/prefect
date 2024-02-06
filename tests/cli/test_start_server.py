@@ -16,8 +16,6 @@ POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 20
 
-pytestmark = pytest.mark.flaky(max_runs=4)
-
 
 @contextlib.asynccontextmanager
 async def start_server_process():
