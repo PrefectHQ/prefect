@@ -23,7 +23,7 @@ with silence_docker_warnings():
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
 
-pytestmark = pytest.mark.service("docker")
+pytestmark = [pytest.mark.service("docker"), pytest.mark.timeout(120.0)]
 
 
 @pytest.fixture
