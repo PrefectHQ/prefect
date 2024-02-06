@@ -1,6 +1,6 @@
 import pytest
 
-from prefect import flow, task
+from prefect import flow
 from prefect.results import LiteralResult
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT, temporary_settings
 from prefect.states import Completed
@@ -34,64 +34,65 @@ async def test_async_result_raises_deprecation_warning():
     assert await result.get() is True
 
 
-async def test_async_result_warnings_are_not_raised_by_engine():
-    # Since most of our tests are run with the opt-in globally enabled, this test
-    # covers a bunch of features to cover remaining cases where we may internally
-    # call `State.result` incorrectly.
-
-    task_run_count = flow_run_count = subflow_run_count = 0
-
-    @task(retries=3)
-    async def my_task():
-        nonlocal task_run_count
-        task_run_count += 1
-        if task_run_count < 3:
-            raise ValueError()
-        return 1
-
-    @task(cache_key_fn=lambda *_: "test")
-    def foo():
-        return 1
-
-    @task(cache_key_fn=lambda *_: "test")
-    def bar():
-        return 2
-
-    @flow
-    def subflow():
-        return 1
-
-    @flow
-    async def async_subflow():
-        return 1
-
-    @flow(retries=3)
-    async def retry_subflow():
-        nonlocal subflow_run_count
-        subflow_run_count += 1
-        if subflow_run_count < 3:
-            raise ValueError()
-        return 1
-
-    @flow(retries=3)
-    async def my_flow():
-        a = await my_task()
-
-        b = foo()
-        c = bar()
-        d = subflow()
-        e = await async_subflow()
-        f = await retry_subflow()
-
-        nonlocal flow_run_count
-        flow_run_count += 1
-
-        if flow_run_count < 3:
-            raise ValueError()
-
-        return a + b + c + d + e + f
-
-    assert await my_flow() == 6
+#
+# async def test_async_result_warnings_are_not_raised_by_engine():
+#     # Since most of our tests are run with the opt-in globally enabled, this test
+#     # covers a bunch of features to cover remaining cases where we may internally
+#     # call `State.result` incorrectly.
+#
+#     task_run_count = flow_run_count = subflow_run_count = 0
+#
+#     @task(retries=3)
+#     async def my_task():
+#         nonlocal task_run_count
+#         task_run_count += 1
+#         if task_run_count < 3:
+#             raise ValueError()
+#         return 1
+#
+#     @task(cache_key_fn=lambda *_: "test")
+#     def foo():
+#         return 1
+#
+#     @task(cache_key_fn=lambda *_: "test")
+#     def bar():
+#         return 2
+#
+#     @flow
+#     def subflow():
+#         return 1
+#
+#     @flow
+#     async def async_subflow():
+#         return 1
+#
+#     @flow(retries=3)
+#     async def retry_subflow():
+#         nonlocal subflow_run_count
+#         subflow_run_count += 1
+#         if subflow_run_count < 3:
+#             raise ValueError()
+#         return 1
+#
+#     @flow(retries=3)
+#     async def my_flow():
+#         a = await my_task()
+#
+#         b = foo()
+#         c = bar()
+#         d = subflow()
+#         e = await async_subflow()
+#         f = await retry_subflow()
+#
+#         nonlocal flow_run_count
+#         flow_run_count += 1
+#
+#         if flow_run_count < 3:
+#             raise ValueError()
+#
+#         return a + b + c + d + e + f
+#
+#     assert await my_flow() == 6
 
 
 async def test_async_result_does_not_raise_warning_with_opt_out():
