@@ -3,6 +3,7 @@ Utilities for working with file systems
 """
 import os
 import pathlib
+import threading
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
 from typing import Union
@@ -51,6 +52,9 @@ def filter_files(
     return included_files
 
 
+chdir_lock = threading.Lock()
+
+
 @contextmanager
 def tmpchdir(path: str):
     """
@@ -62,11 +66,12 @@ def tmpchdir(path: str):
 
     owd = os.getcwd()
 
-    try:
-        os.chdir(path)
-        yield path
-    finally:
-        os.chdir(owd)
+    with chdir_lock:
+        try:
+            os.chdir(path)
+            yield path
+        finally:
+            os.chdir(owd)
 
 
 def filename(path: str) -> str:
