@@ -211,6 +211,7 @@ def event_loop(request):
     loop = policy.new_event_loop()
 
     # configure asyncio logging to capture long running tasks
+    # a comment to trigger tests
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
