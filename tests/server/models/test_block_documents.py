@@ -876,7 +876,6 @@ class TestReadBlockDocuments:
         }
         assert {b.id for b in all_block_documents} == {b.id for b in block_documents}
 
-    @pytest.mark.flaky
     async def test_read_block_documents_limit_offset(self, session, block_documents):
         # sorted by block type name, block name
         read_block_documents = await models.block_documents.read_block_documents(
