@@ -75,7 +75,7 @@ async def clear_db(db):
             except InterfaceError:
                 if attempt < 2:
                     print(f"Connection closed. Retrying ({attempt + 1}/3)...")
-                    await asyncio.sleep(1)  # Brief pause before retrying
+                    await asyncio.sleep(1)
                 else:
                     raise
 
