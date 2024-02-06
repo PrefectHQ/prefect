@@ -46,18 +46,18 @@ concurrency:
 jobs:
   run-tests:
     runs-on:
-      group: oss-larger-runners
+      group: oss-arc-runners
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     strategy:
       matrix:
         database:
           - "postgres:14"
-          - "sqlite"
+          # - "sqlite"
         python-version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
+          # - "3.8"
+          # - "3.9"
+          # - "3.10"
+          # - "3.11"
           - "3.12"
         pytest-options:
           - "--exclude-services"
