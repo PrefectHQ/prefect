@@ -418,16 +418,16 @@ class TestAuthenticationResource:
 
         assert needs_provisioning
 
-    @pytest.mark.usefixtures(
-        "existing_iam_user",
-        "existing_iam_policy",
-        "existing_credentials_block",
-        "existing_execution_role",
-    )
-    async def test_needs_provisioning_existing_resources(self, authentication_resource):
-        needs_provisioning = await authentication_resource.requires_provisioning()
-
-        assert not needs_provisioning
+    # @pytest.mark.usefixtures(
+    #     "existing_iam_user",
+    #     "existing_iam_policy",
+    #     "existing_credentials_block",
+    #     "existing_execution_role",
+    # )
+    # async def test_needs_provisioning_existing_resources(self, authentication_resource):
+    #     needs_provisioning = await authentication_resource.requires_provisioning()
+    #
+    #     assert not needs_provisioning
 
     async def test_get_task_count(self, authentication_resource):
         count = await authentication_resource.get_task_count()

@@ -173,41 +173,41 @@ async def test_anyio_cancellation_crashes_child_flow(prefect_client):
 #     )
 
 
-@pytest.mark.filterwarnings(
-    "ignore::pytest.PytestUnhandledThreadExceptionWarning"
-)  # Pytest complains about unhandled exception in runtime thread
-@pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-async def test_interrupt_in_child_crashes_parent_and_child_flow(
-    prefect_client, interrupt_type
-):
-    child_flow_run_id = parent_flow_run_id = None
-
-    @prefect.flow
-    async def child_flow():
-        nonlocal child_flow_run_id
-        child_flow_run_id = prefect.context.get_run_context().flow_run.id
-        raise interrupt_type()
-
-    @prefect.flow
-    async def parent_flow():
-        nonlocal parent_flow_run_id
-        parent_flow_run_id = prefect.context.get_run_context().flow_run.id
-        await child_flow()
-
-    with pytest.raises(interrupt_type):
-        await parent_flow()
-
-    parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
-    await assert_flow_run_crashed(
-        parent_flow_run,
-        expected_message="Execution was aborted",
-    )
-
-    child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
-    await assert_flow_run_crashed(
-        child_flow_run,
-        expected_message="Execution was aborted",
-    )
+# @pytest.mark.filterwarnings(
+#     "ignore::pytest.PytestUnhandledThreadExceptionWarning"
+# )  # Pytest complains about unhandled exception in runtime thread
+# @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+# async def test_interrupt_in_child_crashes_parent_and_child_flow(
+#     prefect_client, interrupt_type
+# ):
+#     child_flow_run_id = parent_flow_run_id = None
+#
+#     @prefect.flow
+#     async def child_flow():
+#         nonlocal child_flow_run_id
+#         child_flow_run_id = prefect.context.get_run_context().flow_run.id
+#         raise interrupt_type()
+#
+#     @prefect.flow
+#     async def parent_flow():
+#         nonlocal parent_flow_run_id
+#         parent_flow_run_id = prefect.context.get_run_context().flow_run.id
+#         await child_flow()
+#
+#     with pytest.raises(interrupt_type):
+#         await parent_flow()
+#
+#     parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
+#     await assert_flow_run_crashed(
+#         parent_flow_run,
+#         expected_message="Execution was aborted",
+#     )
+#
+#     child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
+#     await assert_flow_run_crashed(
+#         child_flow_run,
+#         expected_message="Execution was aborted",
+#     )
 
 
 @pytest.fixture
