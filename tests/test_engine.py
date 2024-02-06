@@ -2019,7 +2019,8 @@ class TestOrchestrateTaskRun:
 
         assert (
             "Received non-final state 'Failed' when proposing final state 'Failed' and"
-            " will not attempt to run again..." not in caplog.text
+            " will not attempt to run again..."
+            not in caplog.text
         )
 
     async def test_retry_condition_fn_retry_handler_returns_notfalse_retries(
@@ -2071,7 +2072,8 @@ class TestOrchestrateTaskRun:
 
         assert (
             "Received non-final state 'AwaitingRetry' when proposing final state"
-            " 'Failed' and will attempt to run again..." in caplog.text
+            " 'Failed' and will attempt to run again..."
+            in caplog.text
         )
 
     async def test_proposes_unknown_result_if_state_is_completed_and_result_data_is_missing(
@@ -2821,7 +2823,8 @@ class TestCreateThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']" in state.message
+            " provided with parameters ['puppy', 'kitty']"
+            in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -2915,7 +2918,8 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']" in state.message
+            " provided with parameters ['puppy', 'kitty']"
+            in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -2993,7 +2997,8 @@ class TestCreateAndBeginSubflowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']" in state.message
+            " provided with parameters ['puppy', 'kitty']"
+            in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -3216,9 +3221,9 @@ class TestAPIHealthcheck:
     async def test_healthcheck_reset_after_expiration(self):
         async with get_client() as client:
             await check_api_reachable(client, fail_message="test")
-            value = API_HEALTHCHECKS["http://ephemeral-prefect/api/"] = (
-                time.monotonic()
-            )  # set it to expire now
+            value = API_HEALTHCHECKS[
+                "http://ephemeral-prefect/api/"
+            ] = time.monotonic()  # set it to expire now
             await check_api_reachable(client, fail_message="test")
             assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] != value
             assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] == pytest.approx(
@@ -3260,7 +3265,8 @@ def test_flow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow." in caplog.text
+        " the same flow."
+        in caplog.text
     )
 
 
@@ -3289,7 +3295,8 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow." in caplog.text
+        " the same flow."
+        in caplog.text
     )
 
 
