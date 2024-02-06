@@ -377,6 +377,7 @@ jobs:
           pytest tests
           --numprocesses auto
           --maxprocesses 8
+          --ddtrace
           --dist loadscope
           --disable-docker-image-builds
           --exclude-service kubernetes
