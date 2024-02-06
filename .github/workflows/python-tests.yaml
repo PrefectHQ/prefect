@@ -182,12 +182,21 @@ jobs:
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
+        # Parallelize tests by scope to reduce expensive service fixture duplication
+        # Do not allow the test suite to build images, as we want the prebuilt images to be tested
+        # Do not run Kubernetes service tests, we do not have a cluster available
       - name: Run tests
-        run: |
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          # Do not allow the test suite to build images, as we want the prebuilt images to be tested
-          # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --maxprocesses=8 --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+        run: >
+          pytest tests
+          --numprocesses auto
+          --maxprocesses 8
+          --dist loadscope
+          --disable-docker-image-builds
+          --exclude-service kubernetes
+          --durations 26
+          --no-cov
+          ${{ matrix.pytest-options }}
+
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -361,11 +370,21 @@ jobs:
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
+        # Runs the test with || true to ensure the job does not fail if the tests
+        # fail, because we're sending the results to DataDog
       - name: Run tests
-        run: |
-          # Runs the test with || true to ensure the job does not fail if the tests
-          # fail, because we're sending the results to DataDog
-          pytest tests --numprocesses auto --maxprocesses=8 --dist loadscope --ddtrace --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg || true
+        run: >
+          pytest tests
+          --numprocesses auto
+          --maxprocesses 8
+          --ddtrace
+          --dist loadscope
+          --disable-docker-image-builds
+          --exclude-service kubernetes
+          --durations 26
+          --cov
+          --cov-config setup.cfg
+          || true
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
           DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
