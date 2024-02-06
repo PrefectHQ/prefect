@@ -589,33 +589,28 @@ class TestTotalRunTimeEstimate:
 
 class TestExpectedStartTimeDelta:
     async def test_flow_run_lateness_when_scheduled(self, session, flow, db):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        lateness = pendulum.duration(seconds=60)
+        dt = pendulum.now("UTC") - lateness
+
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
             ),
         )
-        assert (
-            pendulum.duration(seconds=60)
-            < fr.estimated_start_time_delta
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= fr.estimated_start_time_delta <= (pendulum.now() - dt)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
             sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
-        assert (
-            pendulum.duration(seconds=60)
-            < result.scalar()
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= result.scalar() <= (pendulum.now() - dt)
 
-    @pytest.mark.flaky(max_runs=2)
     async def test_flow_run_lateness_when_pending(self, session, flow, db):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        lateness = pendulum.duration(seconds=60)
+        dt = pendulum.now("UTC") - lateness
+
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -629,22 +624,14 @@ class TestExpectedStartTimeDelta:
         )
 
         # pending has no impact on lateness
-        assert (
-            pendulum.duration(seconds=60)
-            < fr.estimated_start_time_delta
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= fr.estimated_start_time_delta <= (pendulum.now() - dt)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
             sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
-        assert (
-            pendulum.duration(seconds=60)
-            < result.scalar()
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= result.scalar() <= (pendulum.now() - dt)
 
     async def test_flow_run_lateness_when_running(self, session, flow, db):
         dt = pendulum.now("UTC").subtract(minutes=1)
