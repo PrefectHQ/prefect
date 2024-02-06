@@ -45,8 +45,7 @@ concurrency:
 
 jobs:
   run-tests:
-    runs-on:
-      group: oss-arc-runners
+    runs-on: oss-arc-runners
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     strategy:
       matrix:
