@@ -1,19 +1,11 @@
 from unittest.mock import ANY
 
-import pytest
-
 import prefect.cli.agent
 from prefect import PrefectClient
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-
-# All tests that invoke invoke_and_assert() can end up running our CLI command
-# coroutines off the main thread. If the CLI command calls
-# forward_signal_handler(), which prefect.cli.agent.start does, the test run
-# will fail because only the main thread can attach signal handlers.
-pytestmark = pytest.mark.flaky(max_runs=2)
 
 
 def test_start_agent_with_no_args():
