@@ -187,13 +187,7 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --maxprocesses=8 --dist loadscope --ddtrace --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
-        env:
-          DD_CIVISIBILITY_AGENTLESS_ENABLED: true
-          DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
-          DD_SITE: datadoghq.com
-          DD_ENV: ci
-          DD_SERVICE: prefect
+          pytest tests -vvv --numprocesses auto --maxprocesses=8 --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -265,20 +259,6 @@ jobs:
           - "postgres:14"
         python-version:
           - "3.12"
-        pytest-options:
-          - "--exclude-services"
-          - "--only-services"
-
-        include:
-          # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automatically in fixtures
-          - pytest-options: "--only-services"
-            build-docker-images: true
-
-        exclude:
-          # Do not run service tests with postgres
-          - database: "postgres:14"
-            pytest-options: "--only-services"
 
       fail-fast: false
 
@@ -294,7 +274,6 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        if: ${{ matrix.build-docker-images }}
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -306,14 +285,12 @@ jobs:
 
       - name: Get image tag
         id: get_image_tag
-        if: ${{ matrix.build-docker-images }}
         run: |
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
       - name: Build test image
-        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -328,13 +305,11 @@ jobs:
           cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Test Docker image
-        if: ${{ matrix.build-docker-images }}
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Build Conda flavored test image
-        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -350,7 +325,6 @@ jobs:
 
       - name: Test Conda flavored Docker image
         # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
@@ -362,7 +336,6 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Start database container
-        if: ${{ startsWith(matrix.database, 'postgres') }}
         run: >
           docker run
           --name "postgres"
@@ -390,37 +363,12 @@ jobs:
 
       - name: Run tests
         run: |
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          # Do not allow the test suite to build images, as we want the prebuilt images to be tested
-          # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --maxprocesses=8 --dist loadscope --ddtrace --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
+          # Runs the test with || true to ensure the job does not fail if the tests
+          # fail, because we're sending the results to DataDog
+          pytest tests --numprocesses auto --maxprocesses=8 --dist loadscope --ddtrace --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg || true
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
           DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
           DD_SITE: datadoghq.com
           DD_ENV: ci
           DD_SERVICE: prefect
-
-      - name: Create and Upload failure flag
-        if: ${{ failure() }}
-        id: create_failure_flag
-        run: |
-          sanitized_name="${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
-          sanitized_name="${sanitized_name//:/-}"
-          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
-          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
-
-      - name: Upload failure flag
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.create_failure_flag.outputs.artifact_name }}
-          path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
-
-      - name: Check database container
-        # Only applicable for Postgres, but we want this to run even when tests fail
-        if: always()
-        run: >
-          docker container inspect postgres
-          && docker container logs postgres
-          || echo "Ignoring bad exit code"
