@@ -25,6 +25,8 @@ SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
 
 ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
 
+DISABLE_CONNECTION_POOL: bool = False
+
 
 class BaseDatabaseConfiguration(ABC):
     """
@@ -131,23 +133,26 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 connect_args["server_settings"] = {"jit": "off"}
                 kwargs["connect_args"] = connect_args
 
-            if self.sqlalchemy_pool_size is not None:
-                kwargs["pool_size"] = self.sqlalchemy_pool_size
+            if DISABLE_CONNECTION_POOL:
+                kwargs["poolclass"] = sa.pool.NullPool
+            else:
+                if self.sqlalchemy_pool_size is not None:
+                    kwargs["pool_size"] = self.sqlalchemy_pool_size
 
-            if self.sqlalchemy_max_overflow is not None:
-                kwargs["max_overflow"] = self.sqlalchemy_max_overflow
-
-            engine = create_async_engine(
-                self.connection_url,
-                echo=self.echo,
+                if self.sqlalchemy_max_overflow is not None:
+                    kwargs["max_overflow"] = self.sqlalchemy_max_overflow
                 # "pre-ping" connections upon checkout to ensure they have not been
                 # closed on the server side
-                pool_pre_ping=True,
+                kwargs["pool_pre_ping"] = True
                 # Use connections in LIFO order to help reduce connections
                 # after spiky load and in general increase the likelihood
                 # that a given connection pulled from the pool will be
                 # usable.
-                pool_use_lifo=True,
+                kwargs["pool_use_lifo"] = True
+
+            engine = create_async_engine(
+                self.connection_url,
+                echo=self.echo,
                 **kwargs,
             )
 

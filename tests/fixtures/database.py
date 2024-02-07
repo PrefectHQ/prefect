@@ -33,6 +33,12 @@ def db(test_database_connection_url, safety_check_settings):
 @pytest.fixture(scope="session", autouse=True)
 async def database_engine(db: PrefectDBInterface):
     """Produce a database engine"""
+    from prefect.server.database import configurations
+
+    # Disable the connection pool for tests, because we are currently experiencing
+    # ResourceWarnings about unclosd connections
+    configurations.DISABLE_CONNECTION_POOL = True
+
     engine = await db.engine()
 
     yield engine
