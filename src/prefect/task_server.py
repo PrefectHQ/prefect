@@ -3,7 +3,7 @@ import signal
 import sys
 from contextlib import AsyncExitStack
 from functools import partial
-from typing import Iterable, Optional, Type
+from typing import Optional, Type
 
 import anyio
 import anyio.abc
@@ -27,6 +27,12 @@ from prefect.utilities.processutils import _register_signal
 logger = get_logger("task_server")
 
 
+class StopTaskServer(Exception):
+    """Raised when the task server is stopped."""
+
+    pass
+
+
 class TaskServer:
     """This class is responsible for serving tasks that may be executed autonomously by a
     task runner in the engine.
@@ -47,11 +53,9 @@ class TaskServer:
         self,
         *tasks: Task,
         task_runner: Optional[Type[BaseTaskRunner]] = None,
-        extra_tags: Optional[Iterable[str]] = None,
     ):
         self.tasks: list[Task] = tasks
         self.task_runner: Type[BaseTaskRunner] = task_runner or ConcurrentTaskRunner()
-        self.extra_tags: Iterable[str] = extra_tags or []
         self.last_polled: Optional[pendulum.DateTime] = None
         self.started: bool = False
         self.stopping: bool = False
@@ -96,6 +100,8 @@ class TaskServer:
 
         self.started = False
         self.stopping = True
+
+        raise StopTaskServer
 
     async def _subscribe_to_task_scheduling(self):
         async for task_run in Subscription(
@@ -177,11 +183,7 @@ class TaskServer:
 
 
 @sync_compatible
-async def serve(
-    *tasks: Task,
-    task_runner: Optional[Type[BaseTaskRunner]] = None,
-    extra_tags: Optional[Iterable[str]] = None,
-):
+async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None):
     """Serve the provided tasks so that they may be submitted and executed to the engine.
     Tasks do not need to be within a flow run context to be submitted and executed.
     Ideally, you should `.submit` the same task object that you pass to `serve`.
@@ -219,6 +221,9 @@ async def serve(
     task_server = TaskServer(*tasks, task_runner=task_runner)
     try:
         await task_server.start()
+
+    except StopTaskServer:
+        logger.info("Task server stopped.")
 
     except (asyncio.CancelledError, KeyboardInterrupt):
         logger.info("Task server interrupted, stopping...")
