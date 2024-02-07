@@ -504,7 +504,6 @@ class TestReadBlockDocuments:
         # sorted by block document name
         assert [b.id for b in read_block_documents] == [b.id for b in block_documents]
 
-    @pytest.mark.flaky
     async def test_read_block_documents_limit_offset(self, client, block_documents):
         # sorted by block document name
         response = await client.post("/block_documents/filter", json=dict(limit=2))
