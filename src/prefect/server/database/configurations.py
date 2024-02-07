@@ -137,7 +137,19 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if self.sqlalchemy_max_overflow is not None:
                 kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
-            engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
+            engine = create_async_engine(
+                self.connection_url,
+                echo=self.echo,
+                # "pre-ping" connections upon checkout to ensure they have not been
+                # closed on the server side
+                pool_pre_ping=True,
+                # Use connections in LIFO order to help reduce connections
+                # after spiky load and in general increase the likelihood
+                # that a given connection pulled from the pool will be
+                # usable.
+                pool_use_lifo=True,
+                **kwargs,
+            )
 
             self.ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
