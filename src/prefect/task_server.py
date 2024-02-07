@@ -7,7 +7,6 @@ from typing import Optional, Type
 
 import anyio
 import anyio.abc
-import pendulum
 
 from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
@@ -56,7 +55,6 @@ class TaskServer:
     ):
         self.tasks: list[Task] = tasks
         self.task_runner: Type[BaseTaskRunner] = task_runner or ConcurrentTaskRunner()
-        self.last_polled: Optional[pendulum.DateTime] = None
         self.started: bool = False
         self.stopping: bool = False
 
@@ -225,5 +223,5 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
     except StopTaskServer:
         logger.info("Task server stopped.")
 
-    except (asyncio.CancelledError, KeyboardInterrupt):
+    except asyncio.CancelledError:
         logger.info("Task server interrupted, stopping...")
