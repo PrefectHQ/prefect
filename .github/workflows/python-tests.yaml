@@ -188,7 +188,7 @@ jobs:
         # maxprocesses 6 is based on empirical testing; higher than 6 sees diminishing returns
       - name: Run tests
         run: >
-          pytest tests/test_tasks.py
+          pytest tests
           --numprocesses auto
           --maxprocesses 6
           --dist loadscope
