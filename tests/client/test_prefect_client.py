@@ -945,6 +945,7 @@ async def test_read_flow_by_name(prefect_client):
 async def test_create_flow_run_from_deployment(
     prefect_client: PrefectClient, deployment
 ):
+    start_time = pendulum.now("utc")
     flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
@@ -956,7 +957,9 @@ async def test_create_flow_run_from_deployment(
     assert flow_run.flow_version is None
     # State is scheduled for now
     assert flow_run.state.type == StateType.SCHEDULED
-    assert flow_run.state.state_details.scheduled_time <= pendulum.now("utc")
+    assert (
+        start_time <= flow_run.state.state_details.scheduled_time <= pendulum.now("utc")
+    )
 
 
 async def test_create_flow_run_from_deployment_idempotency(prefect_client, deployment):
