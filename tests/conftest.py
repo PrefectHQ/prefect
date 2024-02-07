@@ -559,4 +559,3 @@ def reset_sys_modules():
             del sys.modules[module]
 
     importlib.invalidate_caches()
-    sys.modules = original_modules
