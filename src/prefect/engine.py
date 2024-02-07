@@ -1344,10 +1344,9 @@ async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
     async with client:
         flow_run = await client.read_flow_run(flow_run_id)
 
-    if not flow_run.state.is_paused():
-        raise NotPausedError("Cannot resume a run that isn't paused!")
+        if not flow_run.state.is_paused():
+            raise NotPausedError("Cannot resume a run that isn't paused!")
 
-    async with client:
         response = await client.resume_flow_run(flow_run_id, run_input=run_input)
 
     if response.status == SetStateStatus.REJECT:

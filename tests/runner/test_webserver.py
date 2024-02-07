@@ -159,11 +159,12 @@ class TestWebserverDeploymentRoutes:
 
         deployment_id = await create_deployment(runner, simple_flow)
         webserver = await build_server(runner)
+        client = TestClient(webserver)
 
         with mock.patch(
             "prefect.runner.server.get_client", new=mock_get_client
         ), mock.patch.object(runner, "execute_in_background"):
-            with TestClient(webserver) as client:
+            async with client:
                 response = client.post(f"/deployment/{deployment_id}/run")
             assert response.status_code == 201, response.json()
             flow_run_id = response.json()["flow_run_id"]
