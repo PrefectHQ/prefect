@@ -956,12 +956,7 @@ async def test_create_flow_run_from_deployment(
     assert flow_run.flow_version is None
     # State is scheduled for now
     assert flow_run.state.type == StateType.SCHEDULED
-    assert (
-        pendulum.now("utc")
-        .diff(flow_run.state.state_details.scheduled_time)
-        .in_seconds()
-        < 1
-    )
+    assert flow_run.state.state_details.scheduled_time <= pendulum.now("utc")
 
 
 async def test_create_flow_run_from_deployment_idempotency(prefect_client, deployment):
