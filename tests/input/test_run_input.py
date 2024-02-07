@@ -496,14 +496,13 @@ async def test_automatic_input_receive_multiple_values(flow_run):
     }
 
 
-@pytest.mark.flaky
 def test_automatic_input_receive_works_sync(flow_run):
     for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         send_input(city, flow_run_id=flow_run.id)
 
     received = []
     for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
     ):
         received.append(city)
 
@@ -523,7 +522,7 @@ async def test_automatic_input_receive_with_exclude_keys(flow_run):
     # Receive the cities that were sent.
     received = []
     async for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
     ):
         received.append(city)
     assert len(received) == 3
@@ -535,7 +534,11 @@ async def test_automatic_input_receive_with_exclude_keys(flow_run):
     # all of the cities that have been sent.
     received = []
     async for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, with_metadata=True
+        Tuple[str, str],
+        flow_run_id=flow_run.id,
+        timeout=5,
+        poll_interval=0.1,
+        with_metadata=True,
     ):
         received.append(city)
     assert len(received) == 4
@@ -621,13 +624,12 @@ async def test_receive(flow_run):
     }
 
 
-@pytest.mark.flaky
 def test_receive_works_sync(flow_run):
     for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         Place(city=city, state=state).send_to(flow_run_id=flow_run.id)
 
     received = []
-    for place in Place.receive(flow_run_id=flow_run.id, timeout=0, poll_interval=0.1):
+    for place in Place.receive(flow_run_id=flow_run.id, timeout=5, poll_interval=0.1):
         received.append(place)
 
     assert len(received) == 3
