@@ -260,6 +260,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
 
   run-tests-for-datadog:
+    name: DataDog CI Visibility
     runs-on:
       group: oss-larger-runners
     strategy:
@@ -370,8 +371,6 @@ jobs:
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
-        # Runs the test with || true to ensure the job does not fail if the tests
-        # fail, because we're sending the results to DataDog
       - name: Run tests
         run: >
           pytest tests
@@ -384,7 +383,6 @@ jobs:
           --durations 26
           --cov
           --cov-config setup.cfg
-          || true
         env:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: true
           DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
