@@ -209,12 +209,12 @@ def event_loop(request):
 
     loop = policy.new_event_loop()
 
-    # configure asyncio logging to capture long running tasks
-    asyncio_logger = logging.getLogger("asyncio")
-    asyncio_logger.setLevel("WARNING")
-    asyncio_logger.addHandler(logging.StreamHandler())
-    loop.set_debug(True)
-    loop.slow_callback_duration = 0.25
+    # # configure asyncio logging to capture long running tasks
+    # asyncio_logger = logging.getLogger("asyncio")
+    # asyncio_logger.setLevel("WARNING")
+    # asyncio_logger.addHandler(logging.StreamHandler())
+    # loop.set_debug(False)
+    # loop.slow_callback_duration = 0.25
 
     try:
         yield loop
