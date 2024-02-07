@@ -30,8 +30,8 @@ def test_response_scoped_dependency_is_resolved():
 
     app.include_router(router)
 
-    client = TestClient(app)
-    response = client.get("/")
+    with TestClient(app) as client:
+        response = client.get("/")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == "test"
 
