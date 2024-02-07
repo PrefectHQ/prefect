@@ -864,7 +864,6 @@ async def test_job_configuration_from_template_and_overrides_with_hard_coded_pri
     }
 
 
-@pytest.mark.flaky(max_runs=3)
 async def test_job_configuration_from_template_overrides_with_block():
     class ArbitraryBlock(Block):
         a: int
@@ -1784,7 +1783,6 @@ class TestCancellation:
         # No need for state message update
         assert post_flow_run.state.message is None
 
-    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
