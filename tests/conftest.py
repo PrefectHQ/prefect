@@ -330,6 +330,18 @@ def pytest_sessionstart(session):
     # and unwritable by the normal user
     PREFECT_LOCAL_STORAGE_PATH.value().mkdir()
 
+    import socket
+    import traceback
+
+    original_socket_init = socket.socket.__init__
+
+    def patched_socket_init(self, *args, **kwargs):
+        original_socket_init(self, *args, **kwargs)
+        print(f"Socket created: {self}, args: {args}, kwargs: {kwargs}")
+        traceback.print_stack()
+
+    socket.socket.__init__ = patched_socket_init
+
     # Ensure logging is configured for the test session
     setup_logging()
 
