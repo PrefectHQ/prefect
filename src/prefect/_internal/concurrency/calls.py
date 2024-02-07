@@ -350,15 +350,15 @@ class Call(Generic[T]):
         cancel_scope = None
         try:
             with set_current_call(self):
-                with self.future.enforce_async_deadline() as cancel_scope:
-                    try:
-                        result = await coro
-                    finally:
-                        # Forget this call's arguments in order to free up any memory
-                        # that may be referenced by them; after a call has happened,
-                        # there's no need to keep a reference to them
-                        self.args = None
-                        self.kwargs = None
+                # with self.future.enforce_async_deadline() as cancel_scope:
+                try:
+                    result = await coro
+                finally:
+                    # Forget this call's arguments in order to free up any memory
+                    # that may be referenced by them; after a call has happened,
+                    # there's no need to keep a reference to them
+                    self.args = None
+                    self.kwargs = None
         except CancelledError:
             # Report cancellation
             if cancel_scope.timedout():
