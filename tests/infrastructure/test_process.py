@@ -52,7 +52,6 @@ def test_process_stream_output(capsys, stream_output):
         assert "hello world" in out
 
 
-@pytest.mark.flaky(max_runs=2 if sys.version_info > (3, 10) else 1)
 @pytest.mark.skipif(
     sys.platform == "win32", reason="stderr redirect does not work on Windows"
 )
