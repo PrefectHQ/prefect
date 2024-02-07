@@ -87,17 +87,6 @@ async def test_save_stores_provided_description(flow_run_context):
     assert description == "Testing"
 
 
-def test_save_works_sync(flow_run_context):
-    keyset = keyset_from_base_key("person")
-    Person.save(keyset)
-    schema = read_flow_run_input(key=keyset["schema"])
-    assert set(schema["properties"].keys()) == {
-        "name",
-        "email",
-        "human",
-    }
-
-
 async def test_save_explicit_flow_run(flow_run):
     keyset = keyset_from_base_key("person")
     await Person.save(keyset, flow_run_id=flow_run.id)
@@ -130,20 +119,6 @@ async def test_load_populates_metadata(flow_run_context):
     assert person.metadata == RunInputMetadata(
         key=keyset["response"], receiver=flow_run_context.flow_run.id, sender=None
     )
-
-
-def test_load_works_sync(flow_run_context):
-    keyset = keyset_from_base_key("person")
-    create_flow_run_input(
-        keyset["response"],
-        value={"name": "Bob", "email": "bob@bob.bob", "human": True},
-    )
-
-    person = Person.load(keyset)
-    assert isinstance(person, Person)
-    assert person.name == "Bob"
-    assert person.email == "bob@bob.bob"
-    assert person.human is True
 
 
 async def test_load_explicit_flow_run(flow_run):
@@ -245,25 +220,6 @@ async def test_respond(flow_run):
     assert place.state == "NY"
 
 
-def test_respond_functions_sync(flow_run):
-    flow_run_input = FlowRunInput(
-        flow_run_id=uuid4(),
-        key="person-response",
-        value=orjson.dumps(
-            {"name": "Bob", "email": "bob@example.com", "human": True}
-        ).decode(),
-        sender=f"prefect.flow-run.{flow_run.id}",
-    )
-
-    person = Person.load_from_flow_run_input(flow_run_input)
-    person.respond(Place(city="New York", state="NY"))
-
-    place = Place.receive(flow_run_id=flow_run.id, timeout=0.1).next()
-    assert isinstance(place, Place)
-    assert place.city == "New York"
-    assert place.state == "NY"
-
-
 async def test_respond_can_set_sender(flow_run):
     flow_run_input = FlowRunInput(
         flow_run_id=uuid4(),
@@ -343,14 +299,6 @@ async def test_automatic_input_send_to(flow_run):
     assert received == 1
 
 
-def test_automatic_input_send_to_works_sync(flow_run):
-    send_input(1, flow_run_id=flow_run.id)
-
-    receive_iter = receive_input(int, flow_run_id=flow_run.id, timeout=0.1)
-    received = receive_iter.next()
-    assert received == 1
-
-
 async def test_automatic_input_send_to_can_set_sender(flow_run):
     await send_input(1, flow_run_id=flow_run.id, sender="sally")
 
@@ -393,25 +341,6 @@ async def test_send_to(flow_run):
     await person.send_to(flow_run_id=flow_run.id)
 
     received = await Person.receive(flow_run_id=flow_run.id, timeout=0.1).next()
-    assert isinstance(received, Person)
-    assert person.name == "Bob"
-    assert person.email == "bob@example.com"
-    assert person.human is True
-
-
-def test_send_to_works_sync(flow_run):
-    flow_run_input = FlowRunInput(
-        flow_run_id=uuid4(),
-        key="person-response",
-        value=orjson.dumps(
-            {"name": "Bob", "email": "bob@example.com", "human": True}
-        ).decode(),
-    )
-
-    person = Person.load_from_flow_run_input(flow_run_input)
-    person.send_to(flow_run_id=flow_run.id)
-
-    received = Person.receive(flow_run_id=flow_run.id, timeout=0.1).next()
     assert isinstance(received, Person)
     assert person.name == "Bob"
     assert person.email == "bob@example.com"
@@ -496,25 +425,6 @@ async def test_automatic_input_receive_multiple_values(flow_run):
     }
 
 
-def test_automatic_input_receive_works_sync(flow_run):
-    for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
-        send_input(city, flow_run_id=flow_run.id)
-
-    received = []
-    for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
-    ):
-        received.append(city)
-
-    assert len(received) == 3
-    assert all(isinstance(city, tuple) for city in received)
-    assert set(received) == {
-        ("New York", "NY"),
-        ("Boston", "MA"),
-        ("Chicago", "IL"),
-    }
-
-
 async def test_automatic_input_receive_with_exclude_keys(flow_run):
     for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         await send_input(city, flow_run_id=flow_run.id)
@@ -575,22 +485,6 @@ async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator
             pass
 
 
-def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
-    flow_run,
-):
-    with pytest.raises(TimeoutError):
-        for _ in receive_input(
-            int,
-            flow_run_id=flow_run.id,
-            timeout=0,
-            poll_interval=0.1,
-            # Normally the loop would just exit, but this causes it to raise
-            # when it doesn't receive a value for `timeout` seconds.
-            raise_timeout_error=True,
-        ):
-            pass
-
-
 async def test_automatic_input_receive_run_input_subclass(flow_run):
     await send_input(Place(city="New York", state="NY"), flow_run_id=flow_run.id)
 
@@ -614,23 +508,6 @@ async def test_receive(flow_run):
 
     await send()
     received = await receive()
-
-    assert len(received) == 3
-    assert all(isinstance(place, Place) for place in received)
-    assert {(place.city, place.state) for place in received} == {
-        ("New York", "NY"),
-        ("Boston", "MA"),
-        ("Chicago", "IL"),
-    }
-
-
-def test_receive_works_sync(flow_run):
-    for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
-        Place(city=city, state=state).send_to(flow_run_id=flow_run.id)
-
-    received = []
-    for place in Place.receive(flow_run_id=flow_run.id, timeout=5, poll_interval=0.1):
-        received.append(place)
 
     assert len(received) == 3
     assert all(isinstance(place, Place) for place in received)
@@ -680,19 +557,6 @@ async def test_receive_with_exclude_keys(flow_run):
 async def test_receive_can_raise_timeout_errors_as_generator(flow_run):
     with pytest.raises(TimeoutError):
         async for _ in Place.receive(
-            flow_run_id=flow_run.id,
-            timeout=0,
-            poll_interval=0.1,
-            # Normally the loop would just exit, but this causes it to raise
-            # when it doesn't receive a value for `timeout` seconds.
-            raise_timeout_error=True,
-        ):
-            pass
-
-
-def test_receive_can_raise_timeout_errors_as_generator_sync(flow_run):
-    with pytest.raises(TimeoutError):
-        for _ in Place.receive(
             flow_run_id=flow_run.id,
             timeout=0,
             poll_interval=0.1,
