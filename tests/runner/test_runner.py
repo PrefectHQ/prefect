@@ -371,7 +371,6 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.flaky
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
         self, prefect_client: PrefectClient, caplog
     ):
