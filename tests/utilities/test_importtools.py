@@ -34,26 +34,6 @@ class Foo:
 pytest.mark.usefixtures("hosted_orion")
 
 
-@pytest.fixture
-def reset_sys_modules():
-    original_modules = sys.modules.copy()
-
-    # Workaround for weird behavior on Linux where some of our "expected failure" tests
-    # succeed because '.' is in the path.
-    if sys.platform == "linux" and "." in sys.path:
-        sys.path.remove(".")
-
-    yield
-
-    # Delete all of the module objects that were introduced so they are not cached
-    for module in set(sys.modules.keys()):
-        if module not in original_modules:
-            del sys.modules[module]
-
-    importlib.invalidate_caches()
-    sys.modules = original_modules
-
-
 @pytest.mark.parametrize(
     "obj,expected",
     [
@@ -141,8 +121,6 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
         module.foo
 
 
-@pytest.mark.flaky
-@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,script_path",
     [
@@ -178,10 +156,10 @@ def test_import_object_from_script_with_relative_imports(
     with tmpchdir(working_directory):
         foobar = import_object(f"{script_path}:foobar")
 
+    assert callable(foobar), f"Expected callable, got {foobar!r}"
     assert foobar() == "foobar"
 
 
-@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,script_path",
     [
@@ -208,7 +186,6 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
             runpy.run_path(str(script_path))
 
 
-@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,import_path",
     [
@@ -226,8 +203,6 @@ def test_import_object_from_module_with_relative_imports(
         assert foobar() == "foobar"
 
 
-@pytest.mark.flaky(max_runs=3)
-@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,import_path",
     [

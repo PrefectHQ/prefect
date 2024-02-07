@@ -425,7 +425,6 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-@pytest.mark.flaky(max_runs=2)
 def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 

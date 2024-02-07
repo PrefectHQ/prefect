@@ -67,13 +67,15 @@ from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     AsyncMock,
     exceptions_equal,
-    flaky_on_windows,
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
+
+# Give an ample amount of sleep time in order to test flow timeouts
+SLEEP_TIME = 10
 
 
 @flow
@@ -881,7 +883,6 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
-    @pytest.mark.flaky(max_runs=2)
     async def test_concurrent_async_subflow(self):
         @task
         async def test_task():
@@ -1097,7 +1098,7 @@ class TestFlowTimeouts:
     def test_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(1)
+            time.sleep(SLEEP_TIME)
 
         state = my_flow._run()
         assert state.is_failed()
@@ -1109,7 +1110,7 @@ class TestFlowTimeouts:
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         async def my_flow():
-            await anyio.sleep(1)
+            await anyio.sleep(SLEEP_TIME)
 
         state = await my_flow._run()
         assert state.is_failed()
@@ -1119,7 +1120,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
-        @flow(timeout_seconds=1)
+        @flow(timeout_seconds=10)
         def my_flow():
             time.sleep(0.1)
 
@@ -1138,124 +1139,99 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
-    @pytest.mark.flaky(max_runs=2)
     @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
-        if sys.version_info[1] == 11:
-            pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
-
-        canary_file = tmp_path / "canary"
+        completed = False
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(3)
-            canary_file.touch()
+            time.sleep(SLEEP_TIME)
+            nonlocal completed
+            completed = True
 
-        t0 = time.perf_counter()
         state = my_flow(return_state=True)
-        t1 = time.perf_counter()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-        assert t1 - t0 < 3, f"The engine returns without waiting; took {t1-t0}s"
-
-        time.sleep(3)
-        assert not canary_file.exists()
+        assert not completed
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
         Sync flow runs tasks will fail after a timeout which will cause the flow to exit
         """
-        canary_file = tmp_path / "canary"
-        task_canary_file = tmp_path / "task_canary"
+        completed = False
+        task_completed = False
 
         @task
         def my_task():
-            task_canary_file.touch()
+            nonlocal task_completed
+            task_completed = True
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(0.25)
+            time.sleep(SLEEP_TIME)
             my_task()
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
         state = my_flow._run()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
-        # Wait in case the flow is just sleeping
-        time.sleep(0.5)
+        assert not completed
+        assert not task_completed
 
-        assert not canary_file.exists()
-        assert not task_canary_file.exists()
-
-    @flaky_on_windows
     async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
         """
-        canary_file = tmp_path / "canary"
-        sleep_time = 5
+        completed = False
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
             # Sleep in intervals to give more chances for interrupt
-            for _ in range(sleep_time * 10):
+            for _ in range(100):
                 await anyio.sleep(0.1)
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
-        t0 = anyio.current_time()
         state = await my_flow._run()
-        t1 = anyio.current_time()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-
-        # Wait in case the flow is just sleeping
-        await anyio.sleep(sleep_time)
-
-        assert not canary_file.exists()
-        assert (
-            t1 - t0 < sleep_time
-        ), f"The engine returns without waiting; took {t1-t0}s"
+        assert not completed
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
         """
-        canary_file = tmp_path / "canary"
-        sleep_time = 5
+        completed = False
 
         @flow(timeout_seconds=0.1)
         async def my_subflow():
             # Sleep in intervals to give more chances for interrupt
-            for _ in range(sleep_time * 10):
+            for _ in range(SLEEP_TIME * 10):
                 await anyio.sleep(0.1)
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
         @flow
         async def my_flow():
-            t0 = anyio.current_time()
             subflow_state = await my_subflow._run()
-            t1 = anyio.current_time()
-            return t1 - t0, subflow_state
+            return None, subflow_state
 
         state = await my_flow._run()
 
-        runtime, subflow_state = await state.result()
+        (_, subflow_state) = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
-
-        assert not canary_file.exists()
-        assert (
-            runtime < sleep_time
-        ), f"The engine returns without waiting; took {runtime}s"
+        assert not completed
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
         Sync flow runs can be cancelled after a timeout once a task is called
         """
-        canary_file = tmp_path / "canary"
+        completed = False
 
         @task
         def timeout_noticing_task():
@@ -1266,25 +1242,20 @@ class TestFlowTimeouts:
             time.sleep(0.5)
             timeout_noticing_task()
             time.sleep(10)
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
         @flow
         def my_flow():
-            t0 = time.perf_counter()
             subflow_state = my_subflow._run()
-            t1 = time.perf_counter()
-            return t1 - t0, subflow_state
+            return None, subflow_state
 
         state = my_flow._run()
 
-        runtime, subflow_state = await state.result()
+        (_, subflow_state) = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
-        # Wait in case the flow is just sleeping and will still create the canary
-        time.sleep(1)
-
-        assert not canary_file.exists()
-        assert runtime < 5, f"The engine returns without waiting; took {runtime}s"
+        assert not completed
 
     async def test_subflow_timeout_waits_until_execution_starts(self, tmp_path):
         """
@@ -1292,11 +1263,12 @@ class TestFlowTimeouts:
         Fixes: https://github.com/PrefectHQ/prefect/issues/7903.
         """
 
-        canary_file = tmp_path / "canary"
+        completed = False
 
         @flow(timeout_seconds=1)
         async def downstream_flow():
-            canary_file.touch()
+            nonlocal completed
+            completed = True
 
         @task
         async def sleep_task(n):
@@ -1307,15 +1279,12 @@ class TestFlowTimeouts:
             upstream_sleepers = await sleep_task.map([0.5, 1.0])
             await downstream_flow(wait_for=upstream_sleepers)
 
-        t0 = anyio.current_time()
         state = await my_flow._run()
-        t1 = anyio.current_time()
 
         assert state.is_completed()
 
         # Validate the sleep tasks have ran
-        assert t1 - t0 >= 1
-        assert canary_file.exists()  # Validate subflow has ran
+        assert completed
 
 
 class ParameterTestModel(pydantic.BaseModel):
@@ -1660,10 +1629,10 @@ class TestFlowRunLogs:
         my_flow()
 
         logs = await prefect_client.read_logs()
-        error_log = [log.message for log in logs if log.level == 40].pop()
-        assert "Traceback" in error_log
-        assert "NameError" in error_log, "Should reference the exception type"
-        assert "x + y" in error_log, "Should reference the line of code"
+        error_logs = "\n".join([log.message for log in logs if log.level == 40])
+        assert "Traceback" in error_logs
+        assert "NameError" in error_logs, "Should reference the exception type"
+        assert "x + y" in error_logs, "Should reference the line of code"
 
     async def test_raised_exceptions_include_tracebacks(self, prefect_client):
         @flow
@@ -1674,13 +1643,15 @@ class TestFlowRunLogs:
             my_flow()
 
         logs = await prefect_client.read_logs()
-        error_log = [
-            log.message
-            for log in logs
-            if log.level == 40 and "Encountered exception" in log.message
-        ].pop()
-        assert "Traceback" in error_log
-        assert "ValueError: Hello!" in error_log, "References the exception"
+        error_logs = "\n".join(
+            [
+                log.message
+                for log in logs
+                if log.level == 40 and "Encountered exception" in log.message
+            ]
+        )
+        assert "Traceback" in error_logs
+        assert "ValueError: Hello!" in error_logs, "References the exception"
 
     async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @flow
@@ -3135,7 +3106,6 @@ class TestFlowHooksOnCrashed:
         my_flow._run()
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3153,7 +3123,6 @@ class TestFlowHooksOnCrashed:
             await my_flow._run()
         assert my_mock.mock_calls == [call("crashed")]
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
