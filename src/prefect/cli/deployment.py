@@ -517,6 +517,9 @@ async def run(
         None,
         "--start-at",
     ),
+    tags: List[str] = typer.Option(
+        [], "--tag", help="Tag(s) to be applied to flow run"
+    ),
     watch: bool = typer.Option(
         False,
         "--watch",
@@ -529,9 +532,6 @@ async def run(
     ),
     watch_timeout: Optional[int] = typer.Option(
         None, "--watch-timeout", help="Timeout for `--watch`."
-    ),
-    tags: List[str] = typer.Option(
-        [], "--tag", help="Tag(s) to be applied to flow run"
     ),
 ):
     """
@@ -679,7 +679,7 @@ async def run(
     )
     if watch:
         watch_interval = 5 if watch_interval is None else watch_interval
-        app.console.print("Watching flow run...")
+        app.console.print(f"Watching flow run '{flow_run.name!r}'...")
         finished_flow_run = await wait_for_flow_run(
             flow_run.id,
             timeout=watch_timeout,
