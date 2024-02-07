@@ -76,7 +76,7 @@ jobs:
 
       fail-fast: false
 
-    timeout-minutes: 45
+    timeout-minutes: 180
 
     steps:
       - name: Display current test matrix
@@ -189,15 +189,13 @@ jobs:
       - name: Run tests
         run: >
           pytest tests
-          --numprocesses auto
-          --maxprocesses 6
+          --numprocesses 0
           --dist loadscope
           --disable-docker-image-builds
           --exclude-service kubernetes
           --durations 26
           --no-cov
           ${{ matrix.pytest-options }}
-
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -273,7 +271,7 @@ jobs:
 
       fail-fast: false
 
-    timeout-minutes: 45
+    timeout-minutes: 180
 
     steps:
       - name: Display current test matrix
@@ -375,8 +373,7 @@ jobs:
       - name: Run tests
         run: >
           pytest tests
-          --numprocesses auto
-          --maxprocesses 6
+          --numprocesses 0
           --ddtrace
           --dist loadscope
           --disable-docker-image-builds
