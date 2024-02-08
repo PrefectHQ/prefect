@@ -36,7 +36,7 @@ See the following pull request for implementation details:
 - Use `pool_pre_ping` to ensure that our PostgreSQL connections are ready to use before issuing queries. This will improve stability for long-lived PostgreSQL connections. — https://github.com/PrefectHQ/prefect/pull/11911
 
 ### Documentation
-- Clarify Docker tutorial code snippet to ensure commands are run from the correct directory. — https://github.com/PrefectHQ/prefect/pull/11833
+- Clarify Docker tutorial code snippet to ensure commands are run from the correct directory — https://github.com/PrefectHQ/prefect/pull/11833
 - Remove beta tag from incident documentation and screenshots. Check out the incidents feature in Prefect Cloud! — https://github.com/PrefectHQ/prefect/pull/11921
 - Update documentation for Prefect Cloud account roles to reflect renaming of previous "Admin" role to "Owner" and creation of new "Admin" role that cannot bypass SSO. — https://github.com/PrefectHQ/prefect/pull/11925
 
