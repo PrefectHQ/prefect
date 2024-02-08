@@ -9,6 +9,12 @@ def reset_asserting_events_client():
     AssertingEventsClient.reset()
 
 
+@pytest.fixture(autouse=True)
+def mock_emit_events_to_cloud(monkeypatch):
+    monkeypatch.setattr("prefect.events.utilities.emit_events_to_cloud", lambda: True)
+    yield
+
+
 @pytest.fixture
 def example_event_1() -> Event:
     return Event(
