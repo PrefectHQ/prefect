@@ -11,7 +11,11 @@ from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database.configurations import ENGINES
+from prefect.server.database.dependencies import (
+    PrefectDBInterface,
+    provide_database_interface,
+)
 from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
@@ -27,12 +31,20 @@ def db(test_database_connection_url, safety_check_settings):
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def database_engine(db):
+async def database_engine(db: PrefectDBInterface):
     """Produce a database engine"""
     engine = await db.engine()
-    try:
-        yield engine
-    finally:
+
+    yield engine
+
+    # At the end of the test session, dispose of _any_ open engines, not just the one
+    # that we produced here.  Other engines may have been created from different event
+    # loops, and we need to ensure that they are all disposed of.
+
+    engines = list(ENGINES.values())
+    ENGINES.clear()
+
+    for engine in engines:
         await engine.dispose()
 
 
@@ -66,26 +78,29 @@ async def clear_db(db):
     connection errors.
     """
 
-    async def execute_delete_op(operation):
-        for attempt in range(3):
-            try:
-                async with db.session_context(begin_transaction=True) as session:
-                    await session.execute(operation)
-                break
-            except InterfaceError:
-                if attempt < 2:
-                    print(f"Connection closed. Retrying ({attempt + 1}/3)...")
-                    await asyncio.sleep(1)
-                else:
-                    raise
-
     yield
 
-    await execute_delete_op(db.Agent.__table__.delete())
-    await execute_delete_op(db.WorkPool.__table__.delete())
+    max_retries = 3
+    retry_delay = 1
 
-    for table in reversed(db.Base.metadata.sorted_tables):
-        await execute_delete_op(table.delete())
+    for attempt in range(max_retries):
+        try:
+            async with db.session_context(begin_transaction=True) as session:
+                await session.execute(db.Agent.__table__.delete())
+                await session.execute(db.WorkPool.__table__.delete())
+
+                for table in reversed(db.Base.metadata.sorted_tables):
+                    await session.execute(table.delete())
+                break
+        except InterfaceError:
+            if attempt < max_retries - 1:
+                print(
+                    "Connection issue. Retrying entire deletion operation"
+                    f" ({attempt + 1}/{max_retries})..."
+                )
+                await asyncio.sleep(retry_delay)
+            else:
+                raise
 
 
 @pytest.fixture
