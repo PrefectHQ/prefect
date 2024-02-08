@@ -2,7 +2,7 @@ import json
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
-from time import monotonic, sleep
+from time import sleep
 from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock
@@ -54,15 +54,19 @@ def mock_watch(monkeypatch):
 
 @pytest.fixture
 def mock_anyio_sleep_monotonic(monkeypatch):
+    current_time = 0
+
     def mock_monotonic():
-        return mock_sleep.current_time
+        return current_time
 
     def mock_sleep(duration):
-        mock_sleep.current_time += duration
+        nonlocal current_time
+        current_time += duration
 
-    mock_sleep.current_time = monotonic()
     monkeypatch.setattr("time.monotonic", mock_monotonic)
     monkeypatch.setattr("anyio.sleep", mock_sleep)
+
+    yield mock_sleep
 
 
 @pytest.fixture
@@ -922,7 +926,7 @@ def test_watch_deadline_is_computed_before_log_streams(
             yield {"object": job, "type": "ADDED"}
 
     def mock_log_stream(*args, **kwargs):
-        anyio.sleep(500)
+        mock_anyio_sleep_monotonic(500)
         return MagicMock()
 
     mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
@@ -947,13 +951,12 @@ def test_watch_deadline_is_computed_before_log_streams(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(500, 1),
+                timeout_seconds=500,
             ),
         ]
     )
 
 
-@pytest.mark.flaky
 def test_timeout_is_checked_during_log_streams(
     mock_k8s_client, mock_watch, mock_k8s_batch_client, capsys
 ):
@@ -977,15 +980,15 @@ def test_timeout_is_checked_during_log_streams(
             yield {"object": job, type: "ADDED"}
 
     def mock_log_stream(*args, **kwargs):
-        for i in range(10):
-            sleep(0.25)
+        for i in range(100):
+            sleep(0.07)
             yield f"test {i}".encode()
 
     mock_k8s_client.read_namespaced_pod_log.return_value.stream = mock_log_stream
     mock_watch.stream.side_effect = mock_stream
 
     result = KubernetesJob(
-        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=0.5
     ).run(MagicMock())
 
     # The job should timeout
@@ -1003,14 +1006,10 @@ def test_timeout_is_checked_during_log_streams(
         ]
     )
 
-    # Check for logs
-    stdout, _ = capsys.readouterr()
-
     # Before the deadline, logs should be displayed
-    for i in range(4):
-        assert f"test {i}" in stdout
-    for i in range(4, 10):
-        assert f"test {i}" not in stdout
+    stdout, _ = capsys.readouterr()
+    logs = [log for log in stdout.split("\n") if log.startswith("test")]
+    assert len(logs) > 0 and len(logs) < 10
 
 
 def test_timeout_during_log_stream_does_not_fail_completed_job(
@@ -1026,15 +1025,15 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
             yield {"object": job_pod}
 
     def mock_log_stream(*args, **kwargs):
-        for i in range(10):
-            sleep(0.25)
+        for i in range(100):
+            sleep(0.07)
             yield f"test {i}".encode()
 
     mock_k8s_client.read_namespaced_pod_log.return_value.stream = mock_log_stream
     mock_watch.stream.side_effect = mock_stream
 
     result = KubernetesJob(
-        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=0.5
     ).run(MagicMock())
 
     # The job should not timeout
@@ -1052,17 +1051,12 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
         ]
     )
 
-    # Check for logs
-    stdout, _ = capsys.readouterr()
-
     # Before the deadline, logs should be displayed
-    for i in range(4):
-        assert f"test {i}" in stdout
-    for i in range(4, 10):
-        assert f"test {i}" not in stdout
+    stdout, _ = capsys.readouterr()
+    logs = [log for log in stdout.split("\n") if log.startswith("test")]
+    assert len(logs) > 0 and len(logs) < 10
 
 
-@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerances
 def test_watch_timeout_is_restarted_until_job_is_complete(
     mock_k8s_client,
     mock_watch,
@@ -1083,8 +1077,8 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
             job.status.failed = 0
             job.spec.backoff_limit = 6
 
-            # Sleep a little
-            anyio.sleep(10)
+            # Pretend to sleep a little
+            mock_anyio_sleep_monotonic(10)
 
             # Yield the job then return exiting the stream
             job.status.completion_time = None
@@ -1109,26 +1103,26 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(40, abs=1),
+                timeout_seconds=40,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(30, abs=1),
+                timeout_seconds=30,
             ),
             # Then, elapsed time removed on each call
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(20, abs=1),
+                timeout_seconds=20,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(10, abs=1),
+                timeout_seconds=10,
             ),
         ]
     )
@@ -1791,7 +1785,6 @@ def base_job_template_with_defaults(
     return base_job_template_with_defaults
 
 
-@pytest.mark.flaky
 @pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
     "job_config",

@@ -327,6 +327,10 @@ class TestBlockingPause:
             keyset = flow_run.state.state_details.run_input_keyset
             assert keyset
 
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
             await resume_flow_run(flow_run_id, run_input={"x": 42})
 
         flow_run_state, the_answer = await asyncio.gather(
@@ -343,7 +347,9 @@ class TestBlockingPause:
         )
         assert schema is not None
 
-    async def test_paused_flows_can_receive_automatic_input(self, prefect_client):
+    async def test_paused_flows_can_receive_automatic_input(
+        self, prefect_client: PrefectClient
+    ):
         flow_run_id = None
 
         @flow(task_runner=SequentialTaskRunner())
@@ -368,6 +374,10 @@ class TestBlockingPause:
 
             keyset = flow_run.state.state_details.run_input_keyset
             assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
 
             await resume_flow_run(flow_run_id, run_input={"value": 42})
 

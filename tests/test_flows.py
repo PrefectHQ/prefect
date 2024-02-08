@@ -883,7 +883,6 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
-    @pytest.mark.flaky(max_runs=2)
     async def test_concurrent_async_subflow(self):
         @task
         async def test_task():
@@ -3117,7 +3116,6 @@ class TestFlowHooksOnCrashed:
         my_flow._run()
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3140,7 +3138,6 @@ class TestFlowHooksOnCrashed:
 
         assert my_mock.mock_calls == [call("crashed")]
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
