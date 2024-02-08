@@ -182,9 +182,9 @@ class TaskServer:
 
 @sync_compatible
 async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None):
-    """Serve the provided tasks so that they may be submitted and executed to the engine.
-    Tasks do not need to be within a flow run context to be submitted and executed.
-    Ideally, you should `.submit` the same task object that you pass to `serve`.
+    """Serve the provided tasks so that their runs may be submitted to and executed.
+    in the engine. Tasks do not need to be within a flow run context to be submitted.
+    You must `.submit` the same task object that you pass to `serve`.
 
     Args:
         - tasks: A list of tasks to serve. When a scheduled task run is found for a
