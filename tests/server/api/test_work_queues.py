@@ -275,6 +275,25 @@ class TestReadWorkQueues:
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
+    async def test_work_queue_old_last_polled_is_in_not_ready_status(
+        self,
+        client,
+        work_queue,
+        session,
+    ):
+        # Update the queue with an old last_polled time
+        new_data = WorkQueueUpdate(
+            last_polled=pendulum.now("UTC").subtract(days=1)
+        ).dict(json_compatible=True, exclude_unset=True)
+        response = await client.patch(f"/work_queues/{work_queue.id}", json=new_data)
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify the work queue status is changed
+        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        assert wq_response.status_code == status.HTTP_200_OK
+        assert wq_response.json()["status"] == "NOT_READY"
+        assert wq_response.json()["is_paused"] is False
+
 
 class TestGetRunsInWorkQueue:
     @pytest.fixture
