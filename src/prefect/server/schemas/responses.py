@@ -29,6 +29,9 @@ from prefect.utilities.collections import AutoEnum
 if TYPE_CHECKING:
     import prefect.server.database.orm_models
 
+DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 60
+WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = 60
+
 
 class SetStateStatus(AutoEnum):
     """Enumerates return statuses for setting run states."""
@@ -232,9 +235,6 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
-DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 60
-
-
 @copy_model_fields
 class DeploymentResponse(ORMBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
@@ -303,6 +303,9 @@ class WorkQueueResponse(schemas.core.WorkQueue):
         default=None,
         description="The name of the work pool the work pool resides within.",
     )
+    status: Optional[schemas.statuses.WorkQueueStatus] = Field(
+        default=None, description="The queue status."
+    )
 
     @classmethod
     def from_orm(cls, orm_work_queue):
@@ -310,6 +313,16 @@ class WorkQueueResponse(schemas.core.WorkQueue):
         if orm_work_queue.work_pool:
             response.work_pool_name = orm_work_queue.work_pool.name
 
+        if response.is_paused:
+            response.status = schemas.statuses.WorkQueueStatus.PAUSED
+        else:
+            unready_at = datetime.datetime.now(
+                tz=datetime.timezone.utc
+            ) - datetime.timedelta(seconds=WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS)
+            if response.last_polled and response.last_polled > unready_at:
+                response.status = schemas.statuses.WorkQueueStatus.READY
+            else:
+                response.status = schemas.statuses.WorkQueueStatus.NOT_READY
         return response
 
 
