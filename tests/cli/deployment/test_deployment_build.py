@@ -1,6 +1,5 @@
 from datetime import timedelta
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from textwrap import dedent
 from unittest.mock import Mock
 
@@ -660,7 +659,7 @@ class TestEntrypoint:
             expected_output_contains="No module named ",
         )
 
-    def test_entrypoint_works_with_flow_with_custom_name(self):
+    def test_entrypoint_works_with_flow_with_custom_name(self, tmp_path, monkeypatch):
         flow_code = """
         from prefect import flow
 
@@ -668,21 +667,24 @@ class TestEntrypoint:
         def dog():
             pass
         """
+        monkeypatch.chdir(tmp_path)
         file_name = "f.py"
-        with TemporaryDirectory():
-            Path(file_name).write_text(dedent(flow_code))
+        file_path = Path(tmp_path) / Path(file_name)
+        file_path.write_text(dedent(flow_code))
 
-            dep_name = "TEST"
-            entrypoint = f"{file_name}:dog"
-            cmd = ["deployment", "build", "-n", dep_name]
-            cmd += [entrypoint]
+        dep_name = "TEST"
+        entrypoint = f"{file_path.absolute()}:dog"
+        cmd = ["deployment", "build", "-n", dep_name]
+        cmd += [entrypoint]
 
-            invoke_and_assert(
-                cmd,
-                expected_code=0,
-            )
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
 
-    def test_entrypoint_works_with_flow_func_with_underscores(self):
+    def test_entrypoint_works_with_flow_func_with_underscores(
+        self, tmp_path, monkeypatch
+    ):
         flow_code = """
         from prefect import flow
         
@@ -690,19 +692,20 @@ class TestEntrypoint:
         def dog_flow_func():
             pass
         """
+        monkeypatch.chdir(tmp_path)
         file_name = "f.py"
-        with TemporaryDirectory():
-            Path(file_name).write_text(dedent(flow_code))
+        file_path = Path(tmp_path) / Path(file_name)
+        file_path.write_text(dedent(flow_code))
 
-            dep_name = "TEST"
-            entrypoint = f"{file_name}:dog_flow_func"
-            cmd = ["deployment", "build", "-n", dep_name]
-            cmd += [entrypoint]
+        dep_name = "TEST"
+        entrypoint = f"{file_path.absolute()}:dog_flow_func"
+        cmd = ["deployment", "build", "-n", dep_name]
+        cmd += [entrypoint]
 
-            invoke_and_assert(
-                cmd,
-                expected_code=0,
-            )
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
 
 
 class TestWorkQueue:
@@ -874,6 +877,7 @@ class TestAutoApply:
                 ),
                 f"$ prefect agent start -p {prefect_agent_work_pool.name!r}",
             ],
+            temp_dir=tmp_path,
         )
 
     def test_message_with_process_work_pool(
@@ -899,6 +903,7 @@ class TestAutoApply:
                 ),
                 f"$ prefect worker start -p {process_work_pool.name!r}",
             ],
+            temp_dir=tmp_path,
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
@@ -928,6 +933,7 @@ class TestAutoApply:
                     f"$ prefect worker start -p {process_work_pool.name!r}"
                 ),
             ],
+            temp_dir=tmp_path,
         )
 
 
