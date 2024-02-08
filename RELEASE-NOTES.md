@@ -17,9 +17,9 @@
 - Using `pool_pre_ping` to ensure that our PostgreSQL connections are connected — https://github.com/PrefectHQ/prefect/pull/11911
 
 ### Documentation
-- Add clarity to Docker tutorial code snippet — https://github.com/PrefectHQ/prefect/pull/11833
-- Remove beta tag from incident docs and screenshots. — https://github.com/PrefectHQ/prefect/pull/11921
-- Update account role docs — https://github.com/PrefectHQ/prefect/pull/11925
+- Clarify Docker tutorial code snippet to ensure commands are run from the correct directory. — https://github.com/PrefectHQ/prefect/pull/11833
+- Remove beta tag from incident documentation and screenshots. Check out the incidents feature in Prefect Cloud! — https://github.com/PrefectHQ/prefect/pull/11921
+- Update documentation for Prefect Cloud account roles to reflect renaming of "Admin" role to "Owner" and creation of new "Admin" role that cannot bypass SSO. — https://github.com/PrefectHQ/prefect/pull/11925
 
 
 ## Release 2.14.20
