@@ -1,5 +1,52 @@
 # Prefect Release Notes
 
+## Release 2.14.21
+
+### Introducing work queue status
+
+We're excited to unveil the new status indicators for work queues in Prefect's UI, enhancing your ability to oversee and control flow run execution within our hybrid work pools.
+
+Work queues will now display one of three distinct statuses:
+
+- `Ready` -  one or more online workers are actively polling the work queue
+- `Not Ready` - no online workers are polling the work queue, signaling a need for intervention
+- `Paused` - the work queue is intentionally paused, preventing execution
+
+<p align="center">
+<img width="1109" alt="Prefect dashboard snapshot" src="https://github.com/PrefectHQ/prefect/assets/42048900/e5bb0a33-1ae2-44a7-a64e-ef0d308fce7a">
+</p>
+<img width="1109" alt="work pools page work queues table here with work queues of all statuses" src="https://github.com/PrefectHQ/prefect/assets/42048900/834f0f66-79e9-420b-9d11-d771a5b8cf02">
+
+With the introduction of work queue status, you'll notice the absence of deprecated work queue health indicators in the UI.
+
+See the documentation on [work queue status](https://docs.prefect.io/latest/concepts/work-pools/#work-queues) for more information.
+
+
+For now, this is an experimental feature, and can be enabled by running:
+```console
+prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS=True
+```
+
+See the following pull request for implementation details:
+    - https://github.com/PrefectHQ/prefect/pull/11829
+
+### Fixes
+- Remove unnecessary `WARNING` level log indicating a task run completed successfully — https://github.com/PrefectHQ/prefect/pull/11810
+- Fix a bug where block placeholders declared in pull steps of the `deployments` section of a `prefect.yaml` file were not resolved correctly — https://github.com/PrefectHQ/prefect/pull/11740
+- Use `pool_pre_ping` to improve stability for long-lived PostgreSQL connections — https://github.com/PrefectHQ/prefect/pull/11911
+
+### Documentation
+- Clarify Docker tutorial code snippet to ensure commands are run from the correct directory — https://github.com/PrefectHQ/prefect/pull/11833
+- Remove beta tag from incident documentation and screenshots — https://github.com/PrefectHQ/prefect/pull/11921
+- Update Prefect Cloud account roles docs to reflect renaming of previous "Admin" role to "Owner" and creation of new "Admin" role that cannot bypass SSO — https://github.com/PrefectHQ/prefect/pull/11925
+
+### Experimental
+- Ensure task subscribers can only pick up task runs they are able to execute — https://github.com/PrefectHQ/prefect/pull/11805
+- Allow a task server to reuse the same task runner to speed up execution — https://github.com/PrefectHQ/prefect/pull/11806
+- Allow configuration of maximum backlog queue size and maximum retry queue size for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/11825
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.20...2.14.21
+
 ## Release 2.14.20
 
 ### Fixes
