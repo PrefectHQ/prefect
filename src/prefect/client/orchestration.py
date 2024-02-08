@@ -132,7 +132,7 @@ if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
     from prefect.tasks import Task as TaskObject
 
-from prefect.client.base import ASGIApp, PrefectHttpxClient
+from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
 
 
 class ServerType(AutoEnum):
@@ -2939,10 +2939,10 @@ class PrefectClient:
 
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
-        # if self._ephemeral_app and self.manage_lifespan:
-        #     self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
-        #         app_lifespan_context(self._ephemeral_app)
-        #     )
+        if self._ephemeral_app and self.manage_lifespan:
+            self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
+                app_lifespan_context(self._ephemeral_app)
+            )
 
         if self._ephemeral_app:
             self.logger.debug(
