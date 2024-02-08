@@ -1,4 +1,5 @@
 import sqlite3
+import traceback
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_running_loop
 from contextlib import asynccontextmanager
@@ -24,6 +25,71 @@ SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
 )
 
 ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
+
+
+class ConnectionTracker:
+    """A test utility which tracks the connections given out by a connection pool, to
+    make it easy to see which connections are currently checked out and open."""
+
+    all_connections: Dict[sa.AdaptedConnection, str]
+    open_connections: Dict[sa.AdaptedConnection, str]
+    left_field_closes: Dict[sa.AdaptedConnection, str]
+    connects: int
+    closes: int
+    active: bool
+
+    def __init__(self) -> None:
+        self.active = False
+        self.all_connections = {}
+        self.open_connections = {}
+        self.left_field_closes = {}
+        self.connects = 0
+        self.closes = 0
+
+    def track_pool(self, pool: sa.pool.Pool):
+        sa.event.listen(pool, "connect", self.on_connect)
+        sa.event.listen(pool, "close", self.on_close)
+        sa.event.listen(pool, "close_detached", self.on_close_detached)
+
+    def on_connect(
+        self,
+        adapted_connection: sa.AdaptedConnection,
+        connection_record: sa.pool.ConnectionPoolEntry,
+    ):
+        self.all_connections[adapted_connection] = traceback.format_stack()
+        self.open_connections[adapted_connection] = traceback.format_stack()
+        self.connects += 1
+
+    def on_close(
+        self,
+        adapted_connection: sa.AdaptedConnection,
+        connection_record: sa.pool.ConnectionPoolEntry,
+    ):
+        try:
+            del self.open_connections[adapted_connection]
+        except KeyError:
+            self.left_field_closes[adapted_connection] = traceback.format_stack()
+        self.closes += 1
+
+    def on_close_detached(
+        self,
+        adapted_connection: sa.AdaptedConnection,
+    ):
+        try:
+            del self.open_connections[adapted_connection]
+        except KeyError:
+            self.left_field_closes[adapted_connection] = traceback.format_stack()
+        self.closes += 1
+
+    def clear(self):
+        self.all_connections.clear()
+        self.open_connections.clear()
+        self.left_field_closes.clear()
+        self.connects = 0
+        self.closes = 0
+
+
+TRACKER: ConnectionTracker = ConnectionTracker()
 
 
 class BaseDatabaseConfiguration(ABC):
@@ -151,6 +217,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 **kwargs,
             )
 
+            if TRACKER.active:
+                TRACKER.track_pool(engine.pool)
+
             ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
         return ENGINES[cache_key]
@@ -267,6 +336,9 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
             sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
+
+            if TRACKER.active:
+                TRACKER.track_pool(engine.pool)
 
             ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
