@@ -1,5 +1,27 @@
 # Prefect Release Notes
 
+## Release 2.14.21
+
+### Exciting New Features 🎉
+- Add `WorkQueue.status` to server and client side schemas — https://github.com/PrefectHQ/prefect/pull/11829
+
+### Enhancements
+- Implementing task subscription filtering — https://github.com/PrefectHQ/prefect/pull/11805
+- [task scheduling] scope `TaskRunner` to `TaskServer` — https://github.com/PrefectHQ/prefect/pull/11806
+- [task scheduling] basic task run queue capacity settings — https://github.com/PrefectHQ/prefect/pull/11825
+
+### Fixes
+- rm extra `WARNING` log in task runs — https://github.com/PrefectHQ/prefect/pull/11810
+- Fix bug where block placeholders are not saved with pull step declared in `deployments` section of a `prefect.yaml` file — https://github.com/PrefectHQ/prefect/pull/11740
+- close clients by entering them as contexts — https://github.com/PrefectHQ/prefect/pull/11909
+- Using `pool_pre_ping` to ensure that our PostgreSQL connections are connected — https://github.com/PrefectHQ/prefect/pull/11911
+
+### Documentation
+- Add clarity to Docker tutorial code snippet — https://github.com/PrefectHQ/prefect/pull/11833
+- Remove beta tag from incident docs and screenshots. — https://github.com/PrefectHQ/prefect/pull/11921
+- Update account role docs — https://github.com/PrefectHQ/prefect/pull/11925
+
+
 ## Release 2.14.20
 
 ### Fixes
