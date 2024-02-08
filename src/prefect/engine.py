@@ -1341,12 +1341,13 @@ async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
         run_input: a dictionary of inputs to provide to the flow run.
     """
     client = get_client()
-    flow_run = await client.read_flow_run(flow_run_id)
+    async with client:
+        flow_run = await client.read_flow_run(flow_run_id)
 
-    if not flow_run.state.is_paused():
-        raise NotPausedError("Cannot resume a run that isn't paused!")
+        if not flow_run.state.is_paused():
+            raise NotPausedError("Cannot resume a run that isn't paused!")
 
-    response = await client.resume_flow_run(flow_run_id, run_input=run_input)
+        response = await client.resume_flow_run(flow_run_id, run_input=run_input)
 
     if response.status == SetStateStatus.REJECT:
         if response.state.type == StateType.FAILED:

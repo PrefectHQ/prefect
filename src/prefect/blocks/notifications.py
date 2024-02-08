@@ -714,7 +714,8 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 
         # make request with httpx
         client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
-        resp = await client.request(**self._build_request_args(body, subject))
+        async with client:
+            resp = await client.request(**self._build_request_args(body, subject))
         resp.raise_for_status()
 
 

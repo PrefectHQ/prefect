@@ -164,7 +164,8 @@ class TestWebserverDeploymentRoutes:
         with mock.patch(
             "prefect.runner.server.get_client", new=mock_get_client
         ), mock.patch.object(runner, "execute_in_background"):
-            response = client.post(f"/deployment/{deployment_id}/run")
+            with client:
+                response = client.post(f"/deployment/{deployment_id}/run")
             assert response.status_code == 201, response.json()
             flow_run_id = response.json()["flow_run_id"]
             assert flow_run_id == mock_flow_run_id
