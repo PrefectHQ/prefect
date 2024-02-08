@@ -2,6 +2,7 @@ import datetime
 from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from prefect.server.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.server.database.configurations import BaseDatabaseConfiguration
@@ -78,7 +79,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         except Exception:
             return False
 
-    async def engine(self):
+    async def engine(self) -> AsyncEngine:
         """
         Provides a SqlAlchemy engine against a specific database.
         """
