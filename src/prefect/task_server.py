@@ -1,8 +1,9 @@
 import asyncio
 import signal
 import sys
+from contextlib import AsyncExitStack
 from functools import partial
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Type
 
 import anyio
 import anyio.abc
@@ -19,40 +20,44 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.task_engine import submit_autonomous_task_to_engine
+from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
-from prefect.utilities.collections import distinct
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
 
 
 class TaskServer:
-    """This class is responsible for serving tasks that may be executed autonomously
-    (i.e., without a parent flow run).
+    """This class is responsible for serving tasks that may be executed autonomously by a
+    task runner in the engine.
 
-    When `start()` is called, the task server will subscribe to the task run scheduling
-    topic and poll for scheduled task runs. When a scheduled task run is found, it
-    will submit the task run to the engine for execution, using `submit_autonomous_task_to_engine`
-    to construct a minimal `EngineContext` for the task run.
+    When `start()` is called, the task server will open a websocket connection to a
+    server-side queue of scheduled task runs. When a scheduled task run is found, the
+    scheduled task run is submitted to the engine for execution with a minimal `EngineContext`
+    so that the task run can be governed by orchestration rules.
 
     Args:
         - tasks: A list of tasks to serve. These tasks will be submitted to the engine
             when a scheduled task run is found.
-        - tags: A list of tags to apply to the task server. Defaults to `["autonomous"]`.
+        - task_runner: The task runner to use for executing the tasks. Defaults to
+            `ConcurrentTaskRunner`.
     """
 
     def __init__(
         self,
         *tasks: Task,
-        tags: Optional[Iterable[str]] = None,
+        task_runner: Optional[Type[BaseTaskRunner]] = None,
+        extra_tags: Optional[Iterable[str]] = None,
     ):
         self.tasks: list[Task] = tasks
-        self.tags: Iterable[str] = tags or ["autonomous"]
+        self.task_runner: Type[BaseTaskRunner] = task_runner or ConcurrentTaskRunner()
+        self.extra_tags: Iterable[str] = extra_tags or []
         self.last_polled: Optional[pendulum.DateTime] = None
-        self.started = False
-        self.stopping = False
+        self.started: bool = False
+        self.stopping: bool = False
 
         self._client = get_client()
+        self._exit_stack = AsyncExitStack()
 
         if not asyncio.get_event_loop().is_running():
             raise RuntimeError(
@@ -89,14 +94,15 @@ class TaskServer:
                 " calling .start()"
             )
 
-        logger.info("Stopping task server...")
         self.started = False
         self.stopping = True
 
     async def _subscribe_to_task_scheduling(self):
-        subscription = Subscription(TaskRun, "/task_runs/subscriptions/scheduled")
-        logger.debug(f"Created: {subscription}")
-        async for task_run in subscription:
+        async for task_run in Subscription(
+            TaskRun,
+            "/task_runs/subscriptions/scheduled",
+            [task.task_key for task in self.tasks],
+        ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             await self._submit_pending_task_run(task_run)
 
@@ -142,22 +148,23 @@ class TaskServer:
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
 
-        task_run.tags = distinct(task_run.tags + list(self.tags))
-
         self._runs_task_group.start_soon(
             partial(
                 submit_autonomous_task_to_engine,
                 task=task,
                 task_run=task_run,
                 parameters=parameters,
+                task_runner=self.task_runner,
+                client=self._client,
             )
         )
 
     async def __aenter__(self):
         logger.debug("Starting task server...")
-        self._client = get_client()
-        await self._client.__aenter__()
-        await self._runs_task_group.__aenter__()
+
+        self._client = await self._exit_stack.enter_async_context(get_client())
+        await self._exit_stack.enter_async_context(self._runs_task_group)
+        await self._exit_stack.enter_async_context(self.task_runner.start())
 
         self.started = True
         return self
@@ -165,20 +172,25 @@ class TaskServer:
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task server...")
         self.started = False
-        if self._runs_task_group:
-            await self._runs_task_group.__aexit__(*exc_info)
-        if self._client:
-            await self._client.__aexit__(*exc_info)
+
+        await self._exit_stack.__aexit__(*exc_info)
 
 
 @sync_compatible
-async def serve(*tasks: Task, tags: Optional[Iterable[str]] = None):
-    """Serve the provided tasks so that they may be executed autonomously.
+async def serve(
+    *tasks: Task,
+    task_runner: Optional[Type[BaseTaskRunner]] = None,
+    extra_tags: Optional[Iterable[str]] = None,
+):
+    """Serve the provided tasks so that they may be submitted and executed to the engine.
+    Tasks do not need to be within a flow run context to be submitted and executed.
+    Ideally, you should `.submit` the same task object that you pass to `serve`.
 
     Args:
         - tasks: A list of tasks to serve. When a scheduled task run is found for a
             given task, the task run will be submitted to the engine for execution.
-        - tags: A list of tags to apply to the task server. Defaults to `["autonomous"]`.
+        - task_runner: The task runner to use for executing the tasks. Defaults to
+            `ConcurrentTaskRunner`.
 
     Example:
         ```python
@@ -204,5 +216,9 @@ async def serve(*tasks: Task, tags: Optional[Iterable[str]] = None):
             " to True."
         )
 
-    task_server = TaskServer(*tasks, tags=tags)
-    await task_server.start()
+    task_server = TaskServer(*tasks, task_runner=task_runner)
+    try:
+        await task_server.start()
+
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        logger.info("Task server interrupted, stopping...")
