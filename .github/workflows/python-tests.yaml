@@ -245,7 +245,7 @@ jobs:
           - "postgres:14"
         python-version:
           - "3.8"
-          - "3.11"
+          - "3.12"
         pytest-options:
           - "--exclude-services"
           - "--only-services"
