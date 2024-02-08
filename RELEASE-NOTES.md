@@ -30,7 +30,6 @@ prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS=True
 See the following pull request for implementation details:
     - https://github.com/PrefectHQ/prefect/pull/11829
 
-
 ### Fixes
 - Remove unnecessary `WARNING` level log indicating a task run completed successfully. — https://github.com/PrefectHQ/prefect/pull/11810
 - Fix bug where block placeholders declared in pull steps of the `deployments` section of a `prefect.yaml` file were not resolved correctly. You can now refer to blocks in pull steps. — https://github.com/PrefectHQ/prefect/pull/11740
