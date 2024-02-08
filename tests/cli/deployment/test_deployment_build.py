@@ -135,18 +135,6 @@ def mock_build_from_flow(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def mock_create_default_ignore_file(monkeypatch):
-    mock_create_default_ignore_file = Mock(return_value=True)
-
-    monkeypatch.setattr(
-        "prefect.cli.deployment.create_default_ignore_file",
-        mock_create_default_ignore_file,
-    )
-
-    return mock_create_default_ignore_file
-
-
-@pytest.fixture(autouse=True)
 async def ensure_default_agent_pool_exists(session):
     # The default agent work pool is created by a migration, but is cleared on
     # consecutive test runs. This fixture ensures that the default agent work
