@@ -5,11 +5,6 @@
 ### Exciting New Features 🎉
 - Add `WorkQueue.status` to server and client side schemas — https://github.com/PrefectHQ/prefect/pull/11829
 
-### Enhancements
-- Implementing task subscription filtering — https://github.com/PrefectHQ/prefect/pull/11805
-- [task scheduling] scope `TaskRunner` to `TaskServer` — https://github.com/PrefectHQ/prefect/pull/11806
-- [task scheduling] basic task run queue capacity settings — https://github.com/PrefectHQ/prefect/pull/11825
-
 ### Fixes
 - Remove unnecessary `WARNING` level log indicating a task run completed successfully. — https://github.com/PrefectHQ/prefect/pull/11810
 - Fix bug where block placeholders declared in pull steps of the `deployments` section of a `prefect.yaml` file were not resolved correctly. You can now refer to blocks in pull steps. — https://github.com/PrefectHQ/prefect/pull/11740
@@ -20,6 +15,10 @@
 - Remove beta tag from incident documentation and screenshots. Check out the incidents feature in Prefect Cloud! — https://github.com/PrefectHQ/prefect/pull/11921
 - Update documentation for Prefect Cloud account roles to reflect renaming of previous "Admin" role to "Owner" and creation of new "Admin" role that cannot bypass SSO. — https://github.com/PrefectHQ/prefect/pull/11925
 
+### Experimental
+- Allow task subscribers to filter for a subset of tasks. This ensures task subscribers only pick up task runs they are able to execute. — https://github.com/PrefectHQ/prefect/pull/11805
+- Start only one `TaskRunner` when launching a `TaskServer`. This allows a task server to reuse the same task runner, speeding up execution. — https://github.com/PrefectHQ/prefect/pull/11806
+- Introduce task run queue capacity settings. Users can now control the maximum backlog queue size and maximum retry queue size for autonomous task runs. — https://github.com/PrefectHQ/prefect/pull/11825
 
 ## Release 2.14.20
 
