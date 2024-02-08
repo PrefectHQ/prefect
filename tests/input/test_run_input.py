@@ -16,7 +16,9 @@ from prefect.input import (
 )
 from prefect.input.run_input import (
     AutomaticRunInput,
+    receive_input,
     run_input_subclass_from_type,
+    send_input,
 )
 from prefect.states import Paused, Running, Suspended
 
@@ -315,6 +317,68 @@ async def test_respond_raises_exception_no_sender_in_input():
         await person.respond(Place(city="New York", state="NY"))
 
 
+async def test_respond_uses_automatic_input_if_needed(flow_run):
+    flow_run_input = FlowRunInput(
+        flow_run_id=uuid4(),
+        key="person-response",
+        value=orjson.dumps(
+            {"name": "Bob", "email": "bob@example.com", "human": True}
+        ).decode(),
+        sender=f"prefect.flow-run.{flow_run.id}",
+    )
+
+    person = Person.load_from_flow_run_input(flow_run_input)
+    await person.respond("hey")
+
+    message = await receive_input(str, flow_run_id=flow_run.id).next()
+    assert isinstance(message, str)
+    assert message == "hey"
+
+
+async def test_automatic_input_send_to(flow_run):
+    await send_input(1, flow_run_id=flow_run.id)
+
+    received = await receive_input(int, flow_run_id=flow_run.id, timeout=0.1).next()
+    assert received == 1
+
+
+def test_automatic_input_send_to_works_sync(flow_run):
+    send_input(1, flow_run_id=flow_run.id)
+
+    receive_iter = receive_input(int, flow_run_id=flow_run.id, timeout=0.1)
+    received = receive_iter.next()
+    assert received == 1
+
+
+async def test_automatic_input_send_to_can_set_sender(flow_run):
+    await send_input(1, flow_run_id=flow_run.id, sender="sally")
+
+    received = await receive_input(
+        int, flow_run_id=flow_run.id, timeout=0.1, with_metadata=True
+    ).next()
+    assert received.metadata.sender == "sally"
+
+
+async def test_automatic_input_send_to_can_set_key_prefix(flow_run):
+    await send_input(1, flow_run_id=flow_run.id, sender="sally", key_prefix="heythere")
+
+    # Shouldn't work without the key prefix.
+    with pytest.raises(TimeoutError):
+        await receive_input(
+            int, flow_run_id=flow_run.id, timeout=0.1, with_metadata=True
+        ).next()
+
+    # Now we should see it.
+    received = await receive_input(
+        int,
+        flow_run_id=flow_run.id,
+        timeout=0.1,
+        with_metadata=True,
+        key_prefix="heythere",
+    ).next()
+    assert received.metadata.sender == "sally"
+
+
 async def test_send_to(flow_run):
     flow_run_input = FlowRunInput(
         flow_run_id=uuid4(),
@@ -388,6 +452,62 @@ async def test_send_to_can_set_key_prefix(flow_run):
     assert person.name == "Bob"
     assert person.email == "bob@example.com"
     assert person.human is True
+
+
+async def test_automatic_input_can_receive_metadata(flow_run):
+    await send_input(1, flow_run_id=flow_run.id)
+
+    received = await receive_input(
+        int, flow_run_id=flow_run.id, timeout=0.1, with_metadata=True
+    ).next()
+    assert received.value == 1
+
+
+async def test_automatic_input_can_receive_without_metadata(flow_run):
+    await send_input(1, flow_run_id=flow_run.id)
+
+    received = await receive_input(int, flow_run_id=flow_run.id, timeout=0.1).next()
+    assert received == 1
+
+
+async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator(
+    flow_run,
+):
+    with pytest.raises(TimeoutError):
+        async for _ in receive_input(
+            int,
+            flow_run_id=flow_run.id,
+            timeout=0,
+            poll_interval=0.1,
+            # Normally the loop would just exit, but this causes it to raise
+            # when it doesn't receive a value for `timeout` seconds.
+            raise_timeout_error=True,
+        ):
+            pass
+
+
+def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
+    flow_run,
+):
+    with pytest.raises(TimeoutError):
+        for _ in receive_input(
+            int,
+            flow_run_id=flow_run.id,
+            timeout=0,
+            poll_interval=0.1,
+            # Normally the loop would just exit, but this causes it to raise
+            # when it doesn't receive a value for `timeout` seconds.
+            raise_timeout_error=True,
+        ):
+            pass
+
+
+async def test_automatic_input_receive_run_input_subclass(flow_run):
+    await send_input(Place(city="New York", state="NY"), flow_run_id=flow_run.id)
+
+    received = await receive_input(Place, flow_run_id=flow_run.id, timeout=0).next()
+    assert received.city == "New York"
+    assert received.state == "NY"
 
 
 async def test_receive(flow_run):
