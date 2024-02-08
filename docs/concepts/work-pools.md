@@ -430,6 +430,9 @@ Priority for flow run submission proceeds from the highest priority to the lowes
 
 If new flow runs are received on the "critical" queue while flow runs are still in scheduled on the "high" and "low" queues, flow run submission goes back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty, in waterfall fashion.
 
+!!! tip "Work queue status"
+    A work queue has a `READY` status when it has been polled by a worker in the last 60 seconds. Pausing a work queue will give it a `PAUSED` status, meaning no work will be added to that work queue. Unpausing a work queue will lead to a `NOT_READY` status unless a worker has polled it in the last 60 seconds.
+
 ### Local debugging
 
 As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to a worker running on your local machine for debugging by running `prefect worker start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
