@@ -159,8 +159,12 @@ def commit(message: str, root: Path = DEFAULT_ROOT):
 
 
 @app.command()
-def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False):
+def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False, draft: bool = False):
     """Creates a pull request on all repositories"""
+
+    if dry_run:
+        print("THIS IS A DRY RUN")
+
     with tempfile.NamedTemporaryFile("w+t") as pr_body_file:
         pr_body_file.write("The title\n\nThe body\n")
         pr_body_file.flush()
@@ -186,7 +190,7 @@ def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False):
         pr_body_file.write(body)
         pr_body_file.flush()
 
-        DELAY = 10
+        DELAY = 10 if not dry_run else 0
         print(
             (
                 "Note: there is an intentional delay between each repo to avoid"
@@ -218,6 +222,7 @@ def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False):
                 title,
                 "--body-file",
                 pr_body_file.name,
+                *(["--draft"] if draft else []),
             ]
             if dry_run:
                 print(" ".join(arguments))
