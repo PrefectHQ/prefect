@@ -2,8 +2,28 @@
 
 ## Release 2.14.21
 
-### Exciting New Features 🎉
-- Add `WorkQueue.status` to server and client side schemas — https://github.com/PrefectHQ/prefect/pull/11829
+### Introducing work queue status
+
+We're excited to unveil the new status indicators for work queues in Prefect's UI, enhancing your ability to oversee and control flow run execution within our hybrid work pools.
+
+Work queues will now display one of three distinct statuses:
+
+
+- `Ready` -  one or more online workers are actively polling the work queue
+- `Not Ready` - no online workers are polling the work queue, signaling a need for intervention
+- `Paused` - the work queue is intentionally paused, preventing execution
+
+--Add prefect dashboard snapshot here --
+
+--Add work pools page work queues table here with work queues of all statuses.--
+
+With the introduction of work queue status, you'll notice the absence of deprecated work queue health indicators in the UI.
+
+See the documentation on [work queue status](https://docs.prefect.io/latest/concepts/work-pools/#work-queues) for more information.
+
+See the following pull request for implementation details:
+    - https://github.com/PrefectHQ/prefect/pull/11829
+
 
 ### Fixes
 - Remove unnecessary `WARNING` level log indicating a task run completed successfully. — https://github.com/PrefectHQ/prefect/pull/11810
