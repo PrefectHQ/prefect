@@ -66,10 +66,7 @@ async def database_engine(db: PrefectDBInterface):
     # post-test-session ResourceWarning errors about unclosed connections.
 
     TRACKER.clear()
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=ResourceWarning)
-        gc.collect()
+    gc.collect()
 
 
 @pytest.fixture
