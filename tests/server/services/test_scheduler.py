@@ -13,33 +13,99 @@ from prefect.settings import (
 )
 
 
-async def test_create_schedules_from_deployment(flow, session):
-    schedule1 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(hours=1))
-    schedule2 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(hours=2))
-    schedule3 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(hours=4))
-
-    await models.deployments.create_deployment(
+@pytest.fixture
+async def deployment_without_schedules(flow, session):
+    deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="test",
+            name="no schedules",
+            flow_id=flow.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def deployment_with_inactive_schedules(flow, session):
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="inactive schedules",
             flow_id=flow.id,
             schedules=[
                 schemas.core.DeploymentSchedule(
-                    schedule=schedule1,
-                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                    active=False,
                 ),
                 schemas.core.DeploymentSchedule(
-                    schedule=schedule2,
-                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=2)
+                    ),
+                    active=False,
                 ),
                 schemas.core.DeploymentSchedule(
-                    schedule=schedule3,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=4)
+                    ),
                     active=False,
                 ),
             ],
         ),
     )
     await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def deployment_with_active_schedules(flow, session):
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="active schedules",
+            flow_id=flow.id,
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                    active=True,
+                ),
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=2)
+                    ),
+                    active=True,
+                ),
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=4)
+                    ),
+                    active=False,
+                ),
+            ],
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+async def test_create_schedules_from_deployment(
+    session, deployment_with_active_schedules
+):
+    active_schedules = [
+        s.schedule
+        for s in await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment_with_active_schedules.id,
+            deployment_schedule_filter=schemas.filters.DeploymentScheduleFilter(
+                active=schemas.filters.DeploymentScheduleFilterActive(eq_=True)
+            ),
+        )
+    ]
+    num_active_schedules = len(active_schedules)
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
@@ -47,12 +113,10 @@ async def test_create_schedules_from_deployment(flow, session):
     service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
-    assert (
-        len(runs) == service.min_runs * 2
-    )  # We're scheduling 2 schedules, so 2x min_runs
+    assert len(runs) == service.min_runs * num_active_schedules
 
     expected_dates = set()
-    for schedule in [schedule1, schedule2]:
+    for schedule in active_schedules:
         expected_dates.update(await schedule.get_dates(service.min_runs))
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
@@ -293,6 +357,22 @@ async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
     assert {r.state_type for r in runs} == {"SCHEDULED", "SCHEDULED", "CANCELLED"}
 
 
+async def test_only_looks_at_deployments_with_active_schedules(
+    session,
+    deployment_without_schedules,
+    deployment_with_inactive_schedules,
+    deployment_with_active_schedules,
+):
+    n_runs = await models.flow_runs.count_flow_runs(session=session)
+    assert n_runs == 0
+
+    query = Scheduler()._get_select_deployments_to_schedule_query().limit(10)
+
+    deployment_ids = (await session.execute(query)).scalars().all()
+    assert len(deployment_ids) == 1
+    assert deployment_ids[0] == deployment_with_active_schedules.id
+
+
 class TestRecentDeploymentsScheduler:
     async def test_tight_loop_by_default(self):
         assert RecentDeploymentsScheduler(handle_signals=False).loop_seconds == 5
@@ -365,6 +445,26 @@ class TestRecentDeploymentsScheduler:
 
         runs_count = (await session.execute(count_query)).scalar()
         assert runs_count == 0
+
+    async def test_only_looks_at_deployments_with_active_schedules(
+        self,
+        session,
+        deployment_without_schedules,
+        deployment_with_inactive_schedules,
+        deployment_with_active_schedules,
+    ):
+        n_runs = await models.flow_runs.count_flow_runs(session=session)
+        assert n_runs == 0
+
+        query = (
+            RecentDeploymentsScheduler(handle_signals=False)
+            ._get_select_deployments_to_schedule_query()
+            .limit(10)
+        )
+
+        deployment_ids = (await session.execute(query)).scalars().all()
+        assert len(deployment_ids) == 1
+        assert deployment_ids[0] == deployment_with_active_schedules.id
 
 
 class TestScheduleRulesWaterfall:
