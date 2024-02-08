@@ -316,6 +316,19 @@ class FlowRunFilter(PrefectBaseModel, OperatorMixin):
     )
 
 
+class TaskRunFilterFlowRunId(PrefectBaseModel):
+    """Filter by `TaskRun.flow_run_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run ids to include"
+    )
+
+    is_null_: bool = Field(
+        default=False,
+        description="If true, only include task runs without a flow run id",
+    )
+
+
 class TaskRunFilterId(PrefectBaseModel):
     """Filter by `TaskRun.id`."""
 
@@ -427,6 +440,9 @@ class TaskRunFilter(PrefectBaseModel, OperatorMixin):
     )
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
         default=None, description="Filter criteria for `TaskRun.subflow_run`"
+    )
+    flow_run_id: Optional[TaskRunFilterFlowRunId] = Field(
+        default=None, description="Filter criteria for `TaskRun.flow_run_id`"
     )
 
 

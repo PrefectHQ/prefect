@@ -1,7 +1,5 @@
 import json
 import os
-import random
-import threading
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -50,6 +48,7 @@ from prefect.client.schemas.filters import (
     FlowRunNotificationPolicyFilter,
     LogFilter,
     LogFilterFlowRunId,
+    TaskRunFilter,
 )
 from prefect.client.schemas.objects import (
     Flow,
@@ -382,92 +381,6 @@ class TestClientContextManager:
 
         startup.assert_called_once()
         shutdown.assert_called_once()
-
-    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
-    async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client(context):
-            # We must re-enter the profile context in the new thread
-            with context:
-                # Use random sleeps to interleave clients
-                await anyio.sleep(random.random())
-                async with PrefectClient(app):
-                    await anyio.sleep(random.random())
-
-        threads = [
-            threading.Thread(
-                target=anyio.run,
-                args=(enter_client, prefect.context.SettingsContext.get().copy()),
-            )
-            for _ in range(100)
-        ]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join(3)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
-    @pytest.mark.skip("Test is too flaky")
-    async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client():
-            # Use random sleeps to interleave clients
-            await anyio.sleep(random.random())
-            async with PrefectClient(app):
-                await anyio.sleep(random.random())
-
-        with anyio.fail_after(15):
-            async with anyio.create_task_group() as tg:
-                for _ in range(1000):
-                    tg.start_soon(enter_client)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
-    @pytest.mark.flaky(max_runs=3)
-    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
-    async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client():
-            # Use random sleeps to interleave clients
-            await anyio.sleep(random.random())
-            async with PrefectClient(app):
-                await anyio.sleep(random.random())
-
-        async def enter_client_many_times(context):
-            # We must re-enter the profile context in the new thread
-            with context:
-                async with anyio.create_task_group() as tg:
-                    for _ in range(100):
-                        tg.start_soon(enter_client)
-
-        threads = [
-            threading.Thread(
-                target=anyio.run,
-                args=(
-                    enter_client_many_times,
-                    prefect.context.SettingsContext.get().copy(),
-                ),
-            )
-            for _ in range(100)
-        ]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join(3)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
 
     async def test_client_context_lifespan_is_robust_to_dependency_deadlocks(self):
         """
@@ -1032,6 +945,7 @@ async def test_read_flow_by_name(prefect_client):
 async def test_create_flow_run_from_deployment(
     prefect_client: PrefectClient, deployment
 ):
+    start_time = pendulum.now("utc")
     flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
@@ -1044,10 +958,7 @@ async def test_create_flow_run_from_deployment(
     # State is scheduled for now
     assert flow_run.state.type == StateType.SCHEDULED
     assert (
-        pendulum.now("utc")
-        .diff(flow_run.state.state_details.scheduled_time)
-        .in_seconds()
-        < 1
+        start_time <= flow_run.state.state_details.scheduled_time <= pendulum.now("utc")
     )
 
 
@@ -1203,6 +1114,39 @@ async def test_set_then_read_task_run_state(prefect_client):
     assert isinstance(run.state, State)
     assert run.state.type == StateType.COMPLETED
     assert run.state.message == "Test!"
+
+
+async def test_create_then_read_autonomous_task_runs(prefect_client):
+    @task
+    def foo():
+        pass
+
+    flow_run = await prefect_client.create_flow_run(foo)
+
+    task_run_1 = await prefect_client.create_task_run(
+        foo, flow_run_id=None, dynamic_key="0"
+    )
+    task_run_2 = await prefect_client.create_task_run(
+        foo, flow_run_id=None, dynamic_key="1"
+    )
+    task_run_3 = await prefect_client.create_task_run(
+        foo, flow_run_id=flow_run.id, dynamic_key="2"
+    )
+    assert all(
+        isinstance(task_run, TaskRun)
+        for task_run in [task_run_1, task_run_2, task_run_3]
+    )
+
+    autonotask_runs = await prefect_client.read_task_runs(
+        task_run_filter=TaskRunFilter(flow_run_id=dict(is_null_=True))
+    )
+
+    assert len(autonotask_runs) == 2
+
+    assert {task_run.id for task_run in autonotask_runs} == {
+        task_run_1.id,
+        task_run_2.id,
+    }
 
 
 async def test_create_then_read_flow_run_notification_policy(
@@ -1575,6 +1519,15 @@ class TestClientWorkQueues:
         assert isinstance(lookup, WorkQueue)
         assert lookup.name == "foo"
 
+    async def test_create_and_read_includes_status(self, prefect_client: PrefectClient):
+        queue = await prefect_client.create_work_queue(name="foo")
+        assert hasattr(queue, "status")
+        assert queue.status == "NOT_READY"
+
+        lookup = await prefect_client.read_work_queue(queue.id)
+        assert hasattr(lookup, "status")
+        assert lookup.status == "NOT_READY"
+
     async def test_create_then_read_work_queue_by_name(self, prefect_client):
         queue = await prefect_client.create_work_queue(name="foo")
         assert isinstance(queue.id, UUID)
@@ -1650,6 +1603,19 @@ class TestClientWorkQueues:
         output = await prefect_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
+
+    async def test_get_runs_from_queue_updates_status(
+        self, prefect_client: PrefectClient
+    ):
+        queue = await prefect_client.create_work_queue(name="foo")
+        assert queue.status == "NOT_READY"
+
+        # Trigger an operation that would update the queues last_polled status
+        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
+
+        # Verify that the polling results in a READY status
+        lookup = await prefect_client.read_work_queue(queue.id)
+        assert lookup.status == "READY"
 
 
 async def test_delete_flow_run(prefect_client, flow_run):

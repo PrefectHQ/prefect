@@ -214,7 +214,7 @@ class RunContext(ContextModel):
     client: PrefectClient
 
 
-class FlowRunContext(RunContext):
+class EngineContext(RunContext):
     """
     The context for a flow run. Data in this context is only available from within a
     flow run function.
@@ -233,9 +233,10 @@ class FlowRunContext(RunContext):
 
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
+    autonomous_task_run: Optional[TaskRun] = None
     task_runner: BaseTaskRunner
     log_prints: bool = False
-    parameters: Dict[str, Any]
+    parameters: Optional[Dict[str, Any]] = None
 
     # Result handling
     result_factory: ResultFactory
@@ -264,6 +265,9 @@ class FlowRunContext(RunContext):
     events: Optional[EventsWorker] = None
 
     __var__ = ContextVar("flow_run")
+
+
+FlowRunContext = EngineContext  # for backwards compatibility
 
 
 class TaskRunContext(RunContext):

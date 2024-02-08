@@ -302,6 +302,11 @@ def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
 
 
 @pytest.fixture
+def mock_emit_events_to_cloud(monkeypatch):
+    monkeypatch.setattr("prefect.events.utilities.emit_events_to_cloud", lambda: True)
+
+
+@pytest.fixture
 def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
     worker = EventsWorker.instance(AssertingEventsClient)
     # Always yield the asserting worker when new instances are retrieved
