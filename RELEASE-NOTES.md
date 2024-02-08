@@ -43,7 +43,7 @@ See the following pull request for implementation details:
 ### Experimental
 - Allow task subscribers to filter for a subset of tasks. This ensures task subscribers only pick up task runs they are able to execute. — https://github.com/PrefectHQ/prefect/pull/11805
 - Start only one `TaskRunner` when launching a `TaskServer`. This allows a task server to reuse the same task runner, speeding up execution. — https://github.com/PrefectHQ/prefect/pull/11806
-- Introduce task run queue capacity settings. Users can now control the maximum backlog queue size and maximum retry queue size for autonomous task runs. — https://github.com/PrefectHQ/prefect/pull/11825
+- Allow configuration of maximum backlog queue size and maximum retry queue size for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/11825
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.20...2.14.21
 
