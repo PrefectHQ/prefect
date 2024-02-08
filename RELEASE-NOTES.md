@@ -33,7 +33,7 @@ See the following pull request for implementation details:
 ### Fixes
 - Remove unnecessary `WARNING` level log indicating a task run completed successfully — https://github.com/PrefectHQ/prefect/pull/11810
 - Fix a bug where block placeholders declared in pull steps of the `deployments` section of a `prefect.yaml` file were not resolved correctly. You can now refer to blocks in pull steps. — https://github.com/PrefectHQ/prefect/pull/11740
-- Use `pool_pre_ping` to ensure that our PostgreSQL connections are ready to use before issuing queries. This will improve stability for long-lived PostgreSQL connections. — https://github.com/PrefectHQ/prefect/pull/11911
+- Use `pool_pre_ping` to improve stability for long-lived PostgreSQL connections — https://github.com/PrefectHQ/prefect/pull/11911
 
 ### Documentation
 - Clarify Docker tutorial code snippet to ensure commands are run from the correct directory — https://github.com/PrefectHQ/prefect/pull/11833
