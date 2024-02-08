@@ -250,16 +250,11 @@ jobs:
           - "--exclude-services"
           - "--only-services"
 
-          include:
-            # Include Docker image builds on the service test run, and disallow the test
-            # suite from building images automatically in fixtures
-            - pytest-options: "--only-services"
-              build-docker-images: true
-  
-          exclude:
-            # Do not run service tests with postgres
-            - database: "postgres:14"
-              pytest-options: "--only-services"
+        include:
+          # Include Docker image builds on the service test run, and disallow the test
+          # suite from building images automatically in fixtures
+          - pytest-options: "--only-services"
+            build-docker-images: true
 
       fail-fast: false
 
