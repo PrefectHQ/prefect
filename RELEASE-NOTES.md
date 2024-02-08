@@ -20,6 +20,8 @@
 - Start only one `TaskRunner` when launching a `TaskServer`. This allows a task server to reuse the same task runner, speeding up execution. — https://github.com/PrefectHQ/prefect/pull/11806
 - Introduce task run queue capacity settings. Users can now control the maximum backlog queue size and maximum retry queue size for autonomous task runs. — https://github.com/PrefectHQ/prefect/pull/11825
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.20...2.14.21
+
 ## Release 2.14.20
 
 ### Fixes
