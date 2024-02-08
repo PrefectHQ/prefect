@@ -528,7 +528,7 @@ class TestTaskSubmit:
             await foo.submit(1)
             # The future is dropped here but the task should finish
 
-        assert foobar() is None
+        assert foobar()[0].is_completed()
         assert task_ran
 
     async def test_sync_task_submitted_inside_async_flow(self):

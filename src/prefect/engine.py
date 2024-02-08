@@ -852,7 +852,11 @@ async def orchestrate_flow_run(
                     not parent_flow_run_context
                     or (
                         parent_flow_run_context
-                        and parent_flow_run_context.flow.isasync == flow.isasync
+                        and
+                        # Unless the parent is async and the child is sync, run the
+                        # child flow in the parent thread; running a sync child in
+                        # an async parent could be bad for async performance.
+                        not (parent_flow_run_context.flow.isasync and not flow.isasync)
                     )
                 ):
                     from_async.call_soon_in_waiting_thread(
