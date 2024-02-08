@@ -1,4 +1,3 @@
-import os
 import time
 
 import anyio
@@ -6,124 +5,149 @@ import pytest
 
 import prefect
 
-# GitHub Actions sets the CI environment variable — the runners are much slower there
-# so the sleep time needs to be larger to account for overhead
-SLEEP_TIME = 4 if os.environ.get("CI") else 2
+# The sleep time should be much longer than the declared flow timeouts in the tests
+# below in order to give them all time for the mechanics to work.  If the timeouts do
+# not work at all, the tests will be cancelled by the pytest-timeout timeout mechanism,
+# telling us that we have failed to enforce the timeout
+FLOW_TIMEOUT = 0.1
+SLEEP_TIME = FLOW_TIMEOUT * 1000
 
 
-# @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
-@pytest.mark.skip(reason="This test is too flaky")
 def test_sync_flow_timeout():
-    @prefect.flow(timeout_seconds=0.1)
+    flow_completed = False
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT)
     def sleep_flow():
-        time.sleep(SLEEP_TIME)
+        # Sleep in 0.1 second intervals; the sync flow runs in a worker
+        # thread which does not interrupt long-running sleep calls
+        for _ in range(int(SLEEP_TIME)):
+            time.sleep(0.1)
 
-    t0 = time.monotonic()
+        nonlocal flow_completed
+        flow_completed = True
+
     state = sleep_flow(return_state=True)
-    t1 = time.monotonic()
-    runtime = t1 - t0
 
-    assert runtime < SLEEP_TIME, f"Flow should exit early; ran for {runtime}s"
+    assert not flow_completed
     assert state.is_failed()
     with pytest.raises(TimeoutError):
         state.result()
 
 
 async def test_async_flow_timeout():
-    @prefect.flow(timeout_seconds=0.1)
+    flow_completed = False
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT)
     async def sleep_flow():
         await anyio.sleep(SLEEP_TIME)
+        nonlocal flow_completed
+        flow_completed = True
 
-    t0 = time.monotonic()
     state = await sleep_flow(return_state=True)
-    t1 = time.monotonic()
-    runtime = t1 - t0
 
-    assert runtime < SLEEP_TIME, f"Flow should exit early; ran for {runtime}s"
+    assert not flow_completed
     assert state.is_failed()
     with pytest.raises(TimeoutError):
         await state.result()
 
 
-@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
-def test_sync_flow_timeout_in_sync_flow():
-    @prefect.flow(timeout_seconds=0.1)
-    def sleep_flow():
-        time.sleep(SLEEP_TIME)
-
-    @prefect.flow
-    def parent_flow():
-        t0 = time.monotonic()
-        state = sleep_flow(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
-
-    runtime, flow_state = parent_flow()
-
-    assert runtime < SLEEP_TIME, f"Flow should exit early; ran for {runtime}s"
-    assert flow_state.is_failed()
-    with pytest.raises(TimeoutError):
-        flow_state.result()
+# In the subflow tests below, the odd return values of (None, state) prevent
+# prefect from treating the return value as the state for the _parent_ flow
 
 
-async def test_sync_flow_timeout_in_async_flow():
-    @prefect.flow(timeout_seconds=0.1)
+def test_sync_subflow_timeout_in_sync_flow():
+    subflow_completed = False
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT)
     def sleep_flow():
         # Sleep in 0.1 second intervals; the sync flow runs in a worker
         # thread which does not interrupt long-running sleep calls
-        for _ in range(SLEEP_TIME * 10):
+        for _ in range(int(SLEEP_TIME)):
             time.sleep(0.1)
 
-    @prefect.flow
-    async def parent_flow():
-        t0 = time.monotonic()
-        state = sleep_flow(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
-
-    runtime, flow_state = await parent_flow()
-
-    assert runtime < SLEEP_TIME, f"Flow should exit early; ran for {runtime}s"
-    assert flow_state.is_failed()
-    with pytest.raises(TimeoutError):
-        await flow_state.result()
-
-
-def test_async_flow_timeout_in_sync_flow():
-    @prefect.flow(timeout_seconds=0.1)
-    async def sleep_flow():
-        await anyio.sleep(SLEEP_TIME)
+        nonlocal subflow_completed
+        subflow_completed = True
 
     @prefect.flow
     def parent_flow():
-        t0 = time.monotonic()
-        state = sleep_flow(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
+        subflow_state = sleep_flow(return_state=True)
+        return (None, subflow_state)
 
-    runtime, flow_state = parent_flow()
+    (_, subflow_state) = parent_flow()
 
-    assert runtime < SLEEP_TIME, f"Flow should exit early; ran for {runtime}s"
-    assert flow_state.is_failed()
+    assert not subflow_completed
+    assert subflow_state.is_failed()
     with pytest.raises(TimeoutError):
-        flow_state.result()
+        subflow_state.result()
 
 
-async def test_async_flow_timeout_in_async_flow():
-    @prefect.flow(timeout_seconds=0.1)
-    async def sleep_flow():
-        await anyio.sleep(SLEEP_TIME)
+async def test_sync_subflow_timeout_in_async_flow():
+    subflow_completed = False
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT)
+    def sleep_flow():
+        # Sleep in 0.1 second intervals; the sync flow runs in a worker
+        # thread which does not interrupt long-running sleep calls
+        for _ in range(int(SLEEP_TIME)):
+            time.sleep(0.1)
+
+        nonlocal subflow_completed
+        subflow_completed = True
 
     @prefect.flow
     async def parent_flow():
-        t0 = time.monotonic()
-        state = await sleep_flow(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
+        subflow_state = sleep_flow(return_state=True)
+        return (None, subflow_state)
 
-    runtime, flow_state = await parent_flow()
+    (_, subflow_state) = await parent_flow()
 
-    assert runtime < SLEEP_TIME, f"Flow should exit early; ran for {runtime}s"
-    assert flow_state.is_failed()
+    assert not subflow_completed
+    assert subflow_state.is_failed()
     with pytest.raises(TimeoutError):
-        await flow_state.result()
+        await subflow_state.result()
+
+
+def test_async_subflow_timeout_in_sync_flow():
+    subflow_completed = False
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT)
+    async def sleep_flow():
+        await anyio.sleep(SLEEP_TIME)
+
+        nonlocal subflow_completed
+        subflow_completed = True
+
+    @prefect.flow
+    def parent_flow():
+        subflow_state = sleep_flow(return_state=True)
+        return (None, subflow_state)
+
+    (_, subflow_state) = parent_flow()
+
+    assert not subflow_completed
+    assert subflow_state.is_failed()
+    with pytest.raises(TimeoutError):
+        subflow_state.result()
+
+
+async def test_async_subflow_timeout_in_async_flow():
+    subflow_completed = False
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT)
+    async def sleep_flow():
+        await anyio.sleep(SLEEP_TIME)
+
+        nonlocal subflow_completed
+        subflow_completed = True
+
+    @prefect.flow
+    async def parent_flow():
+        subflow_state = await sleep_flow(return_state=True)
+        return (None, subflow_state)
+
+    (_, subflow_state) = await parent_flow()
+
+    assert not subflow_completed
+    assert subflow_state.is_failed()
+    with pytest.raises(TimeoutError):
+        await subflow_state.result()

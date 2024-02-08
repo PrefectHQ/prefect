@@ -264,7 +264,8 @@ async def check_orion_connection():
         cloud_client = get_cloud_client(
             httpx_settings=httpx_settings, infer_cloud_url=True
         )
-        await cloud_client.api_healthcheck()
+        async with cloud_client:
+            await cloud_client.api_healthcheck()
         return ConnectionStatus.CLOUD_CONNECTED
     except CloudUnauthorizedError:
         # if the Cloud 2.0 API exists and fails to authenticate, notify the user
@@ -277,7 +278,8 @@ async def check_orion_connection():
                 # inform the user if Prefect API endpoints exist, but there are
                 # connection issues
                 client = get_client(httpx_settings=httpx_settings)
-                connect_error = await client.api_healthcheck()
+                async with client:
+                    connect_error = await client.api_healthcheck()
                 if connect_error is not None:
                     return ConnectionStatus.ORION_ERROR
                 elif client.server_type == ServerType.EPHEMERAL:
@@ -295,7 +297,8 @@ async def check_orion_connection():
             # try to connect with the client anyway, it will likely use an
             # ephemeral Prefect instance
             client = get_client(httpx_settings=httpx_settings)
-            connect_error = await client.api_healthcheck()
+            async with client:
+                connect_error = await client.api_healthcheck()
             if connect_error is not None:
                 return ConnectionStatus.ORION_ERROR
             elif client.server_type == ServerType.EPHEMERAL:

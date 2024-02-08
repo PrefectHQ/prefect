@@ -23,7 +23,7 @@ with silence_docker_warnings():
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
 
-pytestmark = pytest.mark.service("docker")
+pytestmark = [pytest.mark.service("docker"), pytest.mark.timeout(120.0)]
 
 
 @pytest.fixture
@@ -129,7 +129,6 @@ def test_requires_real_dockerfile(contexts: Path):
         ("missing-file", "COPY failed"),
     ],
 )
-@pytest.mark.flaky(max_runs=3)
 def test_raises_exception_on_bad_base_image(
     contexts: Path, example_context: str, expected_error: str
 ):

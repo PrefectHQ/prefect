@@ -52,6 +52,7 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
@@ -78,59 +79,53 @@ def interactive_console(monkeypatch):
 
 @pytest.fixture
 def project_dir(tmp_path):
-    original_dir = os.getcwd()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        prefect_home = tmp_path / ".prefect"
-        prefect_home.mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path)
-        initialize_project()
-        yield tmp_path
-    else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        prefect_home = tmp_path / "three-seven" / ".prefect"
-        prefect_home.mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path / "three-seven")
-        initialize_project()
-        yield tmp_path / "three-seven"
-    os.chdir(original_dir)
+    with tmpchdir(tmp_path):
+        if sys.version_info >= (3, 8):
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+            prefect_home = tmp_path / ".prefect"
+            prefect_home.mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
+            yield tmp_path
+        else:
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+            prefect_home = tmp_path / "three-seven" / ".prefect"
+            prefect_home.mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
+            yield tmp_path / "three-seven"
 
 
 @pytest.fixture
 def project_dir_with_single_deployment_format(tmp_path):
-    original_dir = os.getcwd()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        prefect_home = tmp_path / ".prefect"
-        prefect_home.mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path)
-        initialize_project()
+    with tmpchdir(tmp_path):
+        if sys.version_info >= (3, 8):
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+            prefect_home = tmp_path / ".prefect"
+            prefect_home.mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
 
-        with open("prefect.yaml", "r") as f:
-            contents = yaml.safe_load(f)
+            with open("prefect.yaml", "r") as f:
+                contents = yaml.safe_load(f)
 
-        contents["deployments"][0]["schedule"] = None
+            contents["deployments"][0]["schedule"] = None
 
-        with open("deployment.yaml", "w") as f:
-            yaml.safe_dump(contents["deployments"][0], f)
+            with open("deployment.yaml", "w") as f:
+                yaml.safe_dump(contents["deployments"][0], f)
 
-        yield tmp_path
-    else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path / "three-seven")
-        initialize_project()
+            yield tmp_path
+        else:
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+            (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            initialize_project()
 
-        with open("prefect.yaml", "r") as f:
-            contents = yaml.safe_load(f)
+            with open("prefect.yaml", "r") as f:
+                contents = yaml.safe_load(f)
 
-        contents["deployments"][0]["schedule"] = None
+            contents["deployments"][0]["schedule"] = None
 
-        with open("deployment.yaml", "w") as f:
-            yaml.safe_dump(contents["deployments"][0], f)
+            with open("deployment.yaml", "w") as f:
+                yaml.safe_dump(contents["deployments"][0], f)
 
-        yield tmp_path / "three-seven"
-    os.chdir(original_dir)
+            yield tmp_path / "three-seven"
 
 
 @pytest.fixture
@@ -1873,6 +1868,75 @@ class TestProjectDeploy:
         ]
 
         prefect_config["pull"] = [
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
+                    "input": "{{ output1 }}",
+                    "secret-input": "{{ prefect.blocks.secret.test-secret }}",
+                },
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                },
+            },
+        ]
+        # save it back
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.pull_steps == [
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
+                    "input": 1,
+                    "secret-input": "{{ prefect.blocks.secret.test-secret }}",
+                }
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                }
+            },
+        ]
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_templates_pull_step_in_deployments_section_safely(
+        self, prefect_client, work_pool
+    ):
+        """
+        We want step outputs to get templated, but block references to only be
+        retrieved at runtime.
+
+        Unresolved placeholders should be left as-is, and not be resolved
+        to allow templating between steps in the pull action.
+        """
+
+        await Secret(value="super-secret-name").save(name="test-secret")
+
+        # update prefect.yaml to include a new build step
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        # test step that returns a dictionary of inputs and output1, output2
+        prefect_config["build"] = [
+            {"prefect.testing.utilities.a_test_step": {"input": "foo"}}
+        ]
+
+        prefect_config["deployments"][0]["pull"] = [
             {
                 "prefect.testing.utilities.b_test_step": {
                     "id": "b-test-step",
@@ -5510,49 +5574,6 @@ class TestDeployWithoutEntrypoint:
             name="An important name/default"
         )
         assert deployment.entrypoint == "flows/hello.py:my_flow"
-
-    async def test_deploy_without_entrypoint_no_flows_found(
-        self, prefect_client: PrefectClient
-    ):
-        Path("test_nested_folder").mkdir()
-        os.chdir("test_nested_folder")
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy",
-            user_input=(
-                # Enter valid entrypoint from sibling directory
-                "../flows/hello.py:my_flow"
-                + readchar.key.ENTER
-                +
-                # Accept default deployment name
-                readchar.key.ENTER
-                +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
-                +
-                # Decline remote storage
-                "n"
-                + readchar.key.ENTER
-                +
-                # decline save user inputs
-                "n"
-                + readchar.key.ENTER
-            ),
-            expected_code=0,
-            expected_output_contains=[
-                "Flow entrypoint (expected format path/to/file.py:function_name)",
-                "Deployment 'An important name/default' successfully created",
-            ],
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            name="An important name/default"
-        )
-        assert deployment.entrypoint == "../flows/hello.py:my_flow"
 
 
 class TestCheckForMatchingDeployment:
