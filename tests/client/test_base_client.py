@@ -66,9 +66,10 @@ class TestPrefectHttpxClient:
             retry_response,
             RESPONSE_200,
         ]
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        async with client:
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
 
@@ -109,9 +110,10 @@ class TestPrefectHttpxClient:
             RESPONSE_200,
         ]
         with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
-            response = await client.post(
-                url="fake.url/fake/route", data={"evenmorefake": "data"}
-            )
+            async with client:
+                response = await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
 
@@ -146,9 +148,10 @@ class TestPrefectHttpxClient:
         ]
         with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: "409"}):
             with pytest.raises(PrefectHTTPStatusError):
-                await client.post(
-                    url="fake.url/fake/route", data={"evenmorefake": "data"}
-                )
+                async with client:
+                    await client.post(
+                        url="fake.url/fake/route", data={"evenmorefake": "data"}
+                    )
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
@@ -179,9 +182,10 @@ class TestPrefectHttpxClient:
             exception_type("test"),
             RESPONSE_200,
         ]
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        async with client:
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
 
@@ -215,10 +219,11 @@ class TestPrefectHttpxClient:
         base_client_send.side_effect = [response_or_exc] * 10
 
         with pytest.raises(Exception):
-            await client.post(
-                url="fake.url/fake/route",
-                data={"evenmorefake": "data"},
-            )
+            async with client:
+                await client.post(
+                    url="fake.url/fake/route",
+                    data={"evenmorefake": "data"},
+                )
 
         # 5 retries + 1 first attempt
         assert base_client_send.call_count == 6
@@ -242,10 +247,11 @@ class TestPrefectHttpxClient:
 
         with pytest.raises(Exception):
             with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 10}):
-                await client.post(
-                    url="fake.url/fake/route",
-                    data={"evenmorefake": "data"},
-                )
+                async with client:
+                    await client.post(
+                        url="fake.url/fake/route",
+                        data={"evenmorefake": "data"},
+                    )
 
         # 10 retries + 1 first attempt
         assert base_client_send.call_count == 11
@@ -272,10 +278,11 @@ class TestPrefectHttpxClient:
         base_client_send.side_effect = [httpx.ReadError("test")] * 5 + [final_response]
 
         with pytest.raises(expected_error_type):
-            await client.post(
-                url="fake.url/fake/route",
-                data={"evenmorefake": "data"},
-            )
+            async with client:
+                await client.post(
+                    url="fake.url/fake/route",
+                    data={"evenmorefake": "data"},
+                )
 
         # 5 retries + 1 first attempt
         assert base_client_send.call_count == 6
@@ -304,9 +311,10 @@ class TestPrefectHttpxClient:
         ]
 
         with mock_anyio_sleep.assert_sleeps_for(5):
-            response = await client.post(
-                url="fake.url/fake/route", data={"evenmorefake": "data"}
-            )
+            async with client:
+                response = await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
         assert response.status_code == status.HTTP_200_OK
 
     @pytest.mark.usefixtures("disable_jitter")
@@ -330,9 +338,10 @@ class TestPrefectHttpxClient:
         ]
 
         with mock_anyio_sleep.assert_sleeps_for(2 + 4 + 8):
-            response = await client.post(
-                url="fake.url/fake/route", data={"evenmorefake": "data"}
-            )
+            async with client:
+                response = await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
         assert response.status_code == status.HTTP_200_OK
         mock_anyio_sleep.assert_has_awaits([call(2), call(4), call(8)])
 
@@ -358,9 +367,10 @@ class TestPrefectHttpxClient:
         ]  # Then succeed
 
         with mock_anyio_sleep.assert_sleeps_for(5 + 10 + 2):
-            response = await client.post(
-                url="fake.url/fake/route", data={"evenmorefake": "data"}
-            )
+            async with client:
+                response = await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
         assert response.status_code == status.HTTP_200_OK
         mock_anyio_sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
 
@@ -386,9 +396,10 @@ class TestPrefectHttpxClient:
             RESPONSE_200,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        async with client:
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
 
         for mock_call in mock_anyio_sleep.mock_calls:
@@ -417,9 +428,10 @@ class TestPrefectHttpxClient:
         with mock_anyio_sleep.assert_sleeps_for(
             2 + 4 + 8, extra_tolerance=0.2 * 14  # Add tolerance for jitter
         ):
-            response = await client.post(
-                url="fake.url/fake/route", data={"evenmorefake": "data"}
-            )
+            async with client:
+                response = await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
         assert response.status_code == status.HTTP_200_OK
         mock_anyio_sleep.assert_has_awaits(
             [call(pytest.approx(n, rel=0.2)) for n in [2, 4, 8]]
@@ -436,7 +448,10 @@ class TestPrefectHttpxClient:
         base_client_send.side_effect = [TypeError("This error should not be retried")]
 
         with pytest.raises(TypeError, match="This error should not be retried"):
-            await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
+            async with client:
+                await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
 
         mock_anyio_sleep.assert_not_called()
 
@@ -448,9 +463,10 @@ class TestPrefectHttpxClient:
 
         base_client_send.return_value = RESPONSE_200
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        async with client:
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert isinstance(response, PrefectResponse)
 
     #
@@ -469,6 +485,9 @@ class TestPrefectHttpxClient:
 
         base_client_send.return_value = RESPONSE_400
         with pytest.raises(PrefectHTTPStatusError) as exc:
-            await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
+            async with client:
+                await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
         expected = "Response: {'extra_info': [{'message': 'a test error message'}]}"
         assert expected in str(exc.exconly())
