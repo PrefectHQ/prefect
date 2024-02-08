@@ -264,7 +264,7 @@ class TestUpdatingDeployments:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["10.76"],  # 100 m record
+            expected_output_contains=["'interval': 10.76,"],  # 100 m record
             expected_code=0,
         )
 
@@ -285,7 +285,9 @@ class TestUpdatingDeployments:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["10.49"],  # flo-jo breaks the world record
+            expected_output_contains=[
+                "'interval': 10.49,"
+            ],  # flo-jo breaks the world record
             expected_code=0,
         )
 
@@ -296,7 +298,7 @@ class TestUpdatingDeployments:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["10.76"],  # 100 m record
+            expected_output_contains=["'interval': 10.76,"],  # 100 m record
             expected_code=0,
         )
 
@@ -317,7 +319,7 @@ class TestUpdatingDeployments:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_does_not_contain=["10.76"],
+            expected_output_does_not_contain=["'interval': 10.76,"],
             expected_output_contains=["'schedule': None"],
             expected_code=0,
         )
