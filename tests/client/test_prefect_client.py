@@ -271,7 +271,6 @@ def make_lifespan(startup, shutdown) -> callable:
     return asynccontextmanager(lifespan)
 
 
-@pytest.mark.skip("nope")
 class TestClientContextManager:
     async def test_client_context_cannot_be_reentered(self):
         client = PrefectClient("http://foo.test")
@@ -493,20 +492,20 @@ class TestClientContextManager:
                 pass
 
 
-# @pytest.mark.parametrize("enabled", [True, False])
-# async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
-#     with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
-#         app = create_app(ephemeral=True, ignore_cache=True)
-#         mock = AsyncMock()
-#         monkeypatch.setattr(
-#             "prefect.server.database.interface.PrefectDBInterface.create_db", mock
-#         )
-#         async with PrefectClient(app):
-#             if enabled:
-#                 mock.assert_awaited_once_with()
-#
-#         if not enabled:
-#             mock.assert_not_awaited()
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
+    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
+        app = create_app(ephemeral=True, ignore_cache=True)
+        mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.server.database.interface.PrefectDBInterface.create_db", mock
+        )
+        async with PrefectClient(app):
+            if enabled:
+                mock.assert_awaited_once_with()
+
+        if not enabled:
+            mock.assert_not_awaited()
 
 
 async def test_client_does_not_run_migrations_for_hosted_app(
