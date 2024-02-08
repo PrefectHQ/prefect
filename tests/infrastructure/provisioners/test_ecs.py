@@ -24,7 +24,6 @@ from prefect.infrastructure.provisioners.ecs import (
     IamUserResource,
     VpcResource,
 )
-from prefect.settings import PREFECT_API_BLOCKS_REGISTER_ON_START, temporary_settings
 
 
 @pytest.fixture(autouse=True)
@@ -264,12 +263,6 @@ def credentials_block_resource():
     return CredentialsBlockResource(
         user_name="prefect-ecs-user", block_document_name="work-pool-aws-credentials"
     )
-
-
-@pytest.fixture
-def register_block_types():
-    with temporary_settings({PREFECT_API_BLOCKS_REGISTER_ON_START: True}):
-        yield
 
 
 @pytest.fixture
