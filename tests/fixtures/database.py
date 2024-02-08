@@ -16,6 +16,7 @@ from prefect.server.database.dependencies import (
     PrefectDBInterface,
     provide_database_interface,
 )
+from prefect.server.models.block_registration import run_block_auto_registration
 from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
@@ -108,6 +109,12 @@ async def session(db) -> AsyncSession:
     session = await db.session()
     async with session:
         yield session
+
+
+@pytest.fixture
+async def register_block_types(session):
+    await run_block_auto_registration(session=session)
+    await session.commit()
 
 
 @pytest.fixture
