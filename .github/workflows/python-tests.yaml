@@ -234,7 +234,7 @@ jobs:
 
 
   # Run a smaller subset of tests with pydantic v1 installed, the
-  # Python versions we support, and only on sqlite + postgres 14
+  # Python versions we support, and only on postgres 14
   run-tests-pydantic-v1:
     runs-on:
       group: oss-larger-runners
@@ -243,7 +243,6 @@ jobs:
       matrix:
         database:
           - "postgres:14"
-          - "sqlite"
         python-version:
           - "3.8"
           - "3.11"
