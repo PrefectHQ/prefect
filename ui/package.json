@@ -10,10 +10,10 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "2.3.0",
+    "@prefecthq/prefect-design": "2.3.1",
     "@prefecthq/prefect-ui-library": "2.4.35",
     "@prefecthq/vue-charts": "2.0.3",
-    "@prefecthq/vue-compositions": "1.7.1",
+    "@prefecthq/vue-compositions": "1.7.2",
     "@types/lodash.debounce": "4.0.9",
     "axios": "1.6.2",
     "lodash.debounce": "4.0.8",
@@ -27,7 +27,7 @@
     "@types/lodash.merge": "^4.6.9",
     "@vitejs/plugin-vue": "5.0.3",
     "autoprefixer": "10.4.17",
-    "dotenv": "16.3.2",
+    "dotenv": "16.4.1",
     "eslint": "^8.56.0",
     "ts-node": "10.9.2",
     "typescript": "^5.3.3",

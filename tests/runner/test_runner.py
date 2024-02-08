@@ -371,61 +371,6 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.skip(reason="This test is too flaky")
-    async def test_runner_can_cancel_flow_runs(
-        self, prefect_client: PrefectClient, caplog
-    ):
-        runner = Runner(query_seconds=2)
-
-        deployment = await cancel_flow_submitted_tasks.to_deployment(__file__)
-
-        await runner.add_deployment(deployment)
-
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="cancel-flow-submitted-tasks/test_runner"
-            )
-
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
-
-            # Need to wait for polling loop to pick up flow run and
-            # start execution
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_running():
-                    break
-
-            await prefect_client.set_flow_run_state(
-                flow_run_id=flow_run.id,
-                state=flow_run.state.copy(
-                    update={"name": "Cancelled", "type": StateType.CANCELLING}
-                ),
-            )
-
-            # Need to wait for polling loop to pick up flow run and then
-            # finish cancellation
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_cancelled():
-                    break
-
-            await runner.stop()
-            tg.cancel_scope.cancel()
-
-        assert (
-            flow_run.state.is_cancelled()
-        ), f"Flow run state not cancelled: {flow_run.state.name=!r}"
-        # check to make sure on_cancellation hook was called
-        assert "This flow was cancelled!" in caplog.text
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.flaky
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
         self, prefect_client: PrefectClient, caplog
     ):
@@ -463,8 +408,8 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and
             # start execution
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_running():
                     break
@@ -478,8 +423,8 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and then
             # finish cancellation
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_cancelled():
                     break
