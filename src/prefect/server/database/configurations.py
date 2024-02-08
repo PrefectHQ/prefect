@@ -23,6 +23,8 @@ SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
     "SQLITE_BEGIN_MODE", default=None
 )
 
+ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
+
 
 class BaseDatabaseConfiguration(ABC):
     """
@@ -91,8 +93,6 @@ class BaseDatabaseConfiguration(ABC):
 
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
-    ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
-
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
 
@@ -116,7 +116,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             self.echo,
             self.timeout,
         )
-        if cache_key not in self.ENGINES:
+        if cache_key not in ENGINES:
             # apply database timeout
             kwargs = dict()
             connect_args = dict()
@@ -151,9 +151,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 **kwargs,
             )
 
-            self.ENGINES[cache_key] = engine
+            ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
-        return self.ENGINES[cache_key]
+        return ENGINES[cache_key]
 
     async def schedule_engine_disposal(self, cache_key):
         """
@@ -173,7 +173,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         """
 
         async def dispose_engine(cache_key):
-            engine = self.ENGINES.pop(cache_key, None)
+            engine = ENGINES.pop(cache_key, None)
             if engine:
                 await engine.dispose()
 
@@ -214,7 +214,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
-    ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
     MIN_SQLITE_VERSION = (3, 24, 0)
 
     async def engine(self) -> AsyncEngine:
@@ -249,7 +248,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             self.echo,
             self.timeout,
         )
-        if cache_key not in self.ENGINES:
+        if cache_key not in ENGINES:
             # apply database timeout
             if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
@@ -269,9 +268,9 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
             sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
 
-            self.ENGINES[cache_key] = engine
+            ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
-        return self.ENGINES[cache_key]
+        return ENGINES[cache_key]
 
     async def schedule_engine_disposal(self, cache_key):
         """
@@ -291,7 +290,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         """
 
         async def dispose_engine(cache_key):
-            engine = self.ENGINES.pop(cache_key, None)
+            engine = ENGINES.pop(cache_key, None)
             if engine:
                 await engine.dispose()
 
