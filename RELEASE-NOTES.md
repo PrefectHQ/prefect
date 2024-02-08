@@ -12,9 +12,10 @@ Work queues will now display one of three distinct statuses:
 - `Not Ready` - no online workers are polling the work queue, signaling a need for intervention
 - `Paused` - the work queue is intentionally paused, preventing execution
 
---Add prefect dashboard snapshot here --
-
---Add work pools page work queues table here with work queues of all statuses.--
+<p align="center">
+<img width="1109" alt="Prefect dashboard snapshot" src="https://github.com/PrefectHQ/prefect/assets/42048900/e5bb0a33-1ae2-44a7-a64e-ef0d308fce7a">
+</p>
+<img width="1109" alt="work pools page work queues table here with work queues of all statuses" src="https://github.com/PrefectHQ/prefect/assets/42048900/834f0f66-79e9-420b-9d11-d771a5b8cf02">
 
 With the introduction of work queue status, you'll notice the absence of deprecated work queue health indicators in the UI.
 
