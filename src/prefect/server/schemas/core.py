@@ -1,6 +1,7 @@
 """
 Full schemas of Prefect REST API objects.
 """
+
 import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -27,7 +28,9 @@ from prefect.server.utilities.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
 )
-from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
+from prefect.settings import (
+    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
+)
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
