@@ -14,6 +14,15 @@ from .related import related_resources_from_run_context
 from .schemas import Event
 
 
+def emit_events_to_cloud() -> bool:
+    api = PREFECT_API_URL.value()
+    return (
+        experiment_enabled("events_client")
+        and api
+        and api.startswith(PREFECT_CLOUD_API_URL.value())
+    )
+
+
 class EventsWorker(QueueService[Event]):
     def __init__(
         self, client_type: Type[EventsClient], client_options: Tuple[Tuple[str, Any]]
@@ -52,12 +61,7 @@ class EventsWorker(QueueService[Event]):
 
         # Select a client type for this worker based on settings
         if client_type is None:
-            api = PREFECT_API_URL.value()
-            if (
-                experiment_enabled("events_client")
-                and api
-                and api.startswith(PREFECT_CLOUD_API_URL.value())
-            ):
+            if emit_events_to_cloud():
                 client_type = PrefectCloudEventsClient
                 client_kwargs = {
                     "api_url": PREFECT_API_URL.value(),

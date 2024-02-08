@@ -8,7 +8,7 @@ from prefect._internal.schemas.fields import DateTimeTZ
 
 from .clients import AssertingEventsClient, PrefectCloudEventsClient
 from .schemas import Event, RelatedResource
-from .worker import EventsWorker
+from .worker import EventsWorker, emit_events_to_cloud
 
 TIGHT_TIMING = timedelta(minutes=5)
 
@@ -42,6 +42,9 @@ def emit_event(
         The event that was emitted if worker is using a client that emit
         events, otherwise None.
     """
+    if not emit_events_to_cloud():
+        return None
+
     operational_clients = [AssertingEventsClient, PrefectCloudEventsClient]
     worker_instance = EventsWorker.instance()
 
