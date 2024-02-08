@@ -19,6 +19,7 @@ from typing import (
 import greenback
 from typing_extensions import ParamSpec
 
+from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.threads import (
     WorkerThread,
@@ -235,21 +236,22 @@ class from_sync(_base):
     ) -> Awaitable[T]:
         # Check for a running event loop to prevent blocking
         if get_running_loop():
-            if not greenback.has_portal():
-                raise RuntimeError(
+            if greenback.has_portal():
+                # Use greenback to avoid blocking the event loop while waiting
+                return greenback.await_(
+                    from_async.wait_for_call_in_loop_thread(
+                        __call,
+                        timeout=timeout,
+                        done_callbacks=done_callbacks,
+                        contexts=contexts,
+                    )
+                )
+            else:
+                logger.error(
                     "Detected unsafe call to `from_sync` from thread with event loop. "
-                    "Call `await greenback.ensure_portal()` to allow functionality."
+                    "Use `await greenback.ensure_portal()` to allow call to run "
+                    "without blocking the event loop."
                 )
-
-            # Use greenback to avoid blocking the event loop while waiting
-            return greenback.await_(
-                from_async.wait_for_call_in_loop_thread(
-                    __call,
-                    timeout=timeout,
-                    done_callbacks=done_callbacks,
-                    contexts=contexts,
-                )
-            )
 
         call = _cast_to_call(__call)
         waiter = SyncWaiter(call)
