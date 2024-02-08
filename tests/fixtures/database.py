@@ -11,7 +11,11 @@ from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database.configurations import ENGINES
+from prefect.server.database.dependencies import (
+    PrefectDBInterface,
+    provide_database_interface,
+)
 from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
@@ -27,12 +31,20 @@ def db(test_database_connection_url, safety_check_settings):
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def database_engine(db):
+async def database_engine(db: PrefectDBInterface):
     """Produce a database engine"""
     engine = await db.engine()
-    try:
-        yield engine
-    finally:
+
+    yield engine
+
+    # At the end of the test session, dispose of _any_ open engines, not just the one
+    # that we produced here.  Other engines may have been created from different event
+    # loops, and we need to ensure that they are all disposed of.
+
+    engines = list(ENGINES.values())
+    ENGINES.clear()
+
+    for engine in engines:
         await engine.dispose()
 
 
