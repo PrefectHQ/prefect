@@ -198,7 +198,6 @@ jobs:
           --no-cov
           ${{ matrix.pytest-options }}
 
-
       - name: Create and Upload failure flag
         if: ${{ failure() }}
         id: create_failure_flag
@@ -256,7 +255,7 @@ jobs:
           channel: CBH18KG8G # This is #engineering
           fields: message,commit,author,workflowRun
           status: failure
-          text: ":warning: Unit tests are failing in Prefect's main branch. Commit author: please mark the failing tests as flaky. If they are already marked, delete them, open a GH issue, and assign it to Andrew Brookins."
+          text: ":warning: Unit tests are failing in Prefect's main branch. Commit author: please either fix or remove the failing tests. If you remove the failing tests create a GitHub issue with the details."
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
 
