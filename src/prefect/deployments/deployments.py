@@ -93,7 +93,7 @@ async def run_deployment(
             run metadata immediately. Setting `timeout` to None will allow this
             function to poll indefinitely. Defaults to None.
         poll_interval: The number of seconds between polls
-        tags: A list of tags to associate with this flow run; tags can be used in 
+        tags: A list of tags to associate with this flow run; tags can be used in
             automations and for organizational purposes.
         idempotency_key: A unique value to recognize retries of the same run, and
             prevent creating multiple flow runs.
