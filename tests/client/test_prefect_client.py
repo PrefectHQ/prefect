@@ -945,6 +945,7 @@ async def test_read_flow_by_name(prefect_client):
 async def test_create_flow_run_from_deployment(
     prefect_client: PrefectClient, deployment
 ):
+    start_time = pendulum.now("utc")
     flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
@@ -957,10 +958,7 @@ async def test_create_flow_run_from_deployment(
     # State is scheduled for now
     assert flow_run.state.type == StateType.SCHEDULED
     assert (
-        pendulum.now("utc")
-        .diff(flow_run.state.state_details.scheduled_time)
-        .in_seconds()
-        < 1
+        start_time <= flow_run.state.state_details.scheduled_time <= pendulum.now("utc")
     )
 
 
@@ -1521,6 +1519,15 @@ class TestClientWorkQueues:
         assert isinstance(lookup, WorkQueue)
         assert lookup.name == "foo"
 
+    async def test_create_and_read_includes_status(self, prefect_client: PrefectClient):
+        queue = await prefect_client.create_work_queue(name="foo")
+        assert hasattr(queue, "status")
+        assert queue.status == "NOT_READY"
+
+        lookup = await prefect_client.read_work_queue(queue.id)
+        assert hasattr(lookup, "status")
+        assert lookup.status == "NOT_READY"
+
     async def test_create_then_read_work_queue_by_name(self, prefect_client):
         queue = await prefect_client.create_work_queue(name="foo")
         assert isinstance(queue.id, UUID)
@@ -1596,6 +1603,19 @@ class TestClientWorkQueues:
         output = await prefect_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
+
+    async def test_get_runs_from_queue_updates_status(
+        self, prefect_client: PrefectClient
+    ):
+        queue = await prefect_client.create_work_queue(name="foo")
+        assert queue.status == "NOT_READY"
+
+        # Trigger an operation that would update the queues last_polled status
+        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
+
+        # Verify that the polling results in a READY status
+        lookup = await prefect_client.read_work_queue(queue.id)
+        assert lookup.status == "READY"
 
 
 async def test_delete_flow_run(prefect_client, flow_run):

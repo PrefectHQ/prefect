@@ -1,7 +1,10 @@
 import asyncio
 import datetime
+import gc
 import warnings
 
+import aiosqlite
+import asyncpg
 import pendulum
 import pytest
 from sqlalchemy.exc import InterfaceError
@@ -11,7 +14,12 @@ from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database.configurations import ENGINES, TRACKER
+from prefect.server.database.dependencies import (
+    PrefectDBInterface,
+    provide_database_interface,
+)
+from prefect.server.models.block_registration import run_block_auto_registration
 from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
@@ -27,13 +35,39 @@ def db(test_database_connection_url, safety_check_settings):
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def database_engine(db):
+async def database_engine(db: PrefectDBInterface):
     """Produce a database engine"""
+    TRACKER.active = True
+
     engine = await db.engine()
-    try:
-        yield engine
-    finally:
+
+    yield engine
+
+    # At the end of the test session, dispose of _any_ open engines, not just the one
+    # that we produced here.  Other engines may have been created from different event
+    # loops, and we need to ensure that they are all disposed of.
+
+    engines = list(ENGINES.values())
+    ENGINES.clear()
+
+    for engine in engines:
         await engine.dispose()
+
+    # Now confirm that after disposing all engines, all connections are closed
+
+    for connection in TRACKER.all_connections:
+        driver_connection = connection.driver_connection
+        if isinstance(driver_connection, asyncpg.Connection):
+            assert driver_connection.is_closed()
+        elif isinstance(driver_connection, aiosqlite.Connection):
+            assert not driver_connection._connection
+
+    # Finally, free up all references to connections and clean up proactively so that
+    # we don't have any lingering connections after this.  This should prevent
+    # post-test-session ResourceWarning errors about unclosed connections.
+
+    TRACKER.clear()
+    gc.collect()
 
 
 @pytest.fixture
@@ -96,6 +130,12 @@ async def session(db) -> AsyncSession:
     session = await db.session()
     async with session:
         yield session
+
+
+@pytest.fixture
+async def register_block_types(session):
+    await run_block_auto_registration(session=session)
+    await session.commit()
 
 
 @pytest.fixture
