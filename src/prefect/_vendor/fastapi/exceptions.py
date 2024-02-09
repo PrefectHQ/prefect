@@ -9,8 +9,10 @@ else:
     from pydantic import BaseModel, ValidationError, create_model
     from pydantic.error_wrappers import ErrorList
 
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.exceptions import WebSocketException as WebSocketException  # noqa: F401
+from prefect._vendor.starlette.exceptions import HTTPException as StarletteHTTPException
+from prefect._vendor.starlette.exceptions import (
+    WebSocketException as WebSocketException,  # noqa: F401
+)
 
 
 class HTTPException(StarletteHTTPException):

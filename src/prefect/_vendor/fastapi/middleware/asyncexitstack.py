@@ -1,7 +1,7 @@
 from typing import Optional
 
 from prefect._vendor.fastapi.concurrency import AsyncExitStack
-from starlette.types import ASGIApp, Receive, Scope, Send
+from prefect._vendor.starlette.types import ASGIApp, Receive, Scope, Send
 
 
 class AsyncExitStackMiddleware:
