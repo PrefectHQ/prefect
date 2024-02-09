@@ -21,7 +21,7 @@ try:
     from cachetools import TTLCache
 except ImportError:
     pass
-from starlette.status import WS_1008_POLICY_VIOLATION
+from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
     ConnectionClosed,

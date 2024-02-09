@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import anyio
 import pendulum
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 import prefect.runner
 from prefect import flow, serve, task

@@ -1,1 +1,3 @@
-from starlette.middleware.gzip import GZipMiddleware as GZipMiddleware  # noqa
+from prefect._vendor.starlette.middleware.gzip import (
+    GZipMiddleware as GZipMiddleware,
+)
