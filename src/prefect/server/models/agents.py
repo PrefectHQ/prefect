@@ -107,7 +107,8 @@ async def update_agent(
     """
 
     update_stmt = (
-        sa.update(db.Agent).where(db.Agent.id == agent_id)
+        sa.update(db.Agent)
+        .where(db.Agent.id == agent_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**agent.dict(shallow=True, exclude_unset=True))

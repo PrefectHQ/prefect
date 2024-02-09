@@ -59,7 +59,9 @@ def iscoroutinefunction_or_partial(obj: typing.Any) -> bool:  # pragma: no cover
 
 
 def request_response(
-    func: typing.Callable[[Request], typing.Union[typing.Awaitable[Response], Response]]
+    func: typing.Callable[
+        [Request], typing.Union[typing.Awaitable[Response], Response]
+    ],
 ) -> ASGIApp:
     """
     Takes a function or coroutine `func(request) -> response`,
@@ -82,7 +84,7 @@ def request_response(
 
 
 def websocket_session(
-    func: typing.Callable[[WebSocket], typing.Awaitable[None]]
+    func: typing.Callable[[WebSocket], typing.Awaitable[None]],
 ) -> ASGIApp:
     """
     Takes a coroutine `func(session)`, and returns an ASGI application.

@@ -30,7 +30,7 @@ from prefect.infrastructure.provisioners.ecs import (
 def start_mocking_aws(monkeypatch):
     monkeypatch.setenv(
         "MOTO_IAM_LOAD_MANAGED_POLICIES", "true"
-    )  # tell moto to explcitly load managed policies
+    )  # tell moto to explicitly load managed policies
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     with mock_aws():
         yield
@@ -436,8 +436,7 @@ class TestAuthenticationResource:
         )
         assert (
             "Creating and attaching an IAM policy for managing ECS tasks:"
-            " [blue]prefect-ecs-policy[/]"
-            in actions
+            " [blue]prefect-ecs-policy[/]" in actions
         )
         assert "Storing generated AWS credentials in a block" in actions
 

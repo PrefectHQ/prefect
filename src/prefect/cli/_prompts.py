@@ -487,14 +487,14 @@ async def prompt_push_custom_docker_image(
                 import prefect_docker
 
             credentials_block = prefect_docker.DockerRegistryCredentials
-            push_step["credentials"] = (
-                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
-            )
+            push_step[
+                "credentials"
+            ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
         else:
             credentials_block = DockerRegistry
-            push_step["credentials"] = (
-                "{{ prefect.docker-registry.docker_registry_creds_name }}"
-            )
+            push_step[
+                "credentials"
+            ] = "{{ prefect.docker-registry.docker_registry_creds_name }}"
         docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
         create_new_block = False
         try:

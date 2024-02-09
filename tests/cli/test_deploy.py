@@ -794,8 +794,7 @@ class TestProjectDeploy:
             ),
             user_input=(
                 # don't save the deployment configuration
-                "n"
-                + readchar.key.ENTER
+                "n" + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_does_not_contain=[

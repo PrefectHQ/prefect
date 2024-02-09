@@ -55,7 +55,7 @@ def get_thread_limiter():
 
 
 def is_async_fn(
-    func: Union[Callable[P, R], Callable[P, Awaitable[R]]]
+    func: Union[Callable[P, R], Callable[P, Awaitable[R]]],
 ) -> TypeGuard[Callable[P, Awaitable[R]]]:
     """
     Returns `True` if a function returns a coroutine.

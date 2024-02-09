@@ -35,7 +35,7 @@ def requires(
     scopes_list = [scopes] if isinstance(scopes, str) else list(scopes)
 
     def decorator(
-        func: typing.Callable[_P, typing.Any]
+        func: typing.Callable[_P, typing.Any],
     ) -> typing.Callable[_P, typing.Any]:
         sig = inspect.signature(func)
         for idx, parameter in enumerate(sig.parameters.values()):

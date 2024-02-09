@@ -137,9 +137,9 @@ class PrefectObjectRegistry(ContextModel):
     )
 
     # Failures will be a tuple of (exception, instance, args, kwargs)
-    _instance_init_failures: Dict[Type[T], List[Tuple[Exception, T, Tuple, Dict]]] = (
-        PrivateAttr(default_factory=lambda: defaultdict(list))
-    )
+    _instance_init_failures: Dict[
+        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
+    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
 
     block_code_execution: bool = False
     capture_failures: bool = False

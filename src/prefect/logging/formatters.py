@@ -80,7 +80,7 @@ class PrefectFormatter(logging.Formatter):
         *,
         defaults=None,
         task_run_fmt: str = None,
-        flow_run_fmt: str = None
+        flow_run_fmt: str = None,
     ) -> None:
         """
         Implementation of the standard Python formatter with support for multiple

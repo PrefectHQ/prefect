@@ -150,7 +150,7 @@ class FastAPI(Starlette):
         )
         self.exception_handlers: Dict[
             Any, Callable[[Request, Any], Union[Response, Awaitable[Response]]]
-        ] = ({} if exception_handlers is None else dict(exception_handlers))
+        ] = {} if exception_handlers is None else dict(exception_handlers)
         self.exception_handlers.setdefault(HTTPException, http_exception_handler)
         self.exception_handlers.setdefault(
             RequestValidationError, request_validation_exception_handler

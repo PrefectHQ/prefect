@@ -408,9 +408,9 @@ class APIRoute(routing.Route):
             methods = ["GET"]
         self.methods: Set[str] = {method.upper() for method in methods}
         if isinstance(generate_unique_id_function, DefaultPlaceholder):
-            current_generate_unique_id: Callable[["APIRoute"], str] = (
-                generate_unique_id_function.value
-            )
+            current_generate_unique_id: Callable[
+                ["APIRoute"], str
+            ] = generate_unique_id_function.value
         else:
             current_generate_unique_id = generate_unique_id_function
         self.unique_id = self.operation_id or current_generate_unique_id(self)
@@ -433,9 +433,9 @@ class APIRoute(routing.Route):
             # would pass the validation and be returned as is.
             # By being a new field, no inheritance will be passed as is. A new model
             # will be always created.
-            self.secure_cloned_response_field: Optional[ModelField] = (
-                create_cloned_field(self.response_field)
-            )
+            self.secure_cloned_response_field: Optional[
+                ModelField
+            ] = create_cloned_field(self.response_field)
         else:
             self.response_field = None  # type: ignore
             self.secure_cloned_response_field = None

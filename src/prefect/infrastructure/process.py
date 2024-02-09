@@ -264,9 +264,9 @@ class Process(Infrastructure):
         ), "Failed to generate default base job template for Process worker."
         for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
             if key == "command":
-                base_job_template["variables"]["properties"]["command"]["default"] = (
-                    shlex.join(value)
-                )
+                base_job_template["variables"]["properties"]["command"][
+                    "default"
+                ] = shlex.join(value)
             elif key in [
                 "type",
                 "block_type_slug",

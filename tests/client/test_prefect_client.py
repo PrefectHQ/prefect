@@ -1163,10 +1163,10 @@ async def test_create_then_read_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
-        )
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await prefect_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
     )
 
     assert len(response) == 1
@@ -1211,10 +1211,10 @@ async def test_create_then_update_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": False})
-        )
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await prefect_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": False})
     )
 
     assert len(response) == 1
@@ -1242,10 +1242,10 @@ async def test_create_then_delete_flow_run_notification_policy(
 
     await prefect_client.delete_flow_run_notification_policy(notification_policy_id)
 
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
-        )
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await prefect_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
     )
 
     assert len(response) == 0

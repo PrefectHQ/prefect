@@ -233,7 +233,8 @@ async def api(
         try:
             server_pid = await tg.start(start_command)
             async for _ in watchfiles.awatch(
-                prefect.__module_path__, stop_event=stop_event  # type: ignore
+                prefect.__module_path__,
+                stop_event=stop_event,  # type: ignore
             ):
                 # when any watched files change, restart the server
                 app.console.print("Restarting Prefect Server...")

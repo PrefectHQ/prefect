@@ -71,7 +71,8 @@ async def update_flow(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(db.Flow).where(db.Flow.id == flow_id)
+        sa.update(db.Flow)
+        .where(db.Flow.id == flow_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow.dict(shallow=True, exclude_unset=True))

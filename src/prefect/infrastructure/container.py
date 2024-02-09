@@ -398,9 +398,9 @@ class DockerContainer(Infrastructure):
             return await super().generate_work_pool_base_job_template()
         for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
             if key == "command":
-                base_job_template["variables"]["properties"]["command"]["default"] = (
-                    shlex.join(value)
-                )
+                base_job_template["variables"]["properties"]["command"][
+                    "default"
+                ] = shlex.join(value)
             elif key == "image_registry":
                 self.logger.warning(
                     "Image registry blocks are not supported by Docker"
