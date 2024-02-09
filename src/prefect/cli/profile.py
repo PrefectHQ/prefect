@@ -225,7 +225,7 @@ def rename(name: str, new_name: str):
 def inspect(
     name: Optional[str] = typer.Argument(
         None, help="Name of profile to inspect; defaults to active profile."
-    )
+    ),
 ):
     """
     Display settings from a given profile; defaults to active.
