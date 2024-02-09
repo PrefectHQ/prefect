@@ -57,12 +57,12 @@ else:
     from pydantic.fields import ModelField, Undefined
     from pydantic.utils import lenient_issubclass
 
-from starlette import routing
-from starlette.concurrency import run_in_threadpool
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
-from starlette.routing import (
+from prefect._vendor.starlette import routing
+from prefect._vendor.starlette.concurrency import run_in_threadpool
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import JSONResponse, Response
+from prefect._vendor.starlette.routing import (
     BaseRoute,
     Match,
     compile_path,
@@ -70,9 +70,9 @@ from starlette.routing import (
     request_response,
     websocket_session,
 )
-from starlette.routing import Mount as Mount  # noqa
-from starlette.types import ASGIApp, Lifespan, Scope
-from starlette.websockets import WebSocket
+from prefect._vendor.starlette.routing import Mount as Mount  # noqa
+from prefect._vendor.starlette.types import ASGIApp, Lifespan, Scope
+from prefect._vendor.starlette.websockets import WebSocket
 
 
 def _prepare_response_content(

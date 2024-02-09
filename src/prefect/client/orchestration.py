@@ -26,7 +26,7 @@ else:
     import pydantic
 
 from asgi_lifespan import LifespanManager
-from starlette import status
+from prefect._vendor.starlette import status
 
 import prefect
 import prefect.exceptions

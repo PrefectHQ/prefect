@@ -1,15 +1,16 @@
 """
 Command line interface for working with profiles.
 """
+
 import os
 import textwrap
 from typing import Optional
 
 import httpx
 import typer
+from prefect._vendor.starlette import status
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
-from starlette import status
 
 import prefect.context
 import prefect.settings

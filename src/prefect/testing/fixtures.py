@@ -10,7 +10,7 @@ import anyio
 import httpx
 import pendulum
 import pytest
-from starlette.status import WS_1008_POLICY_VIOLATION
+from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 

@@ -7,7 +7,7 @@ from typing import (
 )
 
 import httpx
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect import get_client
 from prefect._internal.concurrency import logger

@@ -12,7 +12,7 @@ else:
     import pydantic
 
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate

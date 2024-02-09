@@ -7,8 +7,8 @@ from uuid import uuid4
 
 import pytest
 from prefect._vendor.fastapi import FastAPI
+from prefect._vendor.starlette.testclient import TestClient, WebSocketTestSession
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.testclient import TestClient, WebSocketTestSession
 
 from prefect.server import models
 from prefect.server.api import task_runs

@@ -2,7 +2,7 @@
 
 __version__ = "0.99.1"
 
-from starlette import status as status
+from prefect._vendor.starlette import status as status
 
 from .applications import FastAPI as FastAPI
 from .background import BackgroundTasks as BackgroundTasks

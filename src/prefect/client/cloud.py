@@ -11,7 +11,7 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from starlette import status
+from prefect._vendor.starlette import status
 
 import prefect.context
 import prefect.settings
