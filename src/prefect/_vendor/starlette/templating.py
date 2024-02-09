@@ -2,11 +2,11 @@ import typing
 import warnings
 from os import PathLike
 
-from starlette.background import BackgroundTask
-from starlette.datastructures import URL
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.types import Receive, Scope, Send
+from prefect._vendor.starlette.background import BackgroundTask
+from prefect._vendor.starlette.datastructures import URL
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import HTMLResponse
+from prefect._vendor.starlette.types import Receive, Scope, Send
 
 try:
     import jinja2

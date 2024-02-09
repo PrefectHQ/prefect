@@ -25,7 +25,5 @@ CVE](https://github.com/advisories/GHSA-93gm-qmq6-w238) with `starlette<0.36.2`.
 change in that version is simply to set a lower-bound on `python-multipart`, which we
 have also done in `requirements-client.txt`
 
-In a future update, we'll apply the patch for that CVE to this copy of starlette.
-
 We can remove our vendored FastAPI and Starlette and move to the latest version after
 the deprecation period for pydantic v1 support has passed.

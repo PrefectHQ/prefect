@@ -2,11 +2,15 @@ import typing
 
 import anyio
 from anyio.abc import ObjectReceiveStream, ObjectSendStream
-from starlette._utils import collapse_excgroups
-from starlette.background import BackgroundTask
-from starlette.requests import ClientDisconnect, Request
-from starlette.responses import ContentStream, Response, StreamingResponse
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from prefect._vendor.starlette._utils import collapse_excgroups
+from prefect._vendor.starlette.background import BackgroundTask
+from prefect._vendor.starlette.requests import ClientDisconnect, Request
+from prefect._vendor.starlette.responses import (
+    ContentStream,
+    Response,
+    StreamingResponse,
+)
+from prefect._vendor.starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 RequestResponseEndpoint = typing.Callable[[Request], typing.Awaitable[Response]]
 DispatchFunction = typing.Callable[

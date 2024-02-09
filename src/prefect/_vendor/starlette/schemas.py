@@ -2,9 +2,9 @@ import inspect
 import re
 import typing
 
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.routing import BaseRoute, Host, Mount, Route
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import Response
+from prefect._vendor.starlette.routing import BaseRoute, Host, Mount, Route
 
 try:
     import yaml

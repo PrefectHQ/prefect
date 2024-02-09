@@ -2,9 +2,9 @@ import functools
 import re
 import typing
 
-from starlette.datastructures import Headers, MutableHeaders
-from starlette.responses import PlainTextResponse, Response
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from prefect._vendor.starlette.datastructures import Headers, MutableHeaders
+from prefect._vendor.starlette.responses import PlainTextResponse, Response
+from prefect._vendor.starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 ALL_METHODS = ("DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT")
 SAFELISTED_HEADERS = {"Accept", "Accept-Language", "Content-Language", "Content-Type"}

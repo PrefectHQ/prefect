@@ -10,11 +10,11 @@ from mimetypes import guess_type
 from urllib.parse import quote
 
 import anyio
-from starlette._compat import md5_hexdigest
-from starlette.background import BackgroundTask
-from starlette.concurrency import iterate_in_threadpool
-from starlette.datastructures import URL, MutableHeaders
-from starlette.types import Receive, Scope, Send
+from prefect._vendor.starlette._compat import md5_hexdigest
+from prefect._vendor.starlette.background import BackgroundTask
+from prefect._vendor.starlette.concurrency import iterate_in_threadpool
+from prefect._vendor.starlette.datastructures import URL, MutableHeaders
+from prefect._vendor.starlette.types import Receive, Scope, Send
 
 
 class Response:

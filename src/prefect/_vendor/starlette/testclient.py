@@ -14,9 +14,9 @@ import anyio
 import anyio.from_thread
 from anyio.abc import ObjectReceiveStream, ObjectSendStream
 from anyio.streams.stapled import StapledObjectStream
-from starlette._utils import is_async_callable
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from starlette.websockets import WebSocketDisconnect
+from prefect._vendor.starlette._utils import is_async_callable
+from prefect._vendor.starlette.types import ASGIApp, Message, Receive, Scope, Send
+from prefect._vendor.starlette.websockets import WebSocketDisconnect
 
 try:
     import httpx

@@ -3,16 +3,23 @@ from __future__ import annotations
 import typing
 import warnings
 
-from starlette.datastructures import State, URLPath
-from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.errors import ServerErrorMiddleware
-from starlette.middleware.exceptions import ExceptionMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.routing import BaseRoute, Router
-from starlette.types import ASGIApp, ExceptionHandler, Lifespan, Receive, Scope, Send
-from starlette.websockets import WebSocket
+from prefect._vendor.starlette.datastructures import State, URLPath
+from prefect._vendor.starlette.middleware import Middleware
+from prefect._vendor.starlette.middleware.base import BaseHTTPMiddleware
+from prefect._vendor.starlette.middleware.errors import ServerErrorMiddleware
+from prefect._vendor.starlette.middleware.exceptions import ExceptionMiddleware
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import Response
+from prefect._vendor.starlette.routing import BaseRoute, Router
+from prefect._vendor.starlette.types import (
+    ASGIApp,
+    ExceptionHandler,
+    Lifespan,
+    Receive,
+    Scope,
+    Send,
+)
+from prefect._vendor.starlette.websockets import WebSocket
 
 AppType = typing.TypeVar("AppType", bound="Starlette")
 

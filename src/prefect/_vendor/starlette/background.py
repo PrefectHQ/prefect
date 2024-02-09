@@ -6,8 +6,8 @@ if sys.version_info >= (3, 10):  # pragma: no cover
 else:  # pragma: no cover
     from typing_extensions import ParamSpec
 
-from starlette._utils import is_async_callable
-from starlette.concurrency import run_in_threadpool
+from prefect._vendor.starlette._utils import is_async_callable
+from prefect._vendor.starlette.concurrency import run_in_threadpool
 
 P = ParamSpec("P")
 

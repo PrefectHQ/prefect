@@ -1,8 +1,12 @@
 import typing
 
-from starlette.datastructures import URL, Headers
-from starlette.responses import PlainTextResponse, RedirectResponse, Response
-from starlette.types import ASGIApp, Receive, Scope, Send
+from prefect._vendor.starlette.datastructures import URL, Headers
+from prefect._vendor.starlette.responses import (
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
+from prefect._vendor.starlette.types import ASGIApp, Receive, Scope, Send
 
 ENFORCE_DOMAIN_WILDCARD = "Domain wildcard patterns must be like '*.example.com'."
 

@@ -1,9 +1,9 @@
 import typing
 
 if typing.TYPE_CHECKING:
-    from starlette.requests import Request
-    from starlette.responses import Response
-    from starlette.websockets import WebSocket
+    from prefect._vendor.starlette.requests import Request
+    from prefect._vendor.starlette.responses import Response
+    from prefect._vendor.starlette.websockets import WebSocket
 
 AppType = typing.TypeVar("AppType")
 

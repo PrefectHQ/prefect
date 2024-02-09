@@ -6,10 +6,10 @@ import typing
 from email.utils import parsedate
 
 import anyio
-from starlette.datastructures import URL, Headers
-from starlette.exceptions import HTTPException
-from starlette.responses import FileResponse, RedirectResponse, Response
-from starlette.types import Receive, Scope, Send
+from prefect._vendor.starlette.datastructures import URL, Headers
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.responses import FileResponse, RedirectResponse, Response
+from prefect._vendor.starlette.types import Receive, Scope, Send
 
 PathLike = typing.Union[str, "os.PathLike[str]"]
 

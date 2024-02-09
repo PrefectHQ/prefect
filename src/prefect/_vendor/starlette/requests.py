@@ -3,11 +3,25 @@ import typing
 from http import cookies as http_cookies
 
 import anyio
-from starlette._utils import AwaitableOrContextManager, AwaitableOrContextManagerWrapper
-from starlette.datastructures import URL, Address, FormData, Headers, QueryParams, State
-from starlette.exceptions import HTTPException
-from starlette.formparsers import FormParser, MultiPartException, MultiPartParser
-from starlette.types import Message, Receive, Scope, Send
+from prefect._vendor.starlette._utils import (
+    AwaitableOrContextManager,
+    AwaitableOrContextManagerWrapper,
+)
+from prefect._vendor.starlette.datastructures import (
+    URL,
+    Address,
+    FormData,
+    Headers,
+    QueryParams,
+    State,
+)
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.formparsers import (
+    FormParser,
+    MultiPartException,
+    MultiPartParser,
+)
+from prefect._vendor.starlette.types import Message, Receive, Scope, Send
 
 try:
     from multipart.multipart import parse_options_header
@@ -16,7 +30,7 @@ except ModuleNotFoundError:  # pragma: nocover
 
 
 if typing.TYPE_CHECKING:
-    from starlette.routing import Router
+    from prefect._vendor.starlette.routing import Router
 
 
 SERVER_PUSH_HEADERS_TO_COPY = {

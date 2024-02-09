@@ -9,17 +9,21 @@ import warnings
 from contextlib import asynccontextmanager
 from enum import Enum
 
-from starlette._exception_handler import wrap_app_handling_exceptions
-from starlette._utils import is_async_callable
-from starlette.concurrency import run_in_threadpool
-from starlette.convertors import CONVERTOR_TYPES, Convertor
-from starlette.datastructures import URL, Headers, URLPath
-from starlette.exceptions import HTTPException
-from starlette.middleware import Middleware
-from starlette.requests import Request
-from starlette.responses import PlainTextResponse, RedirectResponse, Response
-from starlette.types import ASGIApp, Lifespan, Receive, Scope, Send
-from starlette.websockets import WebSocket, WebSocketClose
+from prefect._vendor.starlette._exception_handler import wrap_app_handling_exceptions
+from prefect._vendor.starlette._utils import is_async_callable
+from prefect._vendor.starlette.concurrency import run_in_threadpool
+from prefect._vendor.starlette.convertors import CONVERTOR_TYPES, Convertor
+from prefect._vendor.starlette.datastructures import URL, Headers, URLPath
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.middleware import Middleware
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import (
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
+from prefect._vendor.starlette.types import ASGIApp, Lifespan, Receive, Scope, Send
+from prefect._vendor.starlette.websockets import WebSocket, WebSocketClose
 
 
 class NoMatchFound(Exception):

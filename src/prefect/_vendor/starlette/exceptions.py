@@ -44,7 +44,7 @@ __deprecated__ = "ExceptionMiddleware"
 
 def __getattr__(name: str) -> typing.Any:  # pragma: no cover
     if name == __deprecated__:
-        from starlette.middleware.exceptions import ExceptionMiddleware
+        from prefect._vendor.starlette.middleware.exceptions import ExceptionMiddleware
 
         warnings.warn(
             f"{__deprecated__} is deprecated on `starlette.exceptions`. "

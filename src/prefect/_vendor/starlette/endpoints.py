@@ -1,14 +1,14 @@
 import json
 import typing
 
-from starlette import status
-from starlette._utils import is_async_callable
-from starlette.concurrency import run_in_threadpool
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.responses import PlainTextResponse, Response
-from starlette.types import Message, Receive, Scope, Send
-from starlette.websockets import WebSocket
+from prefect._vendor.starlette import status
+from prefect._vendor.starlette._utils import is_async_callable
+from prefect._vendor.starlette.concurrency import run_in_threadpool
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import PlainTextResponse, Response
+from prefect._vendor.starlette.types import Message, Receive, Scope, Send
+from prefect._vendor.starlette.websockets import WebSocket
 
 
 class HTTPEndpoint:

@@ -4,7 +4,7 @@ from enum import Enum
 from tempfile import SpooledTemporaryFile
 from urllib.parse import unquote_plus
 
-from starlette.datastructures import FormData, Headers, UploadFile
+from prefect._vendor.starlette.datastructures import FormData, Headers, UploadFile
 
 try:
     import multipart

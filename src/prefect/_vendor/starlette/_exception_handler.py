@@ -1,11 +1,18 @@
 import typing
 
-from starlette._utils import is_async_callable
-from starlette.concurrency import run_in_threadpool
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.types import ASGIApp, ExceptionHandler, Message, Receive, Scope, Send
-from starlette.websockets import WebSocket
+from prefect._vendor.starlette._utils import is_async_callable
+from prefect._vendor.starlette.concurrency import run_in_threadpool
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.types import (
+    ASGIApp,
+    ExceptionHandler,
+    Message,
+    Receive,
+    Scope,
+    Send,
+)
+from prefect._vendor.starlette.websockets import WebSocket
 
 ExceptionHandlers = typing.Dict[typing.Any, ExceptionHandler]
 StatusHandlers = typing.Dict[int, ExceptionHandler]

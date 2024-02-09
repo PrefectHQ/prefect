@@ -1,14 +1,14 @@
 import typing
 
-from starlette.authentication import (
+from prefect._vendor.starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
     AuthenticationError,
     UnauthenticatedUser,
 )
-from starlette.requests import HTTPConnection
-from starlette.responses import PlainTextResponse, Response
-from starlette.types import ASGIApp, Receive, Scope, Send
+from prefect._vendor.starlette.requests import HTTPConnection
+from prefect._vendor.starlette.responses import PlainTextResponse, Response
+from prefect._vendor.starlette.types import ASGIApp, Receive, Scope, Send
 
 
 class AuthenticationMiddleware:

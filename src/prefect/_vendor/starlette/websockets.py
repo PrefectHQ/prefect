@@ -2,8 +2,8 @@ import enum
 import json
 import typing
 
-from starlette.requests import HTTPConnection
-from starlette.types import Message, Receive, Scope, Send
+from prefect._vendor.starlette.requests import HTTPConnection
+from prefect._vendor.starlette.types import Message, Receive, Scope, Send
 
 
 class WebSocketState(enum.Enum):

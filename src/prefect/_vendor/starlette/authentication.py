@@ -9,11 +9,11 @@ if sys.version_info >= (3, 10):  # pragma: no cover
 else:  # pragma: no cover
     from typing_extensions import ParamSpec
 
-from starlette._utils import is_async_callable
-from starlette.exceptions import HTTPException
-from starlette.requests import HTTPConnection, Request
-from starlette.responses import RedirectResponse
-from starlette.websockets import WebSocket
+from prefect._vendor.starlette._utils import is_async_callable
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.requests import HTTPConnection, Request
+from prefect._vendor.starlette.responses import RedirectResponse
+from prefect._vendor.starlette.websockets import WebSocket
 
 _P = ParamSpec("_P")
 

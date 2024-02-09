@@ -6,7 +6,7 @@ import warnings
 
 import anyio
 from anyio.abc import ObjectReceiveStream, ObjectSendStream
-from starlette.types import Receive, Scope, Send
+from prefect._vendor.starlette.types import Receive, Scope, Send
 
 warnings.warn(
     "starlette.middleware.wsgi is deprecated and will be removed in a future release. "

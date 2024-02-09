@@ -1,15 +1,15 @@
 import typing
 
-from starlette._exception_handler import (
+from prefect._vendor.starlette._exception_handler import (
     ExceptionHandlers,
     StatusHandlers,
     wrap_app_handling_exceptions,
 )
-from starlette.exceptions import HTTPException, WebSocketException
-from starlette.requests import Request
-from starlette.responses import PlainTextResponse, Response
-from starlette.types import ASGIApp, Receive, Scope, Send
-from starlette.websockets import WebSocket
+from prefect._vendor.starlette.exceptions import HTTPException, WebSocketException
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import PlainTextResponse, Response
+from prefect._vendor.starlette.types import ASGIApp, Receive, Scope, Send
+from prefect._vendor.starlette.websockets import WebSocket
 
 
 class ExceptionMiddleware:

@@ -1,6 +1,6 @@
-from starlette.datastructures import URL
-from starlette.responses import RedirectResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
+from prefect._vendor.starlette.datastructures import URL
+from prefect._vendor.starlette.responses import RedirectResponse
+from prefect._vendor.starlette.types import ASGIApp, Receive, Scope, Send
 
 
 class HTTPSRedirectMiddleware:
