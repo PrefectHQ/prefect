@@ -3,11 +3,10 @@ import signal
 import sys
 from contextlib import AsyncExitStack
 from functools import partial
-from typing import Iterable, Optional, Type
+from typing import Optional, Type
 
 import anyio
 import anyio.abc
-import pendulum
 
 from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
@@ -25,6 +24,12 @@ from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
+
+
+class StopTaskServer(Exception):
+    """Raised when the task server is stopped."""
+
+    pass
 
 
 class TaskServer:
@@ -47,12 +52,9 @@ class TaskServer:
         self,
         *tasks: Task,
         task_runner: Optional[Type[BaseTaskRunner]] = None,
-        extra_tags: Optional[Iterable[str]] = None,
     ):
         self.tasks: list[Task] = tasks
         self.task_runner: Type[BaseTaskRunner] = task_runner or ConcurrentTaskRunner()
-        self.extra_tags: Iterable[str] = extra_tags or []
-        self.last_polled: Optional[pendulum.DateTime] = None
         self.started: bool = False
         self.stopping: bool = False
 
@@ -96,6 +98,8 @@ class TaskServer:
 
         self.started = False
         self.stopping = True
+
+        raise StopTaskServer
 
     async def _subscribe_to_task_scheduling(self):
         async for task_run in Subscription(
@@ -177,14 +181,10 @@ class TaskServer:
 
 
 @sync_compatible
-async def serve(
-    *tasks: Task,
-    task_runner: Optional[Type[BaseTaskRunner]] = None,
-    extra_tags: Optional[Iterable[str]] = None,
-):
-    """Serve the provided tasks so that they may be submitted and executed to the engine.
-    Tasks do not need to be within a flow run context to be submitted and executed.
-    Ideally, you should `.submit` the same task object that you pass to `serve`.
+async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None):
+    """Serve the provided tasks so that their runs may be submitted to and executed.
+    in the engine. Tasks do not need to be within a flow run context to be submitted.
+    You must `.submit` the same task object that you pass to `serve`.
 
     Args:
         - tasks: A list of tasks to serve. When a scheduled task run is found for a
@@ -220,5 +220,8 @@ async def serve(
     try:
         await task_server.start()
 
-    except (asyncio.CancelledError, KeyboardInterrupt):
+    except StopTaskServer:
+        logger.info("Task server stopped.")
+
+    except asyncio.CancelledError:
         logger.info("Task server interrupted, stopping...")
