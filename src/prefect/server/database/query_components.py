@@ -366,7 +366,8 @@ class BaseQueryComponents(ABC):
                 sa.column("run_work_pool_id"),
                 sa.column("run_work_queue_id"),
                 db.FlowRun,
-            ).from_statement(query)
+            )
+            .from_statement(query)
             # indicate that the state relationship isn't being loaded
             .options(sa.orm.noload(db.FlowRun.state))
         )
@@ -1255,7 +1256,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             # help smooth over those differences.
 
             def edges(
-                value: Union[str, Sequence[UUID], Sequence[str], None]
+                value: Union[str, Sequence[UUID], Sequence[str], None],
             ) -> List[UUID]:
                 if not value:
                     return []
@@ -1264,7 +1265,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 return [Edge(id=id) for id in value]
 
             def time(
-                value: Union[str, datetime.datetime, None]
+                value: Union[str, datetime.datetime, None],
             ) -> Optional[pendulum.DateTime]:
                 if not value:
                     return None

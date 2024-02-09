@@ -167,7 +167,7 @@ def test_get_open_file_limit():
     # The functions that check the open file limit on either Windows or Unix
     # have an 'Any' return type, so this assertion ensures any changes to the
     # function don't break its contract.
-    assert type(limit) == int
+    assert isinstance(limit, int)
 
     # It shouldn't be possible to have a negative open file limit.
     assert limit >= 0

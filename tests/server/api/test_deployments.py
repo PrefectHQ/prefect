@@ -788,8 +788,7 @@ class TestCreateDeployment:
         assert response.status_code == 422
         assert (
             "Validation failed for field 'foo'. Failure reason: 1 is not of type"
-            " 'string'"
-            in response.text
+            " 'string'" in response.text
         )
 
     async def test_create_deployment_does_not_enforce_schema_by_default(

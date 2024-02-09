@@ -99,7 +99,7 @@ def LimitBody() -> Depends:
         limit: int = Body(
             None,
             description="Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.",
-        )
+        ),
     ):
         default_limit = PREFECT_API_DEFAULT_LIMIT.value()
         limit = limit if limit is not None else default_limit

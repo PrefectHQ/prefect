@@ -59,7 +59,7 @@ def process_v2_params(
     *,
     position: int,
     docstrings: t.Dict[str, str],
-    aliases: t.Dict
+    aliases: t.Dict,
 ) -> t.Tuple[str, t.Any, "pydantic.Field"]:
     """
     Generate a sanitized name, type, and pydantic.Field for a given parameter.
@@ -98,7 +98,7 @@ def create_v2_schema(
     name_: str,
     model_cfg: t.Optional[ConfigDict] = None,
     model_base: t.Optional[t.Type[V2BaseModel]] = None,
-    **model_fields
+    **model_fields,
 ):
     """
     Create a pydantic v2 model and craft a v1 compatible schema from it.

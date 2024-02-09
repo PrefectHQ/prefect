@@ -208,8 +208,7 @@ class TestGitRepository:
     def test_repr(self):
         repo = GitRepository(url="https://github.com/org/repo.git")
         assert (
-            repr(repo)
-            == "GitRepository(name='repo'"
+            repr(repo) == "GitRepository(name='repo'"
             " repository='https://github.com/org/repo.git', branch=None)"
         )
 

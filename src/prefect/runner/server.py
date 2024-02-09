@@ -139,9 +139,9 @@ async def get_deployment_router(
             )
 
             # Used for updating the route schemas later on
-            schemas[f"{deployment.name}-{deployment_id}"] = (
-                deployment.parameter_openapi_schema
-            )
+            schemas[
+                f"{deployment.name}-{deployment_id}"
+            ] = deployment.parameter_openapi_schema
             schemas[deployment_id] = deployment.name
     return router, schemas
 

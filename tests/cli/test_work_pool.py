@@ -330,8 +330,7 @@ class TestCreate:
         assert res.exit_code == 0
         assert (
             "Automatic infrastructure provisioning is not supported for 'fake' work"
-            " pools."
-            in res.output
+            " pools." in res.output
         )
 
     @pytest.mark.usefixtures("interactive_console", "mock_collection_registry")
@@ -751,6 +750,5 @@ class TestProvisionInfrastructure:
         assert res.exit_code == 0
         assert (
             "Automatic infrastructure provisioning is not supported for"
-            " 'push-work-pool:push' work pools."
-            in res.output
+            " 'push-work-pool:push' work pools." in res.output
         )

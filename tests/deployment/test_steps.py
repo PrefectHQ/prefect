@@ -802,8 +802,7 @@ class TestPipInstallRequirements:
         assert (
             "pip_install_requirements failed with error code 1: ERROR: Could not open "
             "requirements file: [Errno 2] No such file or directory: "
-            "'doesnt-exist.txt'"
-            in str(exc.value)
+            "'doesnt-exist.txt'" in str(exc.value)
         )
 
 

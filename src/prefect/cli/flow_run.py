@@ -268,7 +268,7 @@ async def logs(
 
 @flow_run_app.command()
 async def execute(
-    id: Optional[UUID] = typer.Argument(None, help="ID of the flow run to execute")
+    id: Optional[UUID] = typer.Argument(None, help="ID of the flow run to execute"),
 ):
     if id is None:
         environ_flow_id = os.environ.get("PREFECT__FLOW_RUN_ID")

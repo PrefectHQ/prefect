@@ -230,7 +230,9 @@ class CancelScope(abc.ABC):
                 else (
                     "cancelled"
                     if self._cancelled
-                    else "running" if self._started else "pending"
+                    else "running"
+                    if self._started
+                    else "pending"
                 )
             ).upper()
             timeout = f", timeout={self._timeout:.2f}" if self._timeout else ""

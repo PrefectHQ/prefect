@@ -407,7 +407,10 @@ def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
     assert inner_scope.cancelled()
     assert not completed
 
-    mock_alarm_signal_handler.assert_not_called(), "Alarm based handler should not be used"
+    (
+        mock_alarm_signal_handler.assert_not_called(),
+        "Alarm based handler should not be used",
+    )
 
 
 def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
@@ -426,7 +429,10 @@ def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
     assert outer_scope.cancelled()
     assert not completed
 
-    mock_alarm_signal_handler.assert_not_called(), "Alarm based handler should not be used"
+    (
+        mock_alarm_signal_handler.assert_not_called(),
+        "Alarm based handler should not be used",
+    )
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere

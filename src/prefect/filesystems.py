@@ -709,13 +709,13 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.azure_storage_connection_string:
-            settings["connection_string"] = (
-                self.azure_storage_connection_string.get_secret_value()
-            )
+            settings[
+                "connection_string"
+            ] = self.azure_storage_connection_string.get_secret_value()
         if self.azure_storage_account_name:
-            settings["account_name"] = (
-                self.azure_storage_account_name.get_secret_value()
-            )
+            settings[
+                "account_name"
+            ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
         if self.azure_storage_tenant_id:
@@ -723,9 +723,9 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         if self.azure_storage_client_id:
             settings["client_id"] = self.azure_storage_client_id.get_secret_value()
         if self.azure_storage_client_secret:
-            settings["client_secret"] = (
-                self.azure_storage_client_secret.get_secret_value()
-            )
+            settings[
+                "client_secret"
+            ] = self.azure_storage_client_secret.get_secret_value()
         settings["anon"] = self.azure_storage_anon
         self._remote_file_system = RemoteFileSystem(
             basepath=self.basepath, settings=settings

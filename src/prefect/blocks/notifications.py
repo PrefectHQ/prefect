@@ -24,14 +24,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
-        Field(
-            default=PREFECT_NOTIFY_TYPE_DEFAULT,
-            description=(
-                "The type of notification being performed; the prefect_default "
-                "is a plain notification that does not attach an image."
-            ),
-        )
+    notify_type: Literal[
+        "prefect_default", "info", "success", "warning", "failure"
+    ] = Field(
+        default=PREFECT_NOTIFY_TYPE_DEFAULT,
+        description=(
+            "The type of notification being performed; the prefect_default "
+            "is a plain notification that does not attach an image."
+        ),
     )
 
     def __init__(self, *args, **kwargs):

@@ -1,12 +1,12 @@
 src = ["src"]
 
 # Use Ruff for sorting imports
-extend-select = ["I"]
+lint.extend-select = ["I"]
 
 # Do not enforce line length; black does this for code and we do not care about comments / docs
-ignore = ["E501"]
+lint.ignore = ["E501"]
 
-[per-file-ignores]
+[lint.per-file-ignores]
 # Do not enforce usage and import order rules in init files
 "__init__.py" = ["E402", "F401", "I"]
 
@@ -22,5 +22,5 @@ ignore = ["E501"]
 # Do not enforce line length limits in migrations
 "src/prefect/server/database/migrations/**/*" = ["E501"]
 
-[isort]
+[lint.isort]
 known-third-party = ["prefect._vendor"]
