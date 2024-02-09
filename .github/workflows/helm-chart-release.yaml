@@ -16,4 +16,4 @@ jobs:
             --repo PrefectHQ/prefect-helm \
             --ref main
         env:
-          GH_TOKEN: ${{ secrets.PREFECT_HELM_CONTENTS_RW }}
+          GH_TOKEN: ${{ secrets.PREFECT_HELM_ACTIONS_RW }}
