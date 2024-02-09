@@ -2,9 +2,9 @@ from typing import Optional
 
 from prefect._vendor.fastapi.openapi.models import OpenIdConnect as OpenIdConnectModel
 from prefect._vendor.fastapi.security.base import SecurityBase
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.status import HTTP_403_FORBIDDEN
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.status import HTTP_403_FORBIDDEN
 
 
 class OpenIdConnect(SecurityBase):
