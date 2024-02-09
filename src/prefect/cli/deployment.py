@@ -38,6 +38,7 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
+from prefect.flow_runs import wait_for_flow_run
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
@@ -516,12 +517,29 @@ async def run(
         None,
         "--start-at",
     ),
+    tags: List[str] = typer.Option(
+        [], "--tag", help="Tag(s) to be applied to flow run"
+    ),
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        help="Whether to poll the flow run until a terminal state is reached.",
+    ),
+    watch_interval: Optional[int] = typer.Option(
+        None,
+        "--watch-interval",
+        help="How often to poll the flow run for state changes (in seconds).",
+    ),
+    watch_timeout: Optional[int] = typer.Option(
+        None, "--watch-timeout", help="Timeout for `--watch`."
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
 
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
-    The flow run will not execute until an agent starts.
+    The flow run will not execute until a worker starts.
+    To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
 
@@ -538,7 +556,10 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-
+        if watch_interval and not watch:
+            exit_with_error(
+                "`--watch-interval` can only be used with `--watch`.",
+            )
     cli_params = _load_json_key_values(params, "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
@@ -621,6 +642,7 @@ async def run(
                 deployment.id,
                 parameters=parameters,
                 state=Scheduled(scheduled_time=scheduled_start_time),
+                tags=tags,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")
@@ -655,6 +677,24 @@ async def run(
         """
         ).strip()
     )
+    if watch:
+        watch_interval = 5 if watch_interval is None else watch_interval
+        app.console.print(f"Watching flow run '{flow_run.name!r}'...")
+        finished_flow_run = await wait_for_flow_run(
+            flow_run.id,
+            timeout=watch_timeout,
+            poll_interval=watch_interval,
+            log_states=True,
+        )
+        finished_flow_run_state = finished_flow_run.state
+        if finished_flow_run_state.is_completed():
+            exit_with_success(
+                f"Flow run finished successfully in {finished_flow_run_state.name!r}."
+            )
+        exit_with_error(
+            f"Flow run finished in state {finished_flow_run_state.name!r}.",
+            code=1,
+        )
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
