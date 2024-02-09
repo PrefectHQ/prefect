@@ -219,6 +219,7 @@ def event_loop(request):
 
     try:
         yield loop
+
     finally:
         loop.close()
 
