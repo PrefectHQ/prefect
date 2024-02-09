@@ -29,11 +29,12 @@ In addition, users can control aspects of work pool behavior, such as how many r
 
 ### Work pool configuration
 
-You can configure work pools by using:
+You can configure work pools by using any of the following:
 
-- Prefect CLI commands
-- Prefect Python API
 - Prefect UI
+- Prefect CLI commands
+- [Prefect REST API](/api-ref/rest-api/)
+- [Terraform provider for Prefect Cloud](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/work_pool)
 
 To manage work pools in the UI, click the **Work Pools** icon. This displays a list of currently configured work pools.
 
@@ -94,6 +95,7 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Google Cloud Run - Push              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.  |
     | AWS Elastic Container Service - Push | Execute flow runs within containers on AWS ECS. Works with existing ECS clusters and serverless execution via AWS Fargate. Requires an AWS account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.   |
     | Azure Container Instances - Push     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.    |
+    | Modal - Push                         │ Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker. |   
     | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
 
 === "Prefect server instance"
@@ -429,6 +431,9 @@ If not all flow runs can be executed, usually as a result of concurrency limits,
 Priority for flow run submission proceeds from the highest priority to the lowest priority. In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission.
 
 If new flow runs are received on the "critical" queue while flow runs are still in scheduled on the "high" and "low" queues, flow run submission goes back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty, in waterfall fashion.
+
+!!! tip "Work queue status"
+    A work queue has a `READY` status when it has been polled by a worker in the last 60 seconds. Pausing a work queue will give it a `PAUSED` status and mean that it will accept no new work until it is unpaused. A user can control the work queue's paused status in the UI. Unpausing a work queue will give the work queue a `NOT_READY` status unless a worker has polled it in the last 60 seconds.
 
 ### Local debugging
 
