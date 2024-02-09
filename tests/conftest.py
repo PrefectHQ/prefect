@@ -219,6 +219,7 @@ def event_loop(request):
 
     try:
         yield loop
+
     finally:
         loop.close()
 
@@ -537,3 +538,25 @@ def disable_enhanced_cancellation():
 @pytest.fixture
 def start_of_test() -> pendulum.DateTime:
     return pendulum.now("UTC")
+
+
+@pytest.fixture(autouse=True)
+def reset_sys_modules():
+    import importlib
+
+    original_modules = sys.modules.copy()
+
+    # Workaround for weird behavior on Linux where some of our "expected
+    # failure" tests succeed because '.' is in the path.
+    if sys.platform == "linux" and "." in sys.path:
+        sys.path.remove(".")
+
+    yield
+
+    # Delete all of the module objects that were introduced so they are not
+    # cached.
+    for module in set(sys.modules.keys()):
+        if module not in original_modules:
+            del sys.modules[module]
+
+    importlib.invalidate_caches()

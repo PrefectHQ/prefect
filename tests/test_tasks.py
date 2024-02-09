@@ -35,7 +35,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
-from prefect.testing.utilities import exceptions_equal, flaky_on_windows
+from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
 
@@ -192,6 +192,21 @@ class TestTaskCall:
             return await foo(1)
 
         assert await bar() == 1
+
+    def test_async_task_called_inside_async_subflow(self):
+        @flow
+        def foobar():
+            return bar()
+
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return await foo(1)
+
+        assert foobar() == 1
 
     async def test_sync_task_called_inside_async_flow(self):
         @task
@@ -479,6 +494,42 @@ class TestTaskSubmit:
 
         task_state = await bar()
         assert await task_state.result() == 1
+
+    def test_async_task_submitted_inside_async_subflow(self):
+        @flow
+        def foobar():
+            return bar().result()
+
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return await foo.submit(1)
+
+        assert foobar() == 1
+
+    def test_async_task_submitted_future_dropped_inside_async_subflow(self):
+        task_ran = False
+
+        @flow
+        def foobar():
+            return bar()
+
+        @task
+        async def foo(x):
+            nonlocal task_ran
+            task_ran = True
+            return x
+
+        @flow
+        async def bar():
+            await foo.submit(1)
+            # The future is dropped here but the task should finish
+
+        assert foobar()[0].is_completed()
+        assert task_ran
 
     async def test_sync_task_submitted_inside_async_flow(self):
         @task
@@ -1152,7 +1203,6 @@ class TestTaskCaching:
         assert second_state.result() == 6
         assert third_state.result() == 6
 
-    @flaky_on_windows
     def test_cache_key_hits_with_future_expiration_are_cached(self):
         @task(
             cache_key_fn=lambda *_: "cache hit",

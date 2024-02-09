@@ -1,5 +1,147 @@
 # Prefect Release Notes
 
+## Release 2.14.21
+
+### Introducing work queue status
+
+We're excited to unveil the new status indicators for work queues in Prefect's UI, enhancing your ability to oversee and control flow run execution within our hybrid work pools.
+
+Work queues will now display one of three distinct statuses:
+
+- `Ready` -  one or more online workers are actively polling the work queue
+- `Not Ready` - no online workers are polling the work queue, signaling a need for intervention
+- `Paused` - the work queue is intentionally paused, preventing execution
+
+<p align="center">
+<img width="1109" alt="Prefect dashboard snapshot" src="https://github.com/PrefectHQ/prefect/assets/42048900/e5bb0a33-1ae2-44a7-a64e-ef0d308fce7a">
+</p>
+<img width="1109" alt="work pools page work queues table here with work queues of all statuses" src="https://github.com/PrefectHQ/prefect/assets/42048900/834f0f66-79e9-420b-9d11-d771a5b8cf02">
+
+With the introduction of work queue status, you'll notice the absence of deprecated work queue health indicators in the UI.
+
+See the documentation on [work queue status](https://docs.prefect.io/latest/concepts/work-pools/#work-queues) for more information.
+
+
+For now, this is an experimental feature, and can be enabled by running:
+```console
+prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS=True
+```
+
+See the following pull request for implementation details:
+    - https://github.com/PrefectHQ/prefect/pull/11829
+
+### Fixes
+- Remove unnecessary `WARNING` level log indicating a task run completed successfully — https://github.com/PrefectHQ/prefect/pull/11810
+- Fix a bug where block placeholders declared in pull steps of the `deployments` section of a `prefect.yaml` file were not resolved correctly — https://github.com/PrefectHQ/prefect/pull/11740
+- Use `pool_pre_ping` to improve stability for long-lived PostgreSQL connections — https://github.com/PrefectHQ/prefect/pull/11911
+
+### Documentation
+- Clarify Docker tutorial code snippet to ensure commands are run from the correct directory — https://github.com/PrefectHQ/prefect/pull/11833
+- Remove beta tag from incident documentation and screenshots — https://github.com/PrefectHQ/prefect/pull/11921
+- Update Prefect Cloud account roles docs to reflect renaming of previous "Admin" role to "Owner" and creation of new "Admin" role that cannot bypass SSO — https://github.com/PrefectHQ/prefect/pull/11925
+
+### Experimental
+- Ensure task subscribers can only pick up task runs they are able to execute — https://github.com/PrefectHQ/prefect/pull/11805
+- Allow a task server to reuse the same task runner to speed up execution — https://github.com/PrefectHQ/prefect/pull/11806
+- Allow configuration of maximum backlog queue size and maximum retry queue size for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/11825
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.20...2.14.21
+
+## Release 2.14.20
+
+### Fixes
+- Fix runtime bug causing missing work queues in UI — https://github.com/PrefectHQ/prefect/pull/11807
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.19...2.14.20
+
+## Release 2.14.19
+
+## Dynamic descriptions for paused and suspended flow runs
+You can now include dynamic, markdown-formatted descriptions when pausing or suspending a flow run for human input. This description will be shown in the Prefect UI alongside the form when a user is resuming the flow run, enabling developers to give context and instructions to users when they need to provide input.
+
+```python
+from datetime import datetime
+from prefect import flow, pause_flow_run, get_run_logger
+from prefect.input import RunInput
+
+class UserInput(RunInput):
+    name: str
+    age: int
+
+@flow
+async def greet_user():
+    logger = get_run_logger()
+    current_date = datetime.now().strftime("%B %d, %Y")
+
+    description_md = f"""
+**Welcome to the User Greeting Flow!**
+Today's Date: {current_date}
+
+Please enter your details below:
+- **Name**: What should we call you?
+- **Age**: Just a number, nothing more.
+"""
+
+    user_input = await pause_flow_run(
+        wait_for_input=UserInput.with_initial_data(
+            description=description_md, name="anonymous"
+        )
+    )
+
+    if user_input.name == "anonymous":
+        logger.info("Hello, stranger!")
+    else:
+        logger.info(f"Hello, {user_input.name}!")
+```
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11776
+- https://github.com/PrefectHQ/prefect/pull/11799
+
+### Enhancements
+- Enhanced `RunInput` saving to include descriptions, improving clarity and documentation for flow inputs — https://github.com/PrefectHQ/prefect/pull/11776
+- Improved type hinting for automatic run inputs, enhancing the developer experience and code readability — https://github.com/PrefectHQ/prefect/pull/11796
+- Extended Azure filesystem support with the addition of `azure_storage_container` for more flexible storage options — https://github.com/PrefectHQ/prefect/pull/11784
+- Added deployment details to work pool information, offering a more comprehensive view of work pool usage — https://github.com/PrefectHQ/prefect/pull/11766
+
+### Fixes
+- Updated terminal based deployment operations to make links within panels interactive, enhancing user navigation and experience — https://github.com/PrefectHQ/prefect/pull/11774
+
+### Documentation
+- Revised Key-Value (KV) integration documentation for improved clarity and updated authorship details — https://github.com/PrefectHQ/prefect/pull/11770
+- Further refinements to interactive flows documentation, addressing feedback and clarifying usage — https://github.com/PrefectHQ/prefect/pull/11772
+- Standardized terminal output in documentation for consistency and readability — https://github.com/PrefectHQ/prefect/pull/11775
+- Corrected a broken link to agents in the work pool concepts documentation, improving resource accessibility — https://github.com/PrefectHQ/prefect/pull/11782
+- Updated examples for accuracy and to reflect current best practices — https://github.com/PrefectHQ/prefect/pull/11786
+- Added guidance on providing descriptions when pausing flow runs, enhancing operational documentation — https://github.com/PrefectHQ/prefect/pull/11799
+
+### Experimental
+- Implemented `TaskRunFilterFlowRunId` for both client and server, enhancing task run filtering capabilities — https://github.com/PrefectHQ/prefect/pull/11748
+- Introduced a subscription API for autonomous task scheduling, paving the way for more dynamic and flexible task execution — https://github.com/PrefectHQ/prefect/pull/11779
+- Conducted testing to ensure server-side scheduling of autonomous tasks, verifying system reliability and performance — https://github.com/PrefectHQ/prefect/pull/11793
+- Implemented a global collections metadata cache clearance between tests, improving test reliability and accuracy — https://github.com/PrefectHQ/prefect/pull/11794
+- Initiated task server testing, laying the groundwork for comprehensive server-side task management — https://github.com/PrefectHQ/prefect/pull/11797
+
+## New Contributors
+* @thomasfrederikhoeck made their first contribution in https://github.com/PrefectHQ/prefect/pull/11784
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.18...2.14.19
+
+## Release 2.14.18
+
+### Fixes
+- Allow prefect settings to accept lists — https://github.com/PrefectHQ/prefect/pull/11722
+- Revert deprecation of worker webserver setting — https://github.com/PrefectHQ/prefect/pull/11758
+
+### Documentation
+- Expand docs on interactive flows, detailing `send_input` and `receive_input` — https://github.com/PrefectHQ/prefect/pull/11724
+- Clarify that interval schedules use an anchor not start date — https://github.com/PrefectHQ/prefect/pull/11767
+
+## New Contributors
+* @clefelhocz2 made their first contribution in https://github.com/PrefectHQ/prefect/pull/11722
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.17...2.14.18
+
 ## Release 2.14.17
 
 ### **Experimental**: Non-blocking submission of flow runs to the `Runner` web server
