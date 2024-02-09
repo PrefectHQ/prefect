@@ -47,7 +47,7 @@ jobs:
   run-tests:
     runs-on:
       group: oss-larger-runners
-    name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
+    name: python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
         database:
@@ -59,20 +59,6 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
-        pytest-options:
-          - "--exclude-services"
-          - "--only-services"
-
-        include:
-          # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automatically in fixtures
-          - pytest-options: "--only-services"
-            build-docker-images: true
-
-        exclude:
-          # Do not run service tests with postgres
-          - database: "postgres:14"
-            pytest-options: "--only-services"
 
       fail-fast: false
 
@@ -88,7 +74,6 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        if: ${{ matrix.build-docker-images }}
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -100,14 +85,12 @@ jobs:
 
       - name: Get image tag
         id: get_image_tag
-        if: ${{ matrix.build-docker-images }}
         run: |
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
       - name: Build test image
-        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -122,13 +105,11 @@ jobs:
           cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Test Docker image
-        if: ${{ matrix.build-docker-images }}
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Build Conda flavored test image
-        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -144,7 +125,7 @@ jobs:
 
       - name: Test Conda flavored Docker image
         # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
+        if: ${{ matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
@@ -196,13 +177,12 @@ jobs:
           --exclude-service kubernetes
           --durations 26
           --no-cov
-          ${{ matrix.pytest-options }}
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
         id: create_failure_flag
         run: |
-          sanitized_name="${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
+          sanitized_name="${{ matrix.python-version }}-${{ matrix.database }}"
           sanitized_name="${sanitized_name//:/-}"
           echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
           echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
