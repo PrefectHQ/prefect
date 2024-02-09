@@ -193,6 +193,21 @@ class TestTaskCall:
 
         assert await bar() == 1
 
+    def test_async_task_called_inside_async_subflow(self):
+        @flow
+        def foobar():
+            return bar()
+
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return await foo(1)
+
+        assert foobar() == 1
+
     async def test_sync_task_called_inside_async_flow(self):
         @task
         def foo(x):
@@ -479,6 +494,42 @@ class TestTaskSubmit:
 
         task_state = await bar()
         assert await task_state.result() == 1
+
+    def test_async_task_submitted_inside_async_subflow(self):
+        @flow
+        def foobar():
+            return bar().result()
+
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return await foo.submit(1)
+
+        assert foobar() == 1
+
+    def test_async_task_submitted_future_dropped_inside_async_subflow(self):
+        task_ran = False
+
+        @flow
+        def foobar():
+            return bar()
+
+        @task
+        async def foo(x):
+            nonlocal task_ran
+            task_ran = True
+            return x
+
+        @flow
+        async def bar():
+            await foo.submit(1)
+            # The future is dropped here but the task should finish
+
+        assert foobar()[0].is_completed()
+        assert task_ran
 
     async def test_sync_task_submitted_inside_async_flow(self):
         @task

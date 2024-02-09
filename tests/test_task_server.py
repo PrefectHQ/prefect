@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from prefect import task
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect.client.schemas.objects import TaskRun
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
@@ -102,7 +103,9 @@ async def test_handle_sigterm():
 
         mock_subscribe.assert_called_once()
 
-        task_server.handle_sigterm(signal.SIGTERM, None)
+        await from_async.call_in_new_thread(
+            create_call(task_server.handle_sigterm, signal.SIGTERM, None)
+        )
 
         mock_exit.assert_called_once_with(0)
         mock_stop.assert_called_once()

@@ -257,11 +257,12 @@ def in_global_loop() -> bool:
     """
     Check if called from the global loop.
     """
-    if GLOBAL_LOOP is None:
+    loop = get_running_loop()
+    if GLOBAL_LOOP is None or not loop:
         # Avoid creating a global loop if there isn't one
         return False
 
-    return get_global_loop()._loop == get_running_loop()
+    return GLOBAL_LOOP._loop == loop
 
 
 def wait_for_global_loop_exit(timeout: Optional[float] = None) -> None:
