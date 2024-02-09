@@ -1,3 +1,4 @@
+import os
 import sys
 from contextlib import contextmanager
 from typing import Generator
@@ -24,6 +25,8 @@ with silence_docker_warnings():
 
 
 logger = get_logger(__name__)
+
+PREFECT_IMAGE_REGISTRY = os.getenv("PREFECT_IMAGE_REGISTRY", "")
 
 
 def _safe_remove_container(container: Container):
@@ -77,6 +80,9 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
 def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     """Ensure that the prefect dev image is available and up-to-date"""
     image_name = get_prefect_image_name()
+
+    if PREFECT_IMAGE_REGISTRY:
+        image_name = f"{PREFECT_IMAGE_REGISTRY}/{image_name}"
 
     image_exists, version_is_right = False, False
 

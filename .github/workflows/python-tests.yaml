@@ -177,6 +177,8 @@ jobs:
           --exclude-service kubernetes
           --durations 26
           --no-cov
+        env:
+          PREFECT_IMAGE_REGISTRY: ${{ secrets.PREFECT_IMAGE_REGISTRY }}
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -336,6 +338,8 @@ jobs:
           --exclude-service kubernetes
           --durations 26
           --no-cov
+        env:
+          PREFECT_IMAGE_REGISTRY: ${{ secrets.PREFECT_IMAGE_REGISTRY }}
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -495,6 +499,8 @@ jobs:
           --exclude-service kubernetes
           --durations 26
           --no-cov
+        env:
+          PREFECT_IMAGE_REGISTRY: ${{ secrets.PREFECT_IMAGE_REGISTRY }}
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -687,3 +693,4 @@ jobs:
           DD_SITE: datadoghq.com
           DD_ENV: ci
           DD_SERVICE: prefect
+          PREFECT_IMAGE_REGISTRY: ${{ secrets.PREFECT_IMAGE_REGISTRY }}
