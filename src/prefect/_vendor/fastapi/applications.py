@@ -36,17 +36,17 @@ from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect._vendor.fastapi.params import Depends
 from prefect._vendor.fastapi.types import DecoratedCallable
 from prefect._vendor.fastapi.utils import generate_unique_id
-from starlette.applications import Starlette
-from starlette.datastructures import State
-from starlette.exceptions import HTTPException
-from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.errors import ServerErrorMiddleware
-from starlette.middleware.exceptions import ExceptionMiddleware
-from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, Response
-from starlette.routing import BaseRoute
-from starlette.types import ASGIApp, Lifespan, Receive, Scope, Send
+from prefect._vendor.starlette.applications import Starlette
+from prefect._vendor.starlette.datastructures import State
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.middleware import Middleware
+from prefect._vendor.starlette.middleware.base import BaseHTTPMiddleware
+from prefect._vendor.starlette.middleware.errors import ServerErrorMiddleware
+from prefect._vendor.starlette.middleware.exceptions import ExceptionMiddleware
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import HTMLResponse, JSONResponse, Response
+from prefect._vendor.starlette.routing import BaseRoute
+from prefect._vendor.starlette.types import ASGIApp, Lifespan, Receive, Scope, Send
 
 AppType = TypeVar("AppType", bound="FastAPI")
 
@@ -150,7 +150,7 @@ class FastAPI(Starlette):
         )
         self.exception_handlers: Dict[
             Any, Callable[[Request, Any], Union[Response, Awaitable[Response]]]
-        ] = ({} if exception_handlers is None else dict(exception_handlers))
+        ] = {} if exception_handlers is None else dict(exception_handlers)
         self.exception_handlers.setdefault(HTTPException, http_exception_handler)
         self.exception_handlers.setdefault(
             RequestValidationError, request_validation_exception_handler
@@ -168,7 +168,7 @@ class FastAPI(Starlette):
         self.setup()
 
     def build_middleware_stack(self) -> ASGIApp:
-        # Duplicate/override from Starlette to add AsyncExitStackMiddleware
+        # Duplicate/override from prefect._vendor.starlette to add AsyncExitStackMiddleware
         # inside of ExceptionMiddleware, inside of custom user middlewares
         debug = self.debug
         error_handler = None

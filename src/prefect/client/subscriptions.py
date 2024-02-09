@@ -4,7 +4,7 @@ from typing import Generic, List, Type, TypeVar
 import orjson
 import websockets
 import websockets.exceptions
-from starlette.status import WS_1008_POLICY_VIOLATION
+from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
@@ -40,11 +40,7 @@ class Subscription(Generic[S]):
                 await self._ensure_connected()
                 message = await self._websocket.recv()
 
-                message_data = orjson.loads(message)
-
-                if message_data.get("type") == "ping":
-                    await self._websocket.send(orjson.dumps({"type": "pong"}).decode())
-                    continue
+                await self._websocket.send(orjson.dumps({"type": "ack"}).decode())
 
                 return self.model.parse_raw(message)
             except (
