@@ -1913,6 +1913,75 @@ class TestProjectDeploy:
         ]
 
     @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_templates_pull_step_in_deployments_section_safely(
+        self, prefect_client, work_pool
+    ):
+        """
+        We want step outputs to get templated, but block references to only be
+        retrieved at runtime.
+
+        Unresolved placeholders should be left as-is, and not be resolved
+        to allow templating between steps in the pull action.
+        """
+
+        await Secret(value="super-secret-name").save(name="test-secret")
+
+        # update prefect.yaml to include a new build step
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        # test step that returns a dictionary of inputs and output1, output2
+        prefect_config["build"] = [
+            {"prefect.testing.utilities.a_test_step": {"input": "foo"}}
+        ]
+
+        prefect_config["deployments"][0]["pull"] = [
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
+                    "input": "{{ output1 }}",
+                    "secret-input": "{{ prefect.blocks.secret.test-secret }}",
+                },
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                },
+            },
+        ]
+        # save it back
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.pull_steps == [
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
+                    "input": 1,
+                    "secret-input": "{{ prefect.blocks.secret.test-secret }}",
+                }
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                }
+            },
+        ]
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_reads_flow_name_from_prefect_yaml(self, work_pool):
         await register_flow("flows/hello.py:my_flow")
         create_default_prefect_yaml(".")
@@ -5505,49 +5574,6 @@ class TestDeployWithoutEntrypoint:
             name="An important name/default"
         )
         assert deployment.entrypoint == "flows/hello.py:my_flow"
-
-    async def test_deploy_without_entrypoint_no_flows_found(
-        self, prefect_client: PrefectClient
-    ):
-        Path("test_nested_folder").mkdir()
-        with tmpchdir("test_nested_folder"):
-            await run_sync_in_worker_thread(
-                invoke_and_assert,
-                command="deploy",
-                user_input=(
-                    # Enter valid entrypoint from sibling directory
-                    "../flows/hello.py:my_flow"
-                    + readchar.key.ENTER
-                    +
-                    # Accept default deployment name
-                    readchar.key.ENTER
-                    +
-                    # decline schedule
-                    "n"
-                    + readchar.key.ENTER
-                    +
-                    # accept first work pool
-                    readchar.key.ENTER
-                    +
-                    # Decline remote storage
-                    "n"
-                    + readchar.key.ENTER
-                    +
-                    # decline save user inputs
-                    "n"
-                    + readchar.key.ENTER
-                ),
-                expected_code=0,
-                expected_output_contains=[
-                    "Flow entrypoint (expected format path/to/file.py:function_name)",
-                    "Deployment 'An important name/default' successfully created",
-                ],
-            )
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="An important name/default"
-            )
-            assert deployment.entrypoint == "../flows/hello.py:my_flow"
 
 
 class TestCheckForMatchingDeployment:

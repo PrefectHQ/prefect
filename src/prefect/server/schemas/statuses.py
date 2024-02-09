@@ -21,3 +21,11 @@ class DeploymentStatus(AutoEnum):
 
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
+
+
+class WorkQueueStatus(AutoEnum):
+    """Enumeration of work queue statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()

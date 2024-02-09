@@ -129,7 +129,6 @@ def test_requires_real_dockerfile(contexts: Path):
         ("missing-file", "COPY failed"),
     ],
 )
-@pytest.mark.flaky(max_runs=3)
 def test_raises_exception_on_bad_base_image(
     contexts: Path, example_context: str, expected_error: str
 ):

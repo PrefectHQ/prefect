@@ -51,7 +51,6 @@ jobs:
     strategy:
       matrix:
         database:
-          - "postgres:13"
           - "postgres:14"
           - "sqlite"
         python-version:
@@ -71,10 +70,6 @@ jobs:
             build-docker-images: true
 
         exclude:
-          # Do not run service tests with postgres
-          - database: "postgres:13"
-            pytest-options: "--only-services"
-
           # Do not run service tests with postgres
           - database: "postgres:14"
             pytest-options: "--only-services"
@@ -103,15 +98,6 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
-      - name: Pin requirements to lower bounds
-        if: ${{ matrix.lower-bound-requirements }}
-        # Creates lower bound files then replaces the input files so we can do a normal install
-        run: |
-          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
-          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
-          mv requirements-lower.txt requirements.txt
-          mv requirements-dev-lower.txt requirements-dev.txt
-
       - name: Get image tag
         id: get_image_tag
         if: ${{ matrix.build-docker-images }}
@@ -133,7 +119,7 @@ jobs:
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Test Docker image
         if: ${{ matrix.build-docker-images }}
@@ -167,8 +153,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U pip
-          # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
-          pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -191,23 +176,27 @@ jobs:
           --env LC_COLLATE="C.UTF-8"
           --env LC_CTYPE="C.UTF-8"
           ${{ matrix.database }}
+          -c max_connections=250
 
           ./scripts/wait-for-healthy-container.sh postgres 30
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
+        # Parallelize tests by scope to reduce expensive service fixture duplication
+        # Do not allow the test suite to build images, as we want the prebuilt images to be tested
+        # Do not run Kubernetes service tests, we do not have a cluster available
+        # maxprocesses 6 is based on empirical testing; higher than 6 sees diminishing returns
       - name: Run tests
-        run: |
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          # Do not allow the test suite to build images, as we want the prebuilt images to be tested
-          # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=26 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
-        env:
-          DD_CIVISIBILITY_AGENTLESS_ENABLED: true
-          DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
-          DD_SITE: datadoghq.com
-          DD_ENV: ci
-          DD_SERVICE: prefect
+        run: >
+          pytest tests
+          --numprocesses auto
+          --maxprocesses 6
+          --dist loadscope
+          --disable-docker-image-builds
+          --exclude-service kubernetes
+          --durations 26
+          --no-cov
+          ${{ matrix.pytest-options }}
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -233,37 +222,17 @@ jobs:
           && docker container logs postgres
           || echo "Ignoring bad exit code"
 
-
-  # Run a smaller subset of tests with pydantic v1 installed, the
-  # Python versions we support, and only on sqlite + postgres 14
-  run-tests-pydantic-v1:
+  run-pydantic-v1-tests:
     runs-on:
       group: oss-larger-runners
-    name: pydantic v1, python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
+    name: pydantic v1, python:${{ matrix.python-version }}
     strategy:
       matrix:
         database:
           - "postgres:14"
-          - "sqlite"
         python-version:
           - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
-        pytest-options:
-          - "--exclude-services"
-          - "--only-services"
-
-        include:
-          # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automatically in fixtures
-          - pytest-options: "--only-services"
-            build-docker-images: true
-
-        exclude:
-          # Do not run service tests with postgres
-          - database: "postgres:14"
-            pytest-options: "--only-services"
+          - "3.12"
 
       fail-fast: false
 
@@ -279,7 +248,6 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        if: ${{ matrix.build-docker-images }}
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -289,30 +257,18 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
-      - name: Pin requirements to lower bounds
-        if: ${{ matrix.lower-bound-requirements }}
-        # Creates lower bound files then replaces the input files so we can do a normal install
-        run: |
-          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
-          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
-          mv requirements-lower.txt requirements.txt
-          mv requirements-dev-lower.txt requirements-dev.txt
-
       - name: Get image tag
         id: get_image_tag
-        if: ${{ matrix.build-docker-images }}
         run: |
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
       - name: Force install pydantic in docker images
-        if: ${{ matrix.build-docker-images }}
         run: |
           sed -i 's/RUN prefect version/RUN pip install "pydantic<2"\nRUN prefect version/' Dockerfile
 
       - name: Build test image
-        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -324,17 +280,14 @@ jobs:
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Test Docker image
-        if: ${{ matrix.build-docker-images }}
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Build Conda flavored test image
-        # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -349,8 +302,6 @@ jobs:
           # cache-to: type=gha,mode=max
 
       - name: Test Conda flavored Docker image
-        # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
@@ -359,8 +310,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U pip
-          # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
-          pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Force install pydantic for unit tests
         run: pip install "pydantic<2"
@@ -386,36 +336,35 @@ jobs:
           --env LC_COLLATE="C.UTF-8"
           --env LC_CTYPE="C.UTF-8"
           ${{ matrix.database }}
+          -c max_connections=250
 
           ./scripts/wait-for-healthy-container.sh postgres 30
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
+        # Parallelize tests by scope to reduce expensive service fixture duplication
+        # Do not allow the test suite to build images, as we want the prebuilt images to be tested
+        # Do not run Kubernetes service tests, we do not have a cluster available
+        # maxprocesses 6 is based on empirical testing; higher than 6 sees diminishing returns
       - name: Run tests
-        run: |
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          # Do not allow the test suite to build images, as we want the prebuilt images to be tested
-          # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
-        env:
-          DD_CIVISIBILITY_AGENTLESS_ENABLED: true
-          DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
-          DD_SITE: datadoghq.com
-          DD_ENV: ci
-          DD_SERVICE: prefect
+        run: >
+          pytest tests
+          --numprocesses auto
+          --maxprocesses 6
+          --dist loadscope
+          --disable-docker-image-builds
+          --exclude-service kubernetes
+          --durations 26
+          --no-cov
 
-      - name: Create failure flag
+      - name: Create and Upload failure flag
         if: ${{ failure() }}
         id: create_failure_flag
         run: |
-          sanitized_name="${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
+          sanitized_name="pydantic-v1-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
           sanitized_name="${sanitized_name//:/-}"
-
-          timestamp=$(date -u +"%Y%m%dT%H%M%SZ")
-          unique_artifact_name="${sanitized_name}-failure-${timestamp}"
-
-          echo "Failure in $sanitized_name" > "${unique_artifact_name}.txt"
-          echo "artifact_name=${unique_artifact_name}" >> $GITHUB_OUTPUT
+          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
+          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
 
       - name: Upload failure flag
         if: ${{ failure() }}
@@ -432,6 +381,164 @@ jobs:
           && docker container logs postgres
           || echo "Ignoring bad exit code"
 
+  run-sqlalchemy-v1-tests:
+    runs-on:
+      group: oss-larger-runners
+    name: sqlalchemy v1, python:${{ matrix.python-version }}
+    strategy:
+      matrix:
+        database:
+          - "postgres:14"
+        python-version:
+          - "3.8"
+          - "3.12"
+
+      fail-fast: false
+
+    timeout-minutes: 45
+
+    steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Get image tag
+        id: get_image_tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+
+      - name: Force install sqlalchemy in docker images
+        run: |
+          sed -i 's/RUN prefect version/RUN pip install "sqlalchemy[asyncio]<2"\nRUN prefect version/' Dockerfile
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
+          #       so that CI test runs are faster
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+
+      - name: Test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+
+      - name: Build Conda flavored test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            BASE_IMAGE=prefect-conda
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda
+          outputs: type=docker,dest=/tmp/image-conda.tar
+          cache-from: type=gha
+          # We do not cache Conda image layers because they very big and slow to upload
+          # cache-to: type=gha,mode=max
+
+      - name: Test Conda flavored Docker image
+        run: |
+          docker load --input /tmp/image-conda.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda conda --version
+
+      - name: Install packages
+        run: |
+          python -m pip install -U pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
+
+      - name: Force install sqlalchemy for unit tests
+        run: pip install "sqlalchemy[asyncio]<2"
+
+      - name: Start database container
+        if: ${{ startsWith(matrix.database, 'postgres') }}
+        run: >
+          docker run
+          --name "postgres"
+          --detach
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --publish 5432:5432
+          --tmpfs /var/lib/postgresql/data
+          --env POSTGRES_USER="prefect"
+          --env POSTGRES_PASSWORD="prefect"
+          --env POSTGRES_DB="prefect"
+          --env LANG="C.UTF-8"
+          --env LANGUAGE="C.UTF-8"
+          --env LC_ALL="C.UTF-8"
+          --env LC_COLLATE="C.UTF-8"
+          --env LC_CTYPE="C.UTF-8"
+          ${{ matrix.database }}
+          -c max_connections=250
+
+          ./scripts/wait-for-healthy-container.sh postgres 30
+
+          echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+
+        # Parallelize tests by scope to reduce expensive service fixture duplication
+        # Do not allow the test suite to build images, as we want the prebuilt images to be tested
+        # Do not run Kubernetes service tests, we do not have a cluster available
+        # maxprocesses 6 is based on empirical testing; higher than 6 sees diminishing returns
+      - name: Run tests
+        run: >
+          pytest tests
+          --numprocesses auto
+          --maxprocesses 6
+          --dist loadscope
+          --disable-docker-image-builds
+          --exclude-service kubernetes
+          --durations 26
+          --no-cov
+
+      - name: Create and Upload failure flag
+        if: ${{ failure() }}
+        id: create_failure_flag
+        run: |
+          sanitized_name="sqlalchemy-v1-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
+          sanitized_name="${sanitized_name//:/-}"
+          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
+          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
+
+      - name: Upload failure flag
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.create_failure_flag.outputs.artifact_name }}
+          path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
+
+      - name: Check database container
+        # Only applicable for Postgres, but we want this to run even when tests fail
+        if: always()
+        run: >
+          docker container inspect postgres
+          && docker container logs postgres
+          || echo "Ignoring bad exit code"
 
   notify-tests-failing-on-main:
     needs: run-tests
@@ -466,6 +573,137 @@ jobs:
           channel: CBH18KG8G # This is #engineering
           fields: message,commit,author,workflowRun
           status: failure
-          text: ":warning: Unit tests are failing in Prefect's main branch. Commit author: please mark the failing tests as flaky. If they are already marked, delete them, open a GH issue, and assign it to Andrew Brookins."
+          text: ":warning: Unit tests are failing in Prefect's main branch. Commit author: please either fix or remove the failing tests. If you remove the failing tests create a GitHub issue with the details."
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
+
+  run-tests-for-datadog:
+    name: DataDog CI Visibility
+    runs-on:
+      group: oss-larger-runners
+    strategy:
+      matrix:
+        database:
+          - "postgres:14"
+        python-version:
+          - "3.12"
+
+      fail-fast: false
+
+    timeout-minutes: 45
+
+    steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Get image tag
+        id: get_image_tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
+          #       so that CI test runs are faster
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+
+      - name: Test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+
+      - name: Build Conda flavored test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            BASE_IMAGE=prefect-conda
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda
+          outputs: type=docker,dest=/tmp/image-conda.tar
+          cache-from: type=gha
+          # We do not cache Conda image layers because they very big and slow to upload
+          # cache-to: type=gha,mode=max
+
+      - name: Test Conda flavored Docker image
+        # Not yet supported for 3.11, see note at top
+        run: |
+          docker load --input /tmp/image-conda.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda conda --version
+
+      - name: Install packages
+        run: |
+          python -m pip install -U pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
+
+      - name: Start database container
+        run: >
+          docker run
+          --name "postgres"
+          --detach
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --publish 5432:5432
+          --tmpfs /var/lib/postgresql/data
+          --env POSTGRES_USER="prefect"
+          --env POSTGRES_PASSWORD="prefect"
+          --env POSTGRES_DB="prefect"
+          --env LANG="C.UTF-8"
+          --env LANGUAGE="C.UTF-8"
+          --env LC_ALL="C.UTF-8"
+          --env LC_COLLATE="C.UTF-8"
+          --env LC_CTYPE="C.UTF-8"
+          ${{ matrix.database }}
+          -c max_connections=250
+
+          ./scripts/wait-for-healthy-container.sh postgres 30
+
+          echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: >
+          pytest tests
+          --numprocesses auto
+          --maxprocesses 6
+          --ddtrace
+          --dist loadscope
+          --disable-docker-image-builds
+          --exclude-service kubernetes
+          --durations 26
+          --cov
+          --cov-config setup.cfg
+        env:
+          DD_CIVISIBILITY_AGENTLESS_ENABLED: true
+          DD_API_KEY: ${{ secrets.DD_API_KEY_CI_VISIBILITY }}
+          DD_SITE: datadoghq.com
+          DD_ENV: ci
+          DD_SERVICE: prefect

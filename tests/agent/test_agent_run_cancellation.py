@@ -458,7 +458,6 @@ async def test_agent_cancel_run_with_infrastructure_not_found_during_kill(
 @pytest.mark.parametrize(
     "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
 )
-@pytest.mark.flaky(max_runs=3)
 async def test_agent_cancel_run_with_unknown_error_during_kill(
     prefect_client: PrefectClient,
     deployment: ORMDeployment,
@@ -479,7 +478,7 @@ async def test_agent_cancel_run_with_unknown_error_during_kill(
         prefetch_seconds=10,
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
-        await anyio.sleep(0.75)
+        await anyio.sleep(1)
         await agent.check_for_cancelled_flow_runs()
 
     # Multiple attempts should be made
