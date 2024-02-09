@@ -5,12 +5,6 @@ repos:
       - id: ruff
         language_version: python3
         args: [--fix, --exit-non-zero-on-fix, --show-fixes]
-  - repo: https://github.com/psf/black
-    rev: 23.1.0
-    hooks:
-      - id: black
-        language_version: python3
-        args: ['--preview']
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.5
     hooks:
