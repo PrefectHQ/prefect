@@ -115,6 +115,11 @@ CONDA_ENV_EXPORT_WITH_PIP_JSON = r"""
 }
 """
 
+pytestmark = pytest.mark.skipif(
+    os.system("which conda") != 0,
+    reason="Conda tests require conda to be installed",
+)
+
 
 @pytest.fixture
 def mock_conda_process(monkeypatch):
