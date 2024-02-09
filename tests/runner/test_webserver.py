@@ -251,8 +251,7 @@ class TestWebserverFlowRoutes:
         # we should have logged a warning
         assert (
             "Flow new-flow is not directly managed by the runner. Please "
-            "include it in the runner's served flows' import namespace."
-            in caplog.text
+            "include it in the runner's served flows' import namespace." in caplog.text
         )
 
     @mock.patch("prefect.runner.server.load_flow_from_entrypoint")

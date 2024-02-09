@@ -362,9 +362,7 @@ class TestPrefectHttpxClient:
                 request=Request("a test request", "fake.url/fake/route"),
             )
             for retry_after in [5, 0, 10, 2.0]
-        ] + [
-            RESPONSE_200
-        ]  # Then succeed
+        ] + [RESPONSE_200]  # Then succeed
 
         with mock_anyio_sleep.assert_sleeps_for(5 + 10 + 2):
             async with client:
@@ -426,7 +424,8 @@ class TestPrefectHttpxClient:
         ]
 
         with mock_anyio_sleep.assert_sleeps_for(
-            2 + 4 + 8, extra_tolerance=0.2 * 14  # Add tolerance for jitter
+            2 + 4 + 8,
+            extra_tolerance=0.2 * 14,  # Add tolerance for jitter
         ):
             async with client:
                 response = await client.post(
