@@ -93,13 +93,13 @@ async def run_deployment(
             run metadata immediately. Setting `timeout` to None will allow this
             function to poll indefinitely. Defaults to None.
         poll_interval: The number of seconds between polls
-        tags: A list of tags to associate with this flow run; note that tags are used
-            only for organizational purposes.
+        tags: A list of tags to associate with this flow run; tags can be used in
+            automations and for organizational purposes.
         idempotency_key: A unique value to recognize retries of the same run, and
             prevent creating multiple flow runs.
         work_queue_name: The name of a work queue to use for this run. Defaults to
             the default work queue for the deployment.
-        as_subflow: Whether or not to link the flow run as a subflow of the current
+        as_subflow: Whether to link the flow run as a subflow of the current
             flow or task run.
     """
     if timeout is not None and timeout < 0:
