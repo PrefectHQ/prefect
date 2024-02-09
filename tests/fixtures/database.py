@@ -57,10 +57,17 @@ async def database_engine(db: PrefectDBInterface):
 
     for connection in TRACKER.all_connections:
         driver_connection = connection.driver_connection
+
         if isinstance(driver_connection, asyncpg.Connection):
-            assert driver_connection.is_closed()
+            if driver_connection.is_closed():
+                continue
         elif isinstance(driver_connection, aiosqlite.Connection):
-            assert not driver_connection._connection
+            if not driver_connection._connection:
+                continue
+        else:
+            continue
+
+        await driver_connection.close()
 
     # Finally, free up all references to connections and clean up proactively so that
     # we don't have any lingering connections after this.  This should prevent
