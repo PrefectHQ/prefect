@@ -540,7 +540,7 @@ async def list_schedules(deployment_name: str):
         title="Deployment Schedules",
     )
     table.add_column("ID", style="blue", no_wrap=True)
-    table.add_column("Schedule", style="cyan", no_wrap=True)
+    table.add_column("Schedule", style="cyan", no_wrap=False)
     table.add_column("Active", style="purple", no_wrap=True)
 
     for schedule in sorted(deployment.schedules, key=sort_by_created_key):
@@ -698,8 +698,8 @@ async def _pause_schedule(
 
         if len(deployment.schedules) > 1:
             return exit_with_error(
-                f"Deployment {name!r} has multiple schedules. "
-                "Use `prefect schedules <deployment_name> pause <schedule_id>"
+                f"Deployment {name!r} has multiple schedules. Use `prefect deployment"
+                " schedule pause <deployment_name> <schedule_id>`"
             )
 
         return await pause_schedule(name, deployment.schedules[0].id)
@@ -726,7 +726,7 @@ async def _resume_schedule(
         if len(deployment.schedules) > 1:
             return exit_with_error(
                 f"Deployment {name!r} has multiple schedules. "
-                "Use `prefect schedules <deployment_name> pause <schedule_id>"
+                "Use `prefect deployment schedule pause <deployment_name> <schedule_id>"
             )
 
         return await resume_schedule(name, deployment.schedules[0].id)

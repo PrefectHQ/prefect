@@ -64,7 +64,7 @@ from prefect.client.schemas.responses import (
     OrchestrationResult,
     SetStateStatus,
 )
-from prefect.client.schemas.schedules import IntervalSchedule, NoSchedule
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.events.schemas import Automation, Posture, Trigger
@@ -2065,3 +2065,64 @@ async def test_global_concurrency_limit_update(prefect_client):
 async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client):
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await prefect_client.read_global_concurrency_limit_by_name(name="not-here")
+
+
+class TestPrefectClientDeploymentSchedules:
+    @pytest.fixture
+    async def deployment(self, prefect_client, infrastructure_document_id):
+        foo = flow(lambda: None, name="foo")
+        flow_id = await prefect_client.create_flow(foo)
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            manifest_path="file.json",
+            schedule=schedule,
+            parameters={"foo": "bar"},
+            work_queue_name="wq",
+            infrastructure_document_id=infrastructure_document_id,
+        )
+        deployment = await prefect_client.read_deployment(deployment_id)
+        return deployment
+
+    async def test_create_deployment_schedules_success(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="* * * * *")
+        schedules = [(cron_schedule, True)]
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id, schedules
+        )
+
+        assert len(result) == 1
+        assert result[0].id
+        assert result[0].schedule == cron_schedule
+        assert result[0].active is True
+
+    async def test_read_deployment_schedules_success(self, prefect_client, deployment):
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].schedule == IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+        assert result[0].active is True
+
+    async def test_update_deployment_schedule_success(self, deployment, prefect_client):
+        await prefect_client.update_deployment_schedule(
+            deployment.id, deployment.schedules[0].id, active=False
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].active is False
+
+    async def test_delete_deployment_schedule_success(self, deployment, prefect_client):
+        await prefect_client.delete_deployment_schedule(
+            deployment.id, deployment.schedules[0].id
+        )
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 0

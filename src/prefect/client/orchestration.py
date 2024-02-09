@@ -1846,14 +1846,12 @@ class PrefectClient:
     async def read_deployment_schedules(
         self,
         deployment_id: UUID,
-        schedule_id: UUID,
     ) -> DeploymentSchedule:
         """
-        Query the Prefect API for a deployment schedule ID.
+        Query the Prefect API for a deployment's schedules.
 
         Args:
             deployment_id: the deployment ID
-            schedule_id: the deployment schedule ID of interest
 
         Returns:
             a list of DeploymentSchedule model representations of the deployment schedules
@@ -1909,7 +1907,7 @@ class PrefectClient:
         self,
         deployment_id: UUID,
         schedule_id: UUID,
-    ) -> UUID:
+    ) -> None:
         """
         Delete a deployment schedule.
 
@@ -1919,9 +1917,6 @@ class PrefectClient:
 
         Raises:
             httpx.RequestError: if the schedules were not deleted for any reason
-
-        Returns:
-            the list of schedules deleted from the backend
         """
         try:
             await self._client.delete(
