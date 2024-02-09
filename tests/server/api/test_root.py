@@ -1,4 +1,4 @@
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.testing.utilities import AsyncMock
 

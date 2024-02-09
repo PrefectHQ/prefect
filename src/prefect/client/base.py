@@ -22,7 +22,7 @@ import anyio
 import httpx
 from asgi_lifespan import LifespanManager
 from httpx import HTTPStatusError, Response
-from starlette import status
+from prefect._vendor.starlette import status
 from typing_extensions import Self
 
 from prefect.exceptions import PrefectHTTPStatusError

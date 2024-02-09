@@ -1,1 +1,1 @@
-from starlette.testclient import TestClient as TestClient  # noqa
+from prefect._vendor.starlette.testclient import TestClient as TestClient  # noqa

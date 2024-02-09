@@ -1,0 +1,13 @@
+#!/bin/bash
+VERSION=$1
+OUR_COPY=src/prefect/_vendor/starlette/
+
+rm -Rf /tmp/starlette
+git clone https://github.com/encode/starlette -b $VERSION /tmp/starlette
+rsync -ravP --delete /tmp/starlette/starlette/ $OUR_COPY
+
+for file in `find ${OUR_COPY} -name '*.py'`; do
+    # change all of the starlette imports to prefect._vendor.starlette
+    sed -i -e 's/from starlette/from prefect._vendor.starlette/g' $file
+    sed -i -e 's/import starlette/import prefect._vendor.starlette/g' $file
+done

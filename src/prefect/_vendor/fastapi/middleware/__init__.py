@@ -1,1 +1,1 @@
-from starlette.middleware import Middleware as Middleware
+from prefect._vendor.starlette.middleware import Middleware as Middleware
