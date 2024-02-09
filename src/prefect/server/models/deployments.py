@@ -128,7 +128,8 @@ async def create_deployment(
             deployment_id=deployment_id,
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule.schedule, active=schedule.active  # type: ignore[call-arg]
+                    schedule=schedule.schedule,
+                    active=schedule.active,  # type: ignore[call-arg]
                 )
                 for schedule in schedules
             ],
@@ -233,7 +234,8 @@ async def update_deployment(
             deployment_id=deployment_id,
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule.schedule, active=schedule.active  # type: ignore[call-arg]
+                    schedule=schedule.schedule,
+                    active=schedule.active,  # type: ignore[call-arg]
                 )
                 for schedule in schedules
             ],
