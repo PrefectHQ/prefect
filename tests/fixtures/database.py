@@ -54,6 +54,10 @@ async def database_engine(db: PrefectDBInterface):
         await engine.dispose()
 
     # Now confirm that after disposing all engines, all connections are closed
+    #
+    # A note to maintainers: if this section flakes out, let's just remove it since we
+    # are filtering the resource-related warnings that were emitted when connections
+    # weren't closed.
 
     for connection in TRACKER.all_connections:
         driver_connection = connection.driver_connection
