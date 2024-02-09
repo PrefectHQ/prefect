@@ -1846,7 +1846,7 @@ class PrefectClient:
     async def read_deployment_schedules(
         self,
         deployment_id: UUID,
-    ) -> DeploymentSchedule:
+    ) -> List[DeploymentSchedule]:
         """
         Query the Prefect API for a deployment's schedules.
 
@@ -1880,9 +1880,6 @@ class PrefectClient:
             schedule_id: the deployment schedule ID of interest
             active: whether or not the schedule should be active
             schedule: the cron, rrule, or interval schedule this deployment schedule should use
-
-        Returns:
-            a DeploymentSchedule model representation of the updated deployment schedule
         """
         kwargs = {}
         if active is not None:
