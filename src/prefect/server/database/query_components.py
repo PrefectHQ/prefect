@@ -1,6 +1,16 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import TYPE_CHECKING, Dict, Hashable, List, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Hashable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import pendulum
@@ -8,9 +18,12 @@ import sqlalchemy as sa
 from cachetools import TTLCache
 from jinja2 import Environment, PackageLoader, select_autoescape
 from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
+from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
+from prefect.server.schemas.graph import Edge, Graph, Node
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.database import Timestamp, json_has_any_key
 
@@ -353,7 +366,8 @@ class BaseQueryComponents(ABC):
                 sa.column("run_work_pool_id"),
                 sa.column("run_work_queue_id"),
                 db.FlowRun,
-            ).from_statement(query)
+            )
+            .from_statement(query)
             # indicate that the state relationship isn't being loaded
             .options(sa.orm.noload(db.FlowRun.state))
         )
@@ -495,7 +509,7 @@ class BaseQueryComponents(ABC):
         Configuration values should not be changed at run time, so retrieved
         values are cached in memory.
 
-        The main use of confiugrations is encrypting blocks, this speeds up nested
+        The main use of configurations is encrypting blocks, this speeds up nested
         block document queries.
         """
         try:
@@ -512,6 +526,18 @@ class BaseQueryComponents(ABC):
     def clear_configuration_value_cache_for_key(self, key: str):
         """Removes a configuration key from the cache."""
         self.CONFIGURATION_CACHE.pop(key, None)
+
+    @abstractmethod
+    async def flow_run_graph_v2(
+        self,
+        db: "PrefectDBInterface",
+        session: AsyncSession,
+        flow_run_id: UUID,
+        since: datetime.datetime,
+        max_nodes: int,
+    ) -> Graph:
+        """Returns the query that selects all of the nodes and edges for a flow run graph (version 2)."""
+        ...
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
@@ -667,6 +693,168 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         Template for the query to get scheduled flow runs from a work pool
         """
         return "postgres/get-runs-from-worker-queues.sql.jinja"
+
+    async def flow_run_graph_v2(
+        self,
+        db: "PrefectDBInterface",
+        session: AsyncSession,
+        flow_run_id: UUID,
+        since: datetime.datetime,
+        max_nodes: int,
+    ) -> Graph:
+        """Returns the query that selects all of the nodes and edges for a flow run
+        graph (version 2)."""
+        result = await session.execute(
+            sa.select(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
+                db.FlowRun.end_time,
+            ).where(
+                db.FlowRun.id == flow_run_id,
+            )
+        )
+        try:
+            start_time, end_time = result.one()
+        except NoResultFound:
+            raise ObjectNotFoundError(f"Flow run {flow_run_id} not found")
+
+        query = sa.text(
+            """
+            WITH
+            edges AS (
+                SELECT  CASE
+                            WHEN subflow.id IS NOT NULL THEN 'flow-run'
+                            ELSE 'task-run'
+                        END as kind,
+                        COALESCE(subflow.id, task_run.id) as id,
+                        COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
+                        COALESCE(subflow.state_type, task_run.state_type) as state_type,
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) as start_time,
+                        COALESCE(
+                            subflow.end_time,
+                            task_run.end_time,
+                            CASE
+                                WHEN task_run.state_type = 'COMPLETED'
+                                    THEN task_run.expected_start_time
+                                ELSE NULL
+                            END
+                        ) as end_time,
+                        (argument->>'id')::uuid as parent
+                FROM    task_run
+                        LEFT JOIN jsonb_each(task_run.task_inputs) as input ON true
+                        LEFT JOIN jsonb_array_elements(input.value) as argument ON true
+                        LEFT JOIN flow_run as subflow
+                                ON subflow.parent_task_run_id = task_run.id
+                        LEFT JOIN flow
+                                ON flow.id = subflow.flow_id
+                WHERE   task_run.flow_run_id = :flow_run_id AND
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
+
+                -- the order here is important to speed up building the two sets of
+                -- edges in the with_parents and with_children CTEs below
+                ORDER BY COALESCE(subflow.id, task_run.id)
+            ),
+            with_parents AS (
+                SELECT  children.id,
+                        array_agg(parents.id order by parents.start_time) as parent_ids
+                FROM    edges as children
+                        INNER JOIN edges as parents
+                                ON parents.id = children.parent
+                GROUP BY children.id
+            ),
+            with_children AS (
+                SELECT  parents.id,
+                        array_agg(children.id order by children.start_time) as child_ids
+                FROM    edges as parents
+                        INNER JOIN edges as children
+                                ON children.parent = parents.id
+                GROUP BY parents.id
+            ),
+            nodes AS (
+                SELECT  DISTINCT ON (edges.id)
+                        edges.kind,
+                        edges.id,
+                        edges.label,
+                        edges.state_type,
+                        edges.start_time,
+                        edges.end_time,
+                        with_parents.parent_ids,
+                        with_children.child_ids
+                FROM    edges
+                        LEFT JOIN with_parents
+                                ON with_parents.id = edges.id
+                        LEFT JOIN with_children
+                                ON with_children.id = edges.id
+            )
+            SELECT  kind,
+                    id,
+                    label,
+                    state_type,
+                    start_time,
+                    end_time,
+                    parent_ids,
+                    child_ids
+            FROM    nodes
+            WHERE   end_time IS NULL OR end_time >= :since
+            ORDER BY start_time, end_time
+            LIMIT :max_nodes
+            ;
+        """
+        )
+
+        query = query.bindparams(
+            sa.bindparam("flow_run_id", value=flow_run_id),
+            sa.bindparam("since", value=since),
+            sa.bindparam("max_nodes", value=max_nodes + 1),
+        )
+
+        results = await session.execute(query)
+
+        nodes: List[Tuple[UUID, Node]] = []
+        root_node_ids: List[UUID] = []
+
+        for row in results:
+            if not row.parent_ids:
+                root_node_ids.append(row.id)
+
+            nodes.append(
+                (
+                    row.id,
+                    Node(
+                        kind=row.kind,
+                        id=row.id,
+                        label=row.label,
+                        state_type=row.state_type,
+                        start_time=row.start_time,
+                        end_time=row.end_time,
+                        parents=[Edge(id=id) for id in row.parent_ids or []],
+                        children=[Edge(id=id) for id in row.child_ids or []],
+                    ),
+                )
+            )
+
+            if len(nodes) > max_nodes:
+                raise FlowRunGraphTooLarge(
+                    f"The graph of flow run {flow_run_id} has more than "
+                    f"{max_nodes} nodes."
+                )
+
+        return Graph(
+            start_time=start_time,
+            end_time=end_time,
+            root_node_ids=root_node_ids,
+            nodes=nodes,
+        )
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
@@ -916,3 +1104,200 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         Template for the query to get scheduled flow runs from a work pool
         """
         return "sqlite/get-runs-from-worker-queues.sql.jinja"
+
+    async def flow_run_graph_v2(
+        self,
+        db: "PrefectDBInterface",
+        session: AsyncSession,
+        flow_run_id: UUID,
+        since: datetime.datetime,
+        max_nodes: int,
+    ) -> Graph:
+        """Returns the query that selects all of the nodes and edges for a flow run
+        graph (version 2)."""
+        result = await session.execute(
+            sa.select(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
+                db.FlowRun.end_time,
+            ).where(
+                db.FlowRun.id == flow_run_id,
+            )
+        )
+        try:
+            start_time, end_time = result.one()
+        except NoResultFound:
+            raise ObjectNotFoundError(f"Flow run {flow_run_id} not found")
+
+        query = sa.text(
+            """
+            WITH
+            edges AS (
+                SELECT  CASE
+                            WHEN subflow.id IS NOT NULL THEN 'flow-run'
+                            ELSE 'task-run'
+                        END as kind,
+                        COALESCE(subflow.id, task_run.id) as id,
+                        COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
+                        COALESCE(subflow.state_type, task_run.state_type) as state_type,
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) as start_time,
+                        COALESCE(
+                            subflow.end_time,
+                            task_run.end_time,
+                            CASE
+                                WHEN task_run.state_type = 'COMPLETED'
+                                    THEN task_run.expected_start_time
+                                ELSE NULL
+                            END
+                        ) as end_time,
+                        json_extract(argument.value, '$.id') as parent
+                FROM    task_run
+                        LEFT JOIN json_each(task_run.task_inputs) as input ON true
+                        LEFT JOIN json_each(input.value) as argument ON true
+                        LEFT JOIN flow_run as subflow
+                                ON subflow.parent_task_run_id = task_run.id
+                        LEFT JOIN flow
+                                ON flow.id = subflow.flow_id
+                WHERE   task_run.flow_run_id = :flow_run_id AND
+                        task_run.state_type <> 'PENDING' AND
+                        COALESCE(
+                            subflow.start_time,
+                            subflow.expected_start_time,
+                            task_run.start_time,
+                            task_run.expected_start_time
+                        ) IS NOT NULL
+
+                -- the order here is important to speed up building the two sets of
+                -- edges in the with_parents and with_children CTEs below
+                ORDER BY COALESCE(subflow.id, task_run.id)
+            ),
+            with_parents AS (
+                SELECT  children.id,
+                        group_concat(parents.id) as parent_ids
+                FROM    edges as children
+                        INNER JOIN edges as parents
+                                ON parents.id = children.parent
+                GROUP BY children.id
+            ),
+            with_children AS (
+                SELECT  parents.id,
+                        group_concat(children.id) as child_ids
+                FROM    edges as parents
+                        INNER JOIN edges as children
+                                ON children.parent = parents.id
+                GROUP BY parents.id
+            ),
+            nodes AS (
+                SELECT  DISTINCT
+                        edges.id,
+                        edges.kind,
+                        edges.id,
+                        edges.label,
+                        edges.state_type,
+                        edges.start_time,
+                        edges.end_time,
+                        with_parents.parent_ids,
+                        with_children.child_ids
+                FROM    edges
+                        LEFT JOIN with_parents
+                                ON with_parents.id = edges.id
+                        LEFT JOIN with_children
+                                ON with_children.id = edges.id
+            )
+            SELECT  kind,
+                    id,
+                    label,
+                    state_type,
+                    start_time,
+                    end_time,
+                    parent_ids,
+                    child_ids
+            FROM    nodes
+            WHERE   end_time IS NULL OR end_time >= :since
+            ORDER BY start_time, end_time
+            LIMIT :max_nodes
+            ;
+        """
+        )
+
+        # SQLite needs this to be a Python datetime object
+        since = datetime.datetime(
+            since.year,
+            since.month,
+            since.day,
+            since.hour,
+            since.minute,
+            since.second,
+            since.microsecond,
+            tzinfo=since.tzinfo,
+        )
+
+        query = query.bindparams(
+            sa.bindparam("flow_run_id", value=str(flow_run_id)),
+            sa.bindparam("since", value=since),
+            sa.bindparam("max_nodes", value=max_nodes + 1),
+        )
+
+        results = await session.execute(query)
+
+        nodes: List[Tuple[UUID, Node]] = []
+        root_node_ids: List[UUID] = []
+
+        for row in results:
+            if not row.parent_ids:
+                root_node_ids.append(row.id)
+
+            # With SQLite, some of the values are returned as strings rather than
+            # native Python objects, as they would be from PostgreSQL.  These functions
+            # help smooth over those differences.
+
+            def edges(
+                value: Union[str, Sequence[UUID], Sequence[str], None],
+            ) -> List[UUID]:
+                if not value:
+                    return []
+                if isinstance(value, str):
+                    return [Edge(id=id) for id in value.split(",")]
+                return [Edge(id=id) for id in value]
+
+            def time(
+                value: Union[str, datetime.datetime, None],
+            ) -> Optional[pendulum.DateTime]:
+                if not value:
+                    return None
+                if isinstance(value, str):
+                    return cast(pendulum.DateTime, pendulum.parse(value))
+                return pendulum.instance(value)
+
+            nodes.append(
+                (
+                    row.id,
+                    Node(
+                        kind=row.kind,
+                        id=row.id,
+                        label=row.label,
+                        state_type=row.state_type,
+                        start_time=time(row.start_time),
+                        end_time=time(row.end_time),
+                        parents=edges(row.parent_ids),
+                        children=edges(row.child_ids),
+                    ),
+                )
+            )
+
+            if len(nodes) > max_nodes:
+                raise FlowRunGraphTooLarge(
+                    f"The graph of flow run {flow_run_id} has more than "
+                    f"{max_nodes} nodes."
+                )
+
+        return Graph(
+            start_time=start_time,
+            end_time=end_time,
+            root_node_ids=root_node_ids,
+            nodes=nodes,
+        )

@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from fastapi import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas import responses, states
@@ -41,6 +41,29 @@ class TestCreateTaskRun:
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == task_run_response.json()["id"]
+
+    async def test_create_task_run_without_flow_run_id(self, flow_run, client, session):
+        task_run_data = {
+            "flow_run_id": None,
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["flow_run_id"] is None
+        assert response.json()["id"]
+        assert response.json()["name"] == "my-cool-task-run-name"
+
+        task_run = await models.task_runs.read_task_run(
+            session=session, task_run_id=response.json()["id"]
+        )
+        assert task_run.flow_run_id is None
+
+        # Posting the same data twice should result in an upsert
+        response_2 = await client.post("/task_runs/", json=task_run_data)
+        assert response_2.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == response_2.json()["id"]
 
     async def test_create_task_run_without_state(self, flow_run, client, session):
         task_run_data = dict(
@@ -344,6 +367,43 @@ class TestSetTaskRunState:
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
         assert run.run_count == 1
+
+    async def test_set_task_run_state_without_flow_run_id(self, client, session):
+        task_run_data = {
+            "flow_run_id": None,
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["flow_run_id"] is None
+        assert response.json()["id"]
+        assert response.json()["name"] == "my-cool-task-run-name"
+
+        task_run = await models.task_runs.read_task_run(
+            session=session, task_run_id=response.json()["id"]
+        )
+        assert task_run.flow_run_id is None
+
+        orchestration_response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Test State")),
+        )
+        assert orchestration_response.status_code == status.HTTP_201_CREATED
+
+        api_response = OrchestrationResult.parse_obj(orchestration_response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        task_run_id = task_run.id
+        session.expire_all()
+        run = await models.task_runs.read_task_run(
+            session=session, task_run_id=task_run_id
+        )
+        assert run.state.type == states.StateType.RUNNING
+        assert run.state.name == "Test State"
+        assert run.run_count == 1
+        assert run.flow_run_id is None
 
     @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
     async def test_setting_task_run_state_twice_works(

@@ -296,6 +296,10 @@ class TestRemoteFileSystem:
         )
         copied_files = set(fs.filesystem.glob("/flat/**"))
 
+        # fsspec>=2023.9 includes the root directory when performing a ** glob, which
+        # isn't relevant to this test, we're just looking at files beneath the root
+        copied_files.discard("/flat")
+
         assert copied_files == {
             "/flat/explicit_relative.py",
             "/flat/implicit_relative.py",
@@ -311,6 +315,10 @@ class TestRemoteFileSystem:
             ),
         )
         copied_files = set(fs.filesystem.glob("/tree/**"))
+
+        # fsspec>=2023.9 includes the root directory when performing a ** glob, which
+        # isn't relevant to this test, we're just looking at files beneath the root
+        copied_files.discard("/tree")
 
         assert copied_files == {
             "/tree/imports",
@@ -692,6 +700,31 @@ class TestAzure:
         ).filesystem
         remote_storage_mock.assert_called_once_with(
             basepath="az://bucket",
+            settings={
+                "account_name": "account",
+                "account_key": "key",
+                "tenant_id": "tenant",
+                "client_id": "client_id",
+                "client_secret": "secret",
+                "anon": False,
+            },
+        )
+
+    def test_init_with_container(self, monkeypatch):
+        remote_storage_mock = MagicMock()
+        monkeypatch.setattr("prefect.filesystems.RemoteFileSystem", remote_storage_mock)
+        Azure(
+            azure_storage_tenant_id="tenant",
+            azure_storage_account_name="account",
+            azure_storage_client_id="client_id",
+            azure_storage_account_key="key",
+            azure_storage_client_secret="secret",
+            azure_storage_container="container",
+            bucket_path="bucket",
+            azure_storage_anon=False,
+        ).filesystem
+        remote_storage_mock.assert_called_once_with(
+            basepath="az://container@account.dfs.core.windows.net/bucket",
             settings={
                 "account_name": "account",
                 "account_key": "key",

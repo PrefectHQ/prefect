@@ -264,7 +264,7 @@ class TestUpdatingDeployments:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["10.76"],  # 100 m record
+            expected_output_contains=["'interval': 10.76,"],  # 100 m record
             expected_code=0,
         )
 
@@ -285,8 +285,60 @@ class TestUpdatingDeployments:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["10.49"],  # flo-jo breaks the world record
+            expected_output_contains=[
+                "'interval': 10.49,"
+            ],  # flo-jo breaks the world record
             expected_code=0,
+        )
+
+    def test_set_no_schedule(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'interval': 10.76,"],  # 100 m record
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--no-schedule",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_does_not_contain=["'interval': 10.76,"],
+            expected_output_contains=["'schedule': None"],
+            expected_code=0,
+        )
+
+    def test_set_schedule_with_no_schedule_and_schedule_options_raises(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "424242",
+                "--no-schedule",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
+                " must be provided"
+            ),
         )
 
     def test_set_schedule_with_too_many_schedule_options_raises(self, flojo):
@@ -302,7 +354,8 @@ class TestUpdatingDeployments:
             ],
             expected_code=1,
             expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
+                " must be provided"
             ),
         )
 
@@ -315,7 +368,8 @@ class TestUpdatingDeployments:
             ],
             expected_code=1,
             expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
+                " must be provided"
             ),
         )
 
@@ -584,7 +638,8 @@ class TestUpdatingDeployments:
             ],
             expected_code=1,
             expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
+                " must be provided"
             ),
         )
 

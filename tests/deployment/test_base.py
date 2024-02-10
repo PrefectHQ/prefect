@@ -1,5 +1,4 @@
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -17,24 +16,23 @@ from prefect.deployments.base import (
     register_flow,
 )
 from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture(autouse=True)
 def project_dir(tmp_path):
-    original_dir = os.getcwd()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path)
-        yield tmp_path
-    else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path / "three-seven")
-        yield tmp_path / "three-seven"
-    os.chdir(original_dir)
+    with tmpchdir(tmp_path):
+        if sys.version_info >= (3, 8):
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+            (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            yield tmp_path
+        else:
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+            (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            yield tmp_path / "three-seven"
 
 
 class TestFindProject:
@@ -221,8 +219,9 @@ class TestRegisterFlow:
 class TestDiscoverFlows:
     async def test_find_all_flows_in_dir_tree(self, project_dir):
         flows = await _search_for_flow_functions(str(project_dir))
-        assert len(flows) == 6
-        assert sorted(flows, key=lambda f: f["function_name"]) == [
+        assert len(flows) == 6, f"Expected 6 flows, found {len(flows)}"
+
+        expected_flows = [
             {
                 "flow_name": "foobar",
                 "function_name": "foobar",
@@ -263,6 +262,12 @@ class TestDiscoverFlows:
             },
         ]
 
+        for flow in flows:
+            assert flow in expected_flows, f"Unexpected flow: {flow}"
+            expected_flows.remove(flow)
+
+        assert len(expected_flows) == 0, f"Missing flows: {expected_flows}"
+
     async def test_find_all_flows_works_on_large_directory_structures(self):
         flows = await _search_for_flow_functions(str(prefect.__development_base_path__))
         assert len(flows) > 500
@@ -273,3 +278,13 @@ class TestDiscoverFlows:
         with temporary_settings({PREFECT_DEBUG_MODE: True}):
             assert await _find_flow_functions_in_file("foo.py") == []
             assert "Could not open foo.py" in caplog.text
+
+    async def test_prefect_can_be_imported_from_non_main_thread(self):
+        """testing due to `asyncio.Semaphore` error when importing prefect from a worker thread
+        in python <= 3.9
+        """
+
+        def import_prefect():
+            import prefect  # noqa: F401
+
+        await run_sync_in_worker_thread(import_prefect)

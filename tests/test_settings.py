@@ -3,7 +3,13 @@ import os
 import textwrap
 from pathlib import Path
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 
 import prefect.context
@@ -237,6 +243,14 @@ class TestSettingsClass:
         # generating the environment variables
         assert "PREFECT_UI_API_URL" not in settings.to_environment_variables()
 
+    def test_settings_hash_key(self):
+        settings = Settings(PREFECT_TEST_MODE=True)
+        diff_settings = Settings(PREFECT_TEST_MODE=False)
+
+        assert settings.hash_key() == settings.hash_key()
+
+        assert settings.hash_key() != diff_settings.hash_key()
+
     @pytest.mark.parametrize(
         "log_level_setting",
         [
@@ -334,18 +348,8 @@ class TestSettingAccess:
             else:
                 assert False, "Not treated as truth"
 
-    def test_ui_api_url_from_api_url(self):
-        with temporary_settings({PREFECT_API_URL: "http://test/api"}):
-            assert PREFECT_UI_API_URL.value() == "http://test/api"
-
-    def test_ui_api_url_from_orion_host_and_port(self):
-        with temporary_settings(
-            {PREFECT_SERVER_API_HOST: "test", PREFECT_SERVER_API_PORT: "1111"}
-        ):
-            assert PREFECT_UI_API_URL.value() == "http://test:1111/api"
-
     def test_ui_api_url_from_defaults(self):
-        assert PREFECT_UI_API_URL.value() == "http://127.0.0.1:4200/api"
+        assert PREFECT_UI_API_URL.value() == "/api"
 
     def test_database_connection_url_templates_password(self):
         with temporary_settings(

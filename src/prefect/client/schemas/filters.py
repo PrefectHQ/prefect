@@ -5,7 +5,12 @@ Schemas that define Prefect REST API filtering operations.
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
@@ -235,6 +240,14 @@ class FlowRunFilterNextScheduledStartTime(PrefectBaseModel):
     )
 
 
+class FlowRunFilterParentFlowRunId(PrefectBaseModel, OperatorMixin):
+    """Filter for subflows of the given flow runs"""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run parents to include"
+    )
+
+
 class FlowRunFilterParentTaskRunId(PrefectBaseModel, OperatorMixin):
     """Filter by `FlowRun.parent_task_run_id`."""
 
@@ -292,11 +305,27 @@ class FlowRunFilter(PrefectBaseModel, OperatorMixin):
         default=None,
         description="Filter criteria for `FlowRun.next_scheduled_start_time`",
     )
+    parent_flow_run_id: Optional[FlowRunFilterParentFlowRunId] = Field(
+        default=None, description="Filter criteria for subflows of the given flow runs"
+    )
     parent_task_run_id: Optional[FlowRunFilterParentTaskRunId] = Field(
         default=None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
     idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
+    )
+
+
+class TaskRunFilterFlowRunId(PrefectBaseModel):
+    """Filter by `TaskRun.flow_run_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run ids to include"
+    )
+
+    is_null_: bool = Field(
+        default=False,
+        description="If true, only include task runs without a flow run id",
     )
 
 
@@ -411,6 +440,9 @@ class TaskRunFilter(PrefectBaseModel, OperatorMixin):
     )
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
         default=None, description="Filter criteria for `TaskRun.subflow_run`"
+    )
+    flow_run_id: Optional[TaskRunFilterFlowRunId] = Field(
+        default=None, description="Filter criteria for `TaskRun.flow_run_id`"
     )
 
 
@@ -709,6 +741,14 @@ class BlockDocumentFilterName(PrefectBaseModel):
 
     any_: Optional[List[str]] = Field(
         default=None, description="A list of block names to include"
+    )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match block names against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my-block%",
     )
 
 

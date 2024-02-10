@@ -9,7 +9,13 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, SecretStr, validator
+else:
+    from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError
@@ -79,7 +85,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Local File System"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/ad39089fa66d273b943394a68f003f7a19aa850e-48x48.png"
     _documentation_url = (
         "https://docs.prefect.io/concepts/filesystems/#local-filesystem"
     )
@@ -253,7 +259,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Remote File System"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/e86b41bc0f9c99ba9489abeee83433b43d5c9365-48x48.png"
     _documentation_url = (
         "https://docs.prefect.io/concepts/filesystems/#remote-file-system"
     )
@@ -318,7 +324,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
@@ -345,7 +351,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         overwrite: bool = True,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
@@ -443,7 +449,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "S3"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#s3"
 
     bucket_path: str = Field(
@@ -533,7 +539,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
         ```
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/422d13bb838cf247eb2b2cf229ce6a2e717d601b-256x256.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#gcs"
 
     bucket_path: str = Field(
@@ -627,7 +633,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Azure"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#azure"
 
     bucket_path: str = Field(
@@ -677,24 +683,39 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             " require ADLFS to use DefaultAzureCredentials."
         ),
     )
-
+    azure_storage_container: Optional[SecretStr] = Field(
+        default=None,
+        title="Azure storage container",
+        description=(
+            "Blob Container in Azure Storage Account. If set the 'bucket_path' will"
+            " be interpreted using the following URL format:"
+            "'az://<container>@<storage_account>.dfs.core.windows.net/<bucket_path>'."
+        ),
+    )
     _remote_file_system: RemoteFileSystem = None
 
     @property
     def basepath(self) -> str:
-        return f"az://{self.bucket_path}"
+        if self.azure_storage_container:
+            return (
+                f"az://{self.azure_storage_container.get_secret_value()}"
+                f"@{self.azure_storage_account_name.get_secret_value()}"
+                f".dfs.core.windows.net/{self.bucket_path}"
+            )
+        else:
+            return f"az://{self.bucket_path}"
 
     @property
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.azure_storage_connection_string:
-            settings["connection_string"] = (
-                self.azure_storage_connection_string.get_secret_value()
-            )
+            settings[
+                "connection_string"
+            ] = self.azure_storage_connection_string.get_secret_value()
         if self.azure_storage_account_name:
-            settings["account_name"] = (
-                self.azure_storage_account_name.get_secret_value()
-            )
+            settings[
+                "account_name"
+            ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
         if self.azure_storage_tenant_id:
@@ -702,12 +723,12 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         if self.azure_storage_client_id:
             settings["client_id"] = self.azure_storage_client_id.get_secret_value()
         if self.azure_storage_client_secret:
-            settings["client_secret"] = (
-                self.azure_storage_client_secret.get_secret_value()
-            )
+            settings[
+                "client_secret"
+            ] = self.azure_storage_client_secret.get_secret_value()
         settings["anon"] = self.azure_storage_anon
         self._remote_file_system = RemoteFileSystem(
-            basepath=f"az://{self.bucket_path}", settings=settings
+            basepath=self.basepath, settings=settings
         )
         return self._remote_file_system
 
@@ -716,7 +737,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
@@ -754,7 +775,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     Store data as a file on a SMB share.
 
     Example:
-
         Load stored SMB config:
 
         ```python
@@ -764,7 +784,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "SMB"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6J444m3vW6ukgBOCinSxLk/025f5562d3c165feb7a5df599578a6a8/samba_2010_logo_transparent_151x27.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3f624663f7beb97d011d011bffd51ecf6c499efc-195x195.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#smb"
 
     share_path: str = Field(
@@ -855,7 +875,7 @@ class GitHub(ReadableDeploymentStorage):
     """
 
     _block_type_name = "GitHub"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/41971cfecfea5f79ff334164f06ecb34d1038dd4-250x250.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#github"
 
     repository: str = Field(

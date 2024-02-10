@@ -38,7 +38,7 @@ class TestSetFlowRunState:
 
             - Set to SCHEDULED
             - Set to PENDING
-                - Before commiting, wait for session 2 to begin orchestrating
+                - Before committing, wait for session 2 to begin orchestrating
 
         Session 2:
 

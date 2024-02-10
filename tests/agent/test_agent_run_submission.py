@@ -10,6 +10,8 @@ from prefect import flow
 from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import Abort, CrashedRun, FailedRun
 from prefect.infrastructure.base import Infrastructure
 from prefect.server import models, schemas
@@ -282,8 +284,12 @@ async def test_agent_creates_work_queue_if_doesnt_exist_in_work_pool(
 
 
 async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
-    session, prefect_caplog
+    session, prefect_caplog, prefect_client: PrefectClient
 ):
+    await prefect_client.create_work_pool(
+        WorkPoolCreate(name=DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent")
+    )
+
     name = "hello-there"
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name
@@ -781,7 +787,7 @@ class TestInfrastructureIntegration:
             ).dict()
         )
         agent.logger.exception.assert_called_once_with(
-            f"An error occured while monitoring flow run '{flow_run.id}'. "
+            f"An error occurred while monitoring flow run '{flow_run.id}'. "
             "The flow run will not be marked as failed, but an issue may have "
             "occurred."
         )
@@ -842,8 +848,7 @@ class TestInfrastructureIntegration:
         )
         assert (
             f"Reported flow run '{flow_run.id}' as crashed: "
-            "Flow run infrastructure exited with non-zero status code 9."
-            in caplog.text
+            "Flow run infrastructure exited with non-zero status code 9." in caplog.text
         )
 
         state = (await prefect_client.read_flow_run(flow_run.id)).state

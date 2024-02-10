@@ -1,7 +1,13 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -28,4 +34,15 @@ class RunDeployment(Action):
     deployment_id: UUID = Field(..., description="The identifier of the deployment")
 
 
-ActionTypes = RunDeployment
+class SendNotification(Action):
+    """Send a notification with the given parameters"""
+
+    type: Literal["send-notification"] = "send-notification"
+    block_document_id: UUID = Field(
+        ..., description="The identifier of the notification block"
+    )
+    body: str = Field(..., description="Notification body")
+    subject: Optional[str] = Field(None, description="Notification subject")
+
+
+ActionTypes = Union[RunDeployment, SendNotification]

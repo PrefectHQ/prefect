@@ -3,10 +3,9 @@ Utilities for prompting the user for input
 """
 import os
 import shutil
-import sys
 from datetime import timedelta
 from getpass import GetPassWarning
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import readchar
 from rich.console import Console, Group
@@ -19,7 +18,7 @@ from rich.text import Text
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.actions import BlockDocumentCreate, WorkPoolCreate
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     CronSchedule,
@@ -27,11 +26,28 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.deployments.base import _search_for_flow_functions
+from prefect.deployments.base import (
+    _get_git_remote_origin_url,
+    _search_for_flow_functions,
+)
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
-from prefect.utilities.processutils import run_process
+from prefect.settings import PREFECT_UI_URL
+from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
+
+STORAGE_PROVIDER_TO_CREDS_BLOCK = {
+    "s3": "aws-credentials",
+    "gcs": "gcp-credentials",
+    "azure_blob_storage": "azure-blob-storage-credentials",
+}
+
+REQUIRED_FIELDS_FOR_CREDS_BLOCK = {
+    "aws-credentials": ["aws_access_key_id", "aws_secret_access_key"],
+    "gcp-credentials": ["project", "service_account_file"],
+    "azure-blob-storage-credentials": ["account_url", "connection_string"],
+}
 
 
 def prompt(message, **kwargs):
@@ -312,20 +328,26 @@ def prompt_schedule_type(console):
     return selection["type"]
 
 
-def prompt_schedule(console) -> SCHEDULE_TYPES:
+def prompt_schedule(console) -> Tuple[SCHEDULE_TYPES, bool]:
     """
     Prompt the user for a schedule type. Once a schedule type is selected, prompt
     the user for the schedule details and return the schedule.
     """
     schedule_type = prompt_schedule_type(console)
     if schedule_type == "Cron":
-        return prompt_cron_schedule(console)
+        schedule = prompt_cron_schedule(console)
     elif schedule_type == "Interval":
-        return prompt_interval_schedule(console)
+        schedule = prompt_interval_schedule(console)
     elif schedule_type == "RRule":
-        return prompt_rrule_schedule(console)
+        schedule = prompt_rrule_schedule(console)
     else:
         raise Exception("Invalid schedule type")
+
+    is_schedule_active = confirm(
+        "Would you like to activate this schedule?", default=True
+    )
+
+    return (schedule, is_schedule_active)
 
 
 @inject_client
@@ -459,20 +481,20 @@ async def prompt_push_custom_docker_image(
             except ImportError:
                 console.print("Installing prefect-docker...")
                 await run_process(
-                    [sys.executable, "-m", "pip", "install", "prefect-docker"],
+                    [get_sys_executable(), "-m", "pip", "install", "prefect-docker"],
                     stream_output=True,
                 )
                 import prefect_docker
 
             credentials_block = prefect_docker.DockerRegistryCredentials
-            push_step["credentials"] = (
-                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
-            )
+            push_step[
+                "credentials"
+            ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
         else:
             credentials_block = DockerRegistry
-            push_step["credentials"] = (
-                "{{ prefect.docker-registry.docker_registry_creds_name }}"
-            )
+            push_step[
+                "credentials"
+            ] = "{{ prefect.docker-registry.docker_registry_creds_name }}"
         docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
         create_new_block = False
         try:
@@ -624,3 +646,158 @@ async def prompt_entrypoint(console: Console) -> str:
             console=console,
         )
     return f"{selected_flow['filepath']}:{selected_flow['function_name']}"
+
+
+@inject_client
+async def prompt_select_remote_flow_storage(
+    console: Console, client: PrefectClient = None
+) -> Optional[str]:
+    valid_slugs_for_context = set()
+
+    for (
+        storage_provider,
+        creds_block_type_slug,
+    ) in STORAGE_PROVIDER_TO_CREDS_BLOCK.items():
+        try:
+            # only return storage options for which the user has a credentials
+            # block type
+            await client.read_block_type_by_slug(creds_block_type_slug)
+            valid_slugs_for_context.add(storage_provider)
+        except ObjectNotFound:
+            pass
+
+    if _get_git_remote_origin_url():
+        valid_slugs_for_context.add("git")
+
+    flow_storage_options = [
+        {
+            "type": "Git Repo",
+            "slug": "git",
+            "description": "Use a Git repository [bold](recommended).",
+        },
+        {
+            "type": "S3",
+            "slug": "s3",
+            "description": "Use an AWS S3 bucket.",
+        },
+        {
+            "type": "GCS",
+            "slug": "gcs",
+            "description": "Use a Google Cloud Storage bucket.",
+        },
+        {
+            "type": "Azure Blob Storage",
+            "slug": "azure_blob_storage",
+            "description": "Use an Azure Blob Storage bucket.",
+        },
+    ]
+
+    valid_storage_options_for_context = [
+        row
+        for row in flow_storage_options
+        if row is not None and row["slug"] in valid_slugs_for_context
+    ]
+
+    selected_flow_storage_row = prompt_select_from_table(
+        console,
+        prompt="Please select a remote code storage option.",
+        columns=[
+            {"header": "Storage Type", "key": "type"},
+            {"header": "Description", "key": "description"},
+        ],
+        data=valid_storage_options_for_context,
+    )
+
+    return selected_flow_storage_row["slug"]
+
+
+@inject_client
+async def prompt_select_blob_storage_credentials(
+    console: Console, storage_provider: str, client: PrefectClient = None
+) -> str:
+    """
+    Prompt the user for blob storage credentials.
+
+    Returns a jinja template string that references a credentials block.
+    """
+
+    storage_provider_slug = storage_provider.replace("_", "-")
+    pretty_storage_provider = storage_provider.replace("_", " ").upper()
+
+    creds_block_type_slug = STORAGE_PROVIDER_TO_CREDS_BLOCK[storage_provider]
+    pretty_creds_block_type = creds_block_type_slug.replace("-", " ").title()
+
+    existing_credentials_blocks = await client.read_block_documents_by_type(
+        block_type_slug=creds_block_type_slug
+    )
+
+    if existing_credentials_blocks:
+        selected_credentials_block = prompt_select_from_table(
+            console,
+            prompt=(
+                f"Select from your existing {pretty_creds_block_type} credential blocks"
+            ),
+            columns=[
+                {
+                    "header": f"{pretty_storage_provider} Credentials Blocks",
+                    "key": "name",
+                }
+            ],
+            data=[{"name": block.name} for block in existing_credentials_blocks],
+            opt_out_message="Create a new credentials block",
+        )
+
+        if selected_credentials_block and (
+            selected_block := selected_credentials_block.get("name")
+        ):
+            return f"{{{{ prefect.blocks.{creds_block_type_slug}.{selected_block} }}}}"
+
+    credentials_block_type = await client.read_block_type_by_slug(creds_block_type_slug)
+
+    credentials_block_schema = await client.get_most_recent_block_schema_for_block_type(
+        block_type_id=credentials_block_type.id
+    )
+
+    console.print(
+        f"\nProvide details on your new {pretty_storage_provider} credentials:"
+    )
+
+    hydrated_fields = {
+        field_name: prompt(f"{field_name} [yellow]({props.get('type')})[/]")
+        for field_name, props in credentials_block_schema.fields.get(
+            "properties"
+        ).items()
+        if field_name in REQUIRED_FIELDS_FOR_CREDS_BLOCK[creds_block_type_slug]
+    }
+
+    console.print(f"[blue]\n{pretty_storage_provider} credentials specified![/]\n")
+
+    while True:
+        credentials_block_name = prompt(
+            "Give a name to your new credentials block",
+            default=f"{storage_provider_slug}-storage-credentials",
+        )
+
+        try:
+            new_block_document = await client.create_block_document(
+                block_document=BlockDocumentCreate(
+                    name=credentials_block_name,
+                    data=hydrated_fields,
+                    block_schema_id=credentials_block_schema.id,
+                    block_type_id=credentials_block_type.id,
+                )
+            )
+            break
+        except ObjectAlreadyExists:
+            console.print(
+                f"A {pretty_creds_block_type!r} block named"
+                f" {credentials_block_name!r} already exists. Please choose another"
+                " name"
+            )
+
+    if PREFECT_UI_URL:
+        console.print(
+            "\nView/Edit your new credentials block in the UI:"
+            f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{new_block_document.id}[/]\n"
+        )
+    return f"{{{{ prefect.blocks.{creds_block_type_slug}.{new_block_document.name} }}}}"

@@ -8,23 +8,33 @@ from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
 import jsonschema
-from pydantic import Field, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
-from prefect._internal.schemas.validators import (
+from prefect.server.utilities.schemas import get_class_fields_only
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.server.utilities.schemas.transformations import (
+    FieldFrom,
+    copy_model_fields,
+)
+from prefect.server.utilities.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
 )
-from prefect.server.utilities.schemas import (
-    DateTimeTZ,
-    FieldFrom,
-    PrefectBaseModel,
-    copy_model_fields,
-    orjson_dumps_extra_compatible,
-)
-from prefect.utilities.pydantic import get_class_fields_only
 from prefect.utilities.templating import find_placeholders
+from prefect.utilities.validation import (
+    validate_schema,
+    validate_values_conform_to_schema,
+)
 
 
 def validate_block_type_slug(value):
@@ -130,6 +140,10 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
+    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
+        schemas.core.Deployment
+    )
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
@@ -147,9 +161,6 @@ class DeploymentCreate(ActionBaseModel):
         schemas.core.Deployment
     )
     description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
-        schemas.core.Deployment
-    )
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
@@ -173,6 +184,22 @@ class DeploymentCreate(ActionBaseModel):
                         required.remove(k)
 
             jsonschema.validate(self.infra_overrides, variables_schema)
+
+    @validator("parameters")
+    def _validate_parameters_conform_to_schema(cls, value, values):
+        """Validate that the parameters conform to the parameter schema."""
+        if values.get("enforce_parameter_schema"):
+            validate_values_conform_to_schema(
+                value, values.get("parameter_openapi_schema"), ignore_required=True
+            )
+        return value
+
+    @validator("parameter_openapi_schema")
+    def _validate_parameter_openapi_schema(cls, value, values):
+        """Validate that the parameter_openapi_schema is a valid json schema."""
+        if values.get("enforce_parameter_schema"):
+            validate_schema(value)
+        return value
 
 
 @experimental_field(
@@ -223,7 +250,10 @@ class DeploymentUpdate(ActionBaseModel):
     )
     description: Optional[str] = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_pool_name: Optional[str] = Field(
@@ -237,6 +267,12 @@ class DeploymentUpdate(ActionBaseModel):
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -283,7 +319,7 @@ class StateCreate(ActionBaseModel):
 
     # DEPRECATED
 
-    timestamp: Optional[schemas.core.DateTimeTZ] = Field(
+    timestamp: Optional[DateTimeTZ] = Field(
         default=None,
         repr=False,
         ignored=True,
@@ -301,13 +337,11 @@ class TaskRunCreate(ActionBaseModel):
     )
 
     name: str = FieldFrom(schemas.core.TaskRun)
-    flow_run_id: UUID = FieldFrom(schemas.core.TaskRun)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.TaskRun)
     task_key: str = FieldFrom(schemas.core.TaskRun)
     dynamic_key: str = FieldFrom(schemas.core.TaskRun)
     cache_key: Optional[str] = FieldFrom(schemas.core.TaskRun)
-    cache_expiration: Optional[schemas.core.DateTimeTZ] = FieldFrom(
-        schemas.core.TaskRun
-    )
+    cache_expiration: Optional[DateTimeTZ] = FieldFrom(schemas.core.TaskRun)
     task_version: Optional[str] = FieldFrom(schemas.core.TaskRun)
     empirical_policy: schemas.core.TaskRunPolicy = FieldFrom(schemas.core.TaskRun)
     tags: List[str] = FieldFrom(schemas.core.TaskRun)
@@ -520,8 +554,8 @@ class LogCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.Log)
     level: int = FieldFrom(schemas.core.Log)
     message: str = FieldFrom(schemas.core.Log)
-    timestamp: schemas.core.DateTimeTZ = FieldFrom(schemas.core.Log)
-    flow_run_id: UUID = FieldFrom(schemas.core.Log)
+    timestamp: DateTimeTZ = FieldFrom(schemas.core.Log)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
     task_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
 
 

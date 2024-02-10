@@ -1,6 +1,5 @@
 from datetime import timedelta
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from textwrap import dedent
 from unittest.mock import Mock
 
@@ -135,6 +134,18 @@ def mock_build_from_flow(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def mock_create_default_ignore_file(monkeypatch):
+    mock_create_default_ignore_file = Mock(return_value=True)
+
+    monkeypatch.setattr(
+        "prefect.cli.deployment.create_default_ignore_file",
+        mock_create_default_ignore_file,
+    )
+
+    return mock_create_default_ignore_file
+
+
+@pytest.fixture(autouse=True)
 async def ensure_default_agent_pool_exists(session):
     # The default agent work pool is created by a migration, but is cleared on
     # consecutive test runs. This fixture ensures that the default agent work
@@ -154,6 +165,48 @@ async def ensure_default_agent_pool_exists(session):
 
 
 class TestSchedules:
+    def test_passing_no_schedule_and_cron_schedules_to_build_exits_with_error(
+        self, patch_import, tmp_path
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--no-schedule",
+                "--cron",
+                "0 4 * * *",
+                "--timezone",
+                "Europe/Berlin",
+            ],
+            expected_code=1,
+            expected_output="Only one schedule type can be provided.",
+            temp_dir=tmp_path,
+        )
+
+    def test_passing_no_schedule_to_build(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--no-schedule",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.schedule is None
+
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
             [
@@ -414,7 +467,7 @@ class TestParameterOverrides:
                 "--params",
                 '{"which": "parameter"}',
                 "--param",
-                "shouldbe:used",
+                "should-be:used",
             ],
             expected_code=1,
             temp_dir=tmp_path,
@@ -606,7 +659,7 @@ class TestEntrypoint:
             expected_output_contains="No module named ",
         )
 
-    def test_entrypoint_works_with_flow_with_custom_name(self):
+    def test_entrypoint_works_with_flow_with_custom_name(self, tmp_path, monkeypatch):
         flow_code = """
         from prefect import flow
 
@@ -614,21 +667,24 @@ class TestEntrypoint:
         def dog():
             pass
         """
+        monkeypatch.chdir(tmp_path)
         file_name = "f.py"
-        with TemporaryDirectory():
-            Path(file_name).write_text(dedent(flow_code))
+        file_path = Path(tmp_path) / Path(file_name)
+        file_path.write_text(dedent(flow_code))
 
-            dep_name = "TEST"
-            entrypoint = f"{file_name}:dog"
-            cmd = ["deployment", "build", "-n", dep_name]
-            cmd += [entrypoint]
+        dep_name = "TEST"
+        entrypoint = f"{file_path.absolute()}:dog"
+        cmd = ["deployment", "build", "-n", dep_name]
+        cmd += [entrypoint]
 
-            invoke_and_assert(
-                cmd,
-                expected_code=0,
-            )
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
 
-    def test_entrypoint_works_with_flow_func_with_underscores(self):
+    def test_entrypoint_works_with_flow_func_with_underscores(
+        self, tmp_path, monkeypatch
+    ):
         flow_code = """
         from prefect import flow
         
@@ -636,19 +692,20 @@ class TestEntrypoint:
         def dog_flow_func():
             pass
         """
+        monkeypatch.chdir(tmp_path)
         file_name = "f.py"
-        with TemporaryDirectory():
-            Path(file_name).write_text(dedent(flow_code))
+        file_path = Path(tmp_path) / Path(file_name)
+        file_path.write_text(dedent(flow_code))
 
-            dep_name = "TEST"
-            entrypoint = f"{file_name}:dog_flow_func"
-            cmd = ["deployment", "build", "-n", dep_name]
-            cmd += [entrypoint]
+        dep_name = "TEST"
+        entrypoint = f"{file_path.absolute()}:dog_flow_func"
+        cmd = ["deployment", "build", "-n", dep_name]
+        cmd += [entrypoint]
 
-            invoke_and_assert(
-                cmd,
-                expected_code=0,
-            )
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
 
 
 class TestWorkQueue:
@@ -820,6 +877,7 @@ class TestAutoApply:
                 ),
                 f"$ prefect agent start -p {prefect_agent_work_pool.name!r}",
             ],
+            temp_dir=tmp_path,
         )
 
     def test_message_with_process_work_pool(
@@ -845,6 +903,7 @@ class TestAutoApply:
                 ),
                 f"$ prefect worker start -p {process_work_pool.name!r}",
             ],
+            temp_dir=tmp_path,
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
@@ -874,6 +933,7 @@ class TestAutoApply:
                     f"$ prefect worker start -p {process_work_pool.name!r}"
                 ),
             ],
+            temp_dir=tmp_path,
         )
 
 

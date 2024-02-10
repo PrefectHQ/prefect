@@ -10,6 +10,7 @@ import pytest
 
 from prefect.utilities.asyncutils import (
     GatherIncomplete,
+    LazySemaphore,
     add_event_loop_shutdown_callback,
     create_gather_task_group,
     gather,
@@ -380,10 +381,13 @@ def test_add_event_loop_shutdown_callback_is_not_called_with_loop_run_until_comp
         await add_event_loop_shutdown_callback(set_event)
 
     loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=loop.run_until_complete(run_test()))
-    thread.start()
-    assert not callback_called.wait(timeout=1)
-    thread.join(timeout=1)
+    try:
+        thread = threading.Thread(target=loop.run_until_complete(run_test()))
+        thread.start()
+        assert not callback_called.wait(timeout=1)
+        thread.join(timeout=1)
+    finally:
+        loop.close()
 
 
 async def test_gather():
@@ -431,3 +435,21 @@ async def test_gather_task_group_get_result_bad_uuid():
 
     with pytest.raises(KeyError):
         tg.get_result(uuid.uuid4())
+
+
+async def test_lazy_semaphore_initialization():
+    initial_value = 5
+    lazy_semaphore = LazySemaphore(lambda: initial_value)
+
+    assert lazy_semaphore._semaphore is None
+
+    lazy_semaphore._initialize_semaphore()
+
+    assert lazy_semaphore._semaphore._value == initial_value
+
+    async with lazy_semaphore as semaphore:
+        assert lazy_semaphore._semaphore is not None
+        assert isinstance(semaphore, asyncio.Semaphore)
+        assert lazy_semaphore._semaphore._value == initial_value - 1
+
+    assert lazy_semaphore._semaphore._value == initial_value

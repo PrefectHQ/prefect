@@ -8,6 +8,34 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `sender` to `FlowRunInput`
+SQLite: `c63a0a6dc787`
+Postgres: `6b63c51c31b4`
+
+# Make `FlowRunInput.flow_run_id` a foreign key to `flow_run.id`
+SQLite: `a299308852a7`
+Postgres: `7c453555d3a5`
+
+# Add `flow_run_input` table
+SQLite: `a299308852a7`
+Postgres: `733ca1903976`
+
+# Add last_polled to deployment table
+SQLite: `f3165ae0a213`
+Postgres: `bfe653bbf62e`
+
+# Make flow_run_id nullable on task_run and log tables
+SQLite: `05ea6f882b1d`
+Postgres: `05ea6f882b1d`
+
+# Make slot_decay_per_second not nullable
+SQLite: `8167af8df781`
+Postgres: `4e9a6f93eb6c`
+
+# Add heartbeat_interval_seconds to worker table
+SQLite: `c2d001b7dd06`
+Postgres: `50f8c182c3ca`
+
 # Create Concurrency Limit V2 table
 SQLite: `5b0bd3b41a23`
 Postgres: `5f623ddbf7fe`
@@ -268,7 +296,7 @@ Adds tables for storing block data.
 SQLite: `619bea85701a`
 Postgres: `5f376def75c3`
 
-## Intial
+## Initial
 
 Creates the database that previously was not managed by migrations.
 

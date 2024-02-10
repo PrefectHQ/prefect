@@ -2,6 +2,7 @@ import io
 import re
 import sys
 from pathlib import Path, PurePosixPath
+from textwrap import dedent
 
 import pytest
 from _pytest.capture import CaptureFixture
@@ -11,6 +12,8 @@ from prefect.utilities.dockerutils import (
     BuildError,
     ImageBuilder,
     build_image,
+    generate_default_dockerfile,
+    get_prefect_image_name,
     silence_docker_warnings,
 )
 
@@ -20,7 +23,7 @@ with silence_docker_warnings():
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
 
-pytestmark = pytest.mark.service("docker")
+pytestmark = [pytest.mark.service("docker"), pytest.mark.timeout(120.0)]
 
 
 @pytest.fixture
@@ -37,6 +40,14 @@ def test_builds_tiny_hello_image(contexts: Path, docker: DockerClient):
 
     output = docker.containers.run(image, remove=True)
     assert output == b"Can't bear oceans.\n"
+
+
+def test_build_with_tag(contexts: Path, docker: DockerClient):
+    image_id = build_image(contexts / "tiny", tag="test:latest")
+    assert IMAGE_ID_PATTERN.match(image_id)
+
+    image = docker.images.get(image_id)
+    assert image.tags == ["test:latest"]
 
 
 def test_builds_alternate_dockerfiles(contexts: Path, docker: DockerClient):
@@ -121,7 +132,10 @@ def test_requires_real_dockerfile(contexts: Path):
 def test_raises_exception_on_bad_base_image(
     contexts: Path, example_context: str, expected_error: str
 ):
-    with pytest.raises(BuildError, match=expected_error):
+    # Occasionally, Dockerhub will rate limit us and return a 429
+    # so we will allow this as an acceptable error since we know that
+    # the image pull attempt occurred.
+    with pytest.raises(BuildError, match=expected_error + "|429"):
         build_image(contexts / example_context, stream_progress_to=sys.stdout)
 
 
@@ -265,3 +279,31 @@ def test_cannot_already_have_a_dockerfile_in_context(
 ):
     with pytest.raises(ValueError, match="already a Dockerfile"):
         ImageBuilder(prefect_base_image, context=contexts / "tiny")
+
+
+def test_generate_dockerfile_with_no_requirements(contexts):
+    with generate_default_dockerfile(contexts / "no-dockerfile") as dockerfile:
+        assert dockerfile.exists()
+        assert dockerfile.read_text() == dedent(
+            f"""\
+                    FROM {get_prefect_image_name()}
+                    COPY . /opt/prefect/no-dockerfile/
+                    WORKDIR /opt/prefect/no-dockerfile/
+                    """
+        )
+
+    assert not dockerfile.exists()
+
+
+def test_generate_dockerfile_with_requirements(contexts):
+    with generate_default_dockerfile(contexts / "requirements") as dockerfile:
+        assert dockerfile.exists()
+        assert dockerfile.read_text() == dedent(
+            f"""\
+                    FROM {get_prefect_image_name()}
+                    COPY requirements.txt /opt/prefect/requirements/requirements.txt
+                    RUN python -m pip install -r /opt/prefect/requirements/requirements.txt
+                    COPY . /opt/prefect/requirements/
+                    WORKDIR /opt/prefect/requirements/
+                    """
+        )

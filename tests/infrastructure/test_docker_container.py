@@ -1,5 +1,6 @@
 import re
 import uuid
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -773,15 +774,16 @@ def test_container_auto_remove(docker: "DockerClient"):
 
 @pytest.mark.service("docker")
 def test_container_metadata(docker: "DockerClient"):
+    name = f"test-name-{uuid.uuid4()}"
     result = DockerContainer(
         command=["echo", "hello"],
-        name="test-name",
+        name=name,
         labels={"test.foo": "a", "test.bar": "b"},
     ).run()
 
     _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
     container: "Container" = docker.containers.get(container_id)
-    assert container.name == "test-name"
+    assert container.name == name
     assert container.labels["test.foo"] == "a"
     assert container.labels["test.bar"] == "b"
     assert container.image.tags[0] == get_prefect_image_name()
@@ -792,7 +794,7 @@ def test_container_metadata(docker: "DockerClient"):
 
 @pytest.mark.service("docker")
 def test_container_name_collision(docker: "DockerClient"):
-    # Generate a unique base name to avoid collissions with existing images
+    # Generate a unique base name to avoid collisions with existing images
     base_name = uuid.uuid4().hex
 
     container = DockerContainer(
@@ -831,7 +833,7 @@ def test_stream_container_logs(capsys, mock_docker_client):
     mock_container = mock_docker_client.containers.get.return_value
     mock_container.logs = MagicMock(return_value=[b"hello", b"world"])
 
-    DockerContainer(command=["doesnt", "matter"]).run()
+    DockerContainer(command=["doesn't", "matter"]).run()
 
     captured = capsys.readouterr()
     assert "hello\nworld\n" in captured.out
@@ -846,7 +848,7 @@ def test_logs_warning_when_container_marked_for_removal(caplog, mock_docker_clie
     mock_container.logs = MagicMock(side_effect=docker.errors.APIError(warning))
 
     DockerContainer(
-        command=["doesnt", "matter"],
+        command=["doesn't", "matter"],
     ).run()
 
     assert "Docker container fake-name was marked for removal" in caplog.text
@@ -857,13 +859,12 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
     mock_container.logs = MagicMock(side_effect=docker.errors.APIError("..."))
 
     DockerContainer(
-        command=["doesnt", "matter"],
+        command=["doesn't", "matter"],
     ).run()
 
     assert (
-        "An unexpected Docker API error occured while streaming output from container"
-        " fake-name."
-        in caplog.text
+        "An unexpected Docker API error occurred while streaming output from container"
+        " fake-name." in caplog.text
     )
 
 
@@ -876,3 +877,93 @@ def test_stream_container_logs_on_real_container(capsys):
 
     captured = capsys.readouterr()
     assert "hello" in captured.out
+
+
+@pytest.fixture
+def base_job_template_with_defaults(docker_default_base_job_template):
+    base_job_template_with_defaults = deepcopy(docker_default_base_job_template)
+    base_job_template_with_defaults["variables"]["properties"]["command"][
+        "default"
+    ] = "python my_script.py"
+    base_job_template_with_defaults["variables"]["properties"]["env"]["default"] = {
+        "VAR1": "value1",
+        "VAR2": "value2",
+    }
+    base_job_template_with_defaults["variables"]["properties"]["labels"]["default"] = {
+        "label1": "value1",
+        "label2": "value2",
+    }
+    base_job_template_with_defaults["variables"]["properties"]["name"][
+        "default"
+    ] = "my_container"
+    base_job_template_with_defaults["variables"]["properties"]["image"][
+        "default"
+    ] = "docker.io/my_image:latest"
+    base_job_template_with_defaults["variables"]["properties"]["image_pull_policy"][
+        "default"
+    ] = "IfNotPresent"
+    base_job_template_with_defaults["variables"]["properties"]["networks"][
+        "default"
+    ] = [
+        "network1",
+        "network2",
+    ]
+    base_job_template_with_defaults["variables"]["properties"]["network_mode"][
+        "default"
+    ] = "bridge"
+    base_job_template_with_defaults["variables"]["properties"]["auto_remove"][
+        "default"
+    ] = True
+    base_job_template_with_defaults["variables"]["properties"]["volumes"]["default"] = [
+        "/path1:/container/path1",
+        "/path2:/container/path2",
+    ]
+    base_job_template_with_defaults["variables"]["properties"]["stream_output"][
+        "default"
+    ] = True
+    base_job_template_with_defaults["variables"]["properties"]["mem_limit"][
+        "default"
+    ] = "1g"
+    base_job_template_with_defaults["variables"]["properties"]["memswap_limit"][
+        "default"
+    ] = "2g"
+    base_job_template_with_defaults["variables"]["properties"]["privileged"][
+        "default"
+    ] = False
+    return base_job_template_with_defaults
+
+
+@pytest.mark.usefixtures("mock_collection_registry")
+@pytest.mark.parametrize(
+    "container_config",
+    [
+        "default",
+        "custom",
+    ],
+)
+async def test_generate_work_pool_base_job_template(
+    container_config, docker_default_base_job_template, base_job_template_with_defaults
+):
+    container = DockerContainer()
+    expected_template = docker_default_base_job_template
+    if container_config == "custom":
+        container = DockerContainer(
+            command=["python", "my_script.py"],
+            env={"VAR1": "value1", "VAR2": "value2"},
+            labels={"label1": "value1", "label2": "value2"},
+            name="my_container",
+            image="docker.io/my_image:latest",
+            image_pull_policy="IF_NOT_PRESENT",
+            networks=["network1", "network2"],
+            network_mode="bridge",
+            auto_remove=True,
+            volumes=["/path1:/container/path1", "/path2:/container/path2"],
+            stream_output=True,
+            mem_limit="1g",
+            memswap_limit="2g",
+            privileged=False,
+        )
+        expected_template = base_job_template_with_defaults
+    template = await container.generate_work_pool_base_job_template()
+
+    assert template == expected_template

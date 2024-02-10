@@ -22,7 +22,14 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+else:
+    from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
@@ -175,6 +182,15 @@ def _should_update_block_type(
     return server_block_fields != local_block_fields
 
 
+class BlockNotSavedError(RuntimeError):
+    """
+    Raised when a given block is not saved and an operation that requires
+    the block to be saved is attempted.
+    """
+
+    pass
+
+
 @register_base_type
 @instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
@@ -241,9 +257,9 @@ class Block(BaseModel, ABC):
                                     type_._to_block_schema_reference_dict(),
                                 ]
                             else:
-                                refs[field.name] = (
-                                    type_._to_block_schema_reference_dict()
-                                )
+                                refs[
+                                    field.name
+                                ] = type_._to_block_schema_reference_dict()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -667,14 +683,14 @@ class Block(BaseModel, ABC):
     @classmethod
     def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
         """
-        Retieve the block class implementation given a schema.
+        Retrieve the block class implementation given a schema.
         """
         return cls.get_block_class_from_key(block_schema_to_key(schema))
 
     @classmethod
     def get_block_class_from_key(cls: Type[Self], key: str) -> Type[Self]:
         """
-        Retieve the block class implementation given a key.
+        Retrieve the block class implementation given a key.
         """
         # Ensure collections are imported and have the opportunity to register types
         # before looking up the block class
@@ -934,11 +950,14 @@ class Block(BaseModel, ABC):
                 `is_anonymous` is `True`.
         """
         if name is None and not is_anonymous:
-            raise ValueError(
-                "You're attempting to save a block document without a name. "
-                "Please either save a block document with a name or set "
-                "is_anonymous to True."
-            )
+            if self._block_document_name is None:
+                raise ValueError(
+                    "You're attempting to save a block document without a name."
+                    " Please either call `save` with a `name` or pass"
+                    " `is_anonymous=True` to save an anonymous block."
+                )
+            else:
+                name = self._block_document_name
 
         self._is_anonymous = is_anonymous
 
@@ -979,7 +998,10 @@ class Block(BaseModel, ABC):
     @sync_compatible
     @instrument_instance_method_call()
     async def save(
-        self, name: str, overwrite: bool = False, client: "PrefectClient" = None
+        self,
+        name: Optional[str] = None,
+        overwrite: bool = False,
+        client: "PrefectClient" = None,
     ):
         """
         Saves the values of a block as a block document.
@@ -1043,3 +1065,25 @@ class Block(BaseModel, ABC):
             object.__setattr__(m, "__dict__", kwargs)
             object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
             return m
+
+    def get_block_placeholder(self) -> str:
+        """
+        Returns the block placeholder for the current block which can be used for
+        templating.
+
+        Returns:
+            str: The block placeholder for the current block in the format
+                `prefect.blocks.{block_type_name}.{block_document_name}`
+
+        Raises:
+            BlockNotSavedError: Raised if the block has not been saved.
+
+        If a block has not been saved, the return value will be `None`.
+        """
+        block_document_name = self._block_document_name
+        if not block_document_name:
+            raise BlockNotSavedError(
+                "Could not generate block placeholder for unsaved block."
+            )
+
+        return f"prefect.blocks.{self.get_block_type_slug()}.{block_document_name}"

@@ -28,6 +28,8 @@ import anyio.abc
 import sniffio
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
+from prefect.logging import get_logger
+
 T = TypeVar("T")
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -40,6 +42,8 @@ EVENT_LOOP_GC_REFS = {}
 
 PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
+logger = get_logger()
+
 
 def get_thread_limiter():
     global PREFECT_THREAD_LIMITER
@@ -51,7 +55,7 @@ def get_thread_limiter():
 
 
 def is_async_fn(
-    func: Union[Callable[P, R], Callable[P, Awaitable[R]]]
+    func: Union[Callable[P, R], Callable[P, Awaitable[R]]],
 ) -> TypeGuard[Callable[P, Awaitable[R]]]:
     """
     Returns `True` if a function returns a coroutine.
@@ -334,7 +338,13 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     EVENT_LOOP_GC_REFS[key] = on_shutdown(key)
 
     # Begin iterating so it will be cleaned up as an incomplete generator
-    await EVENT_LOOP_GC_REFS[key].__anext__()
+    try:
+        await EVENT_LOOP_GC_REFS[key].__anext__()
+    # There is a poorly understood edge case we've seen in CI where the key is
+    # removed from the dict before we begin generator iteration.
+    except KeyError:
+        logger.warn("The event loop shutdown callback was not properly registered. ")
+        pass
 
 
 class GatherIncomplete(RuntimeError):
@@ -408,7 +418,7 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
     """
     Run calls concurrently and gather their results.
 
-    Unlike `asyncio.gather` this expects to receieve _callables_ not _coroutines_.
+    Unlike `asyncio.gather` this expects to receive _callables_ not _coroutines_.
     This matches `anyio` semantics.
     """
     keys = []
@@ -416,3 +426,22 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
         for call in calls:
             keys.append(tg.start_soon(call))
     return [tg.get_result(key) for key in keys]
+
+
+class LazySemaphore:
+    def __init__(self, initial_value_func):
+        self._semaphore = None
+        self._initial_value_func = initial_value_func
+
+    async def __aenter__(self):
+        self._initialize_semaphore()
+        await self._semaphore.__aenter__()
+        return self._semaphore
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._semaphore.__aexit__(exc_type, exc, tb)
+
+    def _initialize_semaphore(self):
+        if self._semaphore is None:
+            initial_value = self._initial_value_func()
+            self._semaphore = asyncio.Semaphore(initial_value)

@@ -2,9 +2,16 @@ import urllib.parse
 from uuid import UUID, uuid4
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
-from fastapi import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
 
@@ -315,6 +322,46 @@ class TestReadFlows:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
+
+    async def test_read_flows_applies_deployment_is_null(self, client, session):
+        undeployed_flow = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="undeployment_flow"),
+        )
+        deployed_flow = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="deployed_flow")
+        )
+        await session.commit()
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="Mr. Deployment",
+                manifest_path="file.json",
+                flow_id=deployed_flow.id,
+            ),
+        )
+        await session.commit()
+
+        deployment_filter_isnull = dict(
+            flows=schemas.filters.FlowFilter(
+                deployment=schemas.filters.FlowFilterDeployment(is_null_=True)
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/flows/filter", json=deployment_filter_isnull)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == undeployed_flow.id
+
+        deployment_filter_not_isnull = dict(
+            flows=schemas.filters.FlowFilter(
+                deployment=schemas.filters.FlowFilterDeployment(is_null_=False)
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/flows/filter", json=deployment_filter_not_isnull)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == deployed_flow.id
 
     async def test_read_flows_offset(self, flows, client):
         # right now this works because flows are ordered by name

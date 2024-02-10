@@ -6,12 +6,12 @@ import asyncpg
 import pytest
 import sqlalchemy as sa
 import toml
-from fastapi import APIRouter, status, testclient
 from httpx import ASGITransport, AsyncClient
+from prefect._vendor.fastapi import APIRouter, status, testclient
 
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.server.api.server import (
     API_ROUTERS,
-    SERVER_API_VERSION,
     SQLITE_LOCKED_MSG,
     _memoize_block_auto_registration,
     create_api_app,
@@ -169,7 +169,8 @@ class TestCreateOrionAPI:
         routes = method_paths_from_routes(app.router.routes)
         assert all("/logs" not in route for route in routes)
         client = testclient.TestClient(app)
-        assert client.post("/logs").status_code == status.HTTP_404_NOT_FOUND
+        with client:
+            assert client.post("/logs").status_code == status.HTTP_404_NOT_FOUND
 
     def test_checks_for_router_paths_during_override(self):
         router = APIRouter(prefix="/logs")

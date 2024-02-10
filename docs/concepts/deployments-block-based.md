@@ -6,18 +6,16 @@ tags:
     - deployments
     - schedules
     - triggers
-    - prefect.yaml
     - infrastructure
     - storage
     - work pool
     - worker
-search:
-  boost: 2
+boost: .5
 ---
 
 # Block Based Deployments
 
-!!! note "Workers are recommended"
+!!! warning "Workers are recommended"
     This page is about the block-based deployment model. The [Work Pools and Workers](/concepts/work-pools/) based [deployment model](/concepts/deployments/) simplifies the specification of a flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
 
 We encourage you to check out the new [deployment experience](/concepts/deployments/) with guided command line prompts and convenient CI/CD with `prefect.yaml` files.
@@ -253,6 +251,8 @@ To edit parameters in the Prefect UI, go the the details page for a deployment, 
 
 To create an ad-hoc flow run with different parameter values, go the the details page for a deployment, select **Run**, then select **Custom**. You will be able to provide custom values for any editable deployment fields. Under **Parameters**, select **Custom**. Provide the new values, then select **Save**. Select **Run** to begin the flow run with custom values.
 
+If you want the Prefect API to verify the parameter values passed to a flow run against the schema defined by `parameter_openapi_schema`, set `enforce_parameter_schema` to `true`.
+
 ![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
 
 ### Create a deployment
@@ -373,26 +373,27 @@ When you create a deployment, it is constructed from deployment definition data 
 
 Deployment properties include:
 
-| Property                                                  | Description                                                                     |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `id`                                                      | An auto-generated UUID ID value identifying the deployment.                     |
-| `created`                                                 | A `datetime` timestamp indicating when the deployment was created.              |
-| `updated`                                                 | A `datetime` timestamp indicating when the deployment was last changed.         |
-| `name`                                                    | The name of the deployment.                                                     |
-| `version`                                                 | The version of the deployment                                                   |
-| `description`                                             | A description of the deployment.                                                |
-| `flow_id`                                                 | The id of the flow associated with the deployment.                              |
-| `schedule`                                                | An optional schedule for the deployment.                                        |
-| `is_schedule_active`                                      | Boolean indicating whether the deployment schedule is active. Default is True.  |
-| `infra_overrides`                                         | One or more optional infrastructure overrides                                   |
-| `parameters`                                              | An optional dictionary of parameters for flow runs scheduled by the deployment. |
-| `tags`                                                    | An optional list of tags for the deployment.                                    |
-| `work_queue_name`                                         | The optional work queue that will handle the deployment's run                   |
-| `parameter_openapi_schema`                                | JSON schema for flow parameters.                                                |
-| `path`                                                    | The path to the deployment.yaml file                                            |
-| `entrypoint`                                              | The path to a flow entry point                                                  |
-| `storage_document_id`                                     | Storage block configured for the deployment.                                    |
-| <span class="no-wrap">`infrastructure_document_id`</span> | Infrastructure block configured for the deployment.                             |
+| Property                                                  | Description                                                                                                                    |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                                                      | An auto-generated UUID ID value identifying the deployment.                                                                    |
+| `created`                                                 | A `datetime` timestamp indicating when the deployment was created.                                                             |
+| `updated`                                                 | A `datetime` timestamp indicating when the deployment was last changed.                                                        |
+| `name`                                                    | The name of the deployment.                                                                                                    |
+| `version`                                                 | The version of the deployment                                                                                                  |
+| `description`                                             | A description of the deployment.                                                                                               |
+| `flow_id`                                                 | The id of the flow associated with the deployment.                                                                             |
+| `schedule`                                                | An optional schedule for the deployment.                                                                                       |
+| `is_schedule_active`                                      | Boolean indicating whether the deployment schedule is active. Default is True.                                                 |
+| `infra_overrides`                                         | One or more optional infrastructure overrides                                                                                  |
+| `parameters`                                              | An optional dictionary of parameters for flow runs scheduled by the deployment.                                                |
+| `tags`                                                    | An optional list of tags for the deployment.                                                                                   |
+| `work_queue_name`                                         | The optional work queue that will handle the deployment's run                                                                  |
+| `parameter_openapi_schema`                                | JSON schema for flow parameters.                                                                                               |
+| `enforce_parameter_schema`                                | Whether the API should validate the parameters passed to a flow run against the schema defined by `parameter_openapi_schema`   |
+| `path`                                                    | The path to the deployment.yaml file                                                                                           |
+| `entrypoint`                                              | The path to a flow entry point                                                                                                 |
+| `storage_document_id`                                     | Storage block configured for the deployment.                                                                                   |
+| <span class="no-wrap">`infrastructure_document_id`</span> | Infrastructure block configured for the deployment.                                                                            |
 
 
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.

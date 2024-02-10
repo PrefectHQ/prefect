@@ -8,7 +8,7 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import pendulum
-from fastapi import Body, Depends, HTTPException, Path, Response, status
+from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -20,6 +20,7 @@ from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.utilities.validation import validate_values_conform_to_schema
 
 router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -66,22 +67,22 @@ async def create_deployment(
         if deployment.work_pool_name and deployment.work_queue_name:
             # If a specific pool name/queue name combination was provided, get the
             # ID for that work pool queue.
-            deployment_dict["work_queue_id"] = (
-                await worker_lookups._get_work_queue_id_from_name(
-                    session=session,
-                    work_pool_name=deployment.work_pool_name,
-                    work_queue_name=deployment.work_queue_name,
-                    create_queue_if_not_found=True,
-                )
+            deployment_dict[
+                "work_queue_id"
+            ] = await worker_lookups._get_work_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+                work_queue_name=deployment.work_queue_name,
+                create_queue_if_not_found=True,
             )
         elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
             # work pool queue.
-            deployment_dict["work_queue_id"] = (
-                await worker_lookups._get_default_work_queue_id_from_work_pool_name(
-                    session=session,
-                    work_pool_name=deployment.work_pool_name,
-                )
+            deployment_dict[
+                "work_queue_id"
+            ] = await worker_lookups._get_default_work_queue_id_from_work_pool_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
             )
         elif deployment.work_queue_name:
             # If just a queue name was provided, ensure that the queue exists and
@@ -144,10 +145,17 @@ async def create_deployment(
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
-    deployment_id: str = Path(..., description="The deployment id", alias="id"),
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
+        existing_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not existing_deployment:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+            )
         if deployment.work_pool_name:
             # Make sure that deployment is valid before beginning creation process
             work_pool = await models.workers.read_work_pool_by_name(
@@ -159,6 +167,38 @@ async def update_deployment(
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Error creating deployment: {exc!r}",
+                )
+
+        enforce_parameter_schema = (
+            deployment.enforce_parameter_schema
+            if deployment.enforce_parameter_schema is not None
+            else existing_deployment.enforce_parameter_schema
+        )
+        if enforce_parameter_schema:
+            # ensure that the new parameters conform to the existing schema
+            if not isinstance(existing_deployment.parameter_openapi_schema, dict):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail=(
+                        "Error updating deployment: Cannot update parameters because"
+                        " parameter schema enforcement is enabled and the deployment"
+                        " does not have a valid parameter schema."
+                    ),
+                )
+            parameters = (
+                deployment.parameters
+                if deployment.parameters is not None
+                else existing_deployment.parameters
+            )
+            try:
+                validate_values_conform_to_schema(
+                    parameters,
+                    existing_deployment.parameter_openapi_schema,
+                    ignore_required=True,
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, detail=f"Error updating deployment: {exc}"
                 )
 
         result = await models.deployments.update_deployment(
@@ -242,6 +282,55 @@ async def read_deployments(
             schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
             for deployment in response
         ]
+
+
+@router.post("/get_scheduled_flow_runs")
+async def get_scheduled_flow_runs_for_deployments(
+    deployment_ids: List[UUID] = Body(
+        default=..., description="The deployment IDs to get scheduled runs for"
+    ),
+    scheduled_before: DateTimeTZ = Body(
+        None, description="The maximum time to look for scheduled flow runs"
+    ),
+    limit: int = dependencies.LimitBody(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> List[schemas.responses.FlowRunResponse]:
+    """
+    Get scheduled runs for a set of deployments. Used by a runner to poll for work.
+    """
+    async with db.session_context() as session:
+        orm_flow_runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            limit=limit,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=deployment_ids),
+            ),
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
+                state=schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[schemas.states.StateType.SCHEDULED]
+                    )
+                ),
+            ),
+            sort=schemas.sorting.FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
+        )
+
+        flow_run_responses = [
+            schemas.responses.FlowRunResponse.from_orm(orm_flow_run=orm_flow_run)
+            for orm_flow_run in orm_flow_runs
+        ]
+
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
+        await models.deployments._update_deployment_last_polled(
+            session=session, deployment_ids=deployment_ids
+        )
+
+    return flow_run_responses
 
 
 @router.post("/count")
@@ -408,11 +497,30 @@ async def create_flow_run_from_deployment(
         parameters = deployment.parameters
         parameters.update(flow_run.parameters or {})
 
+        if deployment.enforce_parameter_schema:
+            if not isinstance(deployment.parameter_openapi_schema, dict):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail=(
+                        "Error updating deployment: Cannot update parameters because"
+                        " parameter schema enforcement is enabled and the deployment"
+                        " does not have a valid parameter schema."
+                    ),
+                )
+            try:
+                validate_values_conform_to_schema(
+                    parameters, deployment.parameter_openapi_schema
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, detail=f"Error creating flow run: {exc}"
+                )
+
         work_queue_name = deployment.work_queue_name
         work_queue_id = deployment.work_queue_id
 
         if flow_run.work_queue_name:
-            # cant mutate the ORM model or else it will commit the changes back
+            # can't mutate the ORM model or else it will commit the changes back
             work_queue_id = await worker_lookups._get_work_queue_id_from_name(
                 session=session,
                 work_pool_name=deployment.work_queue.work_pool.name,

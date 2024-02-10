@@ -11,7 +11,6 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
@@ -26,7 +25,12 @@ from prefect.client.schemas.filters import (
     WorkQueueFilter,
     WorkQueueFilterName,
 )
-from prefect.client.schemas.objects import BlockDocument, FlowRun, WorkQueue
+from prefect.client.schemas.objects import (
+    DEFAULT_AGENT_WORK_POOL_NAME,
+    BlockDocument,
+    FlowRun,
+    WorkQueue,
+)
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
@@ -103,8 +107,9 @@ class PrefectAgent:
                 )
             else:
                 matched_queues = await self.client.match_work_queues(
-                    self.work_queue_prefix
+                    self.work_queue_prefix, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
                 )
+
             matched_queues = set(q.name for q in matched_queues)
             if matched_queues != self.work_queues:
                 new_queues = matched_queues - self.work_queues
@@ -144,33 +149,42 @@ class PrefectAgent:
                 work_queue = await self.client.read_work_queue_by_name(
                     work_pool_name=self.work_pool_name, name=name
                 )
-            except ObjectNotFound:
-                # if the work queue wasn't found, create it
-                if not self.work_queue_prefix:
-                    # do not attempt to create work queues if the agent is polling for
-                    # queues using a regex
-                    try:
-                        work_queue = await self.client.create_work_queue(
-                            work_pool_name=self.work_pool_name, name=name
-                        )
-                        if self.work_pool_name:
-                            self.logger.info(
-                                f"Created work queue {name!r} in work pool"
-                                f" {self.work_pool_name!r}."
-                            )
-                        else:
-                            self.logger.info(f"Created work queue '{name}'.")
+            except (ObjectNotFound, Exception):
+                work_queue = None
 
+            # if the work queue wasn't found and the agent is NOT polling
+            # for queues using a regex, try to create it
+            if work_queue is None and not self.work_queue_prefix:
+                try:
+                    work_queue = await self.client.create_work_queue(
+                        work_pool_name=self.work_pool_name, name=name
+                    )
+                except Exception:
                     # if creating it raises an exception, it was probably just
                     # created by some other agent; rather than entering a re-read
                     # loop with new error handling, we log the exception and
                     # continue.
-                    except Exception:
-                        self.logger.exception(f"Failed to create work queue {name!r}.")
-                        continue
+                    self.logger.exception(f"Failed to create work queue {name!r}.")
+                    continue
+                else:
+                    log_str = f"Created work queue {name!r}"
+                    if self.work_pool_name:
+                        log_str = (
+                            f"Created work queue {name!r} in work pool"
+                            f" {self.work_pool_name!r}."
+                        )
+                    else:
+                        log_str = f"Created work queue '{name}'."
+                    self.logger.info(log_str)
 
-            self._work_queue_cache.append(work_queue)
-            yield work_queue
+            if work_queue is None:
+                self.logger.error(
+                    f"Work queue '{name!r}' with prefix {self.work_queue_prefix} wasn't"
+                    " found"
+                )
+            else:
+                self._work_queue_cache.append(work_queue)
+                yield work_queue
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
@@ -328,6 +342,13 @@ class PrefectAgent:
 
         try:
             infrastructure = await self.get_infrastructure(flow_run)
+            if infrastructure.is_using_a_runner:
+                self.logger.info(
+                    f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
+                    " using enhanced cancellation. A dedicated runner will handle"
+                    " cancellation."
+                )
+                return
         except Exception:
             self.logger.exception(
                 f"Failed to get infrastructure for flow run '{flow_run.id}'. "
@@ -470,7 +491,7 @@ class PrefectAgent:
                         )
                     except Exception:
                         self.logger.exception(
-                            "An error occured while setting the `infrastructure_pid`"
+                            "An error occurred while setting the `infrastructure_pid`"
                             f" on flow run {flow_run.id!r}. The flow run will not be"
                             " cancellable."
                         )
@@ -511,7 +532,7 @@ class PrefectAgent:
                 )
             else:
                 self.logger.exception(
-                    f"An error occured while monitoring flow run '{flow_run.id}'. "
+                    f"An error occurred while monitoring flow run '{flow_run.id}'. "
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
                 )
@@ -667,10 +688,3 @@ class PrefectAgent:
 
     async def __aexit__(self, *exc_info):
         await self.shutdown(*exc_info)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAgent` instead.")
-class OrionAgent(PrefectAgent):
-    """
-    Deprecated. Use `PrefectAgent` instead.
-    """

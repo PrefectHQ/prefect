@@ -435,7 +435,8 @@ class ORMRun:
             )
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls).label("estimated_run_time")
+            .correlate(cls)
+            .label("estimated_run_time")
         )
 
     @hybrid_property
@@ -446,14 +447,14 @@ class ORMRun:
         have a start time and are not in a final state and were expected to
         start already."""
         if self.start_time and self.start_time > self.expected_start_time:
-            return (self.start_time - self.expected_start_time).as_interval()
+            return self.start_time - self.expected_start_time
         elif (
             self.start_time is None
             and self.expected_start_time
             and self.expected_start_time < pendulum.now("UTC")
             and self.state_type not in schemas.states.TERMINAL_STATES
         ):
-            return (pendulum.now("UTC") - self.expected_start_time).as_interval()
+            return pendulum.now("UTC") - self.expected_start_time
         else:
             return datetime.timedelta(0)
 
@@ -684,7 +685,7 @@ class ORMTaskRun(ORMRun):
         return sa.Column(
             UUID(),
             sa.ForeignKey("flow_run.id", ondelete="cascade"),
-            nullable=False,
+            nullable=True,
             index=True,
         )
 
@@ -842,6 +843,10 @@ class ORMDeployment:
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
     work_queue_name = sa.Column(sa.String, nullable=True, index=True)
+    last_polled = sa.Column(
+        Timestamp(),
+        nullable=True,
+    )
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)
     entrypoint = sa.Column(sa.String, nullable=True)
@@ -872,6 +877,9 @@ class ORMDeployment:
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
+    enforce_parameter_schema = sa.Column(
+        sa.Boolean, default=False, server_default="0", nullable=False
+    )
     created_by = sa.Column(
         Pydantic(schemas.core.CreatedBy),
         server_default=None,
@@ -974,7 +982,7 @@ class ORMConcurrencyLimitV2:
     active_slots = sa.Column(sa.Integer, nullable=False)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
 
-    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=True)
+    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)
     avg_slot_occupancy_seconds = sa.Column(sa.Float, default=2.0, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
@@ -1066,6 +1074,8 @@ class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
+
+    block_type_name = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def block_type_id(cls):
@@ -1254,6 +1264,7 @@ class ORMWorker:
         default=lambda: pendulum.now("UTC"),
         index=True,
     )
+    heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
 
     @declared_attr
     def __table_args__(cls):
@@ -1329,6 +1340,21 @@ class ORMVariable:
     __table_args__ = (sa.UniqueConstraint("name"),)
 
 
+@declarative_mixin
+class ORMFlowRunInput:
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+        )
+
+    key = sa.Column(sa.String, nullable=False)
+    value = sa.Column(sa.Text(), nullable=False)
+    sender = sa.Column(sa.String, nullable=True)
+
+    __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1388,6 +1414,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        flow_run_input_mixin=ORMFlowRunInput,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1441,6 +1468,7 @@ class BaseORMConfiguration(ABC):
             block_document_reference_mixin=block_document_reference_mixin,
             configuration_mixin=configuration_mixin,
             variable_mixin=variable_mixin,
+            flow_run_input_mixin=flow_run_input_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1490,6 +1518,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        flow_run_input_mixin=ORMFlowRunInput,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1574,6 +1603,9 @@ class BaseORMConfiguration(ABC):
         class Variable(variable_mixin, self.Base):
             pass
 
+        class FlowRunInput(flow_run_input_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1600,6 +1632,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
         self.Variable = Variable
+        self.FlowRunInput = FlowRunInput
 
     @property
     @abstractmethod

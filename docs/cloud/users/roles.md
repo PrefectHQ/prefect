@@ -14,32 +14,32 @@ search:
   boost: 2
 ---
 
-# User and Service Account Roles <span class="badge cloud"></span> <span class="badge orgs"></span>
+# User and Service Account Roles <span class="badge cloud"></span> <span class="badge pro"> </span><span class="badge enterprise"></span>
 
-[Organizations](/cloud/organizations/) in Prefect Cloud let you give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces. 
+Prefect Cloud's [Pro and Enterprise tiers](https://www.prefect.io/pricing) allow you to set team member access to the appropriate level within specific workspaces.
 
-Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.  
+Role-based access controls (RBAC) enable you to assign users granular permissions to perform certain activities.
 
-To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, you may also create custom roles for users.
-
+To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, Enterprise account Admins can create custom roles for users.
 
 ## Built-in roles
 
-Roles give users abilities at either the organization level or at the individual workspace level. 
+Roles give users abilities at either the account level or at the individual workspace level.
 
-- An _organization-level role_ defines a user's default permissions within an organization. 
+- An _account-level role_ defines a user's default permissions within an account.
 - A _workspace-level role_ defines a user's permissions within a specific workspace.
 
-The following sections outline the abilities of the built-in, Prefect-defined organizational and workspace roles.
+The following sections outline the abilities of the built-in, Prefect-defined ac and workspace roles.
 
-### Organization-level roles
+### Account-level roles
 
-The following built-in roles have permissions across an organization in Prefect Cloud.
+The following built-in roles have permissions across an account in Prefect Cloud.
 
 | Role   | Abilities                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Admin  | &bull; Set/change all organization profile settings allowed to be set/changed by a Prefect user. <br> &bull; Add and remove organization members, and their organization roles. <br> &bull; Create and delete service accounts in the organization. <br> &bull; Create workspaces in the organization. <br> &bull; Implicit workspace owner access on all workspaces in the organization. |
-| Member | &bull; View organization profile settings. <br> &bull; View workspaces I have access to in the organization. <br> &bull; View organization members and their roles. <br> &bull; View service accounts in the organization.                                                                                                                                                                |
+| Owner  | &bull; Set/change all account profile settings allowed to be set/changed by a Prefect user. <br> &bull; Add and remove account members, and their account roles. <br> &bull; Create and delete service accounts in the account. <br> &bull; Create workspaces in the account. <br> &bull; Implicit workspace owner access on all workspaces in the account. <br> &bull; Bypass SSO. |
+| Admin  | &bull; Set/change all account profile settings allowed to be set/changed by a Prefect user. <br> &bull; Add and remove account members, and their account roles. <br> &bull; Create and delete service accounts in the account. <br> &bull; Create workspaces in the account. <br> &bull; Implicit workspace owner access on all workspaces in the account. <br> &bull; Cannot bypass SSO.  |
+| Member | &bull; View account profile settings. <br> &bull; View workspaces I have access to in the account. <br> &bull; View account members and their roles. <br> &bull; View service accounts in the account.                                                                                                                                                                |
 
 ### Workspace-level roles
 
@@ -50,21 +50,21 @@ The following built-in roles have permissions within a given workspace in Prefec
 | Viewer    | &bull; View flow runs within a workspace. <br> &bull; View deployments within a workspace. <br> &bull; View all work pools within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace handle and description.                                                                                                                                                                |
 | Runner    | All Viewer abilities, _plus_: <br> &bull; Run deployments within a workspace.                                                                                                                                                                                                                                                                                                                                                                                         |
 | Developer | All Runner abilities, _plus_: <br> &bull; Run flows within a workspace. <br> &bull; Delete flow runs within a workspace. <br> &bull; Create, edit, and delete deployments within a workspace. <br> &bull; Create, edit, and delete work pools within a workspace. <br> &bull; Create, edit, and delete all blocks and their secrets within a workspace. <br> &bull; Create, edit, and delete automations within a workspace. <br> &bull; View all workspace settings. |
-| Owner     | All Developer abilities, _plus_: <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings.                                                                                                                                                                                                    |
-| Worker     | The minimum scopes required for a worker to poll for and submit work.| 
-
+| Owner     | All Developer abilities, _plus_: <br> &bull; Add and remove account members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the account. <br> &bull; Set, view, edit workspace settings.                                                                                                                                                                                                    |
+| Worker     | The minimum scopes required for a worker to poll for and submit work.|
 
 ## Custom workspace roles
 
 The built-in roles will serve the needs of most users, but your team may need to configure custom roles, giving users access to specific permissions within a workspace.
 
-Custom roles can inherit permissions from a built-in role. This enables tweaks to meet your organization’s needs, while ensuring users can still benefit from Prefect’s default workspace role permission curation as new functionality becomes available.
+Custom roles can inherit permissions from a built-in role.
+This enables tweaks to the role to meet your team’s needs, while ensuring users can still benefit from Prefect’s default workspace role permission curation as new functionality becomes available.
 
 Custom workspace roles can also be created independent of Prefect’s built-in roles. This option gives workspace admins full control of user access to workspace functionality. However, for non-inherited custom roles, the workspace admin takes on the responsibility for monitoring and setting permissions for new functionality as it is released.
 
 See [Role permissions](#workspace-role-permissions) for details of permissions you may set for custom roles.
 
-After you create a new role, it become available in the organization **Members** page and the **Workspace Sharing** page for you to apply to users.
+After you create a new role, it become available in the account **Members** page and the **Workspace Sharing** page for you to apply to users.
 
 ### Inherited roles
 

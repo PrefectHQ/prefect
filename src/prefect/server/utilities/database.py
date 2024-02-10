@@ -12,7 +12,14 @@ import uuid
 from typing import List, Union
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.compiler import compiles
@@ -88,7 +95,7 @@ class Timestamp(TypeDecorator):
                     # as alphanumeric comparisons without regard for actual timestamp
                     # semantics or timezones. Therefore, it's important to have uniform
                     # and sortable datetime representations. The default is an ISO8601-compatible
-                    # string with NO time zone and a space (" ") delimeter between the date
+                    # string with NO time zone and a space (" ") delimiter between the date
                     # and the time. The below settings can be used to add a "T" delimiter but
                     # will require all other sqlite datetimes to be set similarly, including
                     # the custom default value for datetime columns and any handwritten SQL
@@ -315,8 +322,7 @@ def _date_add_sqlite(element, compiler, **kwargs):
             sa.func.julianday(dt)
             + (
                 # convert interval to fractional days after the epoch
-                sa.func.julianday(interval)
-                - 2440587.5
+                sa.func.julianday(interval) - 2440587.5
             ),
         )
     )
@@ -419,7 +425,8 @@ def _date_diff_sqlite(element, compiler, **kwargs):
             # the epoch in julian days
             2440587.5
             # plus the date difference in julian days
-            + sa.func.julianday(d1) - sa.func.julianday(d2),
+            + sa.func.julianday(d1)
+            - sa.func.julianday(d2),
         )
     )
 

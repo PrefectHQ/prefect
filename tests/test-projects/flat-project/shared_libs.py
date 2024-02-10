@@ -1,6 +1,6 @@
-def foo():
+def get_foo():
     return "foo"
 
 
-def bar():
+def get_bar():
     return "bar"

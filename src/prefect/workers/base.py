@@ -1,15 +1,26 @@
 import abc
 import inspect
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
 import anyio
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, Field, PrivateAttr, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
+else:
+    from pydantic import BaseModel, Field, PrivateAttr, validator
 
 import prefect
-from prefect._internal.compatibility.experimental import experimental
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
@@ -37,7 +48,13 @@ from prefect.exceptions import (
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
-from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_WORKER_HEARTBEAT_SECONDS,
+    PREFECT_WORKER_PREFETCH_SECONDS,
+    get_current_settings,
+)
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.slugify import slugify
@@ -85,6 +102,10 @@ class BaseJobConfiguration(BaseModel):
     )
 
     _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
+
+    @property
+    def is_using_a_runner(self):
+        return self.command is not None and "prefect flow-run execute" in self.command
 
     @validator("command")
     def _coerce_command(cls, v):
@@ -207,6 +228,21 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a command for a flow run job.
         """
+        if experiment_enabled("enhanced_cancellation"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Enhanced flow run cancellation",
+                        group="enhanced_cancellation",
+                        help="",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+            return "prefect flow-run execute"
         return "python -m prefect.engine"
 
     @staticmethod
@@ -234,7 +270,7 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a dictionary of environment variables for a flow run job.
         """
-        return {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
+        return {"PREFECT__FLOW_RUN_ID": str(flow_run.id)}
 
     @staticmethod
     def _base_deployment_labels(deployment: "DeploymentResponse") -> Dict[str, str]:
@@ -311,7 +347,6 @@ class BaseWorker(abc.ABC):
     _logo_url = ""
     _description = ""
 
-    @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
         work_pool_name: str,
@@ -320,6 +355,9 @@ class BaseWorker(abc.ABC):
         prefetch_seconds: Optional[float] = None,
         create_pool_if_not_found: bool = True,
         limit: Optional[int] = None,
+        heartbeat_interval_seconds: Optional[int] = None,
+        *,
+        base_job_template: Optional[Dict[str, Any]] = None,
     ):
         """
         Base class for all Prefect workers.
@@ -339,6 +377,8 @@ class BaseWorker(abc.ABC):
                 ensure that work pools are not created accidentally.
             limit: The maximum number of flow runs this worker should be running at
                 a given time.
+            base_job_template: If creating the work pool, provide the base job
+                template to use. Logs a warning if the pool already exists.
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
@@ -347,11 +387,15 @@ class BaseWorker(abc.ABC):
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
+        self._base_job_template = base_job_template
         self._work_pool_name = work_pool_name
         self._work_queues: Set[str] = set(work_queues) if work_queues else set()
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
+        )
+        self.heartbeat_interval_seconds = (
+            heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
         self._work_pool: Optional[WorkPool] = None
@@ -587,6 +631,21 @@ class BaseWorker(abc.ABC):
     async def cancel_run(self, flow_run: "FlowRun"):
         run_logger = self.get_flow_run_logger(flow_run)
 
+        try:
+            configuration = await self._get_configuration(flow_run)
+            if configuration.is_using_a_runner:
+                self._logger.info(
+                    f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
+                    " using enhanced cancellation. A dedicated runner will handle"
+                    " cancellation."
+                )
+                return
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
+
         if not flow_run.infrastructure_pid:
             run_logger.error(
                 f"Flow run '{flow_run.id}' does not have an infrastructure pid"
@@ -602,14 +661,6 @@ class BaseWorker(abc.ABC):
                 },
             )
             return
-
-        try:
-            configuration = await self._get_configuration(flow_run)
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
 
         try:
             await self.kill_infrastructure(
@@ -648,12 +699,22 @@ class BaseWorker(abc.ABC):
             )
         except ObjectNotFound:
             if self._create_pool_if_not_found:
-                work_pool = await self._client.create_work_pool(
-                    work_pool=WorkPoolCreate(name=self._work_pool_name, type=self.type)
+                wp = WorkPoolCreate(
+                    name=self._work_pool_name,
+                    type=self.type,
                 )
+                if self._base_job_template is not None:
+                    wp.base_job_template = self._base_job_template
+
+                work_pool = await self._client.create_work_pool(work_pool=wp)
                 self._logger.info(f"Work pool {self._work_pool_name!r} created.")
             else:
                 self._logger.warning(f"Work pool {self._work_pool_name!r} not found!")
+                if self._base_job_template is not None:
+                    self._logger.warning(
+                        "Ignoring supplied base job template because the work pool"
+                        " already exists"
+                    )
                 return
 
         # if the remote config type changes (or if it's being loaded for the
@@ -678,7 +739,9 @@ class BaseWorker(abc.ABC):
     async def _send_worker_heartbeat(self):
         if self._work_pool:
             await self._client.send_worker_heartbeat(
-                work_pool_name=self._work_pool_name, worker_name=self.name
+                work_pool_name=self._work_pool_name,
+                worker_name=self.name,
+                heartbeat_interval_seconds=self.heartbeat_interval_seconds,
             )
 
     async def sync_with_backend(self):
@@ -770,7 +833,7 @@ class BaseWorker(abc.ABC):
                 raise ValueError(
                     f"Flow run {flow_run.id!r} was created from deployment"
                     f" {deployment.name!r} which is configured with a storage block."
-                    " Workers currently only support local storage. Please use an"
+                    " Please use an"
                     " agent to execute this flow run."
                 )
 

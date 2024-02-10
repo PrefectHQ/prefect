@@ -1,15 +1,25 @@
+import asyncio
 import datetime
+import gc
 import warnings
 
+import aiosqlite
+import asyncpg
 import pendulum
 import pytest
+from sqlalchemy.exc import InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database.configurations import ENGINES, TRACKER
+from prefect.server.database.dependencies import (
+    PrefectDBInterface,
+    provide_database_interface,
+)
+from prefect.server.models.block_registration import run_block_auto_registration
 from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
@@ -25,13 +35,50 @@ def db(test_database_connection_url, safety_check_settings):
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def database_engine(db):
+async def database_engine(db: PrefectDBInterface):
     """Produce a database engine"""
+    TRACKER.active = True
+
     engine = await db.engine()
-    try:
-        yield engine
-    finally:
+
+    yield engine
+
+    # At the end of the test session, dispose of _any_ open engines, not just the one
+    # that we produced here.  Other engines may have been created from different event
+    # loops, and we need to ensure that they are all disposed of.
+
+    engines = list(ENGINES.values())
+    ENGINES.clear()
+
+    for engine in engines:
         await engine.dispose()
+
+    # Now confirm that after disposing all engines, all connections are closed
+    #
+    # A note to maintainers: if this section flakes out, let's just remove it since we
+    # are filtering the resource-related warnings that were emitted when connections
+    # weren't closed.
+
+    for connection in TRACKER.all_connections:
+        driver_connection = connection.driver_connection
+
+        if isinstance(driver_connection, asyncpg.Connection):
+            if driver_connection.is_closed():
+                continue
+        elif isinstance(driver_connection, aiosqlite.Connection):
+            if not driver_connection._connection:
+                continue
+        else:
+            continue
+
+        await driver_connection.close()
+
+    # Finally, free up all references to connections and clean up proactively so that
+    # we don't have any lingering connections after this.  This should prevent
+    # post-test-session ResourceWarning errors about unclosed connections.
+
+    TRACKER.clear()
+    gc.collect()
 
 
 @pytest.fixture
@@ -60,16 +107,33 @@ async def setup_db(database_engine, db):
 @pytest.fixture(autouse=True)
 async def clear_db(db):
     """
-    Delete all data from all tables after running each test.
+    Delete all data from all tables after running each test, attempting to handle
+    connection errors.
     """
-    yield
-    async with db.session_context(begin_transaction=True) as session:
-        await session.execute(db.Agent.__table__.delete())
-        # work pool has a circular dependency on pool queue; delete it first
-        await session.execute(db.WorkPool.__table__.delete())
 
-        for table in reversed(db.Base.metadata.sorted_tables):
-            await session.execute(table.delete())
+    yield
+
+    max_retries = 3
+    retry_delay = 1
+
+    for attempt in range(max_retries):
+        try:
+            async with db.session_context(begin_transaction=True) as session:
+                await session.execute(db.Agent.__table__.delete())
+                await session.execute(db.WorkPool.__table__.delete())
+
+                for table in reversed(db.Base.metadata.sorted_tables):
+                    await session.execute(table.delete())
+                break
+        except InterfaceError:
+            if attempt < max_retries - 1:
+                print(
+                    "Connection issue. Retrying entire deletion operation"
+                    f" ({attempt + 1}/{max_retries})..."
+                )
+                await asyncio.sleep(retry_delay)
+            else:
+                raise
 
 
 @pytest.fixture
@@ -77,6 +141,12 @@ async def session(db) -> AsyncSession:
     session = await db.session()
     async with session:
         yield session
+
+
+@pytest.fixture
+async def register_block_types(session):
+    await run_block_auto_registration(session=session)
+    await session.commit()
 
 
 @pytest.fixture
@@ -363,6 +433,41 @@ async def deployment(
 
 
 @pytest.fixture
+async def deployment_2(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id_2,
+    storage_document_id,
+    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id_2,
+            work_queue_name=work_queue_1.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
 async def deployment_in_default_work_pool(
     session,
     flow,
@@ -435,6 +540,28 @@ async def deployment_in_non_default_work_pool(
 
 
 @pytest.fixture
+async def deployment_with_parameter_schema(
+    session,
+    flow,
+):
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment X",
+            flow_id=flow.id,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"x": {"type": "string"}},
+            },
+            parameters={"x": "y"},
+            enforce_parameter_schema=True,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
@@ -454,13 +581,53 @@ async def work_pool(session):
             name="test-work-pool",
             type="test-type",
             base_job_template={
-                "job_configuration": {"command": "{{ command }}"},
+                "job_configuration": {
+                    "command": "{{ command }}",
+                },
                 "variables": {
                     "properties": {
                         "command": {
-                            "type": "array",
+                            "type": "string",
                             "title": "Command",
-                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_pool_with_image_variable(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="test-work-pool",
+            type="test-type",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                    "image_pull_policy": "{{ image_pull_policy }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                        "image_pull_policy": {
+                            "enum": ["IfNotPresent", "Always", "Never"],
+                            "type": "string",
+                            "title": "Image Pull Policy",
+                            "default": "IfNotPresent",
                         },
                     },
                     "required": [],
@@ -493,7 +660,57 @@ async def push_work_pool(session):
         work_pool=schemas.actions.WorkPoolCreate(
             name="push-work-pool",
             type="push-work-pool:push",
-            base_job_template={},
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def managed_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="mex-work-pool",
+            type="mex-work-pool:managed",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
         ),
     )
     await session.commit()
@@ -708,9 +925,12 @@ def initialize_orchestration(flow):
         flow_retries: int = None,
         flow_run_count: int = None,
         resuming: bool = None,
+        initial_flow_run_state_details=None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
+        if initial_flow_run_state_details is None:
+            initial_flow_run_state_details = {}
         if flow_retries:
             empirical_policy.update({"retries": flow_retries})
         if resuming:
@@ -741,10 +961,11 @@ def initialize_orchestration(flow):
         elif run_type == "task":
             if initial_flow_run_state_type:
                 flow_state_constructor = commit_flow_run_state
+                kwargs = {}
+                if initial_flow_run_state_details:
+                    kwargs["state_details"] = initial_flow_run_state_details
                 await flow_state_constructor(
-                    session,
-                    flow_run,
-                    initial_flow_run_state_type,
+                    session, flow_run, initial_flow_run_state_type, **kwargs
                 )
             task_run = await models.task_runs.create_task_run(
                 session=session,
@@ -828,7 +1049,7 @@ async def worker_deployment_wq1(
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=pendulum.duration(days=1).as_timedelta(),
+                interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             path="./subdir",
@@ -855,7 +1076,7 @@ async def worker_deployment_infra_wq1(
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=pendulum.duration(days=1).as_timedelta(),
+                interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             path="./subdir",
@@ -886,7 +1107,7 @@ async def worker_deployment_wq_2(
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=pendulum.duration(days=1).as_timedelta(),
+                interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             path="./subdir",

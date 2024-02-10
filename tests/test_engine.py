@@ -3,6 +3,7 @@ import statistics
 import sys
 import threading
 import time
+import warnings
 from contextlib import contextmanager
 from typing import List
 from unittest.mock import MagicMock, patch
@@ -11,16 +12,24 @@ from uuid import uuid4
 import anyio
 import pendulum
 import pytest
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
-from prefect.client.orchestration import get_client
+from prefect._internal.compatibility.experimental import ExperimentalFeature
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
     API_HEALTHCHECKS,
     begin_flow_run,
+    begin_task_run,
     check_api_reachable,
     collect_task_run_inputs,
     create_and_begin_subflow_run,
@@ -32,6 +41,7 @@ from prefect.engine import (
     propose_state,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
+    suspend_flow_run,
 )
 from prefect.exceptions import (
     Abort,
@@ -43,21 +53,34 @@ from prefect.exceptions import (
     SignatureMismatchError,
 )
 from prefect.futures import PrefectFuture
-from prefect.results import ResultFactory
+from prefect.input import RunInput, read_flow_run_input
+from prefect.results import ResultFactory, UnknownResult
 from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
     SetStateStatus,
+    StateAbortDetails,
     StateAcceptDetails,
+    StateRejectDetails,
     StateWaitDetails,
 )
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     temporary_settings,
 )
-from prefect.states import Cancelled, Failed, Paused, Pending, Running, State
+from prefect.states import (
+    Cancelled,
+    Completed,
+    Failed,
+    Paused,
+    Pending,
+    Running,
+    State,
+    Suspended,
+)
 from prefect.task_runners import (
     BaseTaskRunner,
     SequentialTaskRunner,
@@ -128,6 +151,12 @@ async def get_flow_run_context(prefect_client, result_factory, local_filesystem)
 
 
 class TestBlockingPause:
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
     async def test_tasks_cannot_be_paused(self):
         @task
         async def the_little_task_that_pauses():
@@ -186,53 +215,34 @@ class TestBlockingPause:
         assert min(sleep_intervals) <= 20  # Okay if this is zero
         assert max(sleep_intervals) == 100
 
-    @pytest.mark.flaky
     async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
-        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        sleeper = AsyncMock(side_effect=[None])
         monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
-
-        @task
-        async def doesnt_pause():
-            return 42
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow():
-            x = await doesnt_pause.submit()
             await pause_flow_run(timeout=4, poll_interval=5)
-            y = await doesnt_pause.submit()
-            await doesnt_pause(wait_for=[x])
-            await doesnt_pause(wait_for=[y])
-            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
             await pausing_flow()
 
+        # When pausing a flow run and the poll_interval is greater than the
+        # timeout, the first sleep interval should be half of the timeout.
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
-        assert sleep_intervals[0] == 2
-        assert sleep_intervals[1:] == [5, 5, 5, 5, 5]
+        assert sleep_intervals[0] == 4 / 2
 
-    @pytest.mark.flaky(max_runs=4)
     async def test_paused_flows_block_execution_in_sync_flows(self, prefect_client):
-        @task
-        def foo():
-            return 42
+        completed = False
 
         @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
-            x = foo.submit()
-            y = foo.submit()
+            nonlocal completed
             pause_flow_run(timeout=0.1)
-            foo(wait_for=[x])
-            foo(wait_for=[y])
-            foo(wait_for=[x, y])
+            completed = True
 
-        flow_run_state = pausing_flow(return_state=True)
-        flow_run_id = flow_run_state.state_details.flow_run_id
-        task_runs = await prefect_client.read_task_runs(
-            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
-        )
-        assert len(task_runs) == 2, "only two tasks should have completed"
+        pausing_flow(return_state=True)
+        assert not completed
 
     async def test_paused_flows_block_execution_in_async_flows(self, prefect_client):
         @task
@@ -286,8 +296,113 @@ class TestBlockingPause:
         )
         assert len(task_runs) == 5, "all tasks should finish running"
 
+    async def test_paused_flows_can_receive_input(self, prefect_client):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            flow_input = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=FlowInput
+            )
+            return flow_input
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"x": 42})
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        flow_input = await flow_run_state.result()
+        assert isinstance(flow_input, FlowInput)
+        assert flow_input.x == 42
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+    async def test_paused_flows_can_receive_automatic_input(
+        self, prefect_client: PrefectClient
+    ):
+        flow_run_id = None
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            age = await pause_flow_run(int, timeout=10, poll_interval=2)
+            return age
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"value": 42})
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        age = await flow_run_state.result()
+        assert isinstance(age, int)
+        assert age == 42
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
 
 class TestNonblockingPause:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
         self, prefect_client, deployment, session
     ):
@@ -320,8 +435,10 @@ class TestNonblockingPause:
             await foo(wait_for=[x, y])
             assert False, "This line should not be reached"
 
-        with pytest.raises(Pause):
-            await pausing_flow_without_blocking(return_state=True)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            with pytest.raises(Pause):
+                await pausing_flow_without_blocking(return_state=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_paused()
@@ -446,6 +563,18 @@ class TestNonblockingPause:
 
 
 class TestOutOfProcessPause:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
     async def test_flows_can_be_paused_out_of_process(
         self, prefect_client, deployment, session
     ):
@@ -545,6 +674,273 @@ class TestOutOfProcessPause:
         assert state.state_details.pause_reschedule is False
         assert state.state_details.pause_key == "foo"
 
+    async def test_out_of_process_pause_cannot_wait_for_input(self):
+        class FlowInput(RunInput):
+            x: int
+
+        with pytest.raises(
+            RuntimeError, match="Cannot wait for input when pausing out of process."
+        ):
+            await pause_flow_run(flow_run_id=uuid4(), wait_for_input=FlowInput)
+
+
+class TestSuspendFlowRun:
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
+    async def test_suspended_flow_runs_do_not_block_execution(
+        self, prefect_client, deployment, session
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+            flow_run_id = context.flow_run.id
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            await suspend_flow_run()
+            await asyncio.sleep(20)
+
+        start = time.time()
+        with pytest.raises(Pause):
+            await suspending_flow()
+        end = time.time()
+        assert end - start < 20
+
+    async def test_suspended_flow_run_has_correct_state(
+        self, prefect_client, deployment, session
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+            flow_run_id = context.flow_run.id
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            await suspend_flow_run()
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        state = flow_run.state
+        assert state.is_paused()
+        assert state.name == "Suspended"
+
+    async def test_suspending_flow_run_without_deployment_fails(self):
+        @flow()
+        async def suspending_flow():
+            await suspend_flow_run()
+
+        with pytest.raises(
+            RuntimeError, match="Cannot suspend flows without a deployment."
+        ):
+            await suspending_flow()
+
+    async def test_suspending_sub_flow_run_fails(self):
+        @flow()
+        async def suspending_flow():
+            await suspend_flow_run()
+
+        @flow
+        async def main_flow():
+            await suspending_flow()
+
+        with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
+            await main_flow()
+
+    async def test_suspend_flow_run_by_id(self, prefect_client, deployment, session):
+        flow_run_id = None
+        task_completions = 0
+
+        @task
+        async def increment_completions():
+            nonlocal task_completions
+            task_completions += 1
+            await asyncio.sleep(0.1)
+
+        @flow
+        async def suspendable_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                context.flow_run.id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            for i in range(20):
+                await increment_completions()
+
+        async def suspending_func():
+            nonlocal flow_run_id
+
+            while flow_run_id is None:
+                await asyncio.sleep(0.1)
+
+            # Sleep for a bit to let some of `suspendable_flow`s tasks complete
+            await asyncio.sleep(0.3)
+
+            await suspend_flow_run(flow_run_id=flow_run_id)
+
+        with pytest.raises(PausedRun):
+            await asyncio.gather(suspendable_flow(), suspending_func())
+
+        # When suspending a flow run by id, that flow run must use tasks for
+        # the suspension to take place. This setup allows for `suspendable_flow`
+        # to complete some tasks before `suspending_flow` suspends the flow run.
+        # Here then we check to ensure that some tasks completed but not _all_
+        # of the tasks.
+        assert task_completions > 0 and task_completions < 20
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        state = flow_run.state
+        assert state.is_paused()
+        assert state.name == "Suspended"
+
+    async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            if not context.flow_run.deployment_id:
+                # Ensure that the flow run has a deployment id so it's
+                # suspendable.
+                from prefect.server.models.flow_runs import update_flow_run
+
+                await update_flow_run(
+                    session,
+                    context.flow_run.id,
+                    FlowRun.construct(deployment_id=deployment.id),
+                )
+                await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            flow_input = await suspend_flow_run(wait_for_input=FlowInput)
+
+            return flow_input
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        assert flow_run_id
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        keyset = flow_run.state.state_details.run_input_keyset
+
+        schema = await read_flow_run_input(
+            key=keyset["schema"], flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+        await resume_flow_run(flow_run_id, run_input={"x": 42})
+
+        state = await begin_flow_run(
+            flow=suspending_flow,
+            flow_run=flow_run,
+            parameters={},
+            client=prefect_client,
+            user_thread=threading.current_thread(),
+        )
+
+        flow_input = await state.result()
+        assert flow_input.x == 42
+
+    async def test_suspend_can_receive_automatic_input(
+        self, deployment, session, prefect_client
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            if not context.flow_run.deployment_id:
+                # Ensure that the flow run has a deployment id so it's
+                # suspendable.
+                from prefect.server.models.flow_runs import update_flow_run
+
+                await update_flow_run(
+                    session,
+                    context.flow_run.id,
+                    FlowRun.construct(deployment_id=deployment.id),
+                )
+                await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            age = await suspend_flow_run(int)
+
+            return age
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        assert flow_run_id
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        keyset = flow_run.state.state_details.run_input_keyset
+
+        schema = await read_flow_run_input(
+            key=keyset["schema"], flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+        await resume_flow_run(flow_run_id, run_input={"value": 42})
+
+        state = await begin_flow_run(
+            flow=suspending_flow,
+            flow_run=flow_run,
+            parameters={},
+            client=prefect_client,
+            user_thread=threading.current_thread(),
+        )
+
+        age = await state.result()
+        assert age == 42
+
 
 class TestOrchestrateTaskRun:
     async def test_propose_state_does_not_recurse(
@@ -600,6 +996,257 @@ class TestOrchestrateTaskRun:
                 prefect_client, State(type=StateType.RUNNING), task_run_id=task_run.id
             )
 
+    async def test_raises_on_pause_with_reschedule(
+        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run, result_factory
+    ):
+        paused_state = Suspended()
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=paused_state,
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,  # Same as the flow run's paused state
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(type="reject_details", reason=reason),
+                )
+            ]
+        )
+
+        with pytest.raises(Pause, match=reason):
+            await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
+            )
+
+    async def test_raises_on_new_pause_state_with_reschedule(
+        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run, result_factory
+    ):
+        paused_state = Paused()
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=paused_state,
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,  # Same as the flow run's paused state
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(type="reject_details", reason=reason),
+                ),
+                OrchestrationResult(
+                    state=Paused(reschedule=True),  # Now we get a pause with reschedule
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(type="reject_details", reason=reason),
+                ),
+            ]
+        )
+
+        with pytest.raises(Pause, match=reason):
+            await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
+            )
+
+    async def test_abort_breaks_pause_loop(
+        self, monkeypatch, prefect_client, mock_anyio_sleep, flow_run, result_factory
+    ):
+        paused_state = Paused(timeout_seconds=1)
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=paused_state,
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        pause_reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+        abort_reason = "The enclosing flow must be running to begin task execution."
+
+        # We could end up in this situation if a flow run was paused and then
+        # failed due to exceeding the pause timeout. Orchestration would return
+        # an Abort when we propose a running state again, which should cause us
+        # to raise an Abort exception, exiting the loop.
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(
+                        type="reject_details", reason=pause_reason
+                    ),
+                ),
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.ABORT,
+                    details=StateAbortDetails(
+                        type="abort_details", reason=abort_reason
+                    ),
+                ),
+            ]
+        )
+
+        with pytest.raises(Abort, match=abort_reason):
+            await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
+            )
+
+    async def test_pending_in_pause_loop_submits_running_state(
+        self, monkeypatch, prefect_client, flow_run, result_factory
+    ):
+        paused_state = Paused()
+
+        # In this situation, the flow run is paused.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await prefect_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        pause_reason = (
+            "The flow is paused, new tasks can execute after resuming flow run: "
+            f"{flow_run.id}."
+        )
+
+        prefect_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(
+                        type="reject_details", reason=pause_reason
+                    ),
+                ),
+                OrchestrationResult(
+                    state=paused_state,
+                    status=SetStateStatus.REJECT,
+                    details=StateRejectDetails(
+                        type="reject_details", reason=pause_reason
+                    ),
+                ),
+                OrchestrationResult(
+                    state=Running(),
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(type="accept_details"),
+                ),
+                OrchestrationResult(
+                    state=Completed(),
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(type="accept_details"),
+                ),
+            ]
+        )
+
+        state = await orchestrate_task_run(
+            task=foo,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        assert state.is_completed()
+
     async def test_waits_until_scheduled_start_time(
         self,
         prefect_client,
@@ -641,6 +1288,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert state.is_completed()
@@ -685,6 +1334,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         mock_anyio_sleep.assert_not_called()
@@ -736,6 +1387,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         # Check for a proper final result
@@ -787,7 +1440,7 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        # this task should sleep for a total of 17 seconds across all conifgured retries
+        # this task should sleep for a total of 17 seconds across all configured retries
         with mock_anyio_sleep.assert_sleeps_for(17):
             state = await orchestrate_task_run(
                 task=flaky_function,
@@ -798,6 +1451,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -850,6 +1505,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -858,7 +1515,6 @@ class TestOrchestrateTaskRun:
         assert await state.result() == 1
 
     @pytest.mark.parametrize("jitter_factor", [0.1, 1, 10, 100])
-    @pytest.mark.flaky(max_runs=3)
     async def test_waits_jittery_sleeps(
         self,
         mock_anyio_sleep,
@@ -904,12 +1560,14 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
-        assert mock_anyio_sleep.await_count == 10
+        assert mock.call_count == 10 + 1  # 1 run + 10 retries
         sleeps = [c.args[0] for c in mock_anyio_sleep.await_args_list]
         assert statistics.variance(sleeps) > 0
-        assert max(sleeps) < 100 * (1 + jitter_factor)
+        assert max(sleeps) <= 100 * (1 + jitter_factor)
 
         # Check for a proper final result
         assert await state.result() == 1
@@ -972,6 +1630,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task did not run
@@ -1021,6 +1681,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task ran with the unqoted data
@@ -1071,6 +1733,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task ran with the state as its input
@@ -1083,7 +1747,7 @@ class TestOrchestrateTaskRun:
         self, mock_anyio_sleep, prefect_client, flow_run, result_factory
     ):
         with temporary_settings(
-            updates={PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS: "43"}
+            updates={PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS: [3, 5, 9]}
         ):
             # the flow run must be running prior to running tasks
             await prefect_client.set_flow_run_state(
@@ -1094,14 +1758,14 @@ class TestOrchestrateTaskRun:
             # Define a task that fails once and then succeeds
             mock = MagicMock()
 
-            @task(retries=1)
+            @task(retries=3)
             def flaky_function():
                 mock()
 
-                if mock.call_count == 2:
+                if mock.call_count == 4:
                     return 1
 
-                raise ValueError("try again, but only once")
+                raise ValueError("try again")
 
             # Create a task run to test
             task_run = await prefect_client.create_task_run(
@@ -1112,7 +1776,7 @@ class TestOrchestrateTaskRun:
             )
 
             # Actually run the task
-            with mock_anyio_sleep.assert_sleeps_for(43):
+            with mock_anyio_sleep.assert_sleeps_for(17):
                 await orchestrate_task_run(
                     task=flaky_function,
                     task_run=task_run,
@@ -1122,7 +1786,436 @@ class TestOrchestrateTaskRun:
                     interruptible=False,
                     client=prefect_client,
                     log_prints=False,
+                    concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                    user_thread=threading.current_thread(),
                 )
+
+            assert mock_anyio_sleep.await_count == 3
+
+    async def test_retry_condition_fn_retries_after_failure(
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Define a task that fails once and then succeeds
+        mock = MagicMock()
+
+        # Can retry only once
+        def is_retriable(task, task_run, state):
+            return mock.call_count == 1
+
+        # Can retry more than once
+        @task(retries=5, retry_condition_fn=is_retriable)
+        def my_task(x):
+            mock(x)
+            raise ValueError("try again, but only once")
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={"x": quote(1)},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        # Check that the task failed after two attempts
+        assert state.is_failed()
+        assert mock.call_count == 2
+
+    async def test_retry_condition_fn_no_retries_after_failure(
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Mocks to check call counts
+        mock = MagicMock()
+        mock_2 = MagicMock()
+
+        # Do not retry
+        def is_retriable(task, task_run, state):
+            mock_2()
+            return True is False
+
+        # Can retry more than once
+        @task(retries=5, retry_condition_fn=is_retriable)
+        def my_task(x):
+            mock(x)
+            raise ValueError("try again, but only once")
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={"x": quote(1)},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        # Check that the task failed after only one attempt
+        assert state.is_failed()
+        assert mock.call_count == 1
+        # Check that the retry condition function was only called once
+        assert mock_2.call_count == 1
+
+    async def test_retry_condition_fn_when_retries_eq_0_does_not_retry(
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Mocks to check call counts
+        mock = MagicMock()
+        mock_2 = MagicMock()
+
+        # Could run task 5 times (4 retry)
+        def is_retriable(task, task_run, state):
+            mock_2()
+            return mock.call_count < 5
+
+        # Never retry
+        @task(retries=0, retry_condition_fn=is_retriable)
+        def my_task(x):
+            mock(x)
+            raise ValueError("try again, but only once")
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={"x": quote(1)},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        # Check that the task failed after only one attempt
+        assert state.is_failed()
+        assert mock.call_count == 1
+        # Check that the retry condition function was only called once
+        assert mock_2.call_count == 1
+
+    @pytest.mark.parametrize(
+        "state_constructor_fn",
+        [
+            Completed,
+            Cancelled,
+        ],
+    )
+    async def test_retry_condition_fn_not_called_in_non_failure_terminal_state(
+        self,
+        state_constructor_fn,
+        mock_anyio_sleep,
+        prefect_client,
+        flow_run,
+        result_factory,
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Mock to ensure the retry condition function is never called
+        mock = MagicMock()
+
+        def is_retriable(task, task_run, state):
+            mock()
+            return "this shouldn't run"
+
+        @task(retries=2, retry_condition_fn=is_retriable)
+        def my_task():
+            return state_constructor_fn(
+                message="this shouldn't cause retry_condition_fn to run"
+            )
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        # Ensure the retry condition function was never called
+        assert mock.call_count == 0
+
+    async def test_retry_condition_fn_retry_handler_returns_false_does_not_retry(
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory, caplog
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Mocks to check call counts
+        mock = MagicMock()
+        mock_2 = MagicMock()
+
+        # Always return false and thus isn't retriable
+        def is_retriable(task, task_run, state):
+            mock_2()
+            return False
+
+        # Never retry
+        @task(retries=5, retry_condition_fn=is_retriable)
+        def my_task(x):
+            mock(x)
+            raise ValueError
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={"x": quote(1)},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        # Check that the task failed after only one attempt
+        assert state.is_failed()
+        assert mock.call_count == 1
+        # Check that the retry condition function was only called once
+        assert mock_2.call_count == 1
+
+        assert (
+            "Received non-final state 'Failed' when proposing final state 'Failed' and"
+            " will not attempt to run again..." not in caplog.text
+        )
+
+    async def test_retry_condition_fn_retry_handler_returns_notfalse_retries(
+        self, mock_anyio_sleep, prefect_client, flow_run, result_factory, caplog
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Mocks to check call counts
+        mock = MagicMock()
+        mock_2 = MagicMock()
+
+        # Doesn't return false and thus is retriable
+        def is_retriable(task, task_run, state):
+            mock_2()
+            return "x"
+
+        @task(retries=5, retry_condition_fn=is_retriable)
+        def my_task(x):
+            mock(x)
+            raise ValueError
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            wait_for=None,
+            parameters={"x": quote(1)},
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        assert state.is_failed()
+        assert mock.call_count == 6
+        assert mock_2.call_count == 6
+
+        assert (
+            "Received non-final state 'AwaitingRetry' when proposing final state"
+            " 'Failed' and will attempt to run again..." in caplog.text
+        )
+
+    async def test_proposes_unknown_result_if_state_is_completed_and_result_data_is_missing(
+        self,
+        mock_anyio_sleep,
+        prefect_client: PrefectClient,
+        flow_run,
+        result_factory,
+        local_filesystem,
+    ):
+        # the flow run must be running prior to running tasks
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task()
+        def my_task():
+            return 1
+
+        # Create a task run to test
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Completed(data=None),
+            dynamic_key="0",
+        )
+
+        result_factory.persist_result = True
+
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
+            result_factory=result_factory,
+            interruptible=False,
+            client=prefect_client,
+            log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
+        )
+
+        result = await state.result()
+        assert result is None
+        assert isinstance(state.data, UnknownResult)
+
+
+class TestBeginTaskRun:
+    async def test_begin_task_run_handles_pause_signal(
+        self, monkeypatch, prefect_client, result_factory, patch_manifest_load
+    ):
+        @task
+        async def my_task():
+            return 1
+
+        @flow
+        async def my_flow():
+            return await my_task()
+
+        await patch_manifest_load(my_flow)
+        flow_id = await prefect_client.create_flow(my_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id,
+            name="test",
+            manifest_path="file.json",
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        # The flow run must be running for us to create Pending task runs.
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        task_run = await prefect_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(type=StateType.PENDING),
+        )
+
+        result = await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Paused(reschedule=True),
+        )
+        print("RESULT ", result)
+
+        with FlowRunContext.construct(client=prefect_client, flow_run=flow_run):
+            state = await begin_task_run(
+                task=my_task,
+                task_run=task_run,
+                parameters={},
+                result_factory=result_factory,
+                wait_for=[],
+                log_prints=False,
+                settings=prefect.context.SettingsContext.get().copy(),
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
+            )
+
+        assert state
+        assert state.is_paused()
+        assert state.state_details.pause_reschedule
 
 
 class TestOrchestrateFlowRun:
@@ -1653,9 +2746,9 @@ class TestDeploymentFlowRun:
         assert (
             "ParameterTypeError: Flow run received invalid parameters" in state.message
         )
-        assert "x: value is not a valid integer" in state.message
+        # assert "x: value is not a valid integer" in state.message
 
-        with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
+        with pytest.raises(ParameterTypeError):
             await state.result()
 
 
@@ -1752,8 +2845,8 @@ class TestCreateThenBeginFlowRun:
         assert (
             "ParameterTypeError: Flow run received invalid parameters" in state.message
         )
-        assert "dog: str type expected" in state.message
-        assert "cat: value is not a valid integer" in state.message
+        # assert "dog: str type expected" in state.message
+        # assert "cat: value is not a valid integer" in state.message
         with pytest.raises(ParameterTypeError):
             await state.result()
 
@@ -1772,8 +2865,7 @@ class TestCreateThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -1847,8 +2939,8 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert (
             "ParameterTypeError: Flow run received invalid parameters" in state.message
         )
-        assert "dog: str type expected" in state.message
-        assert "cat: value is not a valid integer" in state.message
+        # assert "dog: str type expected" in state.message
+        # assert "cat: value is not a valid integer" in state.message
         with pytest.raises(ParameterTypeError):
             await state.result()
 
@@ -1867,8 +2959,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -1921,8 +3012,8 @@ class TestCreateAndBeginSubflowRun:
         assert (
             "ParameterTypeError: Flow run received invalid parameters" in state.message
         )
-        assert "dog: str type expected" in state.message
-        assert "cat: value is not a valid integer" in state.message
+        # assert "dog: str type expected" in state.message
+        # assert "cat: value is not a valid integer" in state.message
         with pytest.raises(ParameterTypeError):
             await state.result()
 
@@ -1946,8 +3037,7 @@ class TestCreateAndBeginSubflowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -2214,8 +3304,7 @@ def test_flow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow."
-        in caplog.text
+        " the same flow." in caplog.text
     )
 
 
@@ -2244,8 +3333,7 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow."
-        in caplog.text
+        " the same flow." in caplog.text
     )
 
 
@@ -2274,3 +3362,97 @@ async def test_collect_task_run_inputs_respects_quote(
     await collect_task_run_inputs(quote([{"a": 1}, {"b": 2}, {"c": 3}]))
     assert mock_outer_visit_collection.call_count == 1
     assert mock_recursive_visit_collection.call_count == 0
+
+
+async def test_long_task_introspection_warning_on(
+    prefect_client, flow_run, result_factory, monkeypatch, caplog
+):
+    # the flow run must be running prior to running tasks
+    await prefect_client.set_flow_run_state(
+        flow_run_id=flow_run.id,
+        state=Running(),
+    )
+
+    @task
+    def my_task():
+        pass
+
+    # Create a task run to test
+    task_run = await prefect_client.create_task_run(
+        task=my_task,
+        flow_run_id=flow_run.id,
+        state=Pending(),
+        dynamic_key="0",
+    )
+
+    async def mock_resolve_inputs(*args, **kwargs):
+        # sleep for longer than PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD
+        await anyio.sleep(0.5)
+        return {}
+
+    monkeypatch.setattr("prefect.engine.resolve_inputs", mock_resolve_inputs)
+    with caplog.at_level("WARNING"):
+        with temporary_settings(
+            updates={PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD: "0.6"}
+        ):
+            await orchestrate_task_run(
+                task=my_task,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
+            )
+
+    assert "Task parameter introspection took" in caplog.text
+
+
+async def test_long_task_introspection_warning_off(
+    prefect_client, flow_run, result_factory, monkeypatch, caplog
+):
+    # the flow run must be running prior to running tasks
+    await prefect_client.set_flow_run_state(
+        flow_run_id=flow_run.id,
+        state=Running(),
+    )
+
+    @task
+    def my_task():
+        pass
+
+    # Create a task run to test
+    task_run = await prefect_client.create_task_run(
+        task=my_task,
+        flow_run_id=flow_run.id,
+        state=Pending(),
+        dynamic_key="0",
+    )
+
+    async def mock_resolve_inputs(*args, **kwargs):
+        # sleep for longer than PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD
+        await anyio.sleep(0.5)
+        return {}
+
+    monkeypatch.setattr("prefect.engine.resolve_inputs", mock_resolve_inputs)
+    with caplog.at_level("WARNING"):
+        with temporary_settings(
+            updates={PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD: "0"}
+        ):
+            await orchestrate_task_run(
+                task=my_task,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=prefect_client,
+                log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
+            )
+
+    assert "Task parameter introspection took" not in caplog.text

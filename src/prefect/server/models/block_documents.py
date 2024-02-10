@@ -29,6 +29,11 @@ async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
     db: PrefectDBInterface,
 ):
+    # lookup block type name and copy to the block document table
+    block_type = await models.block_types.read_block_type(
+        session=session, block_type_id=block_document.block_type_id
+    )
+
     # anonymous block documents can be given a random name if none is provided
     if block_document.is_anonymous and not block_document.name:
         name = f"anonymous-{uuid4()}"
@@ -39,6 +44,7 @@ async def create_block_document(
         name=name,
         block_schema_id=block_document.block_schema_id,
         block_type_id=block_document.block_type_id,
+        block_type_name=block_type.name,
         is_anonymous=block_document.is_anonymous,
     )
 
@@ -254,20 +260,13 @@ async def read_block_document_by_name(
 
 
 @inject_db
-async def read_block_documents(
-    session: AsyncSession,
+def _apply_block_document_filters(
+    query,
     db: PrefectDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
-    include_secrets: bool = False,
-    offset: Optional[int] = None,
-    limit: Optional[int] = None,
+    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
 ):
-    """
-    Read block documents with an optional limit and offset
-    """
-
     # if no filter is provided, one is created that excludes anonymous blocks
     if block_document_filter is None:
         block_document_filter = schemas.filters.BlockDocumentFilter(
@@ -275,27 +274,54 @@ async def read_block_documents(
         )
 
     # --- Build an initial query that filters for the requested block documents
-    filtered_block_documents_query = sa.select(db.BlockDocument.id).where(
-        block_document_filter.as_sql_filter(db)
-    )
+    query = query.where(block_document_filter.as_sql_filter(db=db))
 
     if block_type_filter is not None:
         block_type_exists_clause = sa.select(db.BlockType).where(
             db.BlockType.id == db.BlockDocument.block_type_id,
-            block_type_filter.as_sql_filter(db),
+            block_type_filter.as_sql_filter(db=db),
         )
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            block_type_exists_clause.exists()
-        )
+        query = query.where(block_type_exists_clause.exists())
 
     if block_schema_filter is not None:
         block_schema_exists_clause = sa.select(db.BlockSchema).where(
             db.BlockSchema.id == db.BlockDocument.block_schema_id,
-            block_schema_filter.as_sql_filter(db),
+            block_schema_filter.as_sql_filter(db=db),
         )
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            block_schema_exists_clause.exists()
-        )
+        query = query.where(block_schema_exists_clause.exists())
+
+    return query
+
+
+@inject_db
+async def read_block_documents(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
+    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
+    include_secrets: bool = False,
+    sort: Optional[
+        schemas.sorting.BlockDocumentSort
+    ] = schemas.sorting.BlockDocumentSort.NAME_ASC,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
+):
+    """
+    Read block documents with an optional limit and offset
+    """
+    # --- Build an initial query that filters for the requested block documents
+    filtered_block_documents_query = sa.select(db.BlockDocument.id)
+    filtered_block_documents_query = _apply_block_document_filters(
+        query=filtered_block_documents_query,
+        db=db,
+        block_document_filter=block_document_filter,
+        block_type_filter=block_type_filter,
+        block_schema_filter=block_schema_filter,
+    )
+    filtered_block_documents_query = filtered_block_documents_query.order_by(
+        sort.as_sql_sort(db)
+    )
 
     if offset is not None:
         filtered_block_documents_query = filtered_block_documents_query.offset(offset)
@@ -349,7 +375,7 @@ async def read_block_documents(
         )
         .select_from(all_block_documents_query)
         .join(db.BlockDocument, db.BlockDocument.id == all_block_documents_query.c.id)
-        .order_by(db.BlockDocument.name)
+        .order_by(sort.as_sql_sort(db))
     )
 
     result = await session.execute(
@@ -402,6 +428,30 @@ async def read_block_documents(
         )
         block_document.block_schema = corresponding_block_schema
     return fully_constructed_block_documents
+
+
+@inject_db
+async def count_block_documents(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
+    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
+) -> int:
+    """
+    Count block documents that match the filters.
+    """
+    query = sa.select(sa.func.count()).select_from(db.BlockDocument)
+
+    query = _apply_block_document_filters(
+        query=query,
+        block_document_filter=block_document_filter,
+        block_schema_filter=block_schema_filter,
+        block_type_filter=block_type_filter,
+    )
+
+    result = await session.execute(query)
+    return result.scalar()  # type: ignore
 
 
 @inject_db

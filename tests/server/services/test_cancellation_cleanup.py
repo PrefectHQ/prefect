@@ -90,6 +90,34 @@ async def orphaned_subflow_run_maker(session, flow):
     return subflow_run_maker
 
 
+@pytest.fixture
+async def orphaned_subflow_run_from_deployment_maker(session, flow, deployment):
+    async def subflow_run_maker(flow_run, state_constructor):
+        async with session.begin():
+            virtual_task = await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.core.TaskRun(
+                    flow_run_id=flow_run.id,
+                    task_key="a virtual task for subflow from deployment",
+                    dynamic_key="a virtual dynamic key for subflow from deployment",
+                    state=state_constructor(),
+                ),
+            )
+
+            return await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    parent_task_run_id=virtual_task.id,
+                    state=state_constructor(),
+                    end_time=THE_PAST,
+                    deployment_id=deployment.id,
+                ),
+            )
+
+    return subflow_run_maker
+
+
 async def test_all_state_types_are_tested():
     assert set(NON_TERMINAL_STATE_CONSTRUCTORS.keys()).union(
         set(TERMINAL_STATE_CONSTRUCTORS.keys())
@@ -102,6 +130,7 @@ async def test_service_cleans_up_nonterminal_runs(
     cancelled_flow_run,
     orphaned_task_run_maker,
     orphaned_subflow_run_maker,
+    orphaned_subflow_run_from_deployment_maker,
     state_constructor,
 ):
     orphaned_task_run = await orphaned_task_run_maker(
@@ -110,17 +139,25 @@ async def test_service_cleans_up_nonterminal_runs(
     orphaned_subflow_run = await orphaned_subflow_run_maker(
         cancelled_flow_run, state_constructor[1]
     )
+    orphaned_subflow_run_from_deployment = (
+        await orphaned_subflow_run_from_deployment_maker(
+            cancelled_flow_run, state_constructor[1]
+        )
+    )
     assert cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == state_constructor[0]
     assert orphaned_subflow_run.state.type == state_constructor[0]
+    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
     await CancellationCleanup(handle_signals=False).start(loops=1)
     await session.refresh(orphaned_task_run)
     await session.refresh(orphaned_subflow_run)
+    await session.refresh(orphaned_subflow_run_from_deployment)
 
     assert cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == "CANCELLED"
     assert orphaned_subflow_run.state.type == "CANCELLED"
+    assert orphaned_subflow_run_from_deployment.state.type == "CANCELLING"
 
 
 @pytest.mark.parametrize("state_constructor", NON_TERMINAL_STATE_CONSTRUCTORS.items())
@@ -129,6 +166,7 @@ async def test_service_ignores_old_cancellations(
     old_cancelled_flow_run,
     orphaned_task_run_maker,
     orphaned_subflow_run_maker,
+    orphaned_subflow_run_from_deployment_maker,
     state_constructor,
 ):
     orphaned_task_run = await orphaned_task_run_maker(
@@ -137,18 +175,26 @@ async def test_service_ignores_old_cancellations(
     orphaned_subflow_run = await orphaned_subflow_run_maker(
         old_cancelled_flow_run, state_constructor[1]
     )
+    orphaned_subflow_run_from_deployment = (
+        await orphaned_subflow_run_from_deployment_maker(
+            old_cancelled_flow_run, state_constructor[1]
+        )
+    )
     assert old_cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == state_constructor[0]
     assert orphaned_subflow_run.state.type == state_constructor[0]
+    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
     await CancellationCleanup(handle_signals=False).start(loops=1)
     await session.refresh(orphaned_task_run)
     await session.refresh(orphaned_subflow_run)
+    await session.refresh(orphaned_subflow_run_from_deployment)
 
     # tasks are ignored, but subflows will still be cancelled
     assert old_cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == state_constructor[0]
     assert orphaned_subflow_run.state.type == "CANCELLED"
+    assert orphaned_subflow_run_from_deployment.state.type == "CANCELLING"
 
 
 @pytest.mark.parametrize("state_constructor", TERMINAL_STATE_CONSTRUCTORS.items())
@@ -157,6 +203,7 @@ async def test_service_leaves_terminal_runs_alone(
     cancelled_flow_run,
     orphaned_task_run_maker,
     orphaned_subflow_run_maker,
+    orphaned_subflow_run_from_deployment_maker,
     state_constructor,
 ):
     orphaned_task_run = await orphaned_task_run_maker(
@@ -165,14 +212,23 @@ async def test_service_leaves_terminal_runs_alone(
     orphaned_subflow_run = await orphaned_subflow_run_maker(
         cancelled_flow_run, state_constructor[1]
     )
+    orphaned_subflow_run_from_deployment = (
+        await orphaned_subflow_run_from_deployment_maker(
+            cancelled_flow_run, state_constructor[1]
+        )
+    )
+
     assert cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == state_constructor[0]
     assert orphaned_subflow_run.state.type == state_constructor[0]
+    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
     await CancellationCleanup(handle_signals=False).start(loops=1)
     await session.refresh(orphaned_task_run)
     await session.refresh(orphaned_subflow_run)
+    await session.refresh(orphaned_subflow_run_from_deployment)
 
     assert cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == state_constructor[0]
     assert orphaned_subflow_run.state.type == state_constructor[0]
+    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]

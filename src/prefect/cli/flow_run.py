@@ -1,6 +1,7 @@
 """
 Command line interface for working with flow runs
 """
+
 import logging
 import os
 from typing import List, Optional
@@ -9,7 +10,7 @@ from uuid import UUID
 import httpx
 import pendulum
 import typer
-from fastapi import status
+from prefect._vendor.starlette import status
 from rich.pretty import Pretty
 from rich.table import Table
 
@@ -141,7 +142,7 @@ async def cancel(id: UUID):
             f" '{result.details.reason}'"
         )
 
-    exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
+    exit_with_success(f"Flow run '{id}' was successfully scheduled for cancellation.")
 
 
 @flow_run_app.command()
@@ -267,7 +268,7 @@ async def logs(
 
 @flow_run_app.command()
 async def execute(
-    id: Optional[UUID] = typer.Argument(None, help="ID of the flow run to execute")
+    id: Optional[UUID] = typer.Argument(None, help="ID of the flow run to execute"),
 ):
     if id is None:
         environ_flow_id = os.environ.get("PREFECT__FLOW_RUN_ID")
@@ -275,6 +276,6 @@ async def execute(
             id = UUID(environ_flow_id)
 
     if id is None:
-        exit_with_error("Cloud not determine the ID of the flow run to execute.")
+        exit_with_error("Could not determine the ID of the flow run to execute.")
 
     await Runner().execute_flow_run(id)

@@ -3,8 +3,15 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import Extra, Field, PrivateAttr, root_validator, validator
-from pydantic.fields import ModelField
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic.v1.fields import ModelField
+else:
+    from pydantic import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic.fields import ModelField
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
@@ -190,8 +197,8 @@ class Trigger(PrefectBaseModel):
     for_each: Set[str] = Field(
         default_factory=set,
         description=(
-            "Evalute the Automation separately for each distinct value of these labels "
-            "on the resource"
+            "Evaluate the Automation separately for each distinct value of these labels"
+            " on the resource"
         ),
     )
     posture: Posture = Field(
@@ -334,7 +341,7 @@ class DeploymentTrigger(ResourceTrigger):
     def owner_resource(self) -> Optional[str]:
         return f"prefect.deployment.{self._deployment_id}"
 
-    def actions(self) -> List[ActionTypes]:
+    def actions(self) -> List[RunDeployment]:
         assert self._deployment_id
         return [
             RunDeployment(

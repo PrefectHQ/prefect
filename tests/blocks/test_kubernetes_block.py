@@ -3,7 +3,13 @@ import re
 from pathlib import Path
 from typing import Dict
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 import yaml
 from kubernetes.client import ApiClient

@@ -6,7 +6,13 @@ import traceback
 from types import ModuleType, TracebackType
 from typing import Callable, Dict, Iterable, List, Optional, Type
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from httpx._exceptions import HTTPStatusError
 from rich.traceback import Traceback
 from typing_extensions import Self
@@ -290,6 +296,10 @@ class Pause(PrefectSignal):
     Raised when a flow run is PAUSED and needs to exit for resubmission.
     """
 
+    def __init__(self, *args, state=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.state = state
+
 
 class ExternalSignal(BaseException):
     """
@@ -380,7 +390,7 @@ class InfrastructureNotFound(PrefectException):
 
 class InfrastructureNotAvailable(PrefectException):
     """
-    Raised when infrastructure is not accessable from the current machine. For example,
+    Raised when infrastructure is not accessible from the current machine. For example,
     if a process was spawned on another machine it cannot be managed.
     """
 
@@ -391,3 +401,7 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
+
+
+class FlowRunWaitTimeout(PrefectException):
+    """Raised when a flow run takes longer than a given timeout"""

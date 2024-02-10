@@ -10,15 +10,10 @@ jobs:
   create_helm_release:
     runs-on: ubuntu-latest
     steps:
-      - name: Get today's formatted date
-        id: get_date
-        run: echo "value=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
       - name: Create prefect-helm release
         run: |
-          gh release create ${{ steps.get_date.outputs.value }} \
+          gh workflow run helm-release.yaml \
             --repo PrefectHQ/prefect-helm \
-            --generate-notes \
-            --notes "Packaged with Prefect version \
-            [${{ github.ref_name }}](https://github.com/PrefectHQ/prefect/releases/tag/${{ github.ref_name }})"
+            --ref main
         env:
-          GH_TOKEN: ${{ secrets.PREFECT_HELM_CONTENTS_RW }}
+          GH_TOKEN: ${{ secrets.PREFECT_HELM_ACTIONS_RW }}

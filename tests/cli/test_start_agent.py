@@ -6,6 +6,8 @@ import tempfile
 import anyio
 import pytest
 
+import prefect.server.models as models
+import prefect.server.schemas as schemas
 from prefect.settings import get_current_settings
 from prefect.utilities.processutils import open_process
 
@@ -22,6 +24,24 @@ async def safe_shutdown(process):
         # try twice in case process.wait() hangs
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await process.wait()
+
+
+@pytest.fixture(autouse=True)
+async def ensure_default_agent_pool_exists(session):
+    # The default agent work pool is created by a migration, but is cleared on
+    # consecutive test runs. This fixture ensures that the default agent work
+    # pool exists before each test.
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    if default_work_pool is None:
+        await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
+            ),
+        )
+        await session.commit()
 
 
 @pytest.fixture(scope="function")
@@ -93,7 +113,6 @@ class TestAgentSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    @pytest.mark.flaky(max_runs=2)
     async def test_sigterm_sends_sigterm_directly(self, agent_process):
         agent_process.send_signal(signal.SIGTERM)
         await safe_shutdown(agent_process)

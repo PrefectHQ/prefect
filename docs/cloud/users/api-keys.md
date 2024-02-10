@@ -10,19 +10,26 @@ search:
 
 # Manage Prefect Cloud API Keys <span class="badge cloud"></span>
 
-API keys enable you to authenticate a local environment to work with Prefect Cloud. See [Configure execution environment](#configure-execution-environment) for details on how API keys are configured in your execution environment.
+API keys enable you to authenticate a local environment to work with Prefect Cloud.
 
-See [Configure Local Environments](/ui/cloud-local-environment/) for details on setting up access to Prefect Cloud from a local development environment or remote execution environment.
+If you run `prefect cloud login` from your CLI, you'll have the choice to authenticate through your browser or by pasting an API key.
+
+If you choose to authenticate through your browser, you'll be directed to an authorization page.
+After you grant approval to connect, you'll be redirected to the CLI and the API key will be saved to your local [Prefect profile](/guides/settings/).
+
+If you choose to authenticate by pasting an API key, you'll need to create an API key in the Prefect Cloud UI first.
 
 ## Create an API key
 
-To create an API key, select the account icon at the bottom-left corner of the UI and select your account name. This displays your account profile.
+To create an API key, select the account icon at the bottom-left corner of the UI.
 
-Select the **API Keys** tab. This displays a list of previously generated keys and lets you create new API keys or delete keys.
+Select **API Keys**.
+The page displays a list of previously generated keys and lets you create new API keys or delete keys.
 
 ![Viewing and editing API keys in the Cloud UI.](/img/ui/cloud-api-keys.png)
 
-Select the **+** button to create a new API key. You're prompted to provide a name for the key and, optionally, an expiration date. Select **Create API Key** to generate the key.
+Select the **+** button to create a new API key.
+Provide a name for the key and an expiration date.
 
 ![Creating an API key in the Cloud UI.](/img/ui/cloud-new-api-key.png)
 
@@ -34,10 +41,10 @@ Note that API keys cannot be revealed again in the UI after you generate them, s
 prefect cloud login -k '<my-api-key>'
 ```
 
-## Service account API keys <span class="badge orgs"></span>
+## Service account API keys <span class="badge pro"></span><span class="badge enterprise"></span>
 
-Service accounts are a feature of Prefect Cloud [organizations](/cloud/organizations/) that enable you to create a Prefect Cloud API key that is not associated with a user account. 
+Service accounts are a feature of Prefect Cloud [Pro and Enterprise tier plans](https://www.prefect.io/pricing) that enable you to create a Prefect Cloud API key that is not associated with a user account.
 
-Service accounts are typically used to configure API access for running agents or executing flow runs on remote infrastructure. Events and logs for flow runs in those environments are then associated with the service account rather than a user, and API access may be managed or revoked by configuring or removing the service account without disrupting user access.
+Service accounts are typically used to configure API access for running workers or executing flow runs on remote infrastructure. Events and logs for flow runs in those environments are then associated with the service account rather than a user, and API access may be managed or revoked by configuring or removing the service account without disrupting user access.
 
-See the [service accounts](../service-accounts/) documentation for more information about creating and managing service accounts in a Prefect Cloud organization.
+See the [service accounts](../service-accounts/) documentation for more information about creating and managing service accounts in Prefect Cloud.

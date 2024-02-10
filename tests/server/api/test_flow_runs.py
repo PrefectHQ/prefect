@@ -1,12 +1,24 @@
-from typing import List
-from uuid import uuid4
+from typing import List, Optional
+from unittest import mock
+from uuid import UUID, uuid4
 
+import orjson
 import pendulum
-import pydantic
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 import sqlalchemy as sa
-from fastapi import status
+from prefect._vendor.starlette import status
 
+from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.core import TaskRunResult
@@ -20,7 +32,7 @@ class TestCreateFlowRun:
             "/flow_runs/",
             json=actions.FlowRunCreate(
                 flow_id=flow.id,
-                name="orange you glad i didnt say yellow salamander",
+                name="orange you glad i didn't say yellow salamander",
                 state=states.Pending(),
             ).dict(json_compatible=True),
         )
@@ -29,7 +41,7 @@ class TestCreateFlowRun:
         assert response.json()["id"]
         assert response.json()["state"]["type"] == "PENDING"
         assert (
-            response.json()["name"] == "orange you glad i didnt say yellow salamander"
+            response.json()["name"] == "orange you glad i didn't say yellow salamander"
         )
 
         flow_run = await models.flow_runs.read_flow_run(
@@ -259,6 +271,34 @@ class TestReadFlowRun:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(flow_run.id)
         assert response.json()["flow_id"] == str(flow.id)
+
+    async def test_read_flow_run_like_the_engine_does(self, flow, flow_run, client):
+        """Regression test for the hex format of UUIDs in `PREFECT__FLOW_RUN_ID`
+
+        The only route that is requested in this way is `GET /flow_runs/{id}`; other
+        methods aren't affected because they are based on prior requests for flow runs
+        and will use a fully-formatted UUID with dashes.
+        """
+
+        flow_run_id = flow_run.id.hex
+        assert "-" not in flow_run_id
+        assert len(flow_run_id) == 32
+
+        response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == str(flow_run.id)
+        assert response.json()["flow_id"] == str(flow.id)
+
+    async def test_read_flow_run_with_invalid_id_is_rejected(self, client):
+        """Additional safety check with for the above regression test to confirm that
+        we're not attempting query with any old string as a flow run ID."""
+        with mock.patch("prefect.server.models.flow_runs.read_flow_run") as mock_read:
+            response = await client.get("/flow_runs/THISAINTIT")
+            # Ideally this would be a 404, but we're letting FastAPI take care of this
+            # at the parameter parsing level, so it's a 422
+            assert response.status_code == 422
+
+        mock_read.assert_not_called()
 
     async def test_read_flow_run_with_state(self, flow_run, client, session):
         state_id = uuid4()
@@ -645,6 +685,131 @@ class TestReadFlowRuns:
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
 
+    @pytest.fixture
+    async def parent_flow_run(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Pending(),
+            ),
+        )
+        await session.commit()
+        return flow_run
+
+    @pytest.fixture
+    async def child_runs(
+        self,
+        flow,
+        parent_flow_run,
+        session,
+    ):
+        children = []
+        for i in range(5):
+            dummy_task = await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.core.TaskRun(
+                    flow_run_id=parent_flow_run.id,
+                    name=f"dummy-{i}",
+                    task_key=f"dummy-{i}",
+                    dynamic_key=f"dummy-{i}",
+                ),
+            )
+            children.append(
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=flow.id,
+                        flow_version="1.0",
+                        state=schemas.states.Pending(),
+                        parent_task_run_id=dummy_task.id,
+                    ),
+                )
+            )
+        return children
+
+    @pytest.fixture
+    async def grandchild_runs(self, flow, child_runs, session):
+        grandchildren = []
+        for child in child_runs:
+            for i in range(3):
+                dummy_task = await models.task_runs.create_task_run(
+                    session=session,
+                    task_run=schemas.core.TaskRun(
+                        flow_run_id=child.id,
+                        name=f"dummy-{i}",
+                        task_key=f"dummy-{i}",
+                        dynamic_key=f"dummy-{i}",
+                    ),
+                )
+                grandchildren.append(
+                    await models.flow_runs.create_flow_run(
+                        session=session,
+                        flow_run=schemas.core.FlowRun(
+                            flow_id=flow.id,
+                            flow_version="1.0",
+                            state=schemas.states.Pending(),
+                            parent_task_run_id=dummy_task.id,
+                        ),
+                    )
+                )
+        return grandchildren
+
+    async def test_read_subflow_runs(
+        self,
+        client,
+        parent_flow_run,
+        child_runs,
+        # included to make sure we're only going 1 level deep
+        grandchild_runs,
+        # included to make sure we're not bringing in extra flow runs
+        flow_runs,
+    ):
+        """We should be able to find all subflow runs of a given flow run."""
+        subflow_filter = {
+            "flow_runs": schemas.filters.FlowRunFilter(
+                parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
+                    any_=[parent_flow_run.id]
+                )
+            ).dict(json_compatible=True)
+        }
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=subflow_filter,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == len(child_runs)
+
+        returned = {UUID(run["id"]) for run in response.json()}
+        expected = {run.id for run in child_runs}
+        assert returned == expected
+
+    async def test_read_subflow_runs_non_existant(
+        self,
+        client,
+        # including these to make sure we aren't bringing in extra flow runs
+        parent_flow_run,
+        child_runs,
+        grandchild_runs,
+        flow_runs,
+    ):
+        subflow_filter = {
+            "flow_runs": schemas.filters.FlowRunFilter(
+                parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
+                    any_=[uuid4()]
+                )
+            ).dict(json_compatible=True)
+        }
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=subflow_filter,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 0
+
 
 class TestReadFlowRunGraph:
     @pytest.fixture
@@ -746,6 +911,76 @@ class TestDeleteFlowRuns:
 
 
 class TestResumeFlowrun:
+    @pytest.fixture
+    async def paused_flow_run_waiting_for_input(
+        self,
+        session,
+        flow,
+    ):
+        class SimpleInput(RunInput):
+            approved: bool
+
+        state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(state)
+        state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, flow_version="1.0", state=state
+            ),
+        )
+
+        assert flow_run
+
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="paused-1-schema",
+                value=orjson.dumps(SimpleInput.schema()).decode(),
+            ),
+        )
+
+        await session.commit()
+
+        return flow_run
+
+    @pytest.fixture
+    async def paused_flow_run_waiting_for_input_with_default(
+        self,
+        session,
+        flow,
+    ):
+        class SimpleInput(RunInput):
+            approved: Optional[bool] = True
+
+        state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(state)
+        state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, flow_version="1.0", state=state
+            ),
+        )
+
+        assert flow_run
+
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="paused-1-schema",
+                value=orjson.dumps(SimpleInput.schema()).decode(),
+            ),
+        )
+
+        await session.commit()
+
+        return flow_run
+
     async def test_resuming_blocking_pauses(
         self, blocking_paused_flow_run, client, session
     ):
@@ -809,6 +1044,131 @@ class TestResumeFlowrun:
             session=session, flow_run_id=flow_run_id
         )
         assert resumed_run.state.type == "FAILED"
+
+    async def test_resume_flow_run_waiting_for_input_without_input_succeeds_with_defaults(
+        self, client, paused_flow_run_waiting_for_input_with_default
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+    async def test_resume_flow_run_waiting_for_input_without_input_fails_if_required(
+        self,
+        client,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert (
+            response.json()["details"]["reason"]
+            == "Run input validation failed: 'approved' is a required property"
+        )
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
+        )
+
+    async def test_cannot_resume_flow_run_waiting_for_input_missing_schema(
+        self,
+        client,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.delete(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input/paused-1-schema",
+        )
+        assert response.status_code == 204
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": True}},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert response.json()["details"]["reason"] == "Run input schema not found."
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
+        )
+
+    async def test_cannot_resume_flow_run_waiting_for_input_schema_not_json(
+        self,
+        client,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.delete(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input/paused-1-schema",
+        )
+        assert response.status_code == 204
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/input",
+            json=dict(
+                key="paused-1-schema",
+                value="not json",
+            ),
+        )
+        assert response.status_code == 201
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": True}},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert (
+            response.json()["details"]["reason"]
+            == "Run input schema is not valid JSON."
+        )
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
+        )
+
+    async def test_cannot_resume_flow_run_waiting_for_input_schema_fails_validation(
+        self,
+        client,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": "not a bool!"}},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert (
+            response.json()["details"]["reason"]
+            == "Run input validation failed: 'not a bool!' is not of type 'boolean'"
+        )
+        assert response.json()["state"]["id"] == str(
+            paused_flow_run_waiting_for_input.state_id
+        )
+
+    async def test_resume_flow_run_waiting_for_input_valid_data(
+        self,
+        client,
+        session,
+        paused_flow_run_waiting_for_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": True}},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input.id,
+            key="paused-1-response",
+        )
+
+        assert flow_run_input
+        assert orjson.loads(flow_run_input.value) == {"approved": True}
 
 
 class TestSetFlowRunState:
@@ -970,6 +1330,78 @@ class TestSetFlowRunState:
             )
             <= 10
         )
+
+    @pytest.fixture
+    async def pending_flow_run(self, session, flow):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, flow_version="0.1", state=schemas.states.Pending()
+            ),
+        )
+        await session.commit()
+        return model
+
+    async def test_pending_to_pending(self, pending_flow_run, client):
+        response = await client.post(
+            f"flow_runs/{pending_flow_run.id}/set_state",
+            json=dict(state=dict(type="PENDING", name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+        assert (
+            api_response.details.reason
+            == "This run is in a PENDING state and cannot transition to a PENDING"
+            " state."
+        )
+
+    @pytest.fixture
+    async def transition_id(self) -> UUID:
+        return uuid4()
+
+    @pytest.fixture
+    async def pending_flow_run_with_transition_id(self, session, flow, transition_id):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id,
+                flow_version="0.1",
+                state=schemas.states.Pending(
+                    state_details={"transition_id": str(transition_id)}
+                ),
+            ),
+        )
+        await session.commit()
+        return model
+
+    async def test_pending_to_pending_same_transition_id(
+        self,
+        pending_flow_run_with_transition_id,
+        client,
+        transition_id,
+    ):
+        response = await client.post(
+            f"flow_runs/{pending_flow_run_with_transition_id.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="PENDING",
+                    name="Test State",
+                    state_details={"transition_id": str(transition_id)},
+                )
+            ),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.REJECT
+        assert (
+            api_response.details.reason
+            == "This run has already made this state transition."
+        )
+        # the transition is rejected and the returned state should be the existing state in the db
+        assert api_response.state.id == pending_flow_run_with_transition_id.state_id
 
 
 class TestManuallyRetryingFlowRuns:
@@ -1135,3 +1567,185 @@ class TestFlowRunLateness:
         # lateness is the iteration count of the loop. We're only looking at
         # the last two flow runs in that list so avg(3 + 4) == 3.5
         assert response.content == b"3.5"
+
+
+class TestFlowRunInput:
+    @pytest.fixture
+    async def flow_run_input(self, session: AsyncSession, flow_run):
+        flow_run_input = await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        await session.commit()
+
+        return flow_run_input
+
+    async def test_create_flow_run_input(
+        self, flow_run, client: AsyncClient, session: AsyncSession
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 201
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=flow_run.id, key="structured-key-1"
+        )
+        assert flow_run_input.flow_run_id == flow_run.id
+        assert flow_run_input.key == "structured-key-1"
+        assert flow_run_input.value == "really important stuff"
+
+    async def test_404_non_existent_flow_run(
+        self, client: AsyncClient, session: AsyncSession
+    ):
+        not_a_flow_run_id = str(uuid4())
+        response = await client.post(
+            f"/flow_runs/{not_a_flow_run_id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 404
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=not_a_flow_run_id, key="structured-key-1"
+        )
+        assert flow_run_input is None
+
+    async def test_409_key_conflict(
+        self, flow_run, client: AsyncClient, session: AsyncSession
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 201
+
+        # Now try to create the same key again, which should result in a 409
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input",
+            json=dict(
+                key="structured-key-1",
+                value="really important stuff",
+            ),
+        )
+
+        assert response.status_code == 409
+
+    async def test_filter_flow_run_input(self, client: AsyncClient, flow_run_input):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "structured"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert schemas.core.FlowRunInput.parse_obj(response.json()[0]) == flow_run_input
+
+    async def test_filter_flow_run_input_limits_response(
+        self, client: AsyncClient, session: AsyncSession, flow_run
+    ):
+        for i in range(100):
+            await models.flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=flow_run.id,
+                    key=f"structured-key-{i}",
+                    value="really important stuff",
+                ),
+            )
+        await session.commit()
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input/filter",
+            json={"prefix": "structured", "limit": 10},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 10
+        assert response.json()[0]["key"] == "structured-key-0"
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input/filter",
+            json={"prefix": "structured", "limit": 20},
+        )
+
+        assert response.status_code == 200
+        assert len(response.json()) == 20
+        assert response.json()[-1]["key"] == "structured-key-19"
+
+    async def test_filter_flow_run_input_excludes_keys(
+        self,
+        client: AsyncClient,
+        flow_run_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "structured", "exclude_keys": [flow_run_input.key]},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
+    async def test_filter_flow_run_input_no_matches(
+        self,
+        client: AsyncClient,
+        flow_run_input,
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
+            json={"prefix": "big-dawg"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
+    async def test_read_flow_run_input(self, client: AsyncClient, flow_run_input):
+        response = await client.get(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",
+        )
+        assert response.status_code == 200
+        assert response.content.decode() == flow_run_input.value
+
+    async def test_404_read_flow_run_input_no_matching_input(
+        self, client: AsyncClient, flow_run
+    ):
+        response = await client.get(
+            f"/flow_runs/{flow_run.id}/input/missing-key",
+        )
+        assert response.status_code == 404
+
+    async def test_delete_flow_run_input(
+        self, client: AsyncClient, session: AsyncSession, flow_run_input
+    ):
+        response = await client.delete(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",
+        )
+        assert response.status_code == 204
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=flow_run_input.flow_run_id,
+            key=flow_run_input.key,
+        )
+        assert flow_run_input is None
+
+    async def test_404_delete_flow_run_input_no_matching_input(
+        self, client: AsyncClient, flow_run_input
+    ):
+        response = await client.delete(
+            f"/flow_runs/{flow_run_input.flow_run_id}/input/missing-key",
+        )
+        assert response.status_code == 404

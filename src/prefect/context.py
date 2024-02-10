@@ -11,6 +11,7 @@ import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
+from functools import update_wrapper
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -28,7 +29,13 @@ from typing import (
 
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, Field, PrivateAttr
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, PrivateAttr
+else:
+    from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging
 import prefect.logging.configuration
@@ -130,9 +137,9 @@ class PrefectObjectRegistry(ContextModel):
     )
 
     # Failures will be a tuple of (exception, instance, args, kwargs)
-    _instance_init_failures: Dict[Type[T], List[Tuple[Exception, T, Tuple, Dict]]] = (
-        PrivateAttr(default_factory=lambda: defaultdict(list))
-    )
+    _instance_init_failures: Dict[
+        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
+    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
 
     block_code_execution: bool = False
     capture_failures: bool = False
@@ -166,17 +173,17 @@ class PrefectObjectRegistry(ContextModel):
         )
 
     @classmethod
-    def register_instances(cls, type_: Type):
+    def register_instances(cls, type_: Type[T]) -> Type[T]:
         """
         Decorator for a class that adds registration to the `PrefectObjectRegistry`
         on initialization of instances.
         """
-        __init__ = type_.__init__
+        original_init = type_.__init__
 
-        def __register_init__(__self__, *args, **kwargs):
+        def __register_init__(__self__: T, *args: Any, **kwargs: Any) -> None:
             registry = cls.get()
             try:
-                __init__(__self__, *args, **kwargs)
+                original_init(__self__, *args, **kwargs)
             except Exception as exc:
                 if not registry or not registry.capture_failures:
                     raise
@@ -185,6 +192,8 @@ class PrefectObjectRegistry(ContextModel):
             else:
                 if registry:
                     registry.register_instance(__self__)
+
+        update_wrapper(__register_init__, original_init)
 
         type_.__init__ = __register_init__
         return type_
@@ -201,10 +210,11 @@ class RunContext(ContextModel):
     """
 
     start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: PrefectClient
 
 
-class FlowRunContext(RunContext):
+class EngineContext(RunContext):
     """
     The context for a flow run. Data in this context is only available from within a
     flow run function.
@@ -221,11 +231,12 @@ class FlowRunContext(RunContext):
         timeout_scope: The cancellation scope for flow level timeouts
     """
 
-    flow: "Flow"
-    flow_run: FlowRun
+    flow: Optional["Flow"] = None
+    flow_run: Optional[FlowRun] = None
+    autonomous_task_run: Optional[TaskRun] = None
     task_runner: BaseTaskRunner
     log_prints: bool = False
-    parameters: Dict[str, Any]
+    parameters: Optional[Dict[str, Any]] = None
 
     # Result handling
     result_factory: ResultFactory
@@ -254,6 +265,9 @@ class FlowRunContext(RunContext):
     events: Optional[EventsWorker] = None
 
     __var__ = ContextVar("flow_run")
+
+
+FlowRunContext = EngineContext  # for backwards compatibility
 
 
 class TaskRunContext(RunContext):

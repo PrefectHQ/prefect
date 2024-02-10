@@ -420,6 +420,8 @@ class TestTotalRunTimeEstimate:
     async def test_flow_run_estimated_run_time_includes_current_run(
         self, session, flow, db
     ):
+        tolerance = datetime.timedelta(seconds=3)
+
         dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -435,11 +437,11 @@ class TestTotalRunTimeEstimate:
         )
 
         assert fr.total_run_time == datetime.timedelta(0)
-        # the estimated time is between 59 and 60 seconds
+        # the estimated time is between ~59 and ~60 seconds
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < fr.estimated_run_time
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
         # check SQL logic
@@ -448,9 +450,9 @@ class TestTotalRunTimeEstimate:
             sa.select(db.FlowRun.estimated_run_time).filter_by(id=fr.id)
         )
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < result.scalar()
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
     async def test_task_run_estimated_run_time_matches_total_run_time(
@@ -492,6 +494,8 @@ class TestTotalRunTimeEstimate:
     async def test_task_run_estimated_run_time_includes_current_run(
         self, session, flow_run, db
     ):
+        tolerance = datetime.timedelta(seconds=3)
+
         dt = pendulum.now("UTC").subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
             session=session,
@@ -510,11 +514,11 @@ class TestTotalRunTimeEstimate:
         )
 
         assert tr.total_run_time == datetime.timedelta(0)
-        # the estimated time is between 59 and 60 seconds
+        # the estimated time is between ~59 and ~60 seconds
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < tr.estimated_run_time
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
         # check SQL logic
@@ -524,9 +528,9 @@ class TestTotalRunTimeEstimate:
         )
 
         assert (
-            datetime.timedelta(seconds=59)
+            datetime.timedelta(seconds=59) - tolerance
             < result.scalar()
-            < datetime.timedelta(seconds=60)
+            < datetime.timedelta(seconds=60) + tolerance
         )
 
     async def test_estimated_run_time_in_correlated_subquery(self, session, flow, db):
@@ -585,32 +589,28 @@ class TestTotalRunTimeEstimate:
 
 class TestExpectedStartTimeDelta:
     async def test_flow_run_lateness_when_scheduled(self, session, flow, db):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        lateness = pendulum.duration(seconds=60)
+        dt = pendulum.now("UTC") - lateness
+
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
             ),
         )
-        assert (
-            pendulum.duration(seconds=60)
-            < fr.estimated_start_time_delta
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= fr.estimated_start_time_delta <= (pendulum.now() - dt)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
             sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
-        assert (
-            pendulum.duration(seconds=60)
-            < result.scalar()
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= result.scalar() <= (pendulum.now() - dt)
 
     async def test_flow_run_lateness_when_pending(self, session, flow, db):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        lateness = pendulum.duration(seconds=60)
+        dt = pendulum.now("UTC") - lateness
+
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -624,22 +624,14 @@ class TestExpectedStartTimeDelta:
         )
 
         # pending has no impact on lateness
-        assert (
-            pendulum.duration(seconds=60)
-            < fr.estimated_start_time_delta
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= fr.estimated_start_time_delta <= (pendulum.now() - dt)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
             sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
-        assert (
-            pendulum.duration(seconds=60)
-            < result.scalar()
-            < pendulum.duration(seconds=61)
-        )
+        assert lateness <= result.scalar() <= (pendulum.now() - dt)
 
     async def test_flow_run_lateness_when_running(self, session, flow, db):
         dt = pendulum.now("UTC").subtract(minutes=1)

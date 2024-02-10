@@ -1,7 +1,8 @@
 import json
 from contextlib import contextmanager
+from copy import deepcopy
 from pathlib import Path
-from time import monotonic, sleep
+from time import sleep
 from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock
@@ -16,7 +17,14 @@ import yaml
 from jsonpatch import JsonPatch
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config import ConfigException
-from pydantic import ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.blocks.kubernetes import KubernetesClusterConfig
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.kubernetes import (
@@ -46,15 +54,19 @@ def mock_watch(monkeypatch):
 
 @pytest.fixture
 def mock_anyio_sleep_monotonic(monkeypatch):
+    current_time = 0
+
     def mock_monotonic():
-        return mock_sleep.current_time
+        return current_time
 
     def mock_sleep(duration):
-        mock_sleep.current_time += duration
+        nonlocal current_time
+        current_time += duration
 
-    mock_sleep.current_time = monotonic()
     monkeypatch.setattr("time.monotonic", mock_monotonic)
     monkeypatch.setattr("anyio.sleep", mock_sleep)
+
+    yield mock_sleep
 
 
 @pytest.fixture
@@ -914,7 +926,7 @@ def test_watch_deadline_is_computed_before_log_streams(
             yield {"object": job, "type": "ADDED"}
 
     def mock_log_stream(*args, **kwargs):
-        anyio.sleep(500)
+        mock_anyio_sleep_monotonic(500)
         return MagicMock()
 
     mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
@@ -939,13 +951,12 @@ def test_watch_deadline_is_computed_before_log_streams(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(500, 1),
+                timeout_seconds=500,
             ),
         ]
     )
 
 
-@pytest.mark.flaky
 def test_timeout_is_checked_during_log_streams(
     mock_k8s_client, mock_watch, mock_k8s_batch_client, capsys
 ):
@@ -969,15 +980,15 @@ def test_timeout_is_checked_during_log_streams(
             yield {"object": job, type: "ADDED"}
 
     def mock_log_stream(*args, **kwargs):
-        for i in range(10):
-            sleep(0.25)
+        for i in range(100):
+            sleep(0.07)
             yield f"test {i}".encode()
 
     mock_k8s_client.read_namespaced_pod_log.return_value.stream = mock_log_stream
     mock_watch.stream.side_effect = mock_stream
 
     result = KubernetesJob(
-        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=0.5
     ).run(MagicMock())
 
     # The job should timeout
@@ -995,14 +1006,10 @@ def test_timeout_is_checked_during_log_streams(
         ]
     )
 
-    # Check for logs
-    stdout, _ = capsys.readouterr()
-
     # Before the deadline, logs should be displayed
-    for i in range(4):
-        assert f"test {i}" in stdout
-    for i in range(4, 10):
-        assert f"test {i}" not in stdout
+    stdout, _ = capsys.readouterr()
+    logs = [log for log in stdout.split("\n") if log.startswith("test")]
+    assert len(logs) > 0 and len(logs) < 10
 
 
 def test_timeout_during_log_stream_does_not_fail_completed_job(
@@ -1018,15 +1025,15 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
             yield {"object": job_pod}
 
     def mock_log_stream(*args, **kwargs):
-        for i in range(10):
-            sleep(0.25)
+        for i in range(100):
+            sleep(0.07)
             yield f"test {i}".encode()
 
     mock_k8s_client.read_namespaced_pod_log.return_value.stream = mock_log_stream
     mock_watch.stream.side_effect = mock_stream
 
     result = KubernetesJob(
-        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=0.5
     ).run(MagicMock())
 
     # The job should not timeout
@@ -1044,17 +1051,12 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
         ]
     )
 
-    # Check for logs
-    stdout, _ = capsys.readouterr()
-
     # Before the deadline, logs should be displayed
-    for i in range(4):
-        assert f"test {i}" in stdout
-    for i in range(4, 10):
-        assert f"test {i}" not in stdout
+    stdout, _ = capsys.readouterr()
+    logs = [log for log in stdout.split("\n") if log.startswith("test")]
+    assert len(logs) > 0 and len(logs) < 10
 
 
-@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
 def test_watch_timeout_is_restarted_until_job_is_complete(
     mock_k8s_client,
     mock_watch,
@@ -1075,8 +1077,8 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
             job.status.failed = 0
             job.spec.backoff_limit = 6
 
-            # Sleep a little
-            anyio.sleep(10)
+            # Pretend to sleep a little
+            mock_anyio_sleep_monotonic(10)
 
             # Yield the job then return exiting the stream
             job.status.completion_time = None
@@ -1101,26 +1103,26 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(40, abs=1),
+                timeout_seconds=40,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(30, abs=1),
+                timeout_seconds=30,
             ),
             # Then, elapsed time removed on each call
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(20, abs=1),
+                timeout_seconds=20,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(10, abs=1),
+                timeout_seconds=10,
             ),
         ]
     )
@@ -1313,7 +1315,7 @@ class TestCustomizingBaseJob:
             {
                 "loc": ("job",),
                 "msg": (
-                    "Job has incompatble values for the following attributes: "
+                    "Job has incompatible values for the following attributes: "
                     "/apiVersion must have value 'batch/v1', "
                     "/kind must have value 'Job'"
                 ),
@@ -1713,3 +1715,124 @@ def test_run_requires_command():
     job = KubernetesJob(command=[])
     with pytest.raises(ValueError, match="cannot be run with empty command"):
         job.run()
+
+
+@pytest.fixture
+async def cluster_config_block():
+    cluster_config_block = KubernetesClusterConfig(
+        config={"key": "value"}, context_name="my_context"
+    )
+    await cluster_config_block.save("test-for-publish", overwrite=True)
+    return cluster_config_block
+
+
+@pytest.fixture
+def base_job_template_with_defaults(
+    k8s_default_base_job_template, cluster_config_block
+):
+    base_job_template_with_defaults = deepcopy(k8s_default_base_job_template)
+    base_job_template_with_defaults["variables"]["properties"]["command"][
+        "default"
+    ] = "python my_script.py"
+    base_job_template_with_defaults["variables"]["properties"]["env"]["default"] = {
+        "VAR1": "value1",
+        "VAR2": "value2",
+    }
+    base_job_template_with_defaults["variables"]["properties"]["labels"]["default"] = {
+        "label1": "value1",
+        "label2": "value2",
+    }
+    base_job_template_with_defaults["variables"]["properties"]["name"][
+        "default"
+    ] = "prefect-job"
+    base_job_template_with_defaults["variables"]["properties"]["namespace"][
+        "default"
+    ] = "my_namespace"
+    base_job_template_with_defaults["variables"]["properties"]["image"][
+        "default"
+    ] = "docker.io/my_image:latest"
+    base_job_template_with_defaults["variables"]["properties"]["service_account_name"][
+        "default"
+    ] = "my_service_account"
+    base_job_template_with_defaults["variables"]["properties"]["image_pull_policy"][
+        "default"
+    ] = "Always"
+    base_job_template_with_defaults["variables"]["properties"]["finished_job_ttl"][
+        "default"
+    ] = 60
+    base_job_template_with_defaults["variables"]["properties"][
+        "job_watch_timeout_seconds"
+    ]["default"] = 60
+    base_job_template_with_defaults["variables"]["properties"][
+        "pod_watch_timeout_seconds"
+    ]["default"] = 60
+    base_job_template_with_defaults["variables"]["properties"]["stream_output"][
+        "default"
+    ] = False
+    base_job_template_with_defaults["variables"]["properties"]["cluster_config"][
+        "default"
+    ] = {"$ref": {"block_document_id": str(cluster_config_block._block_document_id)}}
+    base_job_template_with_defaults["job_configuration"]["job_manifest"]["spec"][
+        "template"
+    ]["spec"]["containers"][0]["resources"] = {
+        "requests": {"cpu": "2000m", "memory": "4gi"},
+        "limits": {
+            "cpu": "4000m",
+            "memory": "8Gi",
+            "nvidia.com/gpu": "1",
+        },
+    }
+    return base_job_template_with_defaults
+
+
+@pytest.mark.usefixtures("mock_collection_registry")
+@pytest.mark.parametrize(
+    "job_config",
+    [
+        "default",
+        "custom",
+    ],
+)
+async def test_generate_work_pool_base_job_template(
+    job_config,
+    base_job_template_with_defaults,
+    cluster_config_block,
+    k8s_default_base_job_template,
+):
+    job = KubernetesJob()
+    expected_template = k8s_default_base_job_template
+    if job_config == "custom":
+        expected_template = base_job_template_with_defaults
+        job = KubernetesJob(
+            command=["python", "my_script.py"],
+            env={"VAR1": "value1", "VAR2": "value2"},
+            labels={"label1": "value1", "label2": "value2"},
+            name="prefect-job",
+            image="docker.io/my_image:latest",
+            image_pull_policy="Always",
+            service_account_name="my_service_account",
+            namespace="my_namespace",
+            finished_job_ttl=60,
+            job_watch_timeout_seconds=60,
+            pod_watch_timeout_seconds=60,
+            cluster_config=cluster_config_block,
+            stream_output=False,
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/resources",
+                    "value": {
+                        "requests": {"cpu": "2000m", "memory": "4gi"},
+                        "limits": {
+                            "cpu": "4000m",
+                            "memory": "8Gi",
+                            "nvidia.com/gpu": "1",
+                        },
+                    },
+                }
+            ],
+        )
+
+    template = await job.generate_work_pool_base_job_template()
+
+    assert template == expected_template

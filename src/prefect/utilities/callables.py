@@ -6,8 +6,20 @@ from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
-import pydantic
-import pydantic.schema
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+
+    from prefect._internal.pydantic.v2_schema import (
+        create_v2_schema,
+        has_v2_type_as_param,
+        process_v2_params,
+    )
+else:
+    import pydantic
+
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
@@ -29,7 +41,7 @@ def get_call_parameters(
 ) -> Dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on the
-    signature will be included if not overriden.
+    signature will be included if not overridden.
 
     Raises a ParameterBindError if the arguments/kwargs are not valid for the function
     """
@@ -252,6 +264,38 @@ def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
     return param_docstrings
 
 
+def process_v1_params(
+    param: inspect.Parameter,
+    *,
+    position: int,
+    docstrings: Dict[str, str],
+    aliases: Dict,
+) -> Tuple[str, Any, "pydantic.Field"]:
+    # Pydantic model creation will fail if names collide with the BaseModel type
+    if hasattr(pydantic.BaseModel, param.name):
+        name = param.name + "__"
+        aliases[name] = param.name
+    else:
+        name = param.name
+
+    type_ = Any if param.annotation is inspect._empty else param.annotation
+    field = pydantic.Field(
+        default=... if param.default is param.empty else param.default,
+        title=param.name,
+        description=docstrings.get(param.name, None),
+        alias=aliases.get(name),
+        position=position,
+    )
+    return name, type_, field
+
+
+def create_v1_schema(name_: str, model_cfg, **model_fields):
+    model: "pydantic.BaseModel" = pydantic.create_model(
+        name_, __config__=model_cfg, **model_fields
+    )
+    return model.schema(by_alias=True)
+
+
 def parameter_schema(fn: Callable) -> ParameterSchema:
     """Given a function, generates an OpenAPI-compatible description
     of the function's arguments, including:
@@ -262,12 +306,16 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         - additional constraints (like possible enum values)
 
     Args:
-        fn (function): The function whose arguments will be serialized
+        fn (Callable): The function whose arguments will be serialized
 
     Returns:
-        dict: the argument schema
+        ParameterSchema: the argument schema
     """
-    signature = inspect.signature(fn)
+    try:
+        signature = inspect.signature(fn, eval_str=True)
+    except (NameError, TypeError):
+        signature = inspect.signature(fn)
+
     model_fields = {}
     aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
@@ -275,40 +323,30 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     class ModelConfig:
         arbitrary_types_allowed = True
 
+    if HAS_PYDANTIC_V2 and has_v2_type_as_param(signature):
+        create_schema = create_v2_schema
+        process_params = process_v2_params
+    else:
+        create_schema = create_v1_schema
+        process_params = process_v1_params
+
     for position, param in enumerate(signature.parameters.values()):
-        # Pydantic model creation will fail if names collide with the BaseModel type
-        if hasattr(pydantic.BaseModel, param.name):
-            name = param.name + "__"
-            aliases[name] = param.name
-        else:
-            name = param.name
-
-        type_, field = (
-            Any if param.annotation is inspect._empty else param.annotation,
-            pydantic.Field(
-                default=... if param.default is param.empty else param.default,
-                title=param.name,
-                description=docstrings.get(param.name, None),
-                alias=aliases.get(name),
-                position=position,
-            ),
+        name, type_, field = process_params(
+            param, position=position, docstrings=docstrings, aliases=aliases
         )
-
         # Generate a Pydantic model at each step so we can check if this parameter
-        # type is supported schema generation
+        # type supports schema generation
         try:
-            pydantic.create_model(
-                "CheckParameter", __config__=ModelConfig, **{name: (type_, field)}
-            ).schema(by_alias=True)
-        except ValueError:
+            create_schema(
+                "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
+            )
+        except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
-
         model_fields[name] = (type_, field)
 
     # Generate the final model and schema
-    model = pydantic.create_model("Parameters", __config__=ModelConfig, **model_fields)
-    schema = model.schema(by_alias=True)
+    schema = create_schema("Parameters", model_cfg=ModelConfig, **model_fields)
     return ParameterSchema(**schema)
 
 

@@ -2,6 +2,7 @@ import os
 import signal
 import sys
 import tempfile
+from pathlib import Path
 from unittest.mock import ANY
 
 import anyio
@@ -28,7 +29,7 @@ from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 
 class MockKubernetesWorker(BaseWorker):
-    type = "kubernetes"
+    type = "kubernetes-test"
     job_configuration = BaseJobConfiguration
 
     async def run(self):
@@ -60,7 +61,7 @@ def interactive_console(monkeypatch):
 @pytest.fixture
 async def kubernetes_work_pool(prefect_client: PrefectClient):
     work_pool = await prefect_client.create_work_pool(
-        work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
+        work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes-test")
     )
 
     with respx.mock(
@@ -79,8 +80,8 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
                         }
                     },
                     "prefect-kubernetes": {
-                        "kubernetes": {
-                            "type": "kubernetes",
+                        "kubernetes-test": {
+                            "type": "kubernetes-test",
                             "default_base_job_configuration": {},
                         }
                     },
@@ -137,6 +138,51 @@ async def test_start_worker_creates_work_pool(prefect_client: PrefectClient):
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
+async def test_start_worker_creates_work_pool_with_base_config(
+    prefect_client: PrefectClient,
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "--pool",
+            "my-cool-pool",
+            "--type",
+            "process",
+            "--base-job-template",
+            Path(__file__).parent / "base-job-templates" / "process-worker.json",
+        ],
+        expected_code=0,
+        expected_output_contains=["Worker", "stopped!", "Worker", "started!"],
+    )
+
+    work_pool = await prefect_client.read_work_pool("my-cool-pool")
+    assert work_pool is not None
+    assert work_pool.name == "my-cool-pool"
+    assert work_pool.default_queue_id is not None
+    assert work_pool.base_job_template == {
+        "job_configuration": {"command": "{{ command }}", "name": "{{ name }}"},
+        "variables": {
+            "properties": {
+                "command": {
+                    "description": "Command to run.",
+                    "title": "Command",
+                    "type": "string",
+                },
+                "name": {
+                    "description": "Description.",
+                    "title": "Name",
+                    "type": "string",
+                },
+            },
+            "type": "object",
+        },
+    }
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -160,6 +206,8 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         work_queues=["a", "b"],
         prefetch_seconds=ANY,
         limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -187,6 +235,8 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         work_queues=[],
         prefetch_seconds=30,
         limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -213,6 +263,8 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         work_queues=[],
         prefetch_seconds=100,
         limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -240,6 +292,8 @@ def test_start_worker_with_limit(monkeypatch):
         work_queues=[],
         prefetch_seconds=10,
         limit=5,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -360,6 +414,36 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_reports_heartbeat_interval(
+    prefect_client: PrefectClient, process_work_pool
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            process_work_pool.name,
+            "-n",
+            "test-worker",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Worker 'test-worker' started!",
+            "Worker 'test-worker' stopped!",
+        ],
+    )
+
+    workers = await prefect_client.read_workers_for_work_pool(
+        work_pool_name=process_work_pool.name
+    )
+    assert len(workers) == 1
+    assert workers[0].name == "test-worker"
+    assert workers[0].heartbeat_interval_seconds == 30
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
 class TestInstallPolicyOption:
     async def test_install_policy_if_not_present(
         self, kubernetes_work_pool, monkeypatch
@@ -413,10 +497,9 @@ class TestInstallPolicyOption:
             ],
             user_input=readchar.key.ENTER,
             expected_output_contains=[
-                (
-                    "Could not find a kubernetes worker in the current"
-                    " environment. Install it now?"
-                ),
+                "Could not find the Prefect integration library for the",
+                "kubernetes",
+                "Install the library now?",
                 "Installing prefect-kubernetes...",
                 "Worker 'test-worker' started!",
                 "Worker 'test-worker' stopped!",

@@ -3,8 +3,8 @@ Utilities for injecting FastAPI dependencies.
 """
 import logging
 
-from fastapi import Body, Depends, Header, HTTPException, status
 from packaging.version import Version
+from prefect._vendor.fastapi import Body, Depends, Header, HTTPException, status
 
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
 
@@ -92,14 +92,14 @@ class EnforceMinimumAPIVersion:
 def LimitBody() -> Depends:
     """
     A `fastapi.Depends` factory for pulling a `limit: int` parameter from the
-    request body while determing the default from the current settings.
+    request body while determining the default from the current settings.
     """
 
     def get_limit(
         limit: int = Body(
             None,
             description="Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.",
-        )
+        ),
     ):
         default_limit = PREFECT_API_DEFAULT_LIMIT.value()
         limit = limit if limit is not None else default_limit

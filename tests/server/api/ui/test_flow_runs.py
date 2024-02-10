@@ -1,8 +1,14 @@
 from typing import List
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
-from fastapi import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models
 from prefect.server.api.ui.flow_runs import SimpleFlowRun

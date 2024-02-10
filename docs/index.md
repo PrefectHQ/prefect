@@ -1,5 +1,4 @@
 ---
-icon: material/star-shooting-outline
 title: Welcome to Prefect
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 tags:
@@ -8,6 +7,7 @@ tags:
     - overview
 hide:
   - toc
+  - feedback
 search:
   boost: 2
 ---
@@ -32,18 +32,20 @@ With Prefect you gain:
 </ul>
 
 <figure markdown>
-![screenshot of Cloud UI timeline view with menu](img/ui/dashboard-cloud.png)
+![screenshot of Prefect Cloud dashboard](img/ui/cloud-dashboard.png)
 </figure>
 
-#### New to Prefect?
+## New to Prefect?
 
-Get up and running quickly with the [quickstart guide](/getting-started/quickstart/). 
-Want more hands on practice to productionize your workflows? Follow our [tutorial](/tutorial/). 
-For deeper dives on common use cases, explore our [guides](/guides/index/). 
-Take your understanding even further with Prefect's [concepts](/concepts/index/) and [API reference](/api-ref/). 
+Get up and running quickly with the [quickstart guide](/getting-started/quickstart/).
+
+Want more hands on practice to productionize your workflows? Follow our [tutorial](/tutorial/).
+
+For deeper dives on common use cases, explore our [guides](/guides/index/).
+
+Take your understanding even further with Prefect's [concepts](/concepts/index/) and [API reference](/api-ref/).
+
 Join Prefect's [vibrant community](/community/) of over 26,000 engineers to learn with others and share your knowledge!
-
-[Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full } [Community](community){ .md-button .main-button--primary .full }
 
 !!! tip "Need help?"
     Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)

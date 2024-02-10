@@ -1,7 +1,7 @@
 """
 Orchestration logic that fires on state transitions.
 
-`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that 
+`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that
 Prefect enforces on a state transition.
 """
 
@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
+from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
@@ -30,6 +31,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
+from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.utilities.math import clamped_poisson_interval
 
 
@@ -40,6 +42,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
+            PreventDuplicateTransitions,
             HandleFlowTerminalStateTransitions,
             EnforceCancellingToCancelledTransition,
             BypassCancellingScheduledFlowRuns,
@@ -75,13 +78,16 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
-        return []
+        return [
+            AddUnknownResult,  # mark forced completions with an unknown result
+        ]
 
 
 class MinimalTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             ReleaseTaskConcurrencySlots,  # always release concurrency slots
+            AddUnknownResult,  # mark forced completions with a result placeholder
         ]
 
 
@@ -92,7 +98,8 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     This rule checks if concurrency limits have been set on the tags associated with a
     TaskRun. If so, a concurrency slot will be secured against each concurrency limit
     before being allowed to transition into a running state. If a concurrency limit has
-    been reached, the client will be instructed to delay the transition for 30 seconds
+    been reached, the client will be instructed to delay the transition for the duration
+    specified by the "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS" setting
     before trying again. If the concurrency limit set on a tag is 0, the transition will
     be aborted to prevent deadlocks.
     """
@@ -138,7 +145,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                     stale_limit.active_slots = list(active_slots)
 
                 await self.delay_transition(
-                    30,
+                    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
                     f"Concurrency limit for the {tag} tag has been reached",
                 )
             else:
@@ -190,6 +197,45 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
                 active_slots = set(cl.active_slots)
                 active_slots.discard(str(context.run.id))
                 cl.active_slots = list(active_slots)
+
+
+class AddUnknownResult(BaseOrchestrationRule):
+    """
+    Assign an "unknown" result to runs that are forced to complete from a
+    failed or crashed state, if the previous state used a persisted result.
+
+    When we retry a flow run, we retry any task runs that were in a failed or
+    crashed state, but we also retry completed task runs that didn't use a
+    persisted result. This means that without a sentinel value for unknown
+    results, a task run forced into Completed state will always get rerun if the
+    flow run retries because the task run lacks a persisted result. The
+    "unknown" sentinel ensures that when we see a completed task run with an
+    unknown result, we know that it was forced to complete and we shouldn't
+    rerun it.
+
+    Flow runs forced into a Completed state have a similar problem: without a
+    sentinel value, attempting to refer to the flow run's result will raise an
+    exception because the flow run has no result. The sentinel ensures that we
+    can distinguish between a flow run that has no result and a flow run that
+    has an unknown result.
+    """
+
+    FROM_STATES = [StateType.FAILED, StateType.CRASHED]
+    TO_STATES = [StateType.COMPLETED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        if (
+            initial_state
+            and initial_state.data
+            and initial_state.data.get("type") == "reference"
+        ):
+            unknown_result = await UnknownResult.create()
+            self.context.proposed_state.data = unknown_result.dict()
 
 
 class CacheInsertion(BaseOrchestrationRule):
@@ -341,8 +387,9 @@ class RetryFailedTasks(BaseOrchestrationRule):
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
     This rule rejects transitions into a failed state if `retries` has been
-    set and the run count has not reached the specified limit. The client will be
-    instructed to transition into a scheduled state to retry task execution.
+    set, the run count has not reached the specified limit, and the client
+    asserts it is a retriable task run. The client will be instructed to
+    transition into a scheduled state to retry task execution.
     """
 
     FROM_STATES = [StateType.RUNNING]
@@ -370,6 +417,10 @@ class RetryFailedTasks(BaseOrchestrationRule):
             )
         else:
             delay = base_delay
+
+        # set by user to conditionally retry a task using @task(retry_condition_fn=...)
+        if getattr(proposed_state.state_details, "retriable", True) is False:
+            return
 
         if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
@@ -465,7 +516,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
 
 class HandlePausingFlows(BaseOrchestrationRule):
     """
-    Governs runs attempting to enter a Paused state
+    Governs runs attempting to enter a Paused/Suspended state
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -477,13 +528,16 @@ class HandlePausingFlows(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
+        verb = "suspend" if proposed_state.name == "Suspended" else "pause"
+
         if initial_state is None:
-            await self.abort_transition("Cannot pause flows with no state.")
+            await self.abort_transition(f"Cannot {verb} flows with no state.")
             return
 
         if not initial_state.is_running():
             await self.reject_transition(
-                state=None, reason="Cannot pause flows that are not currently running."
+                state=None,
+                reason=f"Cannot {verb} flows that are not currently running.",
             )
             return
 
@@ -494,23 +548,20 @@ class HandlePausingFlows(BaseOrchestrationRule):
 
         if self.key in context.run.empirical_policy.pause_keys:
             await self.reject_transition(
-                state=None, reason="This pause has already fired."
+                state=None, reason=f"This {verb} has already fired."
             )
             return
 
         if proposed_state.state_details.pause_reschedule:
             if context.run.parent_task_run_id:
                 await self.abort_transition(
-                    reason="Cannot pause subflows with the reschedule option.",
+                    reason=f"Cannot {verb} subflows.",
                 )
                 return
 
             if context.run.deployment_id is None:
                 await self.abort_transition(
-                    reason=(
-                        "Cannot pause flows without a deployment with the reschedule"
-                        " option."
-                    ),
+                    reason=f"Cannot {verb} flows without a deployment.",
                 )
                 return
 
@@ -553,21 +604,28 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
             )
             return
 
+        verb = "suspend" if proposed_state.name == "Suspended" else "pause"
+
         if initial_state.state_details.pause_reschedule:
             if not context.run.deployment_id:
                 await self.reject_transition(
                     state=None,
-                    reason="Cannot reschedule a paused flow run without a deployment.",
+                    reason=(
+                        f"Cannot reschedule a {proposed_state.name.lower()} flow run"
+                        " without a deployment."
+                    ),
                 )
                 return
         pause_timeout = initial_state.state_details.pause_timeout
         if pause_timeout and pause_timeout < pendulum.now("UTC"):
             pause_timeout_failure = states.Failed(
-                message="The flow was paused and never resumed.",
+                message=(
+                    f"The flow was {proposed_state.name.lower()} and never resumed."
+                ),
             )
             await self.reject_transition(
                 state=pause_timeout_failure,
-                reason="The flow run pause has timed out and can no longer resume.",
+                reason=f"The flow run {verb} has timed out and can no longer resume.",
             )
             return
 
@@ -596,16 +654,17 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        self.flow_run = await context.flow_run()
-        if self.flow_run:
-            context.run.flow_run_run_count = self.flow_run.run_count
-        else:
-            raise ObjectNotFoundError(
-                (
-                    "Unable to read flow run associated with task run:"
-                    f" {context.run.id}, this flow run might have been deleted"
-                ),
-            )
+        if context.run.flow_run_id is not None:
+            self.flow_run = await context.flow_run()
+            if self.flow_run:
+                context.run.flow_run_run_count = self.flow_run.run_count
+            else:
+                raise ObjectNotFoundError(
+                    (
+                        "Unable to read flow run associated with task run:"
+                        f" {context.run.id}, this flow run might have been deleted"
+                    ),
+                )
 
 
 class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
@@ -652,7 +711,7 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             context.run.run_count = 0
 
         # Change the name of the state to retrying if its a flow run retry
-        if proposed_state.is_running():
+        if proposed_state.is_running() and context.run.flow_run_id is not None:
             self.flow_run = await context.flow_run()
             flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
             if flow_retrying:
@@ -799,23 +858,33 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         flow_run = await context.flow_run()
-        if flow_run.state is None:
-            await self.abort_transition(
-                reason="The enclosing flow must be running to begin task execution."
-            )
-        elif flow_run.state.type == StateType.PAUSED:
-            await self.reject_transition(
-                state=states.Paused(name="NotReady"),
-                reason=(
-                    "The flow is paused, new tasks can execute after resuming flow"
-                    f" run: {flow_run.id}."
-                ),
-            )
-        elif not flow_run.state.type == StateType.RUNNING:
-            # task runners should abort task run execution
-            await self.abort_transition(
-                reason="The enclosing flow must be running to begin task execution.",
-            )
+        if flow_run is not None:
+            if flow_run.state is None:
+                await self.abort_transition(
+                    reason="The enclosing flow must be running to begin task execution."
+                )
+            elif flow_run.state.type == StateType.PAUSED:
+                # Use the flow run's Paused state details to preserve data like
+                # timeouts.
+                paused_state = states.Paused(
+                    name="NotReady",
+                    pause_expiration_time=flow_run.state.state_details.pause_timeout,
+                    reschedule=flow_run.state.state_details.pause_reschedule,
+                )
+                await self.reject_transition(
+                    state=paused_state,
+                    reason=(
+                        "The flow is paused, new tasks can execute after resuming flow"
+                        f" run: {flow_run.id}."
+                    ),
+                )
+            elif not flow_run.state.type == StateType.RUNNING:
+                # task runners should abort task run execution
+                await self.abort_transition(
+                    reason=(
+                        "The enclosing flow must be running to begin task execution."
+                    ),
+                )
 
 
 class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
@@ -864,4 +933,54 @@ class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
             await self.reject_transition(
                 state=states.Cancelled(),
                 reason="Scheduled flow run has no infrastructure to terminate.",
+            )
+
+
+class PreventDuplicateTransitions(BaseOrchestrationRule):
+    """
+    Prevent duplicate transitions from being made right after one another.
+
+    This rule allows for clients to set an optional transition_id on a state. If the
+    run's next transition has the same transition_id, the transition will be
+    rejected and the existing state will be returned.
+
+    This allows for clients to make state transition requests without worrying about
+    the following case:
+    - A client making a state transition request
+    - The server accepts transition and commits the transition
+    - The client is unable to receive the response and retries the request
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if (
+            initial_state is None
+            or proposed_state is None
+            or initial_state.state_details is None
+            or proposed_state.state_details is None
+        ):
+            return
+
+        initial_transition_id = getattr(
+            initial_state.state_details, "transition_id", None
+        )
+        proposed_transition_id = getattr(
+            proposed_state.state_details, "transition_id", None
+        )
+        if (
+            initial_transition_id is not None
+            and proposed_transition_id is not None
+            and initial_transition_id == proposed_transition_id
+        ):
+            await self.reject_transition(
+                # state=None will return the initial (current) state
+                state=None,
+                reason="This run has already made this state transition.",
             )

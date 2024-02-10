@@ -1,18 +1,18 @@
 """
 Utilities for the Prefect REST API server.
 """
+
 import functools
 import inspect
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import Any, Callable, Coroutine, Iterable, Set, get_type_hints
+from typing import Any, Callable, Coroutine, Sequence, Set, get_type_hints
 
-from fastapi import APIRouter, Request, Response, status
-from fastapi.routing import APIRoute
+from prefect._vendor.fastapi import APIRouter, Request, Response, status
+from prefect._vendor.fastapi.routing import APIRoute, BaseRoute
+from prefect._vendor.starlette.routing import Route as StarletteRoute
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 
-
-def method_paths_from_routes(routes: Iterable[APIRoute]) -> Set[str]:
+def method_paths_from_routes(routes: Sequence[BaseRoute]) -> Set[str]:
     """
     Generate a set of strings describing the given routes in the format: <method> <path>
 
@@ -20,8 +20,9 @@ def method_paths_from_routes(routes: Iterable[APIRoute]) -> Set[str]:
     """
     method_paths = set()
     for route in routes:
-        for method in route.methods:
-            method_paths.add(f"{method} {route.path}")
+        if isinstance(route, (APIRoute, StarletteRoute)):
+            for method in route.methods:
+                method_paths.add(f"{method} {route.path}")
 
     return method_paths
 
@@ -32,7 +33,7 @@ def response_scoped_dependency(dependency: Callable):
     default, FastAPI closes dependencies after sending the response.
 
     Uses an async stack that is exited before the response is returned. This is
-    particularly useful for database sesssions which must be committed before the client
+    particularly useful for database sessions which must be committed before the client
     can do more work.
 
     NOTE: Do not use a response-scoped dependency within a FastAPI background task.
@@ -130,23 +131,9 @@ class PrefectRouter(APIRouter):
         """
         if kwargs.get("status_code") == status.HTTP_204_NO_CONTENT:
             # any routes that return No-Content status codes must
-            # explicilty set a response_class that will handle status codes
+            # explicitly set a response_class that will handle status codes
             # and not return anything in the body
             kwargs["response_class"] = Response
         if kwargs.get("response_model") is None:
             kwargs["response_model"] = get_type_hints(endpoint).get("return")
         return super().add_api_route(path, endpoint, **kwargs)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectRouter` instead.")
-class OrionRouter(PrefectRouter):
-    """
-    Deprecated. Use `PrefectRouter` instead.
-    """
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAPIRoute` instead.")
-class OrionAPIRoute(PrefectAPIRoute):
-    """
-    Deprecated. Use `PrefectAPIRoute` instead.
-    """

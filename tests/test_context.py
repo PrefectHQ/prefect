@@ -184,7 +184,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
                 ),
                 parameters={"foo": "bar"},
             ) as task_ctx:
-                assert get_run_context() is task_ctx, "Task context takes precendence"
+                assert get_run_context() is task_ctx, "Task context takes precedence"
 
             assert (
                 get_run_context() is flow_ctx
@@ -361,8 +361,7 @@ class TestSettingsContext:
         _, err = capsys.readouterr()
         assert (
             "profile 'bar' set by command line argument not found. The default profile"
-            " will be used instead."
-            in err
+            " will be used instead." in err
         )
 
     def test_root_settings_context_missing_environment_variables(
@@ -375,8 +374,7 @@ class TestSettingsContext:
         _, err = capsys.readouterr()
         assert (
             "profile 'bar' set by environment variable not found. The default profile"
-            " will be used instead."
-            in err
+            " will be used instead." in err
         )
 
     @pytest.mark.usefixtures("remove_existing_settings_context")

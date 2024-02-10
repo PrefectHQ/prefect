@@ -3,10 +3,10 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
-from io import TextIOBase
 from typing import (
     IO,
     Any,
@@ -299,7 +299,11 @@ async def consume_process_output(
 
 async def stream_text(source: TextReceiveStream, *sinks: TextSink):
     wrapped_sinks = [
-        anyio.wrap_file(sink) if isinstance(sink, TextIOBase) else sink
+        (
+            anyio.wrap_file(sink)
+            if hasattr(sink, "write") and hasattr(sink, "flush")
+            else sink
+        )
         for sink in sinks
     ]
     async for item in source:
@@ -313,6 +317,11 @@ async def stream_text(source: TextReceiveStream, *sinks: TextSink):
                 pass  # Consume the item but perform no action
             else:
                 raise TypeError(f"Unsupported sink type {type(sink).__name__}")
+
+
+def _register_signal(signum: int, handler: Callable):
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signum, handler)
 
 
 def forward_signal_handler(
@@ -346,7 +355,7 @@ def forward_signal_handler(
             )
 
     # register current and future signal handlers
-    signal.signal(signum, handler)
+    _register_signal(signum, handler)
 
 
 def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable):
@@ -400,3 +409,13 @@ def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable
         setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
         # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
         setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
+
+
+def get_sys_executable() -> str:
+    # python executable needs to be quotable on windows
+    if os.name == "nt":
+        executable_path = f'"{sys.executable}"'
+    else:
+        executable_path = sys.executable
+
+    return executable_path

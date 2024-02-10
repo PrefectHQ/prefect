@@ -4,7 +4,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 import sqlalchemy as sa
-from fastapi import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import DeploymentCreate
@@ -91,6 +91,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         deployment_id = response.json()["id"]
+        assert response.json()["status"] == "NOT_READY"
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -714,6 +715,153 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["detail"] == 'Work pool "imaginary-work-pool" not found.'
 
+    async def test_create_deployment_rejects_invalid_parameter_schemas(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = dict(
+            name="My Deployment",
+            flow_id=str(flow.id),
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "blork"}},
+            },
+            parameters={"foo": 1},
+        )
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 422
+        assert "'blork' is not valid under any of the given schemas" in response.text
+
+    async def test_create_deployment_does_not_reject_invalid_parameter_schemas_by_default(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = dict(
+            name="My Deployment",
+            flow_id=str(flow.id),
+            work_pool_name=work_pool.name,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "blork"}},
+            },
+            parameters={"foo": 1},
+        )
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+    async def test_create_deployment_enforces_parameter_schema(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = dict(
+            name="My Deployment",
+            flow_id=str(flow.id),
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "string"}},
+            },
+            parameters={"foo": 1},
+        )
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 422
+        assert (
+            "Validation failed for field 'foo'. Failure reason: 1 is not of type"
+            " 'string'" in response.text
+        )
+
+    async def test_create_deployment_does_not_enforce_schema_by_default(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "string"}},
+            },
+            parameters={"foo": 1},
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+    async def test_create_deployment_parameter_enforcement_allows_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+            parameters={"person": {"greeting": "sup"}},
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
 
 class TestReadDeployment:
     async def test_read_deployment(
@@ -849,6 +997,8 @@ class TestReadDeployments:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
 
+        assert response.json()[0]["status"] == "NOT_READY"
+
     async def test_read_deployments_applies_filter(
         self, deployments, deployment_id_1, deployment_id_2, flow, client
     ):
@@ -927,6 +1077,397 @@ class TestReadDeployments:
         response = await client.post("/deployments/filter")
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
+
+
+class TestUpdateDeployment:
+    async def test_update_deployment_enforces_parameter_schema(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"parameters": {"x": 1}},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
+            in response.text
+        )
+
+    async def test_update_deployment_does_not_enforce_parameter_schema_by_default(
+        self,
+        deployment,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={"parameters": {"x": 1}},
+        )
+        assert response.status_code == 204
+
+    async def test_update_deployment_can_toggle_parameter_schema_validation(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        # Turn off parameter schema enforcement
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"parameters": {"x": 1}, "enforce_parameter_schema": False},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_with_parameter_schema.id}"
+        )
+        assert response.json()["parameters"] == {"x": 1}
+        assert response.json()["enforce_parameter_schema"] is False
+
+        # Turn on parameter schema enforcement, but parameters are still invalid
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"enforce_parameter_schema": True},
+        )
+
+        assert response.status_code == 409
+
+        # Turn on parameter schema enforcement, and parameters are now valid
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"parameters": {"x": "y"}, "enforce_parameter_schema": True},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_with_parameter_schema.id}"
+        )
+        assert response.json()["parameters"] == {"x": "y"}
+        assert response.json()["enforce_parameter_schema"] is True
+
+    async def test_update_deployment_parameter_enforcement_allows_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {"person": {"greeting": "*head nod*"}}},
+        )
+
+        assert response.status_code == 204
+
+
+class TestGetScheduledFlowRuns:
+    @pytest.fixture
+    async def flows(self, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1"),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-2"),
+        )
+        await session.commit()
+        return flow_1, flow_2
+
+    @pytest.fixture(autouse=True)
+    async def deployments(
+        self,
+        session,
+        flows,
+    ):
+        flow_1, flow_2 = flows
+        deployment_1 = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment X",
+                flow_id=flow_1.id,
+            ),
+        )
+        deployment_2 = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment Y",
+                flow_id=flow_2.id,
+            ),
+        )
+        await session.commit()
+        return deployment_1, deployment_2
+
+    @pytest.fixture(autouse=True)
+    async def flow_runs(
+        self,
+        session,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+        # flow run 1 is in a SCHEDULED state 5 minutes ago
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment_1.flow_id,
+                deployment_id=deployment_1.id,
+                flow_version="0.1",
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    timestamp=pendulum.now("UTC").subtract(minutes=5),
+                    state_details=dict(
+                        scheduled_time=pendulum.now("UTC").subtract(minutes=5)
+                    ),
+                ),
+            ),
+        )
+
+        # flow run 2 is in a SCHEDULED state 1 minute ago for deployment 1
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment_1.flow_id,
+                deployment_id=deployment_1.id,
+                flow_version="0.1",
+                tags=["tb12", "goat"],
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    timestamp=pendulum.now("UTC").subtract(minutes=1),
+                    state_details=dict(
+                        scheduled_time=pendulum.now("UTC").subtract(minutes=1)
+                    ),
+                ),
+            ),
+        )
+        # flow run 3 is in a SCHEDULED state 1 minute ago for deployment 2
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment_2.flow_id,
+                deployment_id=deployment_2.id,
+                flow_version="0.1",
+                tags=["tb12", "goat"],
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    timestamp=pendulum.now("UTC").subtract(minutes=1),
+                    state_details=dict(
+                        scheduled_time=pendulum.now("UTC").subtract(minutes=1)
+                    ),
+                ),
+            ),
+        )
+        await session.commit()
+        return flow_run_1, flow_run_2, flow_run_3
+
+    async def test_get_scheduled_runs_for_a_deployment(
+        self,
+        client,
+        deployments,
+        flow_runs,
+    ):
+        deployment_1, _deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id)]),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {
+            str(flow_run.id) for flow_run in flow_runs[:2]
+        }
+
+    async def test_get_scheduled_runs_for_multiple_deployments(
+        self,
+        client,
+        deployments,
+        flow_runs,
+    ):
+        deployment_1, deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {
+            str(flow_run.id) for flow_run in flow_runs
+        }
+
+    async def test_get_scheduled_runs_respects_limit(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, _deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id)], limit=1),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {str(flow_runs[0].id)}
+
+        # limit should still be constrained by Orion settings though
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(limit=9001),
+        )
+        assert response.status_code == 422
+
+    async def test_get_scheduled_runs_respects_scheduled_before(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, _deployment_2 = deployments
+        # picks up one of the runs for the first deployment, but not the other
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(
+                deployment_ids=[str(deployment_1.id)],
+                scheduled_before=str(pendulum.now("UTC").subtract(minutes=2)),
+            ),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {str(flow_runs[0].id)}
+
+    async def test_get_scheduled_runs_sort_order(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        """Should sort by next scheduled start time ascending"""
+        deployment_1, deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
+        )
+        assert response.status_code == 200
+        assert [res["id"] for res in response.json()] == [
+            str(flow_run.id) for flow_run in flow_runs[:3]
+        ]
+
+    async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+
+        response1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert response1.status_code == 200
+        assert response1.json()["last_polled"] is None
+        assert response1.json()["status"] == "NOT_READY"
+
+        response2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert response2.status_code == 200
+        assert response2.json()["last_polled"] is None
+        assert response2.json()["status"] == "NOT_READY"
+
+        updated_response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id)]),
+        )
+        assert updated_response.status_code == 200
+
+        updated_response_deployment_1 = await client.get(
+            f"/deployments/{deployment_1.id}"
+        )
+        assert updated_response_deployment_1.status_code == 200
+
+        assert (
+            updated_response_deployment_1.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
+        assert updated_response_deployment_1.json()["status"] == "READY"
+
+        same_response_deployment_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert same_response_deployment_2.status_code == 200
+        assert same_response_deployment_2.json()["last_polled"] is None
+        assert same_response_deployment_2.json()["status"] == "NOT_READY"
+
+    async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status_multiple_deployments(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+
+        response_1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert response_1.status_code == 200
+        assert response_1.json()["last_polled"] is None
+        assert response_1.json()["status"] == "NOT_READY"
+
+        response_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert response_2.status_code == 200
+        assert response_2.json()["last_polled"] is None
+        assert response_2.json()["status"] == "NOT_READY"
+
+        updated_response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
+        )
+        assert updated_response.status_code == 200
+
+        updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert updated_response_1.status_code == 200
+        assert (
+            updated_response_1.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
+        assert updated_response_1.json()["status"] == "READY"
+
+        updated_response_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert updated_response_2.status_code == 200
+        assert (
+            updated_response_2.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
+        assert updated_response_2.json()["status"] == "READY"
 
 
 class TestDeleteDeployment:
@@ -1320,6 +1861,104 @@ class TestCreateFlowRunFromDeployment:
             ),
         )
         assert sorted(response.json()["tags"]) == sorted(["nope"] + deployment.tags)
+
+    async def test_create_flow_run_enforces_parameter_schema(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": 1}},
+        )
+
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
+            in response.text
+        )
+
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": "y"}},
+        )
+
+        assert response.status_code == 201
+
+    async def test_create_flow_run_does_not_enforce_parameter_schema_when_enforcement_is_toggled_off(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"enforce_parameter_schema": False},
+        )
+
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": 1}},
+        )
+
+        assert response.status_code == 201
+
+    async def test_create_flow_run_from_deployment_parameter_enforcement_rejects_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        response = await client.post(
+            f"/deployments/{deployment_id}/create_flow_run",
+            json={"parameters": {"person": {"greeting": "*half hearted wave*"}}},
+        )
+
+        assert response.status_code == 409
+        assert "Validation failed for field 'person'" in response.text
+        assert "Failure reason: 'name' is a required property" in response.text
 
 
 class TestGetDeploymentWorkQueueCheck:

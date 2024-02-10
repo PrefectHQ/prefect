@@ -84,13 +84,27 @@ import asyncio
 import contextlib
 import logging
 import os
+import random
 import signal
 import sys
 import threading
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
-from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -101,6 +115,8 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 import prefect.plugins
+from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
@@ -137,8 +153,10 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
+from prefect.input import keyset_from_paused_state
+from prefect.input.run_input import run_input_subclass_from_type
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
@@ -148,18 +166,23 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.results import BaseResult, ResultFactory
+from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOGGING_LOG_PRINTS,
+    PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
 )
 from prefect.states import (
+    Completed,
     Paused,
     Pending,
     Running,
+    Scheduled,
     State,
+    Suspended,
     exception_to_crashed_state,
     exception_to_failed_state,
     get_state_exception,
@@ -169,6 +192,8 @@ from prefect.states import (
 from prefect.task_runners import (
     CONCURRENCY_MESSAGES,
     BaseTaskRunner,
+    ConcurrentTaskRunner,
+    SequentialTaskRunner,
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
@@ -189,8 +214,10 @@ from prefect.utilities.pydantic import PartialModel
 from prefect.utilities.text import truncated_to
 
 R = TypeVar("R")
+T = TypeVar("T")
 EngineReturnType = Literal["future", "state", "result"]
 
+NUM_CHARS_DYNAMIC_KEY = 8
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
@@ -390,10 +417,20 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
+
+    entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+
     try:
-        flow = await load_flow_from_flow_run(flow_run, client=client)
+        flow = (
+            load_flow_from_entrypoint(entrypoint)
+            if entrypoint
+            else await load_flow_from_flow_run(flow_run, client=client)
+        )
     except Exception:
-        message = "Flow could not be retrieved from deployment."
+        message = (
+            "Flow could not be retrieved from"
+            f" {'entrypoint' if entrypoint else 'deployment'}."
+        )
         flow_run_logger(flow_run).exception(message)
         state = await exception_to_failed_state(message=message)
         await client.set_flow_run_state(
@@ -815,7 +852,11 @@ async def orchestrate_flow_run(
                     not parent_flow_run_context
                     or (
                         parent_flow_run_context
-                        and parent_flow_run_context.flow.isasync == flow.isasync
+                        and
+                        # Unless the parent is async and the child is sync, run the
+                        # child flow in the parent thread; running a sync child in
+                        # an async parent could be bad for async performance.
+                        not (parent_flow_run_context.flow.isasync and not flow.isasync)
                     )
                 ):
                     from_async.call_soon_in_waiting_thread(
@@ -884,7 +925,7 @@ async def orchestrate_flow_run(
             )
 
         if not waited_for_task_runs:
-            # An exception occured that prevented us from waiting for task runs to
+            # An exception occurred that prevented us from waiting for task runs to
             # complete. Ensure that we wait for them before proposing a final state
             # for the flow run.
             await wait_for_task_runs_and_report_crashes(
@@ -928,16 +969,53 @@ async def orchestrate_flow_run(
     return state
 
 
-@sync_compatible
+@overload
 async def pause_flow_run(
+    wait_for_input: None = None,
     flow_run_id: UUID = None,
-    timeout: int = 300,
+    timeout: int = 3600,
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
-):
+) -> None:
+    ...
+
+
+@overload
+async def pause_flow_run(
+    wait_for_input: Type[T],
+    flow_run_id: UUID = None,
+    timeout: int = 3600,
+    poll_interval: int = 10,
+    reschedule: bool = False,
+    key: str = None,
+) -> T:
+    ...
+
+
+@sync_compatible
+@deprecated_parameter(
+    "flow_run_id", start_date="Dec 2023", help="Use `suspend_flow_run` instead."
+)
+@deprecated_parameter(
+    "reschedule",
+    start_date="Dec 2023",
+    when=lambda p: p is True,
+    help="Use `suspend_flow_run` instead.",
+)
+@experimental_parameter(
+    "wait_for_input", group="flow_run_input", when=lambda y: y is not None
+)
+async def pause_flow_run(
+    wait_for_input: Optional[Type[T]] = None,
+    flow_run_id: UUID = None,
+    timeout: int = 3600,
+    poll_interval: int = 10,
+    reschedule: bool = False,
+    key: str = None,
+) -> Optional[T]:
     """
-    Pauses the current flow run by stopping execution until resumed.
+    Pauses the current flow run by blocking execution until resumed.
 
     When called within a flow run, execution will block and no downstream tasks will
     run until the flow is resumed. Task runs that have already started will continue
@@ -954,7 +1032,7 @@ async def pause_flow_run(
             have an associated deployment and results need to be configured with the
             `persist_results` option.
         timeout: the number of seconds to wait for the flow to be resumed before
-            failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
+            failing. Defaults to 1 hour (3600 seconds). If the pause timeout exceeds
             any configured flow-level timeout, the flow might fail even after resuming.
         poll_interval: The number of seconds between checking whether the flow has been
             resumed. Defaults to 10 seconds.
@@ -966,8 +1044,35 @@ async def pause_flow_run(
             the number of pauses observed by the flow so far, and prevents pauses that
             use the "reschedule" option from running the same pause twice. A custom key
             can be supplied for custom pausing behavior.
+        wait_for_input: a subclass of `RunInput` or any type supported by
+            Pydantic. If provided when the flow pauses, the flow will wait for the
+            input to be provided before resuming. If the flow is resumed without
+            providing the input, the flow will fail. If the flow is resumed with the
+            input, the flow will resume and the input will be loaded and returned
+            from this function.
+
+    Example:
+    ```python
+    @task
+    def task_one():
+        for i in range(3):
+            sleep(1)
+
+    @flow
+    def my_flow():
+        terminal_state = task_one.submit(return_state=True)
+        if terminal_state.type == StateType.COMPLETED:
+            print("Task one succeeded! Pausing flow run..")
+            pause_flow_run(timeout=2)
+        else:
+            print("Task one failed. Skipping pause flow run..")
+    ```
+
     """
     if flow_run_id:
+        if wait_for_input is not None:
+            raise RuntimeError("Cannot wait for input when pausing out of process.")
+
         return await _out_of_process_pause(
             flow_run_id=flow_run_id,
             timeout=timeout,
@@ -976,18 +1081,23 @@ async def pause_flow_run(
         )
     else:
         return await _in_process_pause(
-            timeout=timeout, poll_interval=poll_interval, reschedule=reschedule, key=key
+            timeout=timeout,
+            poll_interval=poll_interval,
+            reschedule=reschedule,
+            key=key,
+            wait_for_input=wait_for_input,
         )
 
 
 @inject_client
 async def _in_process_pause(
-    timeout: int = 300,
+    timeout: int = 3600,
     poll_interval: int = 10,
     reschedule=False,
     key: str = None,
     client=None,
-):
+    wait_for_input: Optional[T] = None,
+) -> Optional[T]:
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
@@ -1002,12 +1112,19 @@ async def _in_process_pause(
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
 
+    proposed_state = Paused(
+        timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
+    )
+
+    if wait_for_input:
+        wait_for_input = run_input_subclass_from_type(wait_for_input)
+        run_input_keyset = keyset_from_paused_state(proposed_state)
+        proposed_state.state_details.run_input_keyset = run_input_keyset
+
     try:
         state = await propose_state(
             client=client,
-            state=Paused(
-                timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
-            ),
+            state=proposed_state,
             flow_run_id=context.flow_run.id,
         )
     except Abort as exc:
@@ -1015,7 +1132,14 @@ async def _in_process_pause(
         raise RuntimeError(f"Flow run cannot be paused: {exc}")
 
     if state.is_running():
-        # The orchestrator requests that this pause be ignored
+        # The orchestrator rejected the paused state which means that this
+        # pause has happened before (via reschedule) and the flow run has
+        # been resumed.
+        if wait_for_input:
+            # The flow run wanted input, so we need to load it and return it
+            # to the user.
+            await wait_for_input.load(run_input_keyset)
+
         return
 
     if not state.is_paused():
@@ -1024,31 +1148,37 @@ async def _in_process_pause(
             f"Flow run cannot be paused. Received non-paused state from API: {state}"
         )
 
+    if wait_for_input:
+        # We're now in a paused state and the flow run is waiting for input.
+        # Save the schema of the users `RunInput` subclass, stored in
+        # `wait_for_input`, so the UI can display the form and we can validate
+        # the input when the flow is resumed.
+        await wait_for_input.save(run_input_keyset)
+
     if reschedule:
         # If a rescheduled pause, exit this process so the run can be resubmitted later
-        raise Pause()
+        raise Pause(state=state)
 
     # Otherwise, block and check for completion on an interval
     with anyio.move_on_after(timeout):
         # attempt to check if a flow has resumed at least once
         initial_sleep = min(timeout / 2, poll_interval)
         await anyio.sleep(initial_sleep)
-        flow_run = await client.read_flow_run(context.flow_run.id)
-        if flow_run.state.is_running():
-            logger.info("Resuming flow run execution!")
-            return
-
         while True:
-            await anyio.sleep(poll_interval)
             flow_run = await client.read_flow_run(context.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
+                if wait_for_input:
+                    return await wait_for_input.load(run_input_keyset)
                 return
+            await anyio.sleep(poll_interval)
 
     # check one last time before failing the flow
     flow_run = await client.read_flow_run(context.flow_run.id)
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
+        if wait_for_input:
+            return await wait_for_input.load(run_input_keyset)
         return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
@@ -1057,7 +1187,7 @@ async def _in_process_pause(
 @inject_client
 async def _out_of_process_pause(
     flow_run_id: UUID,
-    timeout: int = 300,
+    timeout: int = 3600,
     reschedule: bool = True,
     key: str = None,
     client=None,
@@ -1076,21 +1206,154 @@ async def _out_of_process_pause(
         raise RuntimeError(response.details.reason)
 
 
+@overload
+async def suspend_flow_run(
+    wait_for_input: None = None,
+    flow_run_id: Optional[UUID] = None,
+    timeout: Optional[int] = 3600,
+    key: Optional[str] = None,
+    client: PrefectClient = None,
+) -> None:
+    ...
+
+
+@overload
+async def suspend_flow_run(
+    wait_for_input: Type[T],
+    flow_run_id: Optional[UUID] = None,
+    timeout: Optional[int] = 3600,
+    key: Optional[str] = None,
+    client: PrefectClient = None,
+) -> T:
+    ...
+
+
 @sync_compatible
-async def resume_flow_run(flow_run_id):
+@inject_client
+@experimental_parameter(
+    "wait_for_input", group="flow_run_input", when=lambda y: y is not None
+)
+async def suspend_flow_run(
+    wait_for_input: Optional[Type[T]] = None,
+    flow_run_id: Optional[UUID] = None,
+    timeout: Optional[int] = 3600,
+    key: Optional[str] = None,
+    client: PrefectClient = None,
+) -> Optional[T]:
+    """
+    Suspends a flow run by stopping code execution until resumed.
+
+    When suspended, the flow run will continue execution until the NEXT task is
+    orchestrated, at which point the flow will exit. Any tasks that have
+    already started will run until completion. When resumed, the flow run will
+    be rescheduled to finish execution. In order suspend a flow run in this
+    way, the flow needs to have an associated deployment and results need to be
+    configured with the `persist_results` option.
+
+    Args:
+        flow_run_id: a flow run id. If supplied, this function will attempt to
+            suspend the specified flow run. If not supplied will attempt to
+            suspend the current flow run.
+        timeout: the number of seconds to wait for the flow to be resumed before
+            failing. Defaults to 1 hour (3600 seconds). If the pause timeout
+            exceeds any configured flow-level timeout, the flow might fail even
+            after resuming.
+        key: An optional key to prevent calling suspend more than once. This
+            defaults to a random string and prevents suspends from running the
+            same suspend twice. A custom key can be supplied for custom
+            suspending behavior.
+        wait_for_input: a subclass of `RunInput` or any type supported by
+            Pydantic. If provided when the flow suspends, the flow will remain
+            suspended until receiving the input before resuming. If the flow is
+            resumed without providing the input, the flow will fail. If the flow is
+            resumed with the input, the flow will resume and the input will be
+            loaded and returned from this function.
+    """
+    context = FlowRunContext.get()
+
+    if flow_run_id is None:
+        if TaskRunContext.get():
+            raise RuntimeError("Cannot suspend task runs.")
+
+        if context is None or context.flow_run is None:
+            raise RuntimeError(
+                "Flow runs can only be suspended from within a flow run."
+            )
+
+        logger = get_run_logger(context=context)
+        logger.info(
+            "Suspending flow run, execution will be rescheduled when this flow run is"
+            " resumed."
+        )
+        flow_run_id = context.flow_run.id
+        suspending_current_flow_run = True
+        pause_counter = _observed_flow_pauses(context)
+        pause_key = key or str(pause_counter)
+    else:
+        # Since we're suspending another flow run we need to generate a pause
+        # key that won't conflict with whatever suspends/pauses that flow may
+        # have. Since this method won't be called during that flow run it's
+        # okay that this is non-deterministic.
+        suspending_current_flow_run = False
+        pause_key = key or str(uuid4())
+
+    proposed_state = Suspended(timeout_seconds=timeout, pause_key=pause_key)
+
+    if wait_for_input:
+        wait_for_input = run_input_subclass_from_type(wait_for_input)
+        run_input_keyset = keyset_from_paused_state(proposed_state)
+        proposed_state.state_details.run_input_keyset = run_input_keyset
+
+    try:
+        state = await propose_state(
+            client=client,
+            state=proposed_state,
+            flow_run_id=flow_run_id,
+        )
+    except Abort as exc:
+        # Aborted requests mean the suspension is not allowed
+        raise RuntimeError(f"Flow run cannot be suspended: {exc}")
+
+    if state.is_running():
+        # The orchestrator rejected the suspended state which means that this
+        # suspend has happened before and the flow run has been resumed.
+        if wait_for_input:
+            # The flow run wanted input, so we need to load it and return it
+            # to the user.
+            return await wait_for_input.load(run_input_keyset)
+        return
+
+    if not state.is_paused():
+        # If we receive anything but a PAUSED state, we are unable to continue
+        raise RuntimeError(
+            f"Flow run cannot be suspended. Received unexpected state from API: {state}"
+        )
+
+    if wait_for_input:
+        await wait_for_input.save(run_input_keyset)
+
+    if suspending_current_flow_run:
+        # Exit this process so the run can be resubmitted later
+        raise Pause()
+
+
+@sync_compatible
+async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
     """
     Resumes a paused flow.
 
     Args:
         flow_run_id: the flow_run_id to resume
+        run_input: a dictionary of inputs to provide to the flow run.
     """
     client = get_client()
-    flow_run = await client.read_flow_run(flow_run_id)
+    async with client:
+        flow_run = await client.read_flow_run(flow_run_id)
 
-    if not flow_run.state.is_paused():
-        raise NotPausedError("Cannot resume a run that isn't paused!")
+        if not flow_run.state.is_paused():
+            raise NotPausedError("Cannot resume a run that isn't paused!")
 
-    response = await client.resume_flow_run(flow_run_id)
+        response = await client.resume_flow_run(flow_run_id, run_input=run_input)
 
     if response.status == SetStateStatus.REJECT:
         if response.state.type == StateType.FAILED:
@@ -1106,16 +1369,29 @@ def enter_task_run_engine(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     mapped: bool,
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-    """
-    Sync entrypoint for task calls
-    """
+) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]:
+    """Sync entrypoint for task calls"""
 
     flow_run_context = FlowRunContext.get()
+
     if not flow_run_context:
+        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            create_autonomous_task_run = create_call(
+                _create_autonomous_task_run, task=task, parameters=parameters
+            )
+            if task.isasync:
+                return from_async.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
+            else:
+                return from_sync.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
+
         raise RuntimeError(
-            "Tasks cannot be run outside of a flow. To call the underlying task"
-            " function outside of a flow use `task.fn()`."
+            "Tasks cannot be run outside of a flow"
+            " - if you meant to submit an autonomous task, you need to set"
+            " `prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=true`"
         )
 
     if TaskRunContext.get():
@@ -1135,6 +1411,7 @@ def enter_task_run_engine(
         wait_for=wait_for,
         return_type=return_type,
         task_runner=task_runner,
+        user_thread=threading.current_thread(),
     )
 
     if task.isasync and flow_run_context.flow.isasync:
@@ -1151,6 +1428,7 @@ async def begin_task_map(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
+    user_thread: threading.Thread,
 ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
     """Async entrypoint for task mapping"""
     # We need to resolve some futures to map over their data, collect the upstream
@@ -1228,6 +1506,7 @@ async def begin_task_map(
                 return_type=return_type,
                 task_runner=task_runner,
                 extra_task_inputs=task_inputs,
+                user_thread=user_thread,
             )
         )
 
@@ -1241,7 +1520,7 @@ async def begin_task_map(
 
 async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
     """
-    This function recurses through an expression to generate a set of any discernable
+    This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
     found.
 
@@ -1292,6 +1571,7 @@ async def get_task_call_return_value(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
+    user_thread: threading.Thread,
     extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
 ):
     extra_task_inputs = extra_task_inputs or {}
@@ -1303,6 +1583,7 @@ async def get_task_call_return_value(
         wait_for=wait_for,
         task_runner=task_runner,
         extra_task_inputs=extra_task_inputs,
+        user_thread=user_thread,
     )
     if return_type == "future":
         return future
@@ -1321,20 +1602,29 @@ async def create_task_run_future(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    user_thread: threading.Thread,
 ) -> PrefectFuture:
     # Default to the flow run's task runner
     task_runner = task_runner or flow_run_context.task_runner
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-    task_run_name = f"{task.name}-{dynamic_key}"
+    task_run_name = (
+        f"{task.name}-{dynamic_key}"
+        if flow_run_context and flow_run_context.flow_run
+        else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
+    )
 
     # Generate a future
     future = PrefectFuture(
         name=task_run_name,
         key=uuid4(),
         task_runner=task_runner,
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
+        asynchronous=(
+            task.isasync and flow_run_context.flow.isasync
+            if flow_run_context and flow_run_context.flow
+            else task.isasync
+        ),
     )
 
     # Create and submit the task run in the background
@@ -1350,6 +1640,7 @@ async def create_task_run_future(
             wait_for=wait_for,
             task_runner=task_runner,
             extra_task_inputs=extra_task_inputs,
+            user_thread=user_thread,
         )
     )
 
@@ -1373,15 +1664,20 @@ async def create_task_run_then_submit(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    user_thread: threading.Thread,
 ) -> None:
-    task_run = await create_task_run(
-        task=task,
-        name=task_run_name,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        dynamic_key=task_run_dynamic_key,
-        wait_for=wait_for,
-        extra_task_inputs=extra_task_inputs,
+    task_run = (
+        await create_task_run(
+            task=task,
+            name=task_run_name,
+            flow_run_context=flow_run_context,
+            parameters=parameters,
+            dynamic_key=task_run_dynamic_key,
+            wait_for=wait_for,
+            extra_task_inputs=extra_task_inputs,
+        )
+        if not flow_run_context.autonomous_task_run
+        else flow_run_context.autonomous_task_run
     )
 
     # Attach the task run to the future to support `get_state` operations
@@ -1395,6 +1691,7 @@ async def create_task_run_then_submit(
         task_run=task_run,
         wait_for=wait_for,
         task_runner=task_runner,
+        user_thread=user_thread,
     )
 
     future._submitted.set()
@@ -1422,7 +1719,7 @@ async def create_task_run(
     task_run = await flow_run_context.client.create_task_run(
         task=task,
         name=name,
-        flow_run_id=flow_run_context.flow_run.id,
+        flow_run_id=flow_run_context.flow_run.id if flow_run_context.flow_run else None,
         dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
@@ -1442,11 +1739,19 @@ async def submit_task_run(
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
+    user_thread: threading.Thread,
 ) -> PrefectFuture:
     logger = get_run_logger(flow_run_context)
 
-    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+    if (
+        task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL
+        and not flow_run_context.autonomous_task_run
+    ):
         logger.info(f"Executing {task_run.name!r} immediately...")
+
+    if not isinstance(task_runner, (ConcurrentTaskRunner, SequentialTaskRunner)):
+        # Only pass the user thread to "local" task runners
+        user_thread = None
 
     future = await task_runner.submit(
         key=future.key,
@@ -1461,10 +1766,15 @@ async def submit_task_run(
             ),
             log_prints=should_log_prints(task),
             settings=prefect.context.SettingsContext.get().copy(),
+            user_thread=user_thread,
+            concurrency_type=task_runner.concurrency_type,
         ),
     )
 
-    if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
+    if (
+        task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL
+        and not flow_run_context.autonomous_task_run
+    ):
         logger.info(f"Submitted task run {task_run.name!r} for execution.")
 
     return future
@@ -1478,6 +1788,8 @@ async def begin_task_run(
     result_factory: ResultFactory,
     log_prints: bool,
     settings: prefect.context.SettingsContext,
+    user_thread: Optional[threading.Thread],
+    concurrency_type: TaskConcurrencyType,
 ):
     """
     Entrypoint for task run execution.
@@ -1523,7 +1835,7 @@ async def begin_task_run(
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
         else:
-            # Otherwise, retrieve a new client
+            # Otherwise, retrieve a new clien`t
             client = await stack.enter_async_context(get_client())
             interruptible = False
             await stack.enter_async_context(anyio.create_task_group())
@@ -1548,6 +1860,8 @@ async def begin_task_run(
                 log_prints=log_prints,
                 interruptible=interruptible,
                 client=client,
+                user_thread=user_thread,
+                concurrency_type=concurrency_type,
             )
 
             if not maybe_flow_run_context:
@@ -1573,10 +1887,18 @@ async def begin_task_run(
             state = task_run.state
 
         except Pause:
+            # A pause signal here should mean the flow run suspended, so we
+            # should do the same. We'll look up the flow run's pause state to
+            # try and reuse it, so we capture any data like timeouts.
+            flow_run = await client.read_flow_run(task_run.flow_run_id)
+            if flow_run.state and flow_run.state.is_paused():
+                state = flow_run.state
+            else:
+                state = Suspended()
+
             task_run_logger(task_run).info(
                 "Task run encountered a pause signal during orchestration."
             )
-            state = Paused()
 
         return state
 
@@ -1590,6 +1912,8 @@ async def orchestrate_task_run(
     log_prints: bool,
     interruptible: bool,
     client: PrefectClient,
+    concurrency_type: TaskConcurrencyType,
+    user_thread: Optional[threading.Thread],
 ) -> State:
     """
     Execute a task run
@@ -1616,7 +1940,12 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-    flow_run = await client.read_flow_run(task_run.flow_run_id)
+    flow_run_context = prefect.context.FlowRunContext.get()
+    if flow_run_context:
+        flow_run = flow_run_context.flow_run
+    else:
+        flow_run = await client.read_flow_run(task_run.flow_run_id)
+
     logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
     partial_task_run_context = PartialModel(
@@ -1627,7 +1956,7 @@ async def orchestrate_task_run(
         result_factory=result_factory,
         log_prints=log_prints,
     )
-
+    task_introspection_start_time = time.perf_counter()
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
@@ -1641,6 +1970,21 @@ async def orchestrate_task_run(
             # if orchestrating a run already in a pending state, force orchestration to
             # update the state name
             force=task_run.state.is_pending(),
+        )
+    task_introspection_end_time = time.perf_counter()
+
+    introspection_time = round(
+        task_introspection_end_time - task_introspection_start_time, 3
+    )
+    threshold = PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD.value()
+    if threshold and introspection_time > threshold:
+        logger.warning(
+            f"Task parameter introspection took {introspection_time} seconds "
+            f", exceeding `PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD` of {threshold}. "
+            "Try wrapping large task parameters with "
+            "`prefect.utilities.annotations.quote` for increased performance, "
+            "e.g. `my_task(quote(param))`. To disable this message set "
+            "`PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD=0`."
         )
 
     # Generate the cache key to attach to proposed states
@@ -1670,14 +2014,91 @@ async def orchestrate_task_run(
     )
     last_state = task_run.state
 
+    # Completed states with persisted results should have result data. If it's missing,
+    # this could be a manual state transition, so we should use the Unknown result type
+    # to represent that we know we don't know the result.
+    if (
+        last_state
+        and last_state.is_completed()
+        and result_factory.persist_result
+        and not last_state.data
+    ):
+        state = await propose_state(
+            client,
+            state=Completed(data=await UnknownResult.create()),
+            task_run_id=task_run.id,
+            force=True,
+        )
+
     # Transition from `PENDING` -> `RUNNING`
-    state = await propose_state(
-        client,
-        Running(
-            state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
-        ),
-        task_run_id=task_run.id,
-    )
+    try:
+        state = await propose_state(
+            client,
+            Running(
+                state_details=StateDetails(
+                    cache_key=cache_key, refresh_cache=refresh_cache
+                )
+            ),
+            task_run_id=task_run.id,
+        )
+    except Pause as exc:
+        # We shouldn't get a pause signal without a state, but if this happens,
+        # just use a Paused state to assume an in-process pause.
+        state = exc.state if exc.state else Paused()
+
+        # If a flow submits tasks and then pauses, we may reach this point due
+        # to concurrency timing because the tasks will try to transition after
+        # the flow run has paused. Orchestration will send back a Paused state
+        # for the task runs.
+        if state.state_details.pause_reschedule:
+            # If we're being asked to pause and reschedule, we should exit the
+            # task and expect to be resumed later.
+            raise
+
+    if state.is_paused():
+        BACKOFF_MAX = 10  # Seconds
+        backoff_count = 0
+
+        async def tick():
+            nonlocal backoff_count
+            if backoff_count < BACKOFF_MAX:
+                backoff_count += 1
+            interval = 1 + backoff_count + random.random() * backoff_count
+            await anyio.sleep(interval)
+
+        # Enter a loop to wait for the task run to be resumed, i.e.
+        # become Pending, and then propose a Running state again.
+        while True:
+            await tick()
+
+            # Propose a Running state again. We do this instead of reading the
+            # task run because if the flow run times out, this lets
+            # orchestration fail the task run.
+            try:
+                state = await propose_state(
+                    client,
+                    Running(
+                        state_details=StateDetails(
+                            cache_key=cache_key, refresh_cache=refresh_cache
+                        )
+                    ),
+                    task_run_id=task_run.id,
+                )
+            except Pause as exc:
+                if not exc.state:
+                    continue
+
+                if exc.state.state_details.pause_reschedule:
+                    # If the pause state includes pause_reschedule, we should exit the
+                    # task and expect to be resumed later. We've already checked for this
+                    # above, but we check again here in case the state changed; e.g. the
+                    # flow run suspended.
+                    raise
+                else:
+                    # Propose a Running state again.
+                    continue
+            else:
+                break
 
     # Emit an event to capture the result of proposing a `RUNNING` state.
     last_event = _emit_task_run_state_change_event(
@@ -1723,9 +2144,34 @@ async def orchestrate_task_run(
                         "Beginning execution...", extra={"state_message": True}
                     )
 
-                call = from_async.call_soon_in_new_thread(
-                    create_call(task.fn, *args, **kwargs), timeout=task.timeout_seconds
-                )
+                call = create_call(task.fn, *args, **kwargs)
+
+                if (
+                    flow_run_context
+                    and user_thread
+                    and (
+                        # Async and sync tasks can be executed on synchronous flows
+                        # if the task runner is sequential; if the task is sync and a
+                        # concurrent task runner is used, we must execute it in a worker
+                        # thread instead.
+                        (
+                            concurrency_type == TaskConcurrencyType.SEQUENTIAL
+                            and not flow_run_context.flow.isasync
+                        )
+                        # Async tasks can always be executed on asynchronous flow; if the
+                        # flow is async we do not want to block the event loop with
+                        # synchronous tasks
+                        or (flow_run_context.flow.isasync and task.isasync)
+                    )
+                ):
+                    from_async.call_soon_in_waiting_thread(
+                        call, thread=user_thread, timeout=task.timeout_seconds
+                    )
+                else:
+                    from_async.call_soon_in_new_thread(
+                        call, timeout=task.timeout_seconds
+                    )
+
                 result = await call.aresult()
 
             except (CancelledError, asyncio.CancelledError) as exc:
@@ -1767,6 +2213,11 @@ async def orchestrate_task_run(
                     )
                     terminal_state.state_details.cache_key = cache_key
 
+            if terminal_state.is_failed():
+                # Defer to user to decide whether failure is retriable
+                terminal_state.state_details.retriable = (
+                    await _check_task_failure_retriable(task, task_run, terminal_state)
+                )
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
             last_event = _emit_task_run_state_change_event(
                 task_run=task_run,
@@ -1817,7 +2268,6 @@ async def orchestrate_task_run(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
     )
-
     return state
 
 
@@ -2047,11 +2497,10 @@ async def resolve_inputs(
         if not state.is_completed() and not (
             # TODO: Note that the contextual annotation here is only at the current level
             #       if `allow_failure` is used then another annotation is used, this will
-            #       incorrectly evaulate to false — to resolve this, we must track all
+            #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure)
-            and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
@@ -2176,7 +2625,7 @@ async def propose_state(
 
     elif response.status == SetStateStatus.REJECT:
         if response.state.is_paused():
-            raise Pause(response.details.reason)
+            raise Pause(response.details.reason, state=response.state)
         return response.state
 
     else:
@@ -2186,7 +2635,12 @@ async def propose_state(
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
-    if task.task_key not in context.task_run_dynamic_keys:
+    if context.flow_run is None:  # this is an autonomous task run
+        context.task_run_dynamic_keys[task.task_key] = getattr(
+            task, "dynamic_key", str(uuid4())
+        )
+
+    elif task.task_key not in context.task_run_dynamic_keys:
         context.task_run_dynamic_keys[task.task_key] = 0
     else:
         context.task_run_dynamic_keys[task.task_key] += 1
@@ -2320,6 +2774,16 @@ def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str
     return task_run_name
 
 
+def _get_hook_name(hook: Callable) -> str:
+    return (
+        hook.__name__
+        if hasattr(hook, "__name__")
+        else (
+            hook.func.__name__ if isinstance(hook, partial) else hook.__class__.__name__
+        )
+    )
+
+
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     """Run the on_failure and on_completion hooks for a task, making sure to
     catch and log any errors that occur.
@@ -2333,9 +2797,10 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     if hooks:
         logger = task_run_logger(task_run)
         for hook in hooks:
+            hook_name = _get_hook_name(hook)
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
                 if is_async_fn(hook):
@@ -2346,11 +2811,53 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     )
             except Exception:
                 logger.error(
-                    f"An error was encountered while running hook {hook.__name__!r}",
+                    f"An error was encountered while running hook {hook_name!r}",
                     exc_info=True,
                 )
             else:
-                logger.info(f"Hook {hook.__name__!r} finished running successfully")
+                logger.info(f"Hook {hook_name!r} finished running successfully")
+
+
+async def _check_task_failure_retriable(
+    task: Task, task_run: TaskRun, state: State
+) -> bool:
+    """Run the `retry_condition_fn` callable for a task, making sure to catch and log any errors
+    that occur. If None, return True. If not callable, logs an error and returns False.
+    """
+    if task.retry_condition_fn is None:
+        return True
+
+    logger = task_run_logger(task_run)
+
+    try:
+        logger.debug(
+            f"Running `retry_condition_fn` check {task.retry_condition_fn!r} for task"
+            f" {task.name!r}"
+        )
+        if is_async_fn(task.retry_condition_fn):
+            return bool(
+                await task.retry_condition_fn(task=task, task_run=task_run, state=state)
+            )
+        else:
+            return bool(
+                await from_async.call_in_new_thread(
+                    create_call(
+                        task.retry_condition_fn,
+                        task=task,
+                        task_run=task_run,
+                        state=state,
+                    )
+                )
+            )
+    except Exception:
+        logger.error(
+            (
+                "An error was encountered while running `retry_condition_fn` check"
+                f" '{task.retry_condition_fn!r}' for task {task.name!r}"
+            ),
+            exc_info=True,
+        )
+        return False
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
@@ -2358,21 +2865,32 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
+    enable_cancellation_and_crashed_hooks = (
+        os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
+        == "true"
+    )
     if state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
-    elif state.is_cancelling() and flow.on_cancellation:
+    elif (
+        enable_cancellation_and_crashed_hooks
+        and state.is_cancelling()
+        and flow.on_cancellation
+    ):
         hooks = flow.on_cancellation
-    elif state.is_crashed() and flow.on_crashed:
+    elif (
+        enable_cancellation_and_crashed_hooks and state.is_crashed() and flow.on_crashed
+    ):
         hooks = flow.on_crashed
 
     if hooks:
         logger = flow_run_logger(flow_run)
         for hook in hooks:
+            hook_name = _get_hook_name(hook)
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
                 if is_async_fn(hook):
@@ -2383,11 +2901,11 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     )
             except Exception:
                 logger.error(
-                    f"An error was encountered while running hook {hook.__name__!r}",
+                    f"An error was encountered while running hook {hook_name!r}",
                     exc_info=True,
                 )
             else:
-                logger.info(f"Hook {hook.__name__!r} finished running successfully")
+                logger.info(f"Hook {hook_name!r} finished running successfully")
 
 
 async def check_api_reachable(client: PrefectClient, fail_message: str):
@@ -2462,6 +2980,33 @@ def _emit_task_run_state_change_event(
     )
 
 
+async def _create_autonomous_task_run(
+    task: Task, parameters: Dict[str, Any]
+) -> TaskRun:
+    async with get_client() as client:
+        scheduled = Scheduled()
+        if parameters:
+            parameters_id = uuid4()
+            scheduled.state_details.task_parameters_id = parameters_id
+
+            # TODO: We want to use result storage for parameters, but we'll need
+            # a better way to use it than this.
+            task.persist_result = True
+            factory = await ResultFactory.from_task(task, client=client)
+            await factory.store_parameters(parameters_id, parameters)
+
+        task_run = await client.create_task_run(
+            task=task,
+            flow_run_id=None,
+            dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
+            state=scheduled,
+        )
+
+        engine_logger.debug(f"Submitted run of task {task.name!r} for execution")
+
+    return task_run
+
+
 if __name__ == "__main__":
     try:
         flow_run_id = UUID(
@@ -2469,7 +3014,7 @@ if __name__ == "__main__":
         )
     except Exception:
         engine_logger.error(
-            f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
+            f"Invalid flow run id. Received arguments: {sys.argv}", exc_info=True
         )
         exit(1)
 

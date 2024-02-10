@@ -17,14 +17,21 @@ from typing import Dict, List, Optional
 
 import anyio
 import yaml
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
+
 from ruamel.yaml import YAML
 
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import LazySemaphore, run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
 from prefect.utilities.templating import apply_values
 
@@ -377,20 +384,17 @@ def _copy_deployments_into_prefect_file():
             f.write(raw_deployment_file_contents)
 
 
-def _save_deployment_to_prefect_file(
+def _format_deployment_for_saving_to_prefect_file(
     deployment: Dict,
-    build_steps: Optional[List[Dict]] = None,
-    push_steps: Optional[List[Dict]] = None,
-    pull_steps: Optional[List[Dict]] = None,
-):
+) -> Dict:
     """
-    Save a deployment configuration to the `prefect.yaml` file in the
-    current directory.
-
-    Will create a prefect.yaml file if one does not already exist.
+    Formats a deployment into a templated deploy config for saving to prefect.yaml.
 
     Args:
-        - deployment: a dictionary containing a deployment configuration
+        - deployment (Dict): a dictionary containing an untemplated deployment configuration
+
+    Returns:
+        - deployment (Dict): a dictionary containing a templated deployment configuration
     """
     if not deployment:
         raise ValueError("Deployment must be a non-empty dictionary.")
@@ -412,8 +416,32 @@ def _save_deployment_to_prefect_file(
         elif isinstance(deployment["schedule"], BaseModel):
             deployment["schedule"] = deployment["schedule"].dict()
 
+        if "is_schedule_active" in deployment:
+            deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
+
+    return deployment
+
+
+def _save_deployment_to_prefect_file(
+    deployment: Dict,
+    build_steps: Optional[List[Dict]] = None,
+    push_steps: Optional[List[Dict]] = None,
+    pull_steps: Optional[List[Dict]] = None,
+    triggers: Optional[List[Dict]] = None,
+    prefect_file: Path = Path("prefect.yaml"),
+):
+    """
+    Save a deployment configuration to the `prefect.yaml` file in the
+    current directory.
+
+    Will create a prefect.yaml file if one does not already exist.
+
+    Args:
+        - deployment: a dictionary containing a deployment configuration
+    """
+    deployment = _format_deployment_for_saving_to_prefect_file(deployment)
+
     current_directory_name = os.path.basename(os.getcwd())
-    prefect_file = Path("prefect.yaml")
     if not prefect_file.exists():
         create_default_prefect_yaml(
             ".",
@@ -441,6 +469,9 @@ def _save_deployment_to_prefect_file(
         if pull_steps != parsed_prefect_file_contents.get("pull"):
             deployment["pull"] = pull_steps
 
+        if triggers and triggers != parsed_prefect_file_contents.get("triggers"):
+            deployment["triggers"] = triggers
+
         deployments = parsed_prefect_file_contents.get("deployments")
         if deployments is None:
             parsed_prefect_file_contents["deployments"] = [deployment]
@@ -461,7 +492,7 @@ def _save_deployment_to_prefect_file(
 
 # Only allow half of the open file limit to be open at once to allow for other
 # actors to open files.
-OPEN_FILE_SEMAPHORE = asyncio.Semaphore(math.floor(get_open_file_limit() * 0.5))
+OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
 
 
 async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
@@ -539,7 +570,7 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
     return decorated_functions
 
 
-async def _search_for_flow_functions(directory: str = "."):
+async def _search_for_flow_functions(directory: str = ".") -> List[Dict]:
     """
     Search for flow functions in the provided directory. If no directory is provided,
     the current working directory is used.

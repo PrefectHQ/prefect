@@ -32,6 +32,7 @@ from anyio.streams.text import TextReceiveStream
 from typing_extensions import TypedDict
 
 from prefect.utilities.processutils import (
+    get_sys_executable,
     open_process,
     stream_text,
 )
@@ -168,7 +169,7 @@ async def run_shell_script(
         if expand_env_vars:
             # Expand environment variables in command and provided environment
             command = string.Template(command).safe_substitute(current_env)
-        split_command = shlex.split(command)
+        split_command = shlex.split(command, posix=sys.platform != "win32")
         if not split_command:
             continue
         async with open_process(
@@ -186,6 +187,12 @@ async def run_shell_script(
             )
 
             await process.wait()
+
+            if process.returncode != 0:
+                raise RuntimeError(
+                    f"`run_shell_script` failed with error code {process.returncode}:"
+                    f" {stderr_sink.getvalue()}"
+                )
 
     return {
         "stdout": stdout_sink.getvalue().strip(),
@@ -231,7 +238,7 @@ async def pip_install_requirements(
     stderr_sink = io.StringIO()
 
     async with open_process(
-        [sys.executable, "-m", "pip", "install", "-r", requirements_file],
+        [get_sys_executable(), "-m", "pip", "install", "-r", requirements_file],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=directory,
@@ -243,6 +250,12 @@ async def pip_install_requirements(
             stream_output=stream_output,
         )
         await process.wait()
+
+        if process.returncode != 0:
+            raise RuntimeError(
+                f"pip_install_requirements failed with error code {process.returncode}:"
+                f" {stderr_sink.getvalue()}"
+            )
 
     return {
         "stdout": stdout_sink.getvalue().strip(),

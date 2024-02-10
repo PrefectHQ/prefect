@@ -1,4 +1,4 @@
-from fastapi import status
+from prefect._vendor.starlette import status
 
 import prefect
 from prefect.server import models

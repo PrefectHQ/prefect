@@ -1,0 +1,33 @@
+
+name: Build and publish the prefect-client
+
+on:
+  release:
+    types: [released, prereleased]
+
+jobs:
+  verify-prefect-client-build:
+    uses: ./.github/workflows/prefect-client.yaml
+    with:
+      upload-artifacts: true
+      artifact-name: "prefect-client-pypi-dists"
+    secrets: inherit
+
+  publish-prefect-client-pypi-dists:
+    name: Publish to PyPI
+    environment: "prod"
+    needs: [verify-prefect-client-build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: "prefect-client-pypi-dists"
+          path: "./dist"
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PREFECT_CLIENT_PYPI_API_TOKEN }}
+          name: ci

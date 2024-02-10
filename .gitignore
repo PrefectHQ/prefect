@@ -44,6 +44,7 @@ src/mkdocs-material
 
 # UI artifacts
 src/prefect/server/ui/*
+src/prefect/server/ui_build/*
 **/node_modules
 
 # Databases
@@ -68,3 +69,6 @@ prefect.yaml
 
 # Deployment recipes
 !src/prefect/deployments/recipes/*/**
+
+# For development doc server if link
+libcairo.2.dylib

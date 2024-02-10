@@ -22,7 +22,7 @@ def enable_api_log_handler_if_marked(request):
     The `APILogHandler` is disabled during testing by default to reduce overhead.
 
     Test functions or classes can be marked with `@pytest.mark.enable_api_log_handler`
-    to indicate that they need the handler to be reenabled because they are testing
+    to indicate that they need the handler to be re-enabled because they are testing
     its functionality.
     """
     marker = request.node.get_closest_marker("enable_api_log_handler")

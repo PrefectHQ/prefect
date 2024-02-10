@@ -75,10 +75,10 @@ async def create_block_schema(
             insert_values["fields"], definitions
         )
         if non_block_definitions:
-            insert_values["fields"]["definitions"] = (
-                _get_non_block_reference_definitions(
-                    insert_values["fields"], definitions
-                )
+            insert_values["fields"][
+                "definitions"
+            ] = _get_non_block_reference_definitions(
+                insert_values["fields"], definitions
             )
         else:
             # Prevent storing definitions for blocks. Those are reconstructed on read.
@@ -393,7 +393,7 @@ def _construct_full_block_schema(
 def _find_root_block_schema(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
-    ]
+    ],
 ):
     """
     Attempts to find the root block schema from a list of block schemas
@@ -472,7 +472,7 @@ def _add_block_schemas_fields_to_definitions(
 ):
     """
     Returns a new definitions dict with the fields of a block schema and it's child
-    block schemas added to the existing defintions.
+    block schemas added to the existing definitions.
     """
     block_schema_title = child_block_schema.fields.get("title")
     if block_schema_title is not None:

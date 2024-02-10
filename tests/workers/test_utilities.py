@@ -2,6 +2,7 @@ import httpx
 import pytest
 import respx
 
+from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 from prefect.workers.utilities import (
     get_available_work_pool_types,
@@ -24,43 +25,6 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 }
 
 
-@pytest.fixture(autouse=True)
-def reset_cache():
-    from prefect.server.api.collections import GLOBAL_COLLECTIONS_VIEW_CACHE
-
-    GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
-
-
-@pytest.fixture
-async def mock_collection_registry():
-    with respx.mock as respx_mock:
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "prefect-agent": {
-                            "type": "prefect-agent",
-                            "default_base_job_configuration": {},
-                        }
-                    },
-                    "prefect-fake": {
-                        "fake": {
-                            "type": "fake",
-                            "default_base_job_configuration": (
-                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
-                            ),
-                        }
-                    },
-                },
-            )
-        )
-        yield
-
-
 @pytest.fixture
 async def mock_collection_registry_not_available():
     with respx.mock as respx_mock:
@@ -73,21 +37,47 @@ async def mock_collection_registry_not_available():
 
 class TestGetAvailableWorkPoolTypes:
     @pytest.mark.usefixtures("mock_collection_registry")
-    async def test_get_available_work_pool_types(self):
-        work_pool_types = await get_available_work_pool_types()
+    async def test_get_available_work_pool_types(self, monkeypatch):
+        def available():
+            return ["faker", "process"]
 
-        assert "prefect-agent" in work_pool_types
-        assert "fake" in work_pool_types
-        assert "process" in work_pool_types
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
+        work_pool_types = await get_available_work_pool_types()
+        assert work_pool_types == [
+            "cloud-run:push",
+            "docker",
+            "fake",
+            "faker",
+            "kubernetes",
+            "prefect-agent",
+            "process",
+        ]
 
     @pytest.mark.usefixtures("mock_collection_registry_not_available")
-    async def test_get_available_work_pool_types_without_collection_registry(self):
+    async def test_get_available_work_pool_types_without_collection_registry(
+        self, monkeypatch
+    ):
         respx.routes
+
+        def available():
+            return ["process"]
+
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
         work_pool_types = await get_available_work_pool_types()
 
-        assert "prefect-agent" not in work_pool_types
-        assert "fake" not in work_pool_types
-        assert "process" in work_pool_types
+        assert set(work_pool_types) == {
+            "azure-container-instance",
+            "cloud-run",
+            "cloud-run-v2",
+            "docker",
+            "ecs",
+            "kubernetes",
+            "prefect-agent",
+            "process",
+            "vertex-ai",
+        }
 
 
 class TestGetDefaultBaseJobTemplateForInfrastructureType:
