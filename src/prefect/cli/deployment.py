@@ -490,7 +490,9 @@ async def run(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
     ),
     deployment_id: Optional[str] = typer.Option(
-        None, "--id", help="A deployment id to search for if no name is given"
+        None,
+        "--id",
+        help=("A deployment id to search for if no name is given"),
     ),
     params: List[str] = typer.Option(
         None,
