@@ -16,8 +16,11 @@ from typing import (
     Union,
 )
 
+import greenback
 from typing_extensions import ParamSpec
 
+from prefect._internal.concurrency import logger
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.threads import (
     WorkerThread,
     get_global_loop,
@@ -179,7 +182,7 @@ class from_async(_base):
             for context in contexts or []:
                 stack.enter_context(context)
             await waiter.wait()
-            return call.result()
+            return await call.aresult()
 
     @staticmethod
     async def wait_for_call_in_new_thread(
@@ -193,7 +196,7 @@ class from_async(_base):
             waiter.add_done_callback(callback)
         _base.call_soon_in_new_thread(call, timeout=timeout)
         await waiter.wait()
-        return call.result()
+        return await call.aresult()
 
     @staticmethod
     def call_in_waiting_thread(
@@ -231,6 +234,25 @@ class from_sync(_base):
         done_callbacks: Optional[Iterable[Call]] = None,
         contexts: Optional[Iterable[ContextManager]] = None,
     ) -> Awaitable[T]:
+        # Check for a running event loop to prevent blocking
+        if get_running_loop():
+            if greenback.has_portal():
+                # Use greenback to avoid blocking the event loop while waiting
+                return greenback.await_(
+                    from_async.wait_for_call_in_loop_thread(
+                        __call,
+                        timeout=timeout,
+                        done_callbacks=done_callbacks,
+                        contexts=contexts,
+                    )
+                )
+            else:
+                logger.error(
+                    "Detected unsafe call to `from_sync` from thread with event loop. "
+                    "Use `await greenback.ensure_portal()` to allow call to run "
+                    "without blocking the event loop."
+                )
+
         call = _cast_to_call(__call)
         waiter = SyncWaiter(call)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
@@ -262,6 +284,10 @@ class from_sync(_base):
         thread: threading.Thread,
         timeout: Optional[float] = None,
     ) -> T:
+        if get_running_loop():
+            raise RuntimeError(
+                "Detected unsafe call to `from_sync` from thread with event loop."
+            )
         call = _base.call_soon_in_waiting_thread(__call, thread, timeout=timeout)
         return call.result()
 
@@ -269,6 +295,10 @@ class from_sync(_base):
     def call_in_new_thread(
         __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
     ) -> T:
+        if get_running_loop():
+            raise RuntimeError(
+                "Detected unsafe call to `from_sync` from thread with event loop."
+            )
         call = _base.call_soon_in_new_thread(__call, timeout=timeout)
         return call.result()
 
@@ -282,6 +312,11 @@ class from_sync(_base):
             # blocked waiting for the call
             call = _cast_to_call(__call)
             return call()
+
+        if get_running_loop():
+            raise RuntimeError(
+                "Detected unsafe call to `from_sync` from thread with event loop."
+            )
 
         call = _base.call_soon_in_loop_thread(__call, timeout=timeout)
         return call.result()
