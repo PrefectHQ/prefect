@@ -86,7 +86,8 @@ def upgrade():
         FROM
             deployment d
         WHERE
-            d.schedule IS NOT NULL;
+            d.schedule IS NOT NULL
+            and d.schedule != 'null';
     """
     backfill_paused = """
         UPDATE deployment SET paused = NOT is_schedule_active where paused = is_schedule_active;
