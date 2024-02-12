@@ -10,6 +10,7 @@ from typing import (
     List,
     Optional,
     Set,
+    Tuple,
     Union,
 )
 from uuid import UUID, uuid4
@@ -45,6 +46,7 @@ from prefect.client.schemas.actions import (
     DeploymentCreate,
     DeploymentFlowRunCreate,
     DeploymentScheduleCreate,
+    DeploymentScheduleUpdate,
     DeploymentUpdate,
     FlowCreate,
     FlowRunCreate,
@@ -84,6 +86,7 @@ from prefect.client.schemas.objects import (
     ConcurrencyLimit,
     Constant,
     Deployment,
+    DeploymentSchedule,
     Flow,
     FlowRunInput,
     FlowRunNotificationPolicy,
@@ -1801,6 +1804,121 @@ class PrefectClient:
         """
         try:
             await self._client.delete(f"/deployments/{deployment_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def create_deployment_schedules(
+        self,
+        deployment_id: UUID,
+        schedules: List[Tuple[SCHEDULE_TYPES, bool]],
+    ) -> List[DeploymentSchedule]:
+        """
+        Create deployment schedules.
+
+        Args:
+            deployment_id: the deployment ID
+            schedules: a list of tuples containing the schedule to create
+                       and whether or not it should be active.
+
+        Raises:
+            httpx.RequestError: if the schedules were not created for any reason
+
+        Returns:
+            the list of schedules created in the backend
+        """
+        deployment_schedule_create = [
+            DeploymentScheduleCreate(schedule=schedule[0], active=schedule[1])
+            for schedule in schedules
+        ]
+
+        json = [
+            deployment_schedule_create.dict(json_compatible=True)
+            for deployment_schedule_create in deployment_schedule_create
+        ]
+        response = await self._client.post(
+            f"/deployments/{deployment_id}/schedules", json=json
+        )
+        return pydantic.parse_obj_as(List[DeploymentSchedule], response.json())
+
+    async def read_deployment_schedules(
+        self,
+        deployment_id: UUID,
+    ) -> List[DeploymentSchedule]:
+        """
+        Query the Prefect API for a deployment's schedules.
+
+        Args:
+            deployment_id: the deployment ID
+
+        Returns:
+            a list of DeploymentSchedule model representations of the deployment schedules
+        """
+        try:
+            response = await self._client.get(f"/deployments/{deployment_id}/schedules")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return pydantic.parse_obj_as(List[DeploymentSchedule], response.json())
+
+    async def update_deployment_schedule(
+        self,
+        deployment_id: UUID,
+        schedule_id: UUID,
+        active: Optional[bool] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+    ):
+        """
+        Update a deployment schedule by ID.
+
+        Args:
+            deployment_id: the deployment ID
+            schedule_id: the deployment schedule ID of interest
+            active: whether or not the schedule should be active
+            schedule: the cron, rrule, or interval schedule this deployment schedule should use
+        """
+        kwargs = {}
+        if active is not None:
+            kwargs["active"] = active
+        elif schedule is not None:
+            kwargs["schedule"] = schedule
+
+        deployment_schedule_update = DeploymentScheduleUpdate(**kwargs)
+        json = deployment_schedule_update.dict(json_compatible=True, exclude_unset=True)
+
+        try:
+            await self._client.patch(
+                f"/deployments/{deployment_id}/schedules/{schedule_id}", json=json
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def delete_deployment_schedule(
+        self,
+        deployment_id: UUID,
+        schedule_id: UUID,
+    ) -> None:
+        """
+        Delete a deployment schedule.
+
+        Args:
+            deployment_id: the deployment ID
+            schedule_id: the ID of the deployment schedule to delete.
+
+        Raises:
+            httpx.RequestError: if the schedules were not deleted for any reason
+        """
+        try:
+            await self._client.delete(
+                f"/deployments/{deployment_id}/schedules/{schedule_id}"
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
