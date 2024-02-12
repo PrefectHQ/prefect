@@ -18,6 +18,7 @@ search:
 After you install Prefect you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), the platform hosted by Prefect. You also have an [API server](/api-ref/) backed by a database and a UI.
 
 In this section you'll learn how to host your own Prefect server.
+If you would like to host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
 
 Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
 
