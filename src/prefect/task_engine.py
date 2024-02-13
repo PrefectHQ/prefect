@@ -1,3 +1,4 @@
+import threading
 from contextlib import AsyncExitStack
 from typing import (
     Any,
@@ -62,6 +63,7 @@ async def submit_autonomous_task_to_engine(
                 wait_for=wait_for,
                 return_type=return_type,
                 task_runner=task_runner,
+                user_thread=threading.current_thread(),
             )
             if task.isasync:
                 return await from_async.wait_for_call_in_loop_thread(begin_run)
