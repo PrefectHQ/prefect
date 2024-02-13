@@ -4,7 +4,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 import sqlalchemy as sa
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import DeploymentCreate
@@ -788,8 +788,7 @@ class TestCreateDeployment:
         assert response.status_code == 422
         assert (
             "Validation failed for field 'foo'. Failure reason: 1 is not of type"
-            " 'string'"
-            in response.text
+            " 'string'" in response.text
         )
 
     async def test_create_deployment_does_not_enforce_schema_by_default(

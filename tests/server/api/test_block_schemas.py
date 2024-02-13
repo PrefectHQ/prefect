@@ -9,7 +9,7 @@ else:
     import pydantic
 
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.blocks.core import Block
 from prefect.server import models, schemas

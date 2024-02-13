@@ -192,6 +192,8 @@ from prefect.states import (
 from prefect.task_runners import (
     CONCURRENCY_MESSAGES,
     BaseTaskRunner,
+    ConcurrentTaskRunner,
+    SequentialTaskRunner,
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
@@ -850,7 +852,11 @@ async def orchestrate_flow_run(
                     not parent_flow_run_context
                     or (
                         parent_flow_run_context
-                        and parent_flow_run_context.flow.isasync == flow.isasync
+                        and
+                        # Unless the parent is async and the child is sync, run the
+                        # child flow in the parent thread; running a sync child in
+                        # an async parent could be bad for async performance.
+                        not (parent_flow_run_context.flow.isasync and not flow.isasync)
                     )
                 ):
                     from_async.call_soon_in_waiting_thread(
@@ -1405,6 +1411,7 @@ def enter_task_run_engine(
         wait_for=wait_for,
         return_type=return_type,
         task_runner=task_runner,
+        user_thread=threading.current_thread(),
     )
 
     if task.isasync and flow_run_context.flow.isasync:
@@ -1421,6 +1428,7 @@ async def begin_task_map(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
+    user_thread: threading.Thread,
 ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
     """Async entrypoint for task mapping"""
     # We need to resolve some futures to map over their data, collect the upstream
@@ -1498,6 +1506,7 @@ async def begin_task_map(
                 return_type=return_type,
                 task_runner=task_runner,
                 extra_task_inputs=task_inputs,
+                user_thread=user_thread,
             )
         )
 
@@ -1562,6 +1571,7 @@ async def get_task_call_return_value(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
+    user_thread: threading.Thread,
     extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
 ):
     extra_task_inputs = extra_task_inputs or {}
@@ -1573,6 +1583,7 @@ async def get_task_call_return_value(
         wait_for=wait_for,
         task_runner=task_runner,
         extra_task_inputs=extra_task_inputs,
+        user_thread=user_thread,
     )
     if return_type == "future":
         return future
@@ -1591,6 +1602,7 @@ async def create_task_run_future(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    user_thread: threading.Thread,
 ) -> PrefectFuture:
     # Default to the flow run's task runner
     task_runner = task_runner or flow_run_context.task_runner
@@ -1628,6 +1640,7 @@ async def create_task_run_future(
             wait_for=wait_for,
             task_runner=task_runner,
             extra_task_inputs=extra_task_inputs,
+            user_thread=user_thread,
         )
     )
 
@@ -1651,6 +1664,7 @@ async def create_task_run_then_submit(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    user_thread: threading.Thread,
 ) -> None:
     task_run = (
         await create_task_run(
@@ -1677,6 +1691,7 @@ async def create_task_run_then_submit(
         task_run=task_run,
         wait_for=wait_for,
         task_runner=task_runner,
+        user_thread=user_thread,
     )
 
     future._submitted.set()
@@ -1724,6 +1739,7 @@ async def submit_task_run(
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
+    user_thread: threading.Thread,
 ) -> PrefectFuture:
     logger = get_run_logger(flow_run_context)
 
@@ -1732,6 +1748,10 @@ async def submit_task_run(
         and not flow_run_context.autonomous_task_run
     ):
         logger.info(f"Executing {task_run.name!r} immediately...")
+
+    if not isinstance(task_runner, (ConcurrentTaskRunner, SequentialTaskRunner)):
+        # Only pass the user thread to "local" task runners
+        user_thread = None
 
     future = await task_runner.submit(
         key=future.key,
@@ -1746,6 +1766,8 @@ async def submit_task_run(
             ),
             log_prints=should_log_prints(task),
             settings=prefect.context.SettingsContext.get().copy(),
+            user_thread=user_thread,
+            concurrency_type=task_runner.concurrency_type,
         ),
     )
 
@@ -1766,6 +1788,8 @@ async def begin_task_run(
     result_factory: ResultFactory,
     log_prints: bool,
     settings: prefect.context.SettingsContext,
+    user_thread: Optional[threading.Thread],
+    concurrency_type: TaskConcurrencyType,
 ):
     """
     Entrypoint for task run execution.
@@ -1836,6 +1860,8 @@ async def begin_task_run(
                 log_prints=log_prints,
                 interruptible=interruptible,
                 client=client,
+                user_thread=user_thread,
+                concurrency_type=concurrency_type,
             )
 
             if not maybe_flow_run_context:
@@ -1886,6 +1912,8 @@ async def orchestrate_task_run(
     log_prints: bool,
     interruptible: bool,
     client: PrefectClient,
+    concurrency_type: TaskConcurrencyType,
+    user_thread: Optional[threading.Thread],
 ) -> State:
     """
     Execute a task run
@@ -1917,6 +1945,7 @@ async def orchestrate_task_run(
         flow_run = flow_run_context.flow_run
     else:
         flow_run = await client.read_flow_run(task_run.flow_run_id)
+
     logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
     partial_task_run_context = PartialModel(
@@ -2115,9 +2144,34 @@ async def orchestrate_task_run(
                         "Beginning execution...", extra={"state_message": True}
                     )
 
-                call = from_async.call_soon_in_new_thread(
-                    create_call(task.fn, *args, **kwargs), timeout=task.timeout_seconds
-                )
+                call = create_call(task.fn, *args, **kwargs)
+
+                if (
+                    flow_run_context
+                    and user_thread
+                    and (
+                        # Async and sync tasks can be executed on synchronous flows
+                        # if the task runner is sequential; if the task is sync and a
+                        # concurrent task runner is used, we must execute it in a worker
+                        # thread instead.
+                        (
+                            concurrency_type == TaskConcurrencyType.SEQUENTIAL
+                            and not flow_run_context.flow.isasync
+                        )
+                        # Async tasks can always be executed on asynchronous flow; if the
+                        # flow is async we do not want to block the event loop with
+                        # synchronous tasks
+                        or (flow_run_context.flow.isasync and task.isasync)
+                    )
+                ):
+                    from_async.call_soon_in_waiting_thread(
+                        call, thread=user_thread, timeout=task.timeout_seconds
+                    )
+                else:
+                    from_async.call_soon_in_new_thread(
+                        call, timeout=task.timeout_seconds
+                    )
+
                 result = await call.aresult()
 
             except (CancelledError, asyncio.CancelledError) as exc:
@@ -2446,8 +2500,7 @@ async def resolve_inputs(
             #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure)
-            and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"

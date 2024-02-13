@@ -1045,6 +1045,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
     async def test_raises_on_new_pause_state_with_reschedule(
@@ -1101,6 +1103,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
     async def test_abort_breaks_pause_loop(
@@ -1166,6 +1170,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
     async def test_pending_in_pause_loop_submits_running_state(
@@ -1235,6 +1241,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         assert state.is_completed()
@@ -1280,6 +1288,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert state.is_completed()
@@ -1324,6 +1334,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         mock_anyio_sleep.assert_not_called()
@@ -1375,6 +1387,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         # Check for a proper final result
@@ -1437,6 +1451,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -1489,6 +1505,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -1542,6 +1560,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         assert mock.call_count == 10 + 1  # 1 run + 10 retries
@@ -1610,6 +1630,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task did not run
@@ -1659,6 +1681,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task ran with the unqoted data
@@ -1709,6 +1733,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task ran with the state as its input
@@ -1760,6 +1786,8 @@ class TestOrchestrateTaskRun:
                     interruptible=False,
                     client=prefect_client,
                     log_prints=False,
+                    concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                    user_thread=threading.current_thread(),
                 )
 
             assert mock_anyio_sleep.await_count == 3
@@ -1804,6 +1832,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after two attempts
@@ -1852,6 +1882,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after only one attempt
@@ -1902,6 +1934,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after only one attempt
@@ -1962,6 +1996,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # Ensure the retry condition function was never called
@@ -2009,6 +2045,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after only one attempt
@@ -2019,8 +2057,7 @@ class TestOrchestrateTaskRun:
 
         assert (
             "Received non-final state 'Failed' when proposing final state 'Failed' and"
-            " will not attempt to run again..."
-            not in caplog.text
+            " will not attempt to run again..." not in caplog.text
         )
 
     async def test_retry_condition_fn_retry_handler_returns_notfalse_retries(
@@ -2064,6 +2101,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         assert state.is_failed()
@@ -2072,8 +2111,7 @@ class TestOrchestrateTaskRun:
 
         assert (
             "Received non-final state 'AwaitingRetry' when proposing final state"
-            " 'Failed' and will attempt to run again..."
-            in caplog.text
+            " 'Failed' and will attempt to run again..." in caplog.text
         )
 
     async def test_proposes_unknown_result_if_state_is_completed_and_result_data_is_missing(
@@ -2113,6 +2151,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         result = await state.result()
@@ -2169,6 +2209,8 @@ class TestBeginTaskRun:
                 wait_for=[],
                 log_prints=False,
                 settings=prefect.context.SettingsContext.get().copy(),
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert state
@@ -2823,8 +2865,7 @@ class TestCreateThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -2918,8 +2959,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -2997,8 +3037,7 @@ class TestCreateAndBeginSubflowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -3265,8 +3304,7 @@ def test_flow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow."
-        in caplog.text
+        " the same flow." in caplog.text
     )
 
 
@@ -3295,8 +3333,7 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow."
-        in caplog.text
+        " the same flow." in caplog.text
     )
 
 
@@ -3367,6 +3404,8 @@ async def test_long_task_introspection_warning_on(
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
     assert "Task parameter introspection took" in caplog.text
@@ -3412,6 +3451,8 @@ async def test_long_task_introspection_warning_off(
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
     assert "Task parameter introspection took" not in caplog.text
