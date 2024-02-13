@@ -180,7 +180,6 @@ from prefect.states import (
     Paused,
     Pending,
     Running,
-    Scheduled,
     State,
     Suspended,
     exception_to_crashed_state,
@@ -2984,10 +2983,10 @@ async def _create_autonomous_task_run(
     task: Task, parameters: Dict[str, Any]
 ) -> TaskRun:
     async with get_client() as client:
-        scheduled = Scheduled()
+        state = Pending()
         if parameters:
             parameters_id = uuid4()
-            scheduled.state_details.task_parameters_id = parameters_id
+            state.state_details.task_parameters_id = parameters_id
 
             # TODO: We want to use result storage for parameters, but we'll need
             # a better way to use it than this.
@@ -2999,7 +2998,7 @@ async def _create_autonomous_task_run(
             task=task,
             flow_run_id=None,
             dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
-            state=scheduled,
+            state=state,
         )
 
         engine_logger.debug(f"Submitted run of task {task.name!r} for execution")

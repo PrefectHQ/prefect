@@ -83,7 +83,7 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            PreventRunningToRunningTransitions,
+            PreventPendingTransitions,
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
             PreventRunningTasksFromStoppedFlows,
@@ -821,7 +821,7 @@ class PreventPendingTransitions(BaseOrchestrationRule):
     """
     Prevents transitions to PENDING.
 
-    This rule is only used for flow runs.
+    This rule is only used for flow runs and autonomous task runs.
 
     This is intended to prevent race conditions during duplicate submissions of runs.
     Before a run is submitted to its execution environment, it should be placed in a
@@ -1005,21 +1005,3 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
                 state=None,
                 reason="This run has already made this state transition.",
             )
-
-
-class PreventRunningToRunningTransitions(BaseOrchestrationRule):
-    """Prevents transitions from Running to Running states."""
-
-    FROM_STATES = [StateType.RUNNING]
-    TO_STATES = [StateType.RUNNING]
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
-    ) -> None:
-        await self.reject_transition(
-            state=None,
-            reason="Cannot transition from Running to Running.",
-        )
