@@ -31,6 +31,7 @@ from prefect.server.orchestration.core_policy import (
     PreventDuplicateTransitions,
     PreventPendingTransitions,
     PreventRunningTasksFromStoppedFlows,
+    PreventRunningToRunningTransitions,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
     RetryFailedFlows,
@@ -3133,3 +3134,20 @@ class TestPreventDuplicateTransitions:
 
         # states have the same transition id so the transition should be rejected
         assert ctx.response_status == SetStateStatus.REJECT
+
+
+class TestPreventRunningToRunningTransitions:
+    async def test_prevents_running_to_running_transitions(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition = (StateType.RUNNING, StateType.RUNNING)
+        context = await initialize_orchestration(
+            session, "flow", *transition, initial_details=None, proposed_details=None
+        )
+
+        async with PreventRunningToRunningTransitions(context, *transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
