@@ -128,7 +128,7 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     assert parameters == dict(x=42)
 
 
-async def test_pending_tasks_are_enqueued_server_side(
+async def test_scheduled_tasks_are_enqueued_server_side(
     foo_task_with_result_storage: Task,
 ):
     task_run: TaskRun = foo_task_with_result_storage.submit(42)
