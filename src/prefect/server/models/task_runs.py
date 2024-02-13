@@ -396,7 +396,7 @@ async def set_task_run_state(
     intended_transition = (initial_state_type, proposed_state_type)
 
     if run.flow_run_id is None:
-        task_policy = AutonomousTaskPolicy
+        task_policy = AutonomousTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
     elif force or task_policy is None:
         task_policy = MinimalTaskPolicy
 
