@@ -37,6 +37,7 @@ async def submit_autonomous_task_to_engine(
     mapped: bool = False,
     return_type: EngineReturnType = "future",
     client=None,
+    background_task_group: Optional[anyio.abc.TaskGroup] = None,
 ) -> Any:
     async with AsyncExitStack() as stack:
         if not task_runner._started:
@@ -52,7 +53,10 @@ async def submit_autonomous_task_to_engine(
             client=client or await stack.enter_async_context(get_client()),
             parameters=parameters,
             result_factory=await ResultFactory.from_task(task),
-            background_tasks=await stack.enter_async_context(anyio.create_task_group()),
+            background_tasks=(
+                background_task_group
+                or await stack.enter_async_context(anyio.create_task_group())
+            ),
         ) as flow_run_context:
             begin_run = create_call(
                 begin_task_map if mapped else get_task_call_return_value,
