@@ -180,6 +180,7 @@ from prefect.states import (
     Paused,
     Pending,
     Running,
+    Scheduled,
     State,
     Suspended,
     exception_to_crashed_state,
@@ -2983,7 +2984,7 @@ async def _create_autonomous_task_run(
     task: Task, parameters: Dict[str, Any]
 ) -> TaskRun:
     async with get_client() as client:
-        state = Pending()
+        state = Scheduled()
         if parameters:
             parameters_id = uuid4()
             state.state_details.task_parameters_id = parameters_id
