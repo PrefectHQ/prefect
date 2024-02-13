@@ -626,10 +626,6 @@ Click **Create** to start configuring your push work pool by selecting a push op
 
 Create your pool and you are ready to deploy flows to your Push work pool.
 
-!!! note "Push work pool concurrency"
-
-    Push work pools do not have a concurrency setting. If you would like to control concurrency at the flow level, you can use [global concurrency limits](/guides/global-concurrency-limits/).
-
 ## Deployment
 
 Deployment details are described in the deployments [concept section](/concepts/deployments/).
