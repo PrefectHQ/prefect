@@ -3150,4 +3150,4 @@ class TestPreventRunningToRunningTransitions:
         async with PreventRunningToRunningTransitions(context, *transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.response_status == SetStateStatus.ABORT
