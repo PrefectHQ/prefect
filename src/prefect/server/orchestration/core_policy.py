@@ -86,7 +86,6 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
             PreventRunningToRunningTransitions,
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
-            PreventRunningTasksFromStoppedFlows,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
             WaitForScheduledTime,
