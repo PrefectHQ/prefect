@@ -187,7 +187,7 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
     You must `.submit` the same task object that you pass to `serve`.
 
     Args:
-        - tasks: A list of tasks to serve. When a pending task run is found for a
+        - tasks: A list of tasks to serve. When a scheduled task run is found for a
             given task, the task run will be submitted to the engine for execution.
         - task_runner: The task runner to use for executing the tasks. Defaults to
             `ConcurrentTaskRunner`.
@@ -205,7 +205,7 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
         def yell(message: str):
             print(message.upper())
 
-        # starts a long-lived process that listens for pending runs of these tasks
+        # starts a long-lived process that listens for scheduled runs of these tasks
         if __name__ == "__main__":
             serve(say, yell)
         ```
