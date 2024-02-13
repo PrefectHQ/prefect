@@ -76,6 +76,26 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
+class AutonomousTaskPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against task-run-state transitions in priority order.
+    """
+
+    def priority():
+        return [
+            PreventRunningToRunningTransitions,
+            CacheRetrieval,
+            HandleTaskTerminalStateTransitions,
+            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+            CopyScheduledTime,
+            WaitForScheduledTime,
+            RenameReruns,
+            UpdateFlowRunTrackerOnTasks,
+            CacheInsertion,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
@@ -984,3 +1004,20 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
                 state=None,
                 reason="This run has already made this state transition.",
             )
+
+
+class PreventRunningToRunningTransitions(BaseOrchestrationRule):
+    """Prevents transitions from Running to Running states."""
+
+    FROM_STATES = [StateType.RUNNING]
+    TO_STATES = [StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        await self.abort_transition(
+            reason="Cannot transition from Running to Running.",
+        )
