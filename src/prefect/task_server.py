@@ -205,7 +205,7 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
         def yell(message: str):
             print(message.upper())
 
-        # starts a long-lived process that listens scheduled runs of these tasks
+        # starts a long-lived process that listens for scheduled runs of these tasks
         if __name__ == "__main__":
             serve(say, yell)
         ```
