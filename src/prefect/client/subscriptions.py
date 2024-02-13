@@ -42,12 +42,7 @@ class Subscription(Generic[S]):
 
                 await self._websocket.send(orjson.dumps({"type": "ack"}).decode())
 
-                data = orjson.loads(message)
-
-                if (v := data.get("type")) and v == "ping":
-                    continue
-
-                return self.model.parse_obj(data)
+                return self.model.parse_raw(message)
             except (
                 ConnectionRefusedError,
                 websockets.exceptions.ConnectionClosedError,
