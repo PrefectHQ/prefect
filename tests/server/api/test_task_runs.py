@@ -526,6 +526,39 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_autonomous_task_runs_cannot_transition_to_running_twice(
+        self, client, session
+    ):
+        autonomous_task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=None,  # autonomous task runs have no flow run
+                task_key="my-task-key",
+                expected_start_time=pendulum.now("UTC"),
+                dynamic_key="0",
+            ),
+        )
+
+        await session.commit()
+
+        response = await client.post(
+            f"/task_runs/{autonomous_task_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Test State")),
+        )
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/task_runs/{autonomous_task_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Test State")),
+        )
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+
+        assert api_response.status == responses.SetStateStatus.REJECT
+
 
 class TestTaskRunHistory:
     async def test_history_interval_must_be_one_second_or_larger(self, client):
