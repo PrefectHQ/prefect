@@ -86,7 +86,7 @@ async def create_task_run(
         PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
         and new_task_run.flow_run_id is None
         and new_task_run.state
-        and new_task_run.state.is_pending()
+        and new_task_run.state.is_scheduled()
     ):
         await TaskQueue.enqueue(new_task_run)
 
@@ -368,7 +368,7 @@ class TaskQueue:
                     flow_run_id=filters.TaskRunFilterFlowRunId(is_null_=True),
                     state=filters.TaskRunFilterState(
                         type=filters.TaskRunFilterStateType(
-                            any_=[states.StateType.PENDING]
+                            any_=[states.StateType.SCHEDULED]
                         )
                     ),
                 ),
