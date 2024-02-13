@@ -821,7 +821,7 @@ class PreventPendingTransitions(BaseOrchestrationRule):
     """
     Prevents transitions to PENDING.
 
-    This rule is only used for flow runs and autonomous task runs.
+    This rule is only used for flow runs.
 
     This is intended to prevent race conditions during duplicate submissions of runs.
     Before a run is submitted to its execution environment, it should be placed in a
