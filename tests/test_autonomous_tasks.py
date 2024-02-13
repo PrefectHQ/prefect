@@ -89,7 +89,7 @@ def test_task_submission_with_parameters_fails_without_result_storage(foo_task):
 
 def test_task_submission_creates_a_scheduled_task_run(foo_task_with_result_storage):
     task_run = foo_task_with_result_storage.submit(42)
-    assert task_run.state.is_scheduled()
+    assert task_run.state.is_pending()
 
     result_factory = result_factory_from_task(foo_task_with_result_storage)
 
@@ -102,7 +102,7 @@ def test_task_submission_creates_a_scheduled_task_run(foo_task_with_result_stora
 
 async def test_sync_task_not_awaitable_in_async_context(foo_task):
     task_run = foo_task.submit(42)
-    assert task_run.state.is_scheduled()
+    assert task_run.state.is_pending()
 
     result_factory = await result_factory_from_task(foo_task)
 
@@ -117,7 +117,7 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     async_foo_task_with_result_storage,
 ):
     task_run = await async_foo_task_with_result_storage.submit(42)
-    assert task_run.state.is_scheduled()
+    assert task_run.state.is_pending()
 
     result_factory = await result_factory_from_task(async_foo_task_with_result_storage)
 
@@ -128,11 +128,11 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     assert parameters == dict(x=42)
 
 
-async def test_scheduled_tasks_are_enqueued_server_side(
+async def test_pending_tasks_are_enqueued_server_side(
     foo_task_with_result_storage: Task,
 ):
     task_run: TaskRun = foo_task_with_result_storage.submit(42)
-    assert task_run.state.is_scheduled()
+    assert task_run.state.is_pending()
 
     enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
 

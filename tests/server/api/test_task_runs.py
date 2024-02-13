@@ -526,7 +526,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_autonomous_task_run_aborts_if_transitions_to_pending_twice(
+    async def test_autonomous_task_run_aborts_if_transitions_to_running_twice(
         self, client, session
     ):
         autonomous_task_run = await models.task_runs.create_task_run(
@@ -543,7 +543,7 @@ class TestSetTaskRunState:
 
         response_1 = await client.post(
             f"/task_runs/{autonomous_task_run.id}/set_state",
-            json=dict(state=dict(type="PENDING")),
+            json=dict(state=dict(type="RUNNING")),
         )
 
         api_response_1 = OrchestrationResult.parse_obj(response_1.json())
@@ -552,7 +552,7 @@ class TestSetTaskRunState:
 
         response_2 = await client.post(
             f"/task_runs/{autonomous_task_run.id}/set_state",
-            json=dict(state=dict(type="PENDING")),
+            json=dict(state=dict(type="RUNNING")),
         )
 
         api_response_2 = OrchestrationResult.parse_obj(response_2.json())
