@@ -110,9 +110,9 @@ class TaskServer:
             [task.task_key for task in self.tasks],
         ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            await self._submit_pending_task_run(task_run)
+            await self._submit_scheduled_task_run(task_run)
 
-    async def _submit_pending_task_run(self, task_run: TaskRun):
+    async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
@@ -155,15 +155,16 @@ class TaskServer:
         )
 
         state = await propose_state(
-            client=self._client,
+            client=get_client(),  # TODO prove that we cannot use self._client here
             state=Pending(),
             task_run_id=task_run.id,
         )
 
         if not state.is_pending():
-            logger.exception(
-                f"Aborted submission of task run {task_run.id!r} -"
-                f" Server returned a non-pending state {state.type.value!r}"
+            logger.warning(
+                f"Aborted task run {task_run.id!r} -"
+                f" Server returned a non-pending state {state.type.value!r}."
+                " Task run may have already begun execution."
             )
 
         self._runs_task_group.start_soon(
