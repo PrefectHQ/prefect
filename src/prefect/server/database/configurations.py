@@ -8,6 +8,15 @@ from functools import partial
 from typing import Dict, Hashable, Optional, Tuple
 
 import sqlalchemy as sa
+
+try:
+    from sqlalchemy import AdaptedConnection
+    from sqlalchemy.pool import ConnectionPoolEntry
+except ImportError:
+    # SQLAlchemy 1.4 equivalents
+    from sqlalchemy.pool import _ConnectionFairy as AdaptedConnection
+    from sqlalchemy.pool.base import _ConnectionRecord as ConnectionPoolEntry
+
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from typing_extensions import Literal
 
@@ -17,6 +26,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_SQLALCHEMY_POOL_SIZE,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
@@ -31,9 +41,9 @@ class ConnectionTracker:
     """A test utility which tracks the connections given out by a connection pool, to
     make it easy to see which connections are currently checked out and open."""
 
-    all_connections: Dict[sa.AdaptedConnection, str]
-    open_connections: Dict[sa.AdaptedConnection, str]
-    left_field_closes: Dict[sa.AdaptedConnection, str]
+    all_connections: Dict[AdaptedConnection, str]
+    open_connections: Dict[AdaptedConnection, str]
+    left_field_closes: Dict[AdaptedConnection, str]
     connects: int
     closes: int
     active: bool
@@ -53,8 +63,8 @@ class ConnectionTracker:
 
     def on_connect(
         self,
-        adapted_connection: sa.AdaptedConnection,
-        connection_record: sa.pool.ConnectionPoolEntry,
+        adapted_connection: AdaptedConnection,
+        connection_record: ConnectionPoolEntry,
     ):
         self.all_connections[adapted_connection] = traceback.format_stack()
         self.open_connections[adapted_connection] = traceback.format_stack()
@@ -62,8 +72,8 @@ class ConnectionTracker:
 
     def on_close(
         self,
-        adapted_connection: sa.AdaptedConnection,
-        connection_record: sa.pool.ConnectionPoolEntry,
+        adapted_connection: AdaptedConnection,
+        connection_record: ConnectionPoolEntry,
     ):
         try:
             del self.open_connections[adapted_connection]
@@ -73,7 +83,7 @@ class ConnectionTracker:
 
     def on_close_detached(
         self,
-        adapted_connection: sa.AdaptedConnection,
+        adapted_connection: AdaptedConnection,
     ):
         try:
             del self.open_connections[adapted_connection]
@@ -406,7 +416,10 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+        if PREFECT_UNIT_TEST_MODE.value() is True:
+            cursor.execute("PRAGMA busy_timeout = 5000;")  # 5s
+        else:
+            cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
         cursor.close()
 

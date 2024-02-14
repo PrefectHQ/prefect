@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas import responses, states
@@ -525,6 +525,39 @@ class TestSetTaskRunState:
             json=dict(state=dict(type="RUNNING", name="Test State")),
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_autonomous_task_run_aborts_if_transitions_to_running_twice(
+        self, client, session
+    ):
+        autonomous_task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=None,  # autonomous task runs have no flow run
+                task_key="my-task-key",
+                expected_start_time=pendulum.now("UTC"),
+                dynamic_key="0",
+            ),
+        )
+
+        await session.commit()
+
+        response_1 = await client.post(
+            f"/task_runs/{autonomous_task_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING")),
+        )
+
+        api_response_1 = OrchestrationResult.parse_obj(response_1.json())
+
+        assert api_response_1.status == responses.SetStateStatus.ACCEPT
+
+        response_2 = await client.post(
+            f"/task_runs/{autonomous_task_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING")),
+        )
+
+        api_response_2 = OrchestrationResult.parse_obj(response_2.json())
+
+        assert api_response_2.status == responses.SetStateStatus.ABORT
 
 
 class TestTaskRunHistory:

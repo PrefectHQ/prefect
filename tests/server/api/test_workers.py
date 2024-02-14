@@ -10,7 +10,7 @@ else:
     import pydantic
 
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 import prefect
 from prefect.client.schemas.actions import WorkPoolCreate
@@ -152,8 +152,7 @@ class TestCreateWorkPool:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
-            " `variables` key."
-            in response.json()["exception_detail"][0]["msg"]
+            " `variables` key." in response.json()["exception_detail"][0]["msg"]
         )
 
     async def test_create_work_pool_template_validation_missing_variables(self, client):
@@ -373,8 +372,7 @@ class TestUpdateWorkPool:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
-            " `variables` key."
-            in response.json()["exception_detail"][0]["msg"]
+            " `variables` key." in response.json()["exception_detail"][0]["msg"]
         )
 
     async def test_update_work_pool_template_validation_missing_variables(
