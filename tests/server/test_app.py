@@ -37,6 +37,7 @@ def test_app_exposes_ui_settings():
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
+        "work_queue_status",
     }
 
 
@@ -57,4 +58,5 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
+        "work_queue_status",
     }

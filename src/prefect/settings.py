@@ -39,6 +39,7 @@ settings to be dynamically modified on retrieval. This allows us to make setting
 dependent on the value of other settings or perform other dynamic effects.
 
 """
+
 import logging
 import os
 import string
@@ -1461,7 +1462,7 @@ PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
 Whether or not to enable experimental task scheduling.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 """
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
