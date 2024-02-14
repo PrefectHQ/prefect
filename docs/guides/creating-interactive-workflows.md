@@ -659,7 +659,7 @@ if __name__ == "__main__":
         asyncio.run(sender())
 ``` 
 
-To run the example, you'll need a Python environment with Prefect installed, pointed at either open-source Prefect or Prefect Cloud.
+To run the example, you'll need a Python environment with Prefect installed, pointed at either an open-source Prefect server instance or Prefect Cloud.
 
 With your environment set up, start a flow runner in one terminal with the following command:
 
@@ -687,11 +687,11 @@ For example, with Prefect Cloud, you should see output like this:
 ```
 </div>
 
-Then start the greeter in another process in another terminal:
+Then start the greeter process in another terminal:
 
 <div class="terminal">
 ```bash
-python <filename> sender
+python my_file_name sender
 ```
 </div>
 
