@@ -25,7 +25,7 @@
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.31",
     "@types/lodash.merge": "^4.6.9",
-    "@vitejs/plugin-vue": "5.0.3",
+    "@vitejs/plugin-vue": "5.0.4",
     "autoprefixer": "10.4.17",
     "dotenv": "16.4.2",
     "eslint": "^8.56.0",
