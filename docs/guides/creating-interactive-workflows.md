@@ -519,7 +519,7 @@ async def greeter():
         await name_input.respond(f"Hello, {name_input.value}!")
 ```
 
-With a `greeter` flow in place, now we're ready to create the flow that sends `greeter` names!
+With a `greeter` flow in place, we're ready to create the flow that sends `greeter` names!
 
 ### Sending input
 
@@ -662,13 +662,15 @@ if __name__ == "__main__":
 To run the example, you'll need a Python environment with Prefect installed, pointed at either open-source Prefect or Prefect Cloud.
 
 With your environment set up, start a flow runner in one terminal with the following command:
+
 <div class="terminal">
 ```bash
-    $ python <filename> greeter
+python my_file_name greeter
 ```
 </div>    
 
 For example, with Prefect Cloud, you should see output like this:
+
 <div class="terminal">
 ```bash
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
@@ -686,13 +688,15 @@ For example, with Prefect Cloud, you should see output like this:
 </div>
 
 Then start the greeter in another process in another terminal:
+
 <div class="terminal">
 ```bash
-    $ python <filename> sender
+python <filename> sender
 ```
 </div>
 
-You should see:
+You should see output like this:
+
 <div class="terminal">
 ```bash
 11:38:41.800 | INFO    | prefect.engine - Created flow run 'gregarious-owl' for flow 'sender'
@@ -702,6 +706,7 @@ What is your name?
 </div>
 
 Type a name and press the enter key to see a greeting, and you'll see sending and receiving in action:
+
 <div class="terminal">
 ```bash
 What is your name? andrew
