@@ -526,8 +526,11 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_autonomous_task_run_aborts_if_transitions_to_running_twice(
-        self, client, session
+    @pytest.mark.parametrize(
+        "incoming_state_type", ["PENDING", "RUNNING", "CANCELLED", "CANCELLING"]
+    )
+    async def test_autonomous_task_run_aborts_if_enters_pending_from_disallowed_state(
+        self, client, session, incoming_state_type
     ):
         autonomous_task_run = await models.task_runs.create_task_run(
             session=session,
@@ -543,7 +546,7 @@ class TestSetTaskRunState:
 
         response_1 = await client.post(
             f"/task_runs/{autonomous_task_run.id}/set_state",
-            json=dict(state=dict(type="RUNNING")),
+            json=dict(state=dict(type=incoming_state_type)),
         )
 
         api_response_1 = OrchestrationResult.parse_obj(response_1.json())
@@ -552,7 +555,7 @@ class TestSetTaskRunState:
 
         response_2 = await client.post(
             f"/task_runs/{autonomous_task_run.id}/set_state",
-            json=dict(state=dict(type="RUNNING")),
+            json=dict(state=dict(type="PENDING")),
         )
 
         api_response_2 = OrchestrationResult.parse_obj(response_2.json())
