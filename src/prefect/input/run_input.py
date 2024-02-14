@@ -379,7 +379,7 @@ class AutomaticRunInput(RunInput, Generic[T]):
 
 
 def run_input_subclass_from_type(
-    _type: Union[Type[R], Type[T], pydantic.BaseModel]
+    _type: Union[Type[R], Type[T], pydantic.BaseModel],
 ) -> Union[Type[AutomaticRunInput[T]], Type[R]]:
     """
     Create a new `RunInput` subclass from the given type.

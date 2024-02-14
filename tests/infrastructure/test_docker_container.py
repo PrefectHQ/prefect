@@ -864,8 +864,7 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
 
     assert (
         "An unexpected Docker API error occurred while streaming output from container"
-        " fake-name."
-        in caplog.text
+        " fake-name." in caplog.text
     )
 
 

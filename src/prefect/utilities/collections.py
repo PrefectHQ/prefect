@@ -106,7 +106,7 @@ def dict_to_flatdict(
 
 
 def flatdict_to_dict(
-    dct: Dict[Tuple[KT, ...], VT]
+    dct: Dict[Tuple[KT, ...], VT],
 ) -> Dict[KT, Union[VT, Dict[KT, VT]]]:
     """Converts a flattened dictionary back to a nested dictionary.
 

@@ -17,7 +17,10 @@ from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.orchestration.core_policy import MinimalTaskPolicy
+from prefect.server.orchestration.core_policy import (
+    AutonomousTaskPolicy,
+    MinimalTaskPolicy,
+)
 from prefect.server.orchestration.global_policy import GlobalTaskPolicy
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import TaskOrchestrationContext
@@ -139,7 +142,8 @@ async def update_task_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(db.TaskRun).where(db.TaskRun.id == task_run_id)
+        sa.update(db.TaskRun)
+        .where(db.TaskRun.id == task_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**task_run.dict(shallow=True, exclude_unset=True))
@@ -391,7 +395,9 @@ async def set_task_run_state(
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
 
-    if force or task_policy is None:
+    if run.flow_run_id is None:
+        task_policy = AutonomousTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
+    elif force or task_policy is None:
         task_policy = MinimalTaskPolicy
 
     orchestration_rules = task_policy.compile_transition_rules(*intended_transition)
