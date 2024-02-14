@@ -163,7 +163,7 @@ class TaskServer:
         if not state.is_pending():
             logger.warning(
                 f"Aborted task run {task_run.id!r} -"
-                f" Server returned a non-pending state {state.type.value!r}."
+                f" server returned a non-pending state {state.type.value!r}."
                 " Task run may have already begun execution."
             )
 
