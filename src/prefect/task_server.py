@@ -12,12 +12,14 @@ from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
+from prefect.engine import propose_state
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
+from prefect.states import Pending
 from prefect.task_engine import submit_autonomous_task_to_engine
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
@@ -151,6 +153,18 @@ class TaskServer:
         logger.debug(
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
+
+        state = await propose_state(
+            client=self._client,
+            state=Pending(),
+            task_run_id=task_run.id,
+        )
+
+        if not state.is_pending():
+            logger.exception(
+                f"Aborted submission of task run {task_run.id!r} -"
+                f" Server returned a non-pending state {state.type.value!r}"
+            )
 
         self._runs_task_group.start_soon(
             partial(

@@ -83,7 +83,7 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            PreventRunningToRunningTransitions,
+            PreventPendingTransitions,
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
@@ -1004,20 +1004,3 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
                 state=None,
                 reason="This run has already made this state transition.",
             )
-
-
-class PreventRunningToRunningTransitions(BaseOrchestrationRule):
-    """Prevents transitions from Running to Running states."""
-
-    FROM_STATES = [StateType.RUNNING]
-    TO_STATES = [StateType.RUNNING]
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
-    ) -> None:
-        await self.abort_transition(
-            reason="Cannot transition from Running to Running.",
-        )
