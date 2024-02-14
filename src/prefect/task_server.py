@@ -12,12 +12,14 @@ from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
+from prefect.engine import propose_state
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
+from prefect.states import Pending
 from prefect.task_engine import submit_autonomous_task_to_engine
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
@@ -108,9 +110,9 @@ class TaskServer:
             [task.task_key for task in self.tasks],
         ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            await self._submit_pending_task_run(task_run)
+            await self._submit_scheduled_task_run(task_run)
 
-    async def _submit_pending_task_run(self, task_run: TaskRun):
+    async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
@@ -151,6 +153,19 @@ class TaskServer:
         logger.debug(
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
+
+        state = await propose_state(
+            client=get_client(),  # TODO prove that we cannot use self._client here
+            state=Pending(),
+            task_run_id=task_run.id,
+        )
+
+        if not state.is_pending():
+            logger.warning(
+                f"Aborted task run {task_run.id!r} -"
+                f" server returned a non-pending state {state.type.value!r}."
+                " Task run may have already begun execution."
+            )
 
         self._runs_task_group.start_soon(
             partial(
