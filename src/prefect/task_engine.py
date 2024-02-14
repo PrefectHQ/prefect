@@ -9,6 +9,7 @@ from typing import (
 )
 
 import anyio
+import greenback
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
@@ -68,4 +69,5 @@ async def submit_autonomous_task_to_engine(
             if task.isasync:
                 return await from_async.wait_for_call_in_loop_thread(begin_run)
             else:
+                await greenback.ensure_portal()
                 return from_sync.wait_for_call_in_loop_thread(begin_run)
