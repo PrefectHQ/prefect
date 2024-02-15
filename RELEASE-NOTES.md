@@ -84,6 +84,7 @@ See the following pull request for implementation details:
 
 ### Fixes
 - Update vendored `starlette` version to resolve vulnerability in `python-mulipart` — https://github.com/PrefectHQ/prefect/pull/11956
+- Fix display of interval schedules created with a different timezone than the current device - https://github.com/PrefectHQ/prefect-ui-library/pull/2090
 
 ### Experimental
 
