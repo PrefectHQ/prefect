@@ -633,6 +633,22 @@ class BaseWorker(abc.ABC):
 
         try:
             configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": (
+                        "This flow run is missing infrastructure configuration information"
+                        " and cancellation cannot be guaranteed."
+                    )
+                },
+            )
+            return
+        else:
             if configuration.is_using_a_runner:
                 self._logger.info(
                     f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
@@ -640,11 +656,6 @@ class BaseWorker(abc.ABC):
                     " cancellation."
                 )
                 return
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
 
         if not flow_run.infrastructure_pid:
             run_logger.error(
