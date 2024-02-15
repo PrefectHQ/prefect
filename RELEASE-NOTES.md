@@ -2,11 +2,11 @@
 
 ## Release 2.15.0
 
-### Task runs now execute on the main thread
+### 🔧 Task runs now execute on the main thread
 
-We are excited to announce that task runs now execute on the main thread! 
+We are excited to announce that task runs are now executed on the main thread! 
 
-When feasible, task runs are now executed on the main thread instead of a worker thread. Previously, all task runs were run in a new worker thread. This allows objects to be passed to and from tasks without worrying about thread safety unless you have opted into concurrency. For example, an HTTP client or database connection can be shared between a flow and its tasks now (unless synchronous concurrency is being used). Some asynchronous and sequential use cases may see performance improvements.
+When feasible, task runs are now executed on the main thread instead of a worker thread. Previously, all task runs were run in a new worker thread. This allows objects to be passed to and from tasks without worrying about thread safety unless you have opted into concurrency. For example, an HTTP client or database connection can be shared between a flow and its tasks now (unless synchronous concurrency is used). Some asynchronous and sequential use cases may see performance improvements.
 
 Consider the following example:
 
@@ -65,9 +65,9 @@ But now, with task runs executing on the main thread, this example will run with
 See the following pull request for implementation details:
     - https://github.com/PrefectHQ/prefect/pull/11930
 
-### Monitor deployment runs triggered via the CLI
+### 🔭 Monitor deployment runs triggered via the CLI
 
-You can monitor the status of a flow run created from a deployment via the CLI. This is useful for observing a flow run's progress without needing to navigate to the UI.
+You can monitor the status of a flow run created from a deployment via the CLI. This is useful for observing a flow run's progress without navigating to the UI.
 
 To monitor a flow run started from a deployment, use the `--watch` option with `prefect deployment run`:
 
@@ -88,7 +88,7 @@ See the following pull request for implementation details:
 ### Experimental
 
 - Prevent `RUNNING` -> `RUNNING` state transitions for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/11975
-- Provide current thread to engine when submitting autonomous tasks — https://github.com/PrefectHQ/prefect/pull/11978
+- Provide current thread to the engine when submitting autonomous tasks — https://github.com/PrefectHQ/prefect/pull/11978
 - Add intermediate `PENDING` state for autonomous task execution — https://github.com/PrefectHQ/prefect/pull/11985
 - Raise exception when stopping task server — https://github.com/PrefectHQ/prefect/pull/11928
 
