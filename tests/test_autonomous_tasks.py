@@ -9,6 +9,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
 )
+from prefect.task_server import TaskServer
 from prefect.utilities.asyncutils import sync_compatible
 
 
@@ -140,3 +141,35 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
 
     assert enqueued == task_run
+
+
+async def test_task_server_can_execute_a_single_async_single_task_run(
+    async_foo_task_with_result_storage, prefect_client
+):
+    task_server = TaskServer(async_foo_task_with_result_storage)
+
+    task_run = await async_foo_task_with_result_storage.submit(42)
+
+    await task_server.execute_task_run(task_run)
+
+    updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert updated_task_run.state.is_completed()
+
+    assert await updated_task_run.state.result() == 42
+
+
+async def test_task_server_can_execute_a_single_sync_single_task_run(
+    foo_task_with_result_storage, prefect_client
+):
+    task_server = TaskServer(foo_task_with_result_storage)
+
+    task_run = foo_task_with_result_storage.submit(42)
+
+    await task_server.execute_task_run(task_run)
+
+    updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert updated_task_run.state.is_completed()
+
+    assert await updated_task_run.state.result() == 42
