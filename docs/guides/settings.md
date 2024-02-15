@@ -17,7 +17,7 @@ Prefect's local settings are [documented][prefect.settings.Settings] and type-va
 By modifying the default settings, you can customize various aspects of the system. 
 You can override a setting with an environment variable or by updating the setting in a Prefect [profile](#configuration-profiles).
 
-Prefect profiles are persited groups of settings on your local machine. A single profile is always active.
+Prefect profiles are persisted groups of settings on your local machine. A single profile is always active.
 
 Initially, a default profile named `default` is active and contains no settings overrides.
 
@@ -29,7 +29,7 @@ prefect config view --show-defaults
 ```
 </div>
 
-When you switch to a different profile, all of the settings configured in the newly actived profile are applied. 
+When you switch to a different profile, all of the settings configured in the newly activated profile are applied. 
 
 ## Commonly configured settings
 
