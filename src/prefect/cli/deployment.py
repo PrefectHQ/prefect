@@ -592,7 +592,7 @@ async def clear_schedules(
         exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
 
 
-@deployment_app.command("set-schedule")
+@deployment_app.command("set-schedule", deprecated=True)
 async def _set_schedule(
     name: str,
     interval: Optional[float] = typer.Option(
@@ -627,9 +627,12 @@ async def _set_schedule(
         "--no-schedule",
         help="An optional flag to disable scheduling for this deployment.",
     ),
+    deprecated=True,
 ):
     """
-    Set schedule for a given deployment. [Deprecated: use `prefect deployment schedule set`]
+    Set schedule for a given deployment.
+
+    This command is deprecated. Use `prefect deployment schedule set` instead.
     """
     assert_deployment_name_format(name)
 
@@ -679,12 +682,14 @@ async def _set_schedule(
             )
 
 
-@deployment_app.command("pause-schedule")
+@deployment_app.command("pause-schedule", deprecated=True)
 async def _pause_schedule(
     name: str,
 ):
     """
-    Pause schedule of a given deployment. [Deprecated: use `prefect deployment schedule pause`]
+    Pause schedule of a given deployment.
+
+    This command is deprecated. Use `prefect deployment schedule pause` instead.
     """
     assert_deployment_name_format(name)
 
@@ -706,12 +711,14 @@ async def _pause_schedule(
         return await pause_schedule(name, deployment.schedules[0].id)
 
 
-@deployment_app.command("resume-schedule")
+@deployment_app.command("resume-schedule", deprecated=True)
 async def _resume_schedule(
     name: str,
 ):
     """
-    Resume schedule of a given deployment. [Deprecated: use `prefect deployment schedule resume`]
+    Resume schedule of a given deployment.
+
+    This command is deprecated. Use `prefect deployment schedule resume` instead.
     """
     # TODO only work if there is one schedule, otherwise error
     assert_deployment_name_format(name)
