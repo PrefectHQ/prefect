@@ -36,7 +36,7 @@ When you switch to a different profile, all of the settings configured in the ne
 This section describes some commonly configured settings. 
 See [Configuring settings](#configuring-settings) for details on setting and unsetting configuration values.
 
-### PREFECT_API_KEY <span class="badge cloud"></span>
+### PREFECT_API_KEY
 
 The `PREFECT_API_KEY` value specifies the [API key](/ui/cloud-api-keys/#create-an-api-key) used to authenticate with Prefect Cloud.
 
