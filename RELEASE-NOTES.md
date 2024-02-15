@@ -1,5 +1,45 @@
 # Prefect Release Notes
 
+## Release 2.15.0
+
+### Task runs now run on the main thread
+
+**Highlight goes here**
+
+See the following pull request for implementation details:
+    - https://github.com/PrefectHQ/prefect/pull/11930
+
+### Monitor deployment runs with the `--watch` option
+
+**Highlight goes here**
+
+See the following pull request for implementation details:
+    - https://github.com/PrefectHQ/prefect/pull/11702
+
+### Fixes
+- task server more explicit `stop` — https://github.com/PrefectHQ/prefect/pull/11928
+- Vendoring starlette@0.33.0 — https://github.com/PrefectHQ/prefect/pull/11956
+
+### Documentation
+- Update work-pools concepts page to include modal push work pool — https://github.com/PrefectHQ/prefect/pull/11954
+- Update docstring for `run_deployment` tags parameter — https://github.com/PrefectHQ/prefect/pull/11955
+- Add helm chart link in Prefect server instance docs — https://github.com/PrefectHQ/prefect/pull/11970
+- Clearer wording about concurrent subflows — https://github.com/PrefectHQ/prefect/pull/11982
+- Updates mkdocs material to latest version  — https://github.com/PrefectHQ/prefect/pull/11969
+
+### Uncategorized
+- fix: add 429 as accepted exception on bad image test assertion — https://github.com/PrefectHQ/prefect/pull/11953
+- push pool docs updates — https://github.com/PrefectHQ/prefect/pull/11974
+- prevent `RUNNING` -> `RUNNING` for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/11975
+- update minimum viable flow run context to include `user_thread` — https://github.com/PrefectHQ/prefect/pull/11978
+- Enable work queue status in the UI by default — https://github.com/PrefectHQ/prefect/pull/11976
+- [task scheduling] add intermediate `Pending` state and update policy — https://github.com/PrefectHQ/prefect/pull/11985
+
+### Contributors
+- @zanieb
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.21...2.15.0
+
 ## Release 2.14.21
 
 ### Introducing work queue status
