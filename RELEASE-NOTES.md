@@ -80,7 +80,7 @@ See the following pull request for implementation details:
 
 ### Enhancements
 
-- Enable work queue status in the UI by default — https://github.com/PrefectHQ/prefect/pull/11976
+- Enable work queue status in the UI by default — https://github.com/PrefectHQ/prefect/pull/11976 & https://github.com/PrefectHQ/prefect-ui-library/pull/2080
 
 ### Fixes
 - Update vendored `starlette` version to resolve vulnerability in `python-mulipart` — https://github.com/PrefectHQ/prefect/pull/11956
