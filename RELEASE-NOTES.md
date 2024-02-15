@@ -1,5 +1,110 @@
 # Prefect Release Notes
 
+## Release 2.15.0
+
+### 🔧 Task runs now execute on the main thread
+
+We are excited to announce that task runs are now executed on the main thread! 
+
+When feasible, task runs are now executed on the main thread instead of a worker thread. Previously, all task runs were run in a new worker thread. This allows objects to be passed to and from tasks without worrying about thread safety unless you have opted into concurrency. For example, an HTTP client or database connection can be shared between a flow and its tasks now (unless synchronous concurrency is used). Some asynchronous and sequential use cases may see performance improvements.
+
+Consider the following example:
+
+```python
+import sqlite3
+from prefect import flow, task
+
+db = sqlite3.connect("threads.db")
+
+try:
+    db.execute("CREATE TABLE fellowship(name)")
+except sqlite3.OperationalError:
+    pass
+else:
+    db.commit()
+
+db.execute("DELETE FROM fellowship")
+db.commit()
+
+cur = db.cursor()
+
+
+@task
+def my_task(name: str):
+    global db, cur
+
+    cur.execute('INSERT INTO fellowship VALUES (?)', (name,))
+
+    db.commit()
+
+
+@flow
+def my_flow():
+    global db, cur
+
+    for name in ["Frodo", "Gandalf", "Gimli", "Aragorn", "Legolas", "Boromir", "Samwise", "Pippin", "Merry"]:
+        my_task(name)
+
+    print(cur.execute("SELECT * FROM fellowship").fetchall())
+
+    db.close()
+
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+In previous versions of Prefect, running this example would result in an error like this:
+
+```python
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 7977619456 and this is thread id 6243151872.
+```
+
+But now, with task runs executing on the main thread, this example will run without error! We're excited this change makes Prefect even more intuitive and flexible!
+
+See the following pull request for implementation details:
+    - https://github.com/PrefectHQ/prefect/pull/11930
+
+### 🔭 Monitor deployment runs triggered via the CLI
+
+You can monitor the status of a flow run created from a deployment via the CLI. This is useful for observing a flow run's progress without navigating to the UI.
+
+To monitor a flow run started from a deployment, use the `--watch` option with `prefect deployment run`:
+
+```console
+prefect deployment run --watch <slugified-flow-name>/<slugified-deployment-name>
+```
+
+See the following pull request for implementation details:
+    - https://github.com/PrefectHQ/prefect/pull/11702
+
+### Enhancements
+
+- Enable work queue status in the UI by default — https://github.com/PrefectHQ/prefect/pull/11976 & https://github.com/PrefectHQ/prefect-ui-library/pull/2080
+
+### Fixes
+- Update vendored `starlette` version to resolve vulnerability in `python-mulipart` — https://github.com/PrefectHQ/prefect/pull/11956
+- Fix display of interval schedules created with a different timezone than the current device - https://github.com/PrefectHQ/prefect-ui-library/pull/2090
+
+### Experimental
+
+- Prevent `RUNNING` -> `RUNNING` state transitions for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/11975
+- Provide current thread to the engine when submitting autonomous tasks — https://github.com/PrefectHQ/prefect/pull/11978
+- Add intermediate `PENDING` state for autonomous task execution — https://github.com/PrefectHQ/prefect/pull/11985
+- Raise exception when stopping task server — https://github.com/PrefectHQ/prefect/pull/11928
+
+### Documentation
+- Update work pools concepts page to include Modal push work pool — https://github.com/PrefectHQ/prefect/pull/11954
+- Add details to `run_deployment` tags parameter documentation — https://github.com/PrefectHQ/prefect/pull/11955
+- Add Helm chart link in Prefect server instance docs — https://github.com/PrefectHQ/prefect/pull/11970
+- Clarify that async nested flows can be run concurrently — https://github.com/PrefectHQ/prefect/pull/11982
+- Update work queue and flow concurrency information to include push work pools — https://github.com/PrefectHQ/prefect/pull/11974
+
+### Contributors
+- @zanieb
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.21...2.15.0
+
 ## Release 2.14.21
 
 ### Introducing work queue status
