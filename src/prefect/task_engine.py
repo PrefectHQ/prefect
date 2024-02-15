@@ -1,3 +1,4 @@
+import threading
 from contextlib import AsyncExitStack
 from typing import (
     Any,
@@ -8,6 +9,7 @@ from typing import (
 )
 
 import anyio
+import greenback
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
@@ -62,8 +64,10 @@ async def submit_autonomous_task_to_engine(
                 wait_for=wait_for,
                 return_type=return_type,
                 task_runner=task_runner,
+                user_thread=threading.current_thread(),
             )
             if task.isasync:
                 return await from_async.wait_for_call_in_loop_thread(begin_run)
             else:
+                await greenback.ensure_portal()
                 return from_sync.wait_for_call_in_loop_thread(begin_run)

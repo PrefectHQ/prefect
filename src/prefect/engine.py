@@ -2156,12 +2156,19 @@ async def orchestrate_task_run(
                         # thread instead.
                         (
                             concurrency_type == TaskConcurrencyType.SEQUENTIAL
-                            and not flow_run_context.flow.isasync
+                            and (
+                                flow_run_context.flow
+                                and not flow_run_context.flow.isasync
+                            )
                         )
                         # Async tasks can always be executed on asynchronous flow; if the
                         # flow is async we do not want to block the event loop with
                         # synchronous tasks
-                        or (flow_run_context.flow.isasync and task.isasync)
+                        or (
+                            flow_run_context.flow
+                            and flow_run_context.flow.isasync
+                            and task.isasync
+                        )
                     )
                 ):
                     from_async.call_soon_in_waiting_thread(
@@ -2984,10 +2991,10 @@ async def _create_autonomous_task_run(
     task: Task, parameters: Dict[str, Any]
 ) -> TaskRun:
     async with get_client() as client:
-        scheduled = Scheduled()
+        state = Scheduled()
         if parameters:
             parameters_id = uuid4()
-            scheduled.state_details.task_parameters_id = parameters_id
+            state.state_details.task_parameters_id = parameters_id
 
             # TODO: We want to use result storage for parameters, but we'll need
             # a better way to use it than this.
@@ -2999,7 +3006,7 @@ async def _create_autonomous_task_run(
             task=task,
             flow_run_id=None,
             dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
-            state=scheduled,
+            state=state,
         )
 
         engine_logger.debug(f"Submitted run of task {task.name!r} for execution")
