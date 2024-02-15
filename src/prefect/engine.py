@@ -1753,8 +1753,6 @@ async def submit_task_run(
         # Only pass the user thread to "local" task runners
         user_thread = None
 
-    engine_logger.debug("about to submit task run")
-
     future = await task_runner.submit(
         key=future.key,
         call=partial(
