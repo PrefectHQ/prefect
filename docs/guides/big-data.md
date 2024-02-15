@@ -10,7 +10,7 @@ search:
   boost: 2
 ---
 
-# Big data with Prefect
+# Big Data with Prefect
 
 In this guide you'll learn tips for working with large amounts of data in Prefect.
 
