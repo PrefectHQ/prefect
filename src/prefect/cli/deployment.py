@@ -424,7 +424,7 @@ async def delete_schedule(
     ),
 ):
     """
-    Delete a deployment schedule by ID.
+    Delete a deployment schedule.
     """
     assert_deployment_name_format(deployment_name)
 
@@ -455,7 +455,7 @@ async def delete_schedule(
 @schedule_app.command("pause")
 async def pause_schedule(deployment_name: str, schedule_id: UUID):
     """
-    Pause a deployment schedule by ID.
+    Pause a deployment schedule.
     """
     assert_deployment_name_format(deployment_name)
 
@@ -486,7 +486,7 @@ async def pause_schedule(deployment_name: str, schedule_id: UUID):
 @schedule_app.command("resume")
 async def resume_schedule(deployment_name: str, schedule_id: UUID):
     """
-    Resume a deployment schedule by ID.
+    Resume a deployment schedule.
     """
     assert_deployment_name_format(deployment_name)
 
