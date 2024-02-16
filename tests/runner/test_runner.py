@@ -1610,6 +1610,42 @@ class TestDeploy:
                 image="test-registry/test-image",
             )
 
+    async def test_deploy_to_process_work_pool_with_no_storage(self, process_work_pool):
+        with pytest.raises(
+            ValueError,
+            match="Either an image or remote storage location must be provided when deploying"
+            " a deployment.",
+        ):
+            await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                work_pool_name=process_work_pool.name,
+            )
+
+    @pytest.mark.parametrize("ignore_warnings", [True, False])
+    async def test_deploy_to_process_work_pool_with_storage(
+        self, process_work_pool, capsys, ignore_warnings
+    ):
+        deployment_ids = await deploy(
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=process_work_pool.name,
+            ignore_warnings=ignore_warnings,
+        )
+        assert len(deployment_ids) == 1
+        console_output = capsys.readouterr().out
+        if ignore_warnings:
+            assert (
+                "Looks like you're deploying to a process work pool."
+                not in console_output
+            )
+        else:
+            assert (
+                "Looks like you're deploying to a process work pool." in console_output
+            )
+
 
 class TestDeploymentImage:
     def test_adds_default_registry_url(self):
