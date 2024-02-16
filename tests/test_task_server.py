@@ -35,8 +35,8 @@ def foo_task():
 @pytest.fixture
 def async_foo_task():
     @task
-    async def async_foo():
-        return 1
+    async def async_foo(x):
+        return x
 
     return async_foo
 
@@ -131,8 +131,40 @@ class TestServe:
         await serve(async_foo_task)
         mock_task_server_start.assert_called_once()
 
-        task_run = await async_foo_task.submit()
+        task_run = await async_foo_task.submit(42)
 
         assert isinstance(task_run, TaskRun)
 
         assert task_run.state.is_scheduled()
+
+
+async def test_task_server_can_execute_a_single_async_single_task_run(
+    async_foo_task, prefect_client
+):
+    task_server = TaskServer(async_foo_task)
+
+    task_run = await async_foo_task.submit(42)
+
+    await task_server.execute_task_run(task_run)
+
+    updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert updated_task_run.state.is_completed()
+
+    assert await updated_task_run.state.result() == 42
+
+
+async def test_task_server_can_execute_a_single_sync_single_task_run(
+    foo_task, prefect_client
+):
+    task_server = TaskServer(foo_task)
+
+    task_run = foo_task.submit(42)
+
+    await task_server.execute_task_run(task_run)
+
+    updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert updated_task_run.state.is_completed()
+
+    assert await updated_task_run.state.result() == 42

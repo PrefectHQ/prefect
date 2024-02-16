@@ -1,11 +1,9 @@
 import threading
 from contextlib import AsyncExitStack
 from typing import (
-    Any,
     Dict,
     Iterable,
     Optional,
-    Type,
 )
 
 import anyio
@@ -13,7 +11,6 @@ import greenback
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.context import EngineContext
 from prefect.engine import (
@@ -30,28 +27,24 @@ EngineReturnType = Literal["future", "state", "result"]
 
 
 @sync_compatible
-async def submit_autonomous_task_to_engine(
+async def submit_autonomous_task_run_to_engine(
     task: Task,
     task_run: TaskRun,
-    task_runner: Type[BaseTaskRunner],
+    task_runner: BaseTaskRunner,
     parameters: Optional[Dict] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
     client=None,
-) -> Any:
+) -> PrefectFuture:
     async with AsyncExitStack() as stack:
-        if not task_runner._started:
-            task_runner_ctx = await stack.enter_async_context(task_runner.start())
-        else:
-            task_runner_ctx = task_runner
         parameters = parameters or {}
         with EngineContext(
             flow=None,
             flow_run=None,
             autonomous_task_run=task_run,
-            task_runner=task_runner_ctx,
-            client=client or await stack.enter_async_context(get_client()),
+            task_runner=task_runner,
+            client=client,
             parameters=parameters,
             result_factory=await ResultFactory.from_task(task),
             background_tasks=await stack.enter_async_context(anyio.create_task_group()),
