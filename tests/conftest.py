@@ -195,7 +195,6 @@ def pytest_collection_modifyitems(session, config, items):
         if not any(
             excluded in item.nodeid for excluded in EXCLUDE_FROM_CLEAR_DB_AUTO_MARK
         ):
-            print(item.fspath)
             # Apply the custom mark
             item.add_marker(pytest.mark.clear_db)
 
