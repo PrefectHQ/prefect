@@ -5,6 +5,7 @@ import pytest
 
 from prefect import task
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.objects import TaskRun
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
@@ -12,6 +13,11 @@ from prefect.settings import (
 )
 from prefect.task_server import TaskServer, serve
 from prefect.tasks import task_input_hash
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 
 @pytest.fixture(autouse=True)
@@ -197,8 +203,6 @@ async def test_task_runs_executed_via_task_server_respects_retry_policy(prefect_
 
 
 async def test_task_run_via_task_server_with_complex_result_type(prefect_client):
-    from pydantic.v1 import BaseModel
-
     class BreakfastSpot(BaseModel):
         name: str
         location: str
