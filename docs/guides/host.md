@@ -13,14 +13,14 @@ search:
   boost: 2
 ---
 
-# Hosting a Prefect server
+# Hosting a Prefect server instance
 
-After you install Prefect you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), the platform hosted by Prefect. You also have an [API server](/api-ref/) backed by a database and a UI.
+After you install Prefect you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), the platform hosted by Prefect. You also have an [API server](/api-ref/) instance backed by a database and a UI.
 
-In this section you'll learn how to host your own Prefect server.
+In this section you'll learn how to host your own Prefect server instance.
 If you would like to host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
 
-Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
+Spin up a local Prefect server UI by running the `prefect server start` CLI command in the terminal:
 
 <div class="terminal">
 ```bash
@@ -34,9 +34,9 @@ Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1
 
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 
-### Differences between a self-hosted Prefect server and Prefect Cloud
+### Differences between a self-hosted Prefect server instance and Prefect Cloud
 
-A self-hosted Prefect server and Prefect Cloud share a common set of features. Prefect Cloud includes the following additional features:
+A self-hosted Prefect server instance and Prefect Cloud share a common set of features. Prefect Cloud includes the following additional features:
 
 - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
 - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
