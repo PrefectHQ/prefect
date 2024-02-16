@@ -15,7 +15,7 @@ search:
 
 # Run Deployments on Serverless Infrastructure with Prefect Workers
 
-Prefect provides work pools for workers to run flows on the serverless platforms of major cloud providers.
+Prefect provides hybrid work pools for workers to run flows on the serverless platforms of major cloud providers.
 The following options are available:
 
 - AWS Elastic Container Service (ECS)

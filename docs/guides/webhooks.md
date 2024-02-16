@@ -38,33 +38,42 @@ Webhooks can be created and managed from the Prefect Cloud UI.
 
 Webhooks can be managed and interacted with via the `prefect cloud webhook` command group.
 
+<div class="terminal">
 ```bash
 prefect cloud webhook --help
 ```
+<div>
 
 You can create your first webhook by invoking `create`:
 
+<div class="terminal">
 ```bash
 prefect cloud webhook create your-webhook-name \
     --description "Receives webhooks from your system" \
     --template '{ "event": "your.event.name", "resource": { "prefect.resource.id": "your.resource.id" } }'
 ```
+</div>
 
 Note the template string, which is discussed in [greater detail down below](#webhook-templates)
 
 You can retrieve details for a specific webhook by ID using `get`, or optionally query
 all webhooks in your workspace via `ls`:
 
+<div class="terminal">
 ```bash
 # get webhook by ID
 prefect cloud webhook get <webhook-id>
 
 # list all configured webhooks in your workspace
+
 prefect cloud webhook ls
+
 ```
+</div>
 
 If you ever need to disable an existing webhook without deleting it, use `toggle`:
 
+<div class="terminal">
 ```bash
 prefect cloud webhook toggle <webhook-id>
 Webhook is now disabled
@@ -73,9 +82,12 @@ prefect cloud webhook toggle <webhook-id>
 Webhook is now enabled
 ```
 
+</div>
+
 If you are concerned that your webhook endpoint may have been compromised, use `rotate` to
 generate a new, random endpoint
 
+<div class="terminal">
 ```bash
 prefect cloud webhook rotate <webhook-url-slug>
 ```
@@ -158,9 +170,11 @@ A webhook with this template may be invoked via _any_ of the HTTP methods, inclu
 `GET` request with no body, so the team you are integrating with can include this line at the
 end of their daily script:
 
+<div class="terminal">
 ```bash
 curl https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
+</div>
 
 Each time the script hits the webhook, the webhook will produce a single
 Prefect event with that name and resource in your workspace.
@@ -186,12 +200,14 @@ time to add some dynamic information to your webhook template.
 Your colleagues on the team have adjusted their daily `cron` scripts to `POST` a
 small body that includes the ID and name of the model that was updated:
 
+<div class="terminal">
 ```bash
 curl \
     -d "model=recommendations" \
     -d "friendly_name=Recommendations%20[Products]" \
     -X POST https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
+</div>
 
 This script will send a `POST` request and the body will include a traditional
 URL-encoded form with two fields describing the model that was updated: `model` and
