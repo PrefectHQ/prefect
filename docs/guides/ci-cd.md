@@ -8,7 +8,7 @@ search:
   boost: 2
 ---
 
-# CI/CD with Prefect
+# CI/CD With Prefect
 
 Many organizations deploy Prefect workflows via their CI/CD process.
 Each organization has their own unique CI/CD setup, but a common pattern is to use CI/CD to manage Prefect [deployments](/concepts/deployments).

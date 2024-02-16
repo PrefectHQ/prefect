@@ -9,7 +9,9 @@ search:
 
 # Managed Execution <span class="badge cloud"></span> <span class="badge beta"/>
 
-Prefect Cloud can run your flows on your behalf with **prefect:managed** work pools. Flows run with this work pool do not require a worker or cloud provider account. Prefect handles the infrastructure and code execution for you.
+Prefect Cloud can run your flows on your behalf with Prefect Managed work pools.
+Flows run with this work pool do not require a worker or cloud provider account.
+Prefect handles the infrastructure and code execution for you.
 
 Managed execution is a great option for users who want to get started quickly, with no infrastructure setup.
 
@@ -23,11 +25,14 @@ Run a flow with managed infrastructure in three steps.
 
 ### Step 1
 
-Create a new work pool of type **prefect:managed**. you can do this via the UI wizard, or via the CLI
+Create a new work pool of type Prefect Managed in the UI or the CLI.
+Here's the command to create a new work pool using the CLI:
 
-```
+<div class="terminal">
+```bash
 prefect work-pool create my-managed-pool --type prefect:managed
 ```
+</div>
 
 ### Step 2
 
@@ -48,7 +53,7 @@ if __name__ == "__main__":
     )
 ```
 
-With your CLI authenticated to your Prefect Cloud workspace, run the script to create your deployment:
+With your [CLI authenticated to your Prefect Cloud workspace](/cloud/users/api-keys/), run the script to create your deployment:
 
 <div class="terminal">
 ```bash
@@ -62,11 +67,12 @@ Note that this deployment uses flow code stored in a GitHub repository.
 
 Run the deployment from the UI or from the CLI.
 
-That's it! You ran a flow on remote infrastructure without any infrastructure setup, worker, or cloud provider account.
+That's it! You ran a flow on remote infrastructure without any infrastructure setup, starting a worker, or needing a cloud provider account.
 
 ### Adding dependencies
 
-You can install Python package dependencies at runtime by configuring `job_variables={"pip_packages": ["pandas", "prefect-aws"]}` like this:
+Prefect can install Python packages in the container that runs your flow at runtime.
+You can specify these dependencies in the **Pip Packages** field in the UI, or by configuring `job_variables={"pip_packages": ["pandas", "prefect-aws"]}` in your deployment creation like this:
 
 ```python hl_lines="10"
 from prefect import flow
@@ -82,7 +88,7 @@ if __name__ == "__main__":
     )
 ```
 
-Alternatively, you can specify a `requirements.txt` file and reference it in your `prefect.yaml` `pull_step`.
+Alternatively, you can create a `requirements.txt` file and reference it in your `prefect.yaml` `pull_step`.
 
 ## Limitations
 
@@ -119,7 +125,7 @@ Memory is limited to 2GB of RAM, which includes all operations such as dependenc
 
 ## Usage limits
 
-Free tier accounts are limited to ten compute hours per workspace per month. Pro tier and above accounts are limited to 250 hours per workspace per month. you can view your compute hours quota usage on the work pools page.
+Free tier accounts are limited to ten compute hours per workspace per month. Pro tier and above accounts are limited to 250 hours per workspace per month. You can view your compute hours quota usage on the **Work Pools** page in the UI.
 
 ## Next steps
 
