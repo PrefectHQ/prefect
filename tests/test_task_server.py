@@ -7,6 +7,7 @@ from prefect import task
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.objects import TaskRun
+from prefect.exceptions import MissingResult
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
@@ -243,6 +244,54 @@ class TestTaskServerTaskRunRetries:
 
 
 class TestTaskServerTaskResults:
+    @pytest.mark.parametrize("persist_result", [True, False], ids=["persisted", "not"])
+    async def test_task_run_via_task_server_respects_persist_result(
+        self, persist_result, prefect_client
+    ):
+        @task(persist_result=persist_result)
+        def some_task():
+            return 42
+
+        task_server = TaskServer(some_task)
+
+        task_run = some_task.submit()
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        if persist_result:
+            assert await updated_task_run.state.result() == 42
+        else:
+            with pytest.raises(MissingResult, match="The result was not persisted"):
+                await updated_task_run.state.result()
+
+    @pytest.mark.parametrize(
+        "storage_key", ["foo", "{parameters[x]}"], ids=["static", "dynamic"]
+    )
+    async def test_task_run_via_task_server_respects_result_storage_key(
+        self, storage_key, prefect_client
+    ):
+        @task(persist_result=True, result_storage_key=storage_key)
+        def some_task(x):
+            return x
+
+        task_server = TaskServer(some_task)
+
+        task_run = some_task.submit(x="foo")
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        assert await updated_task_run.state.result() == "foo"
+
+        assert updated_task_run.state.data.storage_key == "foo"
+
     async def test_task_run_via_task_server_with_complex_result_type(
         self, prefect_client
     ):
