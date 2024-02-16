@@ -270,6 +270,8 @@ class AsyncCancelScope(CancelScope):
             # Mark as cancelled
             self.cancel(throw=False)
 
+        self._anyio_scope.__exit__(exc_type, exc_val, exc_tb)
+
         super().__exit__(exc_type, exc_val, exc_tb)
 
         if self.cancelled() and exc_type is not CancelledError:

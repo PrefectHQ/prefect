@@ -182,6 +182,22 @@ class Future(concurrent.futures.Future):
             # Break a reference cycle with the exception in self._exception
             self = None
 
+    def _invoke_callbacks(self):
+        if self._done_callbacks:
+            done_callbacks = self._done_callbacks[:]
+            self._done_callbacks[:] = []
+
+            for callback in done_callbacks:
+                try:
+                    callback(self)
+                except Exception:
+                    logger.exception("exception calling callback for %r", self)
+
+        self._cancel_callbacks = []
+        if self._cancel_scope:
+            self._cancel_scope._callbacks = []
+            self._cancel_scope = None
+
 
 @dataclasses.dataclass
 class Call(Generic[T]):
