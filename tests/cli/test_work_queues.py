@@ -1,6 +1,9 @@
+import uuid
+
 import pytest
 
 import prefect.exceptions
+from prefect import flow
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 
@@ -586,3 +589,49 @@ class TestLS:
             expected_code=1,
         )
         assert f"No work pool found: '{work_queue_1.work_pool.name}-bad'" in res.output
+
+
+class TestReadRuns:
+    @sync_compatible
+    async def create_runs_in_queue(self, prefect_client, queue, count: int):
+        foo = flow(lambda: None, name="foo")
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            manifest_path="file.json",
+            work_queue_name=queue.name,
+        )
+        for _ in range(count):
+            await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+    def test_read_wq(self, prefect_client, work_queue):
+        n_runs = 3
+        self.create_runs_in_queue(prefect_client, work_queue, n_runs)
+        cmd = f"work-queue read-runs {work_queue.name}"
+        result = invoke_and_assert(command=cmd, expected_code=0)
+        assert f"Read {n_runs} runs for work queue" in result.output
+
+    def test_read_wq_with_pool(self, prefect_client, work_queue):
+        n_runs = 3
+        self.create_runs_in_queue(prefect_client, work_queue, n_runs)
+        cmd = (
+            f"work-queue read-runs --pool {work_queue.work_pool.name} {work_queue.name}"
+        )
+        result = invoke_and_assert(command=cmd, expected_code=0)
+        assert f"Read {n_runs} runs for work queue" in result.output
+
+    def test_read_missing_wq(self, work_queue):
+        bad_name = str(uuid.uuid4())
+        cmd = f"work-queue read-runs --pool {work_queue.work_pool.name} {bad_name}"
+        result = invoke_and_assert(command=cmd, expected_code=1)
+        assert f"No work queue found: '{bad_name}'" in result.output
+
+    def test_read_wq_with_missing_pool(self, work_queue):
+        bad_name = str(uuid.uuid4())
+        cmd = f"work-queue read-runs --pool {bad_name} {work_queue.name}"
+        result = invoke_and_assert(command=cmd, expected_code=1)
+        assert (
+            f"No work queue named '{work_queue.name}' found in work pool '{bad_name}'"
+            in result.output
+        )
