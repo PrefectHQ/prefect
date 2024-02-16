@@ -25,8 +25,6 @@ from prefect.task_runners import (
     BaseTaskRunner,
     ConcurrentTaskRunner,
 )
-
-# SequentialTaskRunner,
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.processutils import _register_signal
 
