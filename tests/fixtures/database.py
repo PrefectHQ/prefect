@@ -113,7 +113,7 @@ async def clear_db(db, request):
 
     yield
 
-    if "disable_clear_db" not in request.keywords:
+    if "clear_db" in request.keywords:
         max_retries = 3
         retry_delay = 1
 

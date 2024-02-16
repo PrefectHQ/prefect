@@ -2,8 +2,6 @@ import pytest
 
 from prefect.utilities.names import obfuscate, obfuscate_string
 
-pytestmark = pytest.mark.disable_clear_db
-
 
 @pytest.mark.parametrize(
     "s, expected",

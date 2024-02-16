@@ -19,8 +19,6 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
-pytestmark = pytest.mark.disable_clear_db
-
 TEST_PROJECTS_DIR = __development_base_path__ / "tests" / "test-projects"
 
 

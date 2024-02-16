@@ -2,8 +2,6 @@ import pytest
 
 from prefect.utilities.math import clamped_poisson_interval, poisson_interval
 
-pytestmark = pytest.mark.disable_clear_db
-
 
 def test_poisson_intervals():
     expected_average = 42

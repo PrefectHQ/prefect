@@ -16,8 +16,6 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 
-pytestmark = pytest.mark.disable_clear_db
-
 
 class TestFindPlaceholders:
     def test_empty_template(self):

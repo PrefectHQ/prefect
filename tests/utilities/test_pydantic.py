@@ -22,8 +22,6 @@ from prefect.utilities.pydantic import (
     get_class_fields_only,
 )
 
-pytestmark = pytest.mark.disable_clear_db
-
 
 class SimplePydantic(pydantic.BaseModel):
     x: int

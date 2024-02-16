@@ -7,8 +7,6 @@ import pytest
 import prefect.utilities.processutils
 from prefect.utilities.processutils import open_process, run_process
 
-pytestmark = pytest.mark.disable_clear_db
-
 
 class TestRunProcess:
     async def test_run_process_hides_output(self, capsys):

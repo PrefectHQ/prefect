@@ -1,10 +1,6 @@
 import random
 
-import pytest
-
 from prefect.utilities.annotations import unmapped
-
-pytestmark = pytest.mark.disable_clear_db
 
 
 class TestUnmapped:

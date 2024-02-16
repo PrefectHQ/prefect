@@ -11,8 +11,6 @@ from prefect.utilities.visualization import (
     get_task_viz_tracker,
 )
 
-pytestmark = pytest.mark.disable_clear_db
-
 
 class TestTaskVizTracker:
     async def test_get_task_run_tracker(self):

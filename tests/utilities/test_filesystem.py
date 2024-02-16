@@ -10,8 +10,6 @@ from prefect.utilities.filesystem import (
     relative_path_to_current_platform,
 )
 
-pytestmark = pytest.mark.disable_clear_db
-
 
 class TestFilterFiles:
     @pytest.fixture
