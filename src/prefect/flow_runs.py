@@ -38,6 +38,7 @@ async def wait_for_flow_run(
             import asyncio
 
             from prefect import get_client
+            from prefect.flow_runs import wait_for_flow_run
 
             async def main():
                 async with get_client() as client:
@@ -55,6 +56,7 @@ async def wait_for_flow_run(
             import asyncio
 
             from prefect import get_client
+            from prefect.flow_runs import wait_for_flow_run
 
             async def main(num_runs: int):
                 async with get_client() as client:
