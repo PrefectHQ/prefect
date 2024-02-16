@@ -177,43 +177,104 @@ async def test_task_server_can_execute_a_single_sync_single_task_run(
     assert await updated_task_run.state.result() == 42
 
 
-async def test_task_runs_executed_via_task_server_respects_retry_policy(prefect_client):
-    count = 0
+class TestTaskServerTaskRunRetries:
+    async def test_task_run_via_task_server_respects_retry_policy(self, prefect_client):
+        count = 0
 
-    @task(retries=1, persist_result=True)
-    def task_with_retry():
-        nonlocal count
-        if count == 0:
+        @task(retries=1, persist_result=True)
+        def task_with_retry():
+            nonlocal count
+            if count == 0:
+                count += 1
+                raise ValueError("maybe next time")
             count += 1
-            raise ValueError("maybe next time")
+            return count
 
-        return count
+        task_server = TaskServer(task_with_retry)
 
-    task_server = TaskServer(task_with_retry)
+        task_run = task_with_retry.submit()
 
-    task_run = task_with_retry.submit()
+        await task_server.execute_task_run(task_run)
 
-    await task_server.execute_task_run(task_run)
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
 
-    updated_task_run = await prefect_client.read_task_run(task_run.id)
+        assert updated_task_run.state.is_completed()
 
-    assert updated_task_run.state.is_completed()
+        assert await updated_task_run.state.result() == 2
 
-    assert await updated_task_run.state.result() == 1
+        assert count == 2
+
+    @pytest.mark.parametrize(
+        "should_retry",
+        [lambda task, task_run, state: True, lambda task, task_run, state: False],
+        ids=["will_retry", "wont_retry"],
+    )
+    async def test_task_run_via_task_server_respects_retry_condition_fn(
+        self, should_retry, prefect_client
+    ):
+        count = 0
+
+        will_retry = should_retry(None, None, None)
+
+        expected_count = 2 if will_retry else 1
+
+        expected_state = "COMPLETED" if will_retry else "FAILED"
+
+        @task(retries=1, retry_condition_fn=should_retry)
+        def task_with_retry_condition_fn():
+            nonlocal count
+            if count == 0:
+                count += 1
+                raise RuntimeError("doh")
+            count += 1
+            return count
+
+        task_server = TaskServer(task_with_retry_condition_fn)
+
+        task_run = task_with_retry_condition_fn.submit()
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.type == expected_state
+
+        assert count == expected_count
 
 
-async def test_task_run_via_task_server_with_complex_result_type(prefect_client):
-    class BreakfastSpot(BaseModel):
-        name: str
-        location: str
+class TestTaskServerTaskResults:
+    async def test_task_run_via_task_server_with_complex_result_type(
+        self, prefect_client
+    ):
+        class BreakfastSpot(BaseModel):
+            name: str
+            location: str
 
-    class City(BaseModel):
-        name: str
-        best_breakfast_spot: BreakfastSpot
+        class City(BaseModel):
+            name: str
+            best_breakfast_spot: BreakfastSpot
 
-    @task(persist_result=True)
-    def americas_third_largest_city() -> City:
-        return City(
+        @task(persist_result=True)
+        def americas_third_largest_city() -> City:
+            return City(
+                name="Chicago",
+                best_breakfast_spot=BreakfastSpot(
+                    name="The Bongo Room",
+                    location="Wicker Park",
+                ),
+            )
+
+        task_server = TaskServer(americas_third_largest_city)
+
+        task_run = americas_third_largest_city.submit()
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        assert await updated_task_run.state.result() == City(
             name="Chicago",
             best_breakfast_spot=BreakfastSpot(
                 name="The Bongo Room",
@@ -221,57 +282,124 @@ async def test_task_run_via_task_server_with_complex_result_type(prefect_client)
             ),
         )
 
-    task_server = TaskServer(americas_third_largest_city)
+    async def test_task_run_via_task_server_respects_caching(
+        self, async_foo_task, prefect_client, caplog
+    ):
+        count = 0
 
-    task_run = americas_third_largest_city.submit()
+        @task(cache_key_fn=task_input_hash)
+        async def task_with_cache(x):
+            nonlocal count
+            count += 1
+            return count
 
-    await task_server.execute_task_run(task_run)
+        task_server = TaskServer(task_with_cache)
 
-    updated_task_run = await prefect_client.read_task_run(task_run.id)
+        task_run = await task_with_cache.submit(42)
 
-    assert updated_task_run.state.is_completed()
+        await task_server.execute_task_run(task_run)
 
-    assert await updated_task_run.state.result() == City(
-        name="Chicago",
-        best_breakfast_spot=BreakfastSpot(
-            name="The Bongo Room",
-            location="Wicker Park",
-        ),
-    )
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        assert await updated_task_run.state.result() == 1
+
+        new_task_run = await task_with_cache.submit(42)
+
+        with caplog.at_level("INFO"):
+            await task_server.execute_task_run(new_task_run)
+
+        new_updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert "Finished in state Cached(type=COMPLETED)" in caplog.text
+
+        assert await new_updated_task_run.state.result() == 1
+
+        assert count == 1
 
 
-async def test_task_run_via_task_server_respects_caching(
-    async_foo_task, prefect_client, caplog
-):
-    count = 0
+class TestTaskServerTaskTags:
+    async def test_task_run_via_task_server_respects_tags(
+        self, async_foo_task, prefect_client
+    ):
+        @task(tags=["foo", "bar"])
+        async def task_with_tags(x):
+            return x
 
-    @task(cache_key_fn=task_input_hash)
-    async def task_with_cache(x):
-        nonlocal count
-        count += 1
-        return count
+        task_server = TaskServer(task_with_tags)
 
-    task_server = TaskServer(task_with_cache)
+        task_run = await task_with_tags.submit(42)
 
-    task_run = await task_with_cache.submit(42)
+        await task_server.execute_task_run(task_run)
 
-    await task_server.execute_task_run(task_run)
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
 
-    updated_task_run = await prefect_client.read_task_run(task_run.id)
+        assert updated_task_run.state.is_completed()
 
-    assert updated_task_run.state.is_completed()
+        assert {"foo", "bar"} == set(updated_task_run.tags)
 
-    assert await updated_task_run.state.result() == 1
 
-    new_task_run = await task_with_cache.submit(42)
+class TestTaskServerCustomTaskRunName:
+    async def test_task_run_via_task_server_respects_custom_task_run_name(
+        self, async_foo_task, prefect_client
+    ):
+        async_foo_task_with_custom_name = async_foo_task.with_options(
+            task_run_name="{x}"
+        )
 
-    with caplog.at_level("INFO"):
-        await task_server.execute_task_run(new_task_run)
+        task_server = TaskServer(async_foo_task_with_custom_name)
 
-    new_updated_task_run = await prefect_client.read_task_run(task_run.id)
+        task_run = await async_foo_task_with_custom_name.submit(42)
 
-    assert "Finished in state Cached(type=COMPLETED)" in caplog.text
+        await task_server.execute_task_run(task_run)
 
-    assert await new_updated_task_run.state.result() == 1
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
 
-    assert count == 1
+        assert updated_task_run.state.is_completed()
+
+        assert updated_task_run.name == "42"
+
+
+class TestTaskServerTaskStateHooks:
+    async def test_task_run_via_task_server_runs_on_completion_hook(
+        self, async_foo_task, prefect_client, capsys
+    ):
+        async_foo_task_with_on_completion_hook = async_foo_task.with_options(
+            on_completion=[
+                lambda task, task_run, state: print("Running on_completion hook")
+            ]
+        )
+
+        task_server = TaskServer(async_foo_task_with_on_completion_hook)
+
+        task_run = await async_foo_task_with_on_completion_hook.submit(42)
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        assert "Running on_completion hook" in capsys.readouterr().out
+
+    async def test_task_run_via_task_server_runs_on_failure_hook(
+        self, prefect_client, capsys
+    ):
+        @task(
+            on_failure=[lambda task, task_run, state: print("Running on_failure hook")]
+        )
+        def task_that_fails():
+            raise ValueError("I failed")
+
+        task_server = TaskServer(task_that_fails)
+
+        task_run = task_that_fails.submit()
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_failed()
+
+        assert "Running on_failure hook" in capsys.readouterr().out
