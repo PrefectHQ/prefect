@@ -11,6 +11,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.task_server import TaskServer, serve
+from prefect.tasks import task_input_hash
 
 
 @pytest.fixture(autouse=True)
@@ -168,3 +169,105 @@ async def test_task_server_can_execute_a_single_sync_single_task_run(
     assert updated_task_run.state.is_completed()
 
     assert await updated_task_run.state.result() == 42
+
+
+async def test_task_runs_executed_via_task_server_respects_retry_policy(prefect_client):
+    count = 0
+
+    @task(retries=1, persist_result=True)
+    def task_with_retry():
+        nonlocal count
+        if count == 0:
+            count += 1
+            raise ValueError("maybe next time")
+
+        return count
+
+    task_server = TaskServer(task_with_retry)
+
+    task_run = task_with_retry.submit()
+
+    await task_server.execute_task_run(task_run)
+
+    updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert updated_task_run.state.is_completed()
+
+    assert await updated_task_run.state.result() == 1
+
+
+async def test_task_run_via_task_server_with_complex_result_type(prefect_client):
+    from pydantic.v1 import BaseModel
+
+    class BreakfastSpot(BaseModel):
+        name: str
+        location: str
+
+    class City(BaseModel):
+        name: str
+        best_breakfast_spot: BreakfastSpot
+
+    @task(persist_result=True)
+    def americas_third_largest_city() -> City:
+        return City(
+            name="Chicago",
+            best_breakfast_spot=BreakfastSpot(
+                name="The Bongo Room",
+                location="Wicker Park",
+            ),
+        )
+
+    task_server = TaskServer(americas_third_largest_city)
+
+    task_run = americas_third_largest_city.submit()
+
+    await task_server.execute_task_run(task_run)
+
+    updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert updated_task_run.state.is_completed()
+
+    assert await updated_task_run.state.result() == City(
+        name="Chicago",
+        best_breakfast_spot=BreakfastSpot(
+            name="The Bongo Room",
+            location="Wicker Park",
+        ),
+    )
+
+
+async def test_task_run_via_task_server_respects_caching(
+    async_foo_task, prefect_client, caplog
+):
+    count = 0
+
+    @task(cache_key_fn=task_input_hash)
+    async def task_with_cache(x):
+        nonlocal count
+        count += 1
+        return count
+
+    task_server = TaskServer(task_with_cache)
+
+    task_run = await task_with_cache.submit(42)
+
+    await task_server.execute_task_run(task_run)
+
+    updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert updated_task_run.state.is_completed()
+
+    assert await updated_task_run.state.result() == 1
+
+    new_task_run = await task_with_cache.submit(42)
+
+    with caplog.at_level("INFO"):
+        await task_server.execute_task_run(new_task_run)
+
+    new_updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+    assert "Finished in state Cached(type=COMPLETED)" in caplog.text
+
+    assert await new_updated_task_run.state.result() == 1
+
+    assert count == 1
