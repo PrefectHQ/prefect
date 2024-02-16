@@ -6,6 +6,8 @@ import pytest
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.services import critical_service_loop
 
+pytestmark = pytest.mark.disable_clear_db
+
 
 class UncapturedException(BaseException):
     pass

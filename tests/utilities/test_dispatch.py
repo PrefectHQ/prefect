@@ -11,6 +11,8 @@ from prefect.utilities.dispatch import (
     register_type,
 )
 
+pytestmark = pytest.mark.disable_clear_db
+
 
 @pytest.fixture(autouse=True)
 def reset_dispatch_registry():

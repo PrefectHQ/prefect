@@ -25,6 +25,8 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 
+pytestmark = pytest.mark.disable_clear_db
+
 
 def test_is_async_fn_sync():
     def foo():

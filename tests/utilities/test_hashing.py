@@ -4,6 +4,8 @@ import pytest
 
 from prefect.utilities.hashing import file_hash, stable_hash
 
+pytestmark = pytest.mark.disable_clear_db
+
 
 @pytest.mark.parametrize(
     "inputs,hash_algo,expected",

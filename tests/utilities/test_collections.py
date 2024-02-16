@@ -25,6 +25,8 @@ from prefect.utilities.collections import (
     visit_collection,
 )
 
+pytestmark = pytest.mark.disable_clear_db
+
 
 class ExampleAnnotation(BaseAnnotation):
     pass

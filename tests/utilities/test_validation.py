@@ -5,6 +5,8 @@ from prefect.utilities.validation import (
     validate_values_conform_to_schema,
 )
 
+pytestmark = pytest.mark.disable_clear_db
+
 # Tests for validate_schema function
 
 

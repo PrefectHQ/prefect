@@ -18,6 +18,8 @@ from pydantic import SecretStr
 from prefect.exceptions import ParameterBindError
 from prefect.utilities import callables
 
+pytestmark = pytest.mark.disable_clear_db
+
 
 class TestFunctionToSchema:
     def test_simple_function_with_no_arguments(self):

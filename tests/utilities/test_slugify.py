@@ -1,6 +1,10 @@
 import inspect
 
+import pytest
+
 from prefect.utilities.slugify import slugify
+
+pytestmark = pytest.mark.disable_clear_db
 
 
 def test_slugify_has_expected_params():
