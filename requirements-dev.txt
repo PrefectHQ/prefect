@@ -1,6 +1,6 @@
 ruff
 cairosvg
-codespell
+codespell>=2.2.6
 ddtrace
 # Pin IPython to 8.12 when building on Python 3.8
 # https://github.com/ipython/ipython/blob/main/README.rst
