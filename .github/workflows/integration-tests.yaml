@@ -102,7 +102,7 @@ jobs:
           --publish 4200:4200
           ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          ${{ matrix.server_command || 'prefect server start' }} --host 0.0.0.0
+          ${{ matrix.server_command || 'prefect server start --analytics-off' }} --host 0.0.0.0
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
@@ -126,7 +126,7 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6989
           docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
-          prefect server start&
+          prefect server start --analytics-off&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
