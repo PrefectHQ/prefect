@@ -18,7 +18,7 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
-from prefect.task_engine import submit_autonomous_task_to_engine
+from prefect.task_engine import submit_autonomous_task_run_to_engine
 from prefect.task_runners import (
     BaseTaskRunner,
     ConcurrentTaskRunner,
@@ -71,7 +71,7 @@ class TaskServer:
                 "TaskServer must be initialized within an async context."
             )
 
-        self._runs_task_group = anyio.create_task_group()
+        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
     def handle_sigterm(self, signum, frame):
         """
@@ -169,7 +169,7 @@ class TaskServer:
                 f" server returned a non-pending state {state.type.value!r}."
                 " Task run may have already begun execution."
             )
-        future = await submit_autonomous_task_to_engine(
+        future = await submit_autonomous_task_run_to_engine(
             task=task,
             task_run=task_run,
             parameters=parameters,
@@ -179,7 +179,8 @@ class TaskServer:
         self._runs_task_group.start_soon(future._result)
 
     async def execute_task_run(self, task_run: TaskRun):
-        async with self:
+        """Execute a task run in the task server."""
+        async with self if not self.started else asyncnullcontext():
             await self._submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):

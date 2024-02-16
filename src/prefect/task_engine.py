@@ -1,7 +1,6 @@
 import threading
 from contextlib import AsyncExitStack
 from typing import (
-    Any,
     Dict,
     Iterable,
     Optional,
@@ -28,7 +27,7 @@ EngineReturnType = Literal["future", "state", "result"]
 
 
 @sync_compatible
-async def submit_autonomous_task_to_engine(
+async def submit_autonomous_task_run_to_engine(
     task: Task,
     task_run: TaskRun,
     task_runner: BaseTaskRunner,
@@ -37,7 +36,7 @@ async def submit_autonomous_task_to_engine(
     mapped: bool = False,
     return_type: EngineReturnType = "future",
     client=None,
-) -> Any:
+) -> PrefectFuture:
     async with AsyncExitStack() as stack:
         parameters = parameters or {}
         with EngineContext(
