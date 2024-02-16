@@ -718,6 +718,7 @@ async def deploy(
     build: bool = True,
     push: bool = True,
     print_next_steps_message: bool = True,
+    ignore_warnings: bool = False,
 ) -> List[UUID]:
     """
     Deploy the provided list of deployments to dynamic infrastructure via a
@@ -805,21 +806,32 @@ async def deploy(
         work_pool.base_job_template, "variables.properties.block", False
     )
     # carve out an exception for block based work pools that only have a block in their base job template
+    console = Console()
     if not is_docker_based_work_pool and not is_block_based_work_pool:
-        raise ValueError(
-            f"Work pool {work_pool_name!r} does not support custom Docker images."
-            " Please use a work pool with an `image` variable in its base job template."
-            " If you are attempting to deploy a flow to a local process work pool,"
-            " you should `serve` the flow instead. See the documentation for more"
-            " information: https://docs.prefect.io/latest/concepts/flows/"
-        )
+        if image:
+            raise ValueError(
+                f"Work pool {work_pool_name!r} does not support custom Docker images."
+                " Please use a work pool with an `image` variable in its base job template"
+                " or specify a remote storage location for the flow with `.from_source`."
+                " If you are attempting to deploy a flow to a local process work pool,"
+                " consider using `flow.serve` instead. See the documentation for more"
+                " information: https://docs.prefect.io/latest/concepts/flows/#serving-a-flow"
+            )
+        elif work_pool.type == "process" and not ignore_warnings:
+            console.print(
+                "Looks like you're deploying to a process work pool. If you're creating a"
+                " deployment for local development, calling `.serve` on your flow is a great"
+                " way to get started. See the documentation for more information:"
+                " https://docs.prefect.io/latest/concepts/flows/#serving-a-flow. "
+                " Set `ignore_warnings=True` to suppress this message.",
+                style="yellow",
+            )
 
     is_managed_pool = work_pool.is_managed_pool
     if is_managed_pool:
         build = False
         push = False
 
-    console = Console()
     if image and build:
         with Progress(
             SpinnerColumn(),
