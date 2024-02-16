@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, Dict
 
 import pytest
@@ -252,7 +253,7 @@ class TestApplyValues:
 
 
 class TestResolveBlockDocumentReferences:
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     async def block_document_id(self):
         class ArbitraryBlock(Block):
             a: int
@@ -393,12 +394,12 @@ class TestResolveBlockDocumentReferences:
         # for backwards compatibility system blocks can be referenced directly
         # they should still be able to access nested keys
         await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="json-block"
+            name="nested-json-block"
         )
         template = {
-            "value": "{{ prefect.blocks.json.json-block}}",
-            "keypath": "{{ prefect.blocks.json.json-block.key }}",
-            "nested_keypath": "{{ prefect.blocks.json.json-block.key.nested-key }}",
+            "value": "{{ prefect.blocks.json.nested-json-block}}",
+            "keypath": "{{ prefect.blocks.json.nested-json-block.key }}",
+            "nested_keypath": "{{ prefect.blocks.json.nested-json-block.key.nested-key }}",
         }
 
         result = await resolve_block_document_references(template)
@@ -410,13 +411,13 @@ class TestResolveBlockDocumentReferences:
 
     async def test_resolve_block_document_resolves_dict_keypath(self):
         await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="json-block"
+            name="nested-json-block-2"
         )
         template = {
-            "value": "{{ prefect.blocks.json.json-block.value }}",
-            "keypath": "{{ prefect.blocks.json.json-block.value.key }}",
+            "value": "{{ prefect.blocks.json.nested-json-block-2.value }}",
+            "keypath": "{{ prefect.blocks.json.nested-json-block-2.value.key }}",
             "nested_keypath": (
-                "{{ prefect.blocks.json.json-block.value.key.nested-key }}"
+                "{{ prefect.blocks.json.nested-json-block-2.value.key.nested-key }}"
             ),
         }
 
@@ -449,9 +450,11 @@ class TestResolveBlockDocumentReferences:
         }
 
     async def test_resolve_block_document_raises_on_invalid_keypath(self):
-        await JSON(value={"key": {"nested_key": "value"}}).save(name="json-block")
+        await JSON(value={"key": {"nested_key": "value"}}).save(
+            name="nested-json-block-3"
+        )
         json_template = {
-            "json": "{{ prefect.blocks.json.json-block.value.key.does_not_exist }}",
+            "json": "{{ prefect.blocks.json.nested-json-block-3.value.key.does_not_exist }}",
         }
         with pytest.raises(ValueError, match="Could not resolve the keypath"):
             await resolve_block_document_references(json_template)
@@ -471,10 +474,10 @@ class TestResolveBlockDocumentReferences:
             await resolve_block_document_references(webhook_template)
 
     async def test_resolve_block_document_resolves_block_attribute(self):
-        await Webhook(url="https://example.com").save(name="webhook-block")
+        await Webhook(url="https://example.com").save(name="webhook-block-2")
 
         template = {
-            "block_attribute": "{{ prefect.blocks.webhook.webhook-block.url }}",
+            "block_attribute": "{{ prefect.blocks.webhook.webhook-block-2.url }}",
         }
         result = await resolve_block_document_references(template)
 
@@ -485,13 +488,20 @@ class TestResolveBlockDocumentReferences:
 
 class TestResolveVariables:
     @pytest.fixture
-    async def variables(self, prefect_client: PrefectClient):
-        await prefect_client._client.post(
-            "/variables/", json={"name": "test_variable_1", "value": "test_value_1"}
+    async def variable_1(self, prefect_client: PrefectClient):
+        res = await prefect_client._client.post(
+            "/variables/",
+            json={"name": f"test_variable_{uuid.uuid4().hex}", "value": "test_value_1"},
         )
-        await prefect_client._client.post(
-            "/variables/", json={"name": "test_variable_2", "value": "test_value_2"}
+        return res.json()
+
+    @pytest.fixture
+    async def variable_2(self, prefect_client: PrefectClient):
+        res = await prefect_client._client.post(
+            "/variables/",
+            json={"name": f"test_variable_{uuid.uuid4().hex}", "value": "test_value_2"},
         )
+        return res.json()
 
     async def test_resolve_string_no_placeholders(self, prefect_client: PrefectClient):
         template = "This is a simple string."
@@ -499,41 +509,43 @@ class TestResolveVariables:
         assert result == template
 
     async def test_resolve_string_with_standard_placeholder(
-        self, variables, prefect_client: PrefectClient
+        self, variable_1, prefect_client: PrefectClient
     ):
         template = (
             "This is a string with a placeholder: {{"
-            " prefect.variables.test_variable_1 }}."
+            f" prefect.variables.{variable_1['name']} }}}}."
         )
         expected = "This is a string with a placeholder: test_value_1."
         result = await resolve_variables(template, client=prefect_client)
         assert result == expected
 
     async def test_resolve_string_with_multiple_standard_placeholders(
-        self, variables, prefect_client: PrefectClient
+        self, variable_1, variable_2, prefect_client: PrefectClient
     ):
         template = (
-            "{{ prefect.variables.test_variable_1}} - {{"
-            " prefect.variables.test_variable_2 }}"
+            f"{{{{ prefect.variables.{variable_1['name']} }}}} - {{{{"
+            f" prefect.variables.{variable_2['name']} }}}}"
         )
         expected = "test_value_1 - test_value_2"
         result = await resolve_variables(template, client=prefect_client)
         assert result == expected
 
-    async def test_resolve_dict(self, variables, prefect_client: PrefectClient):
+    async def test_resolve_dict(self, variable_1, prefect_client: PrefectClient):
         template: Dict[str, Any] = {
             "key1": "value1",
-            "key2": "{{ prefect.variables.test_variable_1}}",
+            "key2": f"{{{{ prefect.variables.{variable_1['name']} }}}}",
         }
         expected = {"key1": "value1", "key2": "test_value_1"}
         result = await resolve_variables(template, client=prefect_client)
         assert result == expected
 
-    async def test_resolve_nested_dict(self, variables, prefect_client: PrefectClient):
+    async def test_resolve_nested_dict(
+        self, variable_1, variable_2, prefect_client: PrefectClient
+    ):
         template: Dict[str, Any] = {
             "key1": "value1",
-            "key2": "{{ prefect.variables.test_variable_1}}",
-            "key3": {"key4": "{{ prefect.variables.test_variable_2}}"},
+            "key2": f"{{{{ prefect.variables.{variable_1['name']} }}}}",
+            "key3": {"key4": f"{{{{ prefect.variables.{variable_2['name']} }}}}"},
         }
         expected = {
             "key1": "value1",
@@ -543,8 +555,8 @@ class TestResolveVariables:
         result = await resolve_variables(template, client=prefect_client)
         assert result == expected
 
-    async def test_resolve_list(self, variables, prefect_client: PrefectClient):
-        template = ["value1", "{{ prefect.variables.test_variable_1}}", 42]
+    async def test_resolve_list(self, variable_1, prefect_client: PrefectClient):
+        template = ["value1", f"{{{{ prefect.variables.{variable_1['name']} }}}}", 42]
         expected = ["value1", "test_value_1", 42]
         result = await resolve_variables(template, client=prefect_client)
         assert result == expected

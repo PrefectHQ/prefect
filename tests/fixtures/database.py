@@ -105,7 +105,7 @@ async def setup_db(database_engine, db):
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(db):
+async def clear_db(db, request):
     """
     Delete all data from all tables after running each test, attempting to handle
     connection errors.
@@ -113,27 +113,28 @@ async def clear_db(db):
 
     yield
 
-    max_retries = 3
-    retry_delay = 1
+    if "clear_db" in request.keywords:
+        max_retries = 3
+        retry_delay = 1
 
-    for attempt in range(max_retries):
-        try:
-            async with db.session_context(begin_transaction=True) as session:
-                await session.execute(db.Agent.__table__.delete())
-                await session.execute(db.WorkPool.__table__.delete())
+        for attempt in range(max_retries):
+            try:
+                async with db.session_context(begin_transaction=True) as session:
+                    await session.execute(db.Agent.__table__.delete())
+                    await session.execute(db.WorkPool.__table__.delete())
 
-                for table in reversed(db.Base.metadata.sorted_tables):
-                    await session.execute(table.delete())
-                break
-        except InterfaceError:
-            if attempt < max_retries - 1:
-                print(
-                    "Connection issue. Retrying entire deletion operation"
-                    f" ({attempt + 1}/{max_retries})..."
-                )
-                await asyncio.sleep(retry_delay)
-            else:
-                raise
+                    for table in reversed(db.Base.metadata.sorted_tables):
+                        await session.execute(table.delete())
+                    break
+            except InterfaceError:
+                if attempt < max_retries - 1:
+                    print(
+                        "Connection issue. Retrying entire deletion operation"
+                        f" ({attempt + 1}/{max_retries})..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                else:
+                    raise
 
 
 @pytest.fixture
