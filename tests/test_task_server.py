@@ -31,6 +31,18 @@ def mock_settings():
         yield
 
 
+# model defined outside of the test function to avoid pickling issues
+# on pydantic v1 / python 3.8, see https://github.com/cloudpipe/cloudpickle/issues/408
+class BreakfastSpot(BaseModel):
+    name: str
+    location: str
+
+
+class City(BaseModel):
+    name: str
+    best_breakfast_spot: BreakfastSpot
+
+
 @pytest.fixture
 def foo_task():
     @task
@@ -295,14 +307,6 @@ class TestTaskServerTaskResults:
     async def test_task_run_via_task_server_with_complex_result_type(
         self, prefect_client
     ):
-        class BreakfastSpot(BaseModel):
-            name: str
-            location: str
-
-        class City(BaseModel):
-            name: str
-            best_breakfast_spot: BreakfastSpot
-
         @task(persist_result=True)
         def americas_third_largest_city() -> City:
             return City(
