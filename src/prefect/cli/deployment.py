@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+
 import json
 import sys
 import textwrap
@@ -489,7 +490,9 @@ async def run(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
     ),
     deployment_id: Optional[str] = typer.Option(
-        None, "--id", help="A deployment id to search for if no name is given"
+        None,
+        "--id",
+        help=("A deployment id to search for if no name is given"),
     ),
     params: List[str] = typer.Option(
         None,
@@ -512,26 +515,38 @@ async def run(
     start_in: Optional[str] = typer.Option(
         None,
         "--start-in",
+        help=(
+            "A human-readable string specifying a time interval to wait before starting"
+            " the flow run. E.g. 'in 5 minutes', 'in 1 hour', 'in 2 days'."
+        ),
     ),
     start_at: Optional[str] = typer.Option(
         None,
         "--start-at",
+        help=(
+            "A human-readable string specifying a time to start the flow run. E.g."
+            " 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'."
+        ),
     ),
     tags: List[str] = typer.Option(
-        [], "--tag", help="Tag(s) to be applied to flow run"
+        [],
+        "--tag",
+        help=("Tag(s) to be applied to flow run."),
     ),
     watch: bool = typer.Option(
         False,
         "--watch",
-        help="Whether to poll the flow run until a terminal state is reached.",
+        help=("Whether to poll the flow run until a terminal state is reached."),
     ),
     watch_interval: Optional[int] = typer.Option(
         None,
         "--watch-interval",
-        help="How often to poll the flow run for state changes (in seconds).",
+        help=("How often to poll the flow run for state changes (in seconds)."),
     ),
     watch_timeout: Optional[int] = typer.Option(
-        None, "--watch-timeout", help="Timeout for `--watch`."
+        None,
+        "--watch-timeout",
+        help=("Timeout for --watch."),
     ),
 ):
     """
