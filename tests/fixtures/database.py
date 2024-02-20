@@ -107,11 +107,9 @@ async def setup_db(database_engine, db):
 @pytest.fixture(autouse=True)
 async def clear_db(db, request):
     """
-    Delete all data from all tables after running each test, attempting to handle
+    Delete all data from all tables before running each test, attempting to handle
     connection errors.
     """
-
-    yield
 
     if "clear_db" in request.keywords:
         max_retries = 3
@@ -135,6 +133,8 @@ async def clear_db(db, request):
                     await asyncio.sleep(retry_delay)
                 else:
                     raise
+
+    yield
 
 
 @pytest.fixture
