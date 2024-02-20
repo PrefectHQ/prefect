@@ -64,7 +64,7 @@ jobs:
           - prefect-version: "2.5"
             server-incompatible: true
 
-          # All servers prior to 2.15.0 will not accept `Deployment.schedules`
+          # All servers prior to 2.16.0 will not accept `Deployment.schedules`
           - prefect-version: "2.6"
             server-incompatible: true
           - prefect-version: "2.7"
@@ -82,6 +82,8 @@ jobs:
           - prefect-version: "2.13"
             server-incompatible: true
           - prefect-version: "2.14"
+            server-incompatible: true
+          - prefect-version: "2.15"
             server-incompatible: true
 
           # 2.6 containers have a bad version of httpcore installed
