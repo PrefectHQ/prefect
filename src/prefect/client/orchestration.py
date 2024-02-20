@@ -124,7 +124,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
-    PREFECT_SSL_CERT_FILE,
+    PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
@@ -211,7 +211,7 @@ class PrefectClient:
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
         else:
-            cert_file = PREFECT_SSL_CERT_FILE.value()
+            cert_file = PREFECT_API_SSL_CERT_FILE.value()
             if not cert_file:
                 cert_file = certifi.where()
             httpx_settings.setdefault("verify", cert_file)

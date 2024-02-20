@@ -590,7 +590,7 @@ PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
 This is recommended only during development, e.g. when using self-signed certificates.
 """
 
-PREFECT_SSL_CERT_FILE = Setting(
+PREFECT_API_SSL_CERT_FILE = Setting(
     str,
     default=os.environ.get("SSL_CERT_FILE"),
 )

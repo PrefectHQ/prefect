@@ -1,5 +1,6 @@
 import json
 import os
+import certifi
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -73,6 +74,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
+    PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
@@ -1297,6 +1299,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
     mock.assert_called_once_with(
         headers=ANY,
+        verify=ANY,
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
@@ -1309,11 +1312,59 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
+        verify=ANY,
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
     )
 
+async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False, PREFECT_API_SSL_CERT_FILE: "my_cert.pem"}):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify="my_cert.pem",
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+    )
+
+async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
+    os.environ["SSL_CERT_FILE"] = "my_cert.pem"
+    
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
+                            set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")}):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify="my_cert.pem",
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+    )
+
+async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
+    os.environ["SSL_CERT_FILE"] = ""
+    
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
+                            set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")}):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify=certifi.where(),
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+    )
 
 class TestResolveDataDoc:
     @pytest.fixture(autouse=True)
