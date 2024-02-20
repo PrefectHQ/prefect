@@ -76,6 +76,27 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
+class AutonomousTaskPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against task-run-state transitions in priority order.
+    """
+
+    def priority():
+        return [
+            PreventPendingTransitions,
+            CacheRetrieval,
+            HandleTaskTerminalStateTransitions,
+            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+            CopyScheduledTime,
+            WaitForScheduledTime,
+            RetryFailedTasks,
+            RenameReruns,
+            UpdateFlowRunTrackerOnTasks,
+            CacheInsertion,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [

@@ -169,7 +169,6 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -1375,19 +1374,6 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
 
     if not flow_run_context:
-        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            create_autonomous_task_run = create_call(
-                _create_autonomous_task_run, task=task, parameters=parameters
-            )
-            if task.isasync:
-                return from_async.wait_for_call_in_loop_thread(
-                    create_autonomous_task_run
-                )
-            else:
-                return from_sync.wait_for_call_in_loop_thread(
-                    create_autonomous_task_run
-                )
-
         raise RuntimeError(
             "Tasks cannot be run outside of a flow"
             " - if you meant to submit an autonomous task, you need to set"
@@ -1918,7 +1904,7 @@ async def orchestrate_task_run(
     """
     Execute a task run
 
-    This function should be submitted to an task runner. We must construct the context
+    This function should be submitted to a task runner. We must construct the context
     here instead of receiving it already populated since we may be in a new environment.
 
     Proposes a RUNNING state, then
@@ -2156,12 +2142,19 @@ async def orchestrate_task_run(
                         # thread instead.
                         (
                             concurrency_type == TaskConcurrencyType.SEQUENTIAL
-                            and not flow_run_context.flow.isasync
+                            and (
+                                flow_run_context.flow
+                                and not flow_run_context.flow.isasync
+                            )
                         )
                         # Async tasks can always be executed on asynchronous flow; if the
                         # flow is async we do not want to block the event loop with
                         # synchronous tasks
-                        or (flow_run_context.flow.isasync and task.isasync)
+                        or (
+                            flow_run_context.flow
+                            and flow_run_context.flow.isasync
+                            and task.isasync
+                        )
                     )
                 ):
                     from_async.call_soon_in_waiting_thread(
@@ -2980,17 +2973,17 @@ def _emit_task_run_state_change_event(
     )
 
 
-async def _create_autonomous_task_run(
-    task: Task, parameters: Dict[str, Any]
-) -> TaskRun:
+async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
+    """Create a task run in the API for an autonomous task submission and store
+    the provided parameters using the existing result storage mechanism.
+    """
     async with get_client() as client:
-        scheduled = Scheduled()
+        state = Scheduled()
         if parameters:
             parameters_id = uuid4()
-            scheduled.state_details.task_parameters_id = parameters_id
+            state.state_details.task_parameters_id = parameters_id
 
-            # TODO: We want to use result storage for parameters, but we'll need
-            # a better way to use it than this.
+            # TODO: Improve use of result storage for parameter storage / reference
             task.persist_result = True
             factory = await ResultFactory.from_task(task, client=client)
             await factory.store_parameters(parameters_id, parameters)
@@ -2999,7 +2992,7 @@ async def _create_autonomous_task_run(
             task=task,
             flow_run_id=None,
             dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
-            state=scheduled,
+            state=state,
         )
 
         engine_logger.debug(f"Submitted run of task {task.name!r} for execution")

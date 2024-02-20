@@ -128,15 +128,29 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     assert parameters == dict(x=42)
 
 
-async def test_scheduled_tasks_are_enqueued_server_side(
-    foo_task_with_result_storage: Task,
+async def test_task_submission_via_call_raises_error(
+    async_foo_task_with_result_storage,
 ):
-    task_run: TaskRun = foo_task_with_result_storage.submit(42)
-    assert task_run.state.is_scheduled()
+    with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        async_foo_task_with_result_storage(42)
 
-    enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
 
-    # The server-side task run through API-like serialization for comparison
-    enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
+async def test_task_submission_via_map_raises_error(async_foo_task_with_result_storage):
+    with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
+        async_foo_task_with_result_storage.map([42])
 
-    assert enqueued == task_run
+
+class TestServerSideBehavior:
+    async def test_scheduled_tasks_are_enqueued_server_side(
+        self,
+        foo_task_with_result_storage: Task,
+    ):
+        task_run: TaskRun = foo_task_with_result_storage.submit(42)
+        assert task_run.state.is_scheduled()
+
+        enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
+
+        # The server-side task run through API-like serialization for comparison
+        enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
+
+        assert enqueued == task_run

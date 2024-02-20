@@ -1,22 +1,22 @@
+import threading
 from contextlib import AsyncExitStack
 from typing import (
-    Any,
     Dict,
     Iterable,
     Optional,
-    Type,
 )
 
 import anyio
+import greenback
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.context import EngineContext
 from prefect.engine import (
     begin_task_map,
     get_task_call_return_value,
+    wait_for_task_runs_and_report_crashes,
 )
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
@@ -28,28 +28,24 @@ EngineReturnType = Literal["future", "state", "result"]
 
 
 @sync_compatible
-async def submit_autonomous_task_to_engine(
+async def submit_autonomous_task_run_to_engine(
     task: Task,
     task_run: TaskRun,
-    task_runner: Type[BaseTaskRunner],
+    task_runner: BaseTaskRunner,
     parameters: Optional[Dict] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
     client=None,
-) -> Any:
+) -> PrefectFuture:
     async with AsyncExitStack() as stack:
-        if not task_runner._started:
-            task_runner_ctx = await stack.enter_async_context(task_runner.start())
-        else:
-            task_runner_ctx = task_runner
         parameters = parameters or {}
         with EngineContext(
             flow=None,
             flow_run=None,
             autonomous_task_run=task_run,
-            task_runner=task_runner_ctx,
-            client=client or await stack.enter_async_context(get_client()),
+            task_runner=task_runner,
+            client=client,
             parameters=parameters,
             result_factory=await ResultFactory.from_task(task),
             background_tasks=await stack.enter_async_context(anyio.create_task_group()),
@@ -62,8 +58,15 @@ async def submit_autonomous_task_to_engine(
                 wait_for=wait_for,
                 return_type=return_type,
                 task_runner=task_runner,
+                user_thread=threading.current_thread(),
             )
             if task.isasync:
-                return await from_async.wait_for_call_in_loop_thread(begin_run)
+                future = await from_async.wait_for_call_in_loop_thread(begin_run)
             else:
-                return from_sync.wait_for_call_in_loop_thread(begin_run)
+                await greenback.ensure_portal()
+                future = from_sync.wait_for_call_in_loop_thread(begin_run)
+
+            await wait_for_task_runs_and_report_crashes(
+                task_run_futures=[future],
+                client=client,
+            )
