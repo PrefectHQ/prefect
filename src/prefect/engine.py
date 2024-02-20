@@ -1918,7 +1918,7 @@ async def orchestrate_task_run(
     """
     Execute a task run
 
-    This function should be submitted to an task runner. We must construct the context
+    This function should be submitted to a task runner. We must construct the context
     here instead of receiving it already populated since we may be in a new environment.
 
     Proposes a RUNNING state, then
