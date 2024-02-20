@@ -835,6 +835,21 @@ class ORMTaskRun(ORMRun):
 
 
 @declarative_mixin
+class ORMDeploymentSchedule:
+    @declared_attr
+    def deployment_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("deployment.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+
+    schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES), nullable=False)
+    active = sa.Column(sa.Boolean, nullable=False, default=True)
+
+
+@declarative_mixin
 class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
@@ -873,6 +888,18 @@ class ORMDeployment:
     is_schedule_active = sa.Column(
         sa.Boolean, nullable=False, server_default="1", default=True
     )
+    paused = sa.Column(
+        sa.Boolean, nullable=False, server_default="0", default=False, index=True
+    )
+
+    @declared_attr
+    def schedules(cls):
+        return sa.orm.relationship(
+            "DeploymentSchedule",
+            lazy="selectin",
+            order_by=sa.desc(sa.text("updated")),
+        )
+
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)
@@ -1399,6 +1426,7 @@ class BaseORMConfiguration(ABC):
         artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
+        deployment_schedule_mixin=ORMDeploymentSchedule,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
@@ -1453,6 +1481,7 @@ class BaseORMConfiguration(ABC):
             artifact_collection_mixin=artifact_collection_mixin,
             task_run_state_cache_mixin=task_run_state_cache_mixin,
             deployment_mixin=deployment_mixin,
+            deployment_schedule_mixin=deployment_schedule_mixin,
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
@@ -1501,6 +1530,7 @@ class BaseORMConfiguration(ABC):
         artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
+        deployment_schedule_mixin=ORMDeploymentSchedule,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
@@ -1550,6 +1580,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class Deployment(deployment_mixin, self.Base):
+            pass
+
+        class DeploymentSchedule(deployment_schedule_mixin, self.Base):
             pass
 
         class SavedSearch(saved_search_mixin, self.Base):
@@ -1615,6 +1648,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRun = FlowRun
         self.TaskRun = TaskRun
         self.Deployment = Deployment
+        self.DeploymentSchedule = DeploymentSchedule
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit

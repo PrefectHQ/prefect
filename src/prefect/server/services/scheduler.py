@@ -147,8 +147,21 @@ class Scheduler(LoopService):
                 isouter=True,
             )
             .where(
-                db.Deployment.is_schedule_active.is_(True),
-                db.Deployment.schedule.is_not(None),
+                sa.and_(
+                    db.Deployment.paused.is_not(True),
+                    (
+                        # Only include deployments that have at least one
+                        # active schedule.
+                        sa.select(db.DeploymentSchedule.deployment_id)
+                        .where(
+                            sa.and_(
+                                db.DeploymentSchedule.deployment_id == db.Deployment.id,
+                                db.DeploymentSchedule.active.is_(True),
+                            )
+                        )
+                        .exists()
+                    ),
+                )
             )
             .group_by(db.Deployment.id)
             # having EITHER fewer than three runs OR runs not scheduled far enough out
@@ -302,15 +315,28 @@ class RecentDeploymentsScheduler(Scheduler):
         query = (
             sa.select(db.Deployment.id)
             .where(
-                db.Deployment.is_schedule_active.is_(True),
-                db.Deployment.schedule.is_not(None),
-                # use a slightly larger window than the loop interval to pick up
-                # any deployments that were created *while* the scheduler was
-                # last running (assuming the scheduler takes less than one
-                # second to run). Scheduling is idempotent so picking up schedules
-                # multiple times is not a concern.
-                db.Deployment.updated
-                >= pendulum.now("UTC").subtract(seconds=self.loop_seconds + 1),
+                sa.and_(
+                    db.Deployment.paused.is_not(True),
+                    # use a slightly larger window than the loop interval to pick up
+                    # any deployments that were created *while* the scheduler was
+                    # last running (assuming the scheduler takes less than one
+                    # second to run). Scheduling is idempotent so picking up schedules
+                    # multiple times is not a concern.
+                    db.Deployment.updated
+                    >= pendulum.now("UTC").subtract(seconds=self.loop_seconds + 1),
+                    (
+                        # Only include deployments that have at least one
+                        # active schedule.
+                        sa.select(db.DeploymentSchedule.deployment_id)
+                        .where(
+                            sa.and_(
+                                db.DeploymentSchedule.deployment_id == db.Deployment.id,
+                                db.DeploymentSchedule.active.is_(True),
+                            )
+                        )
+                        .exists()
+                    ),
+                )
             )
             .order_by(db.Deployment.id)
             .limit(self.deployment_batch_size)

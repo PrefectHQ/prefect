@@ -245,6 +245,10 @@ class DeploymentResponse(ORMBaseModel):
         schemas.core.Deployment
     )
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
+    paused: bool = FieldFrom(schemas.core.Deployment)
+    schedules: List[schemas.core.DeploymentSchedule] = FieldFrom(
+        schemas.core.Deployment
+    )
     infra_overrides: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
@@ -294,6 +298,18 @@ class DeploymentResponse(ORMBaseModel):
             and orm_deployment.work_queue.last_polled > not_ready_horizon
         ):
             response.status = schemas.statuses.DeploymentStatus.READY
+
+        # Populate `schedule` and `is_schedule_active` for backwards
+        # compatibility with clients that do not support multiple
+        # schedules. The order of the schedules is determined by the
+        # relationship on Deployment.schedules, so we just take the first
+        # schedule as the primary schedule.
+        if orm_deployment.schedules:
+            response.schedule = orm_deployment.schedules[0].schedule
+            response.is_schedule_active = orm_deployment.schedules[0].active
+        else:
+            response.schedule = None
+            response.is_schedule_active = not orm_deployment.paused
 
         return response
 

@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Create `deployment_schedule` and add `Deployment.paused`
+SQLite: `265eb1a2da4c`
+Postgres: `8cf4d4933848`
+
 # Add `sender` to `FlowRunInput`
 SQLite: `c63a0a6dc787`
 Postgres: `6b63c51c31b4`

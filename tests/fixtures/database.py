@@ -416,10 +416,15 @@ async def deployment(
             name="My Deployment",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
@@ -448,13 +453,18 @@ async def deployment_2(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name="My Deployment 2",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",

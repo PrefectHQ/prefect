@@ -203,17 +203,14 @@ class TestOutputMessages:
             ),
         )
 
-    def test_message_with_missing_nonexistent_work_pool(
-        self,
-        patch_import,
-        tmp_path,
-    ):
+    def test_message_with_missing_nonexistent_work_pool(self, patch_import, tmp_path):
         Deployment.build_from_flow(
             flow=my_flow,
             name="TEST",
             flow_name="my_flow",
             output=str(tmp_path / "test.yaml"),
             work_pool_name="gibberish",
+            schedule=IntervalSchedule(interval=60),
         )
         invoke_and_assert(
             [
@@ -235,7 +232,7 @@ class TestOutputMessages:
         )
 
 
-class TestUpdatingDeployments:
+class TestDeploymentSchedules:
     @pytest.fixture
     async def flojo(self, prefect_client):
         @flow
@@ -257,7 +254,57 @@ class TestUpdatingDeployments:
         )
         return deployment_id
 
-    def test_set_schedule_interval_without_anchor_date(self, flojo):
+    @pytest.fixture
+    async def flojo_deployment(self, flojo, prefect_client):
+        return await prefect_client.read_deployment(flojo)
+
+    def test_list_schedules(self, flojo_deployment):
+        create_commands = [
+            "deployment",
+            "schedule",
+            "create",
+            "rence-griffith/test-deployment",
+        ]
+
+        invoke_and_assert(
+            [
+                *create_commands,
+                "--cron",
+                "5 4 * * *",
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                *create_commands,
+                "--rrule",
+                '{"rrule": "RRULE:FREQ=HOURLY"}',
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            ["deployment", "schedule", "ls", "rence-griffith/test-deployment"],
+            expected_code=0,
+            expected_output_contains=[
+                str(flojo_deployment.schedules[0].id)[:8],
+                "interval: 0:00:10.760000s",
+                "cron: 5 4 * * *",
+                "rrule: RRULE:FREQ=HOURLY",
+                "True",
+            ],
+            expected_output_does_not_contain="False",
+        )
+
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_interval_without_anchor_date(self, flojo, commands):
         invoke_and_assert(
             [
                 "deployment",
@@ -270,9 +317,7 @@ class TestUpdatingDeployments:
 
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--interval",
                 "10.49",  # July 16, 1988
             ],
@@ -291,7 +336,19 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_set_no_schedule(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            (
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--no-schedule",
+            ),
+            ("deployment", "schedule", "clear", "-y", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_no_schedule(self, flojo, commands):
         invoke_and_assert(
             [
                 "deployment",
@@ -304,13 +361,12 @@ class TestUpdatingDeployments:
 
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--no-schedule",
+                *commands,
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains=(
+                "Cleared all schedules for deployment rence-griffith/test-deployment"
+            ),
         )
 
         invoke_and_assert(
@@ -341,44 +397,71 @@ class TestUpdatingDeployments:
             ),
         )
 
-    def test_set_schedule_with_too_many_schedule_options_raises(self, flojo):
+    @pytest.mark.parametrize(
+        "commands,error",
+        [
+            [
+                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+                (
+                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
+                    " `--no-schedule` must be provided"
+                ),
+            ],
+            [
+                ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
+            ],
+        ],
+    )
+    def test_set_schedule_with_too_many_schedule_options_raises(
+        self, flojo, commands, error
+    ):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--interval",
                 "424242",
                 "--cron",
                 "i dont know cron syntax dont judge",
             ],
             expected_code=1,
-            expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
-                " must be provided"
-            ),
+            expected_output_contains=error,
         )
 
-    def test_set_schedule_with_no_schedule_options_raises(self, flojo):
-        invoke_and_assert(
+    @pytest.mark.parametrize(
+        "commands,error",
+        [
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+                (
+                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
+                    " `--no-schedule` must be provided"
+                ),
             ],
+            [
+                ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
+            ],
+        ],
+    )
+    def test_set_schedule_with_no_schedule_options_raises(self, flojo, commands, error):
+        invoke_and_assert(
+            [*commands],
             expected_code=1,
-            expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
-                " must be provided"
-            ),
+            expected_output_contains=error,
         )
 
-    def test_set_schedule_json_rrule(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_json_rrule(self, flojo, commands):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 (
                     '{"rrule":'
@@ -386,7 +469,7 @@ class TestUpdatingDeployments:
                 ),
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
         invoke_and_assert(
@@ -399,12 +482,17 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_set_schedule_json_rrule_has_timezone(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_json_rrule_has_timezone(self, flojo, commands):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 (
                     '{"rrule":'
@@ -413,7 +501,7 @@ class TestUpdatingDeployments:
                 ),
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
         invoke_and_assert(
@@ -426,12 +514,17 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_set_schedule_json_rrule_with_timezone_arg(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_json_rrule_with_timezone_arg(self, flojo, commands):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 (
                     '{"rrule":'
@@ -441,7 +534,7 @@ class TestUpdatingDeployments:
                 "Asia/Seoul",
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
         invoke_and_assert(
@@ -454,14 +547,19 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
     def test_set_schedule_json_rrule_with_timezone_arg_overrides_if_passed_explicitly(
-        self, flojo
+        self, flojo, commands
     ):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 (
                     '{"rrule":'
@@ -472,7 +570,7 @@ class TestUpdatingDeployments:
                 "Asia/Seoul",
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
         invoke_and_assert(
@@ -485,17 +583,22 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_set_schedule_str_literal_rrule(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_str_literal_rrule(self, flojo, commands):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
         invoke_and_assert(
@@ -508,12 +611,17 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_set_schedule_str_literal_rrule_has_timezone(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_str_literal_rrule_has_timezone(self, flojo, commands):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 "DTSTART;TZID=US-Eastern:19970902T090000\nRRULE:FREQ=DAILY;COUNT=10",
             ],
@@ -524,36 +632,46 @@ class TestUpdatingDeployments:
             ),
         )
 
-    def test_set_schedule_str_literal_rrule_with_timezone_arg(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_str_literal_rrule_with_timezone_arg(self, flojo, commands):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",
                 "--timezone",
                 "Asia/Seoul",
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
     def test_set_schedule_str_literal_rrule_with_timezone_arg_overrides_if_passed_explicitly(
-        self, flojo
+        self, flojo, commands
     ):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
                 "--rrule",
                 "DTSTART;TZID=US-Eastern:19970902T090000\nRRULE:FREQ=DAILY;COUNT=10",
                 "--timezone",
                 "Asia/Seoul",
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
         invoke_and_assert(
@@ -566,7 +684,55 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_pausing_and_resuming_schedules(self, flojo):
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_updates_cron(self, flojo, commands):
+        invoke_and_assert(
+            [
+                *commands,
+                "--cron",
+                "5 4 * * *",
+            ],
+            expected_code=0,
+            expected_output_contains="Created deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["5 4 * * *"],
+            expected_code=0,
+        )
+
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment-2"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment-2"),
+        ],
+    )
+    def test_set_schedule_deployment_not_found_raises(self, flojo, commands):
+        invoke_and_assert(
+            [
+                *commands,
+                "--cron",
+                "5 4 * * *",
+            ],
+            expected_code=1,
+            expected_output_contains=[
+                "Deployment 'rence-griffith/test-deployment-2' not found!"
+            ],
+        )
+
+    def test_pausing_and_resuming_schedules_with_pause_schedule(self, flojo):
         invoke_and_assert(
             [
                 "deployment",
@@ -603,19 +769,115 @@ class TestUpdatingDeployments:
             expected_output_contains=["'is_schedule_active': True"],
         )
 
-    def test_set_schedule_updating_anchor_date_respected(self, flojo):
+    def test_pausing_and_resuming_schedules_with_schedule_pause(
+        self, flojo, flojo_deployment
+    ):
         invoke_and_assert(
             [
                 "deployment",
-                "set-schedule",
+                "schedule",
+                "pause",
                 "rence-griffith/test-deployment",
+                str(flojo_deployment.schedules[0].id),
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'is_schedule_active': False"],
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "resume",
+                "rence-griffith/test-deployment",
+                str(flojo_deployment.schedules[0].id),
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'is_schedule_active': True"],
+        )
+
+    def test_pause_schedule_deployment_not_found_raises(self, flojo):
+        invoke_and_assert(
+            ["deployment", "pause-schedule", "rence-griffith/test-deployment-2"],
+            expected_code=1,
+            expected_output_contains=[
+                "Deployment 'rence-griffith/test-deployment-2' not found!"
+            ],
+        )
+
+    def test_schedule_pause_deployment_not_found_raises(self, flojo, flojo_deployment):
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "pause",
+                "rence-griffith/test-deployment-2",
+                str(flojo_deployment.schedules[0].id),
+            ],
+            expected_code=1,
+            expected_output_contains=[
+                "Deployment 'rence-griffith/test-deployment-2' not found!"
+            ],
+        )
+
+    def test_pause_schedule_multiple_schedules_raises(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "create",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "1800",
+            ],
+            expected_code=0,
+            expected_output_contains="Created deployment schedule!",
+        )
+
+        invoke_and_assert(
+            ["deployment", "pause-schedule", "rence-griffith/test-deployment"],
+            expected_code=1,
+            expected_output_contains=[
+                "Deployment 'rence-griffith/test-deployment' has multiple schedules."
+                " Use `prefect deployment schedule pause <deployment_name>"
+                " <schedule_id>`"
+            ],
+        )
+
+    @pytest.mark.parametrize(
+        "commands",
+        [
+            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+            ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+        ],
+    )
+    def test_set_schedule_updating_anchor_date_respected(self, flojo, commands):
+        invoke_and_assert(
+            [
+                *commands,
                 "--interval",
                 "1800",
                 "--anchor-date",
                 "2040-01-01T00:00:00",
             ],
             expected_code=0,
-            expected_output_contains="Updated deployment schedule!",
+            expected_output_contains="Created deployment schedule!",
         )
 
         invoke_and_assert(
@@ -627,19 +889,200 @@ class TestUpdatingDeployments:
             expected_output_contains=["'anchor_date': '2040-01-01T00:00:00+00:00'"],
         )
 
-    def test_set_schedule_updating_anchor_date_without_interval_raises(self, flojo):
+    @pytest.mark.parametrize(
+        "commands,error",
+        [
+            [
+                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+                "An anchor date can only be provided with an interval schedule",
+            ],
+            [
+                ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+                "An anchor date can only be provided with an interval schedule",
+            ],
+        ],
+    )
+    def test_set_schedule_updating_anchor_date_without_interval_raises(
+        self, flojo, commands, error
+    ):
         invoke_and_assert(
             [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
+                *commands,
+                "--cron",
+                "5 4 * * *",
                 "--anchor-date",
                 "2040-01-01T00:00:00",
             ],
             expected_code=1,
+            expected_output_contains=error,
+        )
+
+    @pytest.mark.parametrize(
+        "commands,error",
+        [
+            [
+                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
+                "The anchor date must be a valid date string.",
+            ],
+            [
+                ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
+                "The anchor date must be a valid date string.",
+            ],
+        ],
+    )
+    def test_set_schedule_invalid_interval_anchor_raises(self, flojo, commands, error):
+        invoke_and_assert(
+            [
+                *commands,
+                "--interval",
+                "50",
+                "--anchor-date",
+                "bad date string",
+            ],
+            expected_code=1,
+            expected_output_contains=error,
+        )
+
+    def test_clear_schedule_deletes(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedule': {"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "clear",
+                "-y",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=0,
+            expected_output_contains="Cleared all schedules for deployment",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedules': []"],
+            expected_code=0,
+        )
+
+    def test_clear_schedule_raises_if_deployment_does_not_exist(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "clear",
+                "-y",
+                "rence-griffith/not-a-real-deployment",
+            ],
+            expected_code=1,
             expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
-                " must be provided"
+                "Deployment 'rence-griffith/not-a-real-deployment' not found!"
+            ),
+        )
+
+    def test_delete_schedule_deletes(self, flojo_deployment):
+        schedule_id = str(flojo_deployment.schedules[0].id)
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedule': {"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/test-deployment",
+                schedule_id,
+            ],
+            expected_code=0,
+            expected_output_contains="Deleted deployment schedule",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedules': []"],
+            expected_code=0,
+        )
+
+    def test_delete_schedule_raises_if_schedule_does_not_exist(self, flojo_deployment):
+        schedule_id = str(flojo_deployment.schedules[0].id)
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/test-deployment",
+                schedule_id,
+            ],
+            expected_code=0,
+            expected_output_contains=f"Deleted deployment schedule {schedule_id}",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'schedules': []"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/test-deployment",
+                schedule_id,
+            ],
+            expected_code=1,
+            expected_output_contains="Deployment schedule not found!",
+        )
+
+    def test_delete_schedule_raises_if_deployment_does_not_exist(
+        self, flojo_deployment
+    ):
+        schedule_id = str(flojo_deployment.schedules[0].id)
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "delete",
+                "-y",
+                "rence-griffith/not-a-real-deployment",
+                schedule_id,
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "Deployment rence-griffith/not-a-real-deployment not found!"
             ),
         )
 

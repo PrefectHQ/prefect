@@ -214,6 +214,8 @@ class DeploymentResponse(ObjectBaseModel):
     flow_id: UUID = FieldFrom(objects.Deployment)
     schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
     is_schedule_active: bool = FieldFrom(objects.Deployment)
+    paused: bool = FieldFrom(objects.Deployment)
+    schedules: List[objects.DeploymentSchedule] = FieldFrom(objects.Deployment)
     infra_overrides: Dict[str, Any] = FieldFrom(objects.Deployment)
     parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
     tags: List[str] = FieldFrom(objects.Deployment)

@@ -95,6 +95,22 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
 
+@copy_model_fields
+class DeploymentScheduleCreate(ActionBaseModel):
+    active: bool = FieldFrom(schemas.core.DeploymentSchedule)
+    schedule: schemas.schedules.SCHEDULE_TYPES = FieldFrom(
+        schemas.core.DeploymentSchedule
+    )
+
+
+@copy_model_fields
+class DeploymentScheduleUpdate(ActionBaseModel):
+    active: Optional[bool] = FieldFrom(schemas.core.DeploymentSchedule)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
+        schemas.core.DeploymentSchedule
+    )
+
+
 @experimental_field(
     "work_pool_name",
     group="work_pools",
@@ -103,6 +119,24 @@ class FlowUpdate(ActionBaseModel):
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
+
+    @root_validator
+    def populate_schedules(cls, values):
+        if not values.get("schedules") and values.get("schedule"):
+            values["schedules"] = [
+                DeploymentScheduleCreate(
+                    schedule=values["schedule"],
+                    active=values["is_schedule_active"],
+                )
+            ]
+
+        return values
+
+    @root_validator()
+    def populate_paused(cls, values):
+        if "is_schedule_active" in values:
+            values["paused"] = not values["is_schedule_active"]
+        return values
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
@@ -140,6 +174,11 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
+    paused: bool = FieldFrom(schemas.core.Deployment)
+    schedules: List[DeploymentScheduleCreate] = Field(
+        default_factory=list,
+        description="A list of schedules for the deployment.",
+    )
     enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
         schemas.core.Deployment
@@ -211,6 +250,12 @@ class DeploymentCreate(ActionBaseModel):
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
+    @root_validator()
+    def populate_paused(cls, values):
+        if "is_schedule_active" in values:
+            values["paused"] = not values["is_schedule_active"]
+        return values
+
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
         # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
@@ -250,6 +295,11 @@ class DeploymentUpdate(ActionBaseModel):
     )
     description: Optional[str] = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
+    paused: bool = FieldFrom(schemas.core.Deployment)
+    schedules: List[DeploymentScheduleCreate] = Field(
+        default_factory=list,
+        description="A list of schedules for the deployment.",
+    )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",

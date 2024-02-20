@@ -993,6 +993,37 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
         return filters
 
 
+class DeploymentScheduleFilterActive(PrefectFilterBaseModel):
+    """Filter by `DeploymentSchedule.active`."""
+
+    eq_: Optional[bool] = Field(
+        default=None,
+        description="Only returns where deployment schedule is/is not active",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.DeploymentSchedule.active.is_(self.eq_))
+        return filters
+
+
+class DeploymentScheduleFilter(PrefectOperatorFilterBaseModel):
+    """Filter for deployments. Only deployments matching all criteria will be returned."""
+
+    active: Optional[DeploymentScheduleFilterActive] = Field(
+        default=None, description="Filter criteria for `DeploymentSchedule.active`"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.active is not None:
+            filters.append(self.active.as_sql_filter(db))
+
+        return filters
+
+
 class LogFilterName(PrefectFilterBaseModel):
     """Filter by `Log.name`."""
 

@@ -175,6 +175,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.Deployment
 
     @property
+    def DeploymentSchedule(self):
+        """A deployment schedule orm model"""
+        return self.orm.DeploymentSchedule
+
+    @property
     def SavedSearch(self):
         """A saved search orm model"""
         return self.orm.SavedSearch
