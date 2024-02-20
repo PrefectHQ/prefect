@@ -29,11 +29,13 @@ from typing import (
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.schemas import TaskRun
-from prefect.context import PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -774,7 +776,7 @@ class Task(Generic[P, R]):
 
         """
 
-        from prefect.engine import enter_task_run_engine
+        from prefect.engine import create_autonomous_task_run, enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -785,6 +787,22 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
+
+        if (
+            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
+            and not FlowRunContext.get()
+        ):
+            create_autonomous_task_run = create_call(
+                create_autonomous_task_run, task=self, parameters=parameters
+            )
+            if self.isasync:
+                return from_async.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
+            else:
+                return from_sync.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
 
         return enter_task_run_engine(
             self,

@@ -121,6 +121,9 @@ def pytest_addoption(parser):
     )
 
 
+EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = ["tests/utilities/"]
+
+
 def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
@@ -138,16 +141,17 @@ def pytest_collection_modifyitems(session, config, items):
                 )
 
     exclude_services = set(config.getoption("--exclude-service"))
-    for item in items:
-        item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
-        excluded_services = item_services.intersection(exclude_services)
-        if excluded_services:
-            item.add_marker(
-                pytest.mark.skip(
-                    "Excluding tests for service(s): "
-                    f"{', '.join(repr(s) for s in excluded_services)}."
+    if exclude_services:
+        for item in items:
+            item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
+            excluded_services = item_services.intersection(exclude_services)
+            if excluded_services:
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Excluding tests for service(s): "
+                        f"{', '.join(repr(s) for s in excluded_services)}."
+                    )
                 )
-            )
 
     only_run_service_tests = config.getoption("--only-services")
     if only_run_service_tests:
@@ -185,6 +189,14 @@ def pytest_collection_modifyitems(session, config, items):
                     pytest.mark.skip(only_running_blurb + " " + requires_blurb)
                 )
         return
+
+    for item in items:
+        # Check if the test file is not in the excluded list
+        if not any(
+            excluded in item.nodeid for excluded in EXCLUDE_FROM_CLEAR_DB_AUTO_MARK
+        ):
+            # Apply the custom mark
+            item.add_marker(pytest.mark.clear_db)
 
 
 @pytest.fixture(scope="session")
