@@ -124,8 +124,6 @@ jobs:
           # cache-to: type=gha,mode=max
 
       - name: Test Conda flavored Docker image
-        # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
@@ -632,7 +630,6 @@ jobs:
           # cache-to: type=gha,mode=max
 
       - name: Test Conda flavored Docker image
-        # Not yet supported for 3.11, see note at top
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
