@@ -16,6 +16,7 @@ from prefect.context import EngineContext
 from prefect.engine import (
     begin_task_map,
     get_task_call_return_value,
+    wait_for_task_runs_and_report_crashes,
 )
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
@@ -60,7 +61,12 @@ async def submit_autonomous_task_run_to_engine(
                 user_thread=threading.current_thread(),
             )
             if task.isasync:
-                return await from_async.wait_for_call_in_loop_thread(begin_run)
+                future = await from_async.wait_for_call_in_loop_thread(begin_run)
             else:
                 await greenback.ensure_portal()
-                return from_sync.wait_for_call_in_loop_thread(begin_run)
+                future = from_sync.wait_for_call_in_loop_thread(begin_run)
+
+            await wait_for_task_runs_and_report_crashes(
+                task_run_futures=[future],
+                client=client,
+            )

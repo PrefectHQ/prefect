@@ -89,6 +89,7 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
             WaitForScheduledTime,
+            RetryFailedTasks,
             RenameReruns,
             UpdateFlowRunTrackerOnTasks,
             CacheInsertion,
