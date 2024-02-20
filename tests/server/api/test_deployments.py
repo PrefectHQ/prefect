@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
-from prefect.server.schemas.actions import DeploymentCreate
+from prefect.server.schemas.actions import DeploymentCreate, DeploymentUpdate
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -103,6 +103,214 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
         assert deployment.storage_document_id == storage_document_id
+
+    async def test_create_deployment_with_single_schedule(
+        self,
+        session,
+        client,
+        flow,
+        infrastructure_document_id,
+    ):
+        schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            schedule=schedule,
+            infrastructure_document_id=infrastructure_document_id,
+        ).dict(json_compatible=True)
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+
+        data = response.json()
+        deployment_id = data["id"]
+
+        assert response.status_code == 201
+        assert data["name"] == "My Deployment"
+        assert schemas.schedules.IntervalSchedule(**data["schedule"]) == schedule
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment_id,
+        )
+
+        assert len(schedules) == 1
+        assert schedules[0] == schemas.core.DeploymentSchedule(
+            schedule=data["schedule"],
+            active=data["is_schedule_active"],
+            deployment_id=deployment_id,
+        )
+
+    async def test_create_deployment_with_multiple_schedules(
+        self,
+        client,
+        flow,
+        infrastructure_document_id,
+    ):
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=False,
+                ),
+            ],
+        ).dict(json_compatible=True)
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+        data = response.json()
+        schedules = [schemas.core.DeploymentSchedule(**s) for s in data["schedules"]]
+
+        assert len(schedules) == 2
+        assert schedules == [
+            schemas.core.DeploymentSchedule(
+                schedule=schedule2,
+                active=False,
+                deployment_id=deployment_id,
+            ),
+            schemas.core.DeploymentSchedule(
+                schedule=schedule1,
+                active=True,
+                deployment_id=deployment_id,
+            ),
+        ]
+
+    async def test_create_deployment_with_multiple_schedules_populates_legacy_schedule(
+        self,
+        session,
+        client,
+        flow,
+        infrastructure_document_id,
+    ):
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=True,
+                ),
+            ],
+        ).dict(json_compatible=True)
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        # Just to make sure this test is deterministic, let's update one of the
+        # schedules so that it's updated datetime is after the other schedule.
+        first_schedule = schemas.core.DeploymentSchedule(
+            **response.json()["schedules"][0]
+        )
+
+        await models.deployments.update_deployment_schedule(
+            session=session,
+            deployment_id=deployment_id,
+            deployment_schedule_id=first_schedule.id,
+            schedule=schemas.actions.DeploymentScheduleUpdate(active=False),
+        )
+
+        await session.commit()
+
+        # Then we'll read the deployment again and ensure that the schedules
+        # are returned in the correct order.
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        deployment_id = data["id"]
+        schedules = [schemas.core.DeploymentSchedule(**s) for s in data["schedules"]]
+
+        assert response.status_code == 200
+        assert data["name"] == "My Deployment"
+
+        assert len(schedules) == 2
+        assert schedules[0].id == first_schedule.id
+
+        # When a deployment has multiple schedules, we still populate `schedule`
+        # and `is_schedule_active` with the most recently updated schedule.
+
+        assert (
+            schemas.schedules.IntervalSchedule(**data["schedule"])
+            == schedules[0].schedule
+        )
+        assert data["is_schedule_active"] is schedules[0].active
+
+    async def test_create_deployment_with_no_schedules_flag_on_populates_legacy_schedule_as_none(
+        self,
+        client,
+        flow,
+        infrastructure_document_id,
+    ):
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            schedules=[],
+        ).dict(json_compatible=True)
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        data = response.json()
+        assert data["schedule"] is None
+        assert data["is_schedule_active"] == (not data["paused"])
 
     async def test_default_work_queue_name_is_none(self, session, client, flow):
         data = DeploymentCreate(
@@ -1201,6 +1409,209 @@ class TestUpdateDeployment:
 
         assert response.status_code == 204
 
+    async def test_update_deployment_with_schedule_populates_schedules(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        update_data = DeploymentUpdate(
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1)
+            )
+        ).dict(json_compatible=True, exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+        assert len(schedules) == 1
+        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert schedules[0].schedule.interval == datetime.timedelta(days=1)
+
+    async def test_update_deployment_can_remove_schedules(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        update_data = DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1)
+                    ),
+                    active=True,
+                )
+            ]
+        ).dict(json_compatible=True, exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+        assert len(schedules) == 1
+        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert schedules[0].schedule.interval == datetime.timedelta(days=1)
+
+        # Now remove the schedule.
+        update_data = DeploymentUpdate(schedules=[]).dict(
+            json_compatible=True, exclude_unset=True
+        )
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        assert response.json()["schedules"] == []
+        assert response.json()["schedule"] is None
+
+    async def test_update_deployment_with_multiple_schedules(
+        self,
+        session,
+        client,
+        flow,
+        infrastructure_document_id,
+    ):
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=False,
+                ),
+            ],
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+        original_schedule_ids = [
+            schedule["id"] for schedule in response.json()["schedules"]
+        ]
+
+        # When we receive a PATCH request with schedules, we should replace the
+        # existing schedules with the newly created ones.
+
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+        schedule4 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=7)
+        )
+
+        update_data = DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule3,
+                    active=True,
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule4,
+                    active=False,
+                ),
+            ],
+        ).dict(json_compatible=True, exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_id}",
+        )
+
+        schedules = [
+            schemas.core.DeploymentSchedule(**s) for s in response.json()["schedules"]
+        ]
+
+        assert len(schedules) == 2
+        assert [schedule.id for schedule in schedules] != original_schedule_ids
+
+        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert schedules[0].schedule.interval == schedule4.interval
+        assert schedules[0].active is False
+
+        assert isinstance(schedules[1].schedule, schemas.schedules.IntervalSchedule)
+        assert schedules[1].schedule.interval == schedule3.interval
+        assert schedules[1].active is True
+
+    async def test_update_deployment_with_multiple_schedules_legacy_schedule_422(
+        self,
+        session,
+        client,
+        flow,
+        infrastructure_document_id,
+    ):
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=False,
+                ),
+            ],
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        # This deployment now has multiple schedules, now if an older client
+        # tries to update this deployment with a single schedule, we should
+        # raise a 422 as we're unable to determine which schedule they're
+        # trying to update.
+
+        update_data = DeploymentUpdate(
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=3)
+            )
+        ).dict(json_compatible=True, exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 422
+        assert b"multiple schedules" in response.content
+
 
 class TestGetScheduledFlowRuns:
     @pytest.fixture
@@ -1552,6 +1963,95 @@ class TestSetScheduleActive:
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_inactive")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_set_schedule_inactive_sets_child_schedule_inactive(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        await models.deployments.delete_schedules_for_deployment(
+            session=session, deployment_id=deployment.id
+        )
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        deployment.is_schedule_active = True
+        deployment.paused = False
+
+        await models.deployments.create_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                )
+            ],
+        )
+
+        await session.commit()
+
+        # When updating a deployment the `set_schedule_inactive` endpoint
+        # should also attempt to update the `active` field of the child
+        # `DeploymentSchedule` object.
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_inactive"
+        )
+        assert response.status_code == 200
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session, deployment_id=deployment.id
+        )
+        assert len(schedules) == 1
+        assert schedules[0].active is False
+
+    async def test_set_schedule_inactive_multiple_schedules(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        deployment.is_schedule_active = True
+        deployment.paused = False
+
+        await models.deployments.create_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=2)
+                    ),
+                ),
+            ],
+        )
+
+        await session.commit()
+
+        # When updating a deployment the `set_schedule_inactive` endpoint
+        # should not attempt update the `active` field if there are multiple
+        # schedules.
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_inactive"
+        )
+        assert response.status_code == 422
+        assert b"multiple schedules" in response.content
+
     async def test_set_schedule_active(self, client, deployment, session):
         deployment.is_schedule_active = False
         await session.commit()
@@ -1599,6 +2099,95 @@ class TestSetScheduleActive:
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
 
+    async def test_set_schedule_active_updates_child_schedule(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        await models.deployments.delete_schedules_for_deployment(
+            session=session, deployment_id=deployment.id
+        )
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        deployment.is_schedule_active = False
+        deployment.paused = True
+
+        await models.deployments.create_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    active=False,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                )
+            ],
+        )
+
+        await session.commit()
+
+        # When updating a deployment the `set_schedule_active` endpoint
+        # should also attempt to update the `active` field of the child
+        # `DeploymentSchedule` object.
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        assert response.status_code == 200
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session, deployment_id=deployment.id
+        )
+        assert len(schedules) == 1
+        assert schedules[0].active is True
+
+    async def test_set_schedule_active_enhanced_scheduling_off_multiple_schedules(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        deployment.is_schedule_active = False
+        deployment.paused = True
+
+        await models.deployments.create_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=2)
+                    ),
+                ),
+            ],
+        )
+
+        await session.commit()
+
+        # When updating a deployment the `set_schedule_active` endpoint should
+        # not attempt to update the `active` field if there are multiple
+        # schedules.
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        assert response.status_code == 422
+        assert b"multiple schedules" in response.content
+
     async def test_set_schedule_active_doesnt_schedule_runs_if_no_schedule_set(
         self, client, deployment, session
     ):
@@ -1645,14 +2234,24 @@ class TestSetScheduleActive:
 
 
 class TestScheduleDeployment:
-    async def test_schedule_deployment(self, client, session, deployment):
+    @pytest.fixture
+    async def deployment_schedule(self, session, deployment):
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session, deployment_id=deployment.id
+        )
+        assert len(schedules) == 1
+        return schedules[0]
+
+    async def test_schedule_deployment(
+        self, client, session, deployment, deployment_schedule
+    ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
         await client.post(f"/deployments/{deployment.id}/schedule")
 
         runs = await models.flow_runs.read_flow_runs(session)
-        expected_dates = await deployment.schedule.get_dates(
+        expected_dates = await deployment_schedule.schedule.get_dates(
             n=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now("UTC"),
             end=pendulum.now("UTC")
@@ -1661,7 +2260,9 @@ class TestScheduleDeployment:
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
 
-    async def test_schedule_deployment_provide_runs(self, client, session, deployment):
+    async def test_schedule_deployment_provide_runs(
+        self, client, session, deployment, deployment_schedule
+    ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
@@ -1670,7 +2271,7 @@ class TestScheduleDeployment:
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
-        expected_dates = await deployment.schedule.get_dates(
+        expected_dates = await deployment_schedule.schedule.get_dates(
             n=5,
             start=pendulum.now("UTC"),
             end=pendulum.now("UTC")
@@ -1679,7 +2280,9 @@ class TestScheduleDeployment:
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
 
-    async def test_schedule_deployment_start_time(self, client, session, deployment):
+    async def test_schedule_deployment_start_time(
+        self, client, session, deployment, deployment_schedule
+    ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
@@ -1689,7 +2292,7 @@ class TestScheduleDeployment:
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
-        expected_dates = await deployment.schedule.get_dates(
+        expected_dates = await deployment_schedule.schedule.get_dates(
             n=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now("UTC").add(days=120),
             end=pendulum.now("UTC").add(days=120)
@@ -1698,7 +2301,9 @@ class TestScheduleDeployment:
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
 
-    async def test_schedule_deployment_end_time(self, client, session, deployment):
+    async def test_schedule_deployment_end_time(
+        self, client, session, deployment, deployment_schedule
+    ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
@@ -1712,7 +2317,7 @@ class TestScheduleDeployment:
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
-        expected_dates = await deployment.schedule.get_dates(
+        expected_dates = await deployment_schedule.schedule.get_dates(
             n=100,
             start=pendulum.now("UTC"),
             end=pendulum.now("UTC").add(days=7),
@@ -1721,7 +2326,9 @@ class TestScheduleDeployment:
         assert actual_dates == set(expected_dates)
         assert len(actual_dates) == 7
 
-    async def test_schedule_deployment_backfill(self, client, session, deployment):
+    async def test_schedule_deployment_backfill(
+        self, client, session, deployment, deployment_schedule
+    ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
@@ -1735,7 +2342,7 @@ class TestScheduleDeployment:
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
-        expected_dates = await deployment.schedule.get_dates(
+        expected_dates = await deployment_schedule.schedule.get_dates(
             n=100,
             start=pendulum.now("UTC").subtract(days=20),
             end=pendulum.now("UTC"),
