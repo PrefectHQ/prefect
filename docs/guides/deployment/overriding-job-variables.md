@@ -25,7 +25,7 @@ So, as opposed to hardcoding these values into your work pool in the UI (so that
 
 Let's look at how to do that.
 
-## Setup
+## How to override job variables
 Say we have the following repo structure:
 ```
 » tree
@@ -59,7 +59,6 @@ def some_work():
 
     do_something_important(not_so_secret_value)
 ```
-## How to override job variables
 ### Using a `prefect.yaml` file
 In this case, let's also say we have the following deployment definition in a `prefect.yaml` file at the root of our repository:
 ```yaml
@@ -91,8 +90,8 @@ deployments:
     name: local
     job_variables:
         env:
-        EXECUTION_ENVIRONMENT: staging
-        MY_NOT_SO_SECRET_CONFIG: plumbus
+            EXECUTION_ENVIRONMENT: staging
+            MY_NOT_SO_SECRET_CONFIG: plumbus
   schedule: null
 ```
 
@@ -113,8 +112,8 @@ deployments:
     name: local
     job_variables:
         env:
-        EXECUTION_ENVIRONMENT: "{{ $EXECUTION_ENVIRONMENT }}"
-        MY_NOT_SO_SECRET_CONFIG: "{{ $MY_NOT_SO_SECRET_CONFIG }}"
+            EXECUTION_ENVIRONMENT: "{{ $EXECUTION_ENVIRONMENT }}"
+            MY_NOT_SO_SECRET_CONFIG: "{{ $MY_NOT_SO_SECRET_CONFIG }}"
   schedule: null
 ```
 
