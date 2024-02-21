@@ -570,3 +570,5 @@ The Prefect CLI can install the required package for Prefect-maintained worker t
 ### Additional resources
 
 See how to daemonize a Prefect worker in [this guide](/guides/deployment/daemonize/).
+
+For more information on overriding a work pool's job variables see this [guide](/overriding-job-variables).
