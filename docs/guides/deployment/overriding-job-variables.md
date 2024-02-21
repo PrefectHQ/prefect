@@ -25,7 +25,7 @@ For example, you might want a certain deployment to have the following environme
 }
 ```
 
-So, as opposed to hardcoding these values into your work pool in the UI (so that they would apply to all deployments associated with that work pool), you can override these values on a _per-deployment basis_.
+So, as opposed to hardcoding these values into your work pool in the UI and making them available to all deployments associated with that work pool, you can override these values on a _per-deployment basis_.
 
 Let's look at how to do that.
 
