@@ -1,13 +1,10 @@
 ---
 description: Learn how to override job variables on a work pool for a given deployment.
 tags:
-    - installation
-    - pip install
-    - development
-    - Linux
-    - Windows
-    - SQLite
-    - upgrading
+    - deployments
+    - work pools
+    - job variables
+    - environment variables
 search:
   boost: 2
 ---
