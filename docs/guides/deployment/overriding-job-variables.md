@@ -103,7 +103,7 @@ We should then be able to see the job variables in the `Configuration` tab of th
 ![Job variables in the UI](/img/guides/job-variables.png)
 
 #### Using existing environment variables
-If you want to use environment variables that are already set in your local environment, you can template these in the `prefect.yaml` file using the `{{ env.VARIABLE_NAME }}` syntax:
+If you want to use environment variables that are already set in your local environment, you can template these in the `prefect.yaml` file using the `{{ $ENV_VAR_NAME }}` syntax:
 
 ```yaml
 deployments:
