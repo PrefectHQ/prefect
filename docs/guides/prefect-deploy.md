@@ -449,6 +449,8 @@ Use the tabs below to explore these two deployment creation options.
     The dictionary key "EXTRA_PIP_PACKAGES" denotes a special environment variable that Prefect will use to install additional Python packages at runtime. 
     This approach is an alternative to building an image with a custom `requirements.txt` copied into it.
 
+    For more information on overriding job variables see this [guide](/guides/deployment/overriding-job-variables/).
+
 === "prefect.yaml"
 
     The `prefect.yaml` file is a YAML file describing base settings for your deployments, procedural steps for preparing deployments, and instructions for preparing the execution environment for a deployment run.
