@@ -121,10 +121,12 @@ deployments:
 !!! note
     This assumes that the machine where `prefect deploy` in run would have these environment variables set.
 
+    <div class="terminal">
     ```bash
     export EXECUTION_ENVIRONMENT=staging
     export MY_NOT_SO_SECRET_CONFIG=some-value
     ```
+    </div>
 
 As before, run `prefect deploy -n demo-deployment` to deploy the flow with these job variables, and you should see them in the UI under the `Configuration` tab.
 
@@ -152,18 +154,21 @@ if __name__ == "__main__":
 !!! note
     The above example works assuming a couple things:
     - the machine where this script is run would have these environment variables set.
-
+    <div class="terminal">
     ```bash
     export EXECUTION_ENVIRONMENT=staging
     export MY_NOT_SO_SECRET_CONFIG=plumbus
     ```
+    </div>
 
     - `demo_project/daily_flow.py` _already exists_ in the repository at the specified path
 
 Running this script with something like:
+<div class="terminal">
 ```bash
 python demo_project/daily_flow.py
 ```
+</div>
 ... should deploy the flow with the specified job variables, which should then be visible in the UI under the `Configuration` tab.
 
 ![Job variables in the UI](/img/guides/job-variables.png)
