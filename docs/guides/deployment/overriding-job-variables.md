@@ -21,7 +21,7 @@ For example, you might want a certain deployment to have the following environme
 ```json
 {
   "EXECUTION_ENV": "staging",
-  "MY_NOT_SO_SECRET_CONFIG": "some-value",
+  "MY_NOT_SO_SECRET_CONFIG": "plumbus",
 }
 ```
 
@@ -127,7 +127,7 @@ deployments:
     <div class="terminal">
     ```bash
     export EXECUTION_ENVIRONMENT=staging
-    export MY_NOT_SO_SECRET_CONFIG=some-value
+    export MY_NOT_SO_SECRET_CONFIG=plumbus
     ```
     </div>
 
