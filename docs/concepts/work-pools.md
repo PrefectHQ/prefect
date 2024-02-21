@@ -293,6 +293,8 @@ work_pool:
 
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
 
+    For more information on overriding a work pool's job variables see this [guide](/guides/deployment/overriding-job-variables/).
+
 ### Viewing work pools
 
 At any time, users can see and edit configured work pools in the Prefect UI.
@@ -570,3 +572,5 @@ The Prefect CLI can install the required package for Prefect-maintained worker t
 ### Additional resources
 
 See how to daemonize a Prefect worker in [this guide](/guides/deployment/daemonize/).
+
+For more information on overriding a work pool's job variables see this [guide](/guides/deployment/overriding-job-variables/).
