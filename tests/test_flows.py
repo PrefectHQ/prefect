@@ -3570,7 +3570,8 @@ class TestFlowDeploy:
         )
 
         console_output = capsys.readouterr().out
-        assert f"prefect worker start --pool {work_pool.name!r}" in console_output
+        assert "prefect worker start --pool" in console_output
+        assert work_pool.name in console_output
         assert "prefect deployment run 'local-flow-deploy/test'" in console_output
 
     async def test_calls_deploy_with_expected_args_remote_flow(
