@@ -379,6 +379,22 @@ class TestFlowWithOptions:
         flow_with_options = initial_flow.with_options(timeout_seconds=0)
         assert flow_with_options.timeout_seconds is None
 
+    def test_with_options_can_unset_retries_with_zero(self):
+        @flow(retries=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retries=0)
+        assert flow_with_options.retries == 0
+
+    def test_with_options_can_unset_retry_delay_seconds_with_zero(self):
+        @flow(retry_delay_seconds=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retry_delay_seconds=0)
+        assert flow_with_options.retry_delay_seconds == 0
+
     def test_with_options_can_unset_result_options_with_none(self):
         @flow(
             persist_result=True,
