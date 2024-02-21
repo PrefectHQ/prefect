@@ -196,6 +196,7 @@ nav:
                 - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
                 - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
+                - Job Variable Overrides: guides/deployment/overriding-job-variables.md
     - Concepts:
           - concepts/index.md
           - Flows: concepts/flows.md

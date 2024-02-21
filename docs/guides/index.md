@@ -55,6 +55,7 @@ This section of the documentation contains how-to guides for common workflows an
 | [Serverless Work Pools with Workers](/guides/deployment/serverless-workers/) | Run flows on serverless infrastructure with a worker. |
 | [Daemonize Processes](/guides/deployment/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
+| [Overriding Work Pool Job Variables](/guides/deployment/overriding-job-variables/) | Override job variables for a work pool for a given deployment. |
 
 !!! tip "Need help?"
     Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
