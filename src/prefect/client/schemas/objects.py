@@ -947,6 +947,19 @@ class FlowRunnerSettings(PrefectBaseModel):
         return self.type, self.config
 
 
+class DeploymentSchedule(ObjectBaseModel):
+    deployment_id: Optional[UUID] = Field(
+        default=None,
+        description="The deployment id associated with this schedule.",
+    )
+    schedule: SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+
+
 class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
@@ -965,6 +978,12 @@ class Deployment(ObjectBaseModel):
     )
     is_schedule_active: bool = Field(
         default=True, description="Whether or not the deployment schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
+    schedules: List[DeploymentSchedule] = Field(
+        default_factory=list, description="A list of schedules for the deployment."
     )
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,

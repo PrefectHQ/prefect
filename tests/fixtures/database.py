@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import gc
+import uuid
 import warnings
 
 import aiosqlite
@@ -107,11 +108,9 @@ async def setup_db(database_engine, db):
 @pytest.fixture(autouse=True)
 async def clear_db(db, request):
     """
-    Delete all data from all tables after running each test, attempting to handle
+    Delete all data from all tables before running each test, attempting to handle
     connection errors.
     """
-
-    yield
 
     if "clear_db" in request.keywords:
         max_retries = 3
@@ -135,6 +134,8 @@ async def clear_db(db, request):
                     await asyncio.sleep(retry_delay)
                 else:
                     raise
+
+    yield
 
 
 @pytest.fixture
@@ -373,14 +374,7 @@ async def task_run_states(session, task_run, task_run_state):
 @pytest.fixture
 async def storage_document_id(prefect_client, tmpdir):
     return await LocalFileSystem(basepath=str(tmpdir)).save(
-        name="local-test", client=prefect_client
-    )
-
-
-@pytest.fixture
-async def storage_document_id_2(prefect_client):
-    return await LocalFileSystem().save(
-        name="distinct-local-test", client=prefect_client
+        name=f"local-test-{uuid.uuid4()}", client=prefect_client
     )
 
 
@@ -413,13 +407,18 @@ async def deployment(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
@@ -448,13 +447,18 @@ async def deployment_2(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-2-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
@@ -485,7 +489,7 @@ async def deployment_in_default_work_pool(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
@@ -520,7 +524,7 @@ async def deployment_in_non_default_work_pool(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
@@ -548,7 +552,7 @@ async def deployment_with_parameter_schema(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment X",
+            name=f"my-deployment-with-parameter-schema{uuid.uuid4()}",
             flow_id=flow.id,
             parameter_openapi_schema={
                 "type": "object",
@@ -567,7 +571,9 @@ async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
         work_queue=schemas.actions.WorkQueueCreate(
-            name="wq-1", description="All about my work queue", priority=1
+            name=f"wq-1-{uuid.uuid4()}",
+            description="All about my work queue",
+            priority=1,
         ),
     )
     await session.commit()
@@ -579,7 +585,7 @@ async def work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="test-work-pool",
+            name=f"test-work-pool-{uuid.uuid4()}",
             type="test-type",
             base_job_template={
                 "job_configuration": {
@@ -736,7 +742,7 @@ async def work_queue_1(session, work_pool):
     model = await models.workers.create_work_queue(
         session=session,
         work_pool_id=work_pool.id,
-        work_queue=schemas.actions.WorkQueueCreate(name="wq-1"),
+        work_queue=schemas.actions.WorkQueueCreate(name=f"wq-1-{uuid.uuid4()}"),
     )
     await session.commit()
     return model
