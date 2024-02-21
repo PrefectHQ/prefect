@@ -172,6 +172,6 @@ Running this script with something like:
 python demo_project/daily_flow.py
 ```
 </div>
-... should deploy the flow with the specified job variables, which should then be visible in the UI under the `Configuration` tab.
+... will deploy the flow with the specified job variables, which should then be visible in the UI under the `Configuration` tab.
 
 ![Job variables in the UI](/img/guides/job-variables.png)
