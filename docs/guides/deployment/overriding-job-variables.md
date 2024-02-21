@@ -13,7 +13,7 @@ Job variables are just infrastructure related values that are configurable on a 
 
 <hr>
 
-Let's use `env` as an example, because it's the only job variable that is available to configure for all work pool types.
+Let's use `env` - the only job variable that is configurable for all work pool types - as an example.
 
 When you create or edit a work pool, you can specify a set of environment variables that will be set in the runtime environment of the flow run.
 
