@@ -9,7 +9,7 @@ While exactly _which_ job variables are available to be overridden depend on the
 ## Background
 First of all, what are _"job variables"_?
 
-Job variables are just infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure.
+Job variables are infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure.
 
 <hr>
 
@@ -25,7 +25,7 @@ For example, you might want a certain deployment to have the following environme
 }
 ```
 
-So, as opposed to hardcoding these values into your work pool in the UI (so that they would apply to all deployments associated with that work pool), you can override these values on a _per-deployment basis_.
+So, as opposed to hardcoding these values into your work pool in the UI and making them available to all deployments associated with that work pool, you can override these values on a _per-deployment basis_.
 
 Let's look at how to do that.
 
@@ -75,7 +75,7 @@ deployments:
 ```
 
 !!! note
-    While not the focus of this guide, note that this deployment definition uses a default "global" `pull` step, because one is not explicitly defined. For reference, here's what that would look like at the top of the `prefect.yaml` file:
+    While not the focus of this guide, note that this deployment definition uses a default "global" `pull` step, because one is not explicitly defined on the deployment. For reference, here's what that would look like at the top of the `prefect.yaml` file:
     ```yaml
     pull:
     - prefect.deployments.steps.git_clone: &clone_repo
@@ -122,7 +122,7 @@ deployments:
 ```
 
 !!! note
-    This assumes that the machine where `prefect deploy` in run would have these environment variables set.
+    This assumes that the machine where `prefect deploy` is run would have these environment variables set.
 
     <div class="terminal">
     ```bash
@@ -172,6 +172,6 @@ Running this script with something like:
 python demo_project/daily_flow.py
 ```
 </div>
-... should deploy the flow with the specified job variables, which should then be visible in the UI under the `Configuration` tab.
+... will deploy the flow with the specified job variables, which should then be visible in the UI under the `Configuration` tab.
 
 ![Job variables in the UI](/img/guides/job-variables.png)
