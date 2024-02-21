@@ -1467,7 +1467,7 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = Setting(bool, default=True)
 """
 Whether or not to enable the enhanced scheduling UI.
 """
