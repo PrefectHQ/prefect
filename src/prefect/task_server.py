@@ -1,7 +1,9 @@
 import asyncio
+import inspect
 import signal
 import sys
 from contextlib import AsyncExitStack
+from functools import partial
 from typing import Optional, Type
 
 import anyio
@@ -23,8 +25,6 @@ from prefect.task_runners import (
     BaseTaskRunner,
     ConcurrentTaskRunner,
 )
-
-# SequentialTaskRunner,
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.processutils import _register_signal
 
@@ -35,6 +35,16 @@ class StopTaskServer(Exception):
     """Raised when the task server is stopped."""
 
     pass
+
+
+def should_try_to_read_parameters(task: Task, task_run: TaskRun) -> bool:
+    """Determines whether a task run should read parameters from the result factory."""
+    new_enough_state_details = hasattr(
+        task_run.state.state_details, "task_parameters_id"
+    )
+    task_accepts_parameters = bool(inspect.signature(task.fn).parameters)
+
+    return new_enough_state_details and task_accepts_parameters
 
 
 class TaskServer:
@@ -135,7 +145,7 @@ class TaskServer:
         # state_details. If there is no parameters_id, then the task was created
         # without parameters.
         parameters = {}
-        if hasattr(task_run.state.state_details, "task_parameters_id"):
+        if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
             factory = await ResultFactory.from_task(task)
@@ -169,14 +179,17 @@ class TaskServer:
                 f" server returned a non-pending state {state.type.value!r}."
                 " Task run may have already begun execution."
             )
-        future = await submit_autonomous_task_run_to_engine(
-            task=task,
-            task_run=task_run,
-            parameters=parameters,
-            task_runner=self.task_runner,
-            client=self._client,
+
+        self._runs_task_group.start_soon(
+            partial(
+                submit_autonomous_task_run_to_engine,
+                task=task,
+                task_run=task_run,
+                parameters=parameters,
+                task_runner=self.task_runner,
+                client=self._client,
+            )
         )
-        self._runs_task_group.start_soon(future._result)
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task server."""
@@ -185,6 +198,9 @@ class TaskServer:
 
     async def __aenter__(self):
         logger.debug("Starting task server...")
+
+        if self._client._closed:
+            self._client = get_client()
 
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self.task_runner.start())

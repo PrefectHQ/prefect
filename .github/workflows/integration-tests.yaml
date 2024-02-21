@@ -38,6 +38,7 @@ jobs:
           - "2.12"
           - "2.13"
           - "2.14"
+          - "2.15"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -63,11 +64,33 @@ jobs:
           - prefect-version: "2.5"
             server-incompatible: true
 
+          # All servers prior to 2.16.0 will not accept `Deployment.schedules`
+          - prefect-version: "2.6"
+            server-incompatible: true
+          - prefect-version: "2.7"
+            server-incompatible: true
+          - prefect-version: "2.8"
+            server-incompatible: true
+          - prefect-version: "2.9"
+            server-incompatible: true
+          - prefect-version: "2.10"
+            server-incompatible: true
+          - prefect-version: "2.11"
+            server-incompatible: true
+          - prefect-version: "2.12"
+            server-incompatible: true
+          - prefect-version: "2.13"
+            server-incompatible: true
+          - prefect-version: "2.14"
+            server-incompatible: true
+          - prefect-version: "2.15"
+            server-incompatible: true
+
           # 2.6 containers have a bad version of httpcore installed
           - prefect-version: "2.6"
             extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
             server_command: "prefect orion start"
-          
+
           # 2.6/2.7 require `prefect orion start` instead of prefect server start
           - prefect-version: "2.7"
             server_command: "prefect orion start"

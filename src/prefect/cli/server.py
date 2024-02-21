@@ -33,7 +33,7 @@ from prefect.utilities.processutils import (
 
 server_app = PrefectTyper(
     name="server",
-    help="Commands for interacting with the Prefect backend.",
+    help="Commands for interacting with a self-hosted Prefect server instance.",
 )
 database_app = PrefectTyper(
     name="database", help="Commands for interacting with the database."
@@ -102,7 +102,7 @@ async def start(
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
 ):
-    """Start a Prefect server"""
+    """Start a Prefect server instance"""
 
     server_env = os.environ.copy()
     server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
