@@ -132,9 +132,11 @@ class DeploymentCreate(ActionBaseModel):
 
         return values
 
-    @root_validator()
-    def populate_paused(cls, values):
-        if "is_schedule_active" in values:
+    @root_validator(pre=True)
+    def sync_paused_and_is_schedule_active(cls, values):
+        if "paused" in values:
+            values["is_schedule_active"] = not values["paused"]
+        elif "is_schedule_active" in values:
             values["paused"] = not values["is_schedule_active"]
         return values
 
@@ -250,9 +252,11 @@ class DeploymentCreate(ActionBaseModel):
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
-    @root_validator()
-    def populate_paused(cls, values):
-        if "is_schedule_active" in values:
+    @root_validator(pre=True)
+    def sync_paused_and_is_schedule_active(cls, values):
+        if "paused" in values:
+            values["is_schedule_active"] = not values["paused"]
+        elif "is_schedule_active" in values:
             values["paused"] = not values["is_schedule_active"]
         return values
 
