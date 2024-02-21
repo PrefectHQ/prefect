@@ -2,12 +2,15 @@ from datetime import timedelta
 from typing import Callable, Optional
 from uuid import UUID, uuid4
 
+import pendulum
 import pytest
+import sqlalchemy as sa
 from httpx import AsyncClient
 from prefect._vendor.fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database.interface import PrefectDBInterface
 
 
 @pytest.fixture
@@ -48,6 +51,34 @@ async def deployment_with_schedules(
     await session.commit()
 
     return deployment
+
+
+@pytest.fixture()
+async def scheduled_flow_runs(
+    deployment,
+    session: AsyncSession,
+):
+    scheduled_runs = []
+    for _ in range(3):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                auto_scheduled=True,
+                flow_id=deployment.flow_id,
+                deployment_id=deployment.id,
+                flow_version="0.1",
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    timestamp=pendulum.now("UTC"),
+                    state_details={"scheduled_time": pendulum.now("UTC")},
+                ),
+            ),
+        )
+        scheduled_runs.append(flow_run)
+
+    await session.commit()
+
+    return scheduled_runs
 
 
 class TestCreateDeploymentSchedules:
@@ -230,6 +261,40 @@ class TestUpdateDeploymentSchedule:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert b"Schedule" in response.content
 
+    async def test_updating_schedule_removes_scheduled_runs(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        client: AsyncClient,
+        deployment_with_schedules,
+        schedules_url: Callable[..., str],
+        schedule_to_update: schemas.core.DeploymentSchedule,
+        scheduled_flow_runs,
+    ):
+        assert schedule_to_update.active is True
+
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_update.id
+        )
+        response = await client.patch(
+            url,
+            json=schemas.actions.DeploymentScheduleUpdate(active=False).dict(
+                exclude_unset=True
+            ),
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        result = await session.execute(
+            sa.select(db.FlowRun).where(
+                db.FlowRun.deployment_id == deployment_with_schedules.id,
+                db.FlowRun.auto_scheduled.is_(True),
+            )
+        )
+        flow_runs = result.scalars().all()
+
+        # Deleting the schedule should remove all scheduled runs
+        assert len(flow_runs) == 0
+
 
 class TestDeleteDeploymentSchedule:
     @pytest.fixture
@@ -292,3 +357,30 @@ class TestDeleteDeploymentSchedule:
         response = await client.delete(url)
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert b"Schedule" in response.content
+
+    async def test_does_not_reschedule_runs_no_active_schedules(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        client: AsyncClient,
+        deployment_with_schedules,
+        schedules_url: Callable[..., str],
+        schedule_to_delete: schemas.core.DeploymentSchedule,
+        scheduled_flow_runs,
+    ):
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_delete.id
+        )
+        response = await client.delete(url)
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        result = await session.execute(
+            sa.select(db.FlowRun).where(
+                db.FlowRun.deployment_id == deployment_with_schedules.id,
+                db.FlowRun.auto_scheduled.is_(True),
+            )
+        )
+        flow_runs = result.scalars().all()
+
+        # Deleting the schedule should remove all scheduled runs
+        assert len(flow_runs) == 0
