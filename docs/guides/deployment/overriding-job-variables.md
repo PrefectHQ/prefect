@@ -1,15 +1,19 @@
 # Deeper Dive: Overriding Work Pool Job Variables
 
-As you might have read in [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) guide, there are two ways to deploy flows to work pools: using a `prefect.yaml` file or using the `.deploy()` method.
+As described in the [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) guide, there are two ways to deploy flows to work pools: using a `prefect.yaml` file or using the `.deploy()` method.
 
 **In both cases, you can override job variables on a work pool for a given deployment.**
 
 While exactly _which_ job variables are available to be overridden depend on the type of work pool you're using at a given time, this guide will explore some common patterns for overriding job variables in both deployment methods.
 
 ## Background
-First of all, what do we mean by _"job variables"_?
+First of all, what are _"job variables"_?
 
-Let's use `env` as an example, because it's the only job variable that is available to configure for all work pool types.
+Job variables are just infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure.
+
+<hr>
+
+Let's use `env` - the only job variable that is configurable for all work pool types - as an example.
 
 When you create or edit a work pool, you can specify a set of environment variables that will be set in the runtime environment of the flow run.
 
@@ -102,7 +106,7 @@ We should then be able to see the job variables in the `Configuration` tab of th
 ![Job variables in the UI](/img/guides/job-variables.png)
 
 #### Using existing environment variables
-If you want to use environment variables that are already set in your local environment, you can template these in the `prefect.yaml` file using the `{{ env.VARIABLE_NAME }}` syntax:
+If you want to use environment variables that are already set in your local environment, you can template these in the `prefect.yaml` file using the `{{ $ENV_VAR_NAME }}` syntax:
 
 ```yaml
 deployments:
