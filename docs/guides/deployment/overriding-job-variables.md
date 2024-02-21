@@ -83,9 +83,9 @@ deployments:
         branch: main
     ```
 
+#### Hard-coded job variables
 To provide the `EXECUTION_ENVIRONMENT` and `MY_NOT_SO_SECRET_CONFIG` environment variables to this deployment, we can add a `job_variables` section to our deployment definition in the `prefect.yaml` file:
 
-#### Hard-coded job variables
 ```yaml
 deployments:
 - name: demo-deployment
