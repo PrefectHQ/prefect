@@ -122,7 +122,7 @@ deployments:
 ```
 
 !!! note
-    This assumes that the machine where `prefect deploy` in run would have these environment variables set.
+    This assumes that the machine where `prefect deploy` is run would have these environment variables set.
 
     <div class="terminal">
     ```bash
