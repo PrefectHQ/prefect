@@ -160,7 +160,7 @@ class TestReadWorkQueue:
         response = await client.get(f"/work_queues/{work_queue.id}")
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
-        assert response.json()["name"] == "wq-1"
+        assert response.json()["name"] == work_queue.name
         assert response.json()["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):

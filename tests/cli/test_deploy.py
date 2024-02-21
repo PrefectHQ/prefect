@@ -328,7 +328,7 @@ class TestProjectDeploySingleDeploymentYAML:
         assert deployment.infra_overrides == {"env": "prod"}
 
     async def test_project_deploy_with_empty_dep_file(
-        self, project_dir_with_single_deployment_format, prefect_client
+        self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
         # delete deployment.yaml and rewrite as empty
         deployment_file = Path(
@@ -339,21 +339,19 @@ class TestProjectDeploySingleDeploymentYAML:
         with deployment_file.open(mode="w") as f:
             f.write("{}")
 
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        deployment_name = f"test-name-{uuid4()}"
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+            command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{deployment_name}"
         )
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.name == deployment_name
+        assert deployment.work_pool_name == work_pool.name
 
     async def test_project_deploy_templates_values(
         self, project_dir_with_single_deployment_format, prefect_client
@@ -1658,17 +1656,18 @@ class TestProjectDeploy:
         with deployment_file.open(mode="w") as f:
             f.write("{}")
 
+        deployment_name = f"test-name-{uuid4()}"
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
             expected_code=0,
             expected_output_contains=["An important name/test"],
         )
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{deployment_name}"
         )
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-work-pool"
+        assert deployment.name == deployment_name
+        assert deployment.work_pool_name == work_pool.name
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_values(self, work_pool, prefect_client):
@@ -1700,18 +1699,19 @@ class TestProjectDeploy:
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(prefect_config, f)
 
+        deployment_name = f"test-name-{uuid4()}"
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{deployment_name}"
         )
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-work-pool"
+        assert deployment.name == deployment_name
+        assert deployment.work_pool_name == work_pool.name
         assert deployment.version == "foo"
         assert deployment.tags == ["b", "2", "3"]
         assert deployment.description == "1"
@@ -1725,7 +1725,8 @@ class TestProjectDeploy:
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
 
-        contents["deployments"][0]["name"] = "test-name"
+        deployment_name = f"test-name-{uuid4()}"
+        contents["deployments"][0]["name"] = deployment_name
         contents["deployments"][0]["version"] = "{{ $MY_VERSION }}"
         contents["deployments"][0]["tags"] = "{{ $MY_TAGS }}"
         contents["deployments"][0]["description"] = "{{ $MY_DESCRIPTION }}"
@@ -1762,18 +1763,18 @@ class TestProjectDeploy:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
             expected_output_contains=["bar"],
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{deployment_name}"
         )
 
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-work-pool"
+        assert deployment.name == deployment_name
+        assert deployment.work_pool_name == work_pool.name
         assert deployment.version == "foo"
         assert deployment.tags == ["b", ",", "2", ",", "3"]
         assert deployment.description == "1"
@@ -5275,7 +5276,7 @@ class TestSaveUserInputs:
         """
         Ensure block references are resolved in deployments section of prefect.yaml
         """
-        await JSON(value={"work_pool_name": "test-work-pool"}).save(
+        await JSON(value={"work_pool_name": work_pool.name}).save(
             name="test-json-block"
         )
 
@@ -5339,13 +5340,13 @@ class TestSaveUserInputs:
             "An important name/test-name"
         )
         assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-work-pool"
+        assert deployment.work_pool_name == work_pool.name
 
         # ensure block reference was resolved
         with prefect_file.open(mode="r") as f:
             prefect_config = yaml.safe_load(f)
 
-        assert prefect_config["deployments"][0]["work_pool"]["name"] == "test-work-pool"
+        assert prefect_config["deployments"][0]["work_pool"]["name"] == work_pool.name
 
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_resolves_variables_in_deployments_section(
@@ -5356,7 +5357,7 @@ class TestSaveUserInputs:
         """
         # create variable
         await prefect_client._client.post(
-            "/variables/", json={"name": "my_work_pool", "value": "test-work-pool"}
+            "/variables/", json={"name": "my_work_pool", "value": work_pool.name}
         )
 
         # add variable to deployments section of prefect.yaml
@@ -5417,13 +5418,13 @@ class TestSaveUserInputs:
             "An important name/test-name"
         )
         assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-work-pool"
+        assert deployment.work_pool_name == work_pool.name
 
         # ensure variable is resolved in prefect.yaml
         with prefect_file.open(mode="r") as f:
             prefect_config = yaml.safe_load(f)
 
-        assert prefect_config["deployments"][0]["work_pool"]["name"] == "test-work-pool"
+        assert prefect_config["deployments"][0]["work_pool"]["name"] == work_pool.name
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")

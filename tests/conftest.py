@@ -121,7 +121,7 @@ def pytest_addoption(parser):
     )
 
 
-EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = ["tests/utilities/"]
+EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = ["tests/utilities", "tests/agent"]
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -195,7 +195,7 @@ def pytest_collection_modifyitems(session, config, items):
         if not any(
             excluded in item.nodeid for excluded in EXCLUDE_FROM_CLEAR_DB_AUTO_MARK
         ):
-            # Apply the custom mark
+            # Apply the custom mark to clear the database prior to the test
             item.add_marker(pytest.mark.clear_db)
 
 
