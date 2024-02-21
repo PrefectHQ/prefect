@@ -8,8 +8,8 @@ import readchar
 import yaml
 from typer import Exit
 
-from prefect.client import schemas
 from prefect.server import models
+from prefect.server import schemas as server_schemas
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 
@@ -43,7 +43,7 @@ async def deployment_with_pull_step(
 
     deployment = await models.deployments.create_deployment(
         session=session,
-        deployment=schemas.objects.Deployment(
+        deployment=server_schemas.core.Deployment(
             name="hello",
             flow_id=flow.id,
             pull_steps=[
@@ -70,7 +70,7 @@ async def deployment_with_pull_steps(
 
     deployment = await models.deployments.create_deployment(
         session=session,
-        deployment=schemas.objects.Deployment(
+        deployment=server_schemas.core.Deployment(
             name="hello",
             flow_id=flow.id,
             pull_steps=[
