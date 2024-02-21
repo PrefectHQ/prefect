@@ -104,13 +104,16 @@ with silence_docker_warnings():
 @contextmanager
 def docker_client() -> Generator["DockerClient", None, None]:
     """Get the environmentally-configured Docker client"""
-    with silence_docker_warnings():
-        client = docker.DockerClient.from_env()
-
+    client = None
     try:
-        yield client
+        with silence_docker_warnings():
+            client = docker.DockerClient.from_env()
+
+            yield client
+    except docker.errors.DockerException as exc:
+        raise RuntimeError("Docker is not running. please run docker and try again") from exc
     finally:
-        client.close()
+        client is not None and client.close()
 
 
 class BuildError(Exception):
