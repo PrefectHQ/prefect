@@ -1,3 +1,17 @@
+---
+description: Learn how to override job variables on a work pool for a given deployment.
+tags:
+    - installation
+    - pip install
+    - development
+    - Linux
+    - Windows
+    - SQLite
+    - upgrading
+search:
+  boost: 2
+---
+
 # Deeper Dive: Overriding Work Pool Job Variables
 
 As described in the [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) guide, there are two ways to deploy flows to work pools: using a `prefect.yaml` file or using the `.deploy()` method.
