@@ -9,6 +9,8 @@ While exactly _which_ job variables are available to be overridden depend on the
 ## Background
 First of all, what do we mean by _"job variables"_?
 
+Job variables are just infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure.
+
 Let's use `env` as an example, because it's the only job variable that is available to configure for all work pool types.
 
 When you create or edit a work pool, you can specify a set of environment variables that will be set in the runtime environment of the flow run.
