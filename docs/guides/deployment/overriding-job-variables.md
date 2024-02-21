@@ -75,7 +75,7 @@ deployments:
 ```
 
 !!! note
-    While not the focus of this guide, note that this deployment definition uses a default "global" `pull` step, because one is not explicitly defined. For reference, here's what that would look like at the top of the `prefect.yaml` file:
+    While not the focus of this guide, note that this deployment definition uses a default "global" `pull` step, because one is not explicitly defined on the deployment. For reference, here's what that would look like at the top of the `prefect.yaml` file:
     ```yaml
     pull:
     - prefect.deployments.steps.git_clone: &clone_repo
