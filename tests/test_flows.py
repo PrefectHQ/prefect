@@ -1065,8 +1065,8 @@ class TestSubflowCalls:
     async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
-        we discovered that a sync flow running an async flow that awaits a task
-        submission can hang indefinitely.
+        we discovered that a sync flow running an async flow that awaits `.result()`
+        on a submitted task's future can hang indefinitely.
         """
 
         @task
