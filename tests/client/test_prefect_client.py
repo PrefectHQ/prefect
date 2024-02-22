@@ -33,6 +33,7 @@ from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
+    DeploymentScheduleCreate,
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
     LogCreate,
@@ -566,7 +567,9 @@ async def test_create_then_read_deployment(
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
+    schedule = DeploymentScheduleCreate(
+        schedule=IntervalSchedule(interval=timedelta(days=1))
+    )
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
@@ -586,7 +589,11 @@ async def test_create_then_read_deployment(
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
-    assert lookup.schedule == schedule
+    assert lookup.schedule == schedule.schedule
+    assert len(lookup.schedules) == 1
+    assert lookup.schedules[0].schedule == schedule.schedule
+    assert lookup.schedules[0].active == schedule.active
+    assert lookup.schedules[0].deployment_id == deployment_id
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
