@@ -475,6 +475,7 @@ def test_enabled_experiments_with_opt_in():
         "deployment_status",
         "enhanced_cancellation",
         "work_queue_status",
+        "enhanced_scheduling_ui",
     }
 
 
@@ -488,4 +489,5 @@ def test_enabled_experiments_without_opt_in():
         "deployment_status",
         "enhanced_cancellation",
         "work_queue_status",
+        "enhanced_scheduling_ui",
     }
