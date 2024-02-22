@@ -86,16 +86,8 @@ class TaskServer:
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
     @property
-    def _client_id(self) -> Optional[str]:
-        is_cloud = any(
-            str(self._client.api_url).startswith(url)
-            for url in ("https://api.prefect.cloud", "https://api.prefect.dev")
-        )
-
-        if is_cloud:
-            return f"{socket.gethostname()}-{os.getpid()}"
-        else:
-            return None
+    def _client_id(self) -> str:
+        return f"{socket.gethostname()}-{os.getpid()}"
 
     def handle_sigterm(self, signum, frame):
         """
