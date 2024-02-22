@@ -1,5 +1,49 @@
 # Prefect Release Notes
 
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## Release 2.16.0
+### Enhancements
+* Allow deploying to process work pools with `flow.deploy` by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12017
+* Support multiple schedules in deployment YAML files by @abrookins in https://github.com/PrefectHQ/prefect/pull/12051
+### Fixes
+* Updates CLI `deployment run --help` text so it renders for more args by @discdiver in https://github.com/PrefectHQ/prefect/pull/11960
+* Flow `with_options` fixes - retries, retry_delay_seconds, flow_run_name by @NodeJSmith in https://github.com/PrefectHQ/prefect/pull/12020
+### Experimental
+* Add support for multiple schedules to Prefect server and CLI by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/11971
+* Ensure paused and is_schedule_active stay in sync through updates/upserts by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12041
+* Remove scheduled flow runs when updating/removing schedules by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12048
+* Move validator logic to API endpoint to avoid issue with legacy client detection by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12056
+* Update multiple schedules error to say you can update your client by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12061
+### Documentation
+* Improve language and formatting in Profiles and Configuration guide by @discdiver in https://github.com/PrefectHQ/prefect/pull/11996
+* Improves docs formatting consistency and adds some minor content updates by @discdiver in https://github.com/PrefectHQ/prefect/pull/12004
+* Updates formatting for guide: creating-interactive-workflows.md by @discdiver in https://github.com/PrefectHQ/prefect/pull/11991
+* Docs: Add import statement for `wait_for_flow_run` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/11999
+* [docs] add deep dive on overriding job variables by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12033
+* Remove extraneous trailing quotation marks in concepts/artifacts docs by @collincchoy in https://github.com/PrefectHQ/prefect/pull/12040
+* Adds links to overriding job variables guide by @discdiver in https://github.com/PrefectHQ/prefect/pull/12043
+### Uncategorized
+* disable telemetry for integration tests server by @hamzamogni in https://github.com/PrefectHQ/prefect/pull/12000
+* Switching to the astral-sh pre-commit hook by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12005
+* [task scheduling] add `TaskServer.execute_task_run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12002
+* Updates the contact info for our bug bounty program by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12016
+* Add CLI command to read runs in WQ by @urimandujano in https://github.com/PrefectHQ/prefect/pull/11989
+* [task scheduling] unit test traditional task features by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12008
+* Disallow alternate task submission methods by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12025
+* Corrects a timing-dependent test for pushing Docker images by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12038
+* Chore: bump ui dependencies by @brandonreid in https://github.com/PrefectHQ/prefect/pull/12039
+* Add experimental flag for enhanced scheduling UI by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12047
+* Adding a more readable error in case Docker not running  by @eladm26 in https://github.com/PrefectHQ/prefect/pull/12045
+* [task scheduling] send up client id if cloud by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12049
+* Revert "Run tasks on the main thread (#11930)" by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12054
+
+## New Contributors
+* @hamzamogni made their first contribution in https://github.com/PrefectHQ/prefect/pull/12000
+* @eladm26 made their first contribution in https://github.com/PrefectHQ/prefect/pull/12045
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.15.0...2.16.0
+
 ## Release 2.15.0
 
 ### 🔧 Task runs now execute on the main thread
