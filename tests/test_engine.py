@@ -1045,8 +1045,6 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
     async def test_raises_on_new_pause_state_with_reschedule(
@@ -1103,8 +1101,6 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
     async def test_abort_breaks_pause_loop(
@@ -1170,8 +1166,6 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
     async def test_pending_in_pause_loop_submits_running_state(
@@ -1241,8 +1235,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         assert state.is_completed()
@@ -1288,8 +1280,6 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
         assert state.is_completed()
@@ -1334,8 +1324,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         mock_anyio_sleep.assert_not_called()
@@ -1387,8 +1375,6 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
         # Check for a proper final result
@@ -1451,8 +1437,6 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -1505,8 +1489,6 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -1560,8 +1542,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         assert mock.call_count == 10 + 1  # 1 run + 10 retries
@@ -1630,8 +1610,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # The task did not run
@@ -1681,8 +1659,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # The task ran with the unqoted data
@@ -1733,8 +1709,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # The task ran with the state as its input
@@ -1786,8 +1760,6 @@ class TestOrchestrateTaskRun:
                     interruptible=False,
                     client=prefect_client,
                     log_prints=False,
-                    concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                    user_thread=threading.current_thread(),
                 )
 
             assert mock_anyio_sleep.await_count == 3
@@ -1832,8 +1804,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after two attempts
@@ -1882,8 +1852,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after only one attempt
@@ -1934,8 +1902,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after only one attempt
@@ -1996,8 +1962,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # Ensure the retry condition function was never called
@@ -2045,8 +2009,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         # Check that the task failed after only one attempt
@@ -2101,8 +2063,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         assert state.is_failed()
@@ -2151,8 +2111,6 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
-            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-            user_thread=threading.current_thread(),
         )
 
         result = await state.result()
@@ -2209,8 +2167,6 @@ class TestBeginTaskRun:
                 wait_for=[],
                 log_prints=False,
                 settings=prefect.context.SettingsContext.get().copy(),
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
         assert state
@@ -3404,8 +3360,6 @@ async def test_long_task_introspection_warning_on(
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
     assert "Task parameter introspection took" in caplog.text
@@ -3451,8 +3405,6 @@ async def test_long_task_introspection_warning_off(
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
-                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
-                user_thread=threading.current_thread(),
             )
 
     assert "Task parameter introspection took" not in caplog.text
