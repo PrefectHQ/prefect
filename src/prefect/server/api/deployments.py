@@ -29,11 +29,10 @@ def _multiple_schedules_error(deployment_id) -> HTTPException:
     return HTTPException(
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail=(
-            (
-                "Error updating deployment: "
-                f"Deployment {deployment_id!r} has multiple schedules. "
-                "Please use the UI to update this deployment's schedules."
-            ),
+            "Error updating deployment: "
+            f"Deployment {deployment_id!r} has multiple schedules. "
+            "Please use the UI or update your client to adjust this "
+            "deployment's schedules.",
         ),
     )
 
