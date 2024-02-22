@@ -44,8 +44,8 @@ class Deployment:
     # workflow scheduling and parametrization
     parameters: dict = None
     parameter_openapi_schema: dict = None
-    schedule: Schedule = None
-    is_schedule_active: bool = True
+    schedules: list[Schedule] = None
+    paused: bool = False
     trigger: Trigger = None
 
     # metadata for bookkeeping
@@ -103,7 +103,7 @@ Just as flows can be called as functions with different input values, so can dep
 
 The six fields here capture the necessary metadata to perform such actions:
 
-- **`schedule`**: a [schedule object](/concepts/schedules/).
+- **`schedules`**: a list of [schedule objects](/concepts/schedules/).
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves.
 For example, when [updating a deployment schedule in the UI](/concepts/schedules/#creating-schedules-through-the-ui) basic information such as a cron string or interval is all that's required.
 - **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment.

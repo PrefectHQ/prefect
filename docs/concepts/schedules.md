@@ -22,7 +22,7 @@ Prefect Cloud can also schedule flow runs through event-driven [automations](/co
 
 Schedules tell the Prefect API how to create new flow runs for you automatically on a specified cadence.
 
-You can add a schedule to any flow [deployment](/concepts/deployments/).
+You can add schedules to any flow [deployment](/concepts/deployments/).
 The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
 
 There are several recommended ways to create a schedule for a deployment:
@@ -31,22 +31,19 @@ There are several recommended ways to create a schedule for a deployment:
 - Via a the `cron`, `interval`, or `rrule` parameters if building your deployment via the [`serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
 - If using [worker-based deployments](/concepts/work-pools/)
   - Through the interactive `prefect deploy` command
-  - With the `deployments` -> `schedule` section of the `prefect.yaml` file )
+  - With the `deployments` -> `schedules` section of the `prefect.yaml` file )
 
 ## Creating schedules through the UI
 
 You can add a schedule on the **Deployments** tab of the UI.
 
-Under **Schedule** select the **Add** button.
-If you don't see the **Schedule** section, expand the three dot menu on the top right of the page.
-
+Under **Schedules** click the **+** button.
 Then select **Interval** or **Cron** to create a schedule.
 
 ![Prefect UI with Interval button selected](/img/ui/interval-schedule.png)
 
 Once a schedule has been created, a number of scheduled flow runs will be visible in the UI.
 The schedule is viewable in human-friendly text on the **Deployments** page.
-You can edit the schedule by selecting the **Edit** button on the **Deployment** page.
 
 ## Schedule types
 
@@ -65,19 +62,29 @@ As seen in the [Quickstart](/getting-started/quickstart/#step-5-add-a-schedule),
 If you are using [worker-based deployments](/concepts/work-pools/), you can create a schedule through the interactive `prefect deploy` command.
 You will be prompted to choose which type of schedule to create.
 
-## Creating schedules through a `prefect.yaml` file's `deployments` -> `schedule` section
+## Creating schedules through a `prefect.yaml` file's `deployments` -> `schedules` section
 
-If you save the `prefect.yaml` file from the `prefect deploy` command, you will see it has a `schedule` section for your deployment.
-Alternatively, you can create a `prefect.yaml` file from a recipe or from scratch and add a `schedule` section to it.
+If you save the `prefect.yaml` file from the `prefect deploy` command, you will see it has a `schedules` section for your deployment.
+Alternatively, you can create a `prefect.yaml` file from a recipe or from scratch and add a `schedules` section to it.
 
 ```yaml
 deployments:
   ...
-  schedule:
-    cron: 0 0 * * *
-    timezone: America/Chicago
-    active: false
+  schedules:
+    - cron: "0 0 * * *"
+      timezone: "America/Chicago"
+      active: false
+    - cron: "0 12 * * *"
+      timezone: "America/New_York"
+      active: true
+    - cron: "0 18 * * *"
+      timezone: "Europe/London"
+      active: true
 ```
+
+# Creating schedules through the `schedule` CLI command
+
+You can also create a schedule through the `prefect deployment schedule create` CLI command by passing `--interval`, `--cron`, or `--rrule` parameters.
 
 !!! tip "Schedules can be inactive"
     You can set the `active` property to `false` to deactivate a schedule.
@@ -169,8 +176,8 @@ You may find it useful to use an RRule string generator such as the [iCalendar.o
 For example, the following RRule schedule creates flow runs on Monday, Wednesday, and Friday until July 30, 2024.
 
 ```yaml
-schedule:
-  rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z'
+schedules:
+  - rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z'
 ```
 
 !!! info "RRule restrictions"
@@ -232,7 +239,7 @@ cron_demo = Deployment.build_from_flow(
 The `Scheduler` service is started automatically when `prefect server start` is run and it is a built-in service of Prefect Cloud.
 
 By default, the `Scheduler` service visits deployments on a 60-second loop, though recently-modified deployments will be visited more frequently.
-The `Scheduler` evaluates each deployment's schedule and creates new runs appropriately.
+The `Scheduler` evaluates each deployment's schedules and creates new runs appropriately.
 For typical deployments, it will create the next three runs, though more runs will be scheduled if the next 3 would all start in the next hour.
 
 More specifically, the `Scheduler` tries to create the smallest number of runs that satisfy the following constraints, in order:

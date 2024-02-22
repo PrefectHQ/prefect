@@ -38,7 +38,7 @@ Deployments elevate workflows from functions that you call manually to API-manag
 Attributes of a deployment include (but are not limited to):
 
 - __Flow entrypoint__: path to your flow function
-- __Schedule__ or __Trigger__: optional schedule or triggering rule for this deployment
+- __Schedule__ or __Trigger__: optional schedule or triggering rules for this deployment
 - __Tags__: optional text labels for organizing your deployments
 
 ## Create a deployment
