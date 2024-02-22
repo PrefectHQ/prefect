@@ -395,6 +395,17 @@ class TestFlowWithOptions:
         flow_with_options = initial_flow.with_options(retry_delay_seconds=0)
         assert flow_with_options.retry_delay_seconds == 0
 
+    def test_with_options_uses_parent_flow_run_name_if_not_provided(self):
+        def generate_flow_run_name():
+            return "new-name"
+
+        @flow(retry_delay_seconds=3, flow_run_name=generate_flow_run_name)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options()
+        assert flow_with_options.flow_run_name is generate_flow_run_name
+
     def test_with_options_can_unset_result_options_with_none(self):
         @flow(
             persist_result=True,

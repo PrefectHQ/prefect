@@ -440,7 +440,7 @@ class Flow(Generic[P, R]):
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
-            flow_run_name=flow_run_name,
+            flow_run_name=flow_run_name or self.flow_run_name,
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
             retries=retries if retries is not None else self.retries,
