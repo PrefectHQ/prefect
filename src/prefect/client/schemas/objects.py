@@ -960,6 +960,15 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
+class MinimalDeploymentSchedule(PrefectBaseModel):
+    schedule: SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+
+
 class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
