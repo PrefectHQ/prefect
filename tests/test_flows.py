@@ -1063,6 +1063,12 @@ class TestSubflowCalls:
         ), "The server subflow run id matches the client"
 
     async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
+        we discovered that a sync flow running an async flow that awaits a task
+        submission can hang indefinitely.
+        """
+
         @task
         async def some_async_task():
             return 42
