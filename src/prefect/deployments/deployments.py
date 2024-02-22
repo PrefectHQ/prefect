@@ -30,8 +30,8 @@ from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.objects import (
     DEFAULT_AGENT_WORK_POOL_NAME,
-    DeploymentSchedule,
     FlowRun,
+    MinimalDeploymentSchedule,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
@@ -489,7 +489,7 @@ class Deployment(BaseModel):
         description="One of more tags to apply to this deployment.",
     )
     schedule: SCHEDULE_TYPES = None
-    schedules: List[DeploymentScheduleCreate] | List[DeploymentSchedule] = Field(
+    schedules: List[MinimalDeploymentSchedule] = Field(
         default_factory=list,
         description="The schedules to run this deployment on.",
     )
@@ -673,11 +673,20 @@ class Deployment(BaseModel):
                         "timestamp",
                         "triggers",
                         "enforce_parameter_schema",
+                        "schedules",
                     }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
                     setattr(self, field, new_value)
+
+                if "schedules" not in self.__fields_set__:
+                    self.schedules = [
+                        MinimalDeploymentSchedule(
+                            **schedule.dict(include={"schedule", "active"})
+                        )
+                        for schedule in deployment.schedules
+                    ]
 
                 if "infrastructure" not in self.__fields_set__:
                     if deployment.infrastructure_document_id:
