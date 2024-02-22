@@ -270,8 +270,9 @@ class AsyncCancelScope(CancelScope):
             # Mark as cancelled
             self.cancel(throw=False)
 
-        # We have to exit this scope to prevent a memory leak.
         # TODO: Can we also delete the scope?
+        # We have to exit this scope to prevent leaking memory. A fix for
+        # issue #10952.
         self._anyio_scope.__exit__(exc_type, exc_val, exc_tb)
 
         super().__exit__(exc_type, exc_val, exc_tb)

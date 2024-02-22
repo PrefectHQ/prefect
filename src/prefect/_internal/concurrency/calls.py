@@ -39,7 +39,7 @@ P = ParamSpec("P")
 # that sets this contextvar. A weakref avoids the leak and works because a)
 # we already have strong references to the `Call` objects in other places
 # and b) this is used for performance optimizations where we have fallback
-# behavior if this weakref is garbage collected.
+# behavior if this weakref is garbage collected. A fix for issue #10952.
 current_call: contextvars.ContextVar["weakref.ref[Call]"] = contextvars.ContextVar(
     "current_call"
 )
@@ -193,8 +193,11 @@ class Future(concurrent.futures.Future):
 
     def _invoke_callbacks(self):
         """
-        Invoke our done callbacks and clean up cancel scopes and cancel callbacks.
-        Fixes a memory leak preventing garbage collection.
+        Invoke our done callbacks and clean up cancel scopes and cancel
+        callbacks. Fixes a memory leak that hung on to Call objects,
+        preventing garbage collection of Futures.
+
+        A fix for #10952.
         """
         if self._done_callbacks:
             done_callbacks = self._done_callbacks[:]
