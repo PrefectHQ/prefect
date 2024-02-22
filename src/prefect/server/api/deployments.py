@@ -53,6 +53,8 @@ async def create_deployment(
     When upserting, any scheduled runs from the existing deployment will be deleted.
     """
 
+    data = deployment.dict(exclude_unset=True)
+
     async with db.session_context(begin_transaction=True) as session:
         if (
             deployment.work_pool_name
@@ -144,6 +146,12 @@ async def create_deployment(
                     ),
                 )
 
+        # Ensure that `paused` and `is_schedule_active` are consistent.
+        if "paused" in data:
+            deployment.is_schedule_active = not data["paused"]
+        elif "is_schedule_active" in data:
+            deployment.paused = not data["is_schedule_active"]
+
         now = pendulum.now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
@@ -201,6 +209,12 @@ async def update_deployment(
                 ]
             elif schedule is None:
                 deployment.schedules = []
+
+        # Ensure that `paused` and `is_schedule_active` are consistent.
+        if "paused" in update_data:
+            deployment.is_schedule_active = not update_data["paused"]
+        elif "is_schedule_active" in update_data:
+            deployment.paused = not update_data["is_schedule_active"]
 
         if deployment.work_pool_name:
             # Make sure that deployment is valid before beginning creation process
