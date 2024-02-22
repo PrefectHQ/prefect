@@ -10,6 +10,7 @@ import contextvars
 import dataclasses
 import inspect
 import threading
+import weakref
 from concurrent.futures._base import (
     CANCELLED,
     CANCELLED_AND_NOTIFIED,
@@ -35,19 +36,23 @@ P = ParamSpec("P")
 
 
 # Tracks the current call being executed
-current_call: contextvars.ContextVar["Call"] = contextvars.ContextVar("current_call")
+current_call: contextvars.ContextVar["weakref.ref[Call]"] = contextvars.ContextVar(
+    "current_call"
+)
 
 # Create a strong reference to tasks to prevent destruction during execution errors
 _ASYNC_TASK_REFS = set()
 
 
 def get_current_call() -> Optional["Call"]:
-    return current_call.get(None)
+    call_ref = current_call.get(None)
+    if call_ref:
+        return call_ref()
 
 
 @contextlib.contextmanager
 def set_current_call(call: "Call"):
-    token = current_call.set(call)
+    token = current_call.set(weakref.ref(call))
     try:
         yield
     finally:
