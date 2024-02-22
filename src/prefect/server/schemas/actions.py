@@ -133,14 +133,6 @@ class DeploymentCreate(ActionBaseModel):
         return values
 
     @root_validator(pre=True)
-    def sync_paused_and_is_schedule_active(cls, values):
-        if "paused" in values:
-            values["is_schedule_active"] = not values["paused"]
-        elif "is_schedule_active" in values:
-            values["paused"] = not values["is_schedule_active"]
-        return values
-
-    @root_validator(pre=True)
     def remove_old_fields(cls, values):
         # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
         # worker_pool_queue_name. Those fields were later renamed to work_pool_name
@@ -251,14 +243,6 @@ class DeploymentCreate(ActionBaseModel):
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
-
-    @root_validator(pre=True)
-    def sync_paused_and_is_schedule_active(cls, values):
-        if "paused" in values:
-            values["is_schedule_active"] = not values["paused"]
-        elif "is_schedule_active" in values:
-            values["paused"] = not values["is_schedule_active"]
-        return values
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):

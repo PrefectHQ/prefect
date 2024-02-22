@@ -331,7 +331,7 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            is_schedule_active=False,
+            paused=True,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
@@ -344,7 +344,7 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            is_schedule_active=False,
+            paused=True,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
@@ -352,18 +352,18 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
+        assert response.json()["paused"]
         assert not response.json()["is_schedule_active"]
         assert response.json()["storage_document_id"] == str(storage_document_id)
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
         )
-        assert not response.json()["is_schedule_active"]
 
         # post different data, upsert should be respected
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            is_schedule_active=True,  # CHANGED
+            paused=False,  # CHANGED
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
@@ -371,6 +371,7 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
+        assert not response.json()["paused"]
         assert response.json()["is_schedule_active"]
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
