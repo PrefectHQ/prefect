@@ -6,15 +6,18 @@
 ### Enhancements
 * Allow deploying to process work pools with `flow.deploy` by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12017
 * Support multiple schedules in deployment YAML files by @abrookins in https://github.com/PrefectHQ/prefect/pull/12051
+  
 ### Fixes
 * Updates CLI `deployment run --help` text so it renders for more args by @discdiver in https://github.com/PrefectHQ/prefect/pull/11960
 * Flow `with_options` fixes - retries, retry_delay_seconds, flow_run_name by @NodeJSmith in https://github.com/PrefectHQ/prefect/pull/12020
+
 ### Experimental
 * Add support for multiple schedules to Prefect server and CLI by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/11971
 * Ensure paused and is_schedule_active stay in sync through updates/upserts by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12041
 * Remove scheduled flow runs when updating/removing schedules by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12048
 * Move validator logic to API endpoint to avoid issue with legacy client detection by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12056
 * Update multiple schedules error to say you can update your client by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12061
+
 ### Documentation
 * Improve language and formatting in Profiles and Configuration guide by @discdiver in https://github.com/PrefectHQ/prefect/pull/11996
 * Improves docs formatting consistency and adds some minor content updates by @discdiver in https://github.com/PrefectHQ/prefect/pull/12004
@@ -23,6 +26,7 @@
 * [docs] add deep dive on overriding job variables by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12033
 * Remove extraneous trailing quotation marks in concepts/artifacts docs by @collincchoy in https://github.com/PrefectHQ/prefect/pull/12040
 * Adds links to overriding job variables guide by @discdiver in https://github.com/PrefectHQ/prefect/pull/12043
+
 ### Uncategorized
 * disable telemetry for integration tests server by @hamzamogni in https://github.com/PrefectHQ/prefect/pull/12000
 * Switching to the astral-sh pre-commit hook by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12005
