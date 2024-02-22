@@ -45,7 +45,7 @@ Currently, you can render three artifact types: links, Markdown, and tables.
 
 To create a link artifact, use the `create_link_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run.
 
 ```python
 from prefect import flow, task
@@ -112,7 +112,7 @@ An optional `description` could also be added for context.
 
 To create a Markdown artifact, you can use the `create_markdown_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run.
 
 !!! warning "Don't indent Markdown"
     Markdown in mult-line strings must be unindented to be interpreted correctly.
@@ -178,7 +178,7 @@ As with all artifacts, you'll be able to view the associated flow run or task ru
 
 You can create a table artifact by calling `create_table_artifact()`.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run.
 
 !!! note
     The `create_table_artifact()` function accepts a `table` argument, which can be provided as either a list of lists, a list of dictionaries, or a dictionary of lists.
