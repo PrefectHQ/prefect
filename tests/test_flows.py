@@ -1089,6 +1089,30 @@ class TestSubflowCalls:
             child_flow_run.id == child_flow_run_id
         ), "The server subflow run id matches the client"
 
+    async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
+        we discovered that a sync flow running an async flow that awaits `.result()`
+        on a submitted task's future can hang indefinitely.
+        """
+
+        @task
+        async def some_async_task():
+            return 42
+
+        @flow
+        async def integrations_flow():
+            future = await some_async_task.submit()
+            return await future.result()
+
+        @flow
+        def sync_flow():
+            return integrations_flow()
+
+        result = sync_flow()
+
+        assert result == 42
+
 
 class TestFlowRunTags:
     async def test_flow_run_tags_added_at_call(self, prefect_client):
