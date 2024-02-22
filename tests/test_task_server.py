@@ -127,6 +127,25 @@ async def test_handle_sigterm(mock_create_subscription):
         mock_stop.assert_called_once()
 
 
+async def test_client_id_not_set_for_open_source():
+    with patch("socket.gethostname", return_value="foo"), patch(
+        "os.getpid", return_value=42
+    ):
+        task_server = TaskServer(...)
+
+        assert task_server._client_id is None
+
+
+async def test_client_id_set_for_cloud():
+    with patch("socket.gethostname", return_value="foo"), patch(
+        "os.getpid", return_value=42
+    ):
+        task_server = TaskServer(...)
+        task_server._client = MagicMock(api_url="https://api.prefect.cloud")
+
+        assert task_server._client_id == "foo-42"
+
+
 @pytest.mark.usefixtures("mock_task_server_start")
 class TestServe:
     async def test_serve_raises_if_task_scheduling_not_enabled(self, foo_task):
