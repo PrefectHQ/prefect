@@ -178,7 +178,9 @@ async def update_deployment(
 
         update_data = deployment.dict(exclude_unset=True)
 
-        if "schedule" in update_data or "is_schedule_active" in update_data:
+        if (
+            "schedule" in update_data or "is_schedule_active" in update_data
+        ) and "paused" not in update_data:
             if len(existing_deployment.schedules) > 1:
                 raise _multiple_schedules_error(deployment_id)
 
