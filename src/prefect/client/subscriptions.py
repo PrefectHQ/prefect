@@ -1,5 +1,5 @@
 import asyncio
-from typing import Generic, List, Type, TypeVar
+from typing import Generic, List, Optional, Type, TypeVar
 
 import orjson
 import websockets
@@ -17,9 +17,15 @@ S = TypeVar("S", bound=IDBaseModel)
 
 
 class Subscription(Generic[S]):
-    def __init__(self, model: Type[S], path: str, keys: List[str]):
+    def __init__(
+        self,
+        model: Type[S],
+        path: str,
+        keys: List[str],
+        client_id: Optional[str] = None,
+    ):
         self.model = model
-
+        self.client_id = client_id
         base_url = PREFECT_API_URL.value().replace("http", "ws", 1)
         self.subscription_url = f"{base_url}{path}"
 
@@ -68,9 +74,11 @@ class Subscription(Generic[S]):
             auth = orjson.loads(await websocket.recv())
             assert auth["type"] == "auth_success"
 
-            await websocket.send(
-                orjson.dumps({"type": "subscribe", "keys": self.keys}).decode()
-            )
+            message = {"type": "subscribe", "keys": self.keys} | {
+                **(dict(client_id=self.client_id) if self.client_id else {})
+            }
+
+            await websocket.send(orjson.dumps(message).decode())
         except (
             AssertionError,
             websockets.exceptions.ConnectionClosedError,

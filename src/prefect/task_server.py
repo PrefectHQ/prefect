@@ -1,6 +1,8 @@
 import asyncio
 import inspect
+import os
 import signal
+import socket
 import sys
 from contextlib import AsyncExitStack
 from functools import partial
@@ -83,6 +85,10 @@ class TaskServer:
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
+    @property
+    def _client_id(self) -> str:
+        return f"{socket.gethostname()}-{os.getpid()}"
+
     def handle_sigterm(self, signum, frame):
         """
         Shuts down the task server when a SIGTERM is received.
@@ -118,9 +124,10 @@ class TaskServer:
 
     async def _subscribe_to_task_scheduling(self):
         async for task_run in Subscription(
-            TaskRun,
-            "/task_runs/subscriptions/scheduled",
-            [task.task_key for task in self.tasks],
+            model=TaskRun,
+            path="/task_runs/subscriptions/scheduled",
+            keys=[task.task_key for task in self.tasks],
+            client_id=self._client_id,
         ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             await self._submit_scheduled_task_run(task_run)
