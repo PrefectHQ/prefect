@@ -17,6 +17,7 @@ import pendulum
 import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, parse_obj_as, validator
@@ -27,7 +28,11 @@ from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
-from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
+from prefect.client.schemas.objects import (
+    DEFAULT_AGENT_WORK_POOL_NAME,
+    DeploymentSchedule,
+    FlowRun,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
@@ -379,6 +384,7 @@ class Deployment(BaseModel):
             "tags",
             "parameters",
             "schedule",
+            "schedules",
             "is_schedule_active",
             "infra_overrides",
         ]
@@ -459,6 +465,17 @@ class Deployment(BaseModel):
             ] = self.infrastructure.get_block_type_slug()
         return all_fields
 
+    @classmethod
+    def _validate_schedule(cls, value):
+        if value:
+            rrule_value = getattr(value, "rrule", None)
+            if rrule_value and "COUNT" in rrule_value.upper():
+                raise ValueError(
+                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
+                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
+                    " number of flow runs."
+                )
+
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
     description: Optional[str] = Field(
@@ -472,6 +489,10 @@ class Deployment(BaseModel):
         description="One of more tags to apply to this deployment.",
     )
     schedule: SCHEDULE_TYPES = None
+    schedules: List[DeploymentScheduleCreate] | List[DeploymentSchedule] = Field(
+        default_factory=list,
+        description="The schedules to run this deployment on.",
+    )
     is_schedule_active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
@@ -589,13 +610,14 @@ class Deployment(BaseModel):
     def validate_schedule(cls, value):
         """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
         if value:
-            rrule_value = getattr(value, "rrule", None)
-            if rrule_value and "COUNT" in rrule_value.upper():
-                raise ValueError(
-                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
-                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
-                    " number of flow runs."
-                )
+            cls._validate_schedule(value)
+        return value
+
+    @validator("schedules")
+    def validate_schedules(cls, value):
+        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
+        for schedule in value:
+            cls._validate_schedule(schedule.schedule)
         return value
 
     @classmethod
@@ -784,6 +806,11 @@ class Deployment(BaseModel):
                     res.id, concurrency_limit=work_queue_concurrency
                 )
 
+            schedules = [
+                DeploymentScheduleCreate(**schedule.dict())
+                for schedule in self.schedules
+            ]
+
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
             deployment_id = await client.create_deployment(
@@ -793,6 +820,7 @@ class Deployment(BaseModel):
                 work_pool_name=self.work_pool_name,
                 version=self.version,
                 schedule=self.schedule,
+                schedules=schedules,
                 is_schedule_active=self.is_schedule_active,
                 parameters=self.parameters,
                 description=self.description,
