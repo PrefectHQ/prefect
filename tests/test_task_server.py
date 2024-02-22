@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from prefect import task
-from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import MissingResult
@@ -119,12 +118,20 @@ async def test_handle_sigterm(mock_create_subscription):
 
         mock_create_subscription.assert_called_once()
 
-        await from_async.call_in_new_thread(
-            create_call(task_server.handle_sigterm, signal.SIGTERM, None)
-        )
+        task_server.handle_sigterm(signal.SIGTERM, None)
 
         mock_exit.assert_called_once_with(0)
         mock_stop.assert_called_once()
+
+
+async def test_task_server_client_id_is_set():
+    with patch("socket.gethostname", return_value="foo"), patch(
+        "os.getpid", return_value=42
+    ):
+        task_server = TaskServer(...)
+        task_server._client = MagicMock(api_url="http://localhost:4200")
+
+        assert task_server._client_id == "foo-42"
 
 
 @pytest.mark.usefixtures("mock_task_server_start")

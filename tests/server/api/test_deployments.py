@@ -1070,6 +1070,47 @@ class TestCreateDeployment:
         )
         assert response.status_code == 201
 
+    async def test_can_pause_deployment_by_upserting_is_schedule_active_legacy_client_support(
+        self,
+        client,
+        deployment,
+    ):
+        assert deployment.paused is False
+
+        data = DeploymentCreate(  # type: ignore
+            name=deployment.name,
+            flow_id=deployment.flow_id,
+            manifest_path="file.json",
+            is_schedule_active=False,
+        ).dict(json_compatible=True)
+
+        # Imitate a legacy client that does not support the `paused` field
+        del data["paused"]
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200
+        assert response.json()["paused"] is True
+        assert response.json()["is_schedule_active"] is False
+
+    async def test_can_pause_deployment_by_upserting_paused(
+        self,
+        client,
+        deployment,
+    ):
+        assert deployment.paused is False
+
+        data = DeploymentCreate(  # type: ignore
+            name=deployment.name,
+            flow_id=deployment.flow_id,
+            manifest_path="file.json",
+            paused=True,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200
+        assert response.json()["paused"] is True
+        assert response.json()["is_schedule_active"] is False
+
 
 class TestReadDeployment:
     async def test_read_deployment(
@@ -1611,6 +1652,44 @@ class TestUpdateDeployment:
         response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
         assert response.status_code == 422
         assert b"multiple schedules" in response.content
+
+    async def test_can_pause_deployment_by_updating_is_schedule_active(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        assert deployment.paused is False
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"is_schedule_active": False}
+        )
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+
+        assert deployment
+        assert deployment.paused is True
+        assert deployment.is_schedule_active is False
+
+    async def test_can_pause_deployment_by_updating_paused(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        assert deployment.paused is False
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"paused": True}
+        )
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+
+        assert deployment
+        assert deployment.paused is True
+        assert deployment.is_schedule_active is False
 
 
 class TestGetScheduledFlowRuns:

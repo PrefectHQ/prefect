@@ -6,7 +6,6 @@ coolname >= 1.0.4, < 3.0.0
 croniter >= 1.0.12, < 3.0.0
 fsspec >= 2022.5.0
 graphviz >= 0.20.1
-greenback >= 1.2.0
 griffe >= 0.20.0
 httpcore >=0.15.0, < 2.0.0
 httpx[http2] >= 0.23, != 0.23.2
