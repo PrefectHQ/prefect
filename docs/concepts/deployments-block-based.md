@@ -467,6 +467,7 @@ When applied, this deployment will start a flow run upon the completion of the u
 
 
 ### Create a flow run with Prefect UI
+
 In the Prefect UI, you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
 The `prefect deployment` CLI command provides commands for managing and running deployments locally.
@@ -481,7 +482,11 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `pause-schedule`  | Pause schedule of a given deployment.                           |
 | `resume-schedule` | Resume schedule of a given deployment.                          |
 | `run`             | Create a flow run for the given flow and deployment.            |
+| `schedule`        | Commands for interacting with your deployment's schedules.      |
 | `set-schedule`    | Set schedule for a given deployment.                            |
+
+!!! warning "Deprecated Schedule Commands"
+The pause-schedule, resume-schedule, and set-schedule commands are deprecated due to the introduction of multi-schedule support for deployments. Use the new `prefect deployment schedule` command for enhanced flexibility and control over your deployment schedules.
 
 ### Create a flow run in a Python script 
 
