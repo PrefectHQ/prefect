@@ -46,13 +46,15 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
-from prefect.logging.loggers import flow_run_logger
+from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
+
+logger = get_logger("deployments")
 
 
 @sync_compatible
@@ -220,7 +222,7 @@ async def load_flow_from_flow_run(
     is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
-    logger = flow_run_logger(flow_run)
+    run_logger = flow_run_logger(flow_run)
 
     runner_storage_base_path = storage_base_path or os.environ.get(
         "PREFECT__STORAGE_BASE_PATH"
@@ -246,18 +248,18 @@ async def load_flow_from_flow_run(
             if runner_storage_base_path and deployment.path
             else deployment.path
         )
-        logger.info(f"Downloading flow code from storage at {from_path!r}")
+        run_logger.info(f"Downloading flow code from storage at {from_path!r}")
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
-            logger.debug(f"Changing working directory to {output['directory']!r}")
+            run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    logger.debug(f"Importing flow code from '{import_path}'")
+    run_logger.debug(f"Importing flow code from '{import_path}'")
 
     # for backwards compat
     if deployment.manifest_path:
@@ -310,8 +312,9 @@ class Deployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags
             are used only for organizational purposes. For delegating work to agents,
             see `work_queue_name`.
-        schedule: A schedule to run this deployment on, once registered
-        is_schedule_active: Whether or not the schedule is active
+        schedule: A schedule to run this deployment on, once registered (deprecated)
+        is_schedule_active: Whether or not the schedule is active (deprecated)
+        schedules: A list of schedules to run this deployment on
         work_queue_name: The work queue that will handle this deployment's runs
         work_pool_name: The work pool for the deployment
         flow_name: The name of the flow this deployment encapsulates
@@ -611,6 +614,21 @@ class Deployment(BaseModel):
         """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
         if value:
             cls._validate_schedule(value)
+
+        logger.warning(
+            "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
+            "available after Sep 2024. Define schedules in the `schedules` list instead."
+        )
+        return value
+
+    @validator("is_schedule_active")
+    def validate_is_schedule_active(cls, value):
+        logger.warning(
+            "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
+            " not be available after Sep 2024. Use the `active` flag within a schedule in "
+            "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
+            "all schedules."
+        )
         return value
 
     @validator("schedules")
@@ -815,10 +833,23 @@ class Deployment(BaseModel):
                     res.id, concurrency_limit=work_queue_concurrency
                 )
 
-            schedules = [
-                DeploymentScheduleCreate(**schedule.dict())
-                for schedule in self.schedules
-            ]
+            if self.schedule:
+                logger.info(
+                    "Interpreting the deprecated `schedule` field as an entry in "
+                    "`schedules`."
+                )
+                schedules = [
+                    DeploymentScheduleCreate(
+                        schedule=self.schedule, active=self.is_schedule_active
+                    )
+                ]
+            elif self.schedules:
+                schedules = [
+                    DeploymentScheduleCreate(**schedule.dict())
+                    for schedule in self.schedules
+                ]
+            else:
+                schedules = None
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
@@ -828,7 +859,6 @@ class Deployment(BaseModel):
                 work_queue_name=self.work_queue_name,
                 work_pool_name=self.work_pool_name,
                 version=self.version,
-                schedule=self.schedule,
                 schedules=schedules,
                 is_schedule_active=self.is_schedule_active,
                 parameters=self.parameters,
