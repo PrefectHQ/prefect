@@ -112,7 +112,7 @@ def docker_client() -> Generator["DockerClient", None, None]:
             yield client
     except docker.errors.DockerException as exc:
         raise RuntimeError(
-            "This error is likely caused because Docker is not running. Please start Docker and rerun your code."
+            "This error is often thrown because Docker is not running. Please ensure Docker is running."
         ) from exc
     finally:
         client is not None and client.close()
