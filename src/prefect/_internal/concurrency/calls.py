@@ -33,8 +33,13 @@ from prefect._internal.concurrency.event_loop import get_running_loop
 T = TypeVar("T")
 P = ParamSpec("P")
 
-
-# Tracks the current call being executed
+# Tracks the current call being executed. Note that storing the `Call`
+# object for an async call directly in the contextvar appears to create a
+# memory leak, despite the fact that we `reset` when leaving the context
+# that sets this contextvar. A weakref avoids the leak and works because a)
+# we already have strong references to the `Call` objects in other places
+# and b) this is used for performance optimizations where we have fallback
+# behavior if this weakref is garbage collected.
 current_call: contextvars.ContextVar["weakref.ref[Call]"] = contextvars.ContextVar(
     "current_call"
 )
@@ -187,6 +192,10 @@ class Future(concurrent.futures.Future):
             self = None
 
     def _invoke_callbacks(self):
+        """
+        Invoke our done callbacks and clean up cancel scopes and cancel callbacks.
+        Fixes a memory leak preventing garbage collection.
+        """
         if self._done_callbacks:
             done_callbacks = self._done_callbacks[:]
             self._done_callbacks[:] = []
