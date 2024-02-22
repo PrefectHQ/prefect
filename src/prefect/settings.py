@@ -1431,11 +1431,15 @@ PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
 The maximum number of retries to queue for submission.
 """
 
+PREFECT_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
+"""
+Whether or not to enable infrastructure overrides made on flow runs.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
 """
-
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
