@@ -1436,6 +1436,11 @@ PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=Fal
 Whether or not to enable infrastructure overrides made on flow runs.
 """
 
+PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=True)
+"""
+Whether or not to warn infrastructure when experimental flow runs overrides are used.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
