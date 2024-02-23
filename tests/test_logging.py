@@ -30,6 +30,7 @@ from prefect.logging.configuration import (
     load_logging_config,
     setup_logging,
 )
+from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
@@ -45,6 +46,7 @@ from prefect.logging.loggers import (
 )
 from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
+    PREFECT_API_KEY,
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_MARKUP,
@@ -58,6 +60,7 @@ from prefect.settings import (
 )
 from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.names import obfuscate
 
 
 @pytest.fixture
@@ -1234,6 +1237,76 @@ class TestJsonFormatter:
         assert deserialized["exc_info"]["message"] == "test exception"
         assert deserialized["exc_info"]["traceback"] is not None
         assert len(deserialized["exc_info"]["traceback"]) > 0
+
+
+class TestObfuscateApiKeyFilter:
+    def test_filters_current_api_key(self):
+        with temporary_settings({PREFECT_API_KEY: "hi-hello-im-an-api-key"}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg="hi-hello-im-an-api-key",
+                args=None,
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+            assert "hi-hello-im-an-api-key" not in record.getMessage()
+            assert obfuscate("hi-hello-im-an-api-key") in record.getMessage()
+
+    def test_current_api_key_is_not_logged(self, caplog):
+        with temporary_settings({PREFECT_API_KEY: "hi-hello-im-an-api-key"}):
+            logger = get_logger("test")
+            logger.info("hi-hello-im-an-api-key")
+
+        assert "hi-hello-im-an-api-key" not in caplog.text
+        assert obfuscate("hi-hello-im-an-api-key") in caplog.text
+
+    def test_current_api_key_is_not_logged_from_flow(self, caplog):
+        with temporary_settings({PREFECT_API_KEY: "i-am-a-sneaky-little-api-key"}):
+
+            @flow
+            def test_flow():
+                logger = get_run_logger()
+                logger.info("i-am-a-sneaky-little-api-key")
+
+            test_flow()
+
+        assert "i-am-a-sneaky-little-api-key" not in caplog.text
+        assert obfuscate("i-am-a-sneaky-little-api-key") in caplog.text
+
+    def test_current_api_key_is_not_logged_from_flow_log_prints(self, caplog):
+        with temporary_settings({PREFECT_API_KEY: "i-am-a-sneaky-little-api-key"}):
+
+            @flow(log_prints=True)
+            def test_flow():
+                print("i-am-a-sneaky-little-api-key")
+
+            test_flow()
+
+        assert "i-am-a-sneaky-little-api-key" not in caplog.text
+        assert obfuscate("i-am-a-sneaky-little-api-key") in caplog.text
+
+    def test_current_api_key_is_not_logged_from_task(self, caplog):
+        with temporary_settings({PREFECT_API_KEY: "i-am-jacks-security-risk"}):
+
+            @task
+            def test_task():
+                logger = get_run_logger()
+                logger.info("i-am-bobs-security-risk")
+
+            @flow
+            def test_flow():
+                test_task()
+
+            test_flow()
+
+        assert "i-am-bobs-security-risk" not in caplog.text
+        assert obfuscate("i-am-bobs-security-risk") in caplog.text
 
 
 def test_log_in_flow(caplog):
