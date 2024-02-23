@@ -50,6 +50,7 @@ $ prefect deployment schedule ls happy-flow/my-deployment
 - Fix `Flow.with_options` logic for retries, retry_delay_seconds, flow_run_name — https://github.com/PrefectHQ/prefect/pull/12020
 - Fix memory leaks related to cancellation scopes and async contextvar usage — https://github.com/PrefectHQ/prefect/pull/12019
 - Revert the recent change that runs on the main thread while we investigate a concurrency issue — https://github.com/PrefectHQ/prefect/pull/12054
+- Add a more readable error if Docker is not running  — https://github.com/PrefectHQ/prefect/pull/12045
 
 ### Documentation
 - Improve language and formatting in Profiles and Configuration guide — https://github.com/PrefectHQ/prefect/pull/11996
@@ -63,9 +64,6 @@ $ prefect deployment schedule ls happy-flow/my-deployment
 
 ### Experimental
 - Only allow using `Task.submit()` for autonomous task submission — https://github.com/PrefectHQ/prefect/pull/12025
-
-### Uncategorized
-- Adding a more readable error if Docker is not running  — https://github.com/PrefectHQ/prefect/pull/12045
 
 ## New Contributors
 * @hamzamogni made their first contribution in https://github.com/PrefectHQ/prefect/pull/12000
