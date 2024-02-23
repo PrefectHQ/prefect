@@ -1,7 +1,5 @@
 # Prefect Release Notes
 
-<!-- Release notes generated using configuration in .github/release.yml at main -->
-
 ## Release 2.16.0
 
 ### 🕢 Deployments now support multiple schedules 🕐
