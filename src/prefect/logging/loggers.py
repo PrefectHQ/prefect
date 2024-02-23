@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Union
 
 import prefect
 from prefect.exceptions import MissingContextError
+from prefect.logging.filters import ObfuscateApiKeyFilter
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
@@ -73,7 +74,6 @@ def get_logger(name: str = None) -> logging.Logger:
     See `get_run_logger` for retrieving loggers for use within task or flow runs.
     By default, only run-related loggers are connected to the `APILogHandler`.
     """
-
     parent_logger = logging.getLogger("prefect")
 
     if name:
@@ -85,6 +85,10 @@ def get_logger(name: str = None) -> logging.Logger:
             logger = logging.getLogger(name)
     else:
         logger = parent_logger
+
+    # Prevent the current API key from being logged in plain text
+    obfuscate_api_key_filter = ObfuscateApiKeyFilter()
+    logger.addFilter(obfuscate_api_key_filter)
 
     return logger
 
