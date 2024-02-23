@@ -1,5 +1,82 @@
 # Prefect Release Notes
 
+## Release 2.16.0
+
+### 🕢 Deployments now support multiple schedules 🕐
+
+With today’s release, we’re excited to roll out initial support for using multiple schedules with Deployments! You can now use multiple schedules in the following ways:  
+ 
+- Specifying schedules in a Deployment YAML file
+- Creating Python-based Deployments with the `Deployment` class
+- New CLI commands: `prefect deployment schedule <create, delete, pause, resume, ls, clear>`
+- New UI components aware of multiple schedules
+
+Coming soon, we’ll round out support for multiple schedules in other areas, such as:
+
+- When running a flow with `flow.serve()` and `flow.deploy()`
+- When using `prefect deploy`
+
+The easiest way to get started with multiple schedules is to try out the new CLI commands:
+
+```shell
+$ prefect deployment schedule ls happy-flow/my-deployment
+                       Deployment Schedules
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ ID                                   ┃ Schedule        ┃ Active ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ c7d3ddc4-9a5a-4dec-bd59-eed282ae55d5 │ cron: 0 0 1 * 1 │ True   │
+└──────────────────────────────────────┴─────────────────┴────────┘
+
+$ prefect deployment schedule create happy-flow/my-deployment --interval 60
+Created deployment schedule!
+
+$ prefect deployment schedule ls happy-flow/my-deployment
+                         Deployment Schedules
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ ID                                   ┃ Schedule           ┃ Active ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 3638ed58-cab2-4462-a680-2f92fcf6c797 │ interval: 0:01:00s │ True   │
+│ c7d3ddc4-9a5a-4dec-bd59-eed282ae55d5 │ cron: 0 0 1 * 1    │ True   │
+└──────────────────────────────────────┴────────────────────┴────────┘
+```
+
+### Enhancements
+- Add support for deploying to a process work pool using `flow.deploy` and `deploy` — https://github.com/PrefectHQ/prefect/pull/12017
+- Add support for multiple schedules to Prefect server and CLI — https://github.com/PrefectHQ/prefect/pull/11971
+- Add CLI command to read runs in a work queue — https://github.com/PrefectHQ/prefect/pull/11989
+
+### Fixes
+- Update the text for the CLI command `deployment run --help` so it renders for more args — https://github.com/PrefectHQ/prefect/pull/11960
+- Fix `Flow.with_options` logic for retries, retry_delay_seconds, flow_run_name — https://github.com/PrefectHQ/prefect/pull/12020
+- Fix memory leaks related to cancellation scopes and async contextvar usage — https://github.com/PrefectHQ/prefect/pull/12019
+- Revert the recent change that runs on the main thread while we investigate a concurrency issue — https://github.com/PrefectHQ/prefect/pull/12054
+- Add a more readable error if Docker is not running  — https://github.com/PrefectHQ/prefect/pull/12045
+
+### Documentation
+- Improve language and formatting in Profiles and Configuration guide — https://github.com/PrefectHQ/prefect/pull/11996
+- Improves docs formatting consistency and adds some minor content updates — https://github.com/PrefectHQ/prefect/pull/12004
+- Updates formatting for guide: creating-interactive-workflows.md — https://github.com/PrefectHQ/prefect/pull/11991
+- Add import statement for `wait_for_flow_run` — https://github.com/PrefectHQ/prefect/pull/11999
+- Add deep dive on overriding job variables — https://github.com/PrefectHQ/prefect/pull/12033
+- Remove extraneous trailing quotation marks in concepts/artifacts docs — https://github.com/PrefectHQ/prefect/pull/12040
+- Add links to overriding job variables guide — https://github.com/PrefectHQ/prefect/pull/12043
+- Update scheduling docs to include information about multiple schedules — https://github.com/PrefectHQ/prefect/pull/12064
+
+### Experimental
+- Only allow using `Task.submit()` for autonomous task submission — https://github.com/PrefectHQ/prefect/pull/12025
+
+## New Contributors
+* @hamzamogni made their first contribution in https://github.com/PrefectHQ/prefect/pull/12000
+* @eladm26 made their first contribution in https://github.com/PrefectHQ/prefect/pull/12045
+* 
+### Contributors
+- @NodeJSmith
+- @eladm26
+- @hamzamogni
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.15.0...2.16.0
+
+
 ## Release 2.15.0
 
 ### 🔧 Task runs now execute on the main thread
