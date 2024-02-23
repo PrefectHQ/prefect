@@ -1241,63 +1241,68 @@ class TestJsonFormatter:
 
 class TestObfuscateApiKeyFilter:
     def test_filters_current_api_key(self):
-        with temporary_settings({PREFECT_API_KEY: "hi-hello-im-an-api-key"}):
+        test_api_key = "hi-hello-im-an-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
             filter = ObfuscateApiKeyFilter()
             record = logging.LogRecord(
                 name="Test Log",
                 level=1,
                 pathname="/path/file.py",
                 lineno=1,
-                msg="hi-hello-im-an-api-key",
+                msg=test_api_key,
                 args=None,
                 exc_info=None,
             )
 
             filter.filter(record)
 
-            assert "hi-hello-im-an-api-key" not in record.getMessage()
-            assert obfuscate("hi-hello-im-an-api-key") in record.getMessage()
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
 
     def test_current_api_key_is_not_logged(self, caplog):
-        with temporary_settings({PREFECT_API_KEY: "hi-hello-im-an-api-key"}):
+        test_api_key = "hot-dog-theres-a-logger-this-is-my-big-chance-for-stardom"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
             logger = get_logger("test")
-            logger.info("hi-hello-im-an-api-key")
+            logger.info(test_api_key)
 
-        assert "hi-hello-im-an-api-key" not in caplog.text
-        assert obfuscate("hi-hello-im-an-api-key") in caplog.text
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
 
     def test_current_api_key_is_not_logged_from_flow(self, caplog):
-        with temporary_settings({PREFECT_API_KEY: "i-am-a-sneaky-little-api-key"}):
+        test_api_key = "i-am-a-plaintext-api-key-and-i-dream-of-being-logged-one-day"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
 
             @flow
             def test_flow():
                 logger = get_run_logger()
-                logger.info("i-am-a-sneaky-little-api-key")
+                logger.info(test_api_key)
 
             test_flow()
 
-        assert "i-am-a-sneaky-little-api-key" not in caplog.text
-        assert obfuscate("i-am-a-sneaky-little-api-key") in caplog.text
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
 
     def test_current_api_key_is_not_logged_from_flow_log_prints(self, caplog):
-        with temporary_settings({PREFECT_API_KEY: "i-am-a-sneaky-little-api-key"}):
+        test_api_key = "i-am-a-sneaky-little-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
 
             @flow(log_prints=True)
             def test_flow():
-                print("i-am-a-sneaky-little-api-key")
+                print(test_api_key)
 
             test_flow()
 
-        assert "i-am-a-sneaky-little-api-key" not in caplog.text
-        assert obfuscate("i-am-a-sneaky-little-api-key") in caplog.text
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
 
     def test_current_api_key_is_not_logged_from_task(self, caplog):
-        with temporary_settings({PREFECT_API_KEY: "i-am-jacks-security-risk"}):
+        test_api_key = "i-am-jacks-security-risk"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
 
             @task
             def test_task():
                 logger = get_run_logger()
-                logger.info("i-am-bobs-security-risk")
+                logger.info(test_api_key)
 
             @flow
             def test_flow():
@@ -1305,8 +1310,8 @@ class TestObfuscateApiKeyFilter:
 
             test_flow()
 
-        assert "i-am-bobs-security-risk" not in caplog.text
-        assert obfuscate("i-am-bobs-security-risk") in caplog.text
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
 
 
 def test_log_in_flow(caplog):
