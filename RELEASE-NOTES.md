@@ -73,17 +73,8 @@ $ prefect deployment schedule ls happy-flow/my-deployment
 * 
 ### Contributors
 - @NodeJSmith
-- @abrookins
-- @brandonreid
-- @bunchesofdonald
-- @chrisguidry
-- @collincchoy
-- @desertaxle
-- @discdiver
 - @eladm26
 - @hamzamogni
-- @urimandujano
-- @zzstoatzz
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.15.0...2.16.0
 
