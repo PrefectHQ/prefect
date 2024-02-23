@@ -6,8 +6,8 @@
 
 ### 🕢 Deployments now support multiple schedules 🕐
 
-With today’s release, we’re excited to roll out initial support for using multiple schedules with Deployments! You can now use multiple schedules in the following ways:
-
+With today’s release, we’re excited to roll out initial support for using multiple schedules with Deployments! You can now use multiple schedules in the following ways:  
+ 
 - Specifying schedules in a Deployment YAML file
 - Creating Python-based Deployments with the `Deployment` class
 - New CLI commands: `prefect deployment schedule <create, delete, pause, resume, ls, clear>`
@@ -43,42 +43,31 @@ $ prefect deployment schedule ls happy-flow/my-deployment
 ```
 
 ### Enhancements
-- Allow deploying to process work pools with `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/12017
+- Add support for deploying to a process work pool using `flow.deploy` and `deploy` — https://github.com/PrefectHQ/prefect/pull/12017
 - Add support for multiple schedules to Prefect server and CLI — https://github.com/PrefectHQ/prefect/pull/11971
-- Ensure paused and is_schedule_active stay in sync through updates/upserts — https://github.com/PrefectHQ/prefect/pull/12041
-- Remove scheduled flow runs when updating/removing schedules — https://github.com/PrefectHQ/prefect/pull/12048
-- Move validator logic to API endpoint to avoid issue with legacy client detection — https://github.com/PrefectHQ/prefect/pull/12056
-- Update multiple schedules error to say you can update your client — https://github.com/PrefectHQ/prefect/pull/12061
+- Add CLI command to read runs in a work queue — https://github.com/PrefectHQ/prefect/pull/11989
 
 ### Fixes
-- Updates CLI `deployment run --help` text so it renders for more args — https://github.com/PrefectHQ/prefect/pull/11960
-- Flow `with_options` fixes - retries, retry_delay_seconds, flow_run_name — https://github.com/PrefectHQ/prefect/pull/12020
-- Fix memory leaks related to cancellation and anyio scopes, async contextvar usage — https://github.com/PrefectHQ/prefect/pull/12019
+- Update the text for the CLI command `deployment run --help` so it renders for more args — https://github.com/PrefectHQ/prefect/pull/11960
+- Fix `Flow.with_options` logic for retries, retry_delay_seconds, flow_run_name — https://github.com/PrefectHQ/prefect/pull/12020
+- Fix memory leaks related to cancellation scopes and async contextvar usage — https://github.com/PrefectHQ/prefect/pull/12019
+- Revert the recent change that runs on the main thread while we investigate a concurrency issue — https://github.com/PrefectHQ/prefect/pull/12054
 
 ### Documentation
 - Improve language and formatting in Profiles and Configuration guide — https://github.com/PrefectHQ/prefect/pull/11996
 - Improves docs formatting consistency and adds some minor content updates — https://github.com/PrefectHQ/prefect/pull/12004
 - Updates formatting for guide: creating-interactive-workflows.md — https://github.com/PrefectHQ/prefect/pull/11991
-- Docs: Add import statement for `wait_for_flow_run` — https://github.com/PrefectHQ/prefect/pull/11999
-- [docs] add deep dive on overriding job variables — https://github.com/PrefectHQ/prefect/pull/12033
+- Add import statement for `wait_for_flow_run` — https://github.com/PrefectHQ/prefect/pull/11999
+- Add deep dive on overriding job variables — https://github.com/PrefectHQ/prefect/pull/12033
 - Remove extraneous trailing quotation marks in concepts/artifacts docs — https://github.com/PrefectHQ/prefect/pull/12040
-- Adds links to overriding job variables guide — https://github.com/PrefectHQ/prefect/pull/12043
+- Add links to overriding job variables guide — https://github.com/PrefectHQ/prefect/pull/12043
 - Update scheduling docs to include information about multiple schedules — https://github.com/PrefectHQ/prefect/pull/12064
 
+### Experimental
+- Only allow using `Task.submit()` for autonomous task submission — https://github.com/PrefectHQ/prefect/pull/12025
+
 ### Uncategorized
-- disable telemetry for integration tests server — https://github.com/PrefectHQ/prefect/pull/12000
-- Switching to the astral-sh pre-commit hook — https://github.com/PrefectHQ/prefect/pull/12005
-- [task scheduling] add `TaskServer.execute_task_run` — https://github.com/PrefectHQ/prefect/pull/12002
-- Updates the contact info for our bug bounty program — https://github.com/PrefectHQ/prefect/pull/12016
-- Add CLI command to read runs in WQ — https://github.com/PrefectHQ/prefect/pull/11989
-- [task scheduling] unit test traditional task features — https://github.com/PrefectHQ/prefect/pull/12008
-- Disallow alternate task submission methods — https://github.com/PrefectHQ/prefect/pull/12025
-- Corrects a timing-dependent test for pushing Docker images — https://github.com/PrefectHQ/prefect/pull/12038
-- Chore: bump ui dependencies — https://github.com/PrefectHQ/prefect/pull/12039
-- Add experimental flag for enhanced scheduling UI — https://github.com/PrefectHQ/prefect/pull/12047
-- Adding a more readable error in case Docker not running  — https://github.com/PrefectHQ/prefect/pull/12045
-- [task scheduling] send up client id if cloud — https://github.com/PrefectHQ/prefect/pull/12049
-- Revert "Run tasks on the main thread (#11930)" — https://github.com/PrefectHQ/prefect/pull/12054
+- Adding a more readable error if Docker is not running  — https://github.com/PrefectHQ/prefect/pull/12045
 
 ## New Contributors
 * @hamzamogni made their first contribution in https://github.com/PrefectHQ/prefect/pull/12000
