@@ -11,10 +11,10 @@ search:
 
 # Quickstart
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale resilient code quickly, turning their python scripts into resilient, recurring workflows.
+Prefect is an orchestration and observability platform that empowers developers to build and scale resilient code quickly, turning their Python scripts into resilient, recurring workflows.
 
 In this quickstart, you'll see how you can schedule your code on remote infrastructure and observe the state of your workflows.
-With Prefect, you can go from a Python script to a production-ready workflow that runs remotely in minutes.
+With Prefect, you can go from a Python script to a production-ready workflow that runs remotely in a few minutes.
 
 Let's get started!
 
@@ -44,6 +44,7 @@ How can we make this script schedulable, observable, resilient, and capable of r
 pip install -U prefect
 ```
 
+Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.
 See the [install guide](/getting-started/installation/) for more detailed installation instructions, if needed.
 
 ## Step 2: Connect to Prefect's API
@@ -116,7 +117,7 @@ if __name__ == "__main__":
 ```
 
 Note that we added a `log_prints=True` argument to the `@flow` decorator so that `print` statements within the flow-decorated function will be logged.
-Also note that our flow calls two tasks, which are defined by the `task` decorator.
+Also note that our flow calls two tasks, which are defined by the `@task` decorator.
 Tasks are the smallest unit of observed and orchestrated work in Prefect.
 
 <div class="terminal">
