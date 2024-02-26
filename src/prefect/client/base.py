@@ -273,6 +273,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
         Send a request with automatic retry behavior for the following status codes:
 
         - 429 CloudFlare-style rate limiting
+        - 500 Internal server error
         - 502 Bad Gateway
         - 503 Service unavailable
         """
@@ -285,6 +286,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 status.HTTP_502_BAD_GATEWAY,
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
                 status.HTTP_408_REQUEST_TIMEOUT,
                 *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
