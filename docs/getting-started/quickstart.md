@@ -23,7 +23,7 @@ Let's get started!
 Here's a basic script that fetches statistics about the [main Prefect GitHub repository](https://github.com/PrefectHQ/prefect).
 
 ```python
-import httpx
+import httpx # an http client that comes with `pip install prefect`
 
 def get_repo_info():
     url = "https://api.github.com/repos/PrefectHQ/prefect"
