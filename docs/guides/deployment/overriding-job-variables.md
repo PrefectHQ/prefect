@@ -15,7 +15,7 @@ As described in the [Deploying Flows to Work Pools and Workers](/guides/prefect-
 
 **In both cases, you can override job variables on a work pool for a given deployment.**
 
-While exactly _which_ job variables are available to be overridden depend on the type of work pool you're using at a given time, this guide will explore some common patterns for overriding job variables in both deployment methods.
+While exactly _which_ job variables are available to be overridden depends on the type of work pool you're using at a given time, this guide will explore some common patterns for overriding job variables in both deployment methods.
 
 ## Background
 First of all, what are _"job variables"_?
