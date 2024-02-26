@@ -31,7 +31,8 @@ When a function becomes a flow, its behavior changes, giving it the following ad
 
 The simplest way to get started with Prefect is to annotate a Python function with the `@flow` decorator.
 The script below fetches statistics about the [main Prefect repository](https://github.com/PrefectHQ/prefect).
-Let's turn it into a Prefect flow and run it:
+Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.
+Let's turn this function into a Prefect flow and run the script:
 
 ```python title="repo_info.py" hl_lines="2 5"
 import httpx
