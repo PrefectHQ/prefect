@@ -44,7 +44,6 @@ How can we make this script schedulable, observable, resilient, and capable of r
 pip install -U prefect
 ```
 
-Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.
 See the [install guide](/getting-started/installation/) for more detailed installation instructions, if needed.
 
 ## Step 2: Connect to Prefect's API
@@ -75,7 +74,7 @@ The fastest way to get started with Prefect is to add a `@flow` decorator to you
 [Flows](/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
 ```python hl_lines="2 5" title="my_gh_workflow.py"
-import httpx
+import httpx   # an HTTP client library and dependency of Prefect
 from prefect import flow, task
 
 
