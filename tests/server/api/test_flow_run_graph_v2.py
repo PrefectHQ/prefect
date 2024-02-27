@@ -275,6 +275,7 @@ async def test_reading_graph_for_flow_run_with_flat_tasks(
                 ),
                 parents=[],
                 children=[],
+                artifacts=[],
             ),
         )
         for task_run in flat_tasks
@@ -407,6 +408,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -422,6 +424,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -437,6 +440,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -452,6 +456,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -468,6 +473,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                     Edge(id=linked_tasks[1].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
         (
@@ -484,6 +490,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                     Edge(id=linked_tasks[3].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
     ]
@@ -536,6 +543,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -551,6 +559,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -566,6 +575,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -581,6 +591,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -597,6 +608,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                     Edge(id=linked_tasks[1].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
         (
@@ -613,6 +625,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                     Edge(id=linked_tasks[3].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
     ]
@@ -668,6 +681,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -683,6 +697,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -701,6 +716,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                     Edge(id=linked_tasks[1].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
         (
@@ -717,6 +733,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                     Edge(id=linked_tasks[3].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
     ]
@@ -789,6 +806,7 @@ async def test_reading_graph_with_subflow_run(
                 end_time=subflow_run.end_time,
                 parents=[],
                 children=[],
+                artifacts=[],
             ),
         )
     ]
@@ -830,6 +848,7 @@ async def test_reading_graph_with_unstarted_subflow_run(
                 end_time=subflow_run.end_time,
                 parents=[],
                 children=[],
+                artifacts=[],
             ),
         )
     ]
@@ -1063,6 +1082,7 @@ def graph() -> Graph:
         end_time=pendulum.datetime(2023, 6, 4),
         root_node_ids=[],
         nodes=[],
+        artifacts=[],
     )
 
 

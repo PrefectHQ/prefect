@@ -539,6 +539,17 @@ class BaseQueryComponents(ABC):
         """Returns the query that selects all of the nodes and edges for a flow run graph (version 2)."""
         ...
 
+    # async def _get_flow_run_graph_artifacts(
+    #     self,
+    #     session: AsyncSession,
+    #     flow_run_id: UUID,
+    # ) -> :
+    #     """Get the artifacts for a flow run grouped by task run id.
+
+    #     Does not recurse into subflows.
+    #     Artifacts for the flow run without a task run id are grouped under None.
+    #     """
+
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
@@ -839,6 +850,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         end_time=row.end_time,
                         parents=[Edge(id=id) for id in row.parent_ids or []],
                         children=[Edge(id=id) for id in row.child_ids or []],
+                        artifacts=[],
                     ),
                 )
             )
@@ -854,6 +866,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             end_time=end_time,
             root_node_ids=root_node_ids,
             nodes=nodes,
+            artifacts=[],
         )
 
 
@@ -1285,6 +1298,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         end_time=time(row.end_time),
                         parents=edges(row.parent_ids),
                         children=edges(row.child_ids),
+                        artifacts=[],
                     ),
                 )
             )
@@ -1300,4 +1314,5 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             end_time=end_time,
             root_node_ids=root_node_ids,
             nodes=nodes,
+            artifacts=[],
         )
