@@ -742,7 +742,7 @@ class TestDeploymentApply:
         )
         assert dep.schedules[0].active is True
 
-    async def test_deployment_apply_clears_multiple_schedules(
+    async def test_deployment_build_from_flow_clears_multiple_schedules(
         self,
         patch_import,
         flow_function,
