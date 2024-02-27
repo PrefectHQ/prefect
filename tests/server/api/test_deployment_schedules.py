@@ -358,7 +358,7 @@ class TestDeleteDeploymentSchedule:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert b"Schedule" in response.content
 
-    async def test_does_not_reschedule_runs_no_active_schedules(
+    async def test_deletes_schedule_runs(
         self,
         db: PrefectDBInterface,
         session: AsyncSession,
