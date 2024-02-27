@@ -1024,16 +1024,18 @@ class TestAPICompatibility:
             await test_block.load("blocky")
 
     def test_save_block_from_flow(self):
+        block_name = f"test-{uuid4()}"
+
         class Test(Block):
             a: str
 
         @prefect.flow
         def save_block_flow():
-            Test(a="foo").save("test")
+            Test(a="foo").save(block_name)
 
         save_block_flow()
 
-        block = Test.load("test")
+        block = Test.load(block_name)
         assert block.a == "foo"
 
     async def test_save_protected_block_with_new_block_schema_version(self, session):
@@ -1041,6 +1043,7 @@ class TestAPICompatibility:
         This testcase would fail when block protection was enabled for block type
         updates and block schema creation.
         """
+        block_name = f"test-{uuid4()}"
         await models.block_registration.run_block_auto_registration(session=session)
         await session.commit()
 
@@ -1050,7 +1053,7 @@ class TestAPICompatibility:
 
         JSON._block_schema_version = mock_version
 
-        block_document_id = await JSON(value={"the_answer": 42}).save("test")
+        block_document_id = await JSON(value={"the_answer": 42}).save(block_name)
 
         block_document = await models.block_documents.read_block_document_by_id(
             session=session, block_document_id=block_document_id
@@ -1063,11 +1066,14 @@ class TestRegisterBlockTypeAndSchema:
         a: str
         b: str
         c: int
+        _block_type_slug = f"new-block-{uuid4()}"
 
     async def test_register_type_and_schema(self, prefect_client: PrefectClient):
         await self.NewBlock.register_type_and_schema()
 
-        block_type = await prefect_client.read_block_type_by_slug(slug="newblock")
+        block_type = await prefect_client.read_block_type_by_slug(
+            slug=self.NewBlock._block_type_slug
+        )
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
@@ -1084,7 +1090,9 @@ class TestRegisterBlockTypeAndSchema:
         await self.NewBlock.register_type_and_schema()
         await self.NewBlock.register_type_and_schema()
 
-        block_type = await prefect_client.read_block_type_by_slug(slug="newblock")
+        block_type = await prefect_client.read_block_type_by_slug(
+            slug=self.NewBlock._block_type_slug
+        )
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
@@ -1322,16 +1330,10 @@ class TestRegisterBlockTypeAndSchema:
 
 
 class TestSaveBlock:
-    @pytest.fixture
-    def NewBlock(self):
-        # Ignore warning caused by matching key in registry due to block fixture
-        warnings.filterwarnings("ignore", category=UserWarning)
-
-        class NewBlock(Block):
-            a: str
-            b: str
-
-        return NewBlock
+    class NewBlock(Block):
+        a: str
+        b: str
+        _block_type_slug = f"new-block-{uuid4()}"
 
     @pytest.fixture
     def InnerBlock(self):
@@ -1348,8 +1350,8 @@ class TestSaveBlock:
 
         return OuterBlock
 
-    async def test_save_block(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar")
+    async def test_save_block(self):
+        new_block = self.NewBlock(a="foo", b="bar")
         new_block_name = "my-block"
         await new_block.save(new_block_name)
 
@@ -1368,8 +1370,8 @@ class TestSaveBlock:
 
         assert loaded_new_block == new_block
 
-    async def test_save_block_with_name_inferred_from_loaded_document(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar")
+    async def test_save_block_with_name_inferred_from_loaded_document(self):
+        new_block = self.NewBlock(a="foo", b="bar")
 
         with pytest.raises(
             ValueError,
@@ -1379,23 +1381,25 @@ class TestSaveBlock:
 
         await new_block.save("new-block")
 
-        new_python_instance = await NewBlock.load("new-block")
+        new_python_instance = await self.NewBlock.load("new-block")
         new_python_instance.a = "baz"
         await new_python_instance.save(overwrite=True)
 
-        loaded_new_block = await NewBlock.load("new-block")
+        loaded_new_block = await self.NewBlock.load("new-block")
         assert loaded_new_block.a == "baz"
         assert loaded_new_block.b == "bar"
 
-    async def test_save_anonymous_block(self, NewBlock):
-        new_anon_block = NewBlock(a="foo", b="bar")
+    async def test_save_anonymous_block(self):
+        new_anon_block = self.NewBlock(a="foo", b="bar")
         await new_anon_block._save(is_anonymous=True)
 
         assert new_anon_block._block_document_name is not None
         assert new_anon_block._block_document_id is not None
         assert new_anon_block._is_anonymous
 
-        loaded_new_anon_block = await NewBlock.load(new_anon_block._block_document_name)
+        loaded_new_anon_block = await self.NewBlock.load(
+            new_anon_block._block_document_name
+        )
 
         assert (
             loaded_new_anon_block._block_document_name
@@ -1412,16 +1416,14 @@ class TestSaveBlock:
 
         assert loaded_new_anon_block == new_anon_block
 
-    async def test_save_anonymous_block_more_than_once_creates_two_blocks(
-        self, NewBlock
-    ):
-        new_anon_block = NewBlock(a="foo", b="bar")
+    async def test_save_anonymous_block_more_than_once_creates_two_blocks(self):
+        new_anon_block = self.NewBlock(a="foo", b="bar")
         first_id = await new_anon_block._save(is_anonymous=True)
         second_id = await new_anon_block._save(is_anonymous=True)
         assert first_id != second_id
 
-    async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar")
+    async def test_save_throws_on_mismatched_kwargs(self):
+        new_block = self.NewBlock(a="foo", b="bar")
         with pytest.raises(
             ValueError,
             match="You're attempting to save a block document without a name.",
@@ -1664,19 +1666,21 @@ class TestSaveBlock:
         assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
     async def test_save_block_with_overwrite(self, InnerBlock):
+        block_name = f"my-inner-block-{uuid4()}"
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        await inner_block.save(block_name)
 
         inner_block.size = 2
-        await inner_block.save("my-inner-block", overwrite=True)
+        await inner_block.save(block_name, overwrite=True)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 2
         assert loaded_inner_block == inner_block
 
     async def test_save_block_without_overwrite_raises(self, InnerBlock):
+        block_name = f"my-inner-block-{uuid4()}"
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        await inner_block.save(block_name)
 
         inner_block.size = 2
 
@@ -1687,53 +1691,59 @@ class TestSaveBlock:
                 "use for this block type"
             ),
         ):
-            await inner_block.save("my-inner-block")
+            await inner_block.save(block_name)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 1
 
     async def test_update_from_loaded_block(self, InnerBlock):
+        block_name = f"my-inner-block-{uuid4()}"
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        await inner_block.save(block_name)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 2
-        await loaded_inner_block.save("my-inner-block", overwrite=True)
+        await loaded_inner_block.save(block_name, overwrite=True)
 
-        loaded_inner_block_after_update = await InnerBlock.load("my-inner-block")
+        loaded_inner_block_after_update = await InnerBlock.load(block_name)
         assert loaded_inner_block == loaded_inner_block_after_update
 
     async def test_update_from_in_memory_block(self, InnerBlock):
+        block_name = f"my-inner-block-{uuid4()}"
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        await inner_block.save(block_name)
 
         updated_inner_block = InnerBlock(size=2)
-        await updated_inner_block.save("my-inner-block", overwrite=True)
+        await updated_inner_block.save(block_name, overwrite=True)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 2
 
         assert loaded_inner_block == updated_inner_block
 
     async def test_update_block_with_secrets(self):
+        block_name = f"my-shifty-block-{uuid4()}"
+
         class HasSomethingToHide(Block):
             something_to_hide: SecretStr
 
         shifty_block = HasSomethingToHide(something_to_hide="a surprise birthday party")
-        await shifty_block.save("my-shifty-block")
+        await shifty_block.save(block_name)
 
         updated_shifty_block = HasSomethingToHide(
             something_to_hide="a birthday present"
         )
-        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+        await updated_shifty_block.save(block_name, overwrite=True)
 
-        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        loaded_shifty_block = await HasSomethingToHide.load(block_name)
         assert (
             loaded_shifty_block.something_to_hide.get_secret_value()
             == "a birthday present"
         )
 
     async def test_update_block_with_secret_dict(self):
+        block_name = f"my-shifty-block-{uuid4()}"
+
         class HasSomethingToHide(Block):
             something_to_hide: SecretDict
 
@@ -1742,14 +1752,14 @@ class TestSaveBlock:
                 "what I'm hiding": "a surprise birthday party",
             }
         )
-        await shifty_block.save("my-shifty-block")
+        await shifty_block.save(block_name)
 
         updated_shifty_block = HasSomethingToHide(
             something_to_hide={"what I'm hiding": "a birthday present"}
         )
-        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+        await updated_shifty_block.save(block_name, overwrite=True)
 
-        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        loaded_shifty_block = await HasSomethingToHide.load(block_name)
         assert loaded_shifty_block.something_to_hide.get_secret_value() == {
             "what I'm hiding": "a birthday present"
         }
@@ -2141,44 +2151,48 @@ class TestSyncCompatible:
         assert loaded_block.cool_factor == 1000000
 
     def test_block_in_flow_sync_test_sync_flow(self):
-        CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.flow
         def my_flow():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         result = my_flow()
         assert result == 1000000
 
     async def test_block_in_flow_async_test_sync_flow(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.flow
         def my_flow():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         result = my_flow()
         assert result == 1000000
 
     async def test_block_in_flow_async_test_async_flow(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.flow
         async def my_flow():
-            loaded_block = await CoolBlock.load("blk")
+            loaded_block = await CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         result = await my_flow()
         assert result == 1000000
 
     def test_block_in_task_sync_test_sync_flow(self):
-        CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.task
         def my_task():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         @prefect.flow()
@@ -2189,11 +2203,12 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_sync_task(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.task
         def my_task():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         @prefect.flow()
@@ -2204,11 +2219,12 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_async_task(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.task
         async def my_task():
-            loaded_block = await CoolBlock.load("blk")
+            loaded_block = await CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         @prefect.flow()
@@ -2313,13 +2329,15 @@ class TestTypeDispatch:
         assert block == block_copy
 
     async def test_created_block_can_be_saved(self):
+        block_name = f"test-{uuid4()}"
         block = BaseBlock.parse_obj(AChildBlock().dict())
-        assert await block.save("test")
+        assert await block.save(block_name)
 
     async def test_created_block_can_be_saved_then_loaded(self):
+        block_name = f"test-{uuid4()}"
         block = BaseBlock.parse_obj(AChildBlock().dict())
-        await block.save("test")
-        new_block = await block.load("test")
+        await block.save(block_name)
+        new_block = await block.load(block_name)
         assert block == new_block
         assert new_block.__fields_set__
 
@@ -2375,6 +2393,8 @@ class TestTypeDispatch:
 
 class TestBlockSchemaMigration:
     def test_schema_mismatch_with_validation_raises(self):
+        block_name = f"test-{uuid4()}"
+
         class A(Block):
             _block_type_name = "a"
             _block_type_slug = "a"
@@ -2382,7 +2402,7 @@ class TestBlockSchemaMigration:
 
         a = A()
 
-        a.save("test")
+        a.save(block_name)
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2395,15 +2415,17 @@ class TestBlockSchemaMigration:
         with pytest.raises(
             RuntimeError, match="try loading again with `validate=False`"
         ):
-            A_Alias.load("test")
+            A_Alias.load(block_name)
 
     def test_add_field_to_schema_partial_load_with_skip_validation(self):
+        block_name = f"test-{uuid4()}"
+
         class A(Block):
             x: int = 1
 
         a = A()
 
-        a.save("test")
+        a.save(block_name)
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2414,7 +2436,7 @@ class TestBlockSchemaMigration:
                 y: int
 
         with pytest.warns(UserWarning, match="Could not fully load"):
-            a = A_Alias.load("test", validate=False)
+            a = A_Alias.load(block_name, validate=False)
 
         assert a.x == 1
         assert a.y is None
@@ -2447,18 +2469,22 @@ class TestBlockSchemaMigration:
         #     foo_alias.y
 
     def test_load_with_skip_validation_keeps_metadata(self):
+        block_name = f"test-{uuid4()}"
+
         class Bar(Block):
             x: int = 1
 
         bar = Bar()
 
-        bar.save("test")
+        bar.save(block_name)
 
-        bar_new = Bar.load("test", validate=False)
+        bar_new = Bar.load(block_name, validate=False)
 
         assert bar.dict() == bar_new.dict()
 
     async def test_save_new_schema_with_overwrite(self, prefect_client):
+        block_name = f"test-{uuid4()}"
+
         class Baz(Block):
             _block_type_name = "baz"
             _block_type_slug = "baz"
@@ -2466,10 +2492,10 @@ class TestBlockSchemaMigration:
 
         baz = Baz()
 
-        await baz.save("test")
+        await baz.save(block_name)
 
         block_document = await prefect_client.read_block_document_by_name(
-            name="test", block_type_slug="baz"
+            name=block_name, block_type_slug="baz"
         )
         old_schema_id = block_document.block_schema_id
 
@@ -2481,11 +2507,11 @@ class TestBlockSchemaMigration:
                 x: int = 1
                 y: int = 2
 
-        baz_alias = await Baz_Alias.load("test", validate=False)
+        baz_alias = await Baz_Alias.load(block_name, validate=False)
 
-        await baz_alias.save("test", overwrite=True)
+        await baz_alias.save(block_name, overwrite=True)
 
-        baz_alias_RELOADED = await Baz_Alias.load("test")
+        baz_alias_RELOADED = await Baz_Alias.load(block_name)
 
         assert baz_alias_RELOADED.x == 1
         assert baz_alias_RELOADED.y == 2
@@ -2496,7 +2522,7 @@ class TestBlockSchemaMigration:
         assert old_schema_id != new_schema_id
 
         updated_schema = await prefect_client.read_block_document_by_name(
-            name="test", block_type_slug="baz"
+            name=block_name, block_type_slug="baz"
         )
         updated_schema_id = updated_schema.block_schema_id
 
@@ -2505,27 +2531,20 @@ class TestBlockSchemaMigration:
 
 
 class TestDeleteBlock:
-    @pytest.fixture
-    def NewBlock(self):
-        # Ignore warning caused by matching key in registry due to block fixture
-        warnings.filterwarnings("ignore", category=UserWarning)
+    class NewBlock(Block):
+        a: str
+        b: str
+        _block_type_slug = f"new-block-{uuid4()}"
 
-        class NewBlock(Block):
-            a: str
-            b: str
-            _block_type_slug = "new-block"
-
-        return NewBlock
-
-    async def test_delete_block(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar")
-        new_block_name = "my-block"
+    async def test_delete_block(self):
+        new_block = self.NewBlock(a="foo", b="bar")
+        new_block_name = f"my-block-{uuid4()}"
         await new_block.save(new_block_name)
 
-        loaded_new_block = await new_block.load(new_block_name)
+        loaded_new_block = await self.NewBlock.load(new_block_name)
         assert loaded_new_block._block_document_name == new_block_name
 
-        await NewBlock.delete(new_block_name)
+        await self.NewBlock.delete(new_block_name)
 
         with pytest.raises(ValueError) as exception:
             await new_block.load(new_block_name)
@@ -2534,13 +2553,13 @@ class TestDeleteBlock:
                 in exception.value
             )
 
-    async def test_delete_block_from_base_block(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar")
-        new_block_name = "my-block"
+    async def test_delete_block_from_base_block(self):
+        new_block = self.NewBlock(a="foo", b="bar")
+        new_block_name = f"my-block-{uuid4()}"
 
         await new_block.save(new_block_name)
 
-        loaded_new_block = await new_block.load(new_block_name)
+        loaded_new_block = await self.NewBlock.load(new_block_name)
         assert loaded_new_block._block_document_name == new_block_name
 
         await Block.delete(f"{new_block._block_type_slug}/{new_block_name}")

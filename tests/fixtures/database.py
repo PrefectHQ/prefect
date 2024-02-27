@@ -763,7 +763,9 @@ async def work_queue_2(session, work_pool):
 async def block_type_x(session):
     block_type = await models.block_types.create_block_type(
         session=session,
-        block_type=schemas.actions.BlockTypeCreate(name="x", slug="x-fixture"),
+        block_type=schemas.actions.BlockTypeCreate(
+            name="x", slug=f"x-fixture-{uuid.uuid4()}"
+        ),
     )
     await session.commit()
     return block_type
@@ -772,7 +774,10 @@ async def block_type_x(session):
 @pytest.fixture
 async def block_type_y(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="y", slug="y")
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(
+            name="y", slug=f"y-fixture-{uuid.uuid4()}"
+        ),
     )
     await session.commit()
     return block_type
@@ -781,7 +786,10 @@ async def block_type_y(session):
 @pytest.fixture
 async def block_type_z(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="z", slug="z")
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(
+            name="z", slug=f"z-fixture-{uuid.uuid4()}"
+        ),
     )
     await session.commit()
     return block_type
@@ -849,7 +857,7 @@ async def block_document(session, block_schema, block_type_x):
         session=session,
         block_document=schemas.actions.BlockDocumentCreate(
             block_schema_id=block_schema.id,
-            name="block-1",
+            name=f"block-{uuid.uuid4()}",
             block_type_id=block_type_x.id,
             data=dict(foo="bar"),
         ),

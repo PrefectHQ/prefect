@@ -40,10 +40,10 @@ def flow_function_dict_parameter():
     return client_test_flow_dict_parameter
 
 
-@pytest.fixture(scope="session")
-def test_block():
+@pytest.fixture()
+def test_block(block_type_x):
     class x(Block):
-        _block_type_slug = "x-fixture"
+        _block_type_slug = block_type_x.slug
         _logo_url = "https://en.wiktionary.org/wiki/File:LetterX.svg"
         _documentation_url = "https://en.wiktionary.org/wiki/X"
         foo: str
