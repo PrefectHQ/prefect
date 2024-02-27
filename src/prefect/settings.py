@@ -1481,6 +1481,8 @@ PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = Setting(bool, default=True)
 Whether or not to enable the enhanced scheduling UI.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
+
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(

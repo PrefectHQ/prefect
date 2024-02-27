@@ -10,12 +10,17 @@ import sqlalchemy as sa
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server import models, schemas
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import read_flow_run_graph
-from prefect.server.schemas.graph import Edge, Graph, Node
+from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, Node
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES, temporary_settings
+from prefect.settings import (
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
+    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH,
+    temporary_settings,
+)
 
 
 async def test_reading_graph_for_nonexistant_flow_run(
@@ -845,6 +850,210 @@ async def test_state_types_are_true_state_type_enums(
 
     assert isinstance(node.state_type, StateType)
     assert node.state_type == StateType.COMPLETED
+
+
+@pytest.fixture
+async def flow_run_artifacts(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+):  # -> tuple[db.Artifact, list[db.Artifact]]:
+    """Create a flow run with related artifacts.
+    Returns:
+        tuple[orm.Artifact, list[orm.Artifact]]: The first item is the artifact
+        that should be included in the graph. The second item is a list of artifacts
+        that should be excluded from the graph.
+    """
+    artifact_no_key = db.Artifact(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        type="markdown",
+        key=None,
+    )
+
+    # artifacts of type result should be excluded
+    result_artifact = db.Artifact(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        type="result",
+        key=None,
+    )
+
+    artifacts = [artifact_no_key, result_artifact]
+    session.add_all(artifacts)
+    await session.commit()
+
+    return (artifact_no_key, artifacts[1:])
+
+
+@pytest.fixture
+async def flow_run_task_artifacts(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    flat_tasks,  # list[db.TaskRun],
+):  # -> list[db.Artifact]:
+    assert len(flat_tasks) >= 5, "Setup error - this fixture requires at least 5 tasks"
+
+    task_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[0].id,
+        type="markdown",
+        key=None,
+    )
+
+    task_artifact_with_key_not_latest = await models.artifacts.create_artifact(
+        session,
+        schemas.core.Artifact(
+            type="markdown",
+            key="collection-key--not-latest",
+            flow_run_id=flow_run.id,
+            task_run_id=flat_tasks[1].id,
+        ),
+    )
+
+    latest_in_key_collection_but_not_this_flow_run = (
+        await models.artifacts.create_artifact(
+            session,
+            schemas.core.Artifact(
+                type="markdown",
+                key="collection-key--not-latest",
+                flow_run_id=uuid4(),
+                task_run_id=uuid4(),
+            ),
+        )
+    )
+
+    task_artifact_latest_in_collection = await models.artifacts.create_artifact(
+        session,
+        schemas.core.Artifact(
+            type="markdown",
+            key="collection-key--latest",
+            flow_run_id=flow_run.id,
+            task_run_id=flat_tasks[2].id,
+        ),
+    )
+
+    task_link_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[3].id,
+        type="link",
+    )
+
+    task_table_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[4].id,
+        type="table",
+    )
+
+    result_type_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[1].id,
+        type="result",
+        key=None,
+    )
+
+    should_be_in_graph = [
+        task_artifact,
+        task_artifact_with_key_not_latest,
+        task_artifact_latest_in_collection,
+        task_link_artifact,
+        task_table_artifact,
+    ]
+
+    should_not_be_in_graph = [
+        result_type_artifact,
+        latest_in_key_collection_but_not_this_flow_run,
+    ]
+
+    session.add_all(should_be_in_graph + should_not_be_in_graph)
+    await session.commit()
+
+    return should_be_in_graph
+
+
+@pytest.fixture
+def enable_artifacts_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH: True}
+    ):
+        yield
+
+
+@pytest.fixture
+def disable_artifacts_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH: False}
+    ):
+        yield
+
+
+@pytest.mark.usefixtures("enable_artifacts_on_flow_run_graph")
+async def test_reading_graph_for_flow_run_with_artifacts(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun
+    flow_run_artifacts,  # List[db.Artifact],
+    flow_run_task_artifacts,  # List[db.Artifact],
+):
+    expected_top_level_artifact, *_ = flow_run_artifacts
+
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert (
+        graph.artifacts
+        == [
+            GraphArtifact(
+                id=expected_top_level_artifact.id,
+                created=expected_top_level_artifact.created,
+                key=expected_top_level_artifact.key,
+                type=expected_top_level_artifact.type,
+                is_latest=True,
+            )
+        ]
+    ), "Expected artifacts associated with the flow run but not with a task to be included at the roof of the graph."
+
+    expected_graph_artifacts = sorted(
+        (
+            task_artifact.task_run_id,
+            # for simplicity, the resulting graph is expected to have only one artifact per node
+            [
+                GraphArtifact(
+                    id=task_artifact.id,
+                    created=task_artifact.created,
+                    key=task_artifact.key,
+                    type=task_artifact.type,
+                    is_latest=task_artifact.key is None
+                    or task_artifact.key == "collection-key--latest",
+                )
+            ],
+        )
+        for task_artifact in flow_run_task_artifacts
+    )
+
+    graph_node_artifacts = sorted(
+        (node.id, node.artifacts) for _, node in graph.nodes if node.artifacts
+    )
+
+    assert graph_node_artifacts == expected_graph_artifacts
+
+
+@pytest.mark.usefixtures("disable_artifacts_on_flow_run_graph")
+async def test_artifacts_on_flow_run_graph_requires_experimental_setting(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun
+    flow_run_artifacts,  # List[db.Artifact],
+    flow_run_task_artifacts,  # List[db.Artifact],
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.artifacts == []
+    assert all(node.artifacts == [] for _, node in graph.nodes)
 
 
 @pytest.fixture
