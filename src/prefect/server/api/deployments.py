@@ -751,13 +751,12 @@ async def update_deployment_schedule(
         if not updated:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Schedule not found.")
 
-        if not bool(deployment.paused):
-            await models.deployments._delete_scheduled_runs(
-                session=session,
-                deployment_id=deployment_id,
-                db=db,
-                auto_scheduled_only=True,
-            )
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            db=db,
+            auto_scheduled_only=True,
+        )
 
 
 @router.delete("/{id}/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -785,10 +784,9 @@ async def delete_deployment_schedule(
         if not deleted:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Schedule not found.")
 
-        if not bool(deployment.paused):
-            await models.deployments._delete_scheduled_runs(
-                session=session,
-                deployment_id=deployment_id,
-                db=db,
-                auto_scheduled_only=True,
-            )
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            db=db,
+            auto_scheduled_only=True,
+        )
