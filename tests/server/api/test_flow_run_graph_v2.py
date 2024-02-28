@@ -19,6 +19,7 @@ from prefect.server.models.flow_runs import read_flow_run_graph
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, Node
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
     PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH,
     temporary_settings,
@@ -1087,6 +1088,31 @@ async def test_artifacts_on_flow_run_graph_requires_experimental_setting(
 
     assert graph.artifacts == []
     assert all(node.artifacts == [] for _, node in graph.nodes)
+
+
+@pytest.mark.usefixtures("enable_artifacts_on_flow_run_graph")
+async def test_artifacts_on_flow_run_graph_limited_by_setting(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun
+    flow_run_artifacts,  # List[db.Artifact],
+    flow_run_task_artifacts,  # List[db.Artifact],
+):
+    test_max_artifacts_setting = 2
+    assert (
+        len(flow_run_task_artifacts) > test_max_artifacts_setting
+    ), "Setup error - expected total # of graph artifacts to be greater than the limit being used for testing"
+
+    with temporary_settings(
+        {PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS: test_max_artifacts_setting}
+    ):
+        graph = await read_flow_run_graph(
+            session=session,
+            flow_run_id=flow_run.id,
+        )
+
+    assert (
+        len(graph.artifacts) + sum(len(node.artifacts) for _, node in graph.nodes)
+    ) <= test_max_artifacts_setting
 
 
 @pytest.fixture
