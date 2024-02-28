@@ -22,6 +22,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.server import schemas
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, Node
@@ -552,6 +553,9 @@ class BaseQueryComponents(ABC):
         Does not recurse into subflows.
         Artifacts for the flow run without a task run id are grouped under None.
         """
+        if not experiment_enabled("artifacts_on_flow_run_graph"):
+            return defaultdict(list)
+
         query = (
             sa.select(
                 db.Artifact, db.ArtifactCollection.id.label("latest_in_collection_id")
