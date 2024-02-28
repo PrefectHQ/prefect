@@ -254,18 +254,20 @@ class TestCreateBlockSchema:
         class Z(Block):
             _block_type_id = block_type_z.id
             _block_type_name = block_type_z.name
+            _block_type_slug = block_type_z.slug
 
             b: str
 
         class Y(Block):
             _block_type_id = block_type_y.id
             _block_type_name = block_type_y.name
-
+            _block_type_slug = block_type_y.slug
             a: str
 
         class X(Block):
             _block_type_id = block_type_x.id
             _block_type_name = block_type_x.name
+            _block_type_slug = block_type_x.slug
 
             y_or_z: Union[Y, Z]
 
@@ -694,18 +696,21 @@ class TestReadBlockSchemas:
         class Z(Block):
             _block_type_id = block_type_z.id
             _block_type_name = block_type_z.name
+            _block_type_slug = block_type_z.slug
 
             b: str
 
         class Y(Block):
             _block_type_id = block_type_y.id
             _block_type_name = block_type_y.name
+            _block_type_slug = block_type_y.slug
 
             a: str
 
         class X(Block):
             _block_type_id = block_type_x.id
             _block_type_name = block_type_x.name
+            _block_type_slug = block_type_x.slug
 
             y_or_z: Union[Y, Z]
 

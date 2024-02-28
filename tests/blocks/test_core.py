@@ -1352,7 +1352,7 @@ class TestSaveBlock:
 
     async def test_save_block(self):
         new_block = self.NewBlock(a="foo", b="bar")
-        new_block_name = "my-block"
+        new_block_name = f"my-block-{uuid4()}"
         await new_block.save(new_block_name)
 
         assert new_block._block_document_name == new_block_name
