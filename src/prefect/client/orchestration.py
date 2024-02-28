@@ -1524,7 +1524,7 @@ class PrefectClient:
         name: str,
         version: str = None,
         schedule: SCHEDULE_TYPES = None,
-        schedules: List[SCHEDULE_TYPES] = None,
+        schedules: List[DeploymentScheduleCreate] = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
         work_queue_name: str = None,
@@ -1563,11 +1563,6 @@ class PrefectClient:
             the ID of the deployment in the backend
         """
 
-        schedules = schedules or []
-        deployment_schedules = [
-            DeploymentScheduleCreate(schedule=schedule) for schedule in schedules
-        ]
-
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -1586,7 +1581,7 @@ class PrefectClient:
             is_schedule_active=is_schedule_active,
             paused=paused,
             schedule=schedule,
-            schedules=deployment_schedules,
+            schedules=schedules or [],
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )

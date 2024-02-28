@@ -379,6 +379,33 @@ class TestFlowWithOptions:
         flow_with_options = initial_flow.with_options(timeout_seconds=0)
         assert flow_with_options.timeout_seconds is None
 
+    def test_with_options_can_unset_retries_with_zero(self):
+        @flow(retries=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retries=0)
+        assert flow_with_options.retries == 0
+
+    def test_with_options_can_unset_retry_delay_seconds_with_zero(self):
+        @flow(retry_delay_seconds=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retry_delay_seconds=0)
+        assert flow_with_options.retry_delay_seconds == 0
+
+    def test_with_options_uses_parent_flow_run_name_if_not_provided(self):
+        def generate_flow_run_name():
+            return "new-name"
+
+        @flow(retry_delay_seconds=3, flow_run_name=generate_flow_run_name)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options()
+        assert flow_with_options.flow_run_name is generate_flow_run_name
+
     def test_with_options_can_unset_result_options_with_none(self):
         @flow(
             persist_result=True,
@@ -1061,6 +1088,30 @@ class TestSubflowCalls:
         assert (
             child_flow_run.id == child_flow_run_id
         ), "The server subflow run id matches the client"
+
+    async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
+        we discovered that a sync flow running an async flow that awaits `.result()`
+        on a submitted task's future can hang indefinitely.
+        """
+
+        @task
+        async def some_async_task():
+            return 42
+
+        @flow
+        async def integrations_flow():
+            future = await some_async_task.submit()
+            return await future.result()
+
+        @flow
+        def sync_flow():
+            return integrations_flow()
+
+        result = sync_flow()
+
+        assert result == 42
 
 
 class TestFlowRunTags:

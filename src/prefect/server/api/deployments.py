@@ -29,11 +29,10 @@ def _multiple_schedules_error(deployment_id) -> HTTPException:
     return HTTPException(
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail=(
-            (
-                "Error updating deployment: "
-                f"Deployment {deployment_id!r} has multiple schedules. "
-                "Please use the UI to update this deployment's schedules."
-            ),
+            "Error updating deployment: "
+            f"Deployment {deployment_id!r} has multiple schedules. "
+            "Please use the UI or update your client to adjust this "
+            "deployment's schedules.",
         ),
     )
 
@@ -52,6 +51,8 @@ async def create_deployment(
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
     """
+
+    data = deployment.dict(exclude_unset=True)
 
     async with db.session_context(begin_transaction=True) as session:
         if (
@@ -144,6 +145,12 @@ async def create_deployment(
                     ),
                 )
 
+        # Ensure that `paused` and `is_schedule_active` are consistent.
+        if "paused" in data:
+            deployment.is_schedule_active = not data["paused"]
+        elif "is_schedule_active" in data:
+            deployment.paused = not data["is_schedule_active"]
+
         now = pendulum.now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
@@ -201,6 +208,12 @@ async def update_deployment(
                 ]
             elif schedule is None:
                 deployment.schedules = []
+
+        # Ensure that `paused` and `is_schedule_active` are consistent.
+        if "paused" in update_data:
+            deployment.is_schedule_active = not update_data["paused"]
+        elif "is_schedule_active" in update_data:
+            deployment.paused = not update_data["is_schedule_active"]
 
         if deployment.work_pool_name:
             # Make sure that deployment is valid before beginning creation process
@@ -738,6 +751,13 @@ async def update_deployment_schedule(
         if not updated:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Schedule not found.")
 
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            db=db,
+            auto_scheduled_only=True,
+        )
+
 
 @router.delete("/{id}/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment_schedule(
@@ -763,3 +783,10 @@ async def delete_deployment_schedule(
 
         if not deleted:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Schedule not found.")
+
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            db=db,
+            auto_scheduled_only=True,
+        )

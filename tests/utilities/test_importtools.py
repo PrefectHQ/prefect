@@ -3,6 +3,7 @@ import runpy
 import sys
 from pathlib import Path
 from types import ModuleType
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -69,6 +70,19 @@ def test_lazy_import():
     assert isinstance(docker, importlib.util._LazyModule)
     assert isinstance(docker, ModuleType)
     assert callable(docker.from_env)
+
+
+@pytest.mark.service("docker")
+def test_cant_find_docker_error(monkeypatch):
+    docker = lazy_import("docker")
+    docker.errors = lazy_import("docker.errors")
+    monkeypatch.setattr(
+        "docker.DockerClient.from_env",
+        MagicMock(side_effect=docker.errors.DockerException),
+    )
+    with pytest.raises(RuntimeError, match="Docker is not running"):
+        with docker_client() as _:
+            return None
 
 
 @pytest.mark.service("docker")

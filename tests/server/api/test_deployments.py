@@ -331,7 +331,7 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            is_schedule_active=False,
+            paused=True,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
@@ -344,7 +344,7 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            is_schedule_active=False,
+            paused=True,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
@@ -352,18 +352,18 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
+        assert response.json()["paused"]
         assert not response.json()["is_schedule_active"]
         assert response.json()["storage_document_id"] == str(storage_document_id)
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
         )
-        assert not response.json()["is_schedule_active"]
 
         # post different data, upsert should be respected
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            is_schedule_active=True,  # CHANGED
+            paused=False,  # CHANGED
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
@@ -371,6 +371,7 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
+        assert not response.json()["paused"]
         assert response.json()["is_schedule_active"]
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
@@ -1070,6 +1071,47 @@ class TestCreateDeployment:
         )
         assert response.status_code == 201
 
+    async def test_can_pause_deployment_by_upserting_is_schedule_active_legacy_client_support(
+        self,
+        client,
+        deployment,
+    ):
+        assert deployment.paused is False
+
+        data = DeploymentCreate(  # type: ignore
+            name=deployment.name,
+            flow_id=deployment.flow_id,
+            manifest_path="file.json",
+            is_schedule_active=False,
+        ).dict(json_compatible=True)
+
+        # Imitate a legacy client that does not support the `paused` field
+        del data["paused"]
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200
+        assert response.json()["paused"] is True
+        assert response.json()["is_schedule_active"] is False
+
+    async def test_can_pause_deployment_by_upserting_paused(
+        self,
+        client,
+        deployment,
+    ):
+        assert deployment.paused is False
+
+        data = DeploymentCreate(  # type: ignore
+            name=deployment.name,
+            flow_id=deployment.flow_id,
+            manifest_path="file.json",
+            paused=True,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200
+        assert response.json()["paused"] is True
+        assert response.json()["is_schedule_active"] is False
+
 
 class TestReadDeployment:
     async def test_read_deployment(
@@ -1611,6 +1653,103 @@ class TestUpdateDeployment:
         response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
         assert response.status_code == 422
         assert b"multiple schedules" in response.content
+
+    async def test_can_pause_deployment_by_updating_is_schedule_active(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        assert deployment.paused is False
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"is_schedule_active": False}
+        )
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+
+        assert deployment
+        assert deployment.paused is True
+        assert deployment.is_schedule_active is False
+
+    async def test_can_pause_deployment_by_updating_paused(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        assert deployment.paused is False
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"paused": True}
+        )
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+
+        assert deployment
+        assert deployment.paused is True
+        assert deployment.is_schedule_active is False
+
+    async def test_updating_paused_does_not_change_schedule(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        # This is a regression test for a bug where pausing a deployment would
+        # copy the schedule from the existing deployment to the new one, even
+        # if the schedule was not provided in the request.
+        # https://github.com/PrefectHQ/nebula/issues/6994
+
+        legacy_schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={"schedule": legacy_schedule.dict(json_compatible=True)},
+        )
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+
+        new_schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(hours=1)
+        )
+
+        assert deployment.paused is False
+        assert deployment.schedule is not None
+        assert deployment.schedule.interval != new_schedule.interval
+
+        await models.deployments.delete_schedules_for_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        await models.deployments.create_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(  # type: ignore [call-arg]
+                    active=True, schedule=new_schedule
+                )
+            ],
+        )
+
+        await session.commit()
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"paused": True}
+        )
+        assert response.status_code == 204
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session, deployment_id=deployment.id
+        )
+
+        assert len(schedules) == 1
+        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert schedules[0].schedule.interval == new_schedule.interval
+        assert schedules[0].active is True
 
 
 class TestGetScheduledFlowRuns:
