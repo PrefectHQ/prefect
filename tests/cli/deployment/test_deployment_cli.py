@@ -748,7 +748,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': False"],
+            expected_output_contains=["'active': False"],
         )
 
         invoke_and_assert(
@@ -766,7 +766,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': True"],
+            expected_output_contains=["'active': True"],
         )
 
     def test_pausing_and_resuming_schedules_with_schedule_pause(
@@ -789,7 +789,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': False"],
+            expected_output_contains=["'active': False"],
         )
 
         invoke_and_assert(
@@ -809,7 +809,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': True"],
+            expected_output_contains=["'active': True"],
         )
 
     def test_pause_schedule_deployment_not_found_raises(self, flojo):
