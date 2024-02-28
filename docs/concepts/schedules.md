@@ -39,7 +39,7 @@ Prefect supports several types of schedules that cover a wide range of use cases
 - [`RRule`](#rrule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
 !!! tip "Schedules can be inactive"
-    When you create or edit a schedule, you can unset the `active` property to deactivate the schedule.
+    When you create or edit a schedule, you can set the `active` property to `False` in Python (or `false` in a YAML file) to deactivate the schedule.
     This is useful if you want to keep the schedule configuration but temporarily stop the schedule from creating new flow runs.
 
 ### Cron
