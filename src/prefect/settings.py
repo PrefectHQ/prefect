@@ -1276,6 +1276,11 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 The maximum size of a flow run graph on the v2 API
 """
 
+PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
+"""
+The maximum number of artifacts to show on a flow run graph on the v2 API
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1482,6 +1487,9 @@ Whether or not to enable the enhanced scheduling UI.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
+"""
+Whether or not to enable artifacts on the flow run graph.
+"""
 
 # Defaults -----------------------------------------------------------------------------
 

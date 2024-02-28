@@ -537,6 +537,7 @@ class BaseQueryComponents(ABC):
         flow_run_id: UUID,
         since: datetime.datetime,
         max_nodes: int,
+        max_artifacts: int,
     ) -> Graph:
         """Returns the query that selects all of the nodes and edges for a flow run graph (version 2)."""
         ...
@@ -752,6 +753,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         flow_run_id: UUID,
         since: datetime.datetime,
         max_nodes: int,
+        max_artifacts: int,
     ) -> Graph:
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
@@ -872,7 +874,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         results = await session.execute(query)
 
         graph_artifacts = await self._get_flow_run_graph_artifacts(
-            db, session, flow_run_id, max_artifacts=10000
+            db, session, flow_run_id, max_artifacts
         )
 
         nodes: List[Tuple[UUID, Node]] = []
@@ -1169,6 +1171,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         flow_run_id: UUID,
         since: datetime.datetime,
         max_nodes: int,
+        max_artifacts: int,
     ) -> Graph:
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
@@ -1302,7 +1305,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         results = await session.execute(query)
 
         graph_artifacts = await self._get_flow_run_graph_artifacts(
-            db, session, flow_run_id, max_artifacts=10000
+            db, session, flow_run_id, max_artifacts
         )
 
         nodes: List[Tuple[UUID, Node]] = []
