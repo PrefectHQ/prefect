@@ -29,7 +29,10 @@ from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.server.schemas.states import State
 from prefect.server.utilities.schemas import PrefectBaseModel
-from prefect.settings import PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES
+from prefect.settings import (
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
+)
 
 
 @inject_db
@@ -539,4 +542,5 @@ async def read_flow_run_graph(
         flow_run_id=flow_run_id,
         since=since,
         max_nodes=PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES.value(),
+        max_artifacts=PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS.value(),
     )
