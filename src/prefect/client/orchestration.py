@@ -15,11 +15,10 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+import certifi
 import httpcore
 import httpx
 import pendulum
-import os
-import certifi
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -127,8 +126,8 @@ from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
-    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_SSL_CERT_FILE,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
