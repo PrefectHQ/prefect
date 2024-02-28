@@ -1,4 +1,6 @@
+from collections import defaultdict
 from datetime import datetime
+from operator import attrgetter
 from typing import Iterable, List, Union
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -912,7 +914,9 @@ async def flow_run_task_artifacts(
     flow_run,  # db.FlowRun,
     flat_tasks,  # list[db.TaskRun],
 ):  # -> list[db.Artifact]:
-    assert len(flat_tasks) >= 5, "Setup error - this fixture requires at least 5 tasks"
+    assert (
+        len(flat_tasks) >= 5
+    ), "Setup error - this fixture expects to use at least 5 tasks"
 
     task_artifact = db.Artifact(
         flow_run_id=flow_run.id,
@@ -963,6 +967,15 @@ async def flow_run_task_artifacts(
         flow_run_id=flow_run.id,
         task_run_id=flat_tasks[4].id,
         type="table",
+        created=pendulum.now().subtract(minutes=2),
+    )
+
+    # second artifact from same task with a different created time
+    task_table_artifact_from_same_task = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[4].id,
+        type="table",
+        created=pendulum.now().subtract(minutes=1),
     )
 
     result_type_artifact = db.Artifact(
@@ -977,6 +990,7 @@ async def flow_run_task_artifacts(
         task_artifact_with_key_not_latest,
         task_artifact_latest_in_collection,
         task_link_artifact,
+        task_table_artifact_from_same_task,
         task_table_artifact,
     ]
 
@@ -1034,29 +1048,29 @@ async def test_reading_graph_for_flow_run_with_artifacts(
         ]
     ), "Expected artifacts associated with the flow run but not with a task to be included at the roof of the graph."
 
-    expected_graph_artifacts = sorted(
-        (
-            task_artifact.task_run_id,
-            # for simplicity, the resulting graph is expected to have only one artifact per node
-            [
-                GraphArtifact(
-                    id=task_artifact.id,
-                    created=task_artifact.created,
-                    key=task_artifact.key,
-                    type=task_artifact.type,
-                    is_latest=task_artifact.key is None
-                    or task_artifact.key == "collection-key--latest",
-                )
-            ],
+    expected_graph_artifacts = defaultdict(list)
+    for task_artifact in flow_run_task_artifacts:
+        expected_graph_artifacts[task_artifact.task_run_id].append(
+            GraphArtifact(
+                id=task_artifact.id,
+                created=task_artifact.created,
+                key=task_artifact.key,
+                type=task_artifact.type,
+                is_latest=task_artifact.key is None
+                or task_artifact.key == "collection-key--latest",
+            )
         )
-        for task_artifact in flow_run_task_artifacts
-    )
 
-    graph_node_artifacts = sorted(
-        (node.id, node.artifacts) for _, node in graph.nodes if node.artifacts
-    )
+        # ensure that the artifacts are sorted by created time
+        expected_graph_artifacts[task_artifact.task_run_id].sort(
+            key=attrgetter("created")
+        )
 
-    assert graph_node_artifacts == expected_graph_artifacts
+    graph_node_artifacts = {
+        node.id: node.artifacts for _, node in graph.nodes if node.artifacts
+    }
+
+    assert expected_graph_artifacts == graph_node_artifacts
 
 
 @pytest.mark.usefixtures("disable_artifacts_on_flow_run_graph")

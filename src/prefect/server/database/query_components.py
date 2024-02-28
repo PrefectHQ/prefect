@@ -571,6 +571,7 @@ class BaseQueryComponents(ABC):
                 & (db.ArtifactCollection.latest_id == db.Artifact.id),
                 isouter=True,
             )
+            .order_by(db.Artifact.created.asc())
             .limit(max_artifacts)
         )
 
