@@ -41,7 +41,7 @@ Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and `pre
 
 ## Creating schedules through the UI
 
-You can add a schedule on the **Deployments** tab of the UI.
+You can add schedules on a **Deployment** page in the UI.
 
 Under **Schedules** select the **+ Schedule** button.
 If you don't see the **Schedule** section, expand the three dot menu on the top right of the page.
