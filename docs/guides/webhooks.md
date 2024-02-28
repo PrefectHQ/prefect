@@ -15,8 +15,7 @@ from other systems in your ecosystem.  Each webhook exposes a unique URL endpoin
 receive events from other systems and transforms them into Prefect
 [events](/cloud/events/) for use in [automations](/cloud/automations/).
 
-Webhooks are defined by two essential components: a unique URL and a template which
-translates incoming web requests to a Prefect event.
+Webhooks are defined by two essential components: a unique URL and a template that translates incoming web requests to a Prefect event.
 
 ## Configuring webhooks
 
@@ -39,27 +38,32 @@ Webhooks can be created and managed from the Prefect Cloud UI.
 Webhooks can be managed and interacted with via the `prefect cloud webhook` command group.
 
 <div class="terminal">
+
 ```bash
 prefect cloud webhook --help
 ```
-<div>
+
+</div>
 
 You can create your first webhook by invoking `create`:
 
 <div class="terminal">
+
 ```bash
 prefect cloud webhook create your-webhook-name \
     --description "Receives webhooks from your system" \
     --template '{ "event": "your.event.name", "resource": { "prefect.resource.id": "your.resource.id" } }'
 ```
+
 </div>
 
-Note the template string, which is discussed in [greater detail down below](#webhook-templates)
+Note the template string, which is discussed in [greater detail below](#webhook-templates)
 
 You can retrieve details for a specific webhook by ID using `get`, or optionally query
 all webhooks in your workspace via `ls`:
 
 <div class="terminal">
+
 ```bash
 # get webhook by ID
 prefect cloud webhook get <webhook-id>
@@ -69,11 +73,13 @@ prefect cloud webhook get <webhook-id>
 prefect cloud webhook ls
 
 ```
+
 </div>
 
-If you ever need to disable an existing webhook without deleting it, use `toggle`:
+If you need to disable an existing webhook without deleting it, use `toggle`:
 
 <div class="terminal">
+
 ```bash
 prefect cloud webhook toggle <webhook-id>
 Webhook is now disabled
@@ -84,13 +90,15 @@ Webhook is now enabled
 
 </div>
 
-If you are concerned that your webhook endpoint may have been compromised, use `rotate` to
-generate a new, random endpoint
+If you are concerned that your webhook endpoint may have been compromised, use `rotate` to generate a new, random endpoint
 
 <div class="terminal">
+
 ```bash
 prefect cloud webhook rotate <webhook-url-slug>
 ```
+
+</div>
 
 ## Webhook endpoints
 
