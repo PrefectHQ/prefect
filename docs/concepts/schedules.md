@@ -52,7 +52,7 @@ Then select **Interval** or **Cron** to create a schedule.
 
 Once a schedule has been created, a number of scheduled flow runs will be visible in the UI.
 The schedule is viewable in human-friendly text on the **Deployments** page.
-You can edit the schedule by selecting the **Edit** button on the **Deployment** page.
+You can edit a schedule by selecting **Edit** from the three dot menu next to a schedule on a **Deployment** page.
 
 ## Schedule types
 
