@@ -151,11 +151,11 @@ There are several ways to create a schedule for a deployment:
 - Through the Prefect UI
 - Via the `cron`, `interval`, or `rrule` parameters if building your deployment via the [`serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
 - If using [worker-based deployments](/concepts/work-pools/)
-  - Through the interactive `prefect deploy` command
-  - With the `deployments` -> `schedule` section of the `prefect.yaml` file )
+    * Through the interactive `prefect deploy` command
+    * With the `deployments` -> `schedule` section of the `prefect.yaml` file )
 - If using [block-based deployments](/concepts/deployments/#block-based-deployments)
-  - `Through the schedules` section of the deployment YAML file
-  - By passing `schedules` into the `Deployment` class or `Deployment.build_from_flow`
+    * `Through the schedules` section of the deployment YAML file
+    * By passing `schedules` into the `Deployment` class or `Deployment.build_from_flow`
 
 ### Creating schedules in the UI
 
