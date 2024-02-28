@@ -33,11 +33,11 @@ There are several recommended ways to create a schedule for a deployment:
   - Through the interactive `prefect deploy` command
   - With the `deployments` -> `schedule` section of the `prefect.yaml` file )
 
-## Multiple schedule support
+## Support for multiple schedules
 
-We are currently rolling out support for multiple schedules per deployment. You can now assign multiple schedules to Deployments in the Prefect UI, the CLI, the `Deployment` class, and in [block-based deployment](/concepts/deployments/#block-based-deployments) YAML files.
+We are currently rolling out support for multiple schedules per deployment. You can now assign multiple schedules to Deployments in the Prefect UI, the CLI via `prefect deployment schedule` commands, the `Deployment` class, and in [block-based deployment](/concepts/deployments/#block-based-deployments) YAML files.
 
-Support for multiple schedules in `flow.serve`, `serve`, and `prefect deploy` will arrive soon.
+Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and `prefect deploy` will arrive in Q1 2024.
 
 ## Creating schedules through the UI
 
