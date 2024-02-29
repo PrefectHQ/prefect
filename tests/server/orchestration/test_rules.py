@@ -52,7 +52,7 @@ async def commit_task_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
-        state_name=state_name,
+        name=state_name,
     )
 
     db = provide_database_interface()
