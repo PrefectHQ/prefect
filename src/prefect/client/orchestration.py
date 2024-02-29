@@ -1617,6 +1617,11 @@ class PrefectClient:
             f"/deployments/{deployment_id}/{path}",
         )
 
+    async def set_deployment_paused_state(self, deployment_id: UUID, paused: bool):
+        await self._client.patch(
+            f"/deployments/{deployment_id}", json={"paused": paused}
+        )
+
     async def update_deployment(
         self,
         deployment: Deployment,

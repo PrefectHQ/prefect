@@ -44,7 +44,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Dict, Iterable, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -67,10 +67,14 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
-from prefect.client.schemas.objects import FlowRun, State, StateType
+from prefect.client.schemas.objects import (
+    FlowRun,
+    State,
+    StateType,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.deployments.deployments import load_flow_from_flow_run
-from prefect.deployments.runner import RunnerDeployment
+from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -209,9 +213,18 @@ class Runner:
         self,
         flow: Flow,
         name: str = None,
-        interval: Optional[Union[int, float, datetime.timedelta]] = None,
-        cron: Optional[str] = None,
-        rrule: Optional[str] = None,
+        interval: Optional[
+            Union[
+                Iterable[Union[int, float, datetime.timedelta]],
+                int,
+                float,
+                datetime.timedelta,
+            ]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedules: Optional[List[FlexibleScheduleList]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -261,7 +274,9 @@ class Runner:
             interval=interval,
             cron=cron,
             rrule=rrule,
+            schedules=schedules,
             schedule=schedule,
+            paused=paused,
             is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
@@ -674,11 +689,11 @@ class Runner:
         """
         Pauses all deployment schedules.
         """
-        self._logger.info("Pausing schedules for all deployments...")
+        self._logger.info("Pausing all deployments...")
         for deployment_id in self._deployment_ids:
-            self._logger.debug(f"Pausing schedule for deployment '{deployment_id}'")
-            await self._client.update_schedule(deployment_id, active=False)
-        self._logger.info("All deployment schedules have been paused!")
+            self._logger.debug(f"Pausing deployment '{deployment_id}'")
+            await self._client.set_deployment_paused_state(deployment_id, True)
+        self._logger.info("All deployments have been paused!")
 
     async def _get_and_submit_flow_runs(self):
         if self.stopping:

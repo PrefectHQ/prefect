@@ -306,10 +306,10 @@ class DeploymentResponse(ORMBaseModel):
         # schedule as the primary schedule.
         if orm_deployment.schedules:
             response.schedule = orm_deployment.schedules[0].schedule
-            response.is_schedule_active = orm_deployment.schedules[0].active
         else:
             response.schedule = None
-            response.is_schedule_active = not orm_deployment.paused
+
+        response.is_schedule_active = not bool(orm_deployment.paused)
 
         return response
 
