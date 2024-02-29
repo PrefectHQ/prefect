@@ -20,9 +20,9 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, parse_obj_as, validator
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
 else:
-    from pydantic import BaseModel, Field, parse_obj_as, validator
+    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
@@ -470,6 +470,7 @@ class Deployment(BaseModel):
 
     @classmethod
     def _validate_schedule(cls, value):
+        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
         if value:
             rrule_value = getattr(value, "rrule", None)
             if rrule_value and "COUNT" in rrule_value.upper():
@@ -491,7 +492,7 @@ class Deployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedule: SCHEDULE_TYPES = None
+    schedule: Optional[SCHEDULE_TYPES] = Field(default=None)
     schedules: List[MinimalDeploymentSchedule] = Field(
         default_factory=list,
         description="The schedules to run this deployment on.",
@@ -609,31 +610,30 @@ class Deployment(BaseModel):
 
         return field_value
 
+    @root_validator(pre=True)
+    def validate_deprecated_schedule_fields(cls, values):
+        if values.get("schedule") and not values.get("schedules"):
+            logger.warning(
+                "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
+                "available after Sep 2024. Define schedules in the `schedules` list instead."
+            )
+        elif values.get("is_schedule_active") and not values.get("schedules"):
+            logger.warning(
+                "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
+                "not be available after Sep 2024. Use the `active` flag within a schedule in "
+                "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
+                "all schedules."
+            )
+        return values
+
     @validator("schedule")
     def validate_schedule(cls, value):
-        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
         if value:
             cls._validate_schedule(value)
-
-        logger.warning(
-            "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
-            "available after Sep 2024. Define schedules in the `schedules` list instead."
-        )
-        return value
-
-    @validator("is_schedule_active")
-    def validate_is_schedule_active(cls, value):
-        logger.warning(
-            "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
-            " not be available after Sep 2024. Use the `active` flag within a schedule in "
-            "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
-            "all schedules."
-        )
         return value
 
     @validator("schedules")
     def validate_schedules(cls, value):
-        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
         for schedule in value:
             cls._validate_schedule(schedule.schedule)
         return value
@@ -692,6 +692,8 @@ class Deployment(BaseModel):
                         "triggers",
                         "enforce_parameter_schema",
                         "schedules",
+                        "schedule",
+                        "is_schedule_active",
                     }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
@@ -705,6 +707,23 @@ class Deployment(BaseModel):
                         )
                         for schedule in deployment.schedules
                     ]
+
+                # The API server generates the "schedule" field from the
+                # current list of schedules, so if the user has locally set
+                # "schedules" to anything, we should avoid sending "schedule"
+                # and let the API server generate a new value if necessary.
+                if "schedules" in self.__fields_set__:
+                    self.schedule = None
+                    self.is_schedule_active = None
+                else:
+                    # The user isn't using "schedules," so we should
+                    # populate "schedule" and "is_schedule_active" from the
+                    # API's version of the deployment, unless the user gave
+                    # us these fields in __init__().
+                    if "schedule" not in self.__fields_set__:
+                        self.schedule = deployment.schedule
+                    if "is_schedule_active" not in self.__fields_set__:
+                        self.is_schedule_active = deployment.is_schedule_active
 
                 if "infrastructure" not in self.__fields_set__:
                     if deployment.infrastructure_document_id:

@@ -742,6 +742,50 @@ class TestDeploymentApply:
         )
         assert dep.schedules[0].active is True
 
+    async def test_deployment_build_from_flow_clears_multiple_schedules(
+        self,
+        patch_import,
+        flow_function,
+        tmp_path,
+        prefect_client,
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="TEST",
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                    active=True,
+                ),
+                MinimalDeploymentSchedule(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=60"),
+                    active=True,
+                ),
+            ],
+        )
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        expected_rrules = {"FREQ=HOURLY;INTERVAL=1", "FREQ=HOURLY;INTERVAL=60"}
+
+        assert dep.schedule
+        assert set([s.schedule.rrule for s in dep.schedules]) == expected_rrules
+
+        # Apply an empty list of schedules to clear schedules.
+        d2 = await Deployment.build_from_flow(
+            flow_function,
+            name="TEST",
+            schedules=[],
+        )
+        await d2.apply()
+        assert d2.schedules == []
+        assert d2.schedule is None
+
+        # Check the API to make sure the schedules are cleared there, too.
+        modified_dep = await prefect_client.read_deployment(dep_id)
+        assert modified_dep.schedules == []
+        assert modified_dep.schedule is None
+
     @pytest.mark.parametrize(
         "provided, expected",
         [(True, True), (False, False), (None, True)],
