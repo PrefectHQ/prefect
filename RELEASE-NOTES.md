@@ -68,7 +68,7 @@ For implementation details, see the following pull request:
 ### Fixes
 - Clear runs when updating or deleting schedules, even if the deployment is paused — https://github.com/PrefectHQ/prefect/pull/12089
 - Surface missing work pool errors when working with pools in the CLI — https://github.com/PrefectHQ/prefect/pull/12087
-- Ignore outdated `schedule` in `Deployment.build_from_flow — https://github.com/PrefectHQ/prefect/pull/12100
+- Ignore outdated `schedule` in `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12100
 - Fix schedule instructions for `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12101
 - Fix reference to `prefect deployment schedule create` — https://github.com/PrefectHQ/prefect/pull/12117
 - Ensure only scheduled runs can be marked late — https://github.com/PrefectHQ/prefect/pull/12113
