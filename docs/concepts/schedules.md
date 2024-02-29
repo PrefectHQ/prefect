@@ -22,7 +22,7 @@ Prefect Cloud can also schedule flow runs through event-driven [automations](/co
 
 Schedules tell the Prefect API how to create new flow runs for you automatically on a specified cadence.
 
-You can add a schedule to any flow [deployment](/concepts/deployments/).
+You can add a schedule to any [deployment](/concepts/deployments/).
 The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
 
 !!! tip "Support for multiple schedules"
