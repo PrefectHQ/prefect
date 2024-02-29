@@ -13,7 +13,7 @@ import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 import anyio
 import yaml
@@ -27,6 +27,7 @@ else:
 
 from ruamel.yaml import YAML
 
+from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging import get_logger
@@ -406,20 +407,48 @@ def _format_deployment_for_saving_to_prefect_file(
 
     if deployment.get("schedule"):
         if isinstance(deployment["schedule"], IntervalSchedule):
-            deployment["schedule"] = deployment["schedule"].dict()
-            deployment["schedule"]["interval"] = deployment["schedule"][
-                "interval"
-            ].total_seconds()
-            deployment["schedule"]["anchor_date"] = deployment["schedule"][
-                "anchor_date"
-            ].isoformat()
+            deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
         elif isinstance(deployment["schedule"], BaseModel):
             deployment["schedule"] = deployment["schedule"].dict()
 
         if "is_schedule_active" in deployment:
             deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
 
+    if deployment.get("schedules"):
+        schedules = []
+        for deployment_schedule in cast(
+            List[MinimalDeploymentSchedule], deployment["schedules"]
+        ):
+            if isinstance(deployment_schedule.schedule, IntervalSchedule):
+                schedule_config = _interval_schedule_to_dict(
+                    deployment_schedule.schedule
+                )
+            elif isinstance(deployment_schedule.schedule, BaseModel):
+                schedule_config = deployment_schedule.schedule.dict()
+
+            schedule_config["active"] = deployment_schedule.active
+            schedules.append(schedule_config)
+
+        deployment["schedules"] = schedules
+
     return deployment
+
+
+def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
+    """
+    Converts an IntervalSchedule to a dictionary.
+
+    Args:
+        - schedule (IntervalSchedule): the schedule to convert
+
+    Returns:
+        - Dict: the schedule as a dictionary
+    """
+    schedule_config = schedule.dict()
+    schedule_config["interval"] = schedule_config["interval"].total_seconds()
+    schedule_config["anchor_date"] = schedule_config["anchor_date"].isoformat()
+
+    return schedule_config
 
 
 def _save_deployment_to_prefect_file(

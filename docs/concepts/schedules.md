@@ -191,16 +191,22 @@ You will be prompted to choose which type of schedule to create.
 
 ### Creating schedules in the `prefect.yaml` file's `deployments` -> `schedule` section
 
-If you save the `prefect.yaml` file from the `prefect deploy` command, you will see it has a `schedule` section for your deployment.
-Alternatively, you can create a `prefect.yaml` file from a recipe or from scratch and add a `schedule` section to it.
+If you save the `prefect.yaml` file from the `prefect deploy` command, you will see it has a `schedules` section for your deployment.
+Alternatively, you can create a `prefect.yaml` file from a recipe or from scratch and add a `schedules` section to it.
 
 ```yaml
 deployments:
   ...
-  schedule:
-    cron: 0 0 * * *
-    timezone: America/Chicago
-    active: false
+  schedules:
+    - cron: "0 0 * * *"
+      timezone: "America/Chicago"
+      active: false
+    - cron: "0 12 * * *"
+      timezone: "America/New_York"
+      active: true
+    - cron: "0 18 * * *"
+      timezone: "Europe/London"
+      active: true
 ```
 
 ### Creating schedules with a Python deployment creation file
