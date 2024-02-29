@@ -35,7 +35,7 @@
 ### Contributors
 - @jrbourbeau
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.0...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.0...2.16.1
 
 
 ## Release 2.16.0
