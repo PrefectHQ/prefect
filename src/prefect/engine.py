@@ -80,6 +80,7 @@ Client-side execution and orchestration of flows and tasks.
     _Ideally, for local and sequential task runners we would send the task run to the
     user thread as we do for flows. See [#9855](https://github.com/PrefectHQ/prefect/pull/9855).
 """
+
 import asyncio
 import contextlib
 import logging
@@ -2924,7 +2925,8 @@ async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> 
 
             # TODO: Improve use of result storage for parameter storage / reference
             task.persist_result = True
-            factory = await ResultFactory.from_task(task, client=client)
+
+            factory = await ResultFactory.from_autonomous_task(task, client=client)
             await factory.store_parameters(parameters_id, parameters)
 
         task_run = await client.create_task_run(
