@@ -3207,9 +3207,11 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.is_schedule_active is False
-        assert deployment.schedule.cron == "0 4 * * *"
-        assert deployment.schedule.timezone == "America/Chicago"
+
+        deployment_schedule = deployment.schedules[0]
+        assert deployment_schedule.active is False
+        assert deployment_schedule.schedule.cron == "0 4 * * *"
+        assert deployment_schedule.schedule.timezone == "America/Chicago"
 
 
 class TestMultiDeploy:
@@ -3313,9 +3315,9 @@ class TestMultiDeploy:
         )
 
         assert deployment1.name == "test-name-1"
-        assert deployment1.is_schedule_active is True
+        assert deployment1.schedules[0].active is True
         assert deployment2.name == "test-name-2"
-        assert deployment2.is_schedule_active is False
+        assert deployment2.schedules[0].active is False
 
     async def test_deploy_selected_deployments(
         self, project_dir, prefect_client, work_pool
