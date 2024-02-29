@@ -52,6 +52,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             EnforceCancellingToCancelledTransition,
             BypassCancellingScheduledFlowRuns,
             PreventPendingTransitions,
+            EnsureOnlyScheduledFlowsMarkedLate,
             HandlePausingFlows,
             HandleResumingPausedFlows,
             CopyScheduledTime,
@@ -107,6 +108,13 @@ class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             AddUnknownResult,  # mark forced completions with an unknown result
+        ]
+
+
+class MarkLateRunsPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return [
+            EnsureOnlyScheduledFlowsMarkedLate,
         ]
 
 
@@ -900,6 +908,25 @@ class PreventPendingTransitions(BaseOrchestrationRule):
                 " transition to a PENDING state."
             )
         )
+
+
+class EnsureOnlyScheduledFlowsMarkedLate(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [StateType.SCHEDULED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        marking_flow_late = (
+            proposed_state.is_scheduled() and proposed_state.name == "Late"
+        )
+        if marking_flow_late and not initial_state.is_scheduled():
+            await self.reject_transition(
+                state=None, reason="Only scheduled flows can be marked late."
+            )
 
 
 class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
