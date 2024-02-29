@@ -32,9 +32,6 @@
 ## New Contributors
 * @jrbourbeau made their first contribution in https://github.com/PrefectHQ/prefect/pull/12098
 
-### Contributors
-- @jrbourbeau
-
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.0...2.16.1
 
 
