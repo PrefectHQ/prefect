@@ -6,7 +6,6 @@
 
 ### Enhancements
 - Add filter to prevent logging the current API key — https://github.com/PrefectHQ/prefect/pull/12072
-- Add artifact data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12105
 - Update `flow.serve` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12107
 
 ### Fixes
@@ -27,6 +26,7 @@
 - Fix formatting on webhooks page — https://github.com/PrefectHQ/prefect/pull/12088
 
 ### Experimental
+- Add artifact data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12105
 - Add feature flag for flow run infra overrides — https://github.com/PrefectHQ/prefect/pull/12065
 
 ## New Contributors
