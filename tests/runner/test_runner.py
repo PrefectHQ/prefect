@@ -22,7 +22,7 @@ import prefect.runner
 from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import MinimalDeploymentSchedule, StateType
-from prefect.client.schemas.schedules import CronSchedule
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
     DeploymentImage,
@@ -791,12 +791,21 @@ class TestRunnerDeployment:
             schedules=[
                 MinimalDeploymentSchedule(
                     schedule=CronSchedule(cron="* * * * *"), active=True
-                )
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
             ],
         )
         assert deployment.schedules
         assert deployment.schedules[0].schedule.cron == "* * * * *"
         assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
 
     @pytest.mark.parametrize(
         "value,expected",
@@ -980,12 +989,21 @@ class TestRunnerDeployment:
             schedules=[
                 MinimalDeploymentSchedule(
                     schedule=CronSchedule(cron="* * * * *"), active=True
-                )
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
             ],
         )
         assert deployment.schedules
         assert deployment.schedules[0].schedule.cron == "* * * * *"
         assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
 
     @pytest.mark.parametrize(
         "value,expected",
@@ -1207,12 +1225,21 @@ class TestRunnerDeployment:
             schedules=[
                 MinimalDeploymentSchedule(
                     schedule=CronSchedule(cron="* * * * *"), active=True
-                )
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
             ],
         )
         assert deployment.schedules
         assert deployment.schedules[0].schedule.cron == "* * * * *"
         assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
 
     @pytest.mark.parametrize(
         "value,expected",
@@ -1231,6 +1258,29 @@ class TestRunnerDeployment:
         assert deployment.paused is expected
         # `is_schedule_active` is the opposite of `paused`
         assert deployment.is_schedule_active is not expected
+
+    async def test_init_runner_deployment_with_schedule(self):
+        schedule = CronSchedule(cron="* * * * *")
+
+        deployment = RunnerDeployment(
+            flow=dummy_flow_1,
+            name="test-deployment",
+            schedule=schedule,
+        )
+
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+
+    async def test_init_runner_deployment_with_invalid_schedules(self):
+        with pytest.raises(ValueError, match="Invalid schedule"):
+            RunnerDeployment(
+                flow=dummy_flow_1,
+                name="test-deployment",
+                schedules=[
+                    "not a schedule",
+                ],
+            )
 
 
 class TestServer:

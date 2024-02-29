@@ -244,7 +244,7 @@ class RunnerDeployment(BaseModel):
         schedules = values.get("schedules")
 
         if schedules is None and schedule is not None:
-            values["schedules"] = _to_deployment_schedule(schedule)
+            values["schedules"] = [_to_deployment_schedule(schedule)]
         elif schedules is not None and len(schedules) > 0:
             reconciled = []
             for obj in schedules:
