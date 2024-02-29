@@ -719,7 +719,7 @@ class Deployment(BaseModel):
                     # The user isn't using "schedules," so we should
                     # populate "schedule" and "is_schedule_active" from the
                     # API's version of the deployment, unless the user gave
-                    # us this fields in __init__().
+                    # us these fields in __init__().
                     if "schedule" not in self.__fields_set__:
                         self.schedule = deployment.schedule
                     if "is_schedule_active" not in self.__fields_set__:
