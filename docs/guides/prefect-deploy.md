@@ -110,8 +110,8 @@ When creating a deployment that uses a work pool and worker, we must answer _two
 The [tutorial](/tutorial/deployments/) shows how you can create a deployment with a long-running process using `.serve` and how to move to a [work-pool-based deployment](/tutorial/workers/) setup with `.deploy`.
 See the discussion of when you might want to move to work-pool-based deployments [there](/tutorial/workers/#why-workers-and-work-pools).
 
-Next, let's see how to use `.deploy` in more depth.
-Skip to the [later section]() to learn about `prefect.yaml`, a YAML-based alternative for managing deployments.
+Next, we'll explore how to use `.deploy` to create deployments with Python code.
+If you'd prefer to learn about using a YAML-based alternative for managing deployment configuration, skip to the [later section on `prefect.yaml`](#creating-work-pool-based-deployments-with-prefectyaml).
 
 ## Creating work pool-based deployments with `.deploy`
 

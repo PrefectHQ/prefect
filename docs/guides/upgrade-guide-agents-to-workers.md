@@ -129,7 +129,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
     If you currently use `prefect deployment build` and `prefect deployment apply`, we recommend using `prefect deploy`.
 
-### "flow.deploy"
+### `flow.deploy`
 
 If you have a Python script that uses `Deployment.build_from_flow`, you can replace it with `flow.deploy`.
 
@@ -311,4 +311,4 @@ This will start a wizard that will guide you through setting up your deployment.
 
 You can add more [deployments](/concepts/deployments/#deployment-declaration-reference) to the `deployments` list in your `prefect.yaml` file and/or by continuing to use the deployment creation wizard.
 
-For more informationon deployments, check out our [in-depth guide for deploying flows to work pools](/guides/prefect-deploy/).
+For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/guides/prefect-deploy/).
