@@ -330,32 +330,36 @@ def prompt_schedule_type(console):
 
 def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
     """
-    Prompt the user for a schedule type. Once a schedule type is selected, prompt
-    the user for the schedule details and return the schedule.
+    Prompt the user to configure schedules for a deployment.
     """
     schedules = []
 
-    add_schedule = True
-    while add_schedule:
-        schedule_type = prompt_schedule_type(console)
-        if schedule_type == "Cron":
-            schedule = prompt_cron_schedule(console)
-        elif schedule_type == "Interval":
-            schedule = prompt_interval_schedule(console)
-        elif schedule_type == "RRule":
-            schedule = prompt_rrule_schedule(console)
-        else:
-            raise Exception("Invalid schedule type")
+    if confirm(
+        "Would you like to configure schedules for this deployment?", default=True
+    ):
+        add_schedule = True
+        while add_schedule:
+            schedule_type = prompt_schedule_type(console)
+            if schedule_type == "Cron":
+                schedule = prompt_cron_schedule(console)
+            elif schedule_type == "Interval":
+                schedule = prompt_interval_schedule(console)
+            elif schedule_type == "RRule":
+                schedule = prompt_rrule_schedule(console)
+            else:
+                raise Exception("Invalid schedule type")
 
-        is_schedule_active = confirm(
-            "Would you like to activate this schedule?", default=True
-        )
+            is_schedule_active = confirm(
+                "Would you like to activate this schedule?", default=True
+            )
 
-        schedules.append(
-            MinimalDeploymentSchedule(schedule=schedule, active=is_schedule_active)
-        )
+            schedules.append(
+                MinimalDeploymentSchedule(schedule=schedule, active=is_schedule_active)
+            )
 
-        add_schedule = confirm("Would you like to add another schedule?", default=False)
+            add_schedule = confirm(
+                "Would you like to add another schedule?", default=False
+            )
 
     return schedules
 

@@ -802,15 +802,7 @@ def _construct_schedules(
             for schedule_config in schedule_configs
         ]
     elif schedule_configs is NotSet:
-        if (
-            not ci
-            and is_interactive()
-            and confirm(
-                "Would you like to configure schedules for this deployment?",
-                default=True,
-                console=app.console,
-            )
-        ):
+        if not ci and is_interactive():
             schedules = prompt_schedules(app.console)
         else:
             schedules = []
