@@ -85,7 +85,10 @@ This command switches you back to your sudo-enabled account so you will can run 
 
 ## Step 3: Set up a systemd service
 
-### For a Prefect worker
+See the section below if you are setting up a Prefect worker.
+Skip to the [next section]() if you are setting up a Prefect `.serve` process.
+
+### Setting up a systemd service for a Prefect worker
 
 Move into the `/etc/systemd/system` folder and open a file for editing.
 We use the Vim text editor below.
@@ -111,7 +114,7 @@ WantedBy=multi-user.target
 
 Make sure you substitute your own work pool name.
 
-For `.serve`
+### Setting up a systemd service for `.serve`
 
 Copy your flow entrypoint Python file and any other files needed for your flow to run into the `/home` directory (or the directory of your choice).
 
