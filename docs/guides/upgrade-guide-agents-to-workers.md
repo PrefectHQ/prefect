@@ -291,7 +291,7 @@ If you currently bake your flow code into a Docker image before deploying, you c
 
 You can skip a `flow.from_source` call when building an image with `flow.deploy`. Prefect will keep track of the flow's source code location in the image and load it from that location when the flow is executed.
 
-### Using "prefect deploy"
+### Using `prefect deploy`
 
 !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
     With agents, you might have had multiple `deployment.yaml` files, but under worker deployment patterns, each repo will have a single `prefect.yaml` file located at the **root** of the repo that contains [deployment configuration](/concepts/deployments/#working-with-multiple-deployments) for all flows in that repo.
