@@ -864,6 +864,7 @@ async def commit_task_run_state(
     state_type: states.StateType,
     state_details=None,
     state_data=None,
+    state_name=None,
 ):
     if state_type is None:
         return None
@@ -874,6 +875,7 @@ async def commit_task_run_state(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
+        name=state_name,
     )
 
     result = await models.task_runs.set_task_run_state(
@@ -893,6 +895,7 @@ async def commit_flow_run_state(
     state_type: states.StateType,
     state_details=None,
     state_data=None,
+    state_name=None,
 ):
     if state_type is None:
         return None
@@ -903,6 +906,7 @@ async def commit_flow_run_state(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
+        name=state_name,
     )
 
     result = await models.flow_runs.set_flow_run_state(
@@ -933,6 +937,8 @@ def initialize_orchestration(flow):
         flow_run_count: int = None,
         resuming: bool = None,
         initial_flow_run_state_details=None,
+        initial_state_name: str = None,
+        proposed_state_name: str = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
@@ -996,12 +1002,15 @@ def initialize_orchestration(flow):
             initial_state_type,
             initial_details,
             state_data=initial_state_data,
+            state_name=initial_state_name,
         )
 
         proposed_details = proposed_details if proposed_details else dict()
         if proposed_state_type is not None:
             psd = states.StateDetails(**proposed_details)
-            proposed_state = states.State(type=proposed_state_type, state_details=psd)
+            proposed_state = states.State(
+                type=proposed_state_type, state_details=psd, name=proposed_state_name
+            )
         else:
             proposed_state = None
 

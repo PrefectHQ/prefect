@@ -36,7 +36,7 @@ ALL_ORCHESTRATION_STATES = list(
 
 
 async def commit_task_run_state(
-    session, task_run, state_type: states.StateType, state_details=None
+    session, task_run, state_type: states.StateType, state_details=None, state_name=None
 ):
     if state_type is None:
         return None
@@ -52,6 +52,7 @@ async def commit_task_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
+        name=state_name,
     )
 
     db = provide_database_interface()
