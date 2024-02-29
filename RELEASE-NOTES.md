@@ -57,7 +57,8 @@ This will create a deployment with three schedules, one that runs every hour, on
 
 Dive into these new scheduling capabilities today and streamline your workflows like never before. 
 
-For implementation details, see the following pull request: - https://github.com/PrefectHQ/prefect/pull/12107
+For implementation details, see the following pull request:
+    - https://github.com/PrefectHQ/prefect/pull/12107
 
 ### Enhancements
 - Add a logging filter to prevent logging the current API key — https://github.com/PrefectHQ/prefect/pull/12072
