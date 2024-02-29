@@ -2,11 +2,66 @@
 
 ## Release 2.16.1
 
-### TODO: !Highlight!
+### Enhanced multiple schedule support  
+
+`prefect.yaml` now supports specifying multiple schedules via the `schedules` key. This allows you to define multiple schedules for a single deployment, and each schedule can have its own `cron`, `interval`, or `rrule` configuration:
+
+```yaml
+ ...
+ schedules:
+    - cron: "0 0 * * *"
+      active: false
+    - interval: 3600
+      active: true
+    - rrule: "FREQ=YEARLY"
+      active: true
+```
+
+In addition you can specify multiple schedules via arguments to `prefect deploy`:
+
+`prefect deploy ... --cron '4 * * * *' --cron '1 * * * *' --rrule 'FREQ=DAILY'`
+
+We've also added support for multiple schedules to `flow.serve`, `flow.deploy` and `prefect.runner.serve`. You can provide multiple schedules by passing a list to the `cron`, `interval`, or `rrule` arguments:
+
+```python
+import datetime
+import random
+
+from prefect import flow
+
+
+@flow
+def trees():
+    tree = random.choice(["🌳", "🌴", "🌲", "🌵"])
+    print(f"Here's a happy little tree: {tree}")
+
+if __name__ == "__main__":
+    trees.serve(
+        name="trees",
+        interval=[3600, 7200, 14400],
+    )
+```
+
+This will create a deployment with three schedules, one that runs every hour, one that runs every two hours, and one that runs every four hours. For more advanced cases, use the `schedules` argument. 
+
+```python
+    trees.serve(
+        name="trees",
+        schedules=[
+            IntervalSchedule(interval=datetime.timedelta(minutes=30)),
+            {"schedule": RRuleSchedule(rrule="FREQ=YEARLY"), "active": True},
+            MinimalDeploymentSchedule(schedule=CronSchedule(cron="0 0 * * *"), active=False),
+        ]
+    )
+```
+
+Dive into these new scheduling capabilities today and streamline your workflows like never before. 
+
 
 ### Enhancements
 - Add filter to prevent logging the current API key — https://github.com/PrefectHQ/prefect/pull/12072
 - Update `flow.serve` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12107
+- Update `prefect deploy` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12121
 
 ### Fixes
 - Clear runs even if deployment is paused, when updating/deleting schedules — https://github.com/PrefectHQ/prefect/pull/12089
