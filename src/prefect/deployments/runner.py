@@ -33,7 +33,7 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union, get_args
 from uuid import UUID
 
 import pendulum
@@ -49,14 +49,15 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
-from prefect.utilities.collections import get_from_dict
+from prefect.utilities.collections import get_from_dict, isiterable
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
+    from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
 else:
-    from pydantic import BaseModel, Field, PrivateAttr, validator
+    from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 from prefect.client.orchestration import ServerType, get_client
+from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
@@ -81,7 +82,16 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     from prefect.flows import Flow
 
+FlexibleScheduleList = Union[MinimalDeploymentSchedule, dict, SCHEDULE_TYPES]
+
 __all__ = ["RunnerDeployment"]
+
+
+def _to_deployment_schedule(
+    schedule: Optional[SCHEDULE_TYPES] = None,
+    active: Optional[bool] = True,
+) -> MinimalDeploymentSchedule:
+    return MinimalDeploymentSchedule(schedule=schedule, active=active)
 
 
 class DeploymentApplyError(RuntimeError):
@@ -138,9 +148,16 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
+    schedules: Optional[List[MinimalDeploymentSchedule]] = Field(
+        default=None,
+        description="The schedules that should cause this deployment to run.",
+    )
     schedule: Optional[SCHEDULE_TYPES] = None
+    paused: Optional[bool] = Field(
+        default=None, description="Whether or not the deployment is paused."
+    )
     is_schedule_active: Optional[bool] = Field(
-        default=None, description="Whether or not the schedule is active."
+        default=None, description="DEPRECATED: Whether or not the schedule is active."
     )
     parameters: Dict[str, Any] = Field(default_factory=dict)
     entrypoint: Optional[str] = Field(
@@ -204,6 +221,49 @@ class RunnerDeployment(BaseModel):
 
         return field_value
 
+    @root_validator(pre=True)
+    def reconcile_paused(cls, values):
+        paused = values.get("paused")
+        is_schedule_active = values.get("is_schedule_active")
+
+        if paused is not None:
+            values["paused"] = paused
+            values["is_schedule_active"] = not paused
+        elif is_schedule_active is not None:
+            values["paused"] = not is_schedule_active
+            values["is_schedule_active"] = is_schedule_active
+        else:
+            values["paused"] = False
+            values["is_schedule_active"] = True
+
+        return values
+
+    @root_validator(pre=True)
+    def reconcile_schedules(cls, values):
+        schedule = values.get("schedule")
+        schedules = values.get("schedules")
+
+        if schedules is None and schedule is not None:
+            values["schedules"] = [_to_deployment_schedule(schedule)]
+        elif schedules is not None and len(schedules) > 0:
+            reconciled = []
+            for obj in schedules:
+                if isinstance(obj, get_args(SCHEDULE_TYPES)):
+                    reconciled.append(_to_deployment_schedule(obj))
+                elif isinstance(obj, dict):
+                    reconciled.append(_to_deployment_schedule(**obj))
+                elif isinstance(obj, MinimalDeploymentSchedule):
+                    reconciled.append(obj)
+                else:
+                    raise ValueError(
+                        "Invalid schedule provided. Must be a schedule object, a dict,"
+                        " or a MinimalDeploymentSchedule."
+                    )
+
+            values["schedules"] = reconciled
+
+        return values
+
     @sync_compatible
     async def apply(
         self, work_pool_name: Optional[str] = None, image: Optional[str] = None
@@ -221,6 +281,7 @@ class RunnerDeployment(BaseModel):
         Returns:
             The ID of the created deployment.
         """
+
         work_pool_name = work_pool_name or self.work_pool_name
 
         if image and not work_pool_name:
@@ -250,8 +311,8 @@ class RunnerDeployment(BaseModel):
                 work_queue_name=self.work_queue_name,
                 work_pool_name=work_pool_name,
                 version=self.version,
-                schedule=self.schedule,
-                is_schedule_active=self.is_schedule_active,
+                paused=self.paused,
+                schedules=self.schedules,
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,
@@ -299,50 +360,87 @@ class RunnerDeployment(BaseModel):
             return deployment_id
 
     @staticmethod
-    def _construct_schedule(
-        interval: Optional[Union[int, float, timedelta]] = None,
+    def _construct_deployment_schedules(
+        interval: Optional[
+            Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
+        ] = None,
         anchor_date: Optional[Union[datetime, str]] = None,
-        cron: Optional[str] = None,
-        rrule: Optional[str] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-    ) -> Optional[SCHEDULE_TYPES]:
+        schedules: Optional[List[FlexibleScheduleList]] = None,
+    ) -> Union[List[MinimalDeploymentSchedule], List[FlexibleScheduleList]]:
         """
-        Construct a schedule from the provided arguments.
+        Construct a schedule or schedules from the provided arguments.
 
-        This is a single path for all serve schedules. If schedule is provided,
-        it is returned. Otherwise, the other arguments are used to construct a schedule.
+        This method serves as a unified interface for creating deployment
+        schedules. If `schedules` is provided, it is directly returned. If
+        `schedule` is provided, it is encapsulated in a list and returned. If
+        `interval`, `cron`, or `rrule` are provided, they are used to construct
+        schedule objects.
 
         Args:
-            interval: An interval on which to schedule runs. Accepts either a number
-                or a timedelta object. If a number is given, it will be interpreted as seconds.
-            anchor_date: The start date for an interval schedule.
-            cron: A cron schedule for runs.
-            rrule: An rrule schedule of when to execute runs of this flow.
-            timezone: A timezone to use for the schedule.
-            schedule: A schedule object of when to execute runs of this flow. Used for
-                advanced scheduling options like timezone.
+            interval: An interval on which to schedule runs, either as a single
+              value or as a list of values. Accepts numbers (interpreted as
+              seconds) or `timedelta` objects. Each value defines a separate
+              scheduling interval.
+            anchor_date: The anchor date from which interval schedules should
+              start. This applies to all intervals if a list is provided.
+            cron: A cron expression or a list of cron expressions defining cron
+              schedules. Each expression defines a separate cron schedule.
+            rrule: An rrule string or a list of rrule strings for scheduling.
+              Each string defines a separate recurrence rule.
+            timezone: The timezone to apply to the cron or rrule schedules.
+              This is a single value applied uniformly to all schedules.
+            schedule: A singular schedule object, used for advanced scheduling
+              options like specifying a timezone. This is returned as a list
+              containing this single schedule.
+            schedules: A pre-defined list of schedule objects. If provided,
+              this list is returned as-is, bypassing other schedule construction
+              logic.
         """
+
         num_schedules = sum(
-            1 for entry in (interval, cron, rrule, schedule) if entry is not None
+            1
+            for entry in (interval, cron, rrule, schedule, schedules)
+            if entry is not None
         )
         if num_schedules > 1:
             raise ValueError(
-                "Only one of interval, cron, rrule, or schedule can be provided."
+                "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             )
+        elif num_schedules == 0:
+            return []
 
-        if schedule:
-            return schedule
+        if schedules is not None:
+            return schedules
         elif interval or cron or rrule:
-            return construct_schedule(
-                interval=interval,
-                cron=cron,
-                rrule=rrule,
-                timezone=timezone,
-                anchor_date=anchor_date,
-            )
+            # `interval`, `cron`, and `rrule` can be lists of values. This
+            # block figures out which one is not None and uses that to
+            # construct the list of schedules via `construct_schedule`.
+            parameters = [("interval", interval), ("cron", cron), ("rrule", rrule)]
+            schedule_type, value = [
+                param for param in parameters if param[1] is not None
+            ][0]
+
+            if not isiterable(value):
+                value = [value]
+
+            return [
+                _to_deployment_schedule(
+                    construct_schedule(
+                        **{
+                            schedule_type: v,
+                            "timezone": timezone,
+                            "anchor_date": anchor_date,
+                        }
+                    )
+                )
+                for v in value
+            ]
         else:
-            return None
+            return [_to_deployment_schedule(schedule)]
 
     def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)
@@ -357,9 +455,13 @@ class RunnerDeployment(BaseModel):
         cls,
         flow: "Flow",
         name: str,
-        interval: Optional[Union[int, float, timedelta]] = None,
-        cron: Optional[str] = None,
-        rrule: Optional[str] = None,
+        interval: Optional[
+            Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedules: Optional[List[FlexibleScheduleList]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -382,6 +484,9 @@ class RunnerDeployment(BaseModel):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not to set this deployment as paused.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to define multiple schedules or additional scheduling options like `timezone`.
             schedule: A schedule object of when to execute runs of this flow. Used for
                 advanced scheduling options like timezone.
             is_schedule_active: Whether or not to set the schedule for this deployment as active. If
@@ -403,8 +508,12 @@ class RunnerDeployment(BaseModel):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
         """
-        schedule = cls._construct_schedule(
-            interval=interval, cron=cron, rrule=rrule, schedule=schedule
+        constructed_schedules = cls._construct_deployment_schedules(
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            schedules=schedules,
         )
 
         job_variables = job_variables or {}
@@ -413,7 +522,9 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
+            schedules=constructed_schedules,
             is_schedule_active=is_schedule_active,
+            paused=paused,
             tags=tags or [],
             triggers=triggers or [],
             parameters=parameters or {},
@@ -467,9 +578,13 @@ class RunnerDeployment(BaseModel):
         cls,
         entrypoint: str,
         name: str,
-        interval: Optional[Union[int, float, timedelta]] = None,
-        cron: Optional[str] = None,
-        rrule: Optional[str] = None,
+        interval: Optional[
+            Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedules: Optional[List[FlexibleScheduleList]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -493,6 +608,9 @@ class RunnerDeployment(BaseModel):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not to set this deployment as paused.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to define multiple schedules or additional scheduling options like `timezone`.
             schedule: A schedule object of when to execute runs of this flow. Used for
                 advanced scheduling options like timezone.
             is_schedule_active: Whether or not to set the schedule for this deployment as active. If
@@ -519,17 +637,20 @@ class RunnerDeployment(BaseModel):
         job_variables = job_variables or {}
         flow = load_flow_from_entrypoint(entrypoint)
 
-        schedule = cls._construct_schedule(
+        constructed_schedules = cls._construct_deployment_schedules(
             interval=interval,
             cron=cron,
             rrule=rrule,
             schedule=schedule,
+            schedules=schedules,
         )
 
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
+            schedules=constructed_schedules,
+            paused=paused,
             is_schedule_active=is_schedule_active,
             tags=tags or [],
             triggers=triggers or [],
@@ -555,9 +676,13 @@ class RunnerDeployment(BaseModel):
         storage: RunnerStorage,
         entrypoint: str,
         name: str,
-        interval: Optional[Union[int, float, timedelta]] = None,
-        cron: Optional[str] = None,
-        rrule: Optional[str] = None,
+        interval: Optional[
+            Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedules: Optional[List[FlexibleScheduleList]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -607,9 +732,14 @@ class RunnerDeployment(BaseModel):
         """
         from prefect.flows import load_flow_from_entrypoint
 
-        schedule = cls._construct_schedule(
-            interval=interval, cron=cron, rrule=rrule, schedule=schedule
+        constructed_schedules = cls._construct_deployment_schedules(
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            schedules=schedules,
         )
+
         job_variables = job_variables or {}
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -625,6 +755,8 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
+            schedules=constructed_schedules,
+            paused=paused,
             is_schedule_active=is_schedule_active,
             tags=tags or [],
             triggers=triggers or [],
