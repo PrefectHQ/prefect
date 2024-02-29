@@ -1,5 +1,96 @@
 # Prefect Release Notes
 
+## Release 2.16.1
+
+### Enhanced multiple schedule support  
+
+`prefect.yaml` now supports specifying multiple schedules via the `schedules` key. This allows you to define multiple schedules for a single deployment, and each schedule can have its own `cron`, `interval`, or `rrule` configuration:
+
+```yaml
+ ...
+ schedules:
+    - cron: "0 0 * * *"
+      active: false
+    - interval: 3600
+      active: true
+    - rrule: "FREQ=YEARLY"
+      active: true
+```
+
+In addition, you can now specify multiple schedules via arguments to `prefect deploy`:
+
+`prefect deploy ... --cron '4 * * * *' --cron '1 * * * *' --rrule 'FREQ=DAILY'`
+
+We've also added support for multiple schedules to `flow.serve`, `flow.deploy` and `prefect.runner.serve`. You can provide multiple schedules by passing a list to the `cron`, `interval`, or `rrule` arguments:
+
+```python
+import datetime
+import random
+
+from prefect import flow
+
+
+@flow
+def trees():
+    tree = random.choice(["🌳", "🌴", "🌲", "🌵"])
+    print(f"Here's a happy little tree: {tree}")
+
+if __name__ == "__main__":
+    trees.serve(
+        name="trees",
+        interval=[3600, 7200, 14400],
+    )
+```
+
+This will create a deployment with three schedules, one that runs every hour, one that runs every two hours, and one that runs every four hours. For more advanced cases, use the `schedules` argument. 
+
+```python
+    trees.serve(
+        name="trees",
+        schedules=[
+            IntervalSchedule(interval=datetime.timedelta(minutes=30)),
+            {"schedule": RRuleSchedule(rrule="FREQ=YEARLY"), "active": True},
+            MinimalDeploymentSchedule(schedule=CronSchedule(cron="0 0 * * *"), active=False),
+        ]
+    )
+```
+
+Dive into these new scheduling capabilities today and streamline your workflows like never before. 
+
+For implementation details, see the following pull request:
+    - https://github.com/PrefectHQ/prefect/pull/12107
+
+### Enhancements
+- Add a logging filter to prevent logging the current API key — https://github.com/PrefectHQ/prefect/pull/12072
+- Update `flow.serve` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12107
+- Update `prefect deploy` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12121
+
+### Fixes
+- Clear runs when updating or deleting schedules, even if the deployment is paused — https://github.com/PrefectHQ/prefect/pull/12089
+- Surface missing work pool error in CLI — https://github.com/PrefectHQ/prefect/pull/12087
+- Ignore outdated `schedule` in `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12100
+- Fix schedule instructions for `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12101
+- Fix reference to `prefect deployment schedule create` — https://github.com/PrefectHQ/prefect/pull/12117
+- Ensure only scheduled runs can be marked late — https://github.com/PrefectHQ/prefect/pull/12113
+
+### Documentation
+- Update outdated automations concepts page image — https://github.com/PrefectHQ/prefect/pull/12059
+- Update automations concept page for recent triggers and actions — https://github.com/PrefectHQ/prefect/pull/12074
+- Add clarifications to tutorial and getting started pages — https://github.com/PrefectHQ/prefect/pull/12077
+- Add minimum Kubernetes version to worker guide — https://github.com/PrefectHQ/prefect/pull/12095
+- Add Coiled to integrations catalog docs page — https://github.com/PrefectHQ/prefect/pull/12098
+- Fix formatting on webhooks page — https://github.com/PrefectHQ/prefect/pull/12088
+
+### Experimental
+- Add artifact data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12105
+- Add feature flag for flow run infra overrides — https://github.com/PrefectHQ/prefect/pull/12065
+
+## New Contributors
+* @jrbourbeau made their first contribution in https://github.com/PrefectHQ/prefect/pull/12098
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.0...2.16.1
+
+
 ## Release 2.16.0
 
 ### 🕢 Deployments now support multiple schedules 🕐
