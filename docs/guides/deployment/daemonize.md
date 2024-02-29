@@ -86,7 +86,7 @@ This command switches you back to your sudo-enabled account so you will can run 
 ## Step 3: Set up a systemd service
 
 See the section below if you are setting up a Prefect worker.
-Skip to the [next section]() if you are setting up a Prefect `.serve` process.
+Skip to the [next section](#setting-up-a-systemd-service-for-serve) if you are setting up a Prefect `.serve` process.
 
 ### Setting up a systemd service for a Prefect worker
 
