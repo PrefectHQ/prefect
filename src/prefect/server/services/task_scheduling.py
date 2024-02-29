@@ -34,7 +34,7 @@ class TaskSchedulingTimeouts(LoopService):
         """
         Periodically reschedules pending task runs that have been pending for too long.
         """
-        async with db.session_context() as session:
+        async with db.session_context(begin_transaction=True) as session:
             if self._first_run:
                 await self.restore_scheduled_tasks_if_necessary(session)
                 self._first_run = False
