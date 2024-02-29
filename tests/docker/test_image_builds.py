@@ -135,7 +135,8 @@ def test_raises_exception_on_bad_base_image(
     # Occasionally, Dockerhub will rate limit us and return a 429
     # so we will allow this as an acceptable error since we know that
     # the image pull attempt occurred.
-    with pytest.raises(BuildError, match=expected_error + "|429"):
+    # We also allow 500 errors since they are often transient.
+    with pytest.raises(BuildError, match=expected_error + "|429" + "|500"):
         build_image(contexts / example_context, stream_progress_to=sys.stdout)
 
 
