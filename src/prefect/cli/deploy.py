@@ -26,7 +26,7 @@ from prefect.cli._prompts import (
     prompt_build_custom_docker_image,
     prompt_entrypoint,
     prompt_push_custom_docker_image,
-    prompt_schedule,
+    prompt_schedules,
     prompt_select_blob_storage_credentials,
     prompt_select_from_table,
     prompt_select_remote_flow_storage,
@@ -38,8 +38,8 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import (
-    SCHEDULE_TYPES,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -145,12 +145,12 @@ async def deploy(
             " format of key=value string or a JSON object"
         ),
     ),
-    cron: str = typer.Option(
+    cron: List[str] = typer.Option(
         None,
         "--cron",
         help="A cron string that will be used to set a CronSchedule on the deployment.",
     ),
-    interval: int = typer.Option(
+    interval: List[int] = typer.Option(
         None,
         "--interval",
         help=(
@@ -159,9 +159,9 @@ async def deploy(
         ),
     ),
     interval_anchor: Optional[str] = typer.Option(
-        None, "--anchor-date", help="The anchor date for an interval schedule"
+        None, "--anchor-date", help="The anchor date for all interval schedules"
     ),
-    rrule: str = typer.Option(
+    rrule: List[str] = typer.Option(
         None,
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
@@ -330,6 +330,7 @@ async def _run_single_deploy(
     should_prompt_for_save = is_interactive() and not ci
 
     deploy_config = _merge_with_default_deploy_config(deploy_config)
+    deploy_config = _handle_deprecated_schedule_fields(deploy_config)
     (
         deploy_config,
         variable_overrides,
@@ -344,28 +345,6 @@ async def _run_single_deploy(
 
     # check for env var placeholders early so users can pass work pool names, etc.
     deploy_config = apply_values(deploy_config, os.environ, remove_notset=False)
-
-    if get_from_dict(deploy_config, "schedule.anchor_date") and not get_from_dict(
-        deploy_config, "schedule.interval"
-    ):
-        raise ValueError(
-            "An anchor date can only be provided with an interval schedule"
-        )
-
-    number_of_schedules_provided = len(
-        [
-            value
-            for value in (
-                get_from_dict(deploy_config, "schedule.cron"),
-                get_from_dict(deploy_config, "schedule.rrule"),
-                get_from_dict(deploy_config, "schedule.interval"),
-            )
-            if value is not None
-        ]
-    )
-
-    if number_of_schedules_provided > 1:
-        raise ValueError("Only one schedule type can be provided.")
 
     if not deploy_config.get("flow_name") and not deploy_config.get("entrypoint"):
         if not is_interactive() and not ci:
@@ -452,10 +431,7 @@ async def _run_single_deploy(
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    (
-        deploy_config["schedule"],
-        deploy_config["is_schedule_active"],
-    ) = _construct_schedule(deploy_config, ci=ci)
+    deploy_config["schedules"] = _construct_schedules(deploy_config, ci=ci)
 
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
@@ -642,10 +618,12 @@ async def _run_single_deploy(
     deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec
     _parameter_schema = deploy_config.pop("parameter_openapi_schema")
-    _schedule = deploy_config.pop("schedule")
+
+    _schedules = deploy_config.pop("schedules")
+
     deploy_config = apply_values(deploy_config, step_outputs)
     deploy_config["parameter_openapi_schema"] = _parameter_schema
-    deploy_config["schedule"] = _schedule
+    deploy_config["schedules"] = _schedules
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
@@ -657,8 +635,8 @@ async def _run_single_deploy(
         work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
         work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
         version=deploy_config.get("version"),
-        schedule=deploy_config.get("schedule"),
-        is_schedule_active=deploy_config.get("is_schedule_active"),
+        schedules=deploy_config.get("schedules"),
+        paused=deploy_config.get("paused"),
         enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
         parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
         parameters=deploy_config.get("parameters"),
@@ -802,10 +780,10 @@ async def _run_multi_deploy(
         )
 
 
-def _construct_schedule(
+def _construct_schedules(
     deploy_config: Dict,
     ci: bool = False,
-) -> Tuple[Optional[SCHEDULE_TYPES], Optional[bool]]:
+) -> List[MinimalDeploymentSchedule]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -814,15 +792,33 @@ def _construct_schedule(
         ci: Disable interactive prompts if True
 
     Returns:
-        A schedule object
+        A list of schedule objects
     """
-    schedule = deploy_config.get("schedule", NotSet)
-    cron = get_from_dict(deploy_config, "schedule.cron")
-    interval = get_from_dict(deploy_config, "schedule.interval")
-    anchor_date = get_from_dict(deploy_config, "schedule.anchor_date")
-    rrule = get_from_dict(deploy_config, "schedule.rrule")
-    timezone = get_from_dict(deploy_config, "schedule.timezone")
-    schedule_active = get_from_dict(deploy_config, "schedule.active", True)
+    schedule_configs = deploy_config.get("schedules", NotSet)
+
+    if schedule_configs is not NotSet:
+        schedules = [
+            _schedule_config_to_deployment_schedule(schedule_config)
+            for schedule_config in schedule_configs
+        ]
+    elif schedule_configs is NotSet:
+        if not ci and is_interactive():
+            schedules = prompt_schedules(app.console)
+        else:
+            schedules = []
+
+    return schedules
+
+
+def _schedule_config_to_deployment_schedule(
+    schedule_config: Dict,
+) -> MinimalDeploymentSchedule:
+    cron = schedule_config.get("cron")
+    interval = schedule_config.get("interval")
+    anchor_date = schedule_config.get("anchor_date")
+    rrule = schedule_config.get("rrule")
+    timezone = schedule_config.get("timezone")
+    schedule_active = schedule_config.get("active", True)
 
     if cron:
         cron_kwargs = {"cron": cron, "timezone": timezone}
@@ -846,28 +842,12 @@ def _construct_schedule(
                 schedule.timezone = timezone
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
-    elif schedule is NotSet:
-        if (
-            not ci
-            and is_interactive()
-            and confirm(
-                "Would you like to configure a schedule for this deployment?",
-                default=True,
-                console=app.console,
-            )
-        ):
-            schedule, schedule_active = prompt_schedule(app.console)
-        else:
-            schedule = None
-            schedule_active = None
     else:
-        schedule = None
-        schedule_active = None
+        raise ValueError(
+            f"Unknown schedule type. Please provide a valid schedule. schedule={schedule_config}"
+        )
 
-    if schedule_active is None:
-        schedule_active = True
-
-    return (schedule, schedule_active)
+    return MinimalDeploymentSchedule(schedule=schedule, active=schedule_active)
 
 
 def _merge_with_default_deploy_config(deploy_config: Dict):
@@ -1525,13 +1505,12 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
             else:
                 deploy_config["work_pool"][cli_option] = cli_value
 
-        elif (
-            cli_option in ["cron", "interval", "anchor_date", "rrule", "timezone"]
-            and cli_value
-        ):
-            if not isinstance(deploy_config.get("schedule"), dict):
-                deploy_config["schedule"] = {}
-            deploy_config["schedule"][cli_option] = cli_value
+        elif cli_option in ["cron", "interval", "rrule"] and cli_value:
+            if not isinstance(deploy_config.get("schedules"), list):
+                deploy_config["schedules"] = []
+
+            for value in cli_value:
+                deploy_config["schedules"].append({cli_option: value})
 
         elif cli_option in ["param", "params"] and cli_value:
             parameters = dict()
@@ -1554,6 +1533,16 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
             if not isinstance(deploy_config.get("parameters"), dict):
                 deploy_config["parameters"] = {}
             deploy_config["parameters"].update(parameters)
+
+    anchor_date = cli_options.get("anchor_date")
+    timezone = cli_options.get("timezone")
+
+    # Apply anchor_date and timezone to new and existing schedules
+    for schedule_config in deploy_config.get("schedules", []):
+        if anchor_date and schedule_config.get("interval"):
+            schedule_config["anchor_date"] = anchor_date
+        if timezone:
+            schedule_config["timezone"] = timezone
 
     return deploy_config, variable_overrides
 
@@ -1664,3 +1653,44 @@ def _gather_deployment_trigger_definitions(
         return trigger_specs
 
     return existing_triggers
+
+
+def _handle_deprecated_schedule_fields(deploy_config: Dict):
+    deploy_config = deepcopy(deploy_config)
+
+    legacy_schedule = deploy_config.get("schedule", NotSet)
+    schedule_configs = deploy_config.get("schedules", NotSet)
+
+    if (
+        legacy_schedule
+        and legacy_schedule is not NotSet
+        and schedule_configs is not NotSet
+    ):
+        raise ValueError(
+            "Both 'schedule' and 'schedules' keys are present in the deployment"
+            " configuration. Please use only use `schedules`."
+        )
+
+    if legacy_schedule and isinstance(legacy_schedule, dict):
+        # The yaml has a legacy schedule key, we should honor whatever
+        # is there while still appending these new schedules.
+        deploy_config["schedules"] = [deploy_config["schedule"]]
+
+        app.console.print(
+            generate_deprecation_message(
+                "Defining a schedule via the `schedule` key in the deployment",
+                start_date="Mar 2023",
+                help=(
+                    "Please use `schedules` instead by renaming the "
+                    "`schedule` key to `schedules` and providing a list of "
+                    "schedule objects."
+                ),
+            ),
+            style="yellow",
+        )
+
+    # Pop the legacy schedule keys if they exist
+    deploy_config.pop("schedule", None)
+    deploy_config.pop("is_schedule_active", None)
+
+    return deploy_config
