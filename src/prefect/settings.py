@@ -1286,6 +1286,13 @@ PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=
 Whether or not to enable artifacts on the flow run graph.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_STATE_EVENTS_ON_FLOW_RUN_GRAPH = Setting(
+    bool, default=False
+)
+"""
+Whether or not to enable state events on the flow run graph.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.

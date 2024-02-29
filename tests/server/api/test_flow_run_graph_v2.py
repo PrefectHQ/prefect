@@ -22,6 +22,7 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
     PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH,
+    PREFECT_EXPERIMENTAL_ENABLE_STATE_EVENTS_ON_FLOW_RUN_GRAPH,
     temporary_settings,
 )
 
@@ -1113,6 +1114,22 @@ async def test_artifacts_on_flow_run_graph_limited_by_setting(
     assert (
         len(graph.artifacts) + sum(len(node.artifacts) for _, node in graph.nodes)
     ) <= test_max_artifacts_setting
+
+
+@pytest.fixture
+def enable_state_events_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_STATE_EVENTS_ON_FLOW_RUN_GRAPH: True}
+    ):
+        yield
+
+
+@pytest.fixture
+def disable_state_events_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_STATE_EVENTS_ON_FLOW_RUN_GRAPH: False}
+    ):
+        yield
 
 
 @pytest.fixture
