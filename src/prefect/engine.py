@@ -799,6 +799,8 @@ async def orchestrate_flow_run(
     # flag to ensure we only update the flow run name once
     run_name_set = False
 
+    await _run_flow_hooks(flow=flow, flow_run=flow_run, state=state)
+
     while state.is_running():
         waited_for_task_runs = False
 
@@ -2801,7 +2803,10 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
         == "true"
     )
-    if state.is_failed() and flow.on_failure:
+
+    if state.is_running() and flow.on_running:
+        hooks = flow.on_running
+    elif state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
