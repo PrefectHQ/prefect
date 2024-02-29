@@ -60,7 +60,7 @@ Dive into these new scheduling capabilities today and streamline your workflows 
 For implementation details, see the following pull request: - https://github.com/PrefectHQ/prefect/pull/12107
 
 ### Enhancements
-- Add filter to prevent logging the current API key — https://github.com/PrefectHQ/prefect/pull/12072
+- Add a logging filter to prevent logging the current API key — https://github.com/PrefectHQ/prefect/pull/12072
 - Update `flow.serve` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12107
 - Update `prefect deploy` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12121
 
