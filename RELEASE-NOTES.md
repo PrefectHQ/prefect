@@ -17,7 +17,7 @@
       active: true
 ```
 
-In addition you can specify multiple schedules via arguments to `prefect deploy`:
+In addition, you can now specify multiple schedules via arguments to `prefect deploy`:
 
 `prefect deploy ... --cron '4 * * * *' --cron '1 * * * *' --rrule 'FREQ=DAILY'`
 
