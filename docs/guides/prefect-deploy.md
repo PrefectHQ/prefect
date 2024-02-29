@@ -1036,9 +1036,9 @@ In the above example, we are using YAML aliases to reuse work pool, schedule, an
 - `deployment-1` and `deployment-3` are using the same schedule
 - `deployment-1` and `deployment-2` are using the same build deployment action, but `deployment-2` is overriding the `dockerfile` field to use a custom Dockerfile
 
-## Deployment declaration reference
+### Deployment declaration reference
 
-### Deployment fields
+#### Deployment fields
 
 Below are fields that can be added to each deployment declaration.
 
@@ -1055,7 +1055,7 @@ Below are fields that can be added to each deployment declaration.
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
 | `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
-### Schedule fields
+#### Schedule fields
 
 Below are fields that can be added to a deployment declaration's `schedule` section.
 
@@ -1070,7 +1070,7 @@ Below are fields that can be added to a deployment declaration's `schedule` sect
 
 For more information about schedules, see the [Schedules](/concepts/schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section) concept doc.
 
-### Work pool fields
+#### Work pool fields
 
 Below are fields that can be added to a deployment declaration's `work_pool` section.
 
@@ -1080,7 +1080,7 @@ Below are fields that can be added to a deployment declaration's `work_pool` sec
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool will be used.                       |
 | `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
-## Deployment mechanics
+#### Deployment mechanics
 
 Anytime you run `prefect deploy` in a directory that contains a `prefect.yaml` file, the following actions are taken in order:
 
