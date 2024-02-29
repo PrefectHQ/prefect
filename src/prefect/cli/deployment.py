@@ -633,7 +633,7 @@ async def _set_schedule(
     """
     Set schedule for a given deployment.
 
-    This command is deprecated. Use `prefect deployment schedule set` instead.
+    This command is deprecated. Use `prefect deployment schedule create` instead.
     """
     assert_deployment_name_format(name)
 
