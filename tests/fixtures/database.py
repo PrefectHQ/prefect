@@ -864,6 +864,7 @@ async def commit_task_run_state(
     state_type: states.StateType,
     state_details=None,
     state_data=None,
+    state_name=None,
 ):
     if state_type is None:
         return None
@@ -874,6 +875,7 @@ async def commit_task_run_state(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
+        name=state_name,
     )
 
     result = await models.task_runs.set_task_run_state(
