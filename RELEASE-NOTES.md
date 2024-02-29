@@ -20,7 +20,7 @@
 ### Documentation
 - Update outdated automations concepts page image — https://github.com/PrefectHQ/prefect/pull/12059
 - Update automations concept page for recent triggers and actions — https://github.com/PrefectHQ/prefect/pull/12074
-- Add clarifications to tutorial and getting started — https://github.com/PrefectHQ/prefect/pull/12077
+- Add clarifications to tutorial and getting started pages — https://github.com/PrefectHQ/prefect/pull/12077
 - Add minimum kubernetes version to worker guide — https://github.com/PrefectHQ/prefect/pull/12095
 - Add Coiled to integrations catalog docs page — https://github.com/PrefectHQ/prefect/pull/12098
 - Fix formatting on webhooks page — https://github.com/PrefectHQ/prefect/pull/12088
@@ -32,10 +32,7 @@
 ## New Contributors
 * @jrbourbeau made their first contribution in https://github.com/PrefectHQ/prefect/pull/12098
 
-### Contributors
-- @jrbourbeau
-
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.0...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.0...2.16.1
 
 
 ## Release 2.16.0
