@@ -14,7 +14,6 @@
 - Ignore `schedule` in `Deployment.build_from_flow` if it's out of date — https://github.com/PrefectHQ/prefect/pull/12100
 - Fix schedule instructions for `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12101
 - Fix reference to `prefect deployment schedule create` — https://github.com/PrefectHQ/prefect/pull/12117
-- Allow 500s on docker test `BuildError` — https://github.com/PrefectHQ/prefect/pull/12114
 - Ensure only scheduled runs can be marked late — https://github.com/PrefectHQ/prefect/pull/12113
 
 ### Documentation
