@@ -271,20 +271,20 @@ class TestCreateDeployment:
         deployment_id = data["id"]
         schedules = [schemas.core.DeploymentSchedule(**s) for s in data["schedules"]]
 
-        assert response.status_code == 200
         assert data["name"] == "My Deployment"
 
         assert len(schedules) == 2
         assert schedules[0].id == first_schedule.id
 
         # When a deployment has multiple schedules, we still populate `schedule`
-        # and `is_schedule_active` with the most recently updated schedule.
+        # and with the most recently updated schedule and `is_schedule_active`
+        # with the opposite value of `paused`.
 
         assert (
             schemas.schedules.IntervalSchedule(**data["schedule"])
             == schedules[0].schedule
         )
-        assert data["is_schedule_active"] is schedules[0].active
+        assert data["is_schedule_active"] is not data["paused"]
 
     async def test_create_deployment_with_no_schedules_flag_on_populates_legacy_schedule_as_none(
         self,

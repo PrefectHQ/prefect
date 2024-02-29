@@ -4,6 +4,7 @@ import re
 import signal
 import sys
 import time
+import warnings
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
@@ -20,8 +21,8 @@ from prefect._vendor.starlette import status
 import prefect.runner
 from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import StateType
-from prefect.client.schemas.schedules import CronSchedule
+from prefect.client.schemas.objects import MinimalDeploymentSchedule, StateType
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
     DeploymentImage,
@@ -225,14 +226,16 @@ class TestServe:
         )
 
         assert deployment is not None
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
         deployment = await prefect_client.read_deployment_by_name(
             name="dummy-flow-2/test_runner"
         )
 
         assert deployment is not None
-        assert deployment.schedule.cron == "* * * * *"
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
 
     async def test_serve_starts_a_runner(
         self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
@@ -259,11 +262,13 @@ class TestRunner:
 
         assert deployment_1 is not None
         assert deployment_1.name == "test_runner"
-        assert deployment_1.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment_1.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
         assert deployment_2 is not None
         assert deployment_2.name == "test_runner"
-        assert deployment_2.schedule.cron == "* * * * *"
+        assert deployment_2.schedules[0].schedule.cron == "* * * * *"
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -275,18 +280,26 @@ class TestRunner:
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
                     {"schedule": CronSchedule(cron="* * * * *")},
+                    {
+                        "schedules": [
+                            MinimalDeploymentSchedule(
+                                schedule=CronSchedule(cron="* * * * *"), active=True
+                            )
+                        ]
+                    },
                 ],
                 2,
             )
         ],
     )
-    async def test_add_flow_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        runner = Runner()
-        with pytest.raises(ValueError, match=expected_message):
-            await runner.add_flow(dummy_flow_1, __file__, **kwargs)
+    async def test_add_flow_raises_on_multiple_schedule_parameters(self, kwargs):
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            runner = Runner()
+            with pytest.raises(ValueError, match=expected_message):
+                await runner.add_flow(dummy_flow_1, __file__, **kwargs)
 
     async def test_add_deployments_to_runner(self, prefect_client: PrefectClient):
         """Runner.add_deployment should apply the deployment passed to it"""
@@ -303,11 +316,13 @@ class TestRunner:
 
         assert deployment_1 is not None
         assert deployment_1.name == "test_runner"
-        assert deployment_1.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment_1.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
         assert deployment_2 is not None
         assert deployment_2.name == "test_runner"
-        assert deployment_2.schedule.cron == "* * * * *"
+        assert deployment_2.schedules[0].schedule.cron == "* * * * *"
 
     async def test_runner_can_pause_schedules_on_stop(
         self, prefect_client: PrefectClient, caplog
@@ -344,8 +359,8 @@ class TestRunner:
 
         assert not deployment_2.is_schedule_active
 
-        assert "Pausing schedules for all deployments" in caplog.text
-        assert "All deployment schedules have been paused" in caplog.text
+        assert "Pausing all deployments" in caplog.text
+        assert "All deployments have been paused" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
@@ -368,6 +383,7 @@ class TestRunner:
         await runner.start(run_once=True)
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
+        assert flow_run.state
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
@@ -411,6 +427,7 @@ class TestRunner:
             while True:
                 await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
                 if flow_run.state.is_running():
                     break
 
@@ -426,6 +443,7 @@ class TestRunner:
             while True:
                 await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
                 if flow_run.state.is_cancelled():
                     break
 
@@ -473,6 +491,7 @@ class TestRunner:
         await runner.execute_flow_run(flow_run.id)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
         assert flow_run.state.is_crashed()
         # check to make sure on_cancellation hook was called
         assert "This flow crashed!" in caplog.text
@@ -491,6 +510,7 @@ class TestRunner:
         await runner.execute_flow_run(flow_run.id)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
@@ -507,6 +527,7 @@ class TestRunner:
         bad_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
+
         runner._acquire_limit_slot(good_run.id)
         await runner.execute_flow_run(bad_run.id)
         assert "run limit reached" in caplog.text
@@ -697,31 +718,109 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
-        assert deployment.is_schedule_active is None
+        assert deployment.is_schedule_active is True
         assert deployment.enforce_parameter_schema
 
     def test_from_flow_accepts_interval(self):
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+    def test_from_flow_accepts_interval_as_list(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=[3600, 7200]
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(
+            seconds=7200
+        )
 
     def test_from_flow_accepts_cron(self):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1, __file__, cron="* * * * *"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
 
-        assert deployment.schedule.cron == "* * * * *"
+    def test_from_flow_accepts_cron_as_list(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            cron=[
+                "0 * * * *",
+                "0 0 1 * *",
+                "*/10 * * * *",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "0 * * * *"
+        assert deployment.schedules[1].schedule.cron == "0 0 1 * *"
+        assert deployment.schedules[2].schedule.cron == "*/10 * * * *"
 
     def test_from_flow_accepts_rrule(self):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1, __file__, rrule="FREQ=MINUTELY"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
 
-        assert deployment.schedule.rrule == "FREQ=MINUTELY"
+    def test_from_flow_accepts_rrule_as_list(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            rrule=[
+                "FREQ=DAILY",
+                "FREQ=WEEKLY",
+                "FREQ=MONTHLY",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
+        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
+        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+
+    def test_from_flow_accepts_schedules(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=CronSchedule(cron="* * * * *"), active=True
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
 
     @pytest.mark.parametrize(
         "value,expected",
-        [(True, True), (False, False), (None, None)],
+        [(True, True), (False, False), (None, False)],
+    )
+    def test_from_flow_accepts_paused(self, value, expected):
+        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, paused=value)
+
+        assert deployment.paused is expected
+        # `is_schedule_active` is the opposite of `paused`
+        assert deployment.is_schedule_active is not expected
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, True)],
     )
     def test_from_flow_accepts_is_schedule_active(self, value, expected):
         deployment = RunnerDeployment.from_flow(
@@ -740,14 +839,21 @@ class TestRunnerDeployment:
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
                     {"schedule": CronSchedule(cron="* * * * *")},
+                    {
+                        "schedules": [
+                            MinimalDeploymentSchedule(
+                                schedule=CronSchedule(cron="* * * * *"), active=True
+                            )
+                        ],
+                    },
                 ],
                 2,
             )
         ],
     )
-    def test_from_flow_raises_on_multiple_schedules(self, kwargs):
+    def test_from_flow_raises_on_multiple_schedule_parameters(self, kwargs):
         expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
+            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_flow(dummy_flow_1, __file__, **kwargs)
@@ -815,26 +921,108 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_entrypoint(
             dummy_flow_1_entrypoint, __file__, interval=3600
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+    def test_from_entrypoint_accepts_interval_as_list(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, interval=[3600, 7200]
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(
+            seconds=7200
+        )
 
     def test_from_entrypoint_accepts_cron(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
             dummy_flow_1_entrypoint, __file__, cron="* * * * *"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
 
-        assert deployment.schedule.cron == "* * * * *"
+    def test_from_entrypoint_accepts_cron_as_list(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            cron=[
+                "0 * * * *",
+                "0 0 1 * *",
+                "*/10 * * * *",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "0 * * * *"
+        assert deployment.schedules[1].schedule.cron == "0 0 1 * *"
+        assert deployment.schedules[2].schedule.cron == "*/10 * * * *"
 
     def test_from_entrypoint_accepts_rrule(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
             dummy_flow_1_entrypoint, __file__, rrule="FREQ=MINUTELY"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
 
-        assert deployment.schedule.rrule == "FREQ=MINUTELY"
+    def test_from_entrypoint_accepts_rrule_as_list(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            rrule=[
+                "FREQ=DAILY",
+                "FREQ=WEEKLY",
+                "FREQ=MONTHLY",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
+        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
+        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+
+    def test_from_entrypoint_accepts_schedules(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=CronSchedule(cron="* * * * *"), active=True
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
 
     @pytest.mark.parametrize(
         "value,expected",
-        [(True, True), (False, False), (None, None)],
+        [(True, True), (False, False), (None, False)],
+    )
+    def test_from_entrypoint_accepts_paused(
+        self, value, expected, dummy_flow_1_entrypoint
+    ):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, paused=value
+        )
+
+        assert deployment.paused is expected
+        # `is_schedule_active` is the opposite of `paused`
+        assert deployment.is_schedule_active is not expected
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, True)],
     )
     def test_from_entrypoint_accepts_is_schedule_active(
         self, dummy_flow_1_entrypoint, value, expected
@@ -855,16 +1043,23 @@ class TestRunnerDeployment:
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
                     {"schedule": CronSchedule(cron="* * * * *")},
+                    {
+                        "schedules": [
+                            MinimalDeploymentSchedule(
+                                schedule=CronSchedule(cron="* * * * *"), active=True
+                            )
+                        ]
+                    },
                 ],
                 2,
             )
         ],
     )
-    def test_from_entrypoint_raises_on_multiple_schedules(
+    def test_from_entrypoint_raises_on_multiple_schedule_parameters(
         self, dummy_flow_1_entrypoint, kwargs
     ):
         expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
+            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_entrypoint(
@@ -890,7 +1085,9 @@ class TestRunnerDeployment:
         assert deployment.entrypoint == "tests/runner/test_runner.py:dummy_flow_1"
         assert deployment.version == "test"
         assert deployment.description == "I'm just here for tests"
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.path == "."
@@ -1007,7 +1204,9 @@ class TestRunnerDeployment:
         # Verify the created RunnerDeployment's attributes
         assert deployment.name == "test-deployment"
         assert deployment.flow_name == "test-flow"
-        assert deployment.schedule.interval == datetime.timedelta(seconds=30)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=30
+        )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
         assert deployment.description == "Test Deployment Description"
@@ -1015,6 +1214,73 @@ class TestRunnerDeployment:
         assert "$STORAGE_BASE_PATH" in deployment._path
         assert deployment.entrypoint == "flows.py:test_flow"
         assert deployment.storage == storage
+
+    async def test_from_storage_accepts_schedules(self):
+        storage = MockStorage()
+
+        deployment = await RunnerDeployment.from_storage(
+            storage=storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=CronSchedule(cron="* * * * *"), active=True
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, False)],
+    )
+    async def test_from_storage_accepts_paused(self, value, expected):
+        storage = MockStorage()
+
+        deployment = await RunnerDeployment.from_storage(
+            storage=storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            paused=value,
+        )
+
+        assert deployment.paused is expected
+        # `is_schedule_active` is the opposite of `paused`
+        assert deployment.is_schedule_active is not expected
+
+    async def test_init_runner_deployment_with_schedule(self):
+        schedule = CronSchedule(cron="* * * * *")
+
+        deployment = RunnerDeployment(
+            flow=dummy_flow_1,
+            name="test-deployment",
+            schedule=schedule,
+        )
+
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+
+    async def test_init_runner_deployment_with_invalid_schedules(self):
+        with pytest.raises(ValueError, match="Invalid schedule"):
+            RunnerDeployment(
+                flow=dummy_flow_1,
+                name="test-deployment",
+                schedules=[
+                    "not a schedule",
+                ],
+            )
 
 
 class TestServer:
