@@ -1417,6 +1417,14 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 """
 The port the worker's webserver should bind to.
 """
+
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
+    str,
+    default="local-file-system/prefect-task-scheduling",
+)
+"""The `block-type/block-document` slug of a block to use as the default storage
+for autonomous tasks."""
+
 PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
     bool,
     default=True,
@@ -1440,6 +1448,7 @@ PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
 """
 The maximum number of retries to queue for submission.
 """
+
 
 PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
 """
