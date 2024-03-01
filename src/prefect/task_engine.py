@@ -45,7 +45,7 @@ async def submit_autonomous_task_run_to_engine(
             task_runner=task_runner,
             client=client,
             parameters=parameters,
-            result_factory=await ResultFactory.from_task(task),
+            result_factory=await ResultFactory.from_autonomous_task(task),
             background_tasks=await stack.enter_async_context(anyio.create_task_group()),
         ) as flow_run_context:
             begin_run = create_call(
