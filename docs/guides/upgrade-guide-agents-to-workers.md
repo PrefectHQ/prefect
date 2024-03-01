@@ -90,44 +90,44 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
 1. **[Create a work pool](/concepts/work-pools/#work-pool-configuration)**
 
-    This new work pool will replace your infrastructure block.
+This new work pool will replace your infrastructure block.
 
-    You can use the [`.publish_as_work_pool`](/api-ref/prefect/infrastructure/#prefect.infrastructure.Infrastructure.publish_as_work_pool) method on any infrastructure block to create a work pool with the same configuration.
+You can use the [`.publish_as_work_pool`](/api-ref/prefect/infrastructure/#prefect.infrastructure.Infrastructure.publish_as_work_pool) method on any infrastructure block to create a work pool with the same configuration.
 
-    For example, if you have a `KubernetesJob` infrastructure block named 'my-k8s-job', you can create a work pool with the same configuration with this script:
+For example, if you have a `KubernetesJob` infrastructure block named 'my-k8s-job', you can create a work pool with the same configuration with this script:
 
-    ```python
-    from prefect.infrastructure import KubernetesJob
+```python
+from prefect.infrastructure import KubernetesJob
 
-    KubernetesJob.load("my-k8s-job").publish_as_work_pool()
-    ```
+KubernetesJob.load("my-k8s-job").publish_as_work_pool()
+```
 
     Running this script will create a work pool named 'my-k8s-job' with the same configuration as your infrastructure block.
 
-    !!! Tip "Serving flows"
-        If you are using a `Process` infrastructure block and a `LocalFilesystem` storage block (or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/api-ref/prefect/flows/#prefect.flows.Flow.deploy) to create a deployment without needing to specify a work pool name or start a worker.
+!!! Tip "Serving flows"
+    If you are using a `Process` infrastructure block and a `LocalFilesystem` storage block (or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/api-ref/prefect/flows/#prefect.flows.Flow.deploy) to create a deployment without needing to specify a work pool name or start a worker.
 
-        This is a quick way to create a deployment for a flow and is a great way to manage your deployments if you don't need the dynamic infrastructure creation or configuration offered by workers.
+    This is a quick way to create a deployment for a flow and is a great way to manage your deployments if you don't need the dynamic infrastructure creation or configuration offered by workers.
 
-        Check out our [Docker guide](/guides/docker/) for how to build a served flow into a Docker image and host it in your environment.
+    Check out our [Docker guide](/guides/docker/) for how to build a served flow into a Docker image and host it in your environment.
 
 2. **[Start a worker](/concepts/work-pools/#starting-a-worker)**
 
-    This worker will replace your agent and poll your new work pool for flow runs to execute.
+This worker will replace your agent and poll your new work pool for flow runs to execute.
 
-    <div class="terminal">
-    ```bash
-    prefect worker start -p <work pool name>
-    ```
-    </div>
+<div class="terminal">
+```bash
+prefect worker start -p <work pool name>
+```
+</div>
 
 3. **Deploy your flows to the new work pool**
 
-    To deploy your flows to the new work pool, you can use `flow.deploy` for a Pythonic deployment experience or `prefect deploy` for a YAML-based deployment experience.
+To deploy your flows to the new work pool, you can use `flow.deploy` for a Pythonic deployment experience or `prefect deploy` for a YAML-based deployment experience.
 
-    If you currently use `Deployment.build_from_flow`, we recommend using `flow.deploy`.
+If you currently use `Deployment.build_from_flow`, we recommend using `flow.deploy`.
 
-    If you currently use `prefect deployment build` and `prefect deployment apply`, we recommend using `prefect deploy`.
+If you currently use `prefect deployment build` and `prefect deployment apply`, we recommend using `prefect deploy`.
 
 ### `flow.deploy`
 
@@ -148,34 +148,34 @@ Below are some examples of how to translate `Deployment.build_from_flow` to `flo
 If you aren't using any blocks:
 
 ```python
-    from prefect import flow
+from prefect import flow
 
-    @flow(log_prints=True)
-    def my_flow(name: str = "world"):
-        print(f"Hello {name}! I'm a flow from a Python script!")
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello {name}! I'm a flow from a Python script!")
 
-    if __name__ == "__main__":
-        Deployment.build_from_flow(
-            my_flow,
-            name="my-deployment",
-            parameters=dict(name="Marvin"),
-        )
+if __name__ == "__main__":
+    Deployment.build_from_flow(
+        my_flow,
+        name="my-deployment",
+        parameters=dict(name="Marvin"),
+    )
 ```
 
 You can replace `Deployment.build_from_flow` with `flow.serve` :
 
-```
-    from prefect import flow
+```python
+from prefect import flow
 
-    @flow(log_prints=True)
-    def my_flow(name: str = "world"):
-        print(f"Hello {name}! I'm a flow from a Python script!")
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello {name}! I'm a flow from a Python script!")
 
-    if __name__ == "__main__":
-        my_flow.serve(
-            name="my-deployment",
-            parameters=dict(name="Marvin"),
-        )
+if __name__ == "__main__":
+    my_flow.serve(
+        name="my-deployment",
+        parameters=dict(name="Marvin"),
+    )
 ```
 
 This will start a process that will serve your flow and execute any flow runs that are scheduled to start.
@@ -185,36 +185,36 @@ This will start a process that will serve your flow and execute any flow runs th
 If you currently use a storage block to load your flow code but no infrastructure block:
 
 ```python
-    from prefect import flow
-    from prefect.storage import GitHub
+from prefect import flow
+from prefect.storage import GitHub
 
-    @flow(log_prints=True)
-    def my_flow(name: str = "world"):
-        print(f"Hello {name}! I'm a flow from a GitHub repo!")
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello {name}! I'm a flow from a GitHub repo!")
 
-    if __name__ == "__main__":
-        Deployment.build_from_flow(
-            my_flow,
-            name="my-deployment",
-            storage=GitHub.load("demo-repo"),
-            parameters=dict(name="Marvin"),
-        )
+if __name__ == "__main__":
+    Deployment.build_from_flow(
+        my_flow,
+        name="my-deployment",
+        storage=GitHub.load("demo-repo"),
+        parameters=dict(name="Marvin"),
+    )
 ```
 
-    you can use `flow.from_source` to load your flow from the same location and `flow.serve` to create a deployment:
+you can use `flow.from_source` to load your flow from the same location and `flow.serve` to create a deployment:
 
 ```python
-    from prefect import flow
-    from prefect.storage import GitHub
+from prefect import flow
+from prefect.storage import GitHub
 
-    if __name__ == "__main__":
-        flow.from_source(
-            source=GitHub.load("demo-repo"),
-            entrypoint="example.py:my_flow"
-        ).serve(
-            name="my-deployment",
-            parameters=dict(name="Marvin"),
-        )
+if __name__ == "__main__":
+    flow.from_source(
+        source=GitHub.load("demo-repo"),
+        entrypoint="example.py:my_flow"
+    ).serve(
+        name="my-deployment",
+        parameters=dict(name="Marvin"),
+    )
 ```
 
 This will allow you to execute scheduled flow runs without starting a worker. Additionally, the process serving your flow will regularly check for updates to your flow code and automatically update the flow if it detects any changes to the code.
@@ -224,45 +224,45 @@ This will allow you to execute scheduled flow runs without starting a worker. Ad
 For the code below, we'll need to create a work pool from our infrastructure block and pass it to `flow.deploy` as the `work_pool_name` argument. We'll also need to pass our storage block to `flow.from_source` as the `source` argument.
 
 ```python
-    from prefect import flow
-    from prefect.deployments import Deployment
-    from prefect.filesystems import GitHub
-    from prefect.infrastructure.kubernetes import KubernetesJob
+from prefect import flow
+from prefect.deployments import Deployment
+from prefect.filesystems import GitHub
+from prefect.infrastructure.kubernetes import KubernetesJob
 
 
-    @flow(log_prints=True)
-    def my_flow(name: str = "world"):
-        print(f"Hello {name}! I'm a flow from a GitHub repo!")
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello {name}! I'm a flow from a GitHub repo!")
 
 
-    if __name__ == "__main__":
-        Deployment.build_from_flow(
-            my_flow,
-            name="my-deployment",
-            storage=GitHub.load("demo-repo"),
-            entrypoint="example.py:my_flow",
-            infrastructure=KubernetesJob.load("my-k8s-job"),
-            infra_overrides=dict(pull_policy="Never"),
-            parameters=dict(name="Marvin"),
-        )
+if __name__ == "__main__":
+    Deployment.build_from_flow(
+        my_flow,
+        name="my-deployment",
+        storage=GitHub.load("demo-repo"),
+        entrypoint="example.py:my_flow",
+        infrastructure=KubernetesJob.load("my-k8s-job"),
+        infra_overrides=dict(pull_policy="Never"),
+        parameters=dict(name="Marvin"),
+    )
 ```
 
 The equivalent deployment code using `flow.deploy` would look like this:
 
 ```python
-    from prefect import flow
-    from prefect.storage import GitHub
+from prefect import flow
+from prefect.storage import GitHub
 
-    if __name__ == "__main__":
-        flow.from_source(
-            source=GitHub.load("demo-repo"),
-            entrypoint="example.py:my_flow"
-        ).deploy(
-            name="my-deployment",
-            work_pool_name="my-k8s-job",
-            job_variables=dict(pull_policy="Never"),
-            parameters=dict(name="Marvin"),
-        )
+if __name__ == "__main__":
+    flow.from_source(
+        source=GitHub.load("demo-repo"),
+        entrypoint="example.py:my_flow"
+    ).deploy(
+        name="my-deployment",
+        work_pool_name="my-k8s-job",
+        job_variables=dict(pull_policy="Never"),
+        parameters=dict(name="Marvin"),
+    )
 ```
 
 Note that when using `flow.from_source(...).deploy(...)`, the flow you're deploying does not need to be available locally before running your script.
@@ -272,21 +272,21 @@ Note that when using `flow.from_source(...).deploy(...)`, the flow you're deploy
 If you currently bake your flow code into a Docker image before deploying, you can use the `image` argument of `flow.deploy` to build a Docker image as part of your deployment process:
 
 ```python
-    from prefect import flow
+from prefect import flow
 
-    @flow(log_prints=True)
-    def my_flow(name: str = "world"):
-        print(f"Hello {name}! I'm a flow from a Docker image!")
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello {name}! I'm a flow from a Docker image!")
 
 
-    if __name__ == "__main__":
-        my_flow.deploy(
-            name="my-deployment",
-            image="my-repo/my-image:latest",
-            work_pool_name="my-k8s-job",
-            job_variables=dict(pull_policy="Never"),
-            parameters=dict(name="Marvin"),
-        )
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="my-deployment",
+        image="my-repo/my-image:latest",
+        work_pool_name="my-k8s-job",
+        job_variables=dict(pull_policy="Never"),
+        parameters=dict(name="Marvin"),
+    )
 ```
 
 You can skip a `flow.from_source` call when building an image with `flow.deploy`. Prefect will keep track of the flow's source code location in the image and load it from that location when the flow is executed.
