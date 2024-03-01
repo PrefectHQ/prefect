@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
+from prefect.client.schemas.objects import TaskRun
 from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
@@ -31,7 +32,11 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.server.task_queue import TaskQueue
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
+    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
+)
 from prefect.utilities.math import clamped_poisson_interval
 
 
@@ -95,6 +100,7 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
             UpdateFlowRunTrackerOnTasks,
             CacheInsertion,
             ReleaseTaskConcurrencySlots,
+            EnqueueScheduledTasks,
         ]
 
 
@@ -458,6 +464,41 @@ class RetryFailedTasks(BaseOrchestrationRule):
                 data=proposed_state.data,
             )
             await self.reject_transition(state=retry_state, reason="Retrying")
+
+
+class EnqueueScheduledTasks(BaseOrchestrationRule):
+    """
+    Enqueues autonomous task runs when they are scheduled
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [StateType.SCHEDULED]
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            # Only if task scheduling is enabled
+            return
+
+        if not validated_state:
+            # Only if the transition was valid
+            return
+
+        if context.run.flow_run_id:
+            # Only for autonomous tasks
+            return
+
+        task_run: TaskRun = TaskRun.from_orm(context.run)
+        queue = TaskQueue.for_key(task_run.task_key)
+
+        if validated_state.name == "AwaitingRetry":
+            await queue.retry(task_run)
+        else:
+            await queue.enqueue(task_run)
 
 
 class RenameReruns(BaseOrchestrationRule):

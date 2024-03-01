@@ -10,9 +10,9 @@ from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.starlette.testclient import TestClient, WebSocketTestSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.client.schemas import TaskRun
 from prefect.server import models
 from prefect.server.api import task_runs
-from prefect.server.schemas.core import TaskRun
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
@@ -21,7 +21,7 @@ from prefect.states import Scheduled
 
 
 @pytest.fixture
-def task_scheduling_enabled() -> None:
+def task_scheduling_enabled() -> Generator[None, None, None]:
     with temporary_settings(
         {
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
@@ -31,7 +31,7 @@ def task_scheduling_enabled() -> None:
 
 
 @pytest.fixture
-def reset_task_queues(task_scheduling_enabled: None) -> None:
+def reset_task_queues(task_scheduling_enabled: None) -> Generator[None, None, None]:
     task_runs.TaskQueue.reset()
 
     yield
