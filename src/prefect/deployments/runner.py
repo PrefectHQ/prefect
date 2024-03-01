@@ -555,7 +555,7 @@ class RunnerDeployment(BaseModel):
             mod_name = getattr(flow, "__module__", None)
             if entrypoint_type == EntrypointType.MODULE_PATH:
                 if mod_name:
-                    deployment.entrypoint = mod_name
+                    deployment.entrypoint = f"{mod_name}.{flow.__name__}"
                 else:
                     raise ValueError(
                         "Unable to determine module path for provided flow."
