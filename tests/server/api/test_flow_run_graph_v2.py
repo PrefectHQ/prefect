@@ -16,19 +16,13 @@ from prefect.server import models, schemas
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import read_flow_run_graph
-from prefect.server.schemas.graph import (
-    Edge,
-    Graph,
-    GraphArtifact,
-    GraphStateEvent,
-    Node,
-)
+from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
     PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH,
-    PREFECT_EXPERIMENTAL_ENABLE_STATE_EVENTS_ON_FLOW_RUN_GRAPH,
+    PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH,
     temporary_settings,
 )
 
@@ -1123,17 +1117,17 @@ async def test_artifacts_on_flow_run_graph_limited_by_setting(
 
 
 @pytest.fixture
-def enable_state_events_on_flow_run_graph():
+def enable_states_on_flow_run_graph():
     with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_STATE_EVENTS_ON_FLOW_RUN_GRAPH: True}
+        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: True}
     ):
         yield
 
 
 @pytest.fixture
-def disable_state_events_on_flow_run_graph():
+def disable_states_on_flow_run_graph():
     with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_STATE_EVENTS_ON_FLOW_RUN_GRAPH: False}
+        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: False}
     ):
         yield
 
@@ -1175,8 +1169,8 @@ async def flow_run_states(
     return states
 
 
-@pytest.mark.usefixtures("enable_state_events_on_flow_run_graph")
-async def test_reading_graph_for_flow_run_includes_state_events(
+@pytest.mark.usefixtures("enable_states_on_flow_run_graph")
+async def test_reading_graph_for_flow_run_includes_states(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
     flow_run_states,  # List[db.FlowRunState],
@@ -1186,19 +1180,19 @@ async def test_reading_graph_for_flow_run_includes_state_events(
         flow_run_id=flow_run.id,
     )
 
-    expected_graph_state_events = sorted(
+    expected_graph_states = sorted(
         (
-            GraphStateEvent(id=state.id, occurred=state.timestamp, type=state.type)
+            GraphState(id=state.id, occurred=state.timestamp, type=state.type)
             for state in flow_run_states
         ),
         key=attrgetter("occurred"),
     )
 
-    assert graph.state_events == expected_graph_state_events
+    assert graph.states == expected_graph_states
 
 
-@pytest.mark.usefixtures("disable_state_events_on_flow_run_graph")
-async def test_state_events_on_flow_run_graph_requires_experimental_setting(
+@pytest.mark.usefixtures("disable_states_on_flow_run_graph")
+async def test_states_on_flow_run_graph_requires_experimental_setting(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
     flow_run_states,  # List[db.FlowRunState],
@@ -1208,7 +1202,7 @@ async def test_state_events_on_flow_run_graph_requires_experimental_setting(
         flow_run_id=flow_run.id,
     )
 
-    assert graph.state_events == []
+    assert graph.states == []
 
 
 @pytest.fixture
@@ -1219,7 +1213,7 @@ def graph() -> Graph:
         root_node_ids=[],
         nodes=[],
         artifacts=[],
-        state_events=[],
+        states=[],
     )
 
 
