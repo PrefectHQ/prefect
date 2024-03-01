@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import prefect.results
 from prefect import task
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.objects import TaskRun
@@ -28,6 +29,13 @@ def mock_settings():
         }
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+async def clear_cached_filesystems():
+    prefect.results._default_task_scheduling_storages.clear()
+    yield
+    prefect.results._default_task_scheduling_storages.clear()
 
 
 # model defined outside of the test function to avoid pickling issues

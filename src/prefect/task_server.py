@@ -71,6 +71,7 @@ class TaskServer:
         task_runner: Optional[Type[BaseTaskRunner]] = None,
     ):
         self.tasks: list[Task] = tasks
+
         self.task_runner: BaseTaskRunner = task_runner or ConcurrentTaskRunner()
         self.started: bool = False
         self.stopping: bool = False
@@ -155,7 +156,7 @@ class TaskServer:
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
-            factory = await ResultFactory.from_task(task)
+            factory = await ResultFactory.from_autonomous_task(task)
             try:
                 parameters = await factory.read_parameters(parameters_id)
             except Exception as exc:
