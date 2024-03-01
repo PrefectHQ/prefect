@@ -113,7 +113,6 @@ class TestAgentSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    @pytest.mark.flaky(max_runs=2)
     async def test_sigterm_sends_sigterm_directly(self, agent_process):
         agent_process.send_signal(signal.SIGTERM)
         await safe_shutdown(agent_process)

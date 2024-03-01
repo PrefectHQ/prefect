@@ -336,7 +336,7 @@ When a subflow starts, it will create a new [task runner](/concepts/task-runners
 When the subflow completes, the task runner is shut down.
 
 Subflows will block execution of the parent flow until completion. 
-However, asynchronous subflows can be run in parallel by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
+However, asynchronous subflows can be run concurrently by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
 Subflows differ from normal flows in that they will resolve any passed task futures into data. 
 This allows data to be passed from the parent flow to the child easily.

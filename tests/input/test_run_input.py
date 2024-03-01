@@ -69,7 +69,7 @@ def test_keyset_from_paused_state_non_paused_state_raises_exception():
         keyset_from_paused_state(Running())
 
 
-async def test_save_schema(flow_run_context):
+async def test_save_stores_schema(flow_run_context):
     keyset = keyset_from_base_key("person")
     await Person.save(keyset)
     schema = await read_flow_run_input(key=keyset["schema"])
@@ -78,6 +78,13 @@ async def test_save_schema(flow_run_context):
         "email",
         "human",
     }
+
+
+async def test_save_stores_provided_description(flow_run_context):
+    keyset = keyset_from_base_key("person")
+    await Person.with_initial_data(description="Testing").save(keyset)
+    description = await read_flow_run_input(key=keyset["description"])
+    assert description == "Testing"
 
 
 def test_save_works_sync(flow_run_context):
@@ -311,6 +318,24 @@ async def test_respond_raises_exception_no_sender_in_input():
         await person.respond(Place(city="New York", state="NY"))
 
 
+async def test_respond_uses_automatic_input_if_needed(flow_run):
+    flow_run_input = FlowRunInput(
+        flow_run_id=uuid4(),
+        key="person-response",
+        value=orjson.dumps(
+            {"name": "Bob", "email": "bob@example.com", "human": True}
+        ).decode(),
+        sender=f"prefect.flow-run.{flow_run.id}",
+    )
+
+    person = Person.load_from_flow_run_input(flow_run_input)
+    await person.respond("hey")
+
+    message = await receive_input(str, flow_run_id=flow_run.id).next()
+    assert isinstance(message, str)
+    assert message == "hey"
+
+
 async def test_automatic_input_send_to(flow_run):
     await send_input(1, flow_run_id=flow_run.id)
 
@@ -471,14 +496,13 @@ async def test_automatic_input_receive_multiple_values(flow_run):
     }
 
 
-@pytest.mark.flaky
 def test_automatic_input_receive_works_sync(flow_run):
     for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         send_input(city, flow_run_id=flow_run.id)
 
     received = []
     for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
     ):
         received.append(city)
 
@@ -498,7 +522,7 @@ async def test_automatic_input_receive_with_exclude_keys(flow_run):
     # Receive the cities that were sent.
     received = []
     async for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, poll_interval=0.1
+        Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
     ):
         received.append(city)
     assert len(received) == 3
@@ -510,7 +534,11 @@ async def test_automatic_input_receive_with_exclude_keys(flow_run):
     # all of the cities that have been sent.
     received = []
     async for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=0, with_metadata=True
+        Tuple[str, str],
+        flow_run_id=flow_run.id,
+        timeout=5,
+        poll_interval=0.1,
+        with_metadata=True,
     ):
         received.append(city)
     assert len(received) == 4
@@ -563,6 +591,14 @@ def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
             pass
 
 
+async def test_automatic_input_receive_run_input_subclass(flow_run):
+    await send_input(Place(city="New York", state="NY"), flow_run_id=flow_run.id)
+
+    received = await receive_input(Place, flow_run_id=flow_run.id, timeout=0).next()
+    assert received.city == "New York"
+    assert received.state == "NY"
+
+
 async def test_receive(flow_run):
     async def send():
         for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
@@ -588,13 +624,12 @@ async def test_receive(flow_run):
     }
 
 
-@pytest.mark.flaky
 def test_receive_works_sync(flow_run):
     for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         Place(city=city, state=state).send_to(flow_run_id=flow_run.id)
 
     received = []
-    for place in Place.receive(flow_run_id=flow_run.id, timeout=0, poll_interval=0.1):
+    for place in Place.receive(flow_run_id=flow_run.id, timeout=5, poll_interval=0.1):
         received.append(place)
 
     assert len(received) == 3

@@ -1,7 +1,5 @@
 import json
 import os
-import random
-import threading
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -35,6 +33,7 @@ from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
+    DeploymentScheduleCreate,
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
     LogCreate,
@@ -50,6 +49,7 @@ from prefect.client.schemas.filters import (
     FlowRunNotificationPolicyFilter,
     LogFilter,
     LogFilterFlowRunId,
+    TaskRunFilter,
 )
 from prefect.client.schemas.objects import (
     Flow,
@@ -65,7 +65,7 @@ from prefect.client.schemas.responses import (
     OrchestrationResult,
     SetStateStatus,
 )
-from prefect.client.schemas.schedules import IntervalSchedule, NoSchedule
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.events.schemas import Automation, Posture, Trigger
@@ -383,92 +383,6 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
-    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
-    async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client(context):
-            # We must re-enter the profile context in the new thread
-            with context:
-                # Use random sleeps to interleave clients
-                await anyio.sleep(random.random())
-                async with PrefectClient(app):
-                    await anyio.sleep(random.random())
-
-        threads = [
-            threading.Thread(
-                target=anyio.run,
-                args=(enter_client, prefect.context.SettingsContext.get().copy()),
-            )
-            for _ in range(100)
-        ]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join(3)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
-    @pytest.mark.skip("Test is too flaky")
-    async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client():
-            # Use random sleeps to interleave clients
-            await anyio.sleep(random.random())
-            async with PrefectClient(app):
-                await anyio.sleep(random.random())
-
-        with anyio.fail_after(15):
-            async with anyio.create_task_group() as tg:
-                for _ in range(1000):
-                    tg.start_soon(enter_client)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
-    @pytest.mark.flaky(max_runs=3)
-    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
-    async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
-        startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
-
-        async def enter_client():
-            # Use random sleeps to interleave clients
-            await anyio.sleep(random.random())
-            async with PrefectClient(app):
-                await anyio.sleep(random.random())
-
-        async def enter_client_many_times(context):
-            # We must re-enter the profile context in the new thread
-            with context:
-                async with anyio.create_task_group() as tg:
-                    for _ in range(100):
-                        tg.start_soon(enter_client)
-
-        threads = [
-            threading.Thread(
-                target=anyio.run,
-                args=(
-                    enter_client_many_times,
-                    prefect.context.SettingsContext.get().copy(),
-                ),
-            )
-            for _ in range(100)
-        ]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join(3)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
     async def test_client_context_lifespan_is_robust_to_dependency_deadlocks(self):
         """
         If you have two concurrrent contexts which are used as follows:
@@ -653,14 +567,16 @@ async def test_create_then_read_deployment(
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
+    schedule = DeploymentScheduleCreate(
+        schedule=IntervalSchedule(interval=timedelta(days=1))
+    )
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
         manifest_path="path/file.json",
-        schedule=schedule,
+        schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         infrastructure_document_id=infrastructure_document_id,
@@ -673,7 +589,11 @@ async def test_create_then_read_deployment(
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
-    assert lookup.schedule == schedule
+    assert lookup.schedule == schedule.schedule
+    assert len(lookup.schedules) == 1
+    assert lookup.schedules[0].schedule == schedule.schedule
+    assert lookup.schedules[0].active == schedule.active
+    assert lookup.schedules[0].deployment_id == deployment_id
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
@@ -1032,6 +952,7 @@ async def test_read_flow_by_name(prefect_client):
 async def test_create_flow_run_from_deployment(
     prefect_client: PrefectClient, deployment
 ):
+    start_time = pendulum.now("utc")
     flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
@@ -1044,10 +965,7 @@ async def test_create_flow_run_from_deployment(
     # State is scheduled for now
     assert flow_run.state.type == StateType.SCHEDULED
     assert (
-        pendulum.now("utc")
-        .diff(flow_run.state.state_details.scheduled_time)
-        .in_seconds()
-        < 1
+        start_time <= flow_run.state.state_details.scheduled_time <= pendulum.now("utc")
     )
 
 
@@ -1205,6 +1123,39 @@ async def test_set_then_read_task_run_state(prefect_client):
     assert run.state.message == "Test!"
 
 
+async def test_create_then_read_autonomous_task_runs(prefect_client):
+    @task
+    def foo():
+        pass
+
+    flow_run = await prefect_client.create_flow_run(foo)
+
+    task_run_1 = await prefect_client.create_task_run(
+        foo, flow_run_id=None, dynamic_key="0"
+    )
+    task_run_2 = await prefect_client.create_task_run(
+        foo, flow_run_id=None, dynamic_key="1"
+    )
+    task_run_3 = await prefect_client.create_task_run(
+        foo, flow_run_id=flow_run.id, dynamic_key="2"
+    )
+    assert all(
+        isinstance(task_run, TaskRun)
+        for task_run in [task_run_1, task_run_2, task_run_3]
+    )
+
+    autonotask_runs = await prefect_client.read_task_runs(
+        task_run_filter=TaskRunFilter(flow_run_id=dict(is_null_=True))
+    )
+
+    assert len(autonotask_runs) == 2
+
+    assert {task_run.id for task_run in autonotask_runs} == {
+        task_run_1.id,
+        task_run_2.id,
+    }
+
+
 async def test_create_then_read_flow_run_notification_policy(
     prefect_client, block_document
 ):
@@ -1219,10 +1170,10 @@ async def test_create_then_read_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
-        )
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await prefect_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
     )
 
     assert len(response) == 1
@@ -1267,10 +1218,10 @@ async def test_create_then_update_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": False})
-        )
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await prefect_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": False})
     )
 
     assert len(response) == 1
@@ -1298,10 +1249,10 @@ async def test_create_then_delete_flow_run_notification_policy(
 
     await prefect_client.delete_flow_run_notification_policy(notification_policy_id)
 
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
-        )
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await prefect_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
     )
 
     assert len(response) == 0
@@ -1575,6 +1526,15 @@ class TestClientWorkQueues:
         assert isinstance(lookup, WorkQueue)
         assert lookup.name == "foo"
 
+    async def test_create_and_read_includes_status(self, prefect_client: PrefectClient):
+        queue = await prefect_client.create_work_queue(name="foo")
+        assert hasattr(queue, "status")
+        assert queue.status == "NOT_READY"
+
+        lookup = await prefect_client.read_work_queue(queue.id)
+        assert hasattr(lookup, "status")
+        assert lookup.status == "NOT_READY"
+
     async def test_create_then_read_work_queue_by_name(self, prefect_client):
         queue = await prefect_client.create_work_queue(name="foo")
         assert isinstance(queue.id, UUID)
@@ -1650,6 +1610,19 @@ class TestClientWorkQueues:
         output = await prefect_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
+
+    async def test_get_runs_from_queue_updates_status(
+        self, prefect_client: PrefectClient
+    ):
+        queue = await prefect_client.create_work_queue(name="foo")
+        assert queue.status == "NOT_READY"
+
+        # Trigger an operation that would update the queues last_polled status
+        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
+
+        # Verify that the polling results in a READY status
+        lookup = await prefect_client.read_work_queue(queue.id)
+        assert lookup.status == "READY"
 
 
 async def test_delete_flow_run(prefect_client, flow_run):
@@ -2099,3 +2072,114 @@ async def test_global_concurrency_limit_update(prefect_client):
 async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client):
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await prefect_client.read_global_concurrency_limit_by_name(name="not-here")
+
+
+class TestPrefectClientDeploymentSchedules:
+    @pytest.fixture
+    async def deployment(self, prefect_client, infrastructure_document_id):
+        foo = flow(lambda: None, name="foo")
+        flow_id = await prefect_client.create_flow(foo)
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            manifest_path="file.json",
+            schedule=schedule,
+            parameters={"foo": "bar"},
+            work_queue_name="wq",
+            infrastructure_document_id=infrastructure_document_id,
+        )
+        deployment = await prefect_client.read_deployment(deployment_id)
+        return deployment
+
+    async def test_create_deployment_schedule(self, prefect_client, deployment):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="* * * * *")
+        schedules = [(cron_schedule, True)]
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id, schedules
+        )
+
+        assert len(result) == 1
+        assert result[0].id
+        assert result[0].schedule == cron_schedule
+        assert result[0].active is True
+
+    async def test_create_multiple_deployment_schedules_success(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="0 12 * * *")
+        interval_schedule = IntervalSchedule(interval=timedelta(hours=1))
+        schedules = [(cron_schedule, True), (interval_schedule, False)]
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id, schedules
+        )
+
+        assert len(result) == 2
+        # Assuming the order of results matches the order of input schedules
+        assert result[0].schedule == cron_schedule
+        assert result[0].active is True
+        assert result[1].schedule == interval_schedule
+        assert result[1].active is False
+
+    async def test_read_deployment_schedules_success(self, prefect_client, deployment):
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].schedule == IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+        assert result[0].active is True
+
+    async def test_update_deployment_schedule_success(self, deployment, prefect_client):
+        await prefect_client.update_deployment_schedule(
+            deployment.id, deployment.schedules[0].id, active=False
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].active is False
+
+    async def test_delete_deployment_schedule_success(self, deployment, prefect_client):
+        await prefect_client.delete_deployment_schedule(
+            deployment.id, deployment.schedules[0].id
+        )
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 0
+
+    async def test_create_deployment_schedules_with_invalid_schedule(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        invalid_schedule = (
+            "not a valid schedule"  # Assuming the client validates the schedule format
+        )
+        schedules = [(invalid_schedule, True)]
+        with pytest.raises(pydantic.ValidationError):
+            await prefect_client.create_deployment_schedules(deployment_id, schedules)
+
+    async def test_read_deployment_schedule_nonexistent(self, prefect_client):
+        nonexistent_deployment_id = str(uuid4())
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.read_deployment_schedules(nonexistent_deployment_id)
+
+    async def test_update_deployment_schedule_nonexistent(
+        self, prefect_client, deployment
+    ):
+        nonexistent_schedule_id = str(uuid4())
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.update_deployment_schedule(
+                deployment.id, nonexistent_schedule_id, active=False
+            )
+
+    async def test_delete_deployment_schedule_nonexistent(
+        self, prefect_client, deployment
+    ):
+        nonexistent_schedule_id = str(uuid4())
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.delete_deployment_schedule(
+                deployment.id, nonexistent_schedule_id
+            )

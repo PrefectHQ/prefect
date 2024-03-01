@@ -8,13 +8,16 @@ tags:
 ---
 
 # Using the Prefect Orchestration Client
+
 ## Overview
-In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find a bunch of useful client methods that make it simpler to do things like:
+
+In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find many useful client methods that make it simpler to do things such as:
 
 - [reschedule late flow runs](#rescheduling-late-flow-runs)
 - [get the last `N` completed flow runs from my workspace](#get-the-last-n-completed-flow-runs-from-my-workspace)
 
 The `PrefectClient` is an async context manager, so you can use it like this:
+
 ```python hl_lines="3"
 from prefect import get_client
 
@@ -23,10 +26,10 @@ async with get_client() as client:
     print(response.json()) # 👋
 ```
 
-
 ## Examples
 
 ### Rescheduling late flow runs
+
 Sometimes, you may need to bulk reschedule flow runs that are late - for example, if you've accidentally scheduled many flow runs of a deployment to an inactive work pool.
 
 To do this, we can delete late flow runs and create new ones in a `Scheduled` state with a delay.
@@ -110,9 +113,11 @@ if __name__ == "__main__":
 ```
 
 ### Get the last `N` completed flow runs from my workspace
+
 To get the last `N` completed flow runs from our workspace, we can make use of `read_flow_runs` and `prefect.client.schemas`.
 
 This example gets the last three completed flow runs from our workspace:
+
 ```python
 import asyncio
 from typing import Optional

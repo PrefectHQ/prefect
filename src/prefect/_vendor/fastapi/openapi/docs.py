@@ -2,7 +2,7 @@ import json
 from typing import Any, Dict, Optional
 
 from prefect._vendor.fastapi.encoders import jsonable_encoder
-from starlette.responses import HTMLResponse
+from prefect._vendor.starlette.responses import HTMLResponse
 
 swagger_ui_default_parameters = {
     "dom_id": "#swagger-ui",

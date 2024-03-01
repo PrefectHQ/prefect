@@ -688,9 +688,6 @@ class TestReadBlockSchemas:
             block_schemas_with_capabilities[0].id
         ]
 
-    @pytest.mark.flaky(
-        max_runs=3
-    )  # Order of block schema references sometimes doesn't match
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z
     ):
@@ -721,7 +718,32 @@ class TestReadBlockSchemas:
             session=session, checksum=X._calculate_schema_checksum()
         )
 
-        assert block_schema.fields == X.schema()
+        block_schema = block_schema.fields
+        x_schema = X.schema()
+
+        assert block_schema["title"] == x_schema["title"]
+        assert block_schema["type"] == x_schema["type"]
+        assert block_schema["required"] == x_schema["required"]
+        assert block_schema["block_type_slug"] == x_schema["block_type_slug"]
+        assert block_schema["definitions"] == x_schema["definitions"]
+
+        block_properties = block_schema["properties"]["y_or_z"]
+        x_properties = x_schema["properties"]["y_or_z"]
+
+        assert block_properties["title"] == x_properties["title"]
+        block_property_refs = set([ref["$ref"] for ref in block_properties["anyOf"]])
+        x_property_refs = set([ref["$ref"] for ref in x_properties["anyOf"]])
+        assert block_property_refs == x_property_refs
+
+        block_refs = [
+            (ref["block_schema_checksum"], ref["block_type_slug"])
+            for ref in block_schema["block_schema_references"]["y_or_z"]
+        ]
+        x_refs = [
+            (ref["block_schema_checksum"], ref["block_type_slug"])
+            for ref in x_schema["block_schema_references"]["y_or_z"]
+        ]
+        assert set(block_refs) == set(x_refs)
 
     async def test_read_block_schemas_with_id_list(self, session, nested_schemas):
         A, X, Y, Z, block_type_x, block_type_y = nested_schemas

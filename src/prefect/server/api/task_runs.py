@@ -7,19 +7,33 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from prefect._vendor.fastapi import (
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    Response,
+    WebSocket,
+    status,
+)
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.task_queue import MultiQueue, TaskQueue
+from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+
+logger = get_logger("server.api")
+
 
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
@@ -57,7 +71,10 @@ async def create_task_run(
 
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    return model
+
+    new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(model)
+
+    return new_task_run
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -244,3 +261,35 @@ async def set_task_run_state(
         response.status_code = status.HTTP_200_OK
 
     return orchestration_result
+
+
+@router.websocket("/subscriptions/scheduled")
+async def scheduled_task_subscription(websocket: WebSocket):
+    websocket = await subscriptions.accept_prefect_socket(websocket)
+    if not websocket:
+        return
+
+    try:
+        subscription = await websocket.receive_json()
+        task_keys = subscription.get("keys", [])
+        if not task_keys:
+            return await websocket.close()
+    except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+        return await websocket.close()
+
+    subscribed_queue = MultiQueue(task_keys)
+
+    while True:
+        task_run = await subscribed_queue.get()
+
+        try:
+            await websocket.send_json(task_run.dict(json_compatible=True))
+
+            acknowledgement = await websocket.receive_json()
+            if acknowledgement.get("type") != "ack":
+                return await websocket.close()
+
+        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            # If sending fails or pong fails, put the task back into the retry queue
+            await TaskQueue.for_key(task_run.task_key).retry(task_run)
+            return

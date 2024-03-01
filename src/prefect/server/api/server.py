@@ -25,7 +25,7 @@ from prefect._vendor.fastapi.middleware.gzip import GZipMiddleware
 from prefect._vendor.fastapi.openapi.utils import get_openapi
 from prefect._vendor.fastapi.responses import JSONResponse
 from prefect._vendor.fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException
+from prefect._vendor.starlette.exceptions import HTTPException
 
 import prefect
 import prefect.server.api as api
@@ -562,6 +562,9 @@ def create_app(
             service_instances.append(
                 services.flow_run_notifications.FlowRunNotifications()
             )
+
+        if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
         loop = asyncio.get_running_loop()
 

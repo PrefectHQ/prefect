@@ -44,9 +44,9 @@ else:
     )
     from pydantic.utils import lenient_issubclass
 
-from starlette.responses import JSONResponse
-from starlette.routing import BaseRoute
-from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
+from prefect._vendor.starlette.responses import JSONResponse
+from prefect._vendor.starlette.routing import BaseRoute
+from prefect._vendor.starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
 
 validation_error_definition = {
     "title": "ValidationError",
