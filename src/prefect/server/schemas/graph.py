@@ -8,7 +8,7 @@ from prefect.server.utilities.schemas import PrefectBaseModel
 
 class GraphState(PrefectBaseModel):
     id: UUID
-    occurred: datetime
+    timestamp: datetime
     type: StateType
 
 

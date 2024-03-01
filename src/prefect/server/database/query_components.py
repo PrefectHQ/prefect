@@ -608,7 +608,7 @@ class BaseQueryComponents(ABC):
         return [
             GraphState(
                 id=state.id,
-                occurred=state.timestamp,
+                timestamp=state.timestamp,
                 type=state.type,
             )
             for state in flow_run_states
