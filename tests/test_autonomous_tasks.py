@@ -1,10 +1,13 @@
 import asyncio
+from pathlib import Path
 from typing import AsyncGenerator
 from unittest import mock
 
 import pytest
 
+import prefect.results
 from prefect import Task, task
+from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import StateType
@@ -14,6 +17,8 @@ from prefect.server.api.task_runs import TaskQueue
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
+    PREFECT_LOCAL_STORAGE_PATH,
+    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT,
     temporary_settings,
 )
@@ -23,7 +28,7 @@ from prefect.utilities.asyncutils import sync_compatible
 
 @sync_compatible
 async def result_factory_from_task(task):
-    return await ResultFactory.from_task(task)
+    return await ResultFactory.from_autonomous_task(task)
 
 
 @pytest.fixture
@@ -48,6 +53,13 @@ async def clear_scheduled_task_queues():
     TaskQueue.reset()
     yield
     TaskQueue.reset()
+
+
+@pytest.fixture(autouse=True)
+async def clear_cached_filesystems():
+    prefect.results._default_task_scheduling_storages.clear()
+    yield
+    prefect.results._default_task_scheduling_storages.clear()
 
 
 @pytest.fixture
@@ -86,14 +98,48 @@ def test_task_submission_fails_when_experimental_flag_off(foo_task):
             foo_task.submit(42)
 
 
-def test_task_submission_with_parameters_fails_without_result_storage(foo_task):
+def test_task_submission_with_parameters_uses_default_storage(foo_task):
     foo_task_without_result_storage = foo_task.with_options(result_storage=None)
     task_run = foo_task_without_result_storage.submit(42)
 
     result_factory = result_factory_from_task(foo_task)
 
-    with pytest.raises(AssertionError, match="Was it persisted?"):
-        result_factory.read_parameters(task_run.state.state_details.task_parameters_id)
+    result_factory.read_parameters(task_run.state.state_details.task_parameters_id)
+
+
+def test_task_submission_with_parameters_reuses_default_storage_block(
+    foo_task: Task, tmp_path: Path
+):
+    with temporary_settings(
+        {
+            PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: "local-file-system/my-tasks",
+            PREFECT_LOCAL_STORAGE_PATH: tmp_path / "some-storage",
+        }
+    ):
+        # The block will not exist initially
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            Block.load("local-file-system/my-tasks")
+
+        foo_task_without_result_storage = foo_task.with_options(result_storage=None)
+        task_run_a = foo_task_without_result_storage.submit(42)
+
+        storage_before = Block.load("local-file-system/my-tasks")
+        assert isinstance(storage_before, LocalFileSystem)
+        assert storage_before.basepath == str(tmp_path / "some-storage")
+
+        foo_task_without_result_storage = foo_task.with_options(result_storage=None)
+        task_run_b = foo_task_without_result_storage.submit(24)
+
+        storage_after = Block.load("local-file-system/my-tasks")
+        assert isinstance(storage_after, LocalFileSystem)
+
+        result_factory = result_factory_from_task(foo_task)
+        assert result_factory.read_parameters(
+            task_run_a.state.state_details.task_parameters_id
+        ) == {"x": 42}
+        assert result_factory.read_parameters(
+            task_run_b.state.state_details.task_parameters_id
+        ) == {"x": 24}
 
 
 def test_task_submission_creates_a_scheduled_task_run(foo_task_with_result_storage):

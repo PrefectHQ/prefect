@@ -1417,6 +1417,14 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 """
 The port the worker's webserver should bind to.
 """
+
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
+    str,
+    default="local-file-system/prefect-task-scheduling",
+)
+"""The `block-type/block-document` slug of a block to use as the default storage
+for autonomous tasks."""
+
 PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
     bool,
     default=True,
@@ -1450,7 +1458,6 @@ How long before a PENDING task are made available to another task server.  In pr
 a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
 PENDING for a while is a sign that the task server may have crashed.
 """
-
 
 PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
 """
