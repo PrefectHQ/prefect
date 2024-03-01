@@ -739,10 +739,14 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the new deployment. Accepts either a number
-                or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this deployment.
-            rrule: An rrule schedule of when to execute runs of this deployment.
+            interval: An interval on which to execute the deployment. Accepts a number or a 
+                timedelta object to create a single schedule. If a number is given, it will be 
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create 
+                multiple schedules.
+            cron: A cron schedule string of when to execute runs of this deployment. 
+                Also accepts an iterable of cron schedule strings to create multiple schedules.
+            rrule: An rrule schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of rrule schedule strings to create multiple schedules.
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
