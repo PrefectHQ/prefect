@@ -143,7 +143,6 @@ schedule:
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
     A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
-
 ## Creating schedules
 
 There are several ways to create a schedule for a deployment:
@@ -151,11 +150,11 @@ There are several ways to create a schedule for a deployment:
 - Through the Prefect UI
 - Via the `cron`, `interval`, or `rrule` parameters if building your deployment via the [`serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
 - If using [worker-based deployments](/concepts/work-pools/)
-    * Through the interactive `prefect deploy` command
-    * With the `deployments` -> `schedule` section of the `prefect.yaml` file )
+  - Through the interactive `prefect deploy` command
+  - With the `deployments` -> `schedule` section of the `prefect.yaml` file )
 - If using [block-based deployments](/concepts/deployments/#block-based-deployments)
-    * `Through the schedules` section of the deployment YAML file
-    * By passing `schedules` into the `Deployment` class or `Deployment.build_from_flow`
+  - `Through the schedules` section of the deployment YAML file
+  - By passing `schedules` into the `Deployment` class or `Deployment.build_from_flow`
 
 ### Creating schedules in the UI
 
@@ -166,6 +165,7 @@ You can add schedules in the **Schedules** section on a **Deployment** page in t
 On larger displays, the **Schedules** section will appear in a sidebar on the right side of the page. On smaller displays, it will appear on the "Details" tab of the page.
 
 #### Adding a schedule
+
 Under **Schedules**, select the **+ Schedule** button. A modal dialog will open. Choose **Interval** or **Cron** to create a schedule.
 
 ![Prefect UI with Interval button selected](/img/ui/interval-schedule.png)
@@ -178,11 +178,12 @@ The new schedule will appear on the **Deployment** page where you created it. In
 After you create a schedule, new scheduled flow runs will be visible in the **Upcoming** tab of the **Deployment** page where you created it.
 
 #### Editing schedules
+
 You can edit a schedule by selecting **Edit** from the three-dot menu next to a schedule on a **Deployment** page.
 
 ### Creating schedules with a Python deployment creation file
 
-When you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. 
+When you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`.
 
 ```
 interval: An interval on which to execute the deployment. Accepts a number or a 

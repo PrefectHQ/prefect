@@ -1,6 +1,7 @@
 """
 Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
 """
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
@@ -449,9 +450,11 @@ class Flow(Generic[P, R]):
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
             retries=retries if retries is not None else self.retries,
-            retry_delay_seconds=retry_delay_seconds
-            if retry_delay_seconds is not None
-            else self.retry_delay_seconds,
+            retry_delay_seconds=(
+                retry_delay_seconds
+                if retry_delay_seconds is not None
+                else self.retry_delay_seconds
+            ),
             timeout_seconds=(
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
@@ -739,11 +742,11 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the deployment. Accepts a number or a 
-                timedelta object to create a single schedule. If a number is given, it will be 
-                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create 
+            interval: An interval on which to execute the deployment. Accepts a number or a
+                timedelta object to create a single schedule. If a number is given, it will be
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
                 multiple schedules.
-            cron: A cron schedule string of when to execute runs of this deployment. 
+            cron: A cron schedule string of when to execute runs of this deployment.
                 Also accepts an iterable of cron schedule strings to create multiple schedules.
             rrule: An rrule schedule string of when to execute runs of this deployment.
                 Also accepts an iterable of rrule schedule strings to create multiple schedules.
@@ -965,11 +968,11 @@ class Flow(Generic[P, R]):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
-            interval: An interval on which to execute the deployment. Accepts a number or a 
-                timedelta object to create a single schedule. If a number is given, it will be 
-                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create 
+            interval: An interval on which to execute the deployment. Accepts a number or a
+                timedelta object to create a single schedule. If a number is given, it will be
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
                 multiple schedules.
-            cron: A cron schedule string of when to execute runs of this deployment. 
+            cron: A cron schedule string of when to execute runs of this deployment.
                 Also accepts an iterable of cron schedule strings to create multiple schedules.
             rrule: An rrule schedule string of when to execute runs of this deployment.
                 Also accepts an iterable of rrule schedule strings to create multiple schedules.
