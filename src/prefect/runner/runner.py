@@ -74,7 +74,11 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.deployments.deployments import load_flow_from_flow_run
-from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+from prefect.deployments.runner import (
+    EntrypointType,
+    FlexibleScheduleList,
+    RunnerDeployment,
+)
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -233,6 +237,7 @@ class Runner:
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -284,6 +289,7 @@ class Runner:
             tags=tags,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
         )
         return await self.add_deployment(deployment)
 

@@ -29,6 +29,7 @@ Example:
 
 """
 
+import enum
 import importlib
 import tempfile
 from datetime import datetime, timedelta
@@ -50,6 +51,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
 )
 from prefect.utilities.collections import get_from_dict, isiterable
+from prefect.utilities.importtools import import_object
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
@@ -98,6 +100,11 @@ class DeploymentApplyError(RuntimeError):
     """
     Raised when an error occurs while applying a deployment.
     """
+
+
+class EntrypointType(enum.Enum):
+    FILE_PATH = "file_path"
+    MODULE_PATH = "module_path"
 
 
 class RunnerDeployment(BaseModel):
@@ -473,6 +480,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -545,28 +553,38 @@ class RunnerDeployment(BaseModel):
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
             mod_name = getattr(flow, "__module__", None)
-            if not flow_file:
-                if not mod_name:
-                    raise ValueError(no_file_location_error)
-                try:
-                    module = importlib.import_module(mod_name)
-                    flow_file = getattr(module, "__file__", None)
-                except ModuleNotFoundError as exc:
-                    if "__prefect_loader__" in str(exc):
-                        raise ValueError(
-                            "Cannot create a RunnerDeployment from a flow that has been"
-                            " loaded from an entrypoint. To deploy a flow via"
-                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
-                        )
-                    raise ValueError(no_file_location_error)
+            if entrypoint_type == EntrypointType.MODULE_PATH:
+                if mod_name:
+                    deployment.entrypoint = mod_name
+                else:
+                    raise ValueError(
+                        "Unable to determine module path for provided flow."
+                    )
+            else:
                 if not flow_file:
-                    raise ValueError(no_file_location_error)
+                    if not mod_name:
+                        raise ValueError(no_file_location_error)
+                    try:
+                        module = importlib.import_module(mod_name)
+                        flow_file = getattr(module, "__file__", None)
+                    except ModuleNotFoundError as exc:
+                        if "__prefect_loader__" in str(exc):
+                            raise ValueError(
+                                "Cannot create a RunnerDeployment from a flow that has been"
+                                " loaded from an entrypoint. To deploy a flow via"
+                                " entrypoint, use RunnerDeployment.from_entrypoint instead."
+                            )
+                        raise ValueError(no_file_location_error)
+                    if not flow_file:
+                        raise ValueError(no_file_location_error)
 
-            # set entrypoint
-            entry_path = Path(flow_file).absolute().relative_to(Path.cwd().absolute())
-            deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
+                # set entrypoint
+                entry_path = (
+                    Path(flow_file).absolute().relative_to(Path.cwd().absolute())
+                )
+                deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
-        if not deployment._path:
+        if entrypoint_type == EntrypointType.FILE_PATH and not deployment._path:
             deployment._path = "."
 
         cls._set_defaults_from_flow(deployment, flow)
@@ -635,7 +653,10 @@ class RunnerDeployment(BaseModel):
         from prefect.flows import load_flow_from_entrypoint
 
         job_variables = job_variables or {}
-        flow = load_flow_from_entrypoint(entrypoint)
+        if ":" in entrypoint:
+            flow = load_flow_from_entrypoint(entrypoint)
+        else:
+            flow = import_object(entrypoint)
 
         constructed_schedules = cls._construct_deployment_schedules(
             interval=interval,

@@ -40,7 +40,7 @@ from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
-from prefect.deployments.runner import DeploymentImage, deploy
+from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -605,6 +605,7 @@ class Flow(Generic[P, R]):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -703,6 +704,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
+                entrypoint_type=entrypoint_type,
             )
 
     @sync_compatible
