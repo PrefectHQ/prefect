@@ -180,9 +180,57 @@ After you create a schedule, new scheduled flow runs will be visible in the **Up
 #### Editing schedules
 You can edit a schedule by selecting **Edit** from the three-dot menu next to a schedule on a **Deployment** page.
 
-### Creating schedules with the `serve` method
+### Creating schedules with a Python deployment creation file
 
-As seen in the [Quickstart](/getting-started/quickstart/#step-5-add-a-schedule), you can create a schedule by passing a `cron`, `interval`, or `rrule` parameters to the `Flow.serve` method or the `serve` utility.
+When you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. 
+
+```
+interval: An interval on which to execute the deployment. Accepts a number or a 
+    timedelta object to create a single schedule. If a number is given, it will be 
+    interpreted as seconds. Also accepts an iterable of numbers or timedelta to create 
+    multiple schedules.
+cron: A cron schedule string of when to execute runs of this deployment. 
+    Also accepts an iterable of cron schedule strings to create multiple schedules.
+rrule: An rrule schedule string of when to execute runs of this deployment.
+    Also accepts an iterable of rrule schedule strings to create multiple schedules.
+schedules: A list of schedule objects defining when to execute runs of this deployment.
+    Used to define multiple schedules or additional scheduling options such as `timezone`.
+schedule: A schedule object defining when to execute runs of this deployment. Used to
+    define additional scheduling options like `timezone`.
+
+```
+
+Here's an example of creating a cron schedule with `serve` for a deployment flow that will run every minute of every day:
+
+```python
+my_flow.serve(name="flowing", cron="* * * * *")
+```
+
+Here's an example of creating an interval schedule with `serve` for a deployment flow that will run every 10 minutes with an anchor date and a timezone:
+
+```python
+from datetime import timedelta, datetime
+from prefect.client.schemas.schedules import IntervalSchedule
+
+my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minutes=10), anchor_date=datetime(2023, 1, 1, 0, 0), timezone="America/Chicago"))
+```
+
+Block and agent-based deployments with Python files are not a recommended way to create deployments.
+However, if you are using that deployment creation method you can create a schedule by passing a `schedule` argument to the `Deployment.build_from_flow` method.
+
+Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
+
+```python
+from prefect.server.schemas.schedules import CronSchedule
+
+cron_demo = Deployment.build_from_flow(
+    pipeline,
+    "etl",
+    schedule=(CronSchedule(cron="0 0 * * *", timezone="America/Chicago"))
+)
+```
+
+`IntervalSchedule` and `RRuleSchedule` are the other two Python class schedule options.
 
 ### Creating schedules with the interactive `prefect deploy` command
 
@@ -208,51 +256,6 @@ deployments:
       timezone: "Europe/London"
       active: true
 ```
-
-### Creating schedules with a Python deployment creation file
-
-When you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. 
-
-```
-interval: An interval on which to execute the new deployment. Accepts either a number
-    or a timedelta object. If a number is given, it will be interpreted as seconds.
-cron: A cron schedule of when to execute runs of this deployment.
-rrule: An rrule schedule of when to execute runs of this deployment.
-schedule: A schedule object defining when to execute runs of this deployment. Used to
-  define additional scheduling options like `timezone`.
-```
-
-Here's an example of creating a cron schedule with `serve` for a deployment flow that will run every minute of every day:
-
-```python
-my_flow.serve(name="flowing", cron="* * * * *")
-```
-
-Here's an example of creating an interval schedule with `serve` for a deployment flow that will run every 10 minutes with an anchor date and a timezone:
-
-```python
-from datetime import timedelta, datetime
-from prefect.client.schemas.schedules import IntervalSchedule
-
-my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minutes=10), anchor_date=datetime(2023, 1, 1, 0, 0), timezone="America/Chicago"))
-```
-
-Block and agent-based deployments with Python files are not a recommended way to create deployments.
-However, if you are using that deployment creation method you can create a schedule by passing a `schedule` parameter to the `Deployment.build_from_flow` method.
-
-Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
-
-```python
-from prefect.server.schemas.schedules import CronSchedule
-
-cron_demo = Deployment.build_from_flow(
-    pipeline,
-    "etl",
-    schedule=(CronSchedule(cron="0 0 * * *", timezone="America/Chicago"))
-)
-```
-
-`IntervalSchedule` and `RRuleSchedule` are the other two Python class schedule options.
 
 ## The `Scheduler` service
 
