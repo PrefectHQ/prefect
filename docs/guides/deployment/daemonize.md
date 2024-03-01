@@ -85,85 +85,90 @@ This command switches you back to your sudo-enabled account so you will can run 
 
 ## Step 3: Set up a systemd service
 
-=== "Prefect worker"
+See the section below if you are setting up a Prefect worker.
+Skip to the [next section](#setting-up-a-systemd-service-for-serve) if you are setting up a Prefect `.serve` process.
 
-    Move into the `/etc/systemd/system` folder and open a file for editing.
-    We use the Vim text editor below.
+### Setting up a systemd service for a Prefect worker
 
-    ```bash
-    cd /etc/systemd/system
-    sudo vim my-prefect-service.service
-    ```
+Move into the `/etc/systemd/system` folder and open a file for editing.
+We use the Vim text editor below.
 
-    ```title="my-prefect-service.service"
-    [Unit]
-    Description=Prefect worker
+```bash
+cd /etc/systemd/system
+sudo vim my-prefect-service.service
+```
 
-    [Service]
-    User=prefect
-    WorkingDirectory=/home
-    ExecStart=prefect worker start --pool YOUR_WORK_POOL_NAME
-    Restart=always
+```title="my-prefect-service.service"
+[Unit]
+Description=Prefect worker
 
-    [Install]
-    WantedBy=multi-user.target
-    ```
+[Service]
+User=prefect
+WorkingDirectory=/home
+ExecStart=prefect worker start --pool YOUR_WORK_POOL_NAME
+Restart=always
 
-    Make sure you substitute your own work pool name.
+[Install]
+WantedBy=multi-user.target
+```
 
-=== "`.serve`"
+Make sure you substitute your own work pool name.
 
-    Copy your flow entrypoint Python file and any other files needed for your flow to run into the `/home` directory (or the directory of your choice).
+### Setting up a systemd service for `.serve`
 
-    Here's a basic example flow:
+Copy your flow entrypoint Python file and any other files needed for your flow to run into the `/home` directory (or the directory of your choice).
 
-    ```python title="my_file.py"
-    from prefect import flow
+Here's a basic example flow:
+
+```python title="my_file.py"
+from prefect import flow
 
 
-    @flow(log_prints=True)
-    def say_hi():
-        print("Hello!")
-        
-    if __name__=="__main__":
-        say_hi.serve(name="Greeting from daemonized .serve")
-    ```
+@flow(log_prints=True)
+def say_hi():
+    print("Hello!")
+    
+if __name__=="__main__":
+    say_hi.serve(name="Greeting from daemonized .serve")
+```
 
-    If you want to make changes to your flow code without restarting your process, you can push your code to git-based cloud storage (GitHub, BitBucket, GitLab) and use `flow.from_source().serve()`, as in the example below.
+If you want to make changes to your flow code without restarting your process, you can push your code to git-based cloud storage (GitHub, BitBucket, GitLab) and use `flow.from_source().serve()`, as in the example below.
 
-    ```python title="my_remote_flow_code_file.py"
-    if __name__ == "__main__":
-      flow.from_source(
-          source="https://github.com/org/repo.git",
-          entrypoint="path/to/my_remote_flow_code_file.py:say_hi",
-      ).serve(name="deployment-with-github-storage")
-    ```
+```python title="my_remote_flow_code_file.py"
+if __name__ == "__main__":
+flow.from_source(
+    source="https://github.com/org/repo.git",
+    entrypoint="path/to/my_remote_flow_code_file.py:say_hi",
+).serve(name="deployment-with-github-storage")
+```
 
-    Make sure you substitute your own flow code entrypoint path.
+Make sure you substitute your own flow code entrypoint path.
 
-    Note that if you change the flow entrypoint parameters, you will need to restart the process.
+Note that if you change the flow entrypoint parameters, you will need to restart the process.
 
-    Move into the `/etc/systemd/system` folder and open a file for editing.
-    We use the Vim text editor below.
+Move into the `/etc/systemd/system` folder and open a file for editing.
+We use the Vim text editor below.
 
-    ```bash
-    cd /etc/systemd/system
-    sudo vim my-prefect-service.service
-    ```
+```bash
+cd /etc/systemd/system
+sudo vim my-prefect-service.service
+```
 
-    ```title="my-prefect-service.service"
-    [Unit]
-    Description=Prefect serve 
+```title="my-prefect-service.service"
+[Unit]
+Description=Prefect serve 
 
-    [Service]
-    User=prefect
-    WorkingDirectory=/home
-    ExecStart=python3 my_file.py
-    Restart=always
+[Service]
+User=prefect
+WorkingDirectory=/home
+ExecStart=python3 my_file.py
+Restart=always
 
-    [Install]
-    WantedBy=multi-user.target
-    ```
+[Install]
+WantedBy=multi-user.target
+```
+
+## Save, enable, and start the service
 
 To save the file and exit Vim hit the escape key, type `:wq!`, then press the return key.
 
