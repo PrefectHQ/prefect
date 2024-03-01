@@ -10,6 +10,7 @@ class GraphState(PrefectBaseModel):
     id: UUID
     timestamp: datetime
     type: StateType
+    name: str
 
 
 class GraphArtifact(PrefectBaseModel):

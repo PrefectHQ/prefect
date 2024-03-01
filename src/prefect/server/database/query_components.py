@@ -610,6 +610,7 @@ class BaseQueryComponents(ABC):
                 id=state.id,
                 timestamp=state.timestamp,
                 type=state.type,
+                name=state.name,
             )
             for state in flow_run_states
         ]

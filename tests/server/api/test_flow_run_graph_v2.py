@@ -1182,7 +1182,9 @@ async def test_reading_graph_for_flow_run_includes_states(
 
     expected_graph_states = sorted(
         (
-            GraphState(id=state.id, timestamp=state.timestamp, type=state.type)
+            GraphState(
+                id=state.id, timestamp=state.timestamp, type=state.type, name=state.name
+            )
             for state in flow_run_states
         ),
         key=attrgetter("timestamp"),
