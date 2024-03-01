@@ -45,7 +45,6 @@ concurrency:
 
 jobs:
   run-tests:
-    environment: dev
     runs-on:
       group: oss-larger-runners
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}
@@ -208,7 +207,6 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-pydantic-v1-tests:
-    environment: dev
     runs-on:
       group: oss-larger-runners
     name: pydantic v1, python:${{ matrix.python-version }}
@@ -374,7 +372,6 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-sqlalchemy-v1-tests:
-    environment: dev
     runs-on:
       group: oss-larger-runners
     name: sqlalchemy v1, python:${{ matrix.python-version }}
@@ -540,7 +537,6 @@ jobs:
           || echo "Ignoring bad exit code"
 
   notify-tests-failing-on-main:
-    environment: dev
     needs: run-tests
     if: github.ref == 'refs/heads/main' && failure()
     runs-on: ubuntu-latest
@@ -579,7 +575,6 @@ jobs:
 
   run-tests-for-datadog:
     name: DataDog CI Visibility
-    environment: dev
     runs-on:
       group: oss-larger-runners
     strategy:
