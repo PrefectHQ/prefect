@@ -563,6 +563,9 @@ def create_app(
                 services.flow_run_notifications.FlowRunNotifications()
             )
 
+        if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
+
         loop = asyncio.get_running_loop()
 
         app.state.services = {
