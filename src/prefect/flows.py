@@ -735,6 +735,7 @@ class Flow(Generic[P, R]):
         print_starting_message: bool = True,
         limit: Optional[int] = None,
         webserver: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
@@ -819,6 +820,7 @@ class Flow(Generic[P, R]):
             tags=tags,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
         )
         if print_starting_message:
             help_message = (
@@ -937,6 +939,7 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
     ) -> UUID:
         """
@@ -1052,6 +1055,7 @@ class Flow(Generic[P, R]):
             enforce_parameter_schema=enforce_parameter_schema,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            entrypoint_type=entrypoint_type,
         )
 
         deployment_ids = await deploy(
