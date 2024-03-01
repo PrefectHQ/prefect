@@ -600,6 +600,15 @@ If provided, the URL of a hosted Prefect API. Defaults to `None`.
 When using Prefect Cloud, this will include an account and workspace.
 """
 
+PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+we would like to silence this warning so we will set it to `FALSE`.
+"""
+
 PREFECT_API_KEY = Setting(
     str,
     default=None,
@@ -1614,7 +1623,8 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
-        values = warn_on_misconfigured_api_url(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(
