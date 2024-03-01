@@ -87,7 +87,7 @@ async def _build_endpoint_for_deployment(
     deployment: "DeploymentResponse", runner: "Runner"
 ) -> Callable:
     async def _create_flow_run_for_deployment(
-        body: Optional[Dict[Any, Any]] = None
+        body: Optional[Dict[Any, Any]] = None,
     ) -> JSONResponse:
         body = body or {}
         if deployment.enforce_parameter_schema and deployment.parameter_openapi_schema:
@@ -139,9 +139,9 @@ async def get_deployment_router(
             )
 
             # Used for updating the route schemas later on
-            schemas[f"{deployment.name}-{deployment_id}"] = (
-                deployment.parameter_openapi_schema
-            )
+            schemas[
+                f"{deployment.name}-{deployment_id}"
+            ] = deployment.parameter_openapi_schema
             schemas[deployment_id] = deployment.name
     return router, schemas
 

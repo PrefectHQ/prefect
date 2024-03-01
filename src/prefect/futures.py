@@ -360,7 +360,7 @@ async def resolve_futures_to_data(
 
 
 async def resolve_futures_to_states(
-    expr: Union[PrefectFuture[R, Any], Any]
+    expr: Union[PrefectFuture[R, Any], Any],
 ) -> Union[State[R], Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a

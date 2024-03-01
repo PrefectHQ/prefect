@@ -260,7 +260,9 @@ class TestUpdateVariable:
     ):
         new_name = "another_name"
         updated = await update_variable(
-            session, variable.id, VariableUpdate(name=new_name)  # type: ignore
+            session,
+            variable.id,
+            VariableUpdate(name=new_name),  # type: ignore
         )
         assert updated
 
@@ -275,7 +277,9 @@ class TestUpdateVariable:
     ):
         new_value = "another_name"
         updated = await update_variable(
-            session, variable.id, VariableUpdate(value=new_value)  # type: ignore
+            session,
+            variable.id,
+            VariableUpdate(value=new_value),  # type: ignore
         )
         assert updated
 
@@ -290,7 +294,9 @@ class TestUpdateVariable:
     ):
         new_tags = ["new-tag-123"]
         updated = await update_variable(
-            session, variable.id, VariableUpdate(tags=new_tags)  # type: ignore
+            session,
+            variable.id,
+            VariableUpdate(tags=new_tags),  # type: ignore
         )
         assert updated
 

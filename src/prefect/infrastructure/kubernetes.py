@@ -376,9 +376,9 @@ class KubernetesJob(Infrastructure):
         ), "Failed to retrieve default base job template."
         for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
             if key == "command":
-                base_job_template["variables"]["properties"]["command"]["default"] = (
-                    shlex.join(value)
-                )
+                base_job_template["variables"]["properties"]["command"][
+                    "default"
+                ] = shlex.join(value)
             elif key in [
                 "type",
                 "block_type_slug",
@@ -892,9 +892,7 @@ class KubernetesJob(Infrastructure):
                     prefix,
                     max_length=253,
                     regex_pattern=r"[^a-zA-Z0-9-\.]+",
-                ).strip(
-                    "_-."
-                )  # Must start or end with alphanumeric characters
+                ).strip("_-.")  # Must start or end with alphanumeric characters
                 or prefix
             )
 

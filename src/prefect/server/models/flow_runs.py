@@ -29,7 +29,10 @@ from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.server.schemas.states import State
 from prefect.server.utilities.schemas import PrefectBaseModel
-from prefect.settings import PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES
+from prefect.settings import (
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
+)
 
 
 @inject_db
@@ -133,7 +136,8 @@ async def update_flow_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(db.FlowRun).where(db.FlowRun.id == flow_run_id)
+        sa.update(db.FlowRun)
+        .where(db.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow_run.dict(shallow=True, exclude_unset=True))
@@ -538,4 +542,5 @@ async def read_flow_run_graph(
         flow_run_id=flow_run_id,
         since=since,
         max_nodes=PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES.value(),
+        max_artifacts=PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS.value(),
     )

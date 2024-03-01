@@ -683,24 +683,39 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             " require ADLFS to use DefaultAzureCredentials."
         ),
     )
-
+    azure_storage_container: Optional[SecretStr] = Field(
+        default=None,
+        title="Azure storage container",
+        description=(
+            "Blob Container in Azure Storage Account. If set the 'bucket_path' will"
+            " be interpreted using the following URL format:"
+            "'az://<container>@<storage_account>.dfs.core.windows.net/<bucket_path>'."
+        ),
+    )
     _remote_file_system: RemoteFileSystem = None
 
     @property
     def basepath(self) -> str:
-        return f"az://{self.bucket_path}"
+        if self.azure_storage_container:
+            return (
+                f"az://{self.azure_storage_container.get_secret_value()}"
+                f"@{self.azure_storage_account_name.get_secret_value()}"
+                f".dfs.core.windows.net/{self.bucket_path}"
+            )
+        else:
+            return f"az://{self.bucket_path}"
 
     @property
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.azure_storage_connection_string:
-            settings["connection_string"] = (
-                self.azure_storage_connection_string.get_secret_value()
-            )
+            settings[
+                "connection_string"
+            ] = self.azure_storage_connection_string.get_secret_value()
         if self.azure_storage_account_name:
-            settings["account_name"] = (
-                self.azure_storage_account_name.get_secret_value()
-            )
+            settings[
+                "account_name"
+            ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
         if self.azure_storage_tenant_id:
@@ -708,12 +723,12 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         if self.azure_storage_client_id:
             settings["client_id"] = self.azure_storage_client_id.get_secret_value()
         if self.azure_storage_client_secret:
-            settings["client_secret"] = (
-                self.azure_storage_client_secret.get_secret_value()
-            )
+            settings[
+                "client_secret"
+            ] = self.azure_storage_client_secret.get_secret_value()
         settings["anon"] = self.azure_storage_anon
         self._remote_file_system = RemoteFileSystem(
-            basepath=f"az://{self.bucket_path}", settings=settings
+            basepath=self.basepath, settings=settings
         )
         return self._remote_file_system
 

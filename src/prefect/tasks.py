@@ -29,11 +29,13 @@ from typing import (
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.schemas import TaskRun
-from prefect.context import PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -660,18 +662,35 @@ class Task(Generic[P, R]):
     ) -> State[T]:
         ...
 
+    @overload
+    def submit(
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> TaskRun:
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Awaitable[TaskRun]:
+        ...
+
     def submit(
         self,
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    ) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun, Awaitable[TaskRun]]:
         """
-        Submit a run of the task to a worker.
+        Submit a run of the task to the engine.
 
-        Must be called within a flow function. If writing an async task, this call must
-        be awaited.
+        If writing an async task, this call must be awaited.
+
+        If called from within a flow function,
 
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
@@ -757,7 +776,7 @@ class Task(Generic[P, R]):
 
         """
 
-        from prefect.engine import enter_task_run_engine
+        from prefect.engine import create_autonomous_task_run, enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -768,6 +787,22 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
+
+        if (
+            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
+            and not FlowRunContext.get()
+        ):
+            create_autonomous_task_run = create_call(
+                create_autonomous_task_run, task=self, parameters=parameters
+            )
+            if self.isasync:
+                return from_async.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
+            else:
+                return from_sync.wait_for_call_in_loop_thread(
+                    create_autonomous_task_run
+                )
 
         return enter_task_run_engine(
             self,

@@ -97,6 +97,14 @@ class DeploymentStatus(AutoEnum):
     NOT_READY = AutoEnum.auto()
 
 
+class WorkQueueStatus(AutoEnum):
+    """Enumeration of work queue statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
@@ -113,6 +121,7 @@ class StateDetails(PrefectBaseModel):
     refresh_cache: bool = None
     retriable: bool = None
     transition_id: Optional[UUID] = None
+    task_parameters_id: Optional[UUID] = None
 
 
 class State(ObjectBaseModel, Generic[R]):
@@ -938,6 +947,28 @@ class FlowRunnerSettings(PrefectBaseModel):
         return self.type, self.config
 
 
+class DeploymentSchedule(ObjectBaseModel):
+    deployment_id: Optional[UUID] = Field(
+        default=None,
+        description="The deployment id associated with this schedule.",
+    )
+    schedule: SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+
+
+class MinimalDeploymentSchedule(PrefectBaseModel):
+    schedule: SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+
+
 class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
@@ -956,6 +987,12 @@ class Deployment(ObjectBaseModel):
     )
     is_schedule_active: bool = Field(
         default=True, description="Whether or not the deployment schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
+    schedules: List[DeploymentSchedule] = Field(
+        default_factory=list, description="A list of schedules for the deployment."
     )
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
@@ -1220,6 +1257,9 @@ class WorkQueue(ObjectBaseModel):
     )
     last_polled: Optional[DateTimeTZ] = Field(
         default=None, description="The last time an agent polled this queue for work."
+    )
+    status: Optional[WorkQueueStatus] = Field(
+        default=None, description="The queue status."
     )
 
     @validator("name", check_fields=False)

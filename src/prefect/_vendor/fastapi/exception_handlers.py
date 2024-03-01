@@ -5,10 +5,13 @@ from prefect._vendor.fastapi.exceptions import (
 )
 from prefect._vendor.fastapi.utils import is_body_allowed_for_status_code
 from prefect._vendor.fastapi.websockets import WebSocket
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
-from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, WS_1008_POLICY_VIOLATION
+from prefect._vendor.starlette.exceptions import HTTPException
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.responses import JSONResponse, Response
+from prefect._vendor.starlette.status import (
+    HTTP_422_UNPROCESSABLE_ENTITY,
+    WS_1008_POLICY_VIOLATION,
+)
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> Response:

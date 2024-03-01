@@ -24,14 +24,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
-        Field(
-            default=PREFECT_NOTIFY_TYPE_DEFAULT,
-            description=(
-                "The type of notification being performed; the prefect_default "
-                "is a plain notification that does not attach an image."
-            ),
-        )
+    notify_type: Literal[
+        "prefect_default", "info", "success", "warning", "failure"
+    ] = Field(
+        default=PREFECT_NOTIFY_TYPE_DEFAULT,
+        description=(
+            "The type of notification being performed; the prefect_default "
+            "is a plain notification that does not attach an image."
+        ),
     )
 
     def __init__(self, *args, **kwargs):
@@ -712,9 +712,14 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     async def notify(self, body: str, subject: Optional[str] = None):
         import httpx
 
+        request_args = self._build_request_args(body, subject)
+        cookies = request_args.pop("cookies", None)
         # make request with httpx
-        client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
-        resp = await client.request(**self._build_request_args(body, subject))
+        client = httpx.AsyncClient(
+            headers={"user-agent": "Prefect Notifications"}, cookies=cookies
+        )
+        async with client:
+            resp = await client.request(**request_args)
         resp.raise_for_status()
 
 

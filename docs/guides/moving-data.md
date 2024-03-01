@@ -19,7 +19,7 @@ search:
   boost: 2
 ---
 
-# Read and Write Data to and From Cloud Provider Storage
+# Read and Write Data to and from Cloud Provider Storage
 
 Writing data to cloud-based storage and reading data from that storage is a common task in data engineering.
 In this guide we'll learn how to use Prefect to move data to and from AWS, Azure, and GCP blob storage.
@@ -38,25 +38,31 @@ In the CLI, install the Prefect integration library for your cloud provider:
 
     [prefect-aws](https://prefecthq.github.io/prefect-aws/) provides blocks for interacting with AWS services.
 
+    <div class="terminal">
     ```bash
     pip install -U prefect-aws
     ```
+    </div>
 
 === "Azure"
 
     [prefect-azure](https://prefecthq.github.io/prefect-azure/) provides blocks for interacting with Azure services.
 
+    <div class="terminal">
     ```bash
      pip install -U prefect-azure
     ```
+    </div>
 
 === "GCP"
 
     [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) provides blocks for interacting with GCP services.
     
+    <div class="terminal">
     ```bash
      pip install -U prefect-gcp
     ```
+    </div>
 
 ## Register the block types
 
@@ -64,21 +70,27 @@ Register the new block types with Prefect Cloud (or with your self-hosted Prefec
 
 === "AWS"
 
+    <div class="terminal">
     ```bash
     prefect block register -m prefect_aws  
     ```
+    </div>
 
 === "Azure"
 
+    <div class="terminal">
     ```bash
     prefect block register -m prefect_azure 
     ```
+    </div>
 
 === "GCP"
 
+    <div class="terminal">
     ```bash
     prefect block register -m prefect_gcp
     ```
+    </div>
 
 We should see a message in the CLI that several block types were registered.
 If we check the UI, we should see the new block types listed.
