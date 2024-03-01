@@ -1062,54 +1062,60 @@ class TestAPICompatibility:
 
 
 class TestRegisterBlockTypeAndSchema:
-    class NewBlock(Block):
-        a: str
-        b: str
-        c: int
-        _block_type_slug = f"new-block-{uuid4()}"
+    @pytest.fixture
+    def NewBlock():
+        class NewBlock(Block):
+            a: str
+            b: str
+            c: int
+            _block_type_slug = f"new-block-{uuid4()}"
 
-    async def test_register_type_and_schema(self, prefect_client: PrefectClient):
-        await self.NewBlock.register_type_and_schema()
+        return NewBlock
+
+    async def test_register_type_and_schema(
+        self, prefect_client: PrefectClient, NewBlock
+    ):
+        await NewBlock.register_type_and_schema()
 
         block_type = await prefect_client.read_block_type_by_slug(
-            slug=self.NewBlock._block_type_slug
+            slug=NewBlock._block_type_slug
         )
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
         block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=self.NewBlock._calculate_schema_checksum()
+            checksum=NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == NewBlock.schema()
 
-        assert isinstance(self.NewBlock._block_type_id, UUID)
-        assert isinstance(self.NewBlock._block_schema_id, UUID)
+        assert isinstance(NewBlock._block_type_id, UUID)
+        assert isinstance(NewBlock._block_schema_id, UUID)
 
-    async def test_register_idempotent(self, prefect_client: PrefectClient):
-        await self.NewBlock.register_type_and_schema()
-        await self.NewBlock.register_type_and_schema()
+    async def test_register_idempotent(self, prefect_client: PrefectClient, NewBlock):
+        await NewBlock.register_type_and_schema()
+        await NewBlock.register_type_and_schema()
 
         block_type = await prefect_client.read_block_type_by_slug(
-            slug=self.NewBlock._block_type_slug
+            slug=NewBlock._block_type_slug
         )
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
         block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=self.NewBlock._calculate_schema_checksum()
+            checksum=NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == NewBlock.schema()
 
     async def test_register_existing_block_type_new_block_schema(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, NewBlock
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
 
         class ImpostorBlock(Block):
-            _block_type_name = "NewBlock"
+            _block_type_slug = NewBlock._block_type_slug
             x: str
             y: str
             z: int
@@ -1120,41 +1126,41 @@ class TestRegisterBlockTypeAndSchema:
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
-        await self.NewBlock.register_type_and_schema()
+        await NewBlock.register_type_and_schema()
 
         block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=self.NewBlock._calculate_schema_checksum()
+            checksum=NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == NewBlock.schema()
 
     async def test_register_new_block_schema_when_version_changes(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, NewBlock
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
 
-        await self.NewBlock.register_type_and_schema()
+        await NewBlock.register_type_and_schema()
 
         block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=self.NewBlock._calculate_schema_checksum()
+            checksum=NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == NewBlock.schema()
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
-        self.NewBlock._block_schema_version = "new_version"
+        NewBlock._block_schema_version = "new_version"
 
-        await self.NewBlock.register_type_and_schema()
+        await NewBlock.register_type_and_schema()
 
         block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=self.NewBlock._calculate_schema_checksum()
+            checksum=NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == NewBlock.schema()
         assert block_schema.version == "new_version"
 
-        self.NewBlock._block_schema_version = None
+        NewBlock._block_schema_version = None
 
     async def test_register_nested_block(self, prefect_client: PrefectClient):
         class Big(Block):
@@ -1330,10 +1336,14 @@ class TestRegisterBlockTypeAndSchema:
 
 
 class TestSaveBlock:
-    class NewBlock(Block):
-        a: str
-        b: str
-        _block_type_slug = f"new-block-{uuid4()}"
+    @pytest.fixture
+    def NewBlock():
+        class NewBlock(Block):
+            a: str
+            b: str
+            _block_type_slug = f"new-block-{uuid4()}"
+
+        return NewBlock
 
     @pytest.fixture
     def InnerBlock(self):
@@ -1350,8 +1360,8 @@ class TestSaveBlock:
 
         return OuterBlock
 
-    async def test_save_block(self):
-        new_block = self.NewBlock(a="foo", b="bar")
+    async def test_save_block(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
         new_block_name = f"my-block-{uuid4()}"
         await new_block.save(new_block_name)
 
@@ -1370,8 +1380,8 @@ class TestSaveBlock:
 
         assert loaded_new_block == new_block
 
-    async def test_save_block_with_name_inferred_from_loaded_document(self):
-        new_block = self.NewBlock(a="foo", b="bar")
+    async def test_save_block_with_name_inferred_from_loaded_document(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
 
         with pytest.raises(
             ValueError,
@@ -1381,25 +1391,23 @@ class TestSaveBlock:
 
         await new_block.save("new-block")
 
-        new_python_instance = await self.NewBlock.load("new-block")
+        new_python_instance = await NewBlock.load("new-block")
         new_python_instance.a = "baz"
         await new_python_instance.save(overwrite=True)
 
-        loaded_new_block = await self.NewBlock.load("new-block")
+        loaded_new_block = await NewBlock.load("new-block")
         assert loaded_new_block.a == "baz"
         assert loaded_new_block.b == "bar"
 
-    async def test_save_anonymous_block(self):
-        new_anon_block = self.NewBlock(a="foo", b="bar")
+    async def test_save_anonymous_block(self, NewBlock):
+        new_anon_block = NewBlock(a="foo", b="bar")
         await new_anon_block._save(is_anonymous=True)
 
         assert new_anon_block._block_document_name is not None
         assert new_anon_block._block_document_id is not None
         assert new_anon_block._is_anonymous
 
-        loaded_new_anon_block = await self.NewBlock.load(
-            new_anon_block._block_document_name
-        )
+        loaded_new_anon_block = await NewBlock.load(new_anon_block._block_document_name)
 
         assert (
             loaded_new_anon_block._block_document_name
@@ -1416,14 +1424,16 @@ class TestSaveBlock:
 
         assert loaded_new_anon_block == new_anon_block
 
-    async def test_save_anonymous_block_more_than_once_creates_two_blocks(self):
-        new_anon_block = self.NewBlock(a="foo", b="bar")
+    async def test_save_anonymous_block_more_than_once_creates_two_blocks(
+        self, NewBlock
+    ):
+        new_anon_block = NewBlock(a="foo", b="bar")
         first_id = await new_anon_block._save(is_anonymous=True)
         second_id = await new_anon_block._save(is_anonymous=True)
         assert first_id != second_id
 
-    async def test_save_throws_on_mismatched_kwargs(self):
-        new_block = self.NewBlock(a="foo", b="bar")
+    async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
         with pytest.raises(
             ValueError,
             match="You're attempting to save a block document without a name.",
@@ -2531,20 +2541,24 @@ class TestBlockSchemaMigration:
 
 
 class TestDeleteBlock:
-    class NewBlock(Block):
-        a: str
-        b: str
-        _block_type_slug = f"new-block-{uuid4()}"
+    @pytest.fixture
+    def NewBlock():
+        class NewBlock(Block):
+            a: str
+            b: str
+            _block_type_slug = f"new-block-{uuid4()}"
 
-    async def test_delete_block(self):
-        new_block = self.NewBlock(a="foo", b="bar")
+        return NewBlock
+
+    async def test_delete_block(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
         new_block_name = f"my-block-{uuid4()}"
         await new_block.save(new_block_name)
 
-        loaded_new_block = await self.NewBlock.load(new_block_name)
+        loaded_new_block = await NewBlock.load(new_block_name)
         assert loaded_new_block._block_document_name == new_block_name
 
-        await self.NewBlock.delete(new_block_name)
+        await NewBlock.delete(new_block_name)
 
         with pytest.raises(ValueError) as exception:
             await new_block.load(new_block_name)
@@ -2553,13 +2567,13 @@ class TestDeleteBlock:
                 in exception.value
             )
 
-    async def test_delete_block_from_base_block(self):
-        new_block = self.NewBlock(a="foo", b="bar")
+    async def test_delete_block_from_base_block(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
         new_block_name = f"my-block-{uuid4()}"
 
         await new_block.save(new_block_name)
 
-        loaded_new_block = await self.NewBlock.load(new_block_name)
+        loaded_new_block = await NewBlock.load(new_block_name)
         assert loaded_new_block._block_document_name == new_block_name
 
         await Block.delete(f"{new_block._block_type_slug}/{new_block_name}")
