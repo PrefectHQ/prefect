@@ -23,9 +23,15 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.experimental import experiment_enabled
-from prefect.server import schemas
+from prefect.server import models, schemas
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
-from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, Node
+from prefect.server.schemas.graph import (
+    Edge,
+    Graph,
+    GraphArtifact,
+    GraphStateEvent,
+    Node,
+)
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.database import Timestamp, json_has_any_key
 
@@ -592,6 +598,28 @@ class BaseQueryComponents(ABC):
 
         return artifacts_by_task
 
+    async def _get_flow_run_graph_state_events(
+        self,
+        session: AsyncSession,
+        flow_run_id: UUID,
+    ):
+        """Get the state events for a flow run."""
+        if not experiment_enabled("state_events_on_flow_run_graph"):
+            return []
+
+        flow_run_states = await models.flow_run_states.read_flow_run_states(
+            session=session, flow_run_id=flow_run_id
+        )
+
+        return [
+            GraphStateEvent(
+                id=state.id,
+                occurred=state.timestamp,
+                type=state.type,
+            )
+            for state in flow_run_states
+        ]
+
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
@@ -877,6 +905,9 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         graph_artifacts = await self._get_flow_run_graph_artifacts(
             db, session, flow_run_id, max_artifacts
         )
+        graph_state_events = await self._get_flow_run_graph_state_events(
+            session, flow_run_id
+        )
 
         nodes: List[Tuple[UUID, Node]] = []
         root_node_ids: List[UUID] = []
@@ -914,6 +945,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             root_node_ids=root_node_ids,
             nodes=nodes,
             artifacts=graph_artifacts.get(None, []),
+            state_events=graph_state_events,
         )
 
 
@@ -1308,6 +1340,9 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         graph_artifacts = await self._get_flow_run_graph_artifacts(
             db, session, flow_run_id, max_artifacts
         )
+        graph_state_events = await self._get_flow_run_graph_state_events(
+            session, flow_run_id
+        )
 
         nodes: List[Tuple[UUID, Node]] = []
         root_node_ids: List[UUID] = []
@@ -1367,4 +1402,5 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             root_node_ids=root_node_ids,
             nodes=nodes,
             artifacts=graph_artifacts.get(None, []),
+            state_events=graph_state_events,
         )
