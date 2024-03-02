@@ -91,6 +91,11 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
             self._stopped = True
 
+            # Allow asyncio Task to be garbage-collected because it may
+            # contain references to all Prefect Task calls during a flow
+            # run.
+            del self._task
+
             # Signal completion to the loop
             self._queue.put_nowait(None)
 
