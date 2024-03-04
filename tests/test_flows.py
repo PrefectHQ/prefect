@@ -38,7 +38,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, RunnerDeployment
+from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     CancelledRun,
@@ -2273,6 +2273,22 @@ def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
     assert flow.fn() == "woof!"
 
 
+def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
+    @flow
+    def pretend_flow():
+        pass
+
+    import_object_mock = MagicMock(return_value=pretend_flow)
+    monkeypatch.setattr(
+        "prefect.flows.import_object",
+        import_object_mock,
+    )
+    result = load_flow_from_entrypoint("my.module.pretend_flow")
+
+    assert result == pretend_flow
+    import_object_mock.assert_called_with("my.module.pretend_flow")
+
+
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
@@ -3271,6 +3287,13 @@ class TestFlowToDeployment:
             seconds=3600
         )
 
+    async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
+        deployment = await test_flow.to_deployment(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
+
     async def test_to_deployment_accepts_cron(self):
         deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
@@ -3354,6 +3377,14 @@ class TestFlowServe:
         assert deployment.enforce_parameter_schema
         assert deployment.paused
         assert not deployment.is_schedule_active
+
+    async def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+        deployment = await test_flow.serve(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)

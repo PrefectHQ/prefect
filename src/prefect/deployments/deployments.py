@@ -222,11 +222,27 @@ async def load_flow_from_flow_run(
     is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
+
+    if deployment.entrypoint is None:
+        raise ValueError(
+            f"Deployment {deployment.id} does not have an entrypoint and can not be run."
+        )
+
     run_logger = flow_run_logger(flow_run)
 
     runner_storage_base_path = storage_base_path or os.environ.get(
         "PREFECT__STORAGE_BASE_PATH"
     )
+
+    # If there's no colon, assume it's a module path
+    if ":" not in deployment.entrypoint:
+        run_logger.debug(
+            f"Importing flow code from module path {deployment.entrypoint}"
+        )
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, deployment.entrypoint
+        )
+        return flow
 
     if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
@@ -259,8 +275,6 @@ async def load_flow_from_flow_run(
             os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    run_logger.debug(f"Importing flow code from '{import_path}'")
-
     # for backwards compat
     if deployment.manifest_path:
         with open(deployment.manifest_path, "r") as f:
@@ -268,7 +282,10 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
+    run_logger.debug(f"Importing flow code from '{import_path}'")
+
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
+
     return flow
 
 

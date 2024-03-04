@@ -26,6 +26,7 @@ from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
     DeploymentImage,
+    EntrypointType,
     RunnerDeployment,
     deploy,
 )
@@ -720,6 +721,18 @@ class TestRunnerDeployment:
         assert deployment.tags == ["test"]
         assert deployment.is_schedule_active is True
         assert deployment.enforce_parameter_schema
+
+    async def test_from_flow_can_produce_a_module_path_entrypoint(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            entrypoint_type=EntrypointType.MODULE_PATH,
+        )
+
+        assert (
+            deployment.entrypoint
+            == f"{dummy_flow_1.__module__}.{dummy_flow_1.__name__}"
+        )
 
     def test_from_flow_accepts_interval(self):
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
@@ -1748,6 +1761,20 @@ class TestDeploy:
                 ).to_deployment(__file__),
                 work_pool_name=work_pool_with_image_variable.name,
             )
+
+    async def test_deploy_with_module_path_entrypoint(
+        self, work_pool_with_image_variable, prefect_client
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__, entrypoint_type=EntrypointType.MODULE_PATH
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+        )
+        assert len(deployment_ids) == 1
+
+        deployment = await prefect_client.read_deployment(deployment_ids[0])
+        assert deployment.entrypoint == "test_runner.dummy_flow_1"
 
     async def test_deploy_with_image_string_no_tag(
         self,

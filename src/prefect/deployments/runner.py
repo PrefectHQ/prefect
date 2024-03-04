@@ -29,6 +29,7 @@ Example:
 
 """
 
+import enum
 import importlib
 import tempfile
 from datetime import datetime, timedelta
@@ -98,6 +99,18 @@ class DeploymentApplyError(RuntimeError):
     """
     Raised when an error occurs while applying a deployment.
     """
+
+
+class EntrypointType(enum.Enum):
+    """
+    Enum representing a entrypoint type.
+
+    File path entrypoints are in the format: `path/to/file.py:function_name`.
+    Module path entrypoints are in the format: `path.to.module.function_name`.
+    """
+
+    FILE_PATH = "file_path"
+    MODULE_PATH = "module_path"
 
 
 class RunnerDeployment(BaseModel):
@@ -205,12 +218,19 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+    _entrypoint_type: EntrypointType = PrivateAttr(
+        default=EntrypointType.FILE_PATH,
+    )
     _path: Optional[str] = PrivateAttr(
         default=None,
     )
     _parameter_openapi_schema: ParameterSchema = PrivateAttr(
         default_factory=ParameterSchema,
     )
+
+    @property
+    def entrypoint_type(self) -> EntrypointType:
+        return self._entrypoint_type
 
     @validator("triggers", allow_reuse=True)
     def validate_automation_names(cls, field_value, values, field, config):
@@ -473,6 +493,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -545,29 +566,41 @@ class RunnerDeployment(BaseModel):
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
             mod_name = getattr(flow, "__module__", None)
-            if not flow_file:
-                if not mod_name:
-                    raise ValueError(no_file_location_error)
-                try:
-                    module = importlib.import_module(mod_name)
-                    flow_file = getattr(module, "__file__", None)
-                except ModuleNotFoundError as exc:
-                    if "__prefect_loader__" in str(exc):
-                        raise ValueError(
-                            "Cannot create a RunnerDeployment from a flow that has been"
-                            " loaded from an entrypoint. To deploy a flow via"
-                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
-                        )
-                    raise ValueError(no_file_location_error)
+            if entrypoint_type == EntrypointType.MODULE_PATH:
+                if mod_name:
+                    deployment.entrypoint = f"{mod_name}.{flow.__name__}"
+                else:
+                    raise ValueError(
+                        "Unable to determine module path for provided flow."
+                    )
+            else:
                 if not flow_file:
-                    raise ValueError(no_file_location_error)
+                    if not mod_name:
+                        raise ValueError(no_file_location_error)
+                    try:
+                        module = importlib.import_module(mod_name)
+                        flow_file = getattr(module, "__file__", None)
+                    except ModuleNotFoundError as exc:
+                        if "__prefect_loader__" in str(exc):
+                            raise ValueError(
+                                "Cannot create a RunnerDeployment from a flow that has been"
+                                " loaded from an entrypoint. To deploy a flow via"
+                                " entrypoint, use RunnerDeployment.from_entrypoint instead."
+                            )
+                        raise ValueError(no_file_location_error)
+                    if not flow_file:
+                        raise ValueError(no_file_location_error)
 
-            # set entrypoint
-            entry_path = Path(flow_file).absolute().relative_to(Path.cwd().absolute())
-            deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
+                # set entrypoint
+                entry_path = (
+                    Path(flow_file).absolute().relative_to(Path.cwd().absolute())
+                )
+                deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
-        if not deployment._path:
+        if entrypoint_type == EntrypointType.FILE_PATH and not deployment._path:
             deployment._path = "."
+
+        deployment._entrypoint_type = entrypoint_type
 
         cls._set_defaults_from_flow(deployment, flow)
 
@@ -905,7 +938,10 @@ async def deploy(
     """
     work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
 
-    if not image and not all(d.storage for d in deployments):
+    if not image and not all(
+        d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
+        for d in deployments
+    ):
         raise ValueError(
             "Either an image or remote storage location must be provided when deploying"
             " a deployment."
