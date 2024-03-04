@@ -40,7 +40,7 @@ from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
-from prefect.deployments.runner import DeploymentImage, deploy
+from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -605,6 +605,7 @@ class Flow(Generic[P, R]):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -636,6 +637,8 @@ class Flow(Generic[P, R]):
                 If not provided the default work queue for the work pool will be used.
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
 
         Examples:
             Prepare two deployments and serve them:
@@ -703,6 +706,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
+                entrypoint_type=entrypoint_type,
             )
 
     @sync_compatible
@@ -733,6 +737,7 @@ class Flow(Generic[P, R]):
         print_starting_message: bool = True,
         limit: Optional[int] = None,
         webserver: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
@@ -765,6 +770,8 @@ class Flow(Generic[P, R]):
             print_starting_message: Whether or not to print the starting message when flow is served.
             limit: The maximum number of runs that can be executed concurrently.
             webserver: Whether or not to start a monitoring webserver for this flow.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
 
         Examples:
             Serve a flow:
@@ -817,6 +824,7 @@ class Flow(Generic[P, R]):
             tags=tags,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
         )
         if print_starting_message:
             help_message = (
@@ -935,6 +943,7 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
     ) -> UUID:
         """
@@ -982,8 +991,10 @@ class Flow(Generic[P, R]):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
             print_next_steps_message: Whether or not to print a message with next steps
-            after deploying the deployments.
+                after deploying the deployments.
 
         Returns:
             The ID of the created/updated deployment.
@@ -1050,6 +1061,7 @@ class Flow(Generic[P, R]):
             enforce_parameter_schema=enforce_parameter_schema,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            entrypoint_type=entrypoint_type,
         )
 
         deployment_ids = await deploy(
@@ -1585,7 +1597,8 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
     Extract a flow object from a script at an entrypoint by running all of the code in the file.
 
     Args:
-        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
+            to a flow function
 
     Returns:
         The flow object from the script
@@ -1598,8 +1611,11 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
         block_code_execution=True,
         capture_failures=True,
     ):
-        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
-        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        if ":" in entrypoint:
+            # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+            path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        else:
+            path, func_name = entrypoint.rsplit(".", maxsplit=1)
         try:
             flow = import_object(entrypoint)
         except AttributeError as exc:
