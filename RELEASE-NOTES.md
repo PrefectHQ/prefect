@@ -22,7 +22,7 @@
 - @eladm26
 - @seano-vs
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.1...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.1...2.16.2
 
 
 ## Release 2.16.1
