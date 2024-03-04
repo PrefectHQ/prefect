@@ -600,6 +600,15 @@ If provided, the URL of a hosted Prefect API. Defaults to `None`.
 When using Prefect Cloud, this will include an account and workspace.
 """
 
+PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+we would like to silence this warning so we will set it to `FALSE`.
+"""
+
 PREFECT_API_KEY = Setting(
     str,
     default=None,
@@ -1417,6 +1426,14 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 """
 The port the worker's webserver should bind to.
 """
+
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
+    str,
+    default="local-file-system/prefect-task-scheduling",
+)
+"""The `block-type/block-document` slug of a block to use as the default storage
+for autonomous tasks."""
+
 PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
     bool,
     default=True,
@@ -1439,6 +1456,16 @@ PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
 )
 """
 The maximum number of retries to queue for submission.
+"""
+
+PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
+    timedelta,
+    default=timedelta(seconds=30),
+)
+"""
+How long before a PENDING task are made available to another task server.  In practice,
+a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task server may have crashed.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
@@ -1614,7 +1641,8 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
-        values = warn_on_misconfigured_api_url(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(

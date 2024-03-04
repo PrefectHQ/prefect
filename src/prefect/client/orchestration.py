@@ -2215,6 +2215,24 @@ class PrefectClient:
         response = await self._client.post("/task_runs/filter", json=body)
         return pydantic.parse_obj_as(List[TaskRun], response.json())
 
+    async def delete_task_run(self, task_run_id: UUID) -> None:
+        """
+        Delete a task run by id.
+
+        Args:
+            task_run_id: the task run ID of interest
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        try:
+            await self._client.delete(f"/task_runs/{task_run_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def set_task_run_state(
         self,
         task_run_id: UUID,
