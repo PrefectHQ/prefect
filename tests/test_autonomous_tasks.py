@@ -183,11 +183,32 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     assert parameters == dict(x=42)
 
 
-async def test_task_submission_via_call_raises_error(
+async def test_task_submission_via_call(foo_task_with_result_storage):
+    task_run = foo_task_with_result_storage(42)
+    assert task_run.state.is_scheduled()
+
+    result_factory = await result_factory_from_task(foo_task_with_result_storage)
+
+    parameters = await result_factory.read_parameters(
+        task_run.state.state_details.task_parameters_id
+    )
+
+    assert parameters == dict(x=42)
+
+
+async def test_async_task_submission_via_call(
     async_foo_task_with_result_storage,
 ):
-    with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-        async_foo_task_with_result_storage(42)
+    task_run = await async_foo_task_with_result_storage(42)
+    assert task_run.state.is_scheduled()
+
+    result_factory = await result_factory_from_task(async_foo_task_with_result_storage)
+
+    parameters = await result_factory.read_parameters(
+        task_run.state.state_details.task_parameters_id
+    )
+
+    assert parameters == dict(x=42)
 
 
 async def test_task_submission_via_map_raises_error(async_foo_task_with_result_storage):
