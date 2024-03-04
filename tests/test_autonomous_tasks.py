@@ -309,8 +309,14 @@ async def test_stuck_pending_tasks_are_reenqueued(
 
 
 class TestCall:
-    @pytest.mark.timeout(5)
-    def test_call(self, foo_task):
-        result = foo_task(42)
+    async def test_call(self, async_foo_task):
+        result = await async_foo_task(42)
 
         assert result == 42
+
+    async def test_call_with_return_state(self, async_foo_task):
+        state = await async_foo_task(42, return_state=True)
+
+        assert state.is_completed()
+
+        assert await state.result() == 42

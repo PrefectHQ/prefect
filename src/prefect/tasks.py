@@ -580,7 +580,7 @@ class Task(Generic[P, R]):
                 task_run=None,
                 task_runner=SequentialTaskRunner(),
                 parameters=parameters,
-                return_type="result",
+                return_type=return_type,
                 client=get_client(),
             )
 

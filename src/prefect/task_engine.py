@@ -1,5 +1,6 @@
 from contextlib import AsyncExitStack
 from typing import (
+    Any,
     Dict,
     Iterable,
     Optional,
@@ -31,7 +32,7 @@ async def submit_autonomous_task_run_to_engine(
     task: Task,
     task_run: TaskRun,
     task_runner: BaseTaskRunner,
-    parameters: Optional[Dict] = None,
+    parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
