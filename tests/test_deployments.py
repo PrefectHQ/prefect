@@ -14,6 +14,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import RRuleSchedule
+from prefect.deployments.deployments import load_flow_from_flow_run
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1.error_wrappers import ValidationError
@@ -1316,3 +1317,35 @@ class TestRunDeployment:
                 )
             ]
         }
+
+
+class TestLoadFlowFromFlowRun:
+    async def test_load_flow_from_module_entrypoint(
+        self, prefect_client: PrefectClient, monkeypatch
+    ):
+        @flow
+        def pretend_flow():
+            pass
+
+        load_flow_from_entrypoint = mock.MagicMock(return_value=pretend_flow)
+        monkeypatch.setattr(
+            "prefect.deployments.deployments.load_flow_from_entrypoint",
+            load_flow_from_entrypoint,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(pretend_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my.module.pretend_flow",
+            flow_id=flow_id,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run, client=prefect_client)
+
+        assert result == pretend_flow
+        load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")
