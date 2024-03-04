@@ -1,5 +1,30 @@
 # Prefect Release Notes
 
+## Release 2.16.2
+
+### Enhancements
+- Add ability to use a module path entrypoint when using `.serve` or `.deploy` — https://github.com/PrefectHQ/prefect/pull/12134
+- Add `delete_task_run` client method — https://github.com/PrefectHQ/prefect/pull/12142
+- Add Artifacts on the flow run graph — https://github.com/PrefectHQ/prefect/pull/12156
+
+### Fixes
+- Support obfuscation of more complex log record messages — https://github.com/PrefectHQ/prefect/pull/12151
+
+### Documentation
+- Remove tab structure for three docs pages to improve navigation — https://github.com/PrefectHQ/prefect/pull/12127
+- Add clarifications and style updates on the events page — https://github.com/PrefectHQ/prefect/pull/12133
+
+### Experimental
+- Try to use the same block for autonomous task scheduling storage — https://github.com/PrefectHQ/prefect/pull/12122
+- Reliability improvements for autonomous task scheduling — https://github.com/PrefectHQ/prefect/pull/12115
+
+### Contributors
+- @eladm26
+- @seano-vs
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.1...2.16.2
+
+
 ## Release 2.16.1
 
 ### Enhanced multiple schedule support  
