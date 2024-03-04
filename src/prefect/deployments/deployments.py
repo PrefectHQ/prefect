@@ -244,12 +244,7 @@ async def load_flow_from_flow_run(
         )
         return flow
 
-    if (
-        not ignore_storage
-        and not deployment.pull_steps
-        # If there's no colon, assume it's a module path
-        and ":" not in deployment.entrypoint
-    ):
+    if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
         if deployment.storage_document_id:
             storage_document = await client.read_block_document(
