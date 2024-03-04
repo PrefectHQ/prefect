@@ -15,7 +15,7 @@
 - Add clarifications and style updates on the events page — https://github.com/PrefectHQ/prefect/pull/12133
 
 ### Experimental
-- Try to use/reuse the same block for autonomous task scheduling storage — https://github.com/PrefectHQ/prefect/pull/12122
+- Try to use the same block for autonomous task scheduling storage — https://github.com/PrefectHQ/prefect/pull/12122
 - Reliability improvements for autonomous task scheduling — https://github.com/PrefectHQ/prefect/pull/12115
 
 ### Contributors
