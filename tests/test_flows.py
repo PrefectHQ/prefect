@@ -3292,7 +3292,7 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
-    def test_on_running_hooks_dont_run_on_failure(self):
+    def test_on_running_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
         def running1(flow, flow_run, state):
