@@ -67,6 +67,7 @@
 }
 
 .flow-run-graphs__graph-panel-container { @apply
+  relative
   grid
   grid-cols-1
   gap-2
