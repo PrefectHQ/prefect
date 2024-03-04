@@ -1079,6 +1079,20 @@ async def test_create_then_read_task_run(prefect_client):
     assert lookup == task_run
 
 
+async def test_delete_task_run(prefect_client):
+    @task
+    def bar():
+        pass
+
+    task_run = await prefect_client.create_task_run(
+        bar, flow_run_id=None, dynamic_key="0"
+    )
+
+    await prefect_client.delete_task_run(task_run.id)
+    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="Not Found"):
+        await prefect_client.read_task_run(task_run.id)
+
+
 async def test_create_then_read_task_run_with_state(prefect_client):
     @flow
     def foo():
