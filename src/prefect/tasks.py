@@ -554,7 +554,8 @@ class Task(Generic[P, R]):
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
         """
-        from prefect.engine import create_autonomous_task_run, enter_task_run_engine
+        from prefect.engine import enter_task_run_engine
+        from prefect.task_engine import submit_autonomous_task_run_to_engine
         from prefect.task_runners import SequentialTaskRunner
 
         # Convert the call args/kwargs to a parameter dict
@@ -572,17 +573,16 @@ class Task(Generic[P, R]):
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
             and not FlowRunContext.get()
         ):
-            create_autonomous_task_run = create_call(
-                create_autonomous_task_run, task=self, parameters=parameters
+            from prefect import get_client
+
+            return submit_autonomous_task_run_to_engine(
+                task=self,
+                task_run=None,
+                task_runner=SequentialTaskRunner(),
+                parameters=parameters,
+                return_type="result",
+                client=get_client(),
             )
-            if self.isasync:
-                return from_async.wait_for_call_in_loop_thread(
-                    create_autonomous_task_run
-                )
-            else:
-                return from_sync.wait_for_call_in_loop_thread(
-                    create_autonomous_task_run
-                )
 
         return enter_task_run_engine(
             self,

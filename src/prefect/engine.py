@@ -1698,7 +1698,10 @@ async def create_task_run(
         task_inputs=task_inputs,
     )
 
-    logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
+    if flow_run_context.flow_run:
+        logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
+    else:
+        engine_logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
 
     return task_run
 
@@ -1716,7 +1719,7 @@ async def submit_task_run(
 
     if (
         task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL
-        and not flow_run_context.autonomous_task_run
+        and flow_run_context.flow_run
     ):
         logger.info(f"Executing {task_run.name!r} immediately...")
 

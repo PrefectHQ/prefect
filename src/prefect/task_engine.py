@@ -9,6 +9,7 @@ import anyio
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import TaskRun
 from prefect.context import EngineContext
 from prefect.engine import (
@@ -34,7 +35,7 @@ async def submit_autonomous_task_run_to_engine(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
-    client=None,
+    client: Optional[PrefectClient] = None,
 ) -> PrefectFuture:
     async with AsyncExitStack() as stack:
         parameters = parameters or {}
@@ -58,11 +59,17 @@ async def submit_autonomous_task_run_to_engine(
                 task_runner=task_runner,
             )
             if task.isasync:
-                future = await from_async.wait_for_call_in_loop_thread(begin_run)
+                future_result_or_state = await from_async.wait_for_call_in_loop_thread(
+                    begin_run
+                )
             else:
-                future = from_sync.wait_for_call_in_loop_thread(begin_run)
+                future_result_or_state = from_sync.wait_for_call_in_loop_thread(
+                    begin_run
+                )
 
-            await wait_for_task_runs_and_report_crashes(
-                task_run_futures=[future],
-                client=client,
-            )
+            if return_type == "future":
+                await wait_for_task_runs_and_report_crashes(
+                    task_run_futures=[future_result_or_state],
+                    client=client,
+                )
+            return future_result_or_state
