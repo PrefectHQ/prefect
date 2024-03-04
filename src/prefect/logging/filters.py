@@ -10,8 +10,8 @@ def redact_substr(obj: Any, substr: str):
     Redact a string from a potentially nested object.
 
     Args:
-        obj (Any): The object to redact the
-        substr (str): The substr to redact.
+        obj: The object to redact the string from
+        substr: The string to redact.
 
     Returns:
         Any: The object with the API key redacted.
