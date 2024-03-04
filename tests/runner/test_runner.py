@@ -1762,6 +1762,20 @@ class TestDeploy:
                 work_pool_name=work_pool_with_image_variable.name,
             )
 
+    async def test_deploy_with_module_path_entrypoint(
+        self, work_pool_with_image_variable, prefect_client
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__, entrypoint_type=EntrypointType.MODULE_PATH
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+        )
+        assert len(deployment_ids) == 1
+
+        deployment = await prefect_client.read_deployment(deployment_ids[0])
+        assert deployment.entrypoint == "test_runner.dummy_flow_1"
+
     async def test_deploy_with_image_string_no_tag(
         self,
         mock_build_image: MagicMock,

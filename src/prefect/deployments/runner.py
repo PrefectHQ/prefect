@@ -219,12 +219,19 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+    _entrypoint_type: EntrypointType = PrivateAttr(
+        default=EntrypointType.FILE_PATH,
+    )
     _path: Optional[str] = PrivateAttr(
         default=None,
     )
     _parameter_openapi_schema: ParameterSchema = PrivateAttr(
         default_factory=ParameterSchema,
     )
+
+    @property
+    def entrypoint_type(self) -> EntrypointType:
+        return self._entrypoint_type
 
     @validator("triggers", allow_reuse=True)
     def validate_automation_names(cls, field_value, values, field, config):
@@ -594,6 +601,8 @@ class RunnerDeployment(BaseModel):
         if entrypoint_type == EntrypointType.FILE_PATH and not deployment._path:
             deployment._path = "."
 
+        deployment._entrypoint_type = entrypoint_type
+
         cls._set_defaults_from_flow(deployment, flow)
 
         return deployment
@@ -933,7 +942,10 @@ async def deploy(
     """
     work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
 
-    if not image and not all(d.storage for d in deployments):
+    if not image and not all(
+        d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
+        for d in deployments
+    ):
         raise ValueError(
             "Either an image or remote storage location must be provided when deploying"
             " a deployment."
