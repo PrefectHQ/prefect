@@ -1,6 +1,7 @@
 """
 Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
 """
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
@@ -449,9 +450,11 @@ class Flow(Generic[P, R]):
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
             retries=retries if retries is not None else self.retries,
-            retry_delay_seconds=retry_delay_seconds
-            if retry_delay_seconds is not None
-            else self.retry_delay_seconds,
+            retry_delay_seconds=(
+                retry_delay_seconds
+                if retry_delay_seconds is not None
+                else self.retry_delay_seconds
+            ),
             timeout_seconds=(
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
@@ -618,7 +621,7 @@ class Flow(Generic[P, R]):
             rrule: An rrule schedule of when to execute runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
-                Used to define multiple schedules or additional scheduling options like `timezone`.
+                Used to define multiple schedules or additional scheduling options such as `timezone`.
             schedule: A schedule object defining when to execute runs of this deployment.
             is_schedule_active: Whether or not to set the schedule for this deployment as active. If
                 not provided when creating a deployment, the schedule will be set as active. If not
@@ -744,16 +747,20 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the new deployment. Accepts either a number
-                or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this deployment.
-            rrule: An rrule schedule of when to execute runs of this deployment.
+            interval: An interval on which to execute the deployment. Accepts a number or a
+                timedelta object to create a single schedule. If a number is given, it will be
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
+                multiple schedules.
+            cron: A cron schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of cron schedule strings to create multiple schedules.
+            rrule: An rrule schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of rrule schedule strings to create multiple schedules.
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options like `timezone`.
+                define additional scheduling options such as `timezone`.
             is_schedule_active: Whether or not to set the schedule for this deployment as active. If
                 not provided when creating a deployment, the schedule will be set as active. If not
                 provided when updating a deployment, the schedule's activation will not be changed.
@@ -970,10 +977,14 @@ class Flow(Generic[P, R]):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
-            interval: An interval on which to execute the new deployment. Accepts either a number
-                or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this deployment.
-            rrule: An rrule schedule of when to execute runs of this deployment.
+            interval: An interval on which to execute the deployment. Accepts a number or a
+                timedelta object to create a single schedule. If a number is given, it will be
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
+                multiple schedules.
+            cron: A cron schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of cron schedule strings to create multiple schedules.
+            rrule: An rrule schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of rrule schedule strings to create multiple schedules.
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
