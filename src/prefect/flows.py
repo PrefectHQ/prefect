@@ -240,7 +240,7 @@ class Flow(Generic[P, R]):
             "on_failure",
             "on_cancellation",
             "on_crashed",
-            on_running,
+            "on_running",
         ]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
