@@ -7,10 +7,10 @@ import pytest
 import sqlalchemy as sa
 from httpx import AsyncClient
 from prefect._vendor.fastapi import status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.database.interface import PrefectDBInterface
+from tests.server import AsyncSessionGetter
 
 
 @pytest.fixture
@@ -27,28 +27,33 @@ def schedules_url():
 
 @pytest.fixture
 async def deployment_with_schedules(
-    session: AsyncSession,
+    get_server_session: AsyncSessionGetter,
     deployment,
 ):
-    await models.deployments.create_deployment_schedules(
-        session=session,
-        deployment_id=deployment.id,
-        schedules=[
-            schemas.actions.DeploymentScheduleCreate(
-                schedule=schemas.schedules.IntervalSchedule(interval=timedelta(days=1)),
-            ),
-            schemas.actions.DeploymentScheduleCreate(
-                schedule=schemas.schedules.IntervalSchedule(interval=timedelta(days=2)),
-            ),
-        ],
-    )
+    async with get_server_session() as session:
+        await models.deployments.create_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=timedelta(days=1)
+                    ),
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=timedelta(days=2)
+                    ),
+                ),
+            ],
+        )
 
-    deployment = await models.deployments.read_deployment(
-        session=session, deployment_id=deployment.id
-    )
-    assert deployment
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert deployment
 
-    await session.commit()
+        await session.commit()
 
     return deployment
 
@@ -56,27 +61,28 @@ async def deployment_with_schedules(
 @pytest.fixture()
 async def scheduled_flow_runs(
     deployment,
-    session: AsyncSession,
+    get_server_session: AsyncSessionGetter,
 ):
-    scheduled_runs = []
-    for _ in range(3):
-        flow_run = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                auto_scheduled=True,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-                state=schemas.states.State(
-                    type=schemas.states.StateType.SCHEDULED,
-                    timestamp=pendulum.now("UTC"),
-                    state_details={"scheduled_time": pendulum.now("UTC")},
+    async with get_server_session() as session:
+        scheduled_runs = []
+        for _ in range(3):
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    auto_scheduled=True,
+                    flow_id=deployment.flow_id,
+                    deployment_id=deployment.id,
+                    flow_version="0.1",
+                    state=schemas.states.State(
+                        type=schemas.states.StateType.SCHEDULED,
+                        timestamp=pendulum.now("UTC"),
+                        state_details={"scheduled_time": pendulum.now("UTC")},
+                    ),
                 ),
-            ),
-        )
-        scheduled_runs.append(flow_run)
+            )
+            scheduled_runs.append(flow_run)
 
-    await session.commit()
+        await session.commit()
 
     return scheduled_runs
 
@@ -84,14 +90,16 @@ async def scheduled_flow_runs(
 class TestCreateDeploymentSchedules:
     async def test_can_create_schedules_for_deployment(
         self,
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
         client: AsyncClient,
         schedules_url: Callable[..., str],
         deployment,
     ):
-        await models.deployments.delete_schedules_for_deployment(
-            session=session, deployment_id=deployment.id
-        )
+        async with get_server_session() as session:
+            await models.deployments.delete_schedules_for_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            await session.commit()
 
         url = schedules_url(deployment.id)
 
@@ -154,12 +162,13 @@ class TestReadDeploymentSchedules:
         client: AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
     ):
-        schedules = await models.deployments.read_deployment_schedules(
-            session=session,
-            deployment_id=deployment_with_schedules.id,
-        )
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
 
         url = schedules_url(deployment_with_schedules.id)
         response = await client.get(url)
@@ -184,18 +193,19 @@ class TestUpdateDeploymentSchedule:
     @pytest.fixture
     async def schedule_to_update(
         self,
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
         deployment_with_schedules,
     ):
-        schedules = await models.deployments.read_deployment_schedules(
-            session=session,
-            deployment_id=deployment_with_schedules.id,
-        )
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
         return schedules[0]
 
     async def test_can_update_schedules_for_deployment(
         self,
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
         client: AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
@@ -215,10 +225,12 @@ class TestUpdateDeploymentSchedule:
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        schedules = await models.deployments.read_deployment_schedules(
-            session=session,
-            deployment_id=deployment_with_schedules.id,
-        )
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
+
         the_schedule = next(
             schedule for schedule in schedules if schedule.id == schedule_to_update.id
         )
@@ -264,7 +276,7 @@ class TestUpdateDeploymentSchedule:
     async def test_updating_schedule_removes_scheduled_runs(
         self,
         db: PrefectDBInterface,
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
         client: AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
@@ -284,13 +296,14 @@ class TestUpdateDeploymentSchedule:
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        result = await session.execute(
-            sa.select(db.FlowRun).where(
-                db.FlowRun.deployment_id == deployment_with_schedules.id,
-                db.FlowRun.auto_scheduled.is_(True),
+        async with get_server_session() as session:
+            result = await session.execute(
+                sa.select(db.FlowRun).where(
+                    db.FlowRun.deployment_id == deployment_with_schedules.id,
+                    db.FlowRun.auto_scheduled.is_(True),
+                )
             )
-        )
-        flow_runs = result.scalars().all()
+            flow_runs = result.scalars().all()
 
         # Deleting the schedule should remove all scheduled runs
         assert len(flow_runs) == 0
@@ -300,27 +313,30 @@ class TestDeleteDeploymentSchedule:
     @pytest.fixture
     async def schedule_to_delete(
         self,
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
         deployment_with_schedules,
     ):
-        schedules = await models.deployments.read_deployment_schedules(
-            session=session,
-            deployment_id=deployment_with_schedules.id,
-        )
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
         return schedules[0]
 
     async def test_can_delete_schedule(
         self,
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
         client: AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
         schedule_to_delete: schemas.core.DeploymentSchedule,
     ):
-        schedules = await models.deployments.read_deployment_schedules(
-            session=session,
-            deployment_id=deployment_with_schedules.id,
-        )
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
+
         assert schedule_to_delete.id in [schedule.id for schedule in schedules]
 
         url = schedules_url(
@@ -330,10 +346,12 @@ class TestDeleteDeploymentSchedule:
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        schedules = await models.deployments.read_deployment_schedules(
-            session=session,
-            deployment_id=deployment_with_schedules.id,
-        )
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
+
         assert schedule_to_delete.id not in [schedule.id for schedule in schedules]
 
     async def test_404_non_existent_deployment(
@@ -361,7 +379,7 @@ class TestDeleteDeploymentSchedule:
     async def test_deletes_schedule_runs(
         self,
         db: PrefectDBInterface,
-        session: AsyncSession,
+        get_server_session: AsyncSessionGetter,
         client: AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
@@ -374,13 +392,14 @@ class TestDeleteDeploymentSchedule:
         response = await client.delete(url)
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        result = await session.execute(
-            sa.select(db.FlowRun).where(
-                db.FlowRun.deployment_id == deployment_with_schedules.id,
-                db.FlowRun.auto_scheduled.is_(True),
+        async with get_server_session() as session:
+            result = await session.execute(
+                sa.select(db.FlowRun).where(
+                    db.FlowRun.deployment_id == deployment_with_schedules.id,
+                    db.FlowRun.auto_scheduled.is_(True),
+                )
             )
-        )
-        flow_runs = result.scalars().all()
+            flow_runs = result.scalars().all()
 
         # Deleting the schedule should remove all scheduled runs
         assert len(flow_runs) == 0

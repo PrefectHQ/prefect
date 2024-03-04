@@ -3,6 +3,8 @@ import datetime
 import gc
 import uuid
 import warnings
+from contextlib import asynccontextmanager
+from typing import AsyncContextManager, AsyncGenerator, Callable
 
 import aiosqlite
 import asyncpg
@@ -28,6 +30,8 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import states
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
+
+AsyncSessionGetter = Callable[[], AsyncContextManager[AsyncSession]]
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -139,10 +143,28 @@ async def clear_db(db, request):
 
 
 @pytest.fixture
-async def session(db) -> AsyncSession:
+async def session(db) -> AsyncGenerator[AsyncSession, None]:
     session = await db.session()
     async with session:
         yield session
+
+
+@pytest.fixture
+async def get_server_session(db) -> AsyncSessionGetter:
+    """
+    Returns a context manager factory that yields
+    an database session.
+
+    Note: if you commit or rollback a transaction, scoping
+    will be reset. Fixture should be used as a context manager.
+    """
+
+    @asynccontextmanager
+    async def _get_server_session() -> AsyncGenerator[AsyncSession, None]:
+        async with await db.session() as session:
+            yield session
+
+    return _get_server_session
 
 
 @pytest.fixture
