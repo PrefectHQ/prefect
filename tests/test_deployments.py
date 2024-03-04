@@ -1327,9 +1327,10 @@ class TestLoadFlowFromFlowRun:
         def pretend_flow():
             pass
 
-        import_object_mock = mock.MagicMock(return_value=pretend_flow)
+        load_flow_from_flow_run_mock = mock.MagicMock(return_value=pretend_flow)
         monkeypatch.setattr(
-            "prefect.deployments.deployments.import_object", import_object_mock
+            "prefect.deployments.deployments.load_flow_from_flow_run",
+            load_flow_from_flow_run_mock,
         )
 
         flow_id = await prefect_client.create_flow_from_name(pretend_flow.__name__)
@@ -1347,4 +1348,4 @@ class TestLoadFlowFromFlowRun:
         result = await load_flow_from_flow_run(flow_run, client=prefect_client)
 
         assert result == pretend_flow
-        import_object_mock.assert_called_once_with("my.module.pretend_flow")
+        load_flow_from_flow_run_mock.assert_called_once_with("my.module.pretend_flow")

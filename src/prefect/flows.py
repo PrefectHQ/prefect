@@ -1597,7 +1597,8 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
     Extract a flow object from a script at an entrypoint by running all of the code in the file.
 
     Args:
-        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
+            to a flow function
 
     Returns:
         The flow object from the script
@@ -1610,8 +1611,11 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
         block_code_execution=True,
         capture_failures=True,
     ):
-        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
-        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        if ":" in entrypoint:
+            # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+            path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        else:
+            path, func_name = entrypoint.rsplit(".", maxsplit=1)
         try:
             flow = import_object(entrypoint)
         except AttributeError as exc:

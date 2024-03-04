@@ -637,7 +637,7 @@ async def prompt_entrypoint(console: Console) -> str:
         return EntrypointPrompt.ask(
             (
                 "[bold][green]?[/] Flow entrypoint (expected format"
-                " path/to/file.py:function_name)"
+                " path/to/file.py:function_name or path.to.module.function_name)"
             ),
             console=console,
         )
@@ -655,7 +655,7 @@ async def prompt_entrypoint(console: Console) -> str:
         return EntrypointPrompt.ask(
             (
                 "[bold][green]?[/] Flow entrypoint (expected format"
-                " path/to/file.py:function_name)"
+                " path/to/file.py:function_name or path.to.module.function_name)"
             ),
             console=console,
         )

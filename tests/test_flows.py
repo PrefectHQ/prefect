@@ -2273,6 +2273,22 @@ def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
     assert flow.fn() == "woof!"
 
 
+def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
+    @flow
+    def pretend_flow():
+        pass
+
+    import_object_mock = MagicMock(return_value=pretend_flow)
+    monkeypatch.setattr(
+        "prefect.flows.import_object",
+        import_object_mock,
+    )
+    result = load_flow_from_entrypoint("my.module.pretend_flow")
+
+    assert result == pretend_flow
+    import_object_mock.assert_called_with("my.module.pretend_flow")
+
+
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
