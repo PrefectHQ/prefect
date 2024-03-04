@@ -1313,6 +1313,52 @@ class TestObfuscateApiKeyFilter:
         assert test_api_key not in caplog.text
         assert obfuscate(test_api_key) in caplog.text
 
+    @pytest.mark.parametrize(
+        "raw_log_record,expected_log_record",
+        [
+            (
+                ["super-mega-admin-key", "in", "a", "list"],
+                ["********", "in", "a", "list"],
+            ),
+            (
+                {"super-mega-admin-key": "in", "a": "dict"},
+                {"********": "in", "a": "dict"},
+            ),
+            (
+                {
+                    "key1": "some_value",
+                    "key2": [
+                        {"nested_key": "api_key: super-mega-admin-key"},
+                        "another_value",
+                    ],
+                },
+                {
+                    "key1": "some_value",
+                    "key2": [
+                        {"nested_key": "api_key: ********"},
+                        "another_value",
+                    ],
+                },
+            ),
+        ],
+    )
+    def test_redact_substr_from_collections(
+        self, caplog, raw_log_record, expected_log_record
+    ):
+        """
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/12139
+        """
+
+        @flow()
+        def test_log_list():
+            logger = get_run_logger()
+            logger.info(raw_log_record)
+
+        with temporary_settings({PREFECT_API_KEY: "super-mega-admin-key"}):
+            test_log_list()
+
+        assert str(expected_log_record) in caplog.text
+
 
 def test_log_in_flow(caplog):
     msg = "Hello world!"
