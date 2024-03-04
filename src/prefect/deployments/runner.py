@@ -51,7 +51,6 @@ from prefect.settings import (
     PREFECT_UI_URL,
 )
 from prefect.utilities.collections import get_from_dict, isiterable
-from prefect.utilities.importtools import import_object
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
@@ -669,10 +668,7 @@ class RunnerDeployment(BaseModel):
         from prefect.flows import load_flow_from_entrypoint
 
         job_variables = job_variables or {}
-        if ":" in entrypoint:
-            flow = load_flow_from_entrypoint(entrypoint)
-        else:
-            flow = import_object(entrypoint)
+        flow = load_flow_from_entrypoint(entrypoint)
 
         constructed_schedules = cls._construct_deployment_schedules(
             interval=interval,
