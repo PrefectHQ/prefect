@@ -26,6 +26,7 @@ from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
     DeploymentImage,
+    EntrypointType,
     RunnerDeployment,
     deploy,
 )
@@ -720,6 +721,18 @@ class TestRunnerDeployment:
         assert deployment.tags == ["test"]
         assert deployment.is_schedule_active is True
         assert deployment.enforce_parameter_schema
+
+    async def test_from_flow_can_produce_a_module_path_entrypoint(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            entrypoint_type=EntrypointType.MODULE_PATH,
+        )
+
+        assert (
+            deployment.entrypoint
+            == f"{dummy_flow_1.__module__}.{dummy_flow_1.__name__}"
+        )
 
     def test_from_flow_accepts_interval(self):
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)

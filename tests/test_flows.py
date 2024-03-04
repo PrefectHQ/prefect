@@ -38,7 +38,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, RunnerDeployment
+from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     CancelledRun,
@@ -3271,6 +3271,13 @@ class TestFlowToDeployment:
             seconds=3600
         )
 
+    async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
+        deployment = await test_flow.to_deployment(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
+
     async def test_to_deployment_accepts_cron(self):
         deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
@@ -3354,6 +3361,14 @@ class TestFlowServe:
         assert deployment.enforce_parameter_schema
         assert deployment.paused
         assert not deployment.is_schedule_active
+
+    async def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+        deployment = await test_flow.serve(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)

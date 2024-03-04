@@ -235,6 +235,7 @@ async def load_flow_from_flow_run(
         "PREFECT__STORAGE_BASE_PATH"
     )
 
+    # If there's no colon, assume it's a module path
     if ":" not in deployment.entrypoint:
         run_logger.debug(
             f"Importing flow code from module path {deployment.entrypoint}"

@@ -637,6 +637,8 @@ class Flow(Generic[P, R]):
                 If not provided the default work queue for the work pool will be used.
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
 
         Examples:
             Prepare two deployments and serve them:
@@ -768,6 +770,8 @@ class Flow(Generic[P, R]):
             print_starting_message: Whether or not to print the starting message when flow is served.
             limit: The maximum number of runs that can be executed concurrently.
             webserver: Whether or not to start a monitoring webserver for this flow.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
 
         Examples:
             Serve a flow:
@@ -987,8 +991,10 @@ class Flow(Generic[P, R]):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
             print_next_steps_message: Whether or not to print a message with next steps
-            after deploying the deployments.
+                after deploying the deployments.
 
         Returns:
             The ID of the created/updated deployment.
