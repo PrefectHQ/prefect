@@ -5,6 +5,7 @@ on:
       - .github/workflows/integration-tests.yaml
       - "**/*.py"
       - requirements.txt
+      - requirements-client.txt
       - requirements-dev.txt
       - ui/**
       - .nvmrc
@@ -12,6 +13,15 @@ on:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/integration-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-client.txt
+      - requirements-dev.txt
+      - ui/**
+      - .nvmrc
+      - Dockerfile
 
 jobs:
   compatibility-tests:
