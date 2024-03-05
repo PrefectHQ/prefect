@@ -22,6 +22,10 @@
       v-if="selection && selection.kind === 'artifacts'"
       v-model:selection="selection"
     />
+    <FlowRunGraphStatePopover
+      v-if="selection?.kind === 'state'"
+      v-model:selection="selection"
+    />
     <FlowRunGraphArtifactDrawer v-model:selection="selection" />
   </div>
 </template>
@@ -34,7 +38,8 @@
     FlowRun,
     FlowRunGraphSelectionPanel,
     FlowRunGraphArtifactDrawer,
-    FlowRunGraphArtifactsPopover
+    FlowRunGraphArtifactsPopover,
+    FlowRunGraphStatePopover
   } from '@prefecthq/prefect-ui-library'
   import { computed, ref } from 'vue'
 
@@ -53,7 +58,7 @@
         'flow-run-graphs--fullscreen': fullscreen.value,
         'flow-run-graphs--show-panel': Boolean(
           selection.value?.kind === 'task-run'
-          || selection.value?.kind === 'flow-run'
+            || selection.value?.kind === 'flow-run',
         ),
       },
     }
