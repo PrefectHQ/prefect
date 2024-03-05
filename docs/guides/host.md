@@ -129,7 +129,9 @@ The above environment variable assumes that:
 - You use the default PostgreSQL port `5432`
 - Your PostgreSQL instance has a database called `prefect`
 
-If you want to quickly start a PostgreSQL instance that can be used as your Prefect database, you can use the following command that will start a Docker container running PostgreSQL:
+#### Quick start: configuring a PostgreSQL database with Docker 
+
+To quickly start a PostgreSQL instance that can be used as your Prefect database, use the following command, which will start a Docker container running PostgreSQL:
 
 <div class="terminal">
 ```bash
@@ -144,7 +146,17 @@ The above command:
 - Creates a database `prefect` with a user `postgres` and `yourTopSecretPassword` password.
 - Mounts the PostgreSQL data to a Docker volume called `prefectdb` to provide persistence if you ever have to restart or rebuild that container.
 
-You can inspect your profile to be sure that the environment variable has been set properly:
+Then you'll want to run the command above to set your current Prefect Profile to the PostgreSQL database instance running in your Docker container.
+
+<div class="terminal">
+```bash
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
+```
+</div>
+
+### Confirming your PostgreSQL database configuration
+
+Inspect your Prefect profile to confirm that the environment variable has been set properly:
 
 <div class="terminal">
 ```bash
@@ -152,7 +164,17 @@ prefect config view --show-sources
 ```
 </div>
 
-Start the Prefect server and it should from now on use your PostgreSQL database instance:
+<div class="terminal">
+```bash
+You should see output similar to the following:
+
+PREFECT_PROFILE='my_profile'
+PREFECT_API_DATABASE_CONNECTION_URL='********' (from profile)
+PREFECT_API_URL='http://127.0.0.1:4200/api' (from profile)
+```
+</div>
+
+Start the Prefect server and it should begin to use your PostgreSQL database instance:
 
 <div class="terminal">
 ```bash
@@ -174,13 +196,6 @@ prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file
 
 !!! warning "Use SQLite database for testing only"
     SQLite is only supported by Prefect for testing purposes and is not compatible with multiprocessing.  
-
-### Database versions
-
-The following database versions are required for use with Prefect:
-
-- SQLite 3.24 or newer
-- PostgreSQL 13.0 or newer
 
 ### Migrations
 
