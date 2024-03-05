@@ -1,6 +1,7 @@
 """
 Utilities for working with clients.
 """
+
 # This module must not import from `prefect.client` when it is imported to avoid
 # circular imports for decorators such as `inject_client` which are widely used.
 
@@ -8,9 +9,10 @@ from functools import wraps
 
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.utilities.asyncutils import asyncnullcontext
+from typing import Callable, cast, Any
 
 
-def inject_client(fn):
+def inject_client(fn: Callable[..., Any]) -> Callable[..., Any]:
     """
     Simple helper to provide a context managed client to a asynchronous function.
 
@@ -50,4 +52,4 @@ def inject_client(fn):
             kwargs.setdefault("client", new_client or client)
             return await fn(*args, **kwargs)
 
-    return with_injected_client
+    return cast(Callable[..., Any], with_injected_client)

@@ -8,6 +8,7 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    cast,
     overload,
 )
 from uuid import UUID
@@ -18,9 +19,9 @@ import pendulum
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
+    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator, BaseModel
 else:
-    from pydantic import Field, HttpUrl, conint, root_validator, validator
+    from pydantic import Field, HttpUrl, conint, root_validator, validator, BaseModel
 
 from typing_extensions import Literal
 
@@ -139,12 +140,12 @@ class State(ObjectBaseModel, Generic[R]):
     )
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
-        ...
+    def result(self: "State[R]", raise_on_failure: bool = True) -> R: ...
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
-        ...
+    def result(
+        self: "State[R]", raise_on_failure: bool = False
+    ) -> Union[R, Exception]: ...
 
     def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
         """
@@ -1500,6 +1501,7 @@ class Artifact(ObjectBaseModel):
             " the artifact type."
         ),
     )
+
     metadata_: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
@@ -1513,6 +1515,16 @@ class Artifact(ObjectBaseModel):
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run associated with the artifact."
     )
+
+    @root_validator(pre=True)
+    def attach_schema_to_metadata(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        if "data" in values and hasattr(values["data"], "schema"):
+            print("HOH OHO")
+            dataclass = cast(type[BaseModel], values["data"].__class__)
+            values["metadata_"] = values.get("metadata_", {})
+            values["metadata_"].update({"__schema__": dataclass.schema_json()})
+
+        return values
 
     @validator("metadata_")
     def validate_metadata_length(cls, v):

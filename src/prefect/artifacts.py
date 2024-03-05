@@ -3,66 +3,91 @@ Interface for creating and reading artifacts.
 """
 
 import json
-import math
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 from uuid import UUID
+
+from pydantic import BaseModel
+from regex import B
+from prefect.blocks.core import _is_subclass
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import ArtifactCreate
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.utilities.asyncutils import sync_compatible
-
-INVALID_TABLE_TYPE_ERROR = (
-    "`create_table_artifact` requires a `table` argument of type `dict[list]` or"
-    " `list[dict]`."
-)
+import abc
+from prefect.client.schemas.objects import Artifact as ObjectArtifact, TaskRun, FlowRun
+from prefect.utilities.tables import _sanitize_nan_values  # type: ignore
 
 
-@inject_client
-async def _create_artifact(
-    type: str,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
-    data: Optional[Union[Dict[str, Any], Any]] = None,
-    client: Optional[PrefectClient] = None,
-) -> UUID:
-    """
-    Helper function to create an artifact.
+class BaseArtifact(ObjectArtifact, abc.ABC):
 
-    Arguments:
-        type: A string identifying the type of artifact.
-        key: A user-provided string identifier.
-          The key must only contain lowercase letters, numbers, and dashes.
-        description: A user-specified description of the artifact.
-        data: A JSON payload that allows for a result to be retrieved.
-        client: The PrefectClient
+    def format(self) -> str:
+        return json.dumps(self.data)
 
-    Returns:
-        - The table artifact ID.
-    """
-    artifact_args = {}
-    task_run_ctx = TaskRunContext.get()
-    flow_run_ctx = FlowRunContext.get()
+    def get_flow_run_id(self) -> Optional[UUID]:
+        if context := TaskRunContext.get():
+            return cast(TaskRun, getattr(context, "task_run")).flow_run_id
+        elif context := FlowRunContext.get():
+            return cast(FlowRun, getattr(context, "flow_run")).id
+        else:
+            return None
 
-    if task_run_ctx:
-        artifact_args["task_run_id"] = task_run_ctx.task_run.id
-        artifact_args["flow_run_id"] = task_run_ctx.task_run.flow_run_id
-    elif flow_run_ctx:
-        artifact_args["flow_run_id"] = flow_run_ctx.flow_run.id
+    def get_task_run_id(self) -> Optional[UUID]:
+        if context := TaskRunContext.get():
+            return cast(TaskRun, getattr(context, "task_run")).id
+        else:
+            return None
 
-    if key is not None:
-        artifact_args["key"] = key
-    if type is not None:
-        artifact_args["type"] = type
-    if description is not None:
-        artifact_args["description"] = description
-    if data is not None:
-        artifact_args["data"] = data
+    @sync_compatible
+    @inject_client
+    async def create(self, client: Optional[PrefectClient] = None) -> UUID:
+        return (
+            await cast(PrefectClient, client).create_artifact(
+                artifact=ArtifactCreate(
+                    key=self.key,
+                    type=self.type,
+                    description=self.description,
+                    data=self.format(),
+                    metadata_=self.metadata_,
+                    task_run_id=self.get_task_run_id(),
+                    flow_run_id=self.get_flow_run_id(),
+                )
+            )
+        ).id
 
-    artifact = ArtifactCreate(**artifact_args)
 
-    return await client.create_artifact(artifact=artifact)
+class Link(BaseArtifact):
+    type: Optional[str] = "link"
+    link: str = "https://www.prefect.io/"
+    link_text: Optional[str] = None
+
+    def format(self) -> str:
+        return (
+            f"[{self.link_text}]({self.link})"
+            if self.link_text
+            else f"[{self.link}]({self.link})"
+        )
+
+
+class Markdown(BaseArtifact):
+    type: Optional[str] = "markdown"
+    markdown: str
+
+    def format(self) -> str:
+        return self.markdown
+
+
+class Table(BaseArtifact):
+    type: Optional[str] = "table"
+    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]]
+
+    def format(self) -> str:
+        return json.dumps(_sanitize_nan_values(self.table))
+
+
+class Artifact(BaseArtifact):
+    type: Optional[str] = "json"
 
 
 @sync_compatible
@@ -87,15 +112,12 @@ async def create_link_artifact(
     Returns:
         The table artifact ID.
     """
-    formatted_link = f"[{link_text}]({link})" if link_text else f"[{link}]({link})"
-    artifact = await _create_artifact(
+    return await Link(
+        link=link,
+        link_text=link_text,
         key=key,
-        type="markdown",
         description=description,
-        data=formatted_link,
-    )
-
-    return artifact.id
+    ).create()
 
 
 @sync_compatible
@@ -117,14 +139,11 @@ async def create_markdown_artifact(
     Returns:
         The table artifact ID.
     """
-    artifact = await _create_artifact(
+    return await Markdown(
+        markdown=markdown,
         key=key,
-        type="markdown",
         description=description,
-        data=markdown,
-    )
-
-    return artifact.id
+    ).create()
 
 
 @sync_compatible
@@ -147,39 +166,8 @@ async def create_table_artifact(
         The table artifact ID.
     """
 
-    def _sanitize_nan_values(item):
-        """
-        Sanitize NaN values in a given item. The item can be a dict, list or float.
-        """
-
-        if isinstance(item, list):
-            return [_sanitize_nan_values(sub_item) for sub_item in item]
-
-        elif isinstance(item, dict):
-            return {k: _sanitize_nan_values(v) for k, v in item.items()}
-
-        elif isinstance(item, float) and math.isnan(item):
-            return None
-
-        else:
-            return item
-
-    sanitized_table = _sanitize_nan_values(table)
-
-    if isinstance(table, dict) and all(isinstance(v, list) for v in table.values()):
-        pass
-    elif isinstance(table, list) and all(isinstance(v, (list, dict)) for v in table):
-        pass
-    else:
-        raise TypeError(INVALID_TABLE_TYPE_ERROR)
-
-    formatted_table = json.dumps(sanitized_table)
-
-    artifact = await _create_artifact(
+    return await Table(
+        table=table,
         key=key,
-        type="table",
         description=description,
-        data=formatted_table,
-    )
-
-    return artifact.id
+    ).create()
