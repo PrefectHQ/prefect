@@ -156,7 +156,7 @@ prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://pos
 
 ### Confirming your PostgreSQL database configuration
 
-Inspect your Prefect profile to be sure that the environment variable has been set properly:
+Inspect your Prefect profile to confirm that the environment variable has been set properly:
 
 <div class="terminal">
 ```bash
