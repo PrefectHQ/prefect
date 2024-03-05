@@ -39,7 +39,7 @@ Prefect requires Python 3.8 or later. To [install Prefect](https://docs.prefect.
 pip install prefect
 ```
 
-Then create and run a Python file that uses Prefect `flow` and `task` decorators to orchestrate and observe your workflow that fetches the number of GitHub stars from a repository.
+Then create and run a Python file that uses Prefect `flow` and `task` decorators to orchestrate and observe your workflow - in this case, a simple script that fetches the number of GitHub stars from a repository:
 
 ```python
 from prefect import flow, task
