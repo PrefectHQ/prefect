@@ -1519,7 +1519,6 @@ class Artifact(ObjectBaseModel):
     @root_validator(pre=True)
     def attach_schema_to_metadata(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         if "data" in values and hasattr(values["data"], "schema"):
-            print("HOH OHO")
             dataclass = cast(type[BaseModel], values["data"].__class__)
             values["metadata_"] = values.get("metadata_", {})
             values["metadata_"].update({"__schema__": dataclass.schema_json()})

@@ -59,7 +59,7 @@ class BaseArtifact(ObjectArtifact, abc.ABC):
 
 class Link(BaseArtifact):
     type: Optional[str] = "link"
-    link: str = "https://www.prefect.io/"
+    link: str
     link_text: Optional[str] = None
 
     def format(self) -> str:
