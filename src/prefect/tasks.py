@@ -555,6 +555,7 @@ class Task(Generic[P, R]):
         the result is wrapped in a Prefect State which provides error handling.
         """
         from prefect.engine import enter_task_run_engine
+        from prefect.task_engine import submit_autonomous_task_run_to_engine
         from prefect.task_runners import SequentialTaskRunner
 
         # Convert the call args/kwargs to a parameter dict
@@ -566,6 +567,21 @@ class Task(Generic[P, R]):
         if task_run_tracker:
             return track_viz_task(
                 self.isasync, self.name, parameters, self.viz_return_value
+            )
+
+        if (
+            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
+            and not FlowRunContext.get()
+        ):
+            from prefect import get_client
+
+            return submit_autonomous_task_run_to_engine(
+                task=self,
+                task_run=None,
+                task_runner=SequentialTaskRunner(),
+                parameters=parameters,
+                return_type=return_type,
+                client=get_client(),
             )
 
         return enter_task_run_engine(
