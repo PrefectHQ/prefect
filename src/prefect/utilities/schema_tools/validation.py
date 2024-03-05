@@ -159,7 +159,7 @@ def build_error_obj(errors: List[JSONSchemaValidationError]) -> Dict:
     return error_response
 
 
-def _fix_null_typing(key: str, schema: Dict, required_fields: list[str]):
+def _fix_null_typing(key: str, schema: Dict, required_fields: List[str]):
     """
     Pydantic V1 does not generate a valid Draft2020-12 schema for null types.
     """

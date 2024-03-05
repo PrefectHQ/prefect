@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Any
+from typing import Any, List, Optional, Union
 
 import jsonschema
 import pytest
@@ -23,9 +23,9 @@ class MockValidationError(jsonschema.exceptions.ValidationError):
     def __init__(
         self,
         message: str,
-        relative_path: list[str | int],
+        relative_path: List[Union[str, int]],
         instance: Any = None,
-        validator: str | None = None,
+        validator: Optional[str] = None,
     ):
         self.message = message
         self.relative_path = deque(relative_path)
