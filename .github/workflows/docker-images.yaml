@@ -9,12 +9,20 @@ on:
     branches: main
     paths:
       - 'Dockerfile'
+      - '.dockerignore'
       - 'setup.py'
       - 'src/**'
       - 'tests/**'
       - 'requirements.txt'
       - 'requirements-client.txt'
-      - .github/workflows/docker-images.yaml
+      - 'MANIFEST.in'
+      - 'setup.cfg'
+      - 'versioneer.py'
+      - '.gitingore'
+      - '.gitattributes'
+      - '.github/workflows/docker-images.yaml'
+      - 'ui/**'
+
 
   # On workflow_dispatch, push sha and branch patterns to prefect-dev
   workflow_dispatch:
