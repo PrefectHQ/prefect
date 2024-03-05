@@ -1,8 +1,9 @@
 import json
-from typing import Any, Callable, Optional, TypeAlias
+from typing import Any, Callable, Optional
 
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import TypeAlias
 
 from prefect.server.models.variables import read_variables
 
