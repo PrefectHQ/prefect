@@ -808,16 +808,16 @@ class Task(Generic[P, R]):
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
             and not FlowRunContext.get()
         ):
-            create_autonomous_task_run = create_call(
+            create_autonomous_task_run_call = create_call(
                 create_autonomous_task_run, task=self, parameters=parameters
             )
             if self.isasync:
                 return from_async.wait_for_call_in_loop_thread(
-                    create_autonomous_task_run
+                    create_autonomous_task_run_call
                 )
             else:
                 return from_sync.wait_for_call_in_loop_thread(
-                    create_autonomous_task_run
+                    create_autonomous_task_run_call
                 )
 
         return enter_task_run_engine(
@@ -984,7 +984,7 @@ class Task(Generic[P, R]):
             [[11, 21], [12, 22], [13, 23]]
         """
 
-        from prefect.engine import enter_task_run_engine
+        from prefect.engine import begin_task_map, enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict; do not apply defaults
         # since they should not be mapped over
@@ -996,6 +996,25 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
+
+        if (
+            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
+            and not FlowRunContext.get()
+        ):
+            map_call = create_call(
+                begin_task_map,
+                task=self,
+                parameters=parameters,
+                flow_run_context=None,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,
+                autonomous=True,
+            )
+            if self.isasync:
+                return from_async.wait_for_call_in_loop_thread(map_call)
+            else:
+                return from_sync.wait_for_call_in_loop_thread(map_call)
 
         return enter_task_run_engine(
             self,
