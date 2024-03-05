@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, TypeAlias
+from typing import Any, Callable, Optional, TypeAlias
 
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +29,7 @@ class HydrationContext(BaseModel):
 
 
 Handler: TypeAlias = Callable[[dict, HydrationContext], Any]
-PrefectKind: TypeAlias = str | None
+PrefectKind: TypeAlias = Optional[str]
 
 _handlers: dict[PrefectKind, Handler] = {}
 
@@ -52,7 +52,7 @@ def _remove_value(value) -> bool:
 
 
 class HydrationError(Placeholder, Exception):
-    def __init__(self, detail: str | None = None):
+    def __init__(self, detail: Optional[str] = None):
         self.detail = detail
 
     @property
@@ -176,7 +176,7 @@ def workspace_variable_handler(obj: dict, ctx: HydrationContext):
         return RemoveValue()
 
 
-def hydrate(obj: dict, ctx: HydrationContext | None = None):
+def hydrate(obj: dict, ctx: Optional[HydrationContext] = None):
     res = _hydrate(obj, ctx)
 
     if _remove_value(res):
@@ -185,7 +185,7 @@ def hydrate(obj: dict, ctx: HydrationContext | None = None):
     return res
 
 
-def _hydrate(obj, ctx: HydrationContext | None = None):
+def _hydrate(obj, ctx: Optional[HydrationContext] = None):
     if ctx is None:
         ctx = HydrationContext()
 
