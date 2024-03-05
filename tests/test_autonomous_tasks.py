@@ -183,13 +183,6 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     assert parameters == dict(x=42)
 
 
-async def test_task_submission_via_call_raises_error(
-    async_foo_task_with_result_storage,
-):
-    with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-        async_foo_task_with_result_storage(42)
-
-
 async def test_task_submission_via_map_raises_error(async_foo_task_with_result_storage):
     with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
         async_foo_task_with_result_storage.map([42])
@@ -313,3 +306,17 @@ async def test_stuck_pending_tasks_are_reenqueued(
     # ...and it should be re-enqueued
     enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
     assert enqueued.id == task_run.id
+
+
+class TestCall:
+    async def test_call(self, async_foo_task):
+        result = await async_foo_task(42)
+
+        assert result == 42
+
+    async def test_call_with_return_state(self, async_foo_task):
+        state = await async_foo_task(42, return_state=True)
+
+        assert state.is_completed()
+
+        assert await state.result() == 42
