@@ -1386,6 +1386,7 @@ def enter_task_run_engine(
 
         return submit_autonomous_task_run_to_engine(
             task=task,
+            task_run=None,
             parameters=parameters,
             task_runner=task_runner,
             wait_for=wait_for,
@@ -1421,12 +1422,13 @@ def enter_task_run_engine(
 
 async def begin_task_map(
     task: Task,
-    flow_run_context: FlowRunContext,
+    flow_run_context: Optional[FlowRunContext],
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
-) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
+    autonomous: bool = False,
+) -> List[Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]]:
     """Async entrypoint for task mapping"""
     # We need to resolve some futures to map over their data, collect the upstream
     # links beforehand to retain relationship tracking.
@@ -1493,18 +1495,29 @@ async def begin_task_map(
         # Collapse any previously exploded kwargs
         call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
 
-        task_runs.append(
-            partial(
-                get_task_call_return_value,
-                task=task,
-                flow_run_context=flow_run_context,
-                parameters=call_parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-                task_runner=task_runner,
-                extra_task_inputs=task_inputs,
+        if autonomous:
+            task_runs.append(
+                await create_autonomous_task_run(
+                    task=task,
+                    parameters=call_parameters,
+                )
             )
-        )
+        else:
+            task_runs.append(
+                partial(
+                    get_task_call_return_value,
+                    task=task,
+                    flow_run_context=flow_run_context,
+                    parameters=call_parameters,
+                    wait_for=wait_for,
+                    return_type=return_type,
+                    task_runner=task_runner,
+                    extra_task_inputs=task_inputs,
+                )
+            )
+
+    if autonomous:
+        return task_runs
 
     # Maintain the order of the task runs when using the sequential task runner
     runner = task_runner if task_runner else flow_run_context.task_runner
