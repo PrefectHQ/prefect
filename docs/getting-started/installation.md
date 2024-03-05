@@ -49,7 +49,7 @@ To install a specific version, specify the version number like this:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.10.4"
+pip install -U "prefect==2.16.2"
 ```
 </div>
 
@@ -153,17 +153,9 @@ Prefect supports communicating via proxies through environment variables. Simply
 
 You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database).
 
-By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation. Most systems will already have SQLite installed, because it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation. Most systems will already have SQLite installed, because it is typically bundled as a part of Python. 
 
-You can check your SQLite version by executing the following command in a terminal:
-
-<div class="terminal">
-```bash
-$ sqlite3 --version
-```
-</div>
-
-Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
+The Prefect CLI command `prefect version` prints environment details to your console, including the server database. For example:
 
 <div class="terminal">
 ```
