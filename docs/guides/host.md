@@ -131,7 +131,7 @@ The above environment variable assumes that:
 
 #### Quick start: configuring a PostgreSQL database with Docker 
 
-To quickly start a PostgreSQL instance that can be used as your Prefect database, you can use the following command that will start a Docker container running PostgreSQL:
+To quickly start a PostgreSQL instance that can be used as your Prefect database, use the following command, which will start a Docker container running PostgreSQL:
 
 <div class="terminal">
 ```bash
