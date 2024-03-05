@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,7 @@ from prefect.server.models.variables import read_variables
 
 
 class HydrationContext(BaseModel):
-    workspace_variables: dict[str, str] = Field(default_factory=dict)
+    workspace_variables: Dict[str, str] = Field(default_factory=dict)
     raise_on_error: bool = Field(default=False)
 
     @classmethod
@@ -29,10 +29,10 @@ class HydrationContext(BaseModel):
         )
 
 
-Handler: TypeAlias = Callable[[dict, HydrationContext], Any]
+Handler: TypeAlias = Callable[[Dict, HydrationContext], Any]
 PrefectKind: TypeAlias = Optional[str]
 
-_handlers: dict[PrefectKind, Handler] = {}
+_handlers: Dict[PrefectKind, Handler] = {}
 
 
 class Placeholder:
@@ -121,7 +121,7 @@ def handler(kind: PrefectKind) -> Callable:
     return decorator
 
 
-def call_handler(kind: PrefectKind, obj: dict, ctx: HydrationContext) -> Any:
+def call_handler(kind: PrefectKind, obj: Dict, ctx: HydrationContext) -> Any:
     if kind not in _handlers:
         return (obj or {}).get("value", None)
 
@@ -132,7 +132,7 @@ def call_handler(kind: PrefectKind, obj: dict, ctx: HydrationContext) -> Any:
 
 
 @handler("none")
-def null_handler(obj: dict, ctx: HydrationContext):
+def null_handler(obj: Dict, ctx: HydrationContext):
     if "value" in obj:
         # null handler is a pass through, so we want to continue to hydrate
         return _hydrate(obj["value"], ctx)
@@ -141,7 +141,7 @@ def null_handler(obj: dict, ctx: HydrationContext):
 
 
 @handler("json")
-def json_handler(obj: dict, ctx: HydrationContext):
+def json_handler(obj: Dict, ctx: HydrationContext):
     if "value" in obj:
         try:
             return json.loads(obj["value"])
@@ -158,7 +158,7 @@ def json_handler(obj: dict, ctx: HydrationContext):
 
 
 @handler("workspace_variable")
-def workspace_variable_handler(obj: dict, ctx: HydrationContext):
+def workspace_variable_handler(obj: Dict, ctx: HydrationContext):
     if "variable_name" in obj:
         variable = obj["variable_name"]
         if variable in ctx.workspace_variables:
@@ -177,7 +177,7 @@ def workspace_variable_handler(obj: dict, ctx: HydrationContext):
         return RemoveValue()
 
 
-def hydrate(obj: dict, ctx: Optional[HydrationContext] = None):
+def hydrate(obj: Dict, ctx: Optional[HydrationContext] = None):
     res = _hydrate(obj, ctx)
 
     if _remove_value(res):

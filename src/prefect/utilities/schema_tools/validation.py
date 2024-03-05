@@ -1,5 +1,6 @@
 from collections import deque
 from copy import deepcopy
+from typing import Dict, List
 
 import jsonschema
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
@@ -49,7 +50,7 @@ def _build_validator():
 _VALIDATOR = _build_validator()
 
 
-def is_valid_schema(schema: dict, preprocess: bool = True):
+def is_valid_schema(schema: Dict, preprocess: bool = True):
     if preprocess:
         schema = preprocess_schema(schema)
     try:
@@ -60,12 +61,12 @@ def is_valid_schema(schema: dict, preprocess: bool = True):
 
 
 def validate(
-    obj: dict,
-    schema: dict,
+    obj: Dict,
+    schema: Dict,
     raise_on_error: bool = False,
     preprocess: bool = True,
     ignore_required: bool = False,
-) -> list[JSONSchemaValidationError]:
+) -> List[JSONSchemaValidationError]:
     if preprocess:
         schema = preprocess_schema(schema)
 
@@ -97,14 +98,14 @@ def validate(
 
 
 def is_valid(
-    obj: dict,
-    schema: dict,
+    obj: Dict,
+    schema: Dict,
 ) -> bool:
     errors = validate(obj, schema)
     return len(errors) == 0
 
 
-def build_error_obj(errors: list[JSONSchemaValidationError]) -> dict:
+def build_error_obj(errors: List[JSONSchemaValidationError]) -> Dict:
     error_response: dict = {"errors": []}
     for error in errors:
         # If the Placeholder is not representing an error, we can skip it
@@ -158,7 +159,7 @@ def build_error_obj(errors: list[JSONSchemaValidationError]) -> dict:
     return error_response
 
 
-def _fix_null_typing(key: str, schema: dict, required_fields: list[str]):
+def _fix_null_typing(key: str, schema: Dict, required_fields: list[str]):
     """
     Pydantic V1 does not generate a valid Draft2020-12 schema for null types.
     """
@@ -172,7 +173,7 @@ def _fix_null_typing(key: str, schema: dict, required_fields: list[str]):
         del schema["type"]
 
 
-def _fix_tuple_items(schema: dict):
+def _fix_tuple_items(schema: Dict):
     """
     Pydantic V1 does not generate a valid Draft2020-12 schema for tuples.
     """
