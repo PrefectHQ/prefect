@@ -16,12 +16,13 @@ from prefect.server import models, schemas
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import read_flow_run_graph
-from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, Node
+from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
     PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH,
+    PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH,
     temporary_settings,
 )
 
@@ -1116,6 +1117,97 @@ async def test_artifacts_on_flow_run_graph_limited_by_setting(
 
 
 @pytest.fixture
+def enable_states_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: True}
+    ):
+        yield
+
+
+@pytest.fixture
+def disable_states_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: False}
+    ):
+        yield
+
+
+@pytest.fixture
+async def flow_run_states(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+):
+    states = [
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.RUNNING,
+            name="Running",
+            timestamp=pendulum.now().subtract(minutes=1),
+        ),
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.COMPLETED,
+            name="Completed",
+            timestamp=pendulum.now(),
+        ),
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.SCHEDULED,
+            name="Scheduled",
+            timestamp=pendulum.now().subtract(minutes=3),
+        ),
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.PENDING,
+            name="Pending",
+            timestamp=pendulum.now().subtract(seconds=2),
+        ),
+    ]
+    session.add_all(states)
+    await session.commit()
+    return states
+
+
+@pytest.mark.usefixtures("enable_states_on_flow_run_graph")
+async def test_reading_graph_for_flow_run_includes_states(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    flow_run_states,  # List[db.FlowRunState],
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    expected_graph_states = sorted(
+        (
+            GraphState(
+                id=state.id, timestamp=state.timestamp, type=state.type, name=state.name
+            )
+            for state in flow_run_states
+        ),
+        key=attrgetter("timestamp"),
+    )
+
+    assert graph.states == expected_graph_states
+
+
+@pytest.mark.usefixtures("disable_states_on_flow_run_graph")
+async def test_states_on_flow_run_graph_requires_experimental_setting(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    flow_run_states,  # List[db.FlowRunState],
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.states == []
+
+
+@pytest.fixture
 def graph() -> Graph:
     return Graph(
         start_time=pendulum.datetime(1978, 6, 4),
@@ -1123,6 +1215,7 @@ def graph() -> Graph:
         root_node_ids=[],
         nodes=[],
         artifacts=[],
+        states=[],
     )
 
 
