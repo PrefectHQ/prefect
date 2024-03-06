@@ -188,6 +188,15 @@ def test_drain_safe_to_call_multiple_times():
     )
 
 
+def test_drain_clears_asyncio_task():
+    instance = MockService.instance()
+    instance.send(1)
+
+    assert instance._task is not None
+    MockService.drain_all()
+    assert instance._task is None
+
+
 def test_send_many_threads():
     def on_thread(i):
         MockService.instance().send(i)
