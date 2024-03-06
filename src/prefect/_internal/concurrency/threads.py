@@ -214,9 +214,8 @@ class EventLoopThread(Portal):
         for call in self._on_shutdown:
             await self._run_call(call)
 
-            # Remove call from the list so that we don't accumulate calls
-            # we can't GC.
-            self._on_shutdown.remove(call)
+        # Remove calls from the list to prevent memory cycles.
+        self._on_shutdown = []
 
     async def _run_call(self, call: Call) -> None:
         task = call.run()
