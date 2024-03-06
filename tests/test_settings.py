@@ -36,6 +36,7 @@ from prefect.settings import (
     PREFECT_TEST_SETTING,
     PREFECT_UI_API_URL,
     PREFECT_UI_URL,
+    REMOVED_EXPERIMENTAL_FLAGS,
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
@@ -655,6 +656,30 @@ class TestLoadProfiles:
             )
         )
         with pytest.raises(ValueError, match="Unknown setting.*'test'"):
+            load_profile("foo")
+
+    def test_removed_experimental_flags(self, temporary_profiles_path):
+        assert (
+            "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI"
+            in REMOVED_EXPERIMENTAL_FLAGS
+        )
+
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = "False"
+                """
+            )
+        )
+
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "Experimental flag 'PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI' "
+                "has been removed, please update your 'foo' profile."
+            ),
+        ):
             load_profile("foo")
 
 

@@ -39,7 +39,6 @@ def test_app_exposes_ui_settings():
         "enhanced_cancellation",
         "enhanced_deployment_parameters",
         "work_queue_status",
-        "enhanced_scheduling_ui",
     }
 
 
@@ -62,5 +61,4 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "enhanced_deployment_parameters",
         "enhanced_cancellation",
         "work_queue_status",
-        "enhanced_scheduling_ui",
     }
