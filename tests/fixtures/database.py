@@ -579,6 +579,7 @@ async def deployment_with_parameter_schema(
             parameter_openapi_schema={
                 "type": "object",
                 "properties": {"x": {"type": "string"}},
+                "required": ["x"],
             },
             parameters={"x": "y"},
             enforce_parameter_schema=True,
