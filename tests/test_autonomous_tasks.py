@@ -1,12 +1,12 @@
 import asyncio
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Iterable, Tuple
 from unittest import mock
 
 import pytest
 
 import prefect.results
-from prefect import Task, task
+from prefect import Task, task, unmapped
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import TaskRun
@@ -27,7 +27,7 @@ from prefect.utilities.asyncutils import sync_compatible
 
 
 @sync_compatible
-async def result_factory_from_task(task):
+async def result_factory_from_task(task) -> ResultFactory:
     return await ResultFactory.from_autonomous_task(task)
 
 
@@ -63,7 +63,7 @@ async def clear_cached_filesystems():
 
 
 @pytest.fixture
-def foo_task():
+def foo_task() -> Task:
     @task
     def foo(x: int) -> int:
         print(x)
@@ -73,7 +73,7 @@ def foo_task():
 
 
 @pytest.fixture
-def async_foo_task():
+def async_foo_task() -> Task:
     @task
     async def async_foo(x: int) -> int:
         print(x)
@@ -181,18 +181,6 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     )
 
     assert parameters == dict(x=42)
-
-
-async def test_task_submission_via_call_raises_error(
-    async_foo_task_with_result_storage,
-):
-    with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-        async_foo_task_with_result_storage(42)
-
-
-async def test_task_submission_via_map_raises_error(async_foo_task_with_result_storage):
-    with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-        async_foo_task_with_result_storage.map([42])
 
 
 async def test_scheduled_tasks_are_enqueued_server_side(
@@ -313,3 +301,100 @@ async def test_stuck_pending_tasks_are_reenqueued(
     # ...and it should be re-enqueued
     enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
     assert enqueued.id == task_run.id
+
+
+class TestCall:
+    async def test_call(self, async_foo_task):
+        result = await async_foo_task(42)
+
+        assert result == 42
+
+    async def test_call_with_return_state(self, async_foo_task):
+        state = await async_foo_task(42, return_state=True)
+
+        assert state.is_completed()
+
+        assert await state.result() == 42
+
+
+class TestMap:
+    async def test_map(self, async_foo_task):
+        task_runs = await async_foo_task.map([1, 2, 3])
+
+        assert len(task_runs) == 3
+
+        result_factory = await result_factory_from_task(async_foo_task)
+
+        for i, task_run in enumerate(task_runs):
+            assert task_run.state.is_scheduled()
+            assert await result_factory.read_parameters(
+                task_run.state.state_details.task_parameters_id
+            ) == {"x": i + 1}
+
+    async def test_map_with_implicitly_unmapped_kwargs(self):
+        @task
+        def bar(x: int, unmappable: int) -> Tuple[int, int]:
+            return (x, unmappable)
+
+        task_runs = bar.map([1, 2, 3], unmappable=42)
+
+        assert len(task_runs) == 3
+
+        result_factory = await result_factory_from_task(bar)
+
+        for i, task_run in enumerate(task_runs):
+            assert task_run.state.is_scheduled()
+            assert await result_factory.read_parameters(
+                task_run.state.state_details.task_parameters_id
+            ) == {"x": i + 1, "unmappable": 42}
+
+    async def test_async_map_with_implicitly_unmapped_kwargs(self):
+        @task
+        async def bar(x: int, unmappable: int) -> Tuple[int, int]:
+            return (x, unmappable)
+
+        task_runs = await bar.map([1, 2, 3], unmappable=42)
+
+        assert len(task_runs) == 3
+
+        result_factory = await result_factory_from_task(bar)
+
+        for i, task_run in enumerate(task_runs):
+            assert task_run.state.is_scheduled()
+            assert await result_factory.read_parameters(
+                task_run.state.state_details.task_parameters_id
+            ) == {"x": i + 1, "unmappable": 42}
+
+    async def test_map_with_explicit_unmapped_kwargs(self):
+        @task
+        def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
+            return (x, mappable)
+
+        task_runs = bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+
+        assert len(task_runs) == 3
+
+        result_factory = await result_factory_from_task(bar)
+
+        for i, task_run in enumerate(task_runs):
+            assert task_run.state.is_scheduled()
+            assert await result_factory.read_parameters(
+                task_run.state.state_details.task_parameters_id
+            ) == {"x": i + 1, "mappable": ["some", "iterable"]}
+
+    async def test_async_map_with_explicit_unmapped_kwargs(self):
+        @task
+        async def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
+            return (x, mappable)
+
+        task_runs = await bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+
+        assert len(task_runs) == 3
+
+        result_factory = await result_factory_from_task(bar)
+
+        for i, task_run in enumerate(task_runs):
+            assert task_run.state.is_scheduled()
+            assert await result_factory.read_parameters(
+                task_run.state.state_details.task_parameters_id
+            ) == {"x": i + 1, "mappable": ["some", "iterable"]}
