@@ -1451,6 +1451,26 @@ class TestUpdateDeployment:
 
         assert response.status_code == 204
 
+    async def test_update_deployment_hydrates_parameters(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                }
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_with_parameter_schema.id}"
+        )
+        assert response.json()["parameters"] == {"x": "str_of_json"}
+
     async def test_update_deployment_with_schedule_populates_schedules(
         self,
         client,
