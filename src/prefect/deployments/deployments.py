@@ -18,7 +18,6 @@ import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.utilities.importtools import import_object
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
@@ -235,11 +234,14 @@ async def load_flow_from_flow_run(
         "PREFECT__STORAGE_BASE_PATH"
     )
 
+    # If there's no colon, assume it's a module path
     if ":" not in deployment.entrypoint:
         run_logger.debug(
             f"Importing flow code from module path {deployment.entrypoint}"
         )
-        flow = import_object(deployment.entrypoint)
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, deployment.entrypoint
+        )
         return flow
 
     if not ignore_storage and not deployment.pull_steps:

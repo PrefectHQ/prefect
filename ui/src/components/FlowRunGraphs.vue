@@ -1,30 +1,45 @@
 <template>
   <div class="flow-run-graphs" :class="classes.root">
-    <div class="flow-run-graphs__graphs">
-      <FlowRunGraph
-        v-model:fullscreen="fullscreen"
-        v-model:viewport="dateRange"
-        v-model:selected="selectedNode"
-        :flow-run="flowRun"
-        class="flow-run-graphs__flow-run"
-      />
+    <div class="flow-run-graphs__graph-panel-container">
+      <div class="flow-run-graphs__graphs">
+        <FlowRunGraph
+          v-model:fullscreen="fullscreen"
+          v-model:viewport="dateRange"
+          v-model:selected="selection"
+          :flow-run="flowRun"
+          class="flow-run-graphs__flow-run"
+        />
+      </div>
+      <div class="flow-run-graphs__panel p-background">
+        <FlowRunGraphSelectionPanel
+          v-if="selection?.kind === 'task-run' || selection?.kind === 'flow-run'"
+          v-model:selection="selection"
+          :floating="fullscreen"
+        />
+      </div>
     </div>
-    <div class="flow-run-graphs__panel p-background">
-      <FlowRunGraphSelectionPanel
-        v-model:node="selectedNode"
-        :floating="fullscreen"
-      />
-    </div>
+    <FlowRunGraphArtifactsPopover
+      v-if="selection && selection.kind === 'artifacts'"
+      v-model:selection="selection"
+    />
+    <FlowRunGraphStatePopover
+      v-if="selection?.kind === 'state'"
+      v-model:selection="selection"
+    />
+    <FlowRunGraphArtifactDrawer v-model:selection="selection" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import {
     FlowRunGraph,
-    RunGraphNodeSelection,
+    RunGraphItemSelection,
     RunGraphViewportDateRange,
     FlowRun,
-    FlowRunGraphSelectionPanel
+    FlowRunGraphSelectionPanel,
+    FlowRunGraphArtifactDrawer,
+    FlowRunGraphArtifactsPopover,
+    FlowRunGraphStatePopover
   } from '@prefecthq/prefect-ui-library'
   import { computed, ref } from 'vue'
 
@@ -35,13 +50,16 @@
   const dateRange = ref<RunGraphViewportDateRange>()
 
   const fullscreen = ref(false)
-  const selectedNode = ref<RunGraphNodeSelection | null>(null)
+  const selection = ref<RunGraphItemSelection | null>(null)
 
   const classes = computed(() => {
     return {
       root: {
         'flow-run-graphs--fullscreen': fullscreen.value,
-        'flow-run-graphs--show-panel': Boolean(selectedNode.value),
+        'flow-run-graphs--show-panel': Boolean(
+          selection.value?.kind === 'task-run'
+            || selection.value?.kind === 'flow-run',
+        ),
       },
     }
   })
@@ -49,12 +67,16 @@
 
 <style>
 .flow-run-graphs { @apply
+  relative;
+  --flow-run-graphs-panel-width: 320px;
+}
+
+.flow-run-graphs__graph-panel-container { @apply
   relative
   grid
   grid-cols-1
   gap-2
-  overflow-hidden;
-  --flow-run-graphs-panel-width: 320px;
+  overflow-hidden
 }
 
 .flow-run-graphs--fullscreen { @apply

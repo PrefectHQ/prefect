@@ -265,6 +265,8 @@ class Runner:
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
         """
         api = PREFECT_API_URL.value()
         if any([interval, cron, rrule]) and not api:
