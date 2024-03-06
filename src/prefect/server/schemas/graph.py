@@ -6,6 +6,13 @@ from prefect.server.schemas.states import StateType
 from prefect.server.utilities.schemas import PrefectBaseModel
 
 
+class GraphState(PrefectBaseModel):
+    id: UUID
+    timestamp: datetime
+    type: StateType
+    name: str
+
+
 class GraphArtifact(PrefectBaseModel):
     id: UUID
     created: datetime
@@ -36,3 +43,4 @@ class Graph(PrefectBaseModel):
     root_node_ids: List[UUID]
     nodes: List[Tuple[UUID, Node]]
     artifacts: List[GraphArtifact]
+    states: List[GraphState]
