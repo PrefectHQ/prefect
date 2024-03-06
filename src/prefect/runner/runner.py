@@ -76,9 +76,9 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.deployments.deployments import load_flow_from_flow_run
 from prefect.deployments.runner import (
     EntrypointType,
-    FlexibleScheduleList,
     RunnerDeployment,
 )
+from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -228,7 +228,7 @@ class Runner:
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
