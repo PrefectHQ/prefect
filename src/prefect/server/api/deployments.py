@@ -31,7 +31,6 @@ from prefect.utilities.schema_tools.validation import (
     ValidationError,
     validate,
 )
-from prefect.utilities.validation import validate_values_conform_to_schema
 
 router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -239,6 +238,26 @@ async def update_deployment(
                     detail=f"Error creating deployment: {exc!r}",
                 )
 
+        if deployment.parameters is not None:
+            if experiment_enabled("enhanced_deployment_parameters"):
+                try:
+                    dehydrated_params = deployment.parameters
+                    ctx = await HydrationContext.build(
+                        session=session,
+                        raise_on_error=True,
+                    )
+                    parameters = hydrate(dehydrated_params, ctx)
+                    deployment.parameters = parameters
+                except HydrationError as exc:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        detail=f"Error hydrating deployment parameters: {exc}",
+                    )
+            else:
+                parameters = deployment.parameters
+        else:
+            parameters = existing_deployment.parameters
+
         enforce_parameter_schema = (
             deployment.enforce_parameter_schema
             if deployment.enforce_parameter_schema is not None
@@ -255,20 +274,22 @@ async def update_deployment(
                         " does not have a valid parameter schema."
                     ),
                 )
-            parameters = (
-                deployment.parameters
-                if deployment.parameters is not None
-                else existing_deployment.parameters
-            )
             try:
-                validate_values_conform_to_schema(
+                validate(
                     parameters,
                     existing_deployment.parameter_openapi_schema,
+                    raise_on_error=True,
                     ignore_required=True,
                 )
-            except ValueError as exc:
+            except ValidationError as exc:
                 raise HTTPException(
-                    status.HTTP_409_CONFLICT, detail=f"Error updating deployment: {exc}"
+                    status.HTTP_409_CONFLICT,
+                    detail=f"Error updating deployment: {exc}",
+                )
+            except CircularSchemaRefError:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Invalid schema: Unable to validate schema with circular references.",
                 )
 
         result = await models.deployments.update_deployment(
