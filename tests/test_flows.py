@@ -3367,6 +3367,7 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call(), call()]
 
+
 class TestFlowToDeployment:
     async def test_to_deployment_returns_runner_deployment(self):
         deployment = await test_flow.to_deployment(
