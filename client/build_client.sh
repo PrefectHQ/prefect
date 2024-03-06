@@ -33,6 +33,7 @@ rm -rf server/utilities
 # replace old build files with client build files
 cd $TMPDIR
 cp client/setup.py .
+cp client/README.md .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
