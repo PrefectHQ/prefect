@@ -5,8 +5,8 @@
         <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-client?color=0052FF&labelColor=090422"></a>
     <a href="https://github.com/prefecthq/prefect/" alt="Stars">
         <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
-    <a href="https://pepy.tech/badge/prefect/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://pepy.tech/badge/prefect-client/" alt="Downloads">
+        <img src="https://img.shields.io/pypi/dm/prefect-client?color=0052FF&labelColor=090422" /></a>
     <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
         <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
     <br>
