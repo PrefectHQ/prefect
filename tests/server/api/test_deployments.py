@@ -2284,7 +2284,7 @@ class TestSetScheduleActive:
         assert len(schedules) == 1
         assert schedules[0].active is True
 
-    async def test_set_schedule_active_enhanced_scheduling_off_multiple_schedules(
+    async def test_set_schedule_active_multiple_schedules(
         self,
         client,
         deployment,
