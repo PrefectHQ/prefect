@@ -14,6 +14,8 @@ down_revision = "b9bda9f142f1"
 branch_labels = None
 depends_on = None
 
+# 03/06/2024 - removed data migration that added a `default-agent-pool` work pool
+
 
 def upgrade():
     # Create temporary indexes for migration
