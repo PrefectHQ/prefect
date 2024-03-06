@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 import pytest
 
@@ -67,8 +68,8 @@ async def create_flow(session) -> schemas.core.Flow:
 async def create_objects_for_pool(
     session,
     *,
-    pool_job_config: dict | None = None,
-    deployment_vars: dict | None = None,
+    pool_job_config: Optional[dict] = None,
+    deployment_vars: Optional[dict] = None,
     pool_type: str = "None",
 ):
     pool_job_config = pool_job_config or {}
