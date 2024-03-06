@@ -593,9 +593,7 @@ async def create_flow_run_from_deployment(
             try:
                 dehydrated_params = deployment.parameters
                 dehydrated_params.update(flow_run.parameters or {})
-                ctx = await HydrationContext.build(
-                    session=session, raise_on_error=True, render_jinja=True
-                )
+                ctx = await HydrationContext.build(session=session, raise_on_error=True)
                 parameters = hydrate(dehydrated_params, ctx)
             except HydrationError as exc:
                 raise HTTPException(
