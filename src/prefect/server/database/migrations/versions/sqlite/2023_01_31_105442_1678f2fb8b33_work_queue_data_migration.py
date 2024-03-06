@@ -37,6 +37,13 @@ def upgrade():
     if default_pool_id_result:
         default_pool_id = default_pool_id_result[0]
 
+        # Update work_queue rows with null work_pool_id to use the default_pool_id
+        connection.execute(
+            sa.text(
+                "UPDATE work_queue SET work_pool_id = :default_pool_id WHERE work_pool_id IS NULL"
+            ).params({"default_pool_id": default_pool_id}),
+        )
+
         # Set priority on all queues and update flow runs and deployments
         queue_rows = connection.execute(
             sa.text(
