@@ -234,7 +234,7 @@ Successfully created/updated all deployments!
 
 ## Advanced example
 
-In more complex scenarios, CI/CD processes often need to accomodate several additional considerations to enable a smooth development workflow:
+In more complex scenarios, CI/CD processes often need to accommodate several additional considerations to enable a smooth development workflow:
 
 - Making code available in different environments as it advances through stages of development
 - Handling independent deployment of distinct groupings of work, as in a monorepo
