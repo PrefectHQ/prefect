@@ -16,14 +16,6 @@ def _get_base_config_defaults(base_config: dict):
     return defaults
 
 
-def _merge_job_variables(base_vars: dict, deployment_vars: dict, flow_run_vars: dict):
-    result = {}
-    result.update(base_vars)
-    result.update(deployment_vars)
-    result.update(flow_run_vars)
-    return result
-
-
 def validate_job_variables_for_flow_run(
     flow_run: Union[
         schemas.actions.DeploymentFlowRunCreate, schemas.actions.FlowRunUpdate
@@ -34,9 +26,7 @@ def validate_job_variables_for_flow_run(
         deployment.work_queue.work_pool.base_job_template
     )
     flow_run_vars = flow_run.job_variables or {}
-    job_vars = _merge_job_variables(
-        base_vars, deployment.infra_overrides, flow_run_vars
-    )
+    job_vars = {**base_vars, **deployment.infra_overrides, **flow_run_vars}
 
     try:
         validate_values_conform_to_schema(
