@@ -256,7 +256,7 @@ on:
       - "project_1/**"
 ```
 
-1. **`branches:`** - which branch has changes. This will ultimately select which Prefect workspace a deployment is created or updated in. In this example, changes on the `stg` branch will deploy flows to a staging workspace, and changes on the `main` branch will deploy flows to a production workspace.
+1. **`branches:`** - which branch has changed. This will ultimately select which Prefect workspace a deployment is created or updated in. In this example, changes on the `stg` branch will deploy flows to a staging workspace, and changes on the `main` branch will deploy flows to a production workspace.
 2. **`paths:`** - which project folders' files have changed. Since each project folder contains its own flows, dependencies, and `prefect.yaml`, it represents a complete set of logic and configuration that can be deployed independently. Each project in this repository gets its own GitHub Actions workflow YAML file.
 
 The `prefect.yaml` file in each project folder depends on environment variables that are dictated by the selected job in each CI/CD workflow, enabling external code storage for Prefect deployments that is clearly separated across projects and environments.
