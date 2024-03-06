@@ -122,7 +122,8 @@
           "auto_deregister_task_definition": "{{ auto_deregister_task_definition }}",
           "vpc_id": "{{ vpc_id }}",
           "container_name": "{{ container_name }}",
-          "cluster": "{{ cluster }}"
+          "cluster": "{{ cluster }}",
+          "match_latest_revision_in_family": "{{ match_latest_revision_in_family }}"
         },
         "variables": {
           "description": "Variables for templating an ECS job.",
@@ -263,6 +264,12 @@
             "auto_deregister_task_definition": {
               "title": "Auto Deregister Task Definition",
               "description": "If enabled, any task definitions that are created by this block will be deregistered. Existing task definitions linked by ARN will never be deregistered. Deregistering a task definition does not remove it from your AWS account, instead it will be marked as INACTIVE.",
+              "default": false,
+              "type": "boolean"
+            },
+            "match_latest_revision_in_family": {
+              "title": "Match Latest Revision In Family",
+              "description": "If enabled, the most recent active revision in the task definition family will be compared against the desired ECS task configuration. If they are equal, the existing task definition will be used instead of registering a new one. If no family is specified the default family \"prefect\" will be used.",
               "default": false,
               "type": "boolean"
             }
