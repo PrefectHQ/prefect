@@ -1,3 +1,5 @@
+from typing import Union
+
 from prefect._vendor.fastapi import HTTPException, status
 
 import prefect.server.schemas as schemas
@@ -23,7 +25,9 @@ def _merge_job_variables(base_vars: dict, deployment_vars: dict, flow_run_vars: 
 
 
 def validate_job_variables_for_flow_run(
-    flow_run: schemas.actions.DeploymentFlowRunCreate | schemas.actions.FlowRunUpdate,
+    flow_run: Union[
+        schemas.actions.DeploymentFlowRunCreate, schemas.actions.FlowRunUpdate
+    ],
     deployment: schemas.core.Deployment,
 ) -> None:
     base_vars = _get_base_config_defaults(
