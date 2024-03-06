@@ -216,7 +216,7 @@ After pushing commits to your repository, GitHub will automatically trigger a ru
 
 You can view the logs from each workflow step as they run. The `Prefect Deploy` step will include output about your image build and push, and the creation/update of your deployment.
 
-
+<div class="terminal">
 ```bash
 Successfully built image '***/cicd-example:latest'
 
@@ -231,6 +231,7 @@ Successfully created/updated all deployments!
 │ hello/my-deployment │ applied │         │
 └─────────────────────┴─────────┴─────────┘
 ```
+</div>
 
 ## Advanced example
 
