@@ -13,6 +13,7 @@ from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
@@ -20,6 +21,16 @@ from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.utilities.schema_tools.hydration import (
+    HydrationContext,
+    HydrationError,
+    hydrate,
+)
+from prefect.utilities.schema_tools.validation import (
+    CircularSchemaRefError,
+    ValidationError,
+    validate,
+)
 from prefect.utilities.validation import validate_values_conform_to_schema
 
 router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
@@ -578,8 +589,22 @@ async def create_flow_run_from_deployment(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
 
-        parameters = deployment.parameters
-        parameters.update(flow_run.parameters or {})
+        if experiment_enabled("enhanced_deployment_parameters"):
+            try:
+                dehydrated_params = deployment.parameters
+                dehydrated_params.update(flow_run.parameters or {})
+                ctx = await HydrationContext.build(
+                    session=session, raise_on_error=True, render_jinja=True
+                )
+                parameters = hydrate(dehydrated_params, ctx)
+            except HydrationError as exc:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error hydrating flow run parameters: {exc}",
+                )
+        else:
+            parameters = deployment.parameters
+            parameters.update(flow_run.parameters or {})
 
         if deployment.enforce_parameter_schema:
             if not isinstance(deployment.parameter_openapi_schema, dict):
@@ -592,12 +617,18 @@ async def create_flow_run_from_deployment(
                     ),
                 )
             try:
-                validate_values_conform_to_schema(
-                    parameters, deployment.parameter_openapi_schema
+                validate(
+                    parameters, deployment.parameter_openapi_schema, raise_on_error=True
                 )
-            except ValueError as exc:
+            except ValidationError as exc:
                 raise HTTPException(
-                    status.HTTP_409_CONFLICT, detail=f"Error creating flow run: {exc}"
+                    status.HTTP_409_CONFLICT,
+                    detail=f"Error creating flow run: {exc}",
+                )
+            except CircularSchemaRefError:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Invalid schema: Unable to validate schema with circular references.",
                 )
 
         work_queue_name = deployment.work_queue_name
