@@ -1,3 +1,4 @@
+import datetime
 import json
 import re
 from unittest import mock
@@ -13,7 +14,7 @@ from httpx import Response
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
-from prefect.client.schemas.schedules import RRuleSchedule
+from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
 from prefect.deployments.deployments import load_flow_from_flow_run
 
 if HAS_PYDANTIC_V2:
@@ -515,6 +516,21 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.is_schedule_active == is_active
+
+    async def test_build_from_flow_set_schedules_shorthand(self, flow_function):
+        deployment = await Deployment.build_from_flow(
+            flow=flow_function,
+            name="foo",
+            schedules=[
+                CronSchedule(cron="0 0 * * *"),
+                {"schedule": {"interval": datetime.timedelta(minutes=10)}},
+            ],
+        )
+
+        assert len(deployment.schedules) == 2
+        assert all(
+            isinstance(s, MinimalDeploymentSchedule) for s in deployment.schedules
+        )
 
 
 class TestYAML:

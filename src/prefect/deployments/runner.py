@@ -34,7 +34,7 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union, get_args
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -63,6 +63,11 @@ from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
 )
+from prefect.deployments.schedules import (
+    FlexibleScheduleList,
+    create_minimal_deployment_schedule,
+    normalize_to_minimal_deployment_schedules,
+)
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     ObjectNotFound,
@@ -83,16 +88,7 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     from prefect.flows import Flow
 
-FlexibleScheduleList = Union[MinimalDeploymentSchedule, dict, SCHEDULE_TYPES]
-
 __all__ = ["RunnerDeployment"]
-
-
-def _to_deployment_schedule(
-    schedule: Optional[SCHEDULE_TYPES] = None,
-    active: Optional[bool] = True,
-) -> MinimalDeploymentSchedule:
-    return MinimalDeploymentSchedule(schedule=schedule, active=active)
 
 
 class DeploymentApplyError(RuntimeError):
@@ -264,23 +260,9 @@ class RunnerDeployment(BaseModel):
         schedules = values.get("schedules")
 
         if schedules is None and schedule is not None:
-            values["schedules"] = [_to_deployment_schedule(schedule)]
+            values["schedules"] = [create_minimal_deployment_schedule(schedule)]
         elif schedules is not None and len(schedules) > 0:
-            reconciled = []
-            for obj in schedules:
-                if isinstance(obj, get_args(SCHEDULE_TYPES)):
-                    reconciled.append(_to_deployment_schedule(obj))
-                elif isinstance(obj, dict):
-                    reconciled.append(_to_deployment_schedule(**obj))
-                elif isinstance(obj, MinimalDeploymentSchedule):
-                    reconciled.append(obj)
-                else:
-                    raise ValueError(
-                        "Invalid schedule provided. Must be a schedule object, a dict,"
-                        " or a MinimalDeploymentSchedule."
-                    )
-
-            values["schedules"] = reconciled
+            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
 
         return values
 
@@ -389,8 +371,8 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
-    ) -> Union[List[MinimalDeploymentSchedule], List[FlexibleScheduleList]]:
+        schedules: Optional[FlexibleScheduleList] = None,
+    ) -> Union[List[MinimalDeploymentSchedule], FlexibleScheduleList]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -448,7 +430,7 @@ class RunnerDeployment(BaseModel):
                 value = [value]
 
             return [
-                _to_deployment_schedule(
+                create_minimal_deployment_schedule(
                     construct_schedule(
                         **{
                             schedule_type: v,
@@ -460,7 +442,7 @@ class RunnerDeployment(BaseModel):
                 for v in value
             ]
         else:
-            return [_to_deployment_schedule(schedule)]
+            return [create_minimal_deployment_schedule(schedule)]
 
     def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)
@@ -481,7 +463,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -617,7 +599,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -715,7 +697,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
