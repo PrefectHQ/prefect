@@ -712,10 +712,14 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     async def notify(self, body: str, subject: Optional[str] = None):
         import httpx
 
+        request_args = self._build_request_args(body, subject)
+        cookies = request_args.pop("cookies", None)
         # make request with httpx
-        client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
+        client = httpx.AsyncClient(
+            headers={"user-agent": "Prefect Notifications"}, cookies=cookies
+        )
         async with client:
-            resp = await client.request(**self._build_request_args(body, subject))
+            resp = await client.request(**request_args)
         resp.raise_for_status()
 
 

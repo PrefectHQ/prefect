@@ -474,6 +474,7 @@ def test_enabled_experiments_with_opt_in():
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
+        "enhanced_deployment_parameters",
         "work_queue_status",
     }
 
@@ -487,5 +488,6 @@ def test_enabled_experiments_without_opt_in():
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
+        "enhanced_deployment_parameters",
         "work_queue_status",
     }

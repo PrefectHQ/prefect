@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 import time
+import warnings
 from functools import partial
 from itertools import combinations
 from pathlib import Path
@@ -37,7 +38,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, RunnerDeployment
+from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     CancelledRun,
@@ -378,6 +379,33 @@ class TestFlowWithOptions:
 
         flow_with_options = initial_flow.with_options(timeout_seconds=0)
         assert flow_with_options.timeout_seconds is None
+
+    def test_with_options_can_unset_retries_with_zero(self):
+        @flow(retries=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retries=0)
+        assert flow_with_options.retries == 0
+
+    def test_with_options_can_unset_retry_delay_seconds_with_zero(self):
+        @flow(retry_delay_seconds=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retry_delay_seconds=0)
+        assert flow_with_options.retry_delay_seconds == 0
+
+    def test_with_options_uses_parent_flow_run_name_if_not_provided(self):
+        def generate_flow_run_name():
+            return "new-name"
+
+        @flow(retry_delay_seconds=3, flow_run_name=generate_flow_run_name)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options()
+        assert flow_with_options.flow_run_name is generate_flow_run_name
 
     def test_with_options_can_unset_result_options_with_none(self):
         @flow(
@@ -1061,6 +1089,30 @@ class TestSubflowCalls:
         assert (
             child_flow_run.id == child_flow_run_id
         ), "The server subflow run id matches the client"
+
+    async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
+        we discovered that a sync flow running an async flow that awaits `.result()`
+        on a submitted task's future can hang indefinitely.
+        """
+
+        @task
+        async def some_async_task():
+            return 42
+
+        @flow
+        async def integrations_flow():
+            future = await some_async_task.submit()
+            return await future.result()
+
+        @flow
+        def sync_flow():
+            return integrations_flow()
+
+        result = sync_flow()
+
+        assert result == 42
 
 
 class TestFlowRunTags:
@@ -2221,6 +2273,22 @@ def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
     assert flow.fn() == "woof!"
 
 
+def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
+    @flow
+    def pretend_flow():
+        pass
+
+    import_object_mock = MagicMock(return_value=pretend_flow)
+    monkeypatch.setattr(
+        "prefect.flows.import_object",
+        import_object_mock,
+    )
+    result = load_flow_from_entrypoint("my.module.pretend_flow")
+
+    assert result == pretend_flow
+    import_object_mock.assert_called_with("my.module.pretend_flow")
+
+
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
@@ -3213,18 +3281,30 @@ class TestFlowToDeployment:
     async def test_to_deployment_accepts_interval(self):
         deployment = await test_flow.to_deployment(name="test", interval=3600)
 
-        assert isinstance(deployment.schedule, IntervalSchedule)
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.schedules
+        assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+
+    async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
+        deployment = await test_flow.to_deployment(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_to_deployment_accepts_cron(self):
         deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
-        assert deployment.schedule == CronSchedule(cron="* * * * *")
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self):
         deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
-        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
     async def test_to_deployment_invalid_name_raises(self):
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
@@ -3245,12 +3325,13 @@ class TestFlowToDeployment:
             )
         ],
     )
-    def test_to_deployment_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        with pytest.raises(ValueError, match=expected_message):
-            test_flow.to_deployment(__file__, **kwargs)
+    def test_to_deployment_raises_on_multiple_schedule_parameters(self, kwargs):
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            with pytest.raises(ValueError, match=expected_message):
+                test_flow.to_deployment(__file__, **kwargs)
 
 
 class TestFlowServe:
@@ -3279,7 +3360,7 @@ class TestFlowServe:
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -3294,7 +3375,16 @@ class TestFlowServe:
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
+        assert deployment.paused
         assert not deployment.is_schedule_active
+
+    async def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+        deployment = await test_flow.serve(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)
@@ -3355,11 +3445,12 @@ class TestFlowServe:
         ],
     )
     async def test_serve_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        with pytest.raises(ValueError, match=expected_message):
-            await test_flow.serve(__file__, **kwargs)
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            with pytest.raises(ValueError, match=expected_message):
+                await test_flow.serve(__file__, **kwargs)
 
     async def test_serve_starts_a_runner(self, mock_runner_start):
         """
@@ -3547,7 +3638,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3560,7 +3651,7 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
-                is_schedule_active=False,
+                paused=True,
             ),
             work_pool_name=work_pool.name,
             image=image,
@@ -3570,7 +3661,8 @@ class TestFlowDeploy:
         )
 
         console_output = capsys.readouterr().out
-        assert f"prefect worker start --pool {work_pool.name!r}" in console_output
+        assert "prefect worker start --pool" in console_output
+        assert work_pool.name in console_output
         assert "prefect deployment run 'local-flow-deploy/test'" in console_output
 
     async def test_calls_deploy_with_expected_args_remote_flow(
@@ -3594,7 +3686,7 @@ class TestFlowDeploy:
             image=image,
             push=False,
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3607,7 +3699,7 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
-                is_schedule_active=False,
+                paused=True,
             ),
             work_pool_name=work_pool.name,
             image=image,

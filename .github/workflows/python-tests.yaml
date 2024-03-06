@@ -76,6 +76,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -124,8 +130,6 @@ jobs:
           # cache-to: type=gha,mode=max
 
       - name: Test Conda flavored Docker image
-        # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
@@ -229,6 +233,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -388,6 +398,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -584,6 +600,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -632,7 +654,6 @@ jobs:
           # cache-to: type=gha,mode=max
 
       - name: Test Conda flavored Docker image
-        # Not yet supported for 3.11, see note at top
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version

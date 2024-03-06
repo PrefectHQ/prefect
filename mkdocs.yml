@@ -196,6 +196,7 @@ nav:
                 - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
                 - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
+                - Job Variable Overrides: guides/deployment/overriding-job-variables.md
     - Concepts:
           - concepts/index.md
           - Flows: concepts/flows.md
@@ -287,6 +288,7 @@ nav:
                       - "deployments": api-ref/prefect/deployments/deployments.md
                       - "base": api-ref/prefect/deployments/base.md
                       - "runner": api-ref/prefect/deployments/runner.md
+                      - "schedules": api-ref/prefect/deployments/schedules.md
                       - "steps.core": api-ref/prefect/deployments/steps/core.md
                       - "steps.pull": api-ref/prefect/deployments/steps/pull.md
                       - "steps.utility": api-ref/prefect/deployments/steps/utility.md

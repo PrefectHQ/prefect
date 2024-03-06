@@ -1915,7 +1915,7 @@ async def test_get_flow_run_logger(
     )
 
     async with WorkerTestImpl(
-        name="test", work_pool_name="test-work-pool", create_pool_if_not_found=False
+        name="test", work_pool_name=work_pool.name, create_pool_if_not_found=False
     ) as worker:
         await worker.sync_with_backend()
         logger = worker.get_flow_run_logger(flow_run)
@@ -1926,7 +1926,7 @@ async def test_get_flow_run_logger(
             "flow_run_id": str(flow_run.id),
             "flow_name": "<unknown>",
             "worker_name": "test",
-            "work_pool_name": "test-work-pool",
+            "work_pool_name": work_pool.name,
             "work_pool_id": str(work_pool.id),
         }
 
