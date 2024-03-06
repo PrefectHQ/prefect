@@ -109,7 +109,7 @@ async def update_flow_run(
                 if this_run.state.type != schemas.states.StateType.SCHEDULED:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Job variables for a flow run in state {this_run.state.type} cannot be updated",
+                        detail=f"Job variables for a flow run in state {this_run.state.type.name} cannot be updated",
                     )
                 if this_run.deployment_id is None:
                     raise HTTPException(
