@@ -10,6 +10,7 @@ tags:
     - storage
     - work pool
     - worker
+    - run_deployment
 search:
   boost: 2
 ---
