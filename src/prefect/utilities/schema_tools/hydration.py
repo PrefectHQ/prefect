@@ -1,7 +1,13 @@
 import json
 from typing import Any, Callable, Dict, Optional
 
-from pydantic import BaseModel, Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field
+else:
+    from pydantic import BaseModel, Field
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 

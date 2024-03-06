@@ -2706,6 +2706,43 @@ class TestCreateFlowRunFromDeployment:
         assert "Validation failed for field 'person'" in response.text
         assert "Failure reason: 'name' is a required property" in response.text
 
+    async def test_create_flow_run_from_deployment_hydrates_parameters(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                }
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["parameters"]["x"] == "str_of_json"
+
+    async def test_create_flow_run_from_deployment_hydration_error(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '{"invalid": json}'}
+                }
+            },
+        )
+
+        assert response.status_code == 400
+        assert (
+            "Error hydrating flow run parameters: Invalid JSON: Expecting value:"
+            in response.json()["detail"]
+        )
+
 
 class TestGetDeploymentWorkQueueCheck:
     async def test_404_on_bad_id(self, client):
