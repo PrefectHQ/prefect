@@ -91,6 +91,12 @@ Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_sou
 
 ![Prefect Automations](/docs/img/ui/automations.png)
 
+## prefect-client
+
+If your use case is geared towards communicating with Prefect Cloud or a remote Prefect server, check out our 
+[prefect-client](https://pypi.org/project/prefect-client/). It was designed to be a lighter-weight option for accessing 
+client-side functionality in the Prefect SDK and is ideal for use in ephemeral execution environments.
+
 ## Next steps
 
 There's lots more you can do to orchestrate and observe your workflows with Prefect!
