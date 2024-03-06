@@ -34,7 +34,6 @@ rm -rf server/utilities
 cd $TMPDIR
 cp client/setup.py .
 cp client/README.md .
-echo $TMPDIR
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
