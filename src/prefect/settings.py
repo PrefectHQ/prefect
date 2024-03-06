@@ -102,6 +102,8 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
+REMOVED_EXPERIMENTAL_FLAGS = {"PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI"}
+
 
 class Setting(Generic[T]):
     """
@@ -2066,6 +2068,24 @@ class ProfilesCollection:
         )
 
 
+def _handle_removed_flags(profile_name: str, settings: dict) -> dict:
+    to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
+
+    for name in to_remove:
+        warnings.warn(
+            (
+                f"Experimental flag {name!r} has been removed, please "
+                f"update your {profile_name!r} profile."
+            ),
+            UserWarning,
+            stacklevel=3,
+        )
+
+        settings.pop(name)
+
+    return settings
+
+
 def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
     Read profiles from a path into a new `ProfilesCollection`.
@@ -2082,10 +2102,10 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
     active_profile = contents.get("active")
     raw_profiles = contents.get("profiles", {})
 
-    profiles = [
-        Profile(name=name, settings=settings, source=path)
-        for name, settings in raw_profiles.items()
-    ]
+    profiles = []
+    for name, settings in raw_profiles.items():
+        settings = _handle_removed_flags(name, settings)
+        profiles.append(Profile(name=name, settings=settings, source=path))
 
     return ProfilesCollection(profiles, active=active_profile)
 
