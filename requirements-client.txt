@@ -23,6 +23,7 @@ pydantic[email]>=1.10.0,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0
 python_dateutil >= 2.8.2, < 3.0.0
 python-slugify >= 5.0, < 9.0
 pyyaml >= 5.4.1, < 7.0.0
+rfc3339-validator >= 0.1.4, < 0.2.0
 rich >= 11.0, < 14.0
 ruamel.yaml >= 0.17.0
 sniffio >=1.3.0, < 2.0.0
