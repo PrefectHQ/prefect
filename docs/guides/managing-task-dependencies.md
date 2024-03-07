@@ -48,12 +48,9 @@ Task run 'first-0' - Finished in state Completed()
 Flow run 'pumpkin-puffin' - Finished in state Completed('All states completed.')
 ```
 
-Upstream dependencies can be inferred automatically via a task's inputs and return values, or stated explicitly via a task's `wait_for` argument.
+To ensure tasks run in a desired order, they must be made aware of their upstream dependencies. A task's upstream dependencies can be inferred automatically via its inputs, or stated explicitly via the `wait_for` argument.
 
-This dependency information is used by Prefect in two ways:
-
-1. For populating dependency arrows in the flow run graph
-2. For determining task execution order when using non-sequential task runners
+This information is also used by Prefect to populate dependency arrows in the flow run graph regardless of whether tasks are submitted to a task runner.
 
 ## Automatic Dependencies
 
