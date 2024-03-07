@@ -2,8 +2,11 @@
 
 ## Release 2.16.3
 
-### Highlight
+### Enhanced deployment parameters in the Prefect UI
 
+We’ve refined the deployment parameters UI to significantly enhance default value handling and list management. This release introduces support for tuple-type parameters and a revamped list UI, freeing users from the constraints of JSON for list inputs. You now have the flexibility to utilize JSON or Prefect variables for any parameter value, enhancing the versatility of deployment configurations. Moreover, we’ve synchronized validation across the UI and deployment schemas, ensuring that user inputs are consistently checked against the defined parameter requirements, which simplifies the deployment process and minimizes configuration errors.
+
+These improvements are aimed at providing a more efficient and user-friendly interface for managing deployment parameters.
 
 See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12168
@@ -11,7 +14,6 @@ See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12186
 - https://github.com/PrefectHQ/prefect/pull/12187
 - https://github.com/PrefectHQ/prefect/pull/12182
-
 
 ### Enhancements
 - Adds `on_running` state change hook — https://github.com/PrefectHQ/prefect/pull/12153
