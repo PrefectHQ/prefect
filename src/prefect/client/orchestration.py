@@ -506,6 +506,7 @@ class PrefectClient:
         idempotency_key: str = None,
         parent_task_run_id: UUID = None,
         work_queue_name: str = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -529,6 +530,7 @@ class PrefectClient:
             work_queue_name: An optional work queue name to add this run to. If not provided,
                 will default to the deployment's set work queue.  If one is provided that does not
                 exist, a new work queue will be created within the deployment's work pool.
+            job_variables: Optional variables that will be supplied to the flow run job.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -549,6 +551,7 @@ class PrefectClient:
             name=name,
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
+            job_variables=job_variables,
         )
 
         # done separately to avoid including this field in payloads sent to older API versions
@@ -570,6 +573,7 @@ class PrefectClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: "prefect.states.State" = None,
+        job_variables: Optional[dict] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -613,6 +617,7 @@ class PrefectClient:
                 retries=flow.retries,
                 retry_delay=flow.retry_delay_seconds,
             ),
+            job_variables=job_variables,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
@@ -634,6 +639,7 @@ class PrefectClient:
         tags: Optional[Iterable[str]] = None,
         empirical_policy: Optional[FlowRunPolicy] = None,
         infrastructure_pid: Optional[str] = None,
+        job_variables: Optional[dict] = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -667,6 +673,8 @@ class PrefectClient:
             params["empirical_policy"] = empirical_policy
         if infrastructure_pid:
             params["infrastructure_pid"] = infrastructure_pid
+        if job_variables is not None:
+            params["job_variables"] = job_variables
 
         flow_run_data = FlowRunUpdate(**params)
 
