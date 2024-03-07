@@ -358,7 +358,6 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
     tags: List[str] = FieldFrom(objects.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
-    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
