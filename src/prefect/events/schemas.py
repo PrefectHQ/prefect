@@ -282,8 +282,8 @@ class EventTrigger(ResourceTrigger):
 
     @root_validator(skip_on_failure=True)
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
-        posture: Posture | None = values.get("posture")
-        within: timedelta | None = values.get("within")
+        posture: Optional[Posture] = values.get("posture")
+        within: Optional[timedelta] = values.get("within")
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
