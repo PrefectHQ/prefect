@@ -33,6 +33,9 @@ See the following PRs for implementation details:
 ### Experimental
 - Expose flow run job vars on page — https://github.com/PrefectHQ/prefect/pull/12206
 
+### Integrations
+- Added prefect-soda-cloud integration — https://github.com/PrefectHQ/prefect/pull/12208
+
 ### Documentation
 - Add advanced example to CI/CD guide — https://github.com/PrefectHQ/prefect/pull/12188
 - Update Prefect self-hosted guide to clarify PostgreSQL Docker instructions — https://github.com/PrefectHQ/prefect/pull/12164
@@ -40,10 +43,6 @@ See the following PRs for implementation details:
 - Add a `prefect-client` README — https://github.com/PrefectHQ/prefect/pull/12172
 - Update README example — https://github.com/PrefectHQ/prefect/pull/12167
 - Remove outdated sqlite version info from install docs — https://github.com/PrefectHQ/prefect/pull/12162
-
-### Uncategorized
-- schema validation endpoint — https://github.com/PrefectHQ/prefect/pull/12179
-- Added prefect-soda-cloud integration — https://github.com/PrefectHQ/prefect/pull/12208
 
 ### Contributors
 - @AlessandroLollo
