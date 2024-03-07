@@ -19,7 +19,16 @@ import httpcore
 import httpx
 import pendulum
 
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -538,6 +547,21 @@ class PrefectClient:
         Returns:
             The flow run model
         """
+        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+
         parameters = parameters or {}
         context = context or {}
         state = state or prefect.states.Scheduled()
@@ -595,6 +619,21 @@ class PrefectClient:
         Returns:
             The flow run model
         """
+        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+
         parameters = parameters or {}
         context = context or {}
 
@@ -660,6 +699,21 @@ class PrefectClient:
         Returns:
             an `httpx.Response` object from the PATCH request
         """
+        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+
         params = {}
         if flow_version is not None:
             params["flow_version"] = flow_version
