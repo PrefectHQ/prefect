@@ -27,7 +27,6 @@ See the following PRs for implementation details:
 - Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166 - asked Brandon
 - Add a paused deployment filter and update `is_schedule_active` filter — https://github.com/PrefectHQ/prefect/pull/12202
 - Updating client-side schemas for automation triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
-- Update aggregate worker metadata view — https://github.com/PrefectHQ/prefect/pull/12183
 
 ### Fixes
 - Address two memory leak in concurrency management — https://github.com/PrefectHQ/prefect/pull/12141
