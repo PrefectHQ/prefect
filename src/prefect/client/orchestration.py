@@ -597,7 +597,6 @@ class PrefectClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: "prefect.states.State" = None,
-        job_variables: Optional[dict] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -619,21 +618,6 @@ class PrefectClient:
         Returns:
             The flow run model
         """
-        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Flow run job variables",
-                        group="flow_run_infra_overrides",
-                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-
         parameters = parameters or {}
         context = context or {}
 
@@ -656,7 +640,6 @@ class PrefectClient:
                 retries=flow.retries,
                 retry_delay=flow.retry_delay_seconds,
             ),
-            job_variables=job_variables,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
