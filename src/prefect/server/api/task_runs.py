@@ -295,7 +295,11 @@ async def scheduled_task_subscription(websocket: WebSocket):
             await websocket.send_json(task_run.dict(json_compatible=True))
 
             acknowledgement = await websocket.receive_json()
-            if acknowledgement.get("type") != "ack":
+            ack_type = acknowledgement.get("type")
+            if ack_type != "ack":
+                if ack_type == "quit":
+                    return await websocket.close()
+
                 raise WebSocketDisconnect(
                     code=4001, reason="Protocol violation: expected 'ack' message"
                 )
