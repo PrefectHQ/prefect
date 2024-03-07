@@ -36,6 +36,12 @@
           <p-code-highlight lang="json" :text="parameters" class="flow-run__parameters" />
         </CopyableWrapper>
       </template>
+
+      <template #job-variables>
+        <CopyableWrapper v-if="flowRun" :text-to-copy="jobVariables">
+          <p-code-highlight lang="json" :text="jobVariables" class="flow-run__job-variables" />
+        </CopyableWrapper>
+      </template>
     </p-tabs>
   </p-layout-default>
 </template>
@@ -50,7 +56,6 @@
     FlowRunResults,
     FlowRunFilteredList,
     useFavicon,
-    useWorkspaceApi,
     useDeployment,
     getSchemaValuesWithDefaultsJson,
     CopyableWrapper,
@@ -58,19 +63,22 @@
     useTabs,
     httpStatus,
     useFlowRun,
-    useFlowRunsFilter
+    useFlowRunsFilter,
+    stringify
   } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, watchEffect } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunGraphs from '@/components/FlowRunGraphs.vue'
+  import { useCan } from '@/compositions/useCan'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
+
+  const can = useCan()
 
   const router = useRouter()
   const flowRunId = useRouteParam('flowRunId')
 
-  const api = useWorkspaceApi()
   const { flowRun, subscription: flowRunSubscription } = useFlowRun(flowRunId, { interval: 5000 })
   const deploymentId = computed(() => flowRun.value?.deploymentId)
   const { deployment } = useDeployment(deploymentId)
@@ -78,6 +86,9 @@
   const isPending = computed(() => {
     return flowRun.value?.stateType ? isPendingStateType(flowRun.value.stateType) : true
   })
+
+  const jobVariables = computed(() => stringify(flowRun.value?.jobVariables ?? {}))
+
   const computedTabs = computed(() => [
     { label: 'Logs' },
     { label: 'Task Runs', hidden: isPending.value },
@@ -86,6 +97,7 @@
     { label: 'Artifacts', hidden: isPending.value },
     { label: 'Details' },
     { label: 'Parameters' },
+    { label: 'Job Variables', hidden: !can.access.flowRunInfraOverrides },
   ])
   const tab = useRouteQueryParam('tab', 'Logs')
   const { tabs } = useTabs(computedTabs, tab)
@@ -144,6 +156,7 @@
   xl:hidden
 }
 
+.flow-run__job-variables,
 .flow-run__parameters { @apply
   px-4
   py-3

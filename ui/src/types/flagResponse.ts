@@ -5,3 +5,4 @@ export type FlagResponse =
 | 'deployment_status'
 | 'work_queue_status'
 | 'enhanced_deployment_parameters'
+| 'flow_run_infra_overrides'
