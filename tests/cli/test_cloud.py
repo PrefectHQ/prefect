@@ -776,17 +776,14 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
         ["cloud", "login"],
         expected_code=0,
         user_input=(
-            # No, do not reauth
-            "n"
-            + readchar.key.ENTER
             # Yes, switch profiles
-            + "y"
+            "y"
             + readchar.key.ENTER
             # Use the first profile
             + readchar.key.ENTER
         ),
         expected_output_contains=[
-            "? Would you like to switch to an authenticated profile? [Y/n]:",
+            "? Would you like to switch profiles? [Y/n]:",
             "? Which authenticated profile would you like to switch to?",
             "logged-in-profile",
             "Switched to authenticated profile 'logged-in-profile'.",
@@ -837,17 +834,14 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_m
         ["cloud", "login"],
         expected_code=1,
         user_input=(
-            # No, do not reauth
-            "n"
-            + readchar.key.ENTER
             # Yes, switch profiles
-            + "y"
+            "y"
             + readchar.key.ENTER
             # Abort!
             + readchar.key.CTRL_C
         ),
         expected_output_contains=[
-            "? Would you like to switch to an authenticated profile? [Y/n]:",
+            "? Would you like to switch profiles? [Y/n]:",
             "? Which authenticated profile would you like to switch to?",
             "logged-in-profile",
             "Aborted",
