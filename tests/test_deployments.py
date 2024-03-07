@@ -11,6 +11,8 @@ import yaml
 from httpx import Response
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import RRuleSchedule
 
 if HAS_PYDANTIC_V2:
@@ -145,6 +147,21 @@ class TestDeploymentBasicInterface:
                 schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1;COUNT=1"),
             )
 
+    def test_schedules_rrule_count_param_raises(self):
+        with pytest.raises(
+            ValueError,
+            match="RRule schedules with `COUNT` are not supported.",
+        ):
+            Deployment(
+                name="foo",
+                schedules=[
+                    MinimalDeploymentSchedule(
+                        schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1;COUNT=1"),
+                        active=True,
+                    )
+                ],
+            )
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
@@ -161,6 +178,12 @@ class TestDeploymentLoad:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"limits.cpu": 24},
             storage_document_id=storage_document_id,
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                    active=True,
+                )
+            ],
         )
 
         d = Deployment(name="My Deployment", flow_name=flow.name)
@@ -180,6 +203,12 @@ class TestDeploymentLoad:
         assert d.tags == ["foo"]
         assert d.parameters == {"foo": "bar"}
         assert d.infra_overrides == {"limits.cpu": 24}
+        assert d.schedules == [
+            MinimalDeploymentSchedule(
+                schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                active=True,
+            )
+        ]
 
         infra_document = await prefect_client.read_block_document(
             infrastructure_document_id
@@ -208,7 +237,16 @@ class TestDeploymentLoad:
         )
 
         d = Deployment(
-            name="My Deployment", flow_name=flow.name, version="ABC", storage=None
+            name="My Deployment",
+            flow_name=flow.name,
+            version="ABC",
+            storage=None,
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                    active=True,
+                )
+            ],
         )
         assert await d.load()
 
@@ -220,6 +258,12 @@ class TestDeploymentLoad:
         assert d.tags == ["foo"]
         assert d.parameters == {"foo": "bar"}
         assert d.infra_overrides == {"limits.cpu": 24}
+        assert d.schedules == [
+            MinimalDeploymentSchedule(
+                schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                active=True,
+            )
+        ]
 
         infra_document = await prefect_client.read_block_document(
             infrastructure_document_id
@@ -483,6 +527,12 @@ class TestYAML:
             storage=storage,
             infrastructure=infrastructure,
             tags=["A", "B"],
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                    active=True,
+                )
+            ],
         )
         yaml_path = str(tmp_path / "dep.yaml")
         d.to_yaml(yaml_path)
@@ -494,6 +544,12 @@ class TestYAML:
         assert new_d.flow_name == "test"
         assert new_d.storage == storage
         assert new_d.infrastructure == infrastructure
+        assert new_d.schedules == [
+            MinimalDeploymentSchedule(
+                schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                active=True,
+            )
+        ]
 
     @pytest.mark.parametrize(
         "is_schedule_active",
@@ -660,6 +716,75 @@ class TestDeploymentApply:
         queue_name = d.work_queue_name
         work_queue = await prefect_client.read_work_queue_by_name(queue_name)
         assert work_queue.concurrency_limit == 424242
+
+    async def test_deployment_apply_updates_schedules(
+        self,
+        patch_import,
+        tmp_path,
+        prefect_client,
+    ):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                    active=True,
+                )
+            ],
+        )
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        assert len(dep.schedules) == 1
+        assert dep.schedules[0].schedule == RRuleSchedule(
+            rrule="FREQ=HOURLY;INTERVAL=1"
+        )
+        assert dep.schedules[0].active is True
+
+    async def test_deployment_build_from_flow_clears_multiple_schedules(
+        self,
+        patch_import,
+        flow_function,
+        tmp_path,
+        prefect_client,
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="TEST",
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
+                    active=True,
+                ),
+                MinimalDeploymentSchedule(
+                    schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=60"),
+                    active=True,
+                ),
+            ],
+        )
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        expected_rrules = {"FREQ=HOURLY;INTERVAL=1", "FREQ=HOURLY;INTERVAL=60"}
+
+        assert dep.schedule
+        assert set([s.schedule.rrule for s in dep.schedules]) == expected_rrules
+
+        # Apply an empty list of schedules to clear schedules.
+        d2 = await Deployment.build_from_flow(
+            flow_function,
+            name="TEST",
+            schedules=[],
+        )
+        await d2.apply()
+        assert d2.schedules == []
+        assert d2.schedule is None
+
+        # Check the API to make sure the schedules are cleared there, too.
+        modified_dep = await prefect_client.read_deployment(dep_id)
+        assert modified_dep.schedules == []
+        assert modified_dep.schedule is None
 
     @pytest.mark.parametrize(
         "provided, expected",
@@ -856,14 +981,15 @@ class TestRunDeployment:
             )
 
             assert (
-                await run_deployment(
-                    f"{d.flow_name}/{d.name}",
-                    timeout=2,
-                    poll_interval=0,
-                )
-            ).state.type == terminal_state, (
-                "run_deployment does not exit on {terminal_state}"
-            )
+                (
+                    await run_deployment(
+                        f"{d.flow_name}/{d.name}",
+                        timeout=2,
+                        poll_interval=0,
+                    )
+                ).state.type
+                == terminal_state
+            ), "run_deployment does not exit on {terminal_state}"
             assert len(flow_polls.calls) == 3
 
     async def test_run_deployment_with_ephemeral_api(

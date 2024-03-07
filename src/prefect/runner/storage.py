@@ -1,10 +1,6 @@
-import importlib
-import inspect
 import shutil
 import subprocess
-import tempfile
 from copy import deepcopy
-from importlib import import_module
 from pathlib import Path
 from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
 from urllib.parse import urlparse, urlsplit, urlunparse
@@ -25,7 +21,6 @@ if HAS_PYDANTIC_V2:
     from pydantic.v1 import SecretStr
 else:
     from pydantic import SecretStr
-import ast
 
 
 @runtime_checkable
@@ -566,140 +561,6 @@ class BlockStorageAdapter:
     def __eq__(self, __value) -> bool:
         if isinstance(__value, BlockStorageAdapter):
             return self._block == __value._block
-        return False
-
-
-class ModuleFunction:
-    """
-    Copies a decorated function from a specified Python module to a specified directory.
-
-    Parameters:
-        module: The import path of the module containing the function.
-        function_name: The name of the function to copy.
-        storage_base_path: Optional path to the base directory where the function will be copied.
-                           If None, a new temporary directory will be used as the base.
-
-    Examples:
-        Copy the 'start' function from prefect.cli.command to a specified directory:
-
-        ```python
-        copier = ModuleFunction(module="prefect.cli.command", function_name="start", storage_base_path="/path/to/storage")
-        copier.copy_function()
-        ```
-    """
-
-    def __init__(
-        self,
-        module: str,
-        function_name: str,
-        package: Optional[str] = None,
-        storage_base_path: Optional[str] = None,
-        name: Optional[str] = None,
-    ):
-        """
-        Initialize a Storage object.
-
-        Args:
-            module (str): The module containing the function to be stored.
-            function_name (str): The name of the function to be stored.
-            package (Optional[str], optional): The package containing the module. Defaults to None.
-            storage_base_path (Optional[str], optional): The base path for storing the function. Defaults to None.
-            name (Optional[str], optional): The name of the storage object. Defaults to None.
-        """
-        self.module = module  # to_qualified_name(module)
-        self.function_name = function_name
-        self._storage_base_path = (
-            Path(storage_base_path) if storage_base_path else Path(tempfile.mkdtemp())
-        )
-        default_name = f"{module}:{function_name}"
-        self._name = name or default_name
-        self._logger = get_logger(f"runner.storage.module-function.{self._name}")
-
-    def set_base_path(self, path: Path):
-        self._storage_base_path = path
-
-    @property
-    def pull_interval(self) -> Optional[int]:
-        return None
-
-    @property
-    def destination(self) -> Path:
-        return self._storage_base_path
-
-    async def pull_code(self):
-        """
-        Copies the specified function's source code to the storage base path.
-        """
-        module = import_module(self.module)
-        function = getattr(module, self.function_name, None)
-        if function is None:
-            raise ValueError(
-                f"Function '{self.function_name}' not found in module '{self.module}'."
-            )
-
-        # Function to find import statements
-        def find_imports(module_name):
-            """
-            Extracts all import statements from the given module.
-
-            Parameters:
-            - module_name: str - The name of the module as a string.
-
-            Returns:
-            - List of import statements as strings.
-            """
-            module = importlib.import_module(module_name)
-
-            with open(module.__file__, "r") as file:
-                module_source = file.read()
-
-            parsed_ast = ast.parse(module_source)
-
-            def find_imports(node):
-                imports = []
-                for child in ast.iter_child_nodes(node):
-                    if isinstance(child, ast.Import):
-                        for name in child.names:
-                            imports.append(
-                                f"import {name.name}"
-                                + (f" as {name.asname}" if name.asname else "")
-                            )
-                    elif isinstance(child, ast.ImportFrom):
-                        for name in child.names:
-                            imports.append(
-                                f"from {child.module} import {name.name}"
-                                + (f" as {name.asname}" if name.asname else "")
-                            )
-                    imports.extend(find_imports(child))
-                return imports
-
-            import_statements = find_imports(parsed_ast)
-
-            return list(set(import_statements))
-
-        import_statements = find_imports(self.module)
-        function_source = inspect.getsource(getattr(module, self.function_name))
-
-        script_string = "\n".join(import_statements) + "\n\n" + function_source
-        file_name = f"{self.destination}/{self.function_name}.py"
-        with open(file_name, "w") as f:
-            f.write(script_string)
-            self._logger.debug(f"Function {self.function_name} copied to {file_name}")
-
-    def to_pull_step(self):
-        return {
-            "prefect.deployments.steps.copy_function": {
-                "module": self.module,
-                "function_name": self.function_name,
-            }
-        }
-
-    def __eq__(self, __value) -> bool:
-        if isinstance(__value, ModuleFunction):
-            return (
-                self.module == __value.module
-                and self.function_name == __value.function_name
-            )
         return False
 
 

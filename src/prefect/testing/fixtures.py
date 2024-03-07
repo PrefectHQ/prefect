@@ -10,7 +10,7 @@ import anyio
 import httpx
 import pendulum
 import pytest
-from starlette.status import WS_1008_POLICY_VIOLATION
+from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
@@ -299,6 +299,11 @@ async def events_server(
 @pytest.fixture
 def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
     return f"http://localhost:{unused_tcp_port}/accounts/A/workspaces/W"
+
+
+@pytest.fixture
+def mock_emit_events_to_cloud(monkeypatch):
+    monkeypatch.setattr("prefect.events.utilities.emit_events_to_cloud", lambda: True)
 
 
 @pytest.fixture

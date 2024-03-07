@@ -14,12 +14,16 @@ search:
 
 # Automations <span class="badge cloud"></span>
 
-Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work pools.
+Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions.
 
-Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
+Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can event define your own custom trigger to fire based on an [event](/cloud/events/) created from a webhook or a custom event defined in Python code. 
+
+Potential actions include kicking off flow runs, pausing schedules, and sending custom notifications.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
     [Notifications](/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
+
+Automations provide a flexible and powerful framework for automatically taking action in response to events.
 
 ## Automations overview
 
@@ -48,18 +52,20 @@ Triggers specify the conditions under which your action should be performed. Tri
 - Flow run state change
   - Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work pool status
+- Work queue status
 - Deployment status
 - Metric thresholds, such as average duration, lateness, or completion percentage
+- Incident declarations (available on Pro and Enterprise plans)
 - Custom event triggers
 
 !!! note "Automations API"
     The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
 
-Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
+Importantly, triggers can be configured not only in reaction to events, but also proactively: to fire in the absence of an expected event.
 
 ![Configuring a trigger for an automation in Prefect Cloud.](/img/ui/automations-trigger.png)
 
-For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
+For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be taken on the flow itself, such as canceling or restarting it. Or the action could take the form of a notification so someone can take manual remediation steps. Or you could set both actions to to take place when the trigger occurs.
 
 
 ### Actions
@@ -67,14 +73,16 @@ For example, in the case of flow run state change triggers, you might expect pro
 Actions specify what your automation does when its trigger criteria are met. Current action types include:
 
 - Cancel a flow run
-- Pause a flow run
+- Pause or resume a schedule
 - Run a deployment
 - Pause or resume a deployment schedule
+- Pause or resume a work pool
 - Pause or resume a work queue
 - Pause or resume an automation
 - Send a [notification](#automation-notifications)
 - Call a webhook
-- Open an incident
+- Suspend a flow run
+- Declare an incident (available on Pro and Enterprise plans)
 
 ![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
 

@@ -39,6 +39,7 @@ settings to be dynamically modified on retrieval. This allows us to make setting
 dependent on the value of other settings or perform other dynamic effects.
 
 """
+
 import logging
 import os
 import string
@@ -389,42 +390,6 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
-def check_for_deprecated_runner_server_host(settings, value):
-    deprecated_value = PREFECT_WORKER_WEBSERVER_HOST.value_from(
-        settings, bypass_callback=True
-    )
-    if deprecated_value is not None:
-        warnings.warn(
-            (
-                "`PREFECT_WORKER_WEBSERVER_HOST` is set and will be used instead of"
-                " `PREFECT_RUNNER_SERVER_HOST` for backwards compatibility."
-                " `PREFECT_WORKER_WEBSERVER_HOST` is deprecated, set"
-                " `PREFECT_RUNNER_SERVER_HOST` instead."
-            ),
-            DeprecationWarning,
-        )
-
-    return deprecated_value or value
-
-
-def check_for_deprecated_runner_server_port(settings, value):
-    deprecated_value = PREFECT_WORKER_WEBSERVER_PORT.value_from(
-        settings, bypass_callback=True
-    )
-    if deprecated_value is not None:
-        warnings.warn(
-            (
-                "`PREFECT_WORKER_WEBSERVER_PORT` is set and will be used instead of"
-                " `PREFECT_RUNNER_SERVER_PORT` for backwards compatibility."
-                " `PREFECT_WORKER_WEBSERVER_PORT` is deprecated, set"
-                " `PREFECT_RUNNER_SERVER_PORT` instead."
-            ),
-            DeprecationWarning,
-        )
-
-    return deprecated_value or value
-
-
 def warn_on_misconfigured_api_url(values):
     """
     Validator for settings warning if the API URL is misconfigured.
@@ -456,9 +421,7 @@ def warn_on_misconfigured_api_url(values):
             )
 
         if warnings_list:
-            example = (
-                'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
-            )
+            example = 'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
             warnings_list.append(example)
 
             warnings.warn("\n".join(warnings_list), stacklevel=2)
@@ -635,6 +598,15 @@ PREFECT_API_URL = Setting(
 If provided, the URL of a hosted Prefect API. Defaults to `None`.
 
 When using Prefect Cloud, this will include an account and workspace.
+"""
+
+PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+we would like to silence this warning so we will set it to `FALSE`.
 """
 
 PREFECT_API_KEY = Setting(
@@ -1313,6 +1285,21 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 The maximum size of a flow run graph on the v2 API
 """
 
+PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
+"""
+The maximum number of artifacts to show on a flow run graph on the v2 API
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=False)
+"""
+Whether or not to enable artifacts on the flow run graph.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=False)
+"""
+Whether or not to enable flow run states on the flow run graph.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1393,20 +1380,12 @@ PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE = Setting(int, default=2)
 Number of missed polls before a runner is considered unhealthy by its webserver.
 """
 
-PREFECT_RUNNER_SERVER_HOST = Setting(
-    str,
-    default="localhost",
-    value_callback=check_for_deprecated_runner_server_host,
-)
+PREFECT_RUNNER_SERVER_HOST = Setting(str, default="localhost")
 """
 The host address the runner's webserver should bind to.
 """
 
-PREFECT_RUNNER_SERVER_PORT = Setting(
-    int,
-    default=8080,
-    value_callback=check_for_deprecated_runner_server_port,
-)
+PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8080)
 """
 The port the runner's webserver should bind to.
 """
@@ -1439,10 +1418,7 @@ Can be used to compensate for infrastructure start up time for a worker.
 
 PREFECT_WORKER_WEBSERVER_HOST = Setting(
     str,
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Jan 2024",
-    deprecated_help="Use `PREFECT_RUNNER_SERVER_HOST` instead",
+    default="0.0.0.0",
 )
 """
 The host address the worker's webserver should bind to.
@@ -1450,20 +1426,67 @@ The host address the worker's webserver should bind to.
 
 PREFECT_WORKER_WEBSERVER_PORT = Setting(
     int,
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Jan 2024",
-    deprecated_help="Use `PREFECT_RUNNER_SERVER_PORT` instead",
+    default=8080,
 )
 """
 The port the worker's webserver should bind to.
+"""
+
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
+    str,
+    default="local-file-system/prefect-task-scheduling",
+)
+"""The `block-type/block-document` slug of a block to use as the default storage
+for autonomous tasks."""
+
+PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
+    bool,
+    default=True,
+)
+"""
+Whether or not to delete failed task submissions from the database.
+"""
+
+PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE = Setting(
+    int,
+    default=1000,
+)
+"""
+The maximum number of scheduled tasks to queue for submission.
+"""
+
+PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
+    int,
+    default=100,
+)
+"""
+The maximum number of retries to queue for submission.
+"""
+
+PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
+    timedelta,
+    default=timedelta(seconds=30),
+)
+"""
+How long before a PENDING task are made available to another task server.  In practice,
+a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task server may have crashed.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
+"""
+Whether or not to enable infrastructure overrides made on flow runs.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=True)
+"""
+Whether or not to warn infrastructure when experimental flow runs overrides are used.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
 """
-
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
@@ -1484,6 +1507,22 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
+
+PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
+"""
+Whether or not to enable experimental task scheduling.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
+"""
+Whether or not to enable experimental work queue status in-place of work queue health.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = Setting(bool, default=True)
+"""
+Whether or not to enable the enhanced scheduling UI.
+"""
+
 
 # Defaults -----------------------------------------------------------------------------
 
@@ -1607,7 +1646,8 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
-        values = warn_on_misconfigured_api_url(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(

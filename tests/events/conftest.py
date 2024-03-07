@@ -9,6 +9,11 @@ def reset_asserting_events_client():
     AssertingEventsClient.reset()
 
 
+@pytest.fixture(autouse=True)
+def mock_emit_events_to_cloud(mock_emit_events_to_cloud):
+    yield
+
+
 @pytest.fixture
 def example_event_1() -> Event:
     return Event(

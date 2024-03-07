@@ -13,7 +13,12 @@ export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag
       return "access:artifacts"
     case "deployment_status":
       return "access:deploymentStatus"
+    case "work_queue_status":
+      return "access:workQueueStatus"
+    case "enhanced_scheduling_ui":
+      return "access:enhancedSchedulingUi"
     default:
+      const exhaustiveCheck: never = source
       return null
   }
 }

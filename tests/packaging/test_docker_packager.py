@@ -18,9 +18,10 @@ from prefect.utilities.dockerutils import (
 
 from . import howdy
 
-pytestmark = pytest.mark.skip(
-    reason="These tests are incredibly brittle and causing noise."
-)
+pytestmark = [
+    pytest.mark.skip(reason="These tests are incredibly brittle and causing noise."),
+    pytest.mark.timeout(120.0),
+]
 with silence_docker_warnings():
     from docker import DockerClient
     from docker.models.containers import Container
@@ -190,7 +191,6 @@ async def test_packager_sets_manifest_flow_parameter_schema(howdy_context: Path)
 
 
 @pytest.mark.service("docker")
-@pytest.mark.flaky(max_runs=3)
 async def test_unpackaging_inside_container(
     prefect_base_image: str, docker: DockerClient
 ):
@@ -206,7 +206,6 @@ async def test_unpackaging_inside_container(
 
 
 @pytest.mark.service("docker")
-@pytest.mark.flaky(max_runs=3)
 async def test_custom_dockerfile_unpackaging(howdy_context: Path, docker: DockerClient):
     packager = DockerPackager(
         dockerfile=howdy_context / "Dockerfile",
