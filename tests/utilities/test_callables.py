@@ -214,6 +214,26 @@ class TestFunctionToSchema:
                 "type": "object",
                 "properties": {
                     "x": {
+                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        "default": "RED",
+                        "position": 0,
+                        "title": "x",
+                    }
+                },
+                "definitions": {
+                    "Color": {
+                        "enum": ["RED", "GREEN", "BLUE"],
+                        "title": "Color",
+                        "type": "string",
+                    }
+                },
+            }
+        else:
+            expected_schema = {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "x": {
                         "title": "x",
                         "default": "RED",
                         "allOf": [{"$ref": "#/definitions/Color"}],
@@ -229,26 +249,6 @@ class TestFunctionToSchema:
                             "GREEN",
                             "BLUE",
                         ],
-                    }
-                },
-            }
-        else:
-            expected_schema = {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "allOf": [{"$ref": "#/definitions/Color"}],
-                        "default": "RED",
-                        "position": 0,
-                        "title": "x",
-                    }
-                },
-                "definitions": {
-                    "Color": {
-                        "enum": ["RED", "GREEN", "BLUE"],
-                        "title": "Color",
-                        "type": "string",
                     }
                 },
             }
