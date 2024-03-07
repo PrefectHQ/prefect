@@ -38,14 +38,14 @@ See the following PRs for implementation details:
 - Allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
 
 ### Integrations
-- Add `prefect-soda-cloud` integration — https://github.com/PrefectHQ/prefect/pull/12208
 - Fix VPC Connector usage in Cloud Run Worker v2 - https://github.com/PrefectHQ/prefect-gcp/pull/252
 
 ### Documentation
 - Add advanced example to CI/CD guide — https://github.com/PrefectHQ/prefect/pull/12188
-- Update Prefect self-hosted guide to clarify PostgreSQL Docker instructions — https://github.com/PrefectHQ/prefect/pull/12164
 - Add keyword for search to deployments concept doc — https://github.com/PrefectHQ/prefect/pull/12178
 - Add a `prefect-client` README — https://github.com/PrefectHQ/prefect/pull/12172
+- Add `prefect-soda-cloud` integration — https://github.com/PrefectHQ/prefect/pull/12208
+- Update Prefect self-hosted guide to clarify PostgreSQL Docker instructions — https://github.com/PrefectHQ/prefect/pull/12164
 - Update README example — https://github.com/PrefectHQ/prefect/pull/12167
 - Remove outdated sqlite version info from install docs — https://github.com/PrefectHQ/prefect/pull/12162
 
