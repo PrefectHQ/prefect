@@ -956,7 +956,6 @@ async def orchestrate_flow_run(
                     f"Received non-final state {state.name!r} when proposing final"
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
-                extra={"send_to_api": False},
             )
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
@@ -2216,7 +2215,6 @@ async def orchestrate_task_run(
                         f" state {terminal_state.name!r} and will attempt to run"
                         " again..."
                     ),
-                    extra={"send_to_api": False},
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
