@@ -17,6 +17,8 @@ export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag
       return 'access:workQueueStatus'
     case 'enhanced_deployment_parameters':
       return 'access:schemasV2'
+    case 'flow_run_infra_overrides':
+      return 'access:flowRunInfraOverrides'
     default:
       const exhaustiveCheck: never = source
       return null
