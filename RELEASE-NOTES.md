@@ -23,7 +23,6 @@ See the following PRs for implementation details:
 - Add flow run state data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12130 
 - Add schedules shorthand support to `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12181
 - Send flow run and task run retry logs to API — https://github.com/PrefectHQ/prefect/pull/12211
-- Allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
 - Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166 - asked Brandon
 - Add a paused deployment filter and update `is_schedule_active` filter — https://github.com/PrefectHQ/prefect/pull/12202
 - Updating client-side schemas for automation triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
@@ -36,6 +35,7 @@ See the following PRs for implementation details:
 - Add support for calling `.map` for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
 - Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
 - Add better parity with Prefect Cloud for task scheduling protocol - https://github.com/PrefectHQ/prefect/pull/12212
+- Allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
 
 ### Integrations
 - Add `prefect-soda-cloud` integration — https://github.com/PrefectHQ/prefect/pull/12208
