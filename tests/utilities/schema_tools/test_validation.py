@@ -15,6 +15,7 @@ from prefect.utilities.schema_tools.validation import (
     build_error_obj,
     is_valid,
     preprocess_schema,
+    prioritize_placeholder_errors,
     validate,
 )
 
@@ -740,6 +741,38 @@ class TestNestedObject:
     def test_validate(self, schema, obj, expected_errors):
         errors = validate(obj, schema)
         assert [e.message for e in errors] == expected_errors
+
+
+class TestPrioritizePlaceholderErrors:
+    def test_prioritize_placeholder_errors(self):
+        errors = [
+            # error we want to throw away
+            MockValidationError(
+                message="InvalidJSON() is not of type 'string",
+                relative_path=["x"],
+                instance=InvalidJSON(),
+                validator="type",
+            ),
+            # error we want to keep
+            MockValidationError(
+                message="Invalid JSON: Unterminated string starting at: line 1 column 1 (char 0)",
+                relative_path=["x"],
+                instance=InvalidJSON(),
+                validator="_placeholders",
+            ),
+            # unrelated error
+            MockValidationError(
+                message="1 is not of type 'string",
+                relative_path=["y"],
+                instance=1,
+                validator="type",
+            ),
+        ]
+        prioritized_errors = prioritize_placeholder_errors(errors)
+        assert len(prioritized_errors) == 2
+        assert prioritized_errors[0].validator == "_placeholders"
+        assert prioritized_errors[1].validator == "type"
+        assert prioritized_errors[1].instance == 1
 
 
 class TestBuildErrorObject:
