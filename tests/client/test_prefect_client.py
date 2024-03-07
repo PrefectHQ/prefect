@@ -986,18 +986,21 @@ async def test_create_flow_run_from_deployment_idempotency(prefect_client, deplo
 
 
 async def test_create_flow_run_from_deployment_with_options(prefect_client, deployment):
+    job_variables = {"foo": "bar"}
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment.id,
         name="test-run-name",
         tags={"foo", "bar"},
         state=Pending(message="test"),
         parameters={"foo": "bar"},
+        job_variables=job_variables,
     )
     assert flow_run.name == "test-run-name"
     assert set(flow_run.tags) == {"foo", "bar"}.union(deployment.tags)
     assert flow_run.state.type == StateType.PENDING
     assert flow_run.state.message == "test"
     assert flow_run.parameters == {"foo": "bar"}
+    assert flow_run.job_variables == job_variables
 
 
 async def test_update_flow_run(prefect_client):
