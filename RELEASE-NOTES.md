@@ -33,7 +33,8 @@ See the following PRs for implementation details:
 - Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
 
 ### Integrations
-- Added prefect-soda-cloud integration — https://github.com/PrefectHQ/prefect/pull/12208
+- Add prefect-soda-cloud integration — https://github.com/PrefectHQ/prefect/pull/12208
+- Fix VPC Connector usage in Cloud Run Worker v2 - https://github.com/PrefectHQ/prefect-gcp/pull/252
 
 ### Documentation
 - Add advanced example to CI/CD guide — https://github.com/PrefectHQ/prefect/pull/12188
