@@ -10,22 +10,21 @@ See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12179
 - https://github.com/PrefectHQ/prefect/pull/12186
 - https://github.com/PrefectHQ/prefect/pull/12187
-
+- https://github.com/PrefectHQ/prefect/pull/12182
 
 
 ### Enhancements
 - Adds `on_running` state change hook — https://github.com/PrefectHQ/prefect/pull/12153
-- Enhancement: Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166
-- Add flow run state data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12130
-- allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
-- [task scheduling] map autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
-- update aggregate worker metadata view — https://github.com/PrefectHQ/prefect/pull/12183
+- Add flow run state data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12130 
 - Add schedules shorthand support to `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12181
-- Experimental enhanced deployment parameters UI — https://github.com/PrefectHQ/prefect/pull/12182
-- Create `DeploymentFilterPaused` and update legacy filter — https://github.com/PrefectHQ/prefect/pull/12202
-- Updating client-side schemas for Triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
-- Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
 - Send flow run and task run retry logs to API — https://github.com/PrefectHQ/prefect/pull/12211
+- Allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
+- Add support for calling `.map` for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
+- Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
+- Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166 - asked Brandon
+- Add a paused deployment filter and update `is_schedule_active` filter — https://github.com/PrefectHQ/prefect/pull/12202
+- Updating client-side schemas for automation triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
+- Update aggregate worker metadata view — https://github.com/PrefectHQ/prefect/pull/12183
 
 ### Fixes
 - Address two memory leak in concurrency management — https://github.com/PrefectHQ/prefect/pull/12141
