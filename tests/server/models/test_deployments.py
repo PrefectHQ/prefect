@@ -388,6 +388,7 @@ class TestReadDeployments:
                 name="My Deployment",
                 manifest_path="file.json",
                 flow_id=flow.id,
+                paused=False,
                 is_schedule_active=True,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -400,6 +401,7 @@ class TestReadDeployments:
                 manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["tb12"],
+                paused=False,
                 is_schedule_active=True,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -412,6 +414,7 @@ class TestReadDeployments:
                 manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["tb12", "goat"],
+                paused=True,
                 is_schedule_active=False,
             ),
         )
@@ -460,6 +463,17 @@ class TestReadDeployments:
             ),
         )
         assert {res.id for res in result} == {deployment_id_2}
+
+    async def test_read_deployment_filters_by_paused(
+        self, filter_data, deployment_id_3, session
+    ):
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                paused=filters.DeploymentFilterPaused(eq_=True)
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_3}
 
     async def test_read_deployment_filters_by_schedule_active(
         self, filter_data, deployment_id_3, session
