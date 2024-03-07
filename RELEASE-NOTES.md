@@ -2,13 +2,30 @@
 
 ## Release 2.16.3
 
+### Highlight
+
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12168
+- https://github.com/PrefectHQ/prefect/pull/12179
+- https://github.com/PrefectHQ/prefect/pull/12186
+- https://github.com/PrefectHQ/prefect/pull/12187
+
+
+
 ### Enhancements
+- Adds `on_running` state change hook — https://github.com/PrefectHQ/prefect/pull/12153
+- Enhancement: Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166
 - Add flow run state data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12130
+- allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
+- [task scheduling] map autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
+- update aggregate worker metadata view — https://github.com/PrefectHQ/prefect/pull/12183
 - Add schedules shorthand support to `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12181
 - Experimental enhanced deployment parameters UI — https://github.com/PrefectHQ/prefect/pull/12182
 - Create `DeploymentFilterPaused` and update legacy filter — https://github.com/PrefectHQ/prefect/pull/12202
-- Adds an on_running state change hook — https://github.com/PrefectHQ/prefect/pull/12153
+- Updating client-side schemas for Triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
 - Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
+- Send flow run and task run retry logs to API — https://github.com/PrefectHQ/prefect/pull/12211
 
 ### Fixes
 - Fix two memory leaks — https://github.com/PrefectHQ/prefect/pull/12141
@@ -17,24 +34,16 @@
 - Expose flow run job vars on page — https://github.com/PrefectHQ/prefect/pull/12206
 
 ### Documentation
-- Update Prefect Server guide to clarify PostgreSQL Docker instructions — https://github.com/PrefectHQ/prefect/pull/12164
-- Remove outdated sqlite version info from install docs — https://github.com/PrefectHQ/prefect/pull/12162
+- Add advanced example to CI/CD guide — https://github.com/PrefectHQ/prefect/pull/12188
+- Update Prefect self-hosted guide to clarify PostgreSQL Docker instructions — https://github.com/PrefectHQ/prefect/pull/12164
 - Add keyword for search to deployments concept doc — https://github.com/PrefectHQ/prefect/pull/12178
 - Add a `prefect-client` README — https://github.com/PrefectHQ/prefect/pull/12172
-- Add advanced example to CI/CD guide — https://github.com/PrefectHQ/prefect/pull/12188
+- Update README example — https://github.com/PrefectHQ/prefect/pull/12167
+- Remove outdated sqlite version info from install docs — https://github.com/PrefectHQ/prefect/pull/12162
 
 ### Uncategorized
-- Enhancement: Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166
-- allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
-- [task scheduling] map autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
-- port schema tools to OSS — https://github.com/PrefectHQ/prefect/pull/12168
-- update aggregate worker metadata view — https://github.com/PrefectHQ/prefect/pull/12183
 - schema validation endpoint — https://github.com/PrefectHQ/prefect/pull/12179
-- minor update to language in hero example — https://github.com/PrefectHQ/prefect/pull/12167
-- Enhanced deployment params create run — https://github.com/PrefectHQ/prefect/pull/12186
-- update deployment — https://github.com/PrefectHQ/prefect/pull/12187
 - Added prefect-soda-cloud integration — https://github.com/PrefectHQ/prefect/pull/12208
-- Updating client-side schemas for Triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
 
 ### Contributors
 - @AlessandroLollo
