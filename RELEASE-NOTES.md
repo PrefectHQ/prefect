@@ -6,7 +6,9 @@
 
 We’ve refined the deployment parameters UI to significantly enhance default value handling and list management. This release introduces support for tuple-type parameters and a revamped list UI, freeing users from the constraints of JSON for list inputs. You now have the flexibility to utilize JSON or Prefect variables for any parameter value, enhancing the versatility of deployment configurations. Moreover, we’ve synchronized validation across the UI and deployment schemas, ensuring that user inputs are consistently checked against the defined parameter requirements, which simplifies the deployment process and minimizes configuration errors.
 
-These improvements are aimed at providing a more efficient and user-friendly interface for managing deployment parameters.
+These improvements are aimed at providing a more efficient and user-friendly interface for managing deployment parameters. Check it out for yourself!
+
+<img width="791" alt="paramsui" src="https://github.com/PrefectHQ/prefect/assets/42048900/d95c854f-1b95-46fb-8214-9132c923214f">
 
 See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12168
