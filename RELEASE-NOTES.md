@@ -28,10 +28,10 @@ See the following PRs for implementation details:
 - Send flow run and task run retry logs to API — https://github.com/PrefectHQ/prefect/pull/12211
 
 ### Fixes
-- Fix two memory leaks — https://github.com/PrefectHQ/prefect/pull/12141
+- Address two memory leak in concurrency management — https://github.com/PrefectHQ/prefect/pull/12141
 
 ### Experimental
-- Expose flow run job vars on page — https://github.com/PrefectHQ/prefect/pull/12206
+- Add Job Variables tab to the Flow Runs page — https://github.com/PrefectHQ/prefect/pull/12206
 
 ### Integrations
 - Added prefect-soda-cloud integration — https://github.com/PrefectHQ/prefect/pull/12208
