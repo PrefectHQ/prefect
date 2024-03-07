@@ -165,6 +165,7 @@ nav:
     - How-to Guides:
           - guides/index.md
           - Development:
+                - Managing Task Dependenices: guides/managing-task-dependencies.md
                 - Hosting: guides/host.md
                 - Profiles & Settings: guides/settings.md
                 - Testing: guides/testing.md
