@@ -183,6 +183,7 @@ class Flow(Generic[P, R]):
         on_completion: An optional list of callables to run when the flow enters a completed state.
         on_cancellation: An optional list of callables to run when the flow enters a cancelling state.
         on_crashed: An optional list of callables to run when the flow enters a crashed state.
+        on_running: An optional list of callables to run when the flow enters a running state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -212,6 +213,7 @@ class Flow(Generic[P, R]):
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
         if name is not None and not isinstance(name, str):
             raise TypeError(
@@ -227,8 +229,20 @@ class Flow(Generic[P, R]):
             )
 
         # Validate if hook passed is list and contains callables
-        hook_categories = [on_completion, on_failure, on_cancellation, on_crashed]
-        hook_names = ["on_completion", "on_failure", "on_cancellation", "on_crashed"]
+        hook_categories = [
+            on_completion,
+            on_failure,
+            on_cancellation,
+            on_crashed,
+            on_running,
+        ]
+        hook_names = [
+            "on_completion",
+            "on_failure",
+            "on_cancellation",
+            "on_crashed",
+            "on_running",
+        ]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
                 if not hooks:
@@ -350,6 +364,7 @@ class Flow(Generic[P, R]):
         self.on_failure = on_failure
         self.on_cancellation = on_cancellation
         self.on_crashed = on_crashed
+        self.on_running = on_running
 
         # Used for flows loaded from remote storage
         self._storage: Optional[RunnerStorage] = None
@@ -387,6 +402,7 @@ class Flow(Generic[P, R]):
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ) -> Self:
         """
         Create a new flow from the current object, updating provided options.
@@ -415,6 +431,7 @@ class Flow(Generic[P, R]):
             on_completion: A new list of callables to run when the flow enters a completed state.
             on_cancellation: A new list of callables to run when the flow enters a cancelling state.
             on_crashed: A new list of callables to run when the flow enters a crashed state.
+            on_running: A new list of callables to run when the flow enters a running state.
 
         Returns:
             A new `Flow` instance.
@@ -484,6 +501,7 @@ class Flow(Generic[P, R]):
             on_failure=on_failure or self.on_failure,
             on_cancellation=on_cancellation or self.on_cancellation,
             on_crashed=on_crashed or self.on_crashed,
+            on_running=on_running or self.on_running,
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint
@@ -1333,6 +1351,7 @@ def flow(
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -1360,6 +1379,7 @@ def flow(
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -1423,6 +1443,8 @@ def flow(
         on_crashed: An optional list of functions to call when the flow run crashes. Each
             function should accept three arguments: the flow, the flow run, and the
             final state of the flow run.
+        on_running: An optional list of functions to call when the flow run is started. Each
+            function should accept three arguments: the flow, the flow run, and the current state
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -1485,6 +1507,7 @@ def flow(
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
+                on_running=on_running,
             ),
         )
     else:
@@ -1510,6 +1533,7 @@ def flow(
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
+                on_running=on_running,
             ),
         )
 

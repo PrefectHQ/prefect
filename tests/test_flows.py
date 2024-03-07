@@ -3235,6 +3235,139 @@ class TestFlowHooksOnCrashed:
         my_mock.assert_not_called()
 
 
+class TestFlowHooksOnRunning:
+    def test_noniterable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_running'; got function instead. Please"
+                " provide a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=running_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_running'"):
+
+            @flow(on_running=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=[running_hook, "test"])
+            def flow2():
+                pass
+
+    def test_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, running2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_on_running_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, running2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_other_running_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def exception_hook(flow, flow_run, state):
+            raise Exception("oops")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, exception_hook, running2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_running_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_running=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+
 class TestFlowToDeployment:
     async def test_to_deployment_returns_runner_deployment(self):
         deployment = await test_flow.to_deployment(
