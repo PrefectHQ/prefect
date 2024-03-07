@@ -1,4 +1,4 @@
-from collections import deque
+from collections import defaultdict, deque
 from copy import deepcopy
 from typing import Dict, List
 
@@ -18,19 +18,20 @@ class ValidationError(Exception):
     pass
 
 
-def _build_validator():
-    validator_name = "_placeholders"
+PLACEHOLDERS_VALIDATOR_NAME = "_placeholders"
 
+
+def _build_validator():
     def _applicable_validators(schema):
         # the default implementation returns `schema.items()`
-        return {**schema, validator_name: None}.items()
+        return {**schema, PLACEHOLDERS_VALIDATOR_NAME: None}.items()
 
     def _placeholders(validator, _, instance, schema):
         if isinstance(instance, HydrationError):
             yield JSONSchemaValidationError(instance.message)
 
     validators = dict(Draft202012Validator.VALIDATORS)
-    validators.update({validator_name: _placeholders})
+    validators.update({PLACEHOLDERS_VALIDATOR_NAME: _placeholders})
 
     # It is necessary to `create` a new validator instead of using `extend` because
     # the `extend` method does not accept an `application_validators` parameter.
@@ -105,8 +106,35 @@ def is_valid(
     return len(errors) == 0
 
 
+def prioritize_placeholder_errors(errors):
+    errors_by_path = defaultdict(list)
+    for error in errors:
+        path_str = "->".join(str(p) for p in error.relative_path)
+        errors_by_path[path_str].append(error)
+
+    filtered_errors = []
+    for path, grouped_errors in errors_by_path.items():
+        placeholders_errors = [
+            error
+            for error in grouped_errors
+            if error.validator == PLACEHOLDERS_VALIDATOR_NAME
+        ]
+
+        if placeholders_errors:
+            filtered_errors.extend(placeholders_errors)
+        else:
+            filtered_errors.extend(grouped_errors)
+
+    return filtered_errors
+
+
 def build_error_obj(errors: List[JSONSchemaValidationError]) -> Dict:
     error_response: dict = {"errors": []}
+
+    # If multiple errors are present for the same path and one of them
+    # is a placeholder error, we want only want to use the placeholder error.
+    errors = prioritize_placeholder_errors(errors)
+
     for error in errors:
         # If the Placeholder is not representing an error, we can skip it
         if isinstance(error.instance, Placeholder) and not error.instance.is_error:
