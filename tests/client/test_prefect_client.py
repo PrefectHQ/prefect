@@ -68,7 +68,7 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas import Automation, Posture, Trigger
+from prefect.events.schemas import Automation, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
@@ -1943,7 +1943,7 @@ class TestAutomations:
     def automation(self):
         return Automation(
             name="test-automation",
-            trigger=Trigger(
+            trigger=EventTrigger(
                 match={"flow_run_id": "123"},
                 posture=Posture.Reactive,
                 threshold=1,

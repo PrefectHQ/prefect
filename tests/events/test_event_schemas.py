@@ -16,13 +16,13 @@ else:
 from prefect.events.actions import RunDeployment
 from prefect.events.schemas import (
     Automation,
+    AutomationCreateFromTrigger,
     DeploymentTrigger,
     Event,
+    EventTrigger,
     Posture,
     RelatedResource,
     Resource,
-    ResourceTrigger,
-    Trigger,
 )
 
 
@@ -161,7 +161,7 @@ def test_client_event_involved_resources():
 
 
 def test_resource_trigger_actions_not_implemented():
-    trigger = ResourceTrigger()
+    trigger = AutomationCreateFromTrigger()
     with pytest.raises(NotImplementedError):
         trigger.actions()
 
@@ -178,7 +178,7 @@ def test_deployment_trigger_as_automation():
         name="A deployment automation",
         description="",
         enabled=True,
-        trigger=Trigger(
+        trigger=EventTrigger(
             posture=Posture.Reactive,
             threshold=1,
             within=datetime.timedelta(0),

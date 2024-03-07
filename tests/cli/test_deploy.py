@@ -39,7 +39,7 @@ from prefect.deployments.base import (
     initialize_project,
 )
 from prefect.deployments.steps.core import StepExecutionError
-from prefect.events.schemas import Posture
+from prefect.events.schemas import DeploymentTrigger, Posture
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import (
@@ -5805,23 +5805,26 @@ class TestDeploymentTrigger:
 
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
             assert triggers == [
-                {
-                    "name": "Trigger McTriggerson",
-                    "description": "",
-                    "enabled": True,
-                    "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                    "match_related": {
-                        "prefect.resource.name": "seed",
-                        "prefect.resource.role": "flow",
-                    },
-                    "after": set(),
-                    "expect": {"prefect.flow-run.Completed"},
-                    "for_each": set(),
-                    "posture": Posture.Reactive,
-                    "threshold": 1,
-                    "within": datetime.timedelta(0),
-                    "parameters": None,
-                }
+                DeploymentTrigger(
+                    **{
+                        "name": "Trigger McTriggerson",
+                        "description": "",
+                        "enabled": True,
+                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                        "match_related": {
+                            "prefect.resource.name": "seed",
+                            "prefect.resource.role": "flow",
+                        },
+                        "after": set(),
+                        "expect": {"prefect.flow-run.Completed"},
+                        "for_each": set(),
+                        "posture": Posture.Reactive,
+                        "threshold": 1,
+                        "within": datetime.timedelta(0),
+                        "parameters": None,
+                        "metric": None,
+                    }
+                )
             ]
 
         async def test_initialize_deployment_triggers_implicit_name(self):
