@@ -113,6 +113,7 @@ async def data(flow_function, db):
                 manifest_path="file.json",
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
+                paused=False,
             )
         )
         d_1_2 = await create_deployment(
@@ -122,6 +123,7 @@ async def data(flow_function, db):
                 manifest_path="file.json",
                 flow_id=f_1.id,
                 is_schedule_active=False,
+                paused=True,
                 work_queue_name="test-queue-for-filters",
             )
         )
@@ -133,6 +135,7 @@ async def data(flow_function, db):
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
+                paused=False,
                 work_queue_id=wp.default_queue_id,
             )
         )
