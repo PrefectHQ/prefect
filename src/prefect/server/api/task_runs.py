@@ -16,6 +16,7 @@ from prefect._vendor.fastapi import (
     WebSocket,
     status,
 )
+from prefect._vendor.starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -271,11 +272,19 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
     try:
         subscription = await websocket.receive_json()
-        task_keys = subscription.get("keys", [])
-        if not task_keys:
-            return await websocket.close()
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-        return await websocket.close()
+        return
+
+    if subscription.get("type") != "subscribe":
+        return await websocket.close(
+            code=4001, reason="Protocol violation: expected 'subscribe' message"
+        )
+
+    task_keys = subscription.get("keys", [])
+    if not task_keys:
+        return await websocket.close(
+            code=4001, reason="Protocol violation: expected 'keys' in subscribe message"
+        )
 
     subscribed_queue = MultiQueue(task_keys)
 
@@ -287,7 +296,9 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
             acknowledgement = await websocket.receive_json()
             if acknowledgement.get("type") != "ack":
-                return await websocket.close()
+                raise WebSocketDisconnect(
+                    code=4001, reason="Protocol violation: expected 'ack' message"
+                )
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
