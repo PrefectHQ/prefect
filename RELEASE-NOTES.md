@@ -1,5 +1,59 @@
 # Prefect Release Notes
 
+## Release 2.16.3
+
+### Enhanced deployment parameters in the Prefect UI
+
+We’ve refined the deployment parameters UI to significantly enhance default value handling and list management. This release introduces support for tuple-type parameters and a revamped list UI, freeing users from the constraints of JSON for list inputs. You now have the flexibility to utilize JSON or Prefect variables for any parameter value, enhancing the versatility of deployment configurations. Moreover, we’ve synchronized validation across the UI and deployment schemas, ensuring that user inputs are consistently checked against the defined parameter requirements, which simplifies the deployment process and minimizes configuration errors.
+
+These improvements are aimed at providing a more efficient and user-friendly interface for managing deployment parameters. Check it out for yourself!
+
+<img width="791" alt="paramsui" src="https://github.com/PrefectHQ/prefect/assets/42048900/d95c854f-1b95-46fb-8214-9132c923214f">
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12168
+- https://github.com/PrefectHQ/prefect/pull/12179
+- https://github.com/PrefectHQ/prefect/pull/12186
+- https://github.com/PrefectHQ/prefect/pull/12187
+- https://github.com/PrefectHQ/prefect/pull/12182
+- https://github.com/PrefectHQ/prefect/pull/12219
+
+### Enhancements
+- Adds `on_running` state change hook — https://github.com/PrefectHQ/prefect/pull/12153
+- Add flow run state data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12130 
+- Add schedules shorthand support to `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12181
+- Send flow run and task run retry logs to API — https://github.com/PrefectHQ/prefect/pull/12211
+- Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166 - asked Brandon
+- Add a paused deployment filter and update `is_schedule_active` filter — https://github.com/PrefectHQ/prefect/pull/12202
+- Updating client-side schemas for automation triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
+
+### Fixes
+- Address two memory leak in concurrency management — https://github.com/PrefectHQ/prefect/pull/12141
+
+### Experimental
+- Add Job Variables tab to the Flow Runs page — https://github.com/PrefectHQ/prefect/pull/12206
+- Add support for calling `.map` for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
+- Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
+- Add better parity with Prefect Cloud for task scheduling protocol - https://github.com/PrefectHQ/prefect/pull/12212
+- Allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
+
+### Integrations
+- Fix VPC Connector usage in Cloud Run Worker v2 - https://github.com/PrefectHQ/prefect-gcp/pull/252
+
+### Documentation
+- Add advanced example to CI/CD guide — https://github.com/PrefectHQ/prefect/pull/12188
+- Add keyword for search to deployments concept doc — https://github.com/PrefectHQ/prefect/pull/12178
+- Add a `prefect-client` README — https://github.com/PrefectHQ/prefect/pull/12172
+- Add `prefect-soda-cloud` integration — https://github.com/PrefectHQ/prefect/pull/12208
+- Update Prefect self-hosted guide to clarify PostgreSQL Docker instructions — https://github.com/PrefectHQ/prefect/pull/12164
+- Update README example — https://github.com/PrefectHQ/prefect/pull/12167
+- Remove outdated sqlite version info from install docs — https://github.com/PrefectHQ/prefect/pull/12162
+
+### Contributors
+- @AlessandroLollo
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.2...2.16.3
+
 ## Release 2.16.2
 
 ### Enhancements
