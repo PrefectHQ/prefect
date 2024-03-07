@@ -14,6 +14,7 @@ See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12186
 - https://github.com/PrefectHQ/prefect/pull/12187
 - https://github.com/PrefectHQ/prefect/pull/12182
+- https://github.com/PrefectHQ/prefect/pull/12219
 
 ### Enhancements
 - Adds `on_running` state change hook — https://github.com/PrefectHQ/prefect/pull/12153
@@ -33,6 +34,7 @@ See the following PRs for implementation details:
 - Add Job Variables tab to the Flow Runs page — https://github.com/PrefectHQ/prefect/pull/12206
 - Add support for calling `.map` for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
 - Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
+- Add better parity with Prefect Cloud for task scheduling protocol - https://github.com/PrefectHQ/prefect/pull/12212
 
 ### Integrations
 - Add `prefect-soda-cloud` integration — https://github.com/PrefectHQ/prefect/pull/12208
