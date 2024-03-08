@@ -9,7 +9,7 @@ These tests will help to ensure that as we're refactoring Triggers as part of
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, List, Optional, Set, Type
+from typing import Any, Dict, List, Optional, Set, Type
 
 import orjson
 import pytest
@@ -134,7 +134,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
 
 def test_deserializing_as_v1_trigger(
-    trigger_type: Type[ResourceTrigger], json: dict[str, Any]
+    trigger_type: Type[ResourceTrigger], json: Dict[str, Any]
 ):
     """A baseline test that just confirms that all of the example JSON triggers are
     actually parseable as v1 Triggers."""
@@ -173,7 +173,7 @@ def assert_triggers_match(v1_trigger: V1Trigger, v2_trigger: ResourceTrigger):
 
 
 def test_deserializing_as_v2_trigger(
-    trigger_type: Type[ResourceTrigger], json: dict[str, Any]
+    trigger_type: Type[ResourceTrigger], json: Dict[str, Any]
 ):
     """A test that confirms that the example JSON triggers can be deserialized directly
     into their corresponding v2 classes."""
@@ -186,7 +186,7 @@ def test_deserializing_as_v2_trigger(
 
 
 def test_deserializing_polymorphic(
-    trigger_type: Type[ResourceTrigger], json: dict[str, Any]
+    trigger_type: Type[ResourceTrigger], json: Dict[str, Any]
 ):
     """A test that confirms that the example JSON triggers can be deserialized into
     their corresponding v2 classes using polymorphism."""
@@ -203,7 +203,7 @@ class Referencer(PrefectBaseModel):
 
 
 def test_deserializing_into_polymorphic_attribute(
-    trigger_type: Type[ResourceTrigger], json: dict[str, Any]
+    trigger_type: Type[ResourceTrigger], json: Dict[str, Any]
 ):
     """A test that confirms that the example JSON triggers can be deserialized into
     their corresponding v2 classes when referenced in an attribute."""
