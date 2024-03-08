@@ -967,8 +967,12 @@ class BaseWorker(abc.ABC):
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         flow = await self._client.read_flow(flow_run.flow_id)
 
-        flow_run_vars = flow_run.job_variables or {}
-        job_variables = {**deployment.infra_overrides, **flow_run_vars}
+        deployment_vars = deployment.infra_overrides or {}
+        if experiment_enabled("flow_run_infra_overrides"):
+            flow_run_vars = flow_run.job_variables or {}
+            job_variables = {**deployment_vars, **flow_run_vars}
+        else:
+            job_variables = deployment_vars
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
