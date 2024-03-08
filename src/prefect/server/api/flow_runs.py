@@ -97,7 +97,7 @@ async def update_flow_run(
     Updates a flow run.
     """
     async with db.session_context(begin_transaction=True) as session:
-        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
+        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES:
             if flow_run.job_variables is not None:
                 this_run = await models.flow_runs.read_flow_run(
                     session, flow_run_id=flow_run_id

@@ -652,7 +652,7 @@ async def create_flow_run_from_deployment(
                     detail="Invalid schema: Unable to validate schema with circular references.",
                 )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
+        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES:
             validate_job_variables_for_flow_run(flow_run, deployment)
 
         work_queue_name = deployment.work_queue_name
