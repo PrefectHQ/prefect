@@ -330,7 +330,7 @@ class PrefectCloudEventSubscriber:
         )
 
         try:
-            message: dict[str, Any] = orjson.loads(await self._websocket.recv())
+            message: Dict[str, Any] = orjson.loads(await self._websocket.recv())
             logger.debug("  auth result %s", message)
             assert message["type"] == "auth_success", message.get("reason", "")
         except (AssertionError, ConnectionClosedError) as e:

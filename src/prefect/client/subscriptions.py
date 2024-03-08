@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Generic, List, Optional, Type, TypeVar
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
 import orjson
 import websockets
@@ -71,7 +71,7 @@ class Subscription(Generic[S]):
                 ).decode()
             )
 
-            auth: dict[str, Any] = orjson.loads(await websocket.recv())
+            auth: Dict[str, Any] = orjson.loads(await websocket.recv())
             assert auth["type"] == "auth_success", auth.get("message")
 
             message = {"type": "subscribe", "keys": self.keys} | {
