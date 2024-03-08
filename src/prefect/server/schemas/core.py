@@ -299,7 +299,7 @@ class FlowRun(ORMBaseModel):
     # parent_task_run: "TaskRun" = None
 
     job_variables: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
+        default=None,
         description="Variables used as overrides in the base job template",
     )
 
