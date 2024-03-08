@@ -801,6 +801,8 @@ async def orchestrate_flow_run(
     # flag to ensure we only update the flow run name once
     run_name_set = False
 
+    await _run_flow_hooks(flow=flow, flow_run=flow_run, state=state)
+
     while state.is_running():
         waited_for_task_runs = False
 
@@ -956,7 +958,6 @@ async def orchestrate_flow_run(
                     f"Received non-final state {state.name!r} when proposing final"
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
-                extra={"send_to_api": False},
             )
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
@@ -2216,7 +2217,6 @@ async def orchestrate_task_run(
                         f" state {terminal_state.name!r} and will attempt to run"
                         " again..."
                     ),
-                    extra={"send_to_api": False},
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
@@ -2836,7 +2836,10 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
         == "true"
     )
-    if state.is_failed() and flow.on_failure:
+
+    if state.is_running() and flow.on_running:
+        hooks = flow.on_running
+    elif state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
