@@ -2968,9 +2968,9 @@ async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> 
 
         if not task.task_origin_hash:
             raise ValueError(
-                "Tasks instantiated with `Task.__init__` directly must have a `task_origin_hash`"
-                " that uniquely identifies the task. This is used to ensure that `TaskServer`"
-                " instances capable of executing this task can be identified server-side."
+                f"The source file of task {task.name!r} is not available. This is"
+                " required for autonomous task runs in order to determine which"
+                " `TaskServer` instance is capable of running the task."
             )
 
         task.task_key = task.task_origin_hash

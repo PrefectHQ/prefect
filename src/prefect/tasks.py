@@ -285,7 +285,6 @@ class Task(Generic[P, R]):
             self.task_key = to_qualified_name(self.fn)
 
         try:
-            # may fail if instantiated by passing `fn` directly
             task_definition_path = inspect.getsourcefile(self.fn)
             task_origin_hash = hash_objects(
                 self.name, os.path.abspath(task_definition_path)

@@ -412,3 +412,14 @@ class TestTaskKey:
         )
 
         assert foo_task.task_origin_hash == task_run.task_key == task_origin_hash
+
+    def test_task_with_fn_with_inaccessible_source_file_raises_error(self):
+        import math
+
+        some_task = Task(fn=math.sqrt, name="Square that Root")
+
+        with pytest.raises(
+            ValueError,
+            match="The source file of task 'Square that Root' is not available",
+        ):
+            some_task.submit(49)
