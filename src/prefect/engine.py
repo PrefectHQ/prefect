@@ -2966,6 +2966,15 @@ async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> 
             factory = await ResultFactory.from_autonomous_task(task, client=client)
             await factory.store_parameters(parameters_id, parameters)
 
+        if not task.task_origin_hash:
+            raise ValueError(
+                "Tasks instantiated with `Task.__init__` directly must have a `task_origin_hash`"
+                " that uniquely identifies the task. This is used to ensure that `TaskServer`"
+                " instances capable of executing this task can be identified server-side."
+            )
+
+        task.task_key = task.task_origin_hash
+
         task_run = await client.create_task_run(
             task=task,
             flow_run_id=None,

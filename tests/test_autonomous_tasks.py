@@ -1,4 +1,5 @@
 import asyncio
+import os
 from pathlib import Path
 from typing import AsyncGenerator, Iterable, Tuple
 from unittest import mock
@@ -24,6 +25,7 @@ from prefect.settings import (
 )
 from prefect.task_server import TaskServer
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.hashing import hash_objects
 
 
 @sync_compatible
@@ -398,3 +400,15 @@ class TestMap:
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {"x": i + 1, "mappable": ["some", "iterable"]}
+
+
+class TestTaskKey:
+    def test_task_key(self, foo_task):
+        task_run = foo_task.submit(42)
+
+        task_origin_hash = hash_objects(
+            foo_task.name,
+            os.path.abspath(__file__),
+        )
+
+        assert foo_task.task_origin_hash == task_run.task_key == task_origin_hash
