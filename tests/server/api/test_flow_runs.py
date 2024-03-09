@@ -49,6 +49,24 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
 
+    async def test_create_flow_run_with_job_variables(self, flow, client, session):
+        job_vars = {"key": "value"}
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id,
+                name="",
+                job_variables=job_vars,
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["job_variables"] == job_vars
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=response.json()["id"]
+        )
+        assert flow_run.job_variables == job_vars
+
     async def test_create_flow_run_with_infrastructure_document_id(
         self, flow, client, infrastructure_document_id
     ):
@@ -234,6 +252,28 @@ class TestUpdateFlowRun:
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
+
+    async def test_update_flow_run_with_job_vars(self, flow, session, client):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.get(f"flow_runs/{flow_run.id}")
+        updated_flow_run = pydantic.parse_obj_as(
+            schemas.responses.FlowRunResponse, response.json()
+        )
+        assert updated_flow_run.job_variables == job_vars
 
     async def test_update_flow_run_does_not_update_if_fields_not_set(
         self, flow, session, client

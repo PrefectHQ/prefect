@@ -207,6 +207,7 @@ class FlowRunResponse(ORMBaseModel):
         example="my-work-pool",
     )
     state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
     @classmethod
     def from_orm(cls, orm_flow_run: "prefect.server.database.orm_models.ORMFlowRun"):

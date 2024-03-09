@@ -2579,6 +2579,28 @@ class TestCreateFlowRunFromDeployment:
 
         assert deployment.work_queue_name == default_queue
 
+    async def test_create_flow_run_from_deployment_includes_job_variables(
+        self, deployment, client, session
+    ):
+        job_vars = {"foo": "bar"}
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == 201
+        flow_run_id = response.json()["id"]
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert flow_run.job_variables == job_vars
+
+        response = await client.get(f"flow_runs/{flow_run_id}")
+        assert response.status_code == 200
+        assert response.json()["job_variables"] == job_vars
+
     async def test_create_flow_run_from_deployment_disambiguates_queue_name_from_other_pools(
         self, deployment, client, session
     ):

@@ -190,6 +190,7 @@ class FlowRunResponse(ObjectBaseModel):
         example="my-work-pool",
     )
     state: Optional[objects.State] = FieldFrom(objects.FlowRun)
+    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
 
     def __eq__(self, other: Any) -> bool:
         """
