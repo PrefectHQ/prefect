@@ -1,6 +1,7 @@
 """
 Reduced schemas for accepting API actions.
 """
+
 import json
 import warnings
 from copy import copy, deepcopy
@@ -343,6 +344,7 @@ class FlowRunUpdate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
@@ -432,6 +434,7 @@ class FlowRunCreate(ActionBaseModel):
         ),
         deprecated=True,
     )
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
@@ -455,6 +458,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields

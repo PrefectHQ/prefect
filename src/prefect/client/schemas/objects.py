@@ -526,6 +526,9 @@ class FlowRun(ObjectBaseModel):
         description="The state of the flow run.",
         example=State(type=StateType.COMPLETED),
     )
+    job_variables: Optional[dict] = Field(
+        default=None, description="Parameters for the flow run."
+    )
 
     def __eq__(self, other: Any) -> bool:
         """
