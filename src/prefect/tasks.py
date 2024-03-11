@@ -40,6 +40,7 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
 from prefect.states import State
+from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
 from prefect.utilities.callables import (
@@ -1024,6 +1025,27 @@ class Task(Generic[P, R]):
             task_runner=None,
             mapped=True,
         )
+
+    def serve(self, task_runner: Optional[BaseTaskRunner] = None) -> "Task":
+        """Serve the task using the provided task runner. This method is used to
+        establish a websocket connection with the Prefect server and listen for
+        submitted task runs to execute.
+
+        Args:
+            task_runner: The task runner to use for serving the task. If not provided,
+                the default ConcurrentTaskRunner will be used.
+
+        Examples:
+            Serve a task using the default task runner
+            >>> @task
+            >>> def my_task():
+            >>>     return 1
+
+            >>> my_task.serve()
+        """
+        from prefect.task_server import serve
+
+        serve(self, task_runner=task_runner)
 
 
 @overload
