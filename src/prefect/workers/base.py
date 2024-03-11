@@ -49,6 +49,7 @@ from prefect.exceptions import (
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
@@ -968,7 +969,7 @@ class BaseWorker(abc.ABC):
         flow = await self._client.read_flow(flow_run.flow_id)
 
         deployment_vars = deployment.infra_overrides or {}
-        if experiment_enabled("flow_run_infra_overrides"):
+        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES:
             flow_run_vars = flow_run.job_variables or {}
             job_variables = {**deployment_vars, **flow_run_vars}
         else:
