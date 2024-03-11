@@ -49,24 +49,6 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
 
-    async def test_create_flow_run_with_job_variables(self, flow, client, session):
-        job_vars = {"key": "value"}
-        response = await client.post(
-            "/flow_runs/",
-            json=actions.FlowRunCreate(
-                flow_id=flow.id,
-                name="",
-                job_variables=job_vars,
-            ).dict(json_compatible=True),
-        )
-        assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["job_variables"] == job_vars
-
-        flow_run = await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=response.json()["id"]
-        )
-        assert flow_run.job_variables == job_vars
-
     async def test_create_flow_run_with_infrastructure_document_id(
         self, flow, client, infrastructure_document_id
     ):

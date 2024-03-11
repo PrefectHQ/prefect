@@ -434,7 +434,6 @@ class FlowRunCreate(ActionBaseModel):
         ),
         deprecated=True,
     )
-    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
