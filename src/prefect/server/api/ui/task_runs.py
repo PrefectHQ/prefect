@@ -191,12 +191,12 @@ async def read_dashboard_task_run_counts(
 
 @router.post("/count")
 async def read_task_run_counts_by_state(
-    flows: schemas.filters.FlowFilter | None = None,
-    flow_runs: schemas.filters.FlowRunFilter | None = None,
-    task_runs: schemas.filters.TaskRunFilter | None = None,
-    deployments: schemas.filters.DeploymentFilter | None = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.states.CountByState:
+):
     async with db.session_context(begin_transaction=False) as session:
         return await models.task_runs.count_task_runs_by_state(
             session=session,

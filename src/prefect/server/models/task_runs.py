@@ -4,6 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -337,11 +338,11 @@ async def count_task_runs(
 async def count_task_runs_by_state(
     session: AsyncSession,
     db: PrefectDBInterface,
-    flow_filter: schemas.filters.FlowFilter | None = None,
-    flow_run_filter: schemas.filters.FlowRunFilter | None = None,
-    task_run_filter: schemas.filters.TaskRunFilter | None = None,
-    deployment_filter: schemas.filters.DeploymentFilter | None = None,
-) -> schemas.states.CountByState:
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+):
     """
     Count task runs by state.
 
