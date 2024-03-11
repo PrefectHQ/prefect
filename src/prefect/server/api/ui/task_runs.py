@@ -187,3 +187,21 @@ async def read_dashboard_task_run_counts(
         buckets[index].failed = row.failed_count
 
     return buckets
+
+
+@router.post("/count")
+async def read_task_run_counts_by_state(
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.states.CountByState:
+    async with db.session_context(begin_transaction=False) as session:
+        return await models.task_runs.count_task_runs_by_state(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+        )

@@ -334,6 +334,54 @@ async def count_task_runs(
     return result.scalar()
 
 
+async def count_task_runs_by_state(
+    session: AsyncSession,
+    flow_filter: schemas.filters.FlowFilter | None = None,
+    flow_run_filter: schemas.filters.FlowRunFilter | None = None,
+    task_run_filter: schemas.filters.TaskRunFilter | None = None,
+    deployment_filter: schemas.filters.DeploymentFilter | None = None,
+) -> schemas.states.CountByState:
+    """
+    Count task runs by state.
+
+    Args:
+        session: a database session
+        flow_filter: only count task runs whose flows match these filters
+        flow_run_filter: only count task runs whose flow runs match these filters
+        task_run_filter: only count task runs that match these filters
+        deployment_filter: only count task runs whose deployments match these filters
+    Returns:
+        schemas.states.CountByState: count of task runs by state
+    """
+
+    base_query = (
+        select(
+            sa.orm.TaskRun.state_type,
+            sa.func.count(sa.text("*")).label("count"),
+        )
+        .select_from(sa.orm.TaskRun)
+        .group_by(sa.orm.TaskRun.state_type)
+    )
+
+    query = await _apply_task_run_filters(
+        base_query,
+        sort=None,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
+    )
+
+    result = await session.execute(query)
+
+    counts = schemas.states.CountByState()
+
+    for row in result:
+        setattr(counts, row.state_type, row.count)
+
+    return counts
+
+
 @inject_db
 async def delete_task_run(
     session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
