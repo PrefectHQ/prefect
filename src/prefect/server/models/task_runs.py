@@ -336,6 +336,7 @@ async def count_task_runs(
 
 async def count_task_runs_by_state(
     session: AsyncSession,
+    db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter | None = None,
     flow_run_filter: schemas.filters.FlowRunFilter | None = None,
     task_run_filter: schemas.filters.TaskRunFilter | None = None,
@@ -356,16 +357,15 @@ async def count_task_runs_by_state(
 
     base_query = (
         select(
-            sa.orm.TaskRun.state_type,
+            db.TaskRun.state_type,
             sa.func.count(sa.text("*")).label("count"),
         )
-        .select_from(sa.orm.TaskRun)
-        .group_by(sa.orm.TaskRun.state_type)
+        .select_from(db.TaskRun)
+        .group_by(db.TaskRun.state_type)
     )
 
     query = await _apply_task_run_filters(
         base_query,
-        sort=None,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
