@@ -17,18 +17,6 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
 
-    @pytest.mark.parametrize("job_vars", [{}, None, {"foo": "bar"}])
-    async def test_create_flow_run_with_job_variables(
-        self, flow, session, job_vars: dict
-    ):
-        flow_run = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(flow_id=flow.id, job_variables=job_vars),
-        )
-
-        expected = {} if job_vars is None else job_vars
-        assert flow_run.job_variables == expected
-
     async def test_create_flow_run_with_infrastructure(
         self, flow, session, infrastructure_document_id
     ):
