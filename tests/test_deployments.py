@@ -1091,6 +1091,30 @@ class TestRunDeployment:
                 client=prefect_client,
             )
 
+    async def test_run_deployment_with_job_vars_creates_run_with_job_vars(
+        self,
+        test_deployment,
+        prefect_client,
+        enable_infra_overrides,
+    ):
+        # This can be removed once the flow run infra overrides is no longer an experiment
+        _, deployment_id = test_deployment
+
+        job_vars = {"foo": "bar"}
+        with pytest.warns(
+            ExperimentalFeature,
+            match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+        ):
+            flow_run = await run_deployment(
+                deployment_id,
+                timeout=0,
+                job_variables=job_vars,
+                client=prefect_client,
+            )
+        assert flow_run.job_variables == job_vars
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.job_variables == job_vars
+
     def test_returns_flow_run_on_timeout(
         self,
         test_deployment,
