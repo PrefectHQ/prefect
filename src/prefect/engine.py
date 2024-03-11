@@ -542,7 +542,7 @@ async def begin_flow_run(
         )
 
         flow_run_context.task_runner = await stack.enter_async_context(
-            task_runner.start()
+            task_runner.start(additional_context={"flow_run": flow_run})
         )
 
         flow_run_context.result_factory = await ResultFactory.from_flow(

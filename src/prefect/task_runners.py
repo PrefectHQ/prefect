@@ -167,6 +167,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
     @asynccontextmanager
     async def start(
         self: T,
+        additional_context: Optional[Dict[str, Any]] = None,
     ) -> AsyncIterator[T]:
         """
         Start the task runner, preparing any resources necessary for task submission.
@@ -182,14 +183,18 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         async with AsyncExitStack() as exit_stack:
             self.logger.debug("Starting task runner...")
             try:
-                await self._start(exit_stack)
+                await self._start(exit_stack, additional_context)
                 self._started = True
                 yield self
             finally:
                 self.logger.debug("Shutting down task runner...")
                 self._started = False
 
-    async def _start(self, exit_stack: AsyncExitStack) -> None:
+    async def _start(
+        self,
+        exit_stack: AsyncExitStack,
+        additional_context: Optional[Dict[str, Any]] = None,
+    ):
         """
         Create any resources required for this task runner to submit work.
 
@@ -341,7 +346,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         return result  # timeout reached
 
-    async def _start(self, exit_stack: AsyncExitStack):
+    async def _start(
+        self,
+        exit_stack: AsyncExitStack,
+        additional_context: Optional[Dict[str, Any]] = None,
+    ):
         """
         Start the process pool
         """
