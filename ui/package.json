@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@prefecthq/prefect-design": "2.3.6",
-    "@prefecthq/prefect-ui-library": "2.6.27",
+    "@prefecthq/prefect-ui-library": "2.6.31",
     "@prefecthq/vue-charts": "2.0.3",
     "@prefecthq/vue-compositions": "1.10.0",
     "@types/lodash.debounce": "4.0.9",
@@ -27,7 +27,6 @@
     "@types/lodash.merge": "^4.6.9",
     "@vitejs/plugin-vue": "5.0.4",
     "autoprefixer": "10.4.18",
-    "dotenv": "16.4.5",
     "eslint": "^8.57.0",
     "ts-node": "10.9.2",
     "typescript": "^5.3.3",

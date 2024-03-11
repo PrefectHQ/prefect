@@ -298,6 +298,11 @@ class FlowRun(ORMBaseModel):
     )
     # parent_task_run: "TaskRun" = None
 
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Variables used as overrides in the base job template",
+    )
+
     @validator("name", pre=True)
     def set_name(cls, name):
         return name or generate_slug(2)
