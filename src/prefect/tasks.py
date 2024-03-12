@@ -6,6 +6,7 @@ Module containing the base workflow task class and decorator - for most use case
 
 import datetime
 import inspect
+import os
 import warnings
 from copy import copy
 from functools import partial, update_wrapper
@@ -282,7 +283,13 @@ class Task(Generic[P, R]):
         if not hasattr(self.fn, "__qualname__"):
             self.task_key = to_qualified_name(type(self.fn))
         else:
-            self.task_key = to_qualified_name(self.fn)
+            if self.fn.__module__ == "__main__":
+                task_definition_path = inspect.getsourcefile(self.fn)
+                self.task_key = hash_objects(
+                    self.name, os.path.abspath(task_definition_path)
+                )
+            else:
+                self.task_key = to_qualified_name(self.fn)
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
