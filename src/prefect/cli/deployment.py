@@ -821,6 +821,16 @@ async def run(
         "--id",
         help=("A deployment id to search for if no name is given"),
     ),
+    job_variables: List[str] = typer.Option(
+        None,
+        "-jv",
+        "--job-variable",
+        help=(
+            "A key, value pair (key=value) specifying a flow run job variable. The value will"
+            " be interpreted as JSON. May be passed multiple times to specify multiple"
+            " job variable values."
+        ),
+    ),
     params: List[str] = typer.Option(
         None,
         "-p",
@@ -911,6 +921,7 @@ async def run(
         )
     parameters = {**multi_params, **cli_params}
 
+    job_vars = _load_json_key_values(job_variables, "job variable")
     if start_in and start_at:
         exit_with_error(
             "Only one of `--start-in` or `--start-at` can be set, not both."
@@ -985,6 +996,7 @@ async def run(
                 parameters=parameters,
                 state=Scheduled(scheduled_time=scheduled_start_time),
                 tags=tags,
+                job_variables=job_vars,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")
@@ -1014,6 +1026,7 @@ async def run(
             f"""
         └── UUID: {flow_run.id}
         └── Parameters: {flow_run.parameters}
+        └── Job Variables: {flow_run.job_variables}
         └── Scheduled start time: {scheduled_display}
         └── URL: {run_url}
         """

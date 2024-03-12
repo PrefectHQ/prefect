@@ -19,7 +19,16 @@ import httpcore
 import httpx
 import pendulum
 
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -506,6 +515,7 @@ class PrefectClient:
         idempotency_key: str = None,
         parent_task_run_id: UUID = None,
         work_queue_name: str = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -529,6 +539,7 @@ class PrefectClient:
             work_queue_name: An optional work queue name to add this run to. If not provided,
                 will default to the deployment's set work queue.  If one is provided that does not
                 exist, a new work queue will be created within the deployment's work pool.
+            job_variables: Optional variables that will be supplied to the flow run job.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -536,6 +547,21 @@ class PrefectClient:
         Returns:
             The flow run model
         """
+        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+
         parameters = parameters or {}
         context = context or {}
         state = state or prefect.states.Scheduled()
@@ -549,6 +575,7 @@ class PrefectClient:
             name=name,
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
+            job_variables=job_variables,
         )
 
         # done separately to avoid including this field in payloads sent to older API versions
@@ -634,6 +661,7 @@ class PrefectClient:
         tags: Optional[Iterable[str]] = None,
         empirical_policy: Optional[FlowRunPolicy] = None,
         infrastructure_pid: Optional[str] = None,
+        job_variables: Optional[dict] = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -654,6 +682,21 @@ class PrefectClient:
         Returns:
             an `httpx.Response` object from the PATCH request
         """
+        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+
         params = {}
         if flow_version is not None:
             params["flow_version"] = flow_version
@@ -667,6 +710,8 @@ class PrefectClient:
             params["empirical_policy"] = empirical_policy
         if infrastructure_pid:
             params["infrastructure_pid"] = infrastructure_pid
+        if job_variables is not None:
+            params["job_variables"] = job_variables
 
         flow_run_data = FlowRunUpdate(**params)
 
