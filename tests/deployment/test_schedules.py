@@ -13,6 +13,7 @@ from prefect.deployments.schedules import (
     create_minimal_deployment_schedule,
     normalize_to_minimal_deployment_schedules,
 )
+from prefect.server.schemas.schedules import CronSchedule as ServerCronSchedule
 
 
 @pytest.mark.parametrize(
@@ -106,6 +107,13 @@ def test_normalize_mixed():
 
     assert normalized[2].active is False
     assert normalized[2].schedule.rrule == "FREQ=DAILY"
+
+
+def test_normalize_server_schema():
+    with pytest.raises(ValueError, match="Server schema schedules are not supported"):
+        normalize_to_minimal_deployment_schedules(
+            schedules=[ServerCronSchedule(cron="0 0 * * *")]
+        )
 
 
 def test_normalize_incompatible():
