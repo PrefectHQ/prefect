@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Tuple, cas
 from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
-
     from prefect.client.orchestration import PrefectClient
 
 P = ParamSpec("P")
