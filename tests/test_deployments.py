@@ -546,6 +546,46 @@ class TestDeploymentBuild:
             isinstance(s, MinimalDeploymentSchedule) for s in deployment.schedules
         )
 
+    async def test_build_from_flow_legacy_schedule_supported(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="legacy_schedule_supported",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+    async def test_build_from_flow_clear_schedules_via_legacy_schedule(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=None,
+        )
+
+        deployment_id_2 = await deployment.apply()
+        assert deployment_id == deployment_id_2
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule is None
+
 
 class TestYAML:
     def test_deployment_yaml_roundtrip(self, tmp_path):
