@@ -49,7 +49,7 @@ def get_or_infer_client(client: Optional["PrefectClient"] = None) -> "PrefectCli
 
 
 def inject_client(
-    fn: Callable[..., Coroutine[Any, Any, Any]]
+    fn: Callable[..., Coroutine[Any, Any, Any]],
 ) -> Callable[..., Coroutine[Any, Any, Any]]:
     """
     Simple helper to provide a context managed client to a asynchronous function.
