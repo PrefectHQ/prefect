@@ -205,7 +205,7 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule is None
+        assert deployment.schedules == []
 
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -227,8 +227,9 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule.cron == "0 4 * * *"
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        schedule = deployment.schedules[0].schedule
+        assert schedule.cron == "0 4 * * *"
+        assert schedule.timezone == "Europe/Berlin"
 
     def test_passing_interval_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -252,9 +253,10 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
-        assert deployment.schedule.timezone == "America/New_York"
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == timedelta(seconds=42)
+        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.timezone == "America/New_York"
 
     def test_passing_anchor_without_interval_exits(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -294,8 +296,9 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
@@ -321,11 +324,12 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
-        assert deployment.schedule.timezone == "America/New_York"
+        assert schedule.timezone == "America/New_York"
 
     def test_parsing_rrule_timezone_overrides_if_passed_explicitly(
         self, patch_import, tmp_path
@@ -353,11 +357,12 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        assert schedule.timezone == "Europe/Berlin"
 
     @pytest.mark.parametrize(
         "schedules",
@@ -687,7 +692,7 @@ class TestEntrypoint:
     ):
         flow_code = """
         from prefect import flow
-        
+
         @flow
         def dog_flow_func():
             pass
