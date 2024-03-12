@@ -138,7 +138,7 @@ class TaskServer:
         raise StopTaskServer
 
     async def _subscribe_to_task_scheduling(self):
-        logger.debug(
+        logger.info(
             f"Subscribing to tasks: {' | '.join(t.task_key.split('.')[-1] for t in self.tasks)}"
         )
         async for task_run in Subscription(
