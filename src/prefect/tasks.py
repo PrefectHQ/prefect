@@ -290,8 +290,6 @@ class Task(Generic[P, R]):
             else:
                 self.task_key = to_qualified_name(self.fn)
 
-
-
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache

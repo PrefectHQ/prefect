@@ -155,9 +155,7 @@ class TaskServer:
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
 
-        task = next(
-            (t for t in self.tasks if t.task_key == task_run.task_key), None
-        )
+        task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
             if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
