@@ -282,18 +282,15 @@ class Task(Generic[P, R]):
         if not hasattr(self.fn, "__qualname__"):
             self.task_key = to_qualified_name(type(self.fn))
         else:
-            self.task_key = to_qualified_name(self.fn)
+            if self.fn.__module__ == "__main__":
+                task_definition_path = inspect.getsourcefile(self.fn)
+                self.task_key = hash_objects(
+                    self.name, os.path.abspath(task_definition_path)
+                )
+            else:
+                self.task_key = to_qualified_name(self.fn)
 
-        try:
-            task_definition_path = inspect.getsourcefile(self.fn)
-            task_origin_hash = hash_objects(
-                self.name, os.path.abspath(task_definition_path)
-            )
-            if not task_origin_hash:
-                raise TypeError
-            self.task_origin_hash = task_origin_hash
-        except TypeError:
-            self.task_origin_hash = None
+
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration

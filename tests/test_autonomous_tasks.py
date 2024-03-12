@@ -403,23 +403,20 @@ class TestMap:
 
 
 class TestTaskKey:
-    def test_task_key(self, foo_task):
-        task_run = foo_task.submit(42)
+    def test_task_key_not_hashed_if_not_main_module(self):
+        def some_fn():
+            pass
 
-        task_origin_hash = hash_objects(
-            foo_task.name,
-            os.path.abspath(__file__),
-        )
+        t = Task(fn=some_fn)
 
-        assert foo_task.task_origin_hash == task_run.task_key == task_origin_hash
+        assert t.task_key.endswith(".some_fn")
 
-    def test_task_with_fn_with_inaccessible_source_file_raises_error(self):
-        import math
+    def test_task_key_is_hashed_if_main_module(self, monkeypatch):
+        def some_fn():
+            pass
 
-        some_task = Task(fn=math.sqrt, name="Square that Root")
+        monkeypatch.setattr(some_fn, "__module__", "__main__")
 
-        with pytest.raises(
-            ValueError,
-            match="The source file of task 'Square that Root' is not available",
-        ):
-            some_task.submit(49)
+        t = Task(fn=some_fn)
+
+        assert t.task_key == hash_objects(t.name, __file__)

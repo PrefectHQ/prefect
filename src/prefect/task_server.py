@@ -144,7 +144,7 @@ class TaskServer:
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
-            keys=[task.task_origin_hash for task in self.tasks],
+            keys=[task.task_key for task in self.tasks],
             client_id=self._client_id,
         ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
@@ -156,7 +156,7 @@ class TaskServer:
         )
 
         task = next(
-            (t for t in self.tasks if t.task_origin_hash == task_run.task_key), None
+            (t for t in self.tasks if t.task_key == task_run.task_key), None
         )
 
         if not task:

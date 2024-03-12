@@ -2966,15 +2966,6 @@ async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> 
             factory = await ResultFactory.from_autonomous_task(task, client=client)
             await factory.store_parameters(parameters_id, parameters)
 
-        if not task.task_origin_hash:
-            raise ValueError(
-                f"The source file of task {task.name!r} is not available. This is"
-                " required for autonomous task runs in order to determine which"
-                " `TaskServer` instance is capable of running the task."
-            )
-
-        task.task_key = task.task_origin_hash
-
         task_run = await client.create_task_run(
             task=task,
             flow_run_id=None,
