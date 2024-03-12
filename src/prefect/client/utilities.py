@@ -6,15 +6,15 @@ Utilities for working with clients.
 # circular imports for decorators such as `inject_client` which are widely used.
 
 from functools import wraps
-from typing import Any, Callable, Coroutine, Optional
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 
-from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect.client.orchestration import PrefectClient, get_client
-from prefect.context import FlowRunContext, TaskRunContext
 from prefect.utilities.asyncutils import asyncnullcontext
 
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
-def get_or_infer_client(client: Optional[PrefectClient] = None) -> PrefectClient:
+
+def get_or_infer_client(client: Optional["PrefectClient"] = None) -> "PrefectClient":
     """
     Returns provided client, infers a client from context if available, or creates a new client.
 
@@ -26,9 +26,12 @@ def get_or_infer_client(client: Optional[PrefectClient] = None) -> PrefectClient
     """
     if client is not None:
         return client
+    from prefect._internal.concurrency.event_loop import get_running_loop
+    from prefect.context import FlowRunContext, TaskRunContext
 
     flow_run_context = FlowRunContext.get()
     task_run_context = TaskRunContext.get()
+
     if (
         flow_run_context
         and getattr(flow_run_context.client, "_loop") == get_running_loop()
@@ -40,6 +43,7 @@ def get_or_infer_client(client: Optional[PrefectClient] = None) -> PrefectClient
     ):
         return task_run_context.client
     else:
+        from prefect.client.orchestration import get_client
 
         return get_client()
 
