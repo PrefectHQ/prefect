@@ -299,22 +299,6 @@ async def test_flow_run_vars_take_precedence(
         )
 
 
-async def test_deployment_vars_take_precedence_if_flag_disabled(
-    flow_run_with_overrides,
-    work_pool_with_default_env,
-    monkeypatch,
-):
-    deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
-    patch_client(monkeypatch, overrides=deployment_job_vars)
-
-    async with ProcessWorker(
-        work_pool_name=work_pool_with_default_env.name,
-    ) as worker:
-        worker._work_pool = work_pool_with_default_env
-        config = await worker._get_configuration(flow_run_with_overrides)
-        assert str(config.working_dir) == deployment_job_vars["working_dir"]
-
-
 async def test_flow_run_vars_and_deployment_vars_get_merged(
     flow_run_with_overrides,
     work_pool_with_default_env,
