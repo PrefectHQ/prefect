@@ -16,7 +16,13 @@ from prefect.utilities.asyncutils import asyncnullcontext
 
 def get_or_infer_client(client: Optional[PrefectClient] = None) -> PrefectClient:
     """
-    Infer a client from the provided client or the current context.
+    Returns provided client, infers a client from context if available, or creates a new client.
+
+    Args:
+        - client (PrefectClient, optional): an optional client to use
+
+    Returns:
+        - PrefectClient: a client
     """
     if client is not None:
         return client
@@ -38,7 +44,9 @@ def get_or_infer_client(client: Optional[PrefectClient] = None) -> PrefectClient
         return get_client()
 
 
-def inject_client(fn: Callable[..., Any]) -> Callable[..., Coroutine[Any, Any, Any]]:
+def inject_client(
+    fn: Callable[..., Coroutine[Any, Any, Any]]
+) -> Callable[..., Coroutine[Any, Any, Any]]:
     """
     Simple helper to provide a context managed client to a asynchronous function.
 
