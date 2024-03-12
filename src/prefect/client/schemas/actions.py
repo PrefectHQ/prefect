@@ -298,6 +298,7 @@ class FlowRunUpdate(ActionBaseModel):
     empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
     tags: List[str] = FieldFrom(objects.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(objects.FlowRun)
+    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields
@@ -380,6 +381,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(objects.FlowRun)
+    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields

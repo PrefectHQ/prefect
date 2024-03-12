@@ -509,3 +509,33 @@ async def test_run_deployment_watch(
         poll_interval=ANY,
         log_states=ANY,
     )
+
+
+@pytest.mark.parametrize("arg_name", ["-jv", "--job-variable"])
+async def test_deployment_runs_with_job_variables(
+    deployment_name: str,
+    prefect_client: prefect.PrefectClient,
+    arg_name: str,
+):
+    """
+    Verify that job variables created on the CLI are passed onto the flow run.
+    """
+    job_vars = {"foo": "bar", "1": 2, "baz": "qux"}
+
+    # assemble the command string from the job_vars
+    job_vars_command = ""
+    for k, v in job_vars.items():
+        job_vars_command += f"{arg_name} {k}={v} "
+
+    command = ["deployment", "run", deployment_name]
+    command.extend(job_vars_command.split())
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=command,
+        expected_output_contains=f"Job Variables: {job_vars}",
+    )
+
+    flow_runs = await prefect_client.read_flow_runs()
+    this_run = flow_runs[0]
+    assert this_run.job_variables == job_vars
