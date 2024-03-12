@@ -262,6 +262,23 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
         assert mock.call_args.kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
 
 
+async def test_flow_run_without_job_vars(
+    flow_run,
+    work_pool_with_default_env,
+    enable_infra_overrides,
+    monkeypatch,
+):
+    deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
+    patch_client(monkeypatch, overrides=deployment_job_vars)
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        config = await worker._get_configuration(flow_run)
+        assert str(config.working_dir) == deployment_job_vars["working_dir"]
+
+
 async def test_flow_run_vars_take_precedence(
     flow_run_with_overrides,
     work_pool_with_default_env,
