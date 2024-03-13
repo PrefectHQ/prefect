@@ -2,6 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
+
 import inspect
 from typing import AsyncIterator, List, Optional, Set, Union
 from uuid import UUID
@@ -11,7 +12,9 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
-from prefect._internal.compatibility.experimental import experimental_parameter
+from prefect._internal.compatibility.deprecated import (
+    deprecated_class,
+)
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
@@ -44,10 +47,11 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use a worker instead. Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class PrefectAgent:
-    @experimental_parameter(
-        "work_pool_name", group="work_pools", when=lambda y: y is not None
-    )
     def __init__(
         self,
         work_queues: List[str] = None,
