@@ -58,7 +58,7 @@ import prefect.runtime
 # Import modules that register types
 import prefect.serializers
 import prefect.deprecated.data_documents
-import prefect.packaging
+import prefect.deprecated.packaging
 import prefect.blocks.kubernetes
 import prefect.blocks.notifications
 import prefect.blocks.system

@@ -6,7 +6,7 @@ from typing import Generator
 
 import pytest
 
-from prefect.packaging.serializers import (
+from prefect.deprecated.packaging.serializers import (
     ImportSerializer,
     PickleSerializer,
     SourceSerializer,
