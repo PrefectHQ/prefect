@@ -3,8 +3,6 @@ from contextvars import Context, ContextVar, Token
 from typing import TYPE_CHECKING, Dict, Optional, Tuple, cast
 from uuid import UUID
 
-from typing_extensions import TypedDict
-
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun, TaskRun
 

@@ -31,6 +31,7 @@ class Artifact(ArtifactRequest):
         data: A JSON payload that allows for a result to be retrieved.
     """
 
+    @sync_compatible
     async def create(
         self: Self,
         client: Optional[PrefectClient] = None,
@@ -58,6 +59,7 @@ class Artifact(ArtifactRequest):
         )
 
     @classmethod
+    @sync_compatible
     async def get(
         cls, key: Optional[str] = None, client: Optional[PrefectClient] = None
     ) -> Optional[ArtifactResponse]:
@@ -84,6 +86,7 @@ class Artifact(ArtifactRequest):
         )
 
     @classmethod
+    @sync_compatible
     async def get_or_create(
         cls: type[Self],
         key: Optional[str] = None,
