@@ -333,7 +333,7 @@ class Deployment(BaseModel):
     """
     DEPRECATION WARNING:
 
-    This class is deprecated as of version March 2024 and will not be available after September 2024.
+    This class is deprecated as of March 2024 and will not be available after September 2024.
     It has been replaced by the `flow.deploy`, which offers enhanced functionality and better a better user experience.
     For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 
