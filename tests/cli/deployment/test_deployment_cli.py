@@ -28,6 +28,30 @@ def patch_import(monkeypatch):
     return fn
 
 
+def test_deployment_apply_prints_deprecation_warning(tmp_path, patch_import):
+    Deployment.build_from_flow(
+        flow=my_flow,
+        name="TEST",
+        flow_name="my_flow",
+        output=str(tmp_path / "test.yaml"),
+        work_queue_name="prod",
+    )
+
+    invoke_and_assert(
+        [
+            "deployment",
+            "apply",
+            str(tmp_path / "test.yaml"),
+        ],
+        temp_dir=tmp_path,
+        expected_output_contains=(
+            "WARNING: The 'deployment apply' command has been deprecated.",
+            "It will not be available after Sep 2024.",
+            "Use 'prefect deploy' to deploy flows via YAML instead.",
+        ),
+    )
+
+
 class TestOutputMessages:
     def test_message_with_work_queue_name_from_python_build(
         self, patch_import, tmp_path
