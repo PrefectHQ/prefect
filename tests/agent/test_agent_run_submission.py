@@ -28,7 +28,7 @@ from prefect.utilities.dispatch import get_registry_for_type
 def ignore_agent_deprecation_warnings():
     """
     Ignore deprecation warnings from the agent module to avoid
-    test failures. Warning emission is tested in test_agent.py.
+    test failures. Warning emission is tested in test_agent_deprecation.py.
     """
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=PrefectDeprecationWarning)
