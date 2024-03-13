@@ -2,7 +2,7 @@
 DEPRECATION WARNING:
 
 This module is deprecated as of March 2024 and will not be available after September 2024.
-Infrastructure blocks have been replaced by workers, which offers enhanced functionality and better performance.
+Infrastructure blocks have been replaced by workers, which offer enhanced functionality and better performance.
 
 For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 """

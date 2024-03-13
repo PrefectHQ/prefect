@@ -1,4 +1,4 @@
-""" "
+"""
 Internal utilities for tests.
 """
 
