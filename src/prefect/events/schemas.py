@@ -1,4 +1,5 @@
 import abc
+import warnings
 from datetime import timedelta
 from enum import Enum
 from typing import (
@@ -27,9 +28,18 @@ else:
     from pydantic import Extra, Field, PrivateAttr, root_validator, validator
     from pydantic.fields import ModelField
 
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    PREFECT_EXPERIMENTAL_WARN,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.events.actions import ActionTypes, RunDeployment
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
+)
 from prefect.utilities.collections import AutoEnum
 
 # These are defined by Prefect Cloud
@@ -544,6 +554,13 @@ class DeploymentTrigger(AutomationCreateFromTrigger):
             "deployment's default parameters"
         ),
     )
+    job_variables: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Job variables to pass to the run, or None to use the "
+            "deployment's default job variables"
+        ),
+    )
 
     def set_deployment_id(self, deployment_id: UUID):
         self._deployment_id = deployment_id
@@ -552,10 +569,31 @@ class DeploymentTrigger(AutomationCreateFromTrigger):
         return f"prefect.deployment.{self._deployment_id}"
 
     def actions(self) -> List[RunDeployment]:
+        if self.job_variables is not None and experiment_enabled(
+            "flow_run_infra_overrides"
+        ):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+        if not experiment_enabled("flow_run_infra_overrides"):
+            # nullify job_variables if the flag is disabled
+            self.job_variables = None
+
         assert self._deployment_id
         return [
             RunDeployment(
                 parameters=self.parameters,
                 deployment_id=self._deployment_id,
+                job_variables=self.job_variables,
             )
         ]
