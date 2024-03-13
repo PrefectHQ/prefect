@@ -209,6 +209,7 @@ my_flow()
 | `on_failure` | ✓ | ✓ | Executes when a flow or task run enters a `Failed` state. |
 | <span class="no-wrap">`on_cancellation`</span> | ✓ | - | Executes when a flow run enters a `Cancelling` state. |
 | `on_crashed` | ✓ | - | Executes when a flow run enters a `Crashed` state. |
+| `on_running` | ✓ | - | Executes when a flow run enters a `Running` state. |
 
 #### Create flow run state change hooks
 
