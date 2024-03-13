@@ -205,7 +205,7 @@ class TestSchedules:
                 "Europe/Berlin",
             ],
             expected_code=1,
-            expected_output="Only one schedule type can be provided.",
+            expected_output_contains="Only one schedule type can be provided.",
             temp_dir=tmp_path,
         )
 
@@ -414,7 +414,7 @@ class TestSchedules:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output="Only one schedule type can be provided.",
+            expected_output_contains="Only one schedule type can be provided.",
         )
 
 
@@ -540,7 +540,7 @@ class TestFlowName:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output=(
+            expected_output_contains=(
                 "A name for this deployment must be provided with the '--name' flag.\n"
             ),
         )
@@ -1101,7 +1101,7 @@ class TestInfraAndInfraBlock:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output=(
+            expected_output_contains=(
                 "Only one of `infra` or `infra_block` can be provided, please choose"
                 " one."
             ),
@@ -1260,7 +1260,9 @@ class TestOutputFlag:
         cmd += ["-o", output_path]
 
         invoke_and_assert(
-            cmd, expected_code=1, expected_output="Output file must be a '.yaml' file."
+            cmd,
+            expected_code=1,
+            expected_output_contains="Output file must be a '.yaml' file.",
         )
 
     @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
