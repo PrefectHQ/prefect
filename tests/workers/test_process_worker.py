@@ -25,6 +25,10 @@ from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
     ProcessJobConfiguration,
@@ -36,6 +40,14 @@ from prefect.workers.process import (
 @flow
 def example_process_worker_flow():
     return 1
+
+
+@pytest.fixture
+def enable_infra_overrides():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
+    ):
+        yield
 
 
 @pytest.fixture
@@ -62,6 +74,26 @@ async def flow_run(prefect_client: PrefectClient):
             ),
         ),
     )
+
+    return flow_run
+
+
+@pytest.fixture
+async def flow_run_with_overrides(prefect_client: PrefectClient):
+    flow_run = await prefect_client.create_flow_run(
+        flow=example_process_worker_flow,
+        state=State(
+            type=StateType.SCHEDULED,
+            state_details=StateDetails(
+                scheduled_time=pendulum.now("utc").subtract(minutes=5)
+            ),
+        ),
+    )
+    await prefect_client.update_flow_run(
+        flow_run_id=flow_run.id,
+        job_variables={"working_dir": "/tmp/test"},
+    )
+    return await prefect_client.read_flow_run(flow_run.id)
 
     return flow_run
 
@@ -228,6 +260,64 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
         assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
         assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
         assert mock.call_args.kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
+
+
+async def test_flow_run_without_job_vars(
+    flow_run,
+    work_pool_with_default_env,
+    enable_infra_overrides,
+    monkeypatch,
+):
+    deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
+    patch_client(monkeypatch, overrides=deployment_job_vars)
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        config = await worker._get_configuration(flow_run)
+        assert str(config.working_dir) == deployment_job_vars["working_dir"]
+
+
+async def test_flow_run_vars_take_precedence(
+    flow_run_with_overrides,
+    work_pool_with_default_env,
+    enable_infra_overrides,
+    monkeypatch,
+):
+    deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
+    patch_client(monkeypatch, overrides=deployment_job_vars)
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        config = await worker._get_configuration(flow_run_with_overrides)
+        assert (
+            str(config.working_dir)
+            == flow_run_with_overrides.job_variables["working_dir"]
+        )
+
+
+async def test_flow_run_vars_and_deployment_vars_get_merged(
+    flow_run_with_overrides,
+    work_pool_with_default_env,
+    monkeypatch,
+    enable_infra_overrides,
+):
+    deployment_job_vars = {"stream_output": False}
+    patch_client(monkeypatch, overrides=deployment_job_vars)
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        config = await worker._get_configuration(flow_run_with_overrides)
+        assert (
+            str(config.working_dir)
+            == flow_run_with_overrides.job_variables["working_dir"]
+        )
+        assert config.stream_output == deployment_job_vars["stream_output"]
 
 
 async def test_process_created_then_marked_as_started(

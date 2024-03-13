@@ -21,7 +21,7 @@ try:
     from cachetools import TTLCache
 except ImportError:
     pass
-from starlette.status import WS_1008_POLICY_VIOLATION
+from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
     ConnectionClosed,
@@ -330,14 +330,20 @@ class PrefectCloudEventSubscriber:
         )
 
         try:
-            message = orjson.loads(await self._websocket.recv())
+            message: Dict[str, Any] = orjson.loads(await self._websocket.recv())
             logger.debug("  auth result %s", message)
-            assert message["type"] == "auth_success"
+            assert message["type"] == "auth_success", message.get("reason", "")
         except (AssertionError, ConnectionClosedError) as e:
             if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
+                if isinstance(e, AssertionError):
+                    reason = e.args[0]
+                elif isinstance(e, ConnectionClosedError):
+                    reason = e.reason
+
                 raise Exception(
                     "Unable to authenticate to the event stream. Please ensure the "
-                    "provided api_key you are using is valid for this environment."
+                    "provided api_key you are using is valid for this environment. "
+                    f"Reason: {reason}"
                 ) from e
             raise
 

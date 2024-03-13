@@ -4,19 +4,19 @@ from typing import (
     Dict,
     Iterable,
     Optional,
-    Type,
 )
 
 import anyio
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import TaskRun
 from prefect.context import EngineContext
 from prefect.engine import (
     begin_task_map,
     get_task_call_return_value,
+    wait_for_task_runs_and_report_crashes,
 )
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
@@ -28,30 +28,26 @@ EngineReturnType = Literal["future", "state", "result"]
 
 
 @sync_compatible
-async def submit_autonomous_task_to_engine(
+async def submit_autonomous_task_run_to_engine(
     task: Task,
     task_run: TaskRun,
-    task_runner: Type[BaseTaskRunner],
-    parameters: Optional[Dict] = None,
+    task_runner: BaseTaskRunner,
+    parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
-    client=None,
-) -> Any:
+    client: Optional[PrefectClient] = None,
+) -> PrefectFuture:
     async with AsyncExitStack() as stack:
-        if not task_runner._started:
-            task_runner_ctx = await stack.enter_async_context(task_runner.start())
-        else:
-            task_runner_ctx = task_runner
         parameters = parameters or {}
         with EngineContext(
             flow=None,
             flow_run=None,
             autonomous_task_run=task_run,
-            task_runner=task_runner_ctx,
-            client=client or await stack.enter_async_context(get_client()),
+            task_runner=task_runner,
+            client=client,
             parameters=parameters,
-            result_factory=await ResultFactory.from_task(task),
+            result_factory=await ResultFactory.from_autonomous_task(task),
             background_tasks=await stack.enter_async_context(anyio.create_task_group()),
         ) as flow_run_context:
             begin_run = create_call(
@@ -64,6 +60,17 @@ async def submit_autonomous_task_to_engine(
                 task_runner=task_runner,
             )
             if task.isasync:
-                return await from_async.wait_for_call_in_loop_thread(begin_run)
+                future_result_or_state = await from_async.wait_for_call_in_loop_thread(
+                    begin_run
+                )
             else:
-                return from_sync.wait_for_call_in_loop_thread(begin_run)
+                future_result_or_state = from_sync.wait_for_call_in_loop_thread(
+                    begin_run
+                )
+
+            if return_type == "future":
+                await wait_for_task_runs_and_report_crashes(
+                    task_run_futures=[future_result_or_state],
+                    client=client,
+                )
+            return future_result_or_state

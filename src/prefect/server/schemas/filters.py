@@ -898,6 +898,21 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         return filters
 
 
+class DeploymentFilterPaused(PrefectFilterBaseModel):
+    """Filter by `Deployment.paused`."""
+
+    eq_: Optional[bool] = Field(
+        default=None,
+        description="Only returns where deployment is/is not paused",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.Deployment.paused.is_(self.eq_))
+        return filters
+
+
 class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
     """Filter by `Deployment.work_queue_name`."""
 
@@ -915,7 +930,8 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
 
 
 class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
-    """Filter by `Deployment.is_schedule_active`."""
+    """Legacy filter to filter by `Deployment.is_schedule_active` which
+    is always the opposite of `Deployment.paused`."""
 
     eq_: Optional[bool] = Field(
         default=None,
@@ -925,7 +941,7 @@ class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.eq_ is not None:
-            filters.append(db.Deployment.is_schedule_active.is_(self.eq_))
+            filters.append(db.Deployment.paused.is_not(self.eq_))
         return filters
 
 
@@ -966,6 +982,9 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     name: Optional[DeploymentFilterName] = Field(
         default=None, description="Filter criteria for `Deployment.name`"
     )
+    paused: Optional[DeploymentFilterPaused] = Field(
+        default=None, description="Filter criteria for `Deployment.paused`"
+    )
     is_schedule_active: Optional[DeploymentFilterIsScheduleActive] = Field(
         default=None, description="Filter criteria for `Deployment.is_schedule_active`"
     )
@@ -983,12 +1002,45 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.id.as_sql_filter(db))
         if self.name is not None:
             filters.append(self.name.as_sql_filter(db))
+        if self.paused is not None:
+            filters.append(self.paused.as_sql_filter(db))
         if self.is_schedule_active is not None:
             filters.append(self.is_schedule_active.as_sql_filter(db))
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter(db))
         if self.work_queue_name is not None:
             filters.append(self.work_queue_name.as_sql_filter(db))
+
+        return filters
+
+
+class DeploymentScheduleFilterActive(PrefectFilterBaseModel):
+    """Filter by `DeploymentSchedule.active`."""
+
+    eq_: Optional[bool] = Field(
+        default=None,
+        description="Only returns where deployment schedule is/is not active",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.DeploymentSchedule.active.is_(self.eq_))
+        return filters
+
+
+class DeploymentScheduleFilter(PrefectOperatorFilterBaseModel):
+    """Filter for deployments. Only deployments matching all criteria will be returned."""
+
+    active: Optional[DeploymentScheduleFilterActive] = Field(
+        default=None, description="Filter criteria for `DeploymentSchedule.active`"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.active is not None:
+            filters.append(self.active.as_sql_filter(db))
 
         return filters
 

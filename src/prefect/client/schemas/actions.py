@@ -82,6 +82,18 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = FieldFrom(objects.Flow)
 
 
+@copy_model_fields
+class DeploymentScheduleCreate(ActionBaseModel):
+    active: bool = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+
+
+@copy_model_fields
+class DeploymentScheduleUpdate(ActionBaseModel):
+    active: bool = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+
+
 @experimental_field(
     "work_pool_name",
     group="work_pools",
@@ -127,6 +139,11 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(objects.Deployment)
     flow_id: UUID = FieldFrom(objects.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(objects.Deployment)
+    paused: Optional[bool] = FieldFrom(objects.Deployment)
+    schedules: List[DeploymentScheduleCreate] = Field(
+        default_factory=list,
+        description="A list of schedules for the deployment.",
+    )
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(
@@ -281,6 +298,7 @@ class FlowRunUpdate(ActionBaseModel):
     empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
     tags: List[str] = FieldFrom(objects.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(objects.FlowRun)
+    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields
@@ -363,6 +381,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(objects.FlowRun)
+    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields

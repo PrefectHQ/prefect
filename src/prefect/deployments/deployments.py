@@ -17,20 +17,30 @@ import pendulum
 import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, parse_obj_as, validator
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
 else:
-    from pydantic import BaseModel, Field, parse_obj_as, validator
+    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
-from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
+from prefect.client.schemas.objects import (
+    DEFAULT_AGENT_WORK_POOL_NAME,
+    FlowRun,
+    MinimalDeploymentSchedule,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
+from prefect.deployments.schedules import (
+    FlexibleScheduleList,
+    create_minimal_deployment_schedule,
+    normalize_to_minimal_deployment_schedules,
+)
 from prefect.deployments.steps.core import run_steps
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -41,13 +51,16 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
-from prefect.logging.loggers import flow_run_logger
+from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.states import Scheduled
 from prefect.tasks import Task
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
+
+logger = get_logger("deployments")
 
 
 @sync_compatible
@@ -64,6 +77,7 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
+    job_variables: Optional[dict] = None,
 ) -> FlowRun:
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -93,13 +107,13 @@ async def run_deployment(
             run metadata immediately. Setting `timeout` to None will allow this
             function to poll indefinitely. Defaults to None.
         poll_interval: The number of seconds between polls
-        tags: A list of tags to associate with this flow run; note that tags are used
-            only for organizational purposes.
+        tags: A list of tags to associate with this flow run; tags can be used in
+            automations and for organizational purposes.
         idempotency_key: A unique value to recognize retries of the same run, and
             prevent creating multiple flow runs.
         work_queue_name: The name of a work queue to use for this run. Defaults to
             the default work queue for the deployment.
-        as_subflow: Whether or not to link the flow run as a subflow of the current
+        as_subflow: Whether to link the flow run as a subflow of the current
             flow or task run.
     """
     if timeout is not None and timeout < 0:
@@ -183,6 +197,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
+        job_variables=job_variables,
     )
 
     flow_run_id = flow_run.id
@@ -215,11 +230,27 @@ async def load_flow_from_flow_run(
     is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
-    logger = flow_run_logger(flow_run)
+
+    if deployment.entrypoint is None:
+        raise ValueError(
+            f"Deployment {deployment.id} does not have an entrypoint and can not be run."
+        )
+
+    run_logger = flow_run_logger(flow_run)
 
     runner_storage_base_path = storage_base_path or os.environ.get(
         "PREFECT__STORAGE_BASE_PATH"
     )
+
+    # If there's no colon, assume it's a module path
+    if ":" not in deployment.entrypoint:
+        run_logger.debug(
+            f"Importing flow code from module path {deployment.entrypoint}"
+        )
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, deployment.entrypoint
+        )
+        return flow
 
     if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
@@ -241,19 +272,17 @@ async def load_flow_from_flow_run(
             if runner_storage_base_path and deployment.path
             else deployment.path
         )
-        logger.info(f"Downloading flow code from storage at {from_path!r}")
+        run_logger.info(f"Downloading flow code from storage at {from_path!r}")
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
-            logger.debug(f"Changing working directory to {output['directory']!r}")
+            run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    logger.debug(f"Importing flow code from '{import_path}'")
-
     # for backwards compat
     if deployment.manifest_path:
         with open(deployment.manifest_path, "r") as f:
@@ -261,7 +290,10 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
+    run_logger.debug(f"Importing flow code from '{import_path}'")
+
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
+
     return flow
 
 
@@ -305,8 +337,9 @@ class Deployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags
             are used only for organizational purposes. For delegating work to agents,
             see `work_queue_name`.
-        schedule: A schedule to run this deployment on, once registered
-        is_schedule_active: Whether or not the schedule is active
+        schedule: A schedule to run this deployment on, once registered (deprecated)
+        is_schedule_active: Whether or not the schedule is active (deprecated)
+        schedules: A list of schedules to run this deployment on
         work_queue_name: The work queue that will handle this deployment's runs
         work_pool_name: The work pool for the deployment
         flow_name: The name of the flow this deployment encapsulates
@@ -379,6 +412,7 @@ class Deployment(BaseModel):
             "tags",
             "parameters",
             "schedule",
+            "schedules",
             "is_schedule_active",
             "infra_overrides",
         ]
@@ -459,6 +493,18 @@ class Deployment(BaseModel):
             ] = self.infrastructure.get_block_type_slug()
         return all_fields
 
+    @classmethod
+    def _validate_schedule(cls, value):
+        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
+        if value:
+            rrule_value = getattr(value, "rrule", None)
+            if rrule_value and "COUNT" in rrule_value.upper():
+                raise ValueError(
+                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
+                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
+                    " number of flow runs."
+                )
+
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
     description: Optional[str] = Field(
@@ -471,7 +517,11 @@ class Deployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedule: SCHEDULE_TYPES = None
+    schedule: Optional[SCHEDULE_TYPES] = Field(default=None)
+    schedules: List[MinimalDeploymentSchedule] = Field(
+        default_factory=list,
+        description="The schedules to run this deployment on.",
+    )
     is_schedule_active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
@@ -585,18 +635,45 @@ class Deployment(BaseModel):
 
         return field_value
 
-    @validator("schedule")
-    def validate_schedule(cls, value):
-        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
-        if value:
-            rrule_value = getattr(value, "rrule", None)
-            if rrule_value and "COUNT" in rrule_value.upper():
-                raise ValueError(
-                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
-                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
-                    " number of flow runs."
-                )
-        return value
+    @root_validator(pre=True)
+    def validate_deprecated_schedule_fields(cls, values):
+        if values.get("schedule") and not values.get("schedules"):
+            logger.warning(
+                "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
+                "available after Sep 2024. Define schedules in the `schedules` list instead."
+            )
+        elif values.get("is_schedule_active") and not values.get("schedules"):
+            logger.warning(
+                "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
+                "not be available after Sep 2024. Use the `active` flag within a schedule in "
+                "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
+                "all schedules."
+            )
+        return values
+
+    @root_validator(pre=True)
+    def reconcile_schedules(cls, values):
+        schedule = values.get("schedule", NotSet)
+        schedules = values.get("schedules", NotSet)
+
+        if schedules is not NotSet:
+            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+        elif schedule is not NotSet:
+            values["schedule"] = None
+
+            if schedule is None:
+                values["schedules"] = []
+            else:
+                values["schedules"] = [
+                    create_minimal_deployment_schedule(
+                        schedule=schedule, active=values.get("is_schedule_active")
+                    )
+                ]
+
+        for schedule in values.get("schedules", []):
+            cls._validate_schedule(schedule.schedule)
+
+        return values
 
     @classmethod
     @sync_compatible
@@ -651,11 +728,39 @@ class Deployment(BaseModel):
                         "timestamp",
                         "triggers",
                         "enforce_parameter_schema",
+                        "schedules",
+                        "schedule",
+                        "is_schedule_active",
                     }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
                     setattr(self, field, new_value)
+
+                if "schedules" not in self.__fields_set__:
+                    self.schedules = [
+                        MinimalDeploymentSchedule(
+                            **schedule.dict(include={"schedule", "active"})
+                        )
+                        for schedule in deployment.schedules
+                    ]
+
+                # The API server generates the "schedule" field from the
+                # current list of schedules, so if the user has locally set
+                # "schedules" to anything, we should avoid sending "schedule"
+                # and let the API server generate a new value if necessary.
+                if "schedules" in self.__fields_set__:
+                    self.schedule = None
+                    self.is_schedule_active = None
+                else:
+                    # The user isn't using "schedules," so we should
+                    # populate "schedule" and "is_schedule_active" from the
+                    # API's version of the deployment, unless the user gave
+                    # us these fields in __init__().
+                    if "schedule" not in self.__fields_set__:
+                        self.schedule = deployment.schedule
+                    if "is_schedule_active" not in self.__fields_set__:
+                        self.is_schedule_active = deployment.is_schedule_active
 
                 if "infrastructure" not in self.__fields_set__:
                     if deployment.infrastructure_document_id:
@@ -784,6 +889,24 @@ class Deployment(BaseModel):
                     res.id, concurrency_limit=work_queue_concurrency
                 )
 
+            if self.schedule:
+                logger.info(
+                    "Interpreting the deprecated `schedule` field as an entry in "
+                    "`schedules`."
+                )
+                schedules = [
+                    DeploymentScheduleCreate(
+                        schedule=self.schedule, active=self.is_schedule_active
+                    )
+                ]
+            elif self.schedules:
+                schedules = [
+                    DeploymentScheduleCreate(**schedule.dict())
+                    for schedule in self.schedules
+                ]
+            else:
+                schedules = None
+
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
             deployment_id = await client.create_deployment(
@@ -792,7 +915,7 @@ class Deployment(BaseModel):
                 work_queue_name=self.work_queue_name,
                 work_pool_name=self.work_pool_name,
                 version=self.version,
-                schedule=self.schedule,
+                schedules=schedules,
                 is_schedule_active=self.is_schedule_active,
                 parameters=self.parameters,
                 description=self.description,
@@ -833,6 +956,7 @@ class Deployment(BaseModel):
         ignore_file: str = ".prefectignore",
         apply: bool = False,
         load_existing: bool = True,
+        schedules: Optional[FlexibleScheduleList] = None,
         **kwargs,
     ) -> "Deployment":
         """
@@ -852,6 +976,14 @@ class Deployment(BaseModel):
             load_existing: if True, load any settings that may already be configured for
                 the named deployment server-side (e.g., schedules, default parameter
                 values, etc.)
+            schedules: An optional list of schedules. Each item in the list can be:
+                  - An instance of `MinimalDeploymentSchedule`.
+                  - A dictionary with a `schedule` key, and optionally, an
+                    `active` key. The `schedule` key should correspond to a
+                    schedule type, and `active` is a boolean indicating whether
+                    the schedule is active or not.
+                  - An instance of one of the predefined schedule types:
+                    `IntervalSchedule`, `CronSchedule`, or `RRuleSchedule`.
             **kwargs: other keyword arguments to pass to the constructor for the
                 `Deployment` class
         """
@@ -860,7 +992,17 @@ class Deployment(BaseModel):
 
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
-        deployment = cls(name=name, **kwargs)
+
+        deployment_args = {
+            "name": name,
+            "flow_name": flow.name,
+            **kwargs,
+        }
+
+        if schedules is not None:
+            deployment_args["schedules"] = schedules
+
+        deployment = cls(**deployment_args)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
             ## first see if an entrypoint can be determined

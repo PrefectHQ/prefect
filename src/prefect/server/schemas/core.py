@@ -1,6 +1,7 @@
 """
 Full schemas of Prefect REST API objects.
 """
+
 import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -27,7 +28,9 @@ from prefect.server.utilities.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
 )
-from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
+from prefect.settings import (
+    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
+)
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
@@ -295,6 +298,11 @@ class FlowRun(ORMBaseModel):
     )
     # parent_task_run: "TaskRun" = None
 
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Variables used as overrides in the base job template",
+    )
+
     @validator("name", pre=True)
     def set_name(cls, name):
         return name or generate_slug(2)
@@ -524,6 +532,19 @@ class TaskRun(ORMBaseModel):
         return cache_key
 
 
+class DeploymentSchedule(ORMBaseModel):
+    deployment_id: Optional[UUID] = Field(
+        default=None,
+        description="The deployment id associated with this schedule.",
+    )
+    schedule: schedules.SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+
+
 class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
@@ -542,6 +563,12 @@ class Deployment(ORMBaseModel):
     )
     is_schedule_active: bool = Field(
         default=True, description="Whether or not the deployment schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
+    schedules: List[DeploymentSchedule] = Field(
+        default_factory=list, description="A list of schedules for the deployment."
     )
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,

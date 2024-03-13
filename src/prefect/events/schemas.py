@@ -1,8 +1,22 @@
+import abc
 from datetime import timedelta
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
+from enum import Enum
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 from uuid import UUID, uuid4
 
 import pendulum
+from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -15,7 +29,6 @@ else:
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect._internal.schemas.transformations import FieldFrom, copy_model_fields
 from prefect.events.actions import ActionTypes, RunDeployment
 from prefect.utilities.collections import AutoEnum
 
@@ -27,6 +40,7 @@ MAXIMUM_RELATED_RESOURCES = 500
 class Posture(AutoEnum):
     Reactive = "Reactive"
     Proactive = "Proactive"
+    Metric = "Metric"
 
 
 class ResourceSpecification(PrefectBaseModel):
@@ -164,32 +178,56 @@ class Event(PrefectBaseModel):
         return value
 
 
-class Trigger(PrefectBaseModel):
-    """Defines the criteria for the events and conditions under which an Automation
-    will trigger an action"""
+class Trigger(PrefectBaseModel, abc.ABC):
+    """
+    Base class describing a set of criteria that must be satisfied in order to trigger
+    an automation.
+    """
+
+    class Config:
+        extra = Extra.ignore
+
+    type: str
+
+
+class ResourceTrigger(Trigger, abc.ABC):
+    """
+    Base class for triggers that may filter by the labels of resources.
+    """
+
+    type: str
 
     match: ResourceSpecification = Field(
         default_factory=lambda: ResourceSpecification(__root__={}),
-        description="Labels for resources which this Automation will match.",
+        description="Labels for resources which this trigger will match.",
     )
     match_related: ResourceSpecification = Field(
         default_factory=lambda: ResourceSpecification(__root__={}),
-        description="Labels for related resources which this Automation will match.",
+        description="Labels for related resources which this trigger will match.",
     )
+
+
+class EventTrigger(ResourceTrigger):
+    """
+    A trigger that fires based on the presence or absence of events within a given
+    period of time.
+    """
+
+    type: Literal["event"] = "event"
 
     after: Set[str] = Field(
         default_factory=set,
         description=(
-            "The event(s) which must first been seen to start this automation.  If "
-            "empty, then start this Automation immediately.  Events may include "
+            "The event(s) which must first been seen to fire this trigger.  If "
+            "empty, then fire this trigger immediately.  Events may include "
             "trailing wildcards, like `prefect.flow-run.*`"
         ),
     )
     expect: Set[str] = Field(
         default_factory=set,
         description=(
-            "The event(s) this automation is expecting to see.  If empty, this "
-            "automation will match any event.  Events may include trailing wildcards, "
+            "The event(s) this trigger is expecting to see.  If empty, this "
+            "trigger will match any event.  Events may include trailing wildcards, "
             "like `prefect.flow-run.*`"
         ),
     )
@@ -197,24 +235,29 @@ class Trigger(PrefectBaseModel):
     for_each: Set[str] = Field(
         default_factory=set,
         description=(
-            "Evaluate the Automation separately for each distinct value of these labels"
-            " on the resource"
+            "Evaluate the trigger separately for each distinct value of these labels "
+            "on the resource.  By default, labels refer to the primary resource of the "
+            "triggering event.  You may also refer to labels from related "
+            "resources by specifying `related:<role>:<label>`.  This will use the "
+            "value of that label for the first related resource in that role.  For "
+            'example, `"for_each": ["related:flow:prefect.resource.id"]` would '
+            "evaluate the trigger for each flow."
         ),
     )
-    posture: Posture = Field(
-        Posture.Reactive,
+    posture: Literal[Posture.Reactive, Posture.Proactive] = Field(  # type: ignore[valid-type]
+        ...,
         description=(
-            "The posture of this Automation, either Reactive or Proactive.  Reactive "
-            "automations respond to the _presence_ of the expected events, while "
-            "Proactive  automations respond to the _absence_ of those expected events."
+            "The posture of this trigger, either Reactive or Proactive.  Reactive "
+            "triggers respond to the _presence_ of the expected events, while "
+            "Proactive triggers respond to the _absence_ of those expected events."
         ),
     )
     threshold: int = Field(
         1,
         description=(
-            "The number of events required for this Automation to trigger (for "
-            "Reactive automations), or the number of events expected (for Proactive "
-            "automations)"
+            "The number of events required for this trigger to fire (for "
+            "Reactive triggers), or the number of events expected (for Proactive "
+            "triggers)"
         ),
     )
     within: timedelta = Field(
@@ -253,6 +296,86 @@ class Trigger(PrefectBaseModel):
         return values
 
 
+class MetricTriggerOperator(Enum):
+    LT = "<"
+    LTE = "<="
+    GT = ">"
+    GTE = ">="
+
+
+class PrefectMetric(Enum):
+    lateness = "lateness"
+    duration = "duration"
+    successes = "successes"
+
+
+class MetricTriggerQuery(PrefectBaseModel):
+    """Defines a subset of the Trigger subclass, which is specific
+    to Metric automations, that specify the query configurations
+    and breaching conditions for the Automation"""
+
+    name: PrefectMetric = Field(
+        ...,
+        description="The name of the metric to query.",
+    )
+    threshold: float = Field(
+        ...,
+        description=(
+            "The threshold value against which we'll compare " "the query result."
+        ),
+    )
+    operator: MetricTriggerOperator = Field(
+        ...,
+        description=(
+            "The comparative operator (LT / LTE / GT / GTE) used to compare "
+            "the query result against the threshold value."
+        ),
+    )
+    range: timedelta = Field(
+        timedelta(seconds=300),  # defaults to 5 minutes
+        minimum=300.0,
+        exclusiveMinimum=False,
+        description=(
+            "The lookback duration (seconds) for a metric query. This duration is "
+            "used to determine the time range over which the query will be executed. "
+            "The minimum value is 300 seconds (5 minutes)."
+        ),
+    )
+    firing_for: timedelta = Field(
+        timedelta(seconds=300),  # defaults to 5 minutes
+        minimum=300.0,
+        exclusiveMinimum=False,
+        description=(
+            "The duration (seconds) for which the metric query must breach "
+            "or resolve continuously before the state is updated and the "
+            "automation is triggered. "
+            "The minimum value is 300 seconds (5 minutes)."
+        ),
+    )
+
+
+class MetricTrigger(ResourceTrigger):
+    """
+    A trigger that fires based on the results of a metric query.
+    """
+
+    type: Literal["metric"] = "metric"
+
+    posture: Literal[Posture.Metric] = Field(  # type: ignore[valid-type]
+        Posture.Metric,
+        description="Periodically evaluate the configured metric query.",
+    )
+
+    metric: MetricTriggerQuery = Field(
+        ...,
+        description="The metric query to evaluate for this trigger. ",
+    )
+
+
+TriggerTypes: TypeAlias = Union[EventTrigger, MetricTrigger]
+"""The union of all concrete trigger types that a user may actually create"""
+
+
 class Automation(PrefectBaseModel):
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
@@ -265,7 +388,7 @@ class Automation(PrefectBaseModel):
 
     enabled: bool = Field(True, description="Whether this automation will be evaluated")
 
-    trigger: Trigger = Field(
+    trigger: TriggerTypes = Field(
         ...,
         description=(
             "The criteria for which events this Automation covers and how it will "
@@ -286,30 +409,106 @@ class ExistingAutomation(Automation):
     id: UUID = Field(..., description="The ID of this automation")
 
 
-@copy_model_fields
-class ResourceTrigger(PrefectBaseModel):
+class AutomationCreateFromTrigger(PrefectBaseModel):
     name: Optional[str] = Field(
         None, description="The name to give to the automation created for this trigger."
     )
-    description: str = FieldFrom(Automation)
-    enabled: bool = FieldFrom(Automation)
+    description: str = Field("", description="A longer description of this automation")
+    enabled: bool = Field(True, description="Whether this automation will be evaluated")
 
-    match: ResourceSpecification = FieldFrom(Trigger)
-    match_related: ResourceSpecification = FieldFrom(Trigger)
-    after: Set[str] = FieldFrom(Trigger)
-    expect: Set[str] = FieldFrom(Trigger)
-    for_each: Set[str] = FieldFrom(Trigger)
-    posture: Posture = FieldFrom(Trigger)
-    threshold: int = FieldFrom(Trigger)
-    within: timedelta = FieldFrom(Trigger)
+    # from ResourceTrigger
+
+    match: ResourceSpecification = Field(
+        default_factory=lambda: ResourceSpecification(__root__={}),
+        description="Labels for resources which this trigger will match.",
+    )
+    match_related: ResourceSpecification = Field(
+        default_factory=lambda: ResourceSpecification(__root__={}),
+        description="Labels for related resources which this trigger will match.",
+    )
+
+    # from both EventTrigger and MetricTrigger
+
+    posture: Posture = Field(
+        Posture.Reactive,
+        description=(
+            "The posture of this trigger, either Reactive, Proactive, or Metric. "
+            "Reactive triggers respond to the _presence_ of the expected events, while "
+            "Proactive triggers respond to the _absence_ of those expected events.  "
+            "Metric triggers periodically evaluate the configured metric query."
+        ),
+    )
+
+    # from EventTrigger
+
+    after: Set[str] = Field(
+        default_factory=set,
+        description=(
+            "The event(s) which must first been seen to fire this trigger.  If "
+            "empty, then fire this trigger immediately.  Events may include "
+            "trailing wildcards, like `prefect.flow-run.*`"
+        ),
+    )
+    expect: Set[str] = Field(
+        default_factory=set,
+        description=(
+            "The event(s) this trigger is expecting to see.  If empty, this "
+            "trigger will match any event.  Events may include trailing wildcards, "
+            "like `prefect.flow-run.*`"
+        ),
+    )
+
+    for_each: Set[str] = Field(
+        default_factory=set,
+        description=(
+            "Evaluate the trigger separately for each distinct value of these labels "
+            "on the resource.  By default, labels refer to the primary resource of the "
+            "triggering event.  You may also refer to labels from related "
+            "resources by specifying `related:<role>:<label>`.  This will use the "
+            "value of that label for the first related resource in that role.  For "
+            'example, `"for_each": ["related:flow:prefect.resource.id"]` would '
+            "evaluate the trigger for each flow."
+        ),
+    )
+    threshold: int = Field(
+        1,
+        description=(
+            "The number of events required for this trigger to fire (for "
+            "Reactive triggers), or the number of events expected (for Proactive "
+            "triggers)"
+        ),
+    )
+    within: timedelta = Field(
+        timedelta(0),
+        minimum=0.0,
+        exclusiveMinimum=False,
+        description=(
+            "The time period over which the events must occur.  For Reactive triggers, "
+            "this may be as low as 0 seconds, but must be at least 10 seconds for "
+            "Proactive triggers"
+        ),
+    )
+
+    # from MetricTrigger
+
+    metric: Optional[MetricTriggerQuery] = Field(
+        None,
+        description="The metric query to evaluate for this trigger. ",
+    )
 
     def as_automation(self) -> Automation:
         assert self.name
-        return Automation(
-            name=self.name,
-            description=self.description,
-            enabled=self.enabled,
-            trigger=Trigger(
+
+        if self.posture == Posture.Metric:
+            trigger = MetricTrigger(
+                type="metric",
+                match=self.match,
+                match_related=self.match_related,
+                posture=self.posture,
+                metric=self.metric,
+            )
+        else:
+            trigger = EventTrigger(
                 match=self.match,
                 match_related=self.match_related,
                 after=self.after,
@@ -318,7 +517,13 @@ class ResourceTrigger(PrefectBaseModel):
                 posture=self.posture,
                 threshold=self.threshold,
                 within=self.within,
-            ),
+            )
+
+        return Automation(
+            name=self.name,
+            description=self.description,
+            enabled=self.enabled,
+            trigger=trigger,
             actions=self.actions(),
             owner_resource=self.owner_resource(),
         )
@@ -330,10 +535,15 @@ class ResourceTrigger(PrefectBaseModel):
         raise NotImplementedError
 
 
-@copy_model_fields
-class DeploymentTrigger(ResourceTrigger):
+class DeploymentTrigger(AutomationCreateFromTrigger):
     _deployment_id: Optional[UUID] = PrivateAttr(default=None)
-    parameters: Optional[Dict[str, Any]] = FieldFrom(RunDeployment)
+    parameters: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "The parameters to pass to the deployment, or None to use the "
+            "deployment's default parameters"
+        ),
+    )
 
     def set_deployment_id(self, deployment_id: UUID):
         self._deployment_id = deployment_id

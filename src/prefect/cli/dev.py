@@ -149,26 +149,23 @@ def build_ui(
     no_install: bool = False,
 ):
     exit_with_error_if_not_editable_install()
-    with tmpchdir(prefect.__development_base_path__):
-        with tmpchdir(prefect.__development_base_path__ / "ui"):
-            if not no_install:
-                app.console.print("Installing npm packages...")
-                try:
-                    subprocess.check_output(
-                        ["npm", "ci"], shell=sys.platform == "win32"
-                    )
-                except Exception:
-                    app.console.print(
-                        "npm call failed - try running `nvm use` first.", style="red"
-                    )
-                    raise
-
+    with tmpchdir(prefect.__development_base_path__ / "ui"):
+        if not no_install:
+            app.console.print("Installing npm packages...")
+            try:
+                subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
+            except Exception:
+                app.console.print(
+                    "npm call failed - try running `nvm use` first.", style="red"
+                )
+                raise
             app.console.print("Building for distribution...")
             env = os.environ.copy()
             subprocess.check_output(
                 ["npm", "run", "build"], env=env, shell=sys.platform == "win32"
             )
 
+    with tmpchdir(prefect.__development_base_path__):
         if os.path.exists(prefect.__ui_static_path__):
             app.console.print("Removing existing build files...")
             shutil.rmtree(prefect.__ui_static_path__)
@@ -185,13 +182,12 @@ async def ui():
     Starts a hot-reloading development UI.
     """
     exit_with_error_if_not_editable_install()
-    with tmpchdir(prefect.__development_base_path__):
-        with tmpchdir(prefect.__development_base_path__ / "ui"):
-            app.console.print("Installing npm packages...")
-            await run_process(["npm", "install"], stream_output=True)
+    with tmpchdir(prefect.__development_base_path__ / "ui"):
+        app.console.print("Installing npm packages...")
+        await run_process(["npm", "install"], stream_output=True)
 
-            app.console.print("Starting UI development server...")
-            await run_process(command=["npm", "run", "serve"], stream_output=True)
+        app.console.print("Starting UI development server...")
+        await run_process(command=["npm", "run", "serve"], stream_output=True)
 
 
 @dev_app.command()
@@ -237,7 +233,8 @@ async def api(
         try:
             server_pid = await tg.start(start_command)
             async for _ in watchfiles.awatch(
-                prefect.__module_path__, stop_event=stop_event  # type: ignore
+                prefect.__module_path__,
+                stop_event=stop_event,  # type: ignore
             ):
                 # when any watched files change, restart the server
                 app.console.print("Restarting Prefect Server...")

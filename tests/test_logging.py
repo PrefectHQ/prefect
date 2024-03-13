@@ -30,6 +30,7 @@ from prefect.logging.configuration import (
     load_logging_config,
     setup_logging,
 )
+from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
@@ -45,6 +46,7 @@ from prefect.logging.loggers import (
 )
 from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
+    PREFECT_API_KEY,
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_MARKUP,
@@ -58,6 +60,7 @@ from prefect.settings import (
 )
 from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.names import obfuscate
 
 
 @pytest.fixture
@@ -274,7 +277,6 @@ class TestAPILogHandler:
         handler.close()
         mock_log_worker.drain_all.assert_not_called()
 
-    @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
         self, logger, handler, flow_run, prefect_client
     ):
@@ -286,7 +288,6 @@ class TestAPILogHandler:
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
-    @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_flush(
         self, logger, handler, flow_run, prefect_client
     ):
@@ -298,7 +299,6 @@ class TestAPILogHandler:
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
-    @pytest.mark.flaky
     async def test_sync_flush_from_async_context(
         self, logger, handler, flow_run, prefect_client
     ):
@@ -311,13 +311,11 @@ class TestAPILogHandler:
         logs = await prefect_client.read_logs()
         assert len(logs) == 1
 
-    @pytest.mark.flaky
     def test_sync_flush_from_global_event_loop(self, logger, handler, flow_run):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         with pytest.raises(RuntimeError, match="would block"):
             from_sync.call_soon_in_loop_thread(create_call(handler.flush)).result()
 
-    @pytest.mark.flaky
     def test_sync_flush_from_sync_context(self, logger, handler, flow_run):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.flush()
@@ -1239,6 +1237,127 @@ class TestJsonFormatter:
         assert deserialized["exc_info"]["message"] == "test exception"
         assert deserialized["exc_info"]["traceback"] is not None
         assert len(deserialized["exc_info"]["traceback"]) > 0
+
+
+class TestObfuscateApiKeyFilter:
+    def test_filters_current_api_key(self):
+        test_api_key = "hi-hello-im-an-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg=test_api_key,
+                args=None,
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
+
+    def test_current_api_key_is_not_logged(self, caplog):
+        test_api_key = "hot-dog-theres-a-logger-this-is-my-big-chance-for-stardom"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            logger = get_logger("test")
+            logger.info(test_api_key)
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    def test_current_api_key_is_not_logged_from_flow(self, caplog):
+        test_api_key = "i-am-a-plaintext-api-key-and-i-dream-of-being-logged-one-day"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+
+            @flow
+            def test_flow():
+                logger = get_run_logger()
+                logger.info(test_api_key)
+
+            test_flow()
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    def test_current_api_key_is_not_logged_from_flow_log_prints(self, caplog):
+        test_api_key = "i-am-a-sneaky-little-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+
+            @flow(log_prints=True)
+            def test_flow():
+                print(test_api_key)
+
+            test_flow()
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    def test_current_api_key_is_not_logged_from_task(self, caplog):
+        test_api_key = "i-am-jacks-security-risk"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+
+            @task
+            def test_task():
+                logger = get_run_logger()
+                logger.info(test_api_key)
+
+            @flow
+            def test_flow():
+                test_task()
+
+            test_flow()
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    @pytest.mark.parametrize(
+        "raw_log_record,expected_log_record",
+        [
+            (
+                ["super-mega-admin-key", "in", "a", "list"],
+                ["********", "in", "a", "list"],
+            ),
+            (
+                {"super-mega-admin-key": "in", "a": "dict"},
+                {"********": "in", "a": "dict"},
+            ),
+            (
+                {
+                    "key1": "some_value",
+                    "key2": [
+                        {"nested_key": "api_key: super-mega-admin-key"},
+                        "another_value",
+                    ],
+                },
+                {
+                    "key1": "some_value",
+                    "key2": [
+                        {"nested_key": "api_key: ********"},
+                        "another_value",
+                    ],
+                },
+            ),
+        ],
+    )
+    def test_redact_substr_from_collections(
+        self, caplog, raw_log_record, expected_log_record
+    ):
+        """
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/12139
+        """
+
+        @flow()
+        def test_log_list():
+            logger = get_run_logger()
+            logger.info(raw_log_record)
+
+        with temporary_settings({PREFECT_API_KEY: "super-mega-admin-key"}):
+            test_log_list()
+
+        assert str(expected_log_record) in caplog.text
 
 
 def test_log_in_flow(caplog):

@@ -1,6 +1,5 @@
 from datetime import timedelta
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from textwrap import dedent
 from unittest.mock import Mock
 
@@ -135,6 +134,18 @@ def mock_build_from_flow(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def mock_create_default_ignore_file(monkeypatch):
+    mock_create_default_ignore_file = Mock(return_value=True)
+
+    monkeypatch.setattr(
+        "prefect.cli.deployment.create_default_ignore_file",
+        mock_create_default_ignore_file,
+    )
+
+    return mock_create_default_ignore_file
+
+
+@pytest.fixture(autouse=True)
 async def ensure_default_agent_pool_exists(session):
     # The default agent work pool is created by a migration, but is cleared on
     # consecutive test runs. This fixture ensures that the default agent work
@@ -194,7 +205,7 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule is None
+        assert deployment.schedules == []
 
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -216,8 +227,9 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule.cron == "0 4 * * *"
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        schedule = deployment.schedules[0].schedule
+        assert schedule.cron == "0 4 * * *"
+        assert schedule.timezone == "Europe/Berlin"
 
     def test_passing_interval_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -241,9 +253,10 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
-        assert deployment.schedule.timezone == "America/New_York"
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == timedelta(seconds=42)
+        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.timezone == "America/New_York"
 
     def test_passing_anchor_without_interval_exits(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -283,8 +296,9 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
@@ -310,11 +324,12 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
-        assert deployment.schedule.timezone == "America/New_York"
+        assert schedule.timezone == "America/New_York"
 
     def test_parsing_rrule_timezone_overrides_if_passed_explicitly(
         self, patch_import, tmp_path
@@ -342,11 +357,12 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        assert schedule.timezone == "Europe/Berlin"
 
     @pytest.mark.parametrize(
         "schedules",
@@ -648,7 +664,7 @@ class TestEntrypoint:
             expected_output_contains="No module named ",
         )
 
-    def test_entrypoint_works_with_flow_with_custom_name(self):
+    def test_entrypoint_works_with_flow_with_custom_name(self, tmp_path, monkeypatch):
         flow_code = """
         from prefect import flow
 
@@ -656,41 +672,45 @@ class TestEntrypoint:
         def dog():
             pass
         """
+        monkeypatch.chdir(tmp_path)
         file_name = "f.py"
-        with TemporaryDirectory():
-            Path(file_name).write_text(dedent(flow_code))
+        file_path = Path(tmp_path) / Path(file_name)
+        file_path.write_text(dedent(flow_code))
 
-            dep_name = "TEST"
-            entrypoint = f"{file_name}:dog"
-            cmd = ["deployment", "build", "-n", dep_name]
-            cmd += [entrypoint]
+        dep_name = "TEST"
+        entrypoint = f"{file_path.absolute()}:dog"
+        cmd = ["deployment", "build", "-n", dep_name]
+        cmd += [entrypoint]
 
-            invoke_and_assert(
-                cmd,
-                expected_code=0,
-            )
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
 
-    def test_entrypoint_works_with_flow_func_with_underscores(self):
+    def test_entrypoint_works_with_flow_func_with_underscores(
+        self, tmp_path, monkeypatch
+    ):
         flow_code = """
         from prefect import flow
-        
+
         @flow
         def dog_flow_func():
             pass
         """
+        monkeypatch.chdir(tmp_path)
         file_name = "f.py"
-        with TemporaryDirectory():
-            Path(file_name).write_text(dedent(flow_code))
+        file_path = Path(tmp_path) / Path(file_name)
+        file_path.write_text(dedent(flow_code))
 
-            dep_name = "TEST"
-            entrypoint = f"{file_name}:dog_flow_func"
-            cmd = ["deployment", "build", "-n", dep_name]
-            cmd += [entrypoint]
+        dep_name = "TEST"
+        entrypoint = f"{file_path.absolute()}:dog_flow_func"
+        cmd = ["deployment", "build", "-n", dep_name]
+        cmd += [entrypoint]
 
-            invoke_and_assert(
-                cmd,
-                expected_code=0,
-            )
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
 
 
 class TestWorkQueue:
@@ -862,6 +882,7 @@ class TestAutoApply:
                 ),
                 f"$ prefect agent start -p {prefect_agent_work_pool.name!r}",
             ],
+            temp_dir=tmp_path,
         )
 
     def test_message_with_process_work_pool(
@@ -887,6 +908,7 @@ class TestAutoApply:
                 ),
                 f"$ prefect worker start -p {process_work_pool.name!r}",
             ],
+            temp_dir=tmp_path,
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
@@ -916,6 +938,7 @@ class TestAutoApply:
                     f"$ prefect worker start -p {process_work_pool.name!r}"
                 ),
             ],
+            temp_dir=tmp_path,
         )
 
 

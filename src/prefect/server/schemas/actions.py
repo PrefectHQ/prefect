@@ -1,6 +1,7 @@
 """
 Reduced schemas for accepting API actions.
 """
+
 import json
 import warnings
 from copy import copy, deepcopy
@@ -95,6 +96,22 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
 
+@copy_model_fields
+class DeploymentScheduleCreate(ActionBaseModel):
+    active: bool = FieldFrom(schemas.core.DeploymentSchedule)
+    schedule: schemas.schedules.SCHEDULE_TYPES = FieldFrom(
+        schemas.core.DeploymentSchedule
+    )
+
+
+@copy_model_fields
+class DeploymentScheduleUpdate(ActionBaseModel):
+    active: Optional[bool] = FieldFrom(schemas.core.DeploymentSchedule)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
+        schemas.core.DeploymentSchedule
+    )
+
+
 @experimental_field(
     "work_pool_name",
     group="work_pools",
@@ -103,6 +120,18 @@ class FlowUpdate(ActionBaseModel):
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
+
+    @root_validator
+    def populate_schedules(cls, values):
+        if not values.get("schedules") and values.get("schedule"):
+            values["schedules"] = [
+                DeploymentScheduleCreate(
+                    schedule=values["schedule"],
+                    active=values["is_schedule_active"],
+                )
+            ]
+
+        return values
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
@@ -140,6 +169,11 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
+    paused: bool = FieldFrom(schemas.core.Deployment)
+    schedules: List[DeploymentScheduleCreate] = Field(
+        default_factory=list,
+        description="A list of schedules for the deployment.",
+    )
     enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
         schemas.core.Deployment
@@ -250,6 +284,11 @@ class DeploymentUpdate(ActionBaseModel):
     )
     description: Optional[str] = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
+    paused: bool = FieldFrom(schemas.core.Deployment)
+    schedules: List[DeploymentScheduleCreate] = Field(
+        default_factory=list,
+        description="A list of schedules for the deployment.",
+    )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
@@ -305,6 +344,7 @@ class FlowRunUpdate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
@@ -417,6 +457,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields

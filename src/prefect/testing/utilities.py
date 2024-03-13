@@ -1,6 +1,7 @@
-""""
+"""
 Internal utilities for tests.
 """
+
 import sys
 import warnings
 from contextlib import ExitStack, contextmanager
@@ -8,8 +9,6 @@ from pathlib import Path
 from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import Dict, List, Union
-
-import pytest
 
 import prefect.context
 import prefect.settings
@@ -22,16 +21,6 @@ from prefect.results import PersistedResult
 from prefect.serializers import Serializer
 from prefect.server.database.dependencies import temporary_database_interface
 from prefect.states import State
-
-
-def flaky_on_windows(fn, **kwargs):
-    """
-    Mark a test as flaky for repeated test runs if on Windows.
-    """
-    if sys.platform == "win32":
-        return pytest.mark.flaky(**kwargs)(fn)
-    else:
-        return fn
 
 
 def exceptions_equal(a, b):
@@ -131,12 +120,19 @@ def kubernetes_environments_equal(
 
 
 @contextmanager
-def assert_does_not_warn():
+def assert_does_not_warn(ignore_warnings=[]):
     """
-    Converts warnings to errors within this context to assert warnings are not raised.
+    Converts warnings to errors within this context to assert warnings are not raised,
+    except for those specified in ignore_warnings.
+
+    Parameters:
+    - ignore_warnings: List of warning types to ignore. Example: [DeprecationWarning, UserWarning]
     """
     with warnings.catch_warnings():
         warnings.simplefilter("error")
+        for warning_type in ignore_warnings:
+            warnings.filterwarnings("ignore", category=warning_type)
+
         try:
             yield
         except Warning as warning:

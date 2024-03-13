@@ -24,6 +24,7 @@ from prefect.server.orchestration.core_policy import (
     CacheRetrieval,
     CopyScheduledTime,
     EnforceCancellingToCancelledTransition,
+    EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
     HandleResumingPausedFlows,
@@ -1307,6 +1308,68 @@ class TestTransitionsFromTerminalStatesRule:
             protection_rule = HandleFlowTerminalStateTransitions
 
         state_protection = protection_rule(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["flow"])
+class TestEnsureOnlyScheduledFlowMarkedLate:
+    """Ensure that only scheduled flow runs are marked late"""
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        [
+            (StateType.RUNNING, StateType.SCHEDULED),
+            (StateType.PENDING, StateType.SCHEDULED),
+            (StateType.COMPLETED, StateType.SCHEDULED),
+            (StateType.FAILED, StateType.SCHEDULED),
+            (StateType.CANCELLING, StateType.SCHEDULED),
+        ],
+        ids=transition_names,
+    )
+    async def test_reject_marking_states_other_than_scheduled_as_late(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session, run_type, *intended_transition, proposed_state_name="Late"
+        )
+
+        state_protection = EnsureOnlyScheduledFlowsMarkedLate(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        [
+            (StateType.SCHEDULED, StateType.SCHEDULED),
+        ],
+        ids=transition_names,
+    )
+    async def test_scheduled_to_late_transition_is_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            proposed_state_name="Late",
+        )
+
+        state_protection = EnsureOnlyScheduledFlowsMarkedLate(ctx, *intended_transition)
 
         async with state_protection as ctx:
             await ctx.validate_proposed_state()

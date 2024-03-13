@@ -1,10 +1,10 @@
 import asyncio
-from typing import Generic, List, Type, TypeVar
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
 import orjson
 import websockets
 import websockets.exceptions
-from starlette.status import WS_1008_POLICY_VIOLATION
+from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
@@ -17,9 +17,15 @@ S = TypeVar("S", bound=IDBaseModel)
 
 
 class Subscription(Generic[S]):
-    def __init__(self, model: Type[S], path: str, keys: List[str]):
+    def __init__(
+        self,
+        model: Type[S],
+        path: str,
+        keys: List[str],
+        client_id: Optional[str] = None,
+    ):
         self.model = model
-
+        self.client_id = client_id
         base_url = PREFECT_API_URL.value().replace("http", "ws", 1)
         self.subscription_url = f"{base_url}{path}"
 
@@ -40,11 +46,7 @@ class Subscription(Generic[S]):
                 await self._ensure_connected()
                 message = await self._websocket.recv()
 
-                message_data = orjson.loads(message)
-
-                if message_data.get("type") == "ping":
-                    await self._websocket.send(orjson.dumps({"type": "pong"}).decode())
-                    continue
+                await self._websocket.send(orjson.dumps({"type": "ack"}).decode())
 
                 return self.model.parse_raw(message)
             except (
@@ -69,21 +71,29 @@ class Subscription(Generic[S]):
                 ).decode()
             )
 
-            auth = orjson.loads(await websocket.recv())
-            assert auth["type"] == "auth_success"
+            auth: Dict[str, Any] = orjson.loads(await websocket.recv())
+            assert auth["type"] == "auth_success", auth.get("message")
 
-            await websocket.send(
-                orjson.dumps({"type": "subscribe", "keys": self.keys}).decode()
-            )
+            message = {"type": "subscribe", "keys": self.keys} | {
+                **(dict(client_id=self.client_id) if self.client_id else {})
+            }
+
+            await websocket.send(orjson.dumps(message).decode())
         except (
             AssertionError,
             websockets.exceptions.ConnectionClosedError,
         ) as e:
             if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
+                if isinstance(e, AssertionError):
+                    reason = e.args[0]
+                elif isinstance(e, websockets.exceptions.ConnectionClosedError):
+                    reason = e.reason
+
+            if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
                 raise Exception(
                     "Unable to authenticate to the subscription. Please "
                     "ensure the provided `PREFECT_API_KEY` you are using is "
-                    "valid for this environment."
+                    f"valid for this environment. Reason: {reason}"
                 ) from e
             raise
         else:

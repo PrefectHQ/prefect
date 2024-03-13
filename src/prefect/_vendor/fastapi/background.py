@@ -1,1 +1,3 @@
-from starlette.background import BackgroundTasks as BackgroundTasks  # noqa
+from prefect._vendor.starlette.background import (
+    BackgroundTasks as BackgroundTasks,
+)

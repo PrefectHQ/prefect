@@ -40,7 +40,7 @@ To receive input while paused or suspended use the `wait_for_input` parameter in
 The simplest way to pause or suspend and wait for input is to pass a built-in type:
 
 ```python
-from prefect import flow, pause_flow_run
+from prefect import flow, pause_flow_run, get_run_logger
 
 @flow
 def greet_user():
@@ -60,7 +60,7 @@ In this example, the flow run will pause until a user clicks the Resume button i
 Instead of a built-in type, you can pass in a `pydantic.BaseModel` class. This is useful if you already have a `BaseModel` you want to use:
 
 ```python
-from prefect import flow, pause_flow_run
+from prefect import flow, pause_flow_run, get_run_logger
 from pydantic import BaseModel
 
 
@@ -87,6 +87,7 @@ async def greet_user():
 Finally, for advanced use cases like overriding how Prefect stores flow run inputs, you can create a `RunInput` class:
 
 ```python
+from prefect import get_run_logger
 from prefect.input import RunInput
 
 class UserInput(RunInput):
@@ -113,6 +114,7 @@ You can set default values for fields in your model by using the `with_initial_d
 Expanding on the example above, you could make the `name` field default to "anonymous":
 
 ```python
+from prefect import get_run_logger
 from prefect.input import RunInput
 
 class UserInput(RunInput):
@@ -178,13 +180,12 @@ Please enter your details below:
 
 When a user sees the form for this input, the given markdown will appear above the input fields.
 
-
 ### Handling custom validation
 
 Prefect uses the fields and type hints on your `RunInput` or `BaseModel` class to validate the general structure of input your flow receives, but you might require more complex validation. If you do, you can use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
 
 !!! warning "Custom validation runs after the flow resumes"
-    Prefect transforms the type annotations in your `RunInput` or `BaseModel` class to a JSON schema and uses that schema in the UI for client-side validation. However, custom validation requires running *Python* logic defined in your `RunInput` class. Because of this, validation happens _after the flow resumes_, so you'll want to handle it explicitly in your flow. Continue reading for an example best practice.
+    Prefect transforms the type annotations in your `RunInput` or `BaseModel` class to a JSON schema and uses that schema in the UI for client-side validation. However, custom validation requires running _Python_ logic defined in your `RunInput` class. Because of this, validation happens _after the flow resumes_, so you'll want to handle it explicitly in your flow. Continue reading for an example best practice.
 
 The following is an example `RunInput` class that uses a custom field validator:
 
@@ -295,7 +296,7 @@ The most important parameter to the `send_input` and `receive_input` functions i
 - A `prefect.input.RunInput` class
 
 !!! type "When to use a `BaseModel` or `RunInput` instead of a built-in type"
-    Most built-in types and collections of built-in types should work with `send_input` and `receive_input`, but there is a caveat with nested collection types, such as lists of tuples, e.g. `List[Tuple[str, float]])`. In this case, validation may happen after your flow receives the data, so calling `receive_input` may raise a `ValidationError`. You can plan to catch this exception, but also, consider placing the field in an explicit `BaseModel` or `RunInput` so that your flow only receives exact type matches. 
+    Most built-in types and collections of built-in types should work with `send_input` and `receive_input`, but there is a caveat with nested collection types, such as lists of tuples, e.g. `List[Tuple[str, float]])`. In this case, validation may happen after your flow receives the data, so calling `receive_input` may raise a `ValidationError`. You can plan to catch this exception, but also, consider placing the field in an explicit `BaseModel` or `RunInput` so that your flow only receives exact type matches.
 
 Let's look at some examples! We'll check out `receive_input` first, followed by `send_input`, and then we'll see the two functions working together.
 
@@ -466,7 +467,7 @@ async def greeter():
         await suspend_flow_run(timeout=10000)
 ```
 
-As this flow processes name input, it adds the *key* of the flow run input to the `seen_keys_block`. When the flow later suspends and then resumes, it reads the keys it has already seen out of the JSON Block and passes them as the `exlude_keys` parameter to `receive_input`.
+As this flow processes name input, it adds the _key_ of the flow run input to the `seen_keys_block`. When the flow later suspends and then resumes, it reads the keys it has already seen out of the JSON Block and passes them as the `exlude_keys` parameter to `receive_input`.
 
 ### Responding to the input's sender
 
@@ -519,7 +520,7 @@ async def greeter():
         await name_input.respond(f"Hello, {name_input.value}!")
 ```
 
-With a `greeter` flow in place, now we're ready to create the flow that sends `greeter` names!
+With a `greeter` flow in place, we're ready to create the flow that sends `greeter` names!
 
 ### Sending input
 
@@ -657,18 +658,20 @@ if __name__ == "__main__":
         asyncio.run(greeter.serve(name="send-receive"))
     elif sys.argv[1] == "sender":
         asyncio.run(sender())
-``` 
+```
 
-To run the example, you'll need a Python environment with Prefect installed, pointed at either open-source Prefect or Prefect Cloud.
+To run the example, you'll need a Python environment with Prefect installed, pointed at either an open-source Prefect server instance or Prefect Cloud.
 
 With your environment set up, start a flow runner in one terminal with the following command:
+
 <div class="terminal">
 ```bash
-    $ python <filename> greeter
+python my_file_name greeter
 ```
-</div>    
+</div>
 
 For example, with Prefect Cloud, you should see output like this:
+
 <div class="terminal">
 ```bash
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
@@ -685,14 +688,16 @@ For example, with Prefect Cloud, you should see output like this:
 ```
 </div>
 
-Then start the greeter in another process in another terminal:
+Then start the greeter process in another terminal:
+
 <div class="terminal">
 ```bash
-    $ python <filename> sender
+python my_file_name sender
 ```
 </div>
 
-You should see:
+You should see output like this:
+
 <div class="terminal">
 ```bash
 11:38:41.800 | INFO    | prefect.engine - Created flow run 'gregarious-owl' for flow 'sender'
@@ -702,6 +707,7 @@ What is your name?
 </div>
 
 Type a name and press the enter key to see a greeting, and you'll see sending and receiving in action:
+
 <div class="terminal">
 ```bash
 What is your name? andrew

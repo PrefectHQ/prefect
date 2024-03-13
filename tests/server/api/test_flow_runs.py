@@ -16,7 +16,7 @@ else:
 
 import pytest
 import sqlalchemy as sa
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
@@ -48,6 +48,24 @@ class TestCreateFlowRun:
             session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.flow_id == flow.id
+
+    async def test_create_flow_run_witout_job_vars_defaults_to_empty(
+        self, flow, client, session
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id,
+                name="",
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["job_variables"] == {}
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=response.json()["id"]
+        )
+        assert flow_run.job_variables == {}
 
     async def test_create_flow_run_with_infrastructure_document_id(
         self, flow, client, infrastructure_document_id
@@ -234,6 +252,28 @@ class TestUpdateFlowRun:
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
+
+    async def test_update_flow_run_with_job_vars(self, flow, session, client):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.get(f"flow_runs/{flow_run.id}")
+        updated_flow_run = pydantic.parse_obj_as(
+            schemas.responses.FlowRunResponse, response.json()
+        )
+        assert updated_flow_run.job_variables == job_vars
 
     async def test_update_flow_run_does_not_update_if_fields_not_set(
         self, flow, session, client
@@ -953,6 +993,7 @@ class TestResumeFlowrun:
         flow,
     ):
         class SimpleInput(RunInput):
+            how_many: Optional[str] = "5"
             approved: Optional[bool] = True
 
         state = schemas.states.Paused(pause_key="1")
@@ -1065,8 +1106,7 @@ class TestResumeFlowrun:
         assert response.status_code == 200
         assert response.json()["status"] == "REJECT"
         assert (
-            response.json()["details"]["reason"]
-            == "Run input validation failed: 'approved' is a required property"
+            "'approved' is a required property" in response.json()["details"]["reason"]
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1140,8 +1180,8 @@ class TestResumeFlowrun:
         assert response.status_code == 200
         assert response.json()["status"] == "REJECT"
         assert (
-            response.json()["details"]["reason"]
-            == "Run input validation failed: 'not a bool!' is not of type 'boolean'"
+            "'not a bool!' is not of type 'boolean'"
+            in response.json()["details"]["reason"]
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1169,6 +1209,55 @@ class TestResumeFlowrun:
 
         assert flow_run_input
         assert orjson.loads(flow_run_input.value) == {"approved": True}
+
+    async def test_resume_flow_run_waiting_for_input_with_hydrated_input(
+        self,
+        session,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {"how_many": {"__prefect_kind": "json", "value": '"3"'}}
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input_with_default.id,
+            key="paused-1-response",
+        )
+
+        assert flow_run_input
+        assert orjson.loads(flow_run_input.value) == {"how_many": "3"}
+        assert response.json()["state"]["id"] != str(
+            paused_flow_run_waiting_for_input_with_default.state_id
+        )
+
+    async def test_resume_flow_run_waiting_for_input_with_malformed_dehydrated_input(
+        self,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {
+                    "how_many": {
+                        "__prefect_kind": "json",
+                        "value": '{"invalid": json}',
+                    },
+                }
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert response.json()["details"]["reason"].startswith(
+            "Error hydrating run input: Invalid JSON"
+        )
 
 
 class TestSetFlowRunState:

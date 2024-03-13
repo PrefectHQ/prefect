@@ -29,7 +29,7 @@ def call_in_loop(
     __loop: asyncio.AbstractEventLoop,
     __fn: Callable[P, T],
     *args: P.args,
-    **kwargs: P.kwargs
+    **kwargs: P.kwargs,
 ) -> T:
     """
     Run a synchronous call in event loop's thread from another thread.
@@ -49,7 +49,7 @@ def call_soon_in_loop(
     __loop: asyncio.AbstractEventLoop,
     __fn: Callable[P, T],
     *args: P.args,
-    **kwargs: P.kwargs
+    **kwargs: P.kwargs,
 ) -> concurrent.futures.Future:
     """
     Run a synchronous call in an event loop's thread from another thread.
