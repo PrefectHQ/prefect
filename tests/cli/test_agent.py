@@ -1,17 +1,45 @@
+import warnings
 from unittest.mock import ANY
+
+import pytest
 
 import prefect.cli.agent
 from prefect import PrefectClient
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
+@pytest.fixture(autouse=True)
+def ignore_agent_deprecation_warnings():
+    """
+    Ignore deprecation warnings from the agent module to avoid
+    test failures.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=PrefectDeprecationWarning)
+        yield
+
+
+def test_start_agent_emits_deprecation_warning():
+    invoke_and_assert(
+        command=["agent", "start", "--run-once", "-q", "test"],
+        expected_code=0,
+        expected_output_contains=[
+            "The 'agent' command group has been deprecated.",
+            "It will not be available after Sep 2024.",
+            " Use `prefect worker start` instead.",
+            " Refer to the upgrade guide for more information",
+        ],
+    )
+
+
 def test_start_agent_with_no_args():
     invoke_and_assert(
         command=["agent", "start"],
-        expected_output="No work queues provided!",
+        expected_output_contains="No work queues provided!",
         expected_code=1,
     )
 
