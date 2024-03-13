@@ -25,8 +25,10 @@ from sqlalchemy.exc import IntegrityError
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
+from prefect.server.api.validation import validate_job_variables_for_flow_run
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge
@@ -40,6 +42,8 @@ from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
+from prefect.utilities import schema_tools
 
 logger = get_logger("server.api")
 
@@ -95,6 +99,37 @@ async def update_flow_run(
     Updates a flow run.
     """
     async with db.session_context(begin_transaction=True) as session:
+        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES:
+            if flow_run.job_variables is not None:
+                this_run = await models.flow_runs.read_flow_run(
+                    session, flow_run_id=flow_run_id
+                )
+                if this_run is None:
+                    raise HTTPException(
+                        status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+                    )
+                if this_run.state.type != schemas.states.StateType.SCHEDULED:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Job variables for a flow run in state {this_run.state.type.name} cannot be updated",
+                    )
+                if this_run.deployment_id is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="A deployment for the flow run could not be found",
+                    )
+
+                deployment = await models.deployments.read_deployment(
+                    session=session, deployment_id=this_run.deployment_id
+                )
+                if deployment is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="A deployment for the flow run could not be found",
+                    )
+
+                validate_job_variables_for_flow_run(flow_run, deployment)
+
         result = await models.flow_runs.update_flow_run(
             session=session, flow_run=flow_run, flow_run_id=flow_run_id
         )
@@ -331,6 +366,21 @@ async def resume_flow_run(
         if keyset:
             run_input = run_input or {}
 
+            if experiment_enabled("enhanced_deployment_parameters"):
+                try:
+                    hydration_context = await schema_tools.HydrationContext.build(
+                        session=session, raise_on_error=True
+                    )
+                    run_input = schema_tools.hydrate(run_input, hydration_context) or {}
+                except schema_tools.HydrationError as exc:
+                    return OrchestrationResult(
+                        state=state,
+                        status=schemas.responses.SetStateStatus.REJECT,
+                        details=schemas.responses.StateAbortDetails(
+                            reason=f"Error hydrating run input: {exc}",
+                        ),
+                    )
+
             schema_json = await models.flow_run_input.read_flow_run_input(
                 session=session, flow_run_id=flow_run.id, key=keyset["schema"]
             )
@@ -355,16 +405,36 @@ async def resume_flow_run(
                     ),
                 )
 
-            try:
-                jsonschema.validate(run_input, schema)
-            except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
-                return OrchestrationResult(
-                    state=state,
-                    status=schemas.responses.SetStateStatus.REJECT,
-                    details=schemas.responses.StateAbortDetails(
-                        reason=f"Run input validation failed: {exc.message}"
-                    ),
-                )
+            if experiment_enabled("enhanced_deployment_parameters"):
+                try:
+                    schema_tools.validate(run_input, schema, raise_on_error=True)
+                except schema_tools.ValidationError as exc:
+                    return OrchestrationResult(
+                        state=state,
+                        status=schemas.responses.SetStateStatus.REJECT,
+                        details=schemas.responses.StateAbortDetails(
+                            reason=f"Reason: {exc}"
+                        ),
+                    )
+                except schema_tools.CircularSchemaRefError:
+                    return OrchestrationResult(
+                        state=state,
+                        status=schemas.responses.SetStateStatus.REJECT,
+                        details=schemas.responses.StateAbortDetails(
+                            reason="Invalid schema: Unable to validate schema with circular references.",
+                        ),
+                    )
+            else:
+                try:
+                    jsonschema.validate(run_input, schema)
+                except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
+                    return OrchestrationResult(
+                        state=state,
+                        status=schemas.responses.SetStateStatus.REJECT,
+                        details=schemas.responses.StateAbortDetails(
+                            reason=f"Run input validation failed: {exc.message}"
+                        ),
+                    )
 
         if state.state_details.pause_reschedule:
             orchestration_result = await models.flow_runs.set_flow_run_state(

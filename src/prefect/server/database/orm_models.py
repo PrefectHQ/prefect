@@ -511,6 +511,7 @@ class ORMFlowRun(ORMRun):
     )
 
     infrastructure_pid = sa.Column(sa.String)
+    job_variables = sa.Column(JSON, server_default="{}", default=dict, nullable=True)
 
     @declared_attr
     def infrastructure_document_id(cls):
