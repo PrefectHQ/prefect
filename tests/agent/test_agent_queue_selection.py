@@ -1,26 +1,11 @@
 import random
-import warnings
-
-import pytest
 
 import prefect.exceptions
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.agent import PrefectAgent
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
-
-
-@pytest.fixture(autouse=True)
-def ignore_agent_deprecation_warnings():
-    """
-    Ignore deprecation warnings from the agent module to avoid
-    test failures. Warning emission is tested in test_agent.py.
-    """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=PrefectDeprecationWarning)
-        yield
 
 
 async def _safe_get_or_create_workpool(
