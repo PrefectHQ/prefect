@@ -1030,7 +1030,8 @@ async def run(
         └── Scheduled start time: {scheduled_display}
         └── URL: {run_url}
         """
-        ).strip()
+        ).strip(),
+        soft_wrap=True,
     )
     if watch:
         watch_interval = 5 if watch_interval is None else watch_interval
