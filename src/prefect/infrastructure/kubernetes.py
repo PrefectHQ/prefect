@@ -70,7 +70,7 @@ class KubernetesJobResult(InfrastructureResult):
 
 
 @deprecated_class(
-    start_date="2024",
+    start_date="Mar 2024",
     help="Use the Kubernetes worker from prefect-kubernetes instead."
     " Refer to the upgrade guide for more information:"
     " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
