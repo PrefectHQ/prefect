@@ -11,6 +11,7 @@ import respx
 import yaml
 from httpx import Response
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -70,6 +71,19 @@ async def ensure_default_agent_pool_exists(session):
             ),
         )
         await session.commit()
+
+
+def test_deployment_emits_deprecation_warning():
+    with pytest.warns(
+        PrefectDeprecationWarning,
+        match=(
+            "prefect.deployments.deployments.Deployment has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use `flow.deploy` to deploy your flows instead."
+            " Refer to the upgrade guide for more information"
+        ),
+    ):
+        Deployment(name="foo")
 
 
 class TestDeploymentBasicInterface:
