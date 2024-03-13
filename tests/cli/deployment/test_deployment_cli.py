@@ -748,7 +748,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': False"],
+            expected_output_contains=["'active': False"],
         )
 
         invoke_and_assert(
@@ -766,7 +766,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': True"],
+            expected_output_contains=["'active': True"],
         )
 
     def test_pausing_and_resuming_schedules_with_schedule_pause(
@@ -789,7 +789,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': False"],
+            expected_output_contains=["'active': False"],
         )
 
         invoke_and_assert(
@@ -809,7 +809,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'is_schedule_active': True"],
+            expected_output_contains=["'active': True"],
         )
 
     def test_pause_schedule_deployment_not_found_raises(self, flojo):
@@ -941,6 +941,177 @@ class TestDeploymentSchedules:
             ],
             expected_code=1,
             expected_output_contains=error,
+        )
+
+    def test_create_schedule_replace_replaces_existing_schedules_many(self, flojo):
+        create_args = [
+            "deployment",
+            "schedule",
+            "create",
+            "rence-griffith/test-deployment",
+            "--interval",
+        ]
+
+        invoke_and_assert(
+            [
+                *create_args,
+                "90",
+            ],
+            expected_code=0,
+            expected_output_contains="Created deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                *create_args,
+                "1800",
+            ],
+            expected_code=0,
+            expected_output_contains="Created deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'interval': 90.0,", "'interval': 1800.0,"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [*create_args, "10", "--replace", "-y"],
+            expected_code=0,
+            expected_output_contains="Replaced existing deployment schedules with new schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'interval': 10.0,"],
+            expected_output_does_not_contain=[
+                "'interval': 90.0,",
+                "'interval': 1800.0,",
+            ],
+            expected_code=0,
+        )
+
+    def test_create_schedule_replace_replaces_existing_schedule(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "clear",
+                "rence-griffith/test-deployment",
+                "-y",
+            ],
+            expected_code=0,
+            expected_output_contains="Cleared all schedules",
+        )
+
+        create_args = [
+            "deployment",
+            "schedule",
+            "create",
+            "rence-griffith/test-deployment",
+            "--interval",
+        ]
+
+        invoke_and_assert(
+            [
+                *create_args,
+                "90",
+            ],
+            expected_code=0,
+            expected_output_contains="Created deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'interval': 90.0,"],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [*create_args, "10", "--replace", "-y"],
+            expected_code=0,
+            expected_output_contains="Replaced existing deployment schedule with new schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'interval': 10.0,"],
+            expected_output_does_not_contain=["'interval': 1800.0,"],
+            expected_code=0,
+        )
+
+    def test_create_schedule_replace_seeks_confirmation(self, flojo):
+        deployment_name = "rence-griffith/test-deployment"
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "create",
+                deployment_name,
+                "--interval",
+                "60",
+                "--replace",
+            ],
+            user_input="N",
+            expected_code=1,
+            expected_output_contains=f"Are you sure you want to replace 1 schedule for {deployment_name}?",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'interval': 10.76,"],  # original schedule
+            expected_code=0,
+        )
+
+    def test_create_schedule_replace_accepts_confirmation(self, flojo):
+        deployment_name = "rence-griffith/test-deployment"
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "create",
+                deployment_name,
+                "--interval",
+                "60",
+                "--replace",
+            ],
+            user_input="y",
+            expected_code=0,
+            expected_output_contains=f"Are you sure you want to replace 1 schedule for {deployment_name}?",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'interval': 60.0,"],  # new schedule
+            expected_output_does_not_contain=[
+                "'interval': 10.76,"
+            ],  # original schedule
+            expected_code=0,
         )
 
     def test_clear_schedule_deletes(self, flojo):

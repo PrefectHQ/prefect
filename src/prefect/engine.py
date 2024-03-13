@@ -80,6 +80,7 @@ Client-side execution and orchestration of flows and tasks.
     _Ideally, for local and sequential task runners we would send the task run to the
     user thread as we do for flows. See [#9855](https://github.com/PrefectHQ/prefect/pull/9855).
 """
+
 import asyncio
 import contextlib
 import logging
@@ -169,6 +170,7 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -799,6 +801,8 @@ async def orchestrate_flow_run(
     # flag to ensure we only update the flow run name once
     run_name_set = False
 
+    await _run_flow_hooks(flow=flow, flow_run=flow_run, state=state)
+
     while state.is_running():
         waited_for_task_runs = False
 
@@ -954,7 +958,6 @@ async def orchestrate_flow_run(
                     f"Received non-final state {state.name!r} when proposing final"
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
-                extra={"send_to_api": False},
             )
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
@@ -1368,10 +1371,28 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
 
     if not flow_run_context:
-        raise RuntimeError(
-            "Tasks cannot be run outside of a flow"
-            " - if you meant to submit an autonomous task, you need to set"
-            " `prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=true`"
+        if (
+            not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
+            or return_type == "future"
+            or mapped
+        ):
+            raise RuntimeError(
+                "Tasks cannot be run outside of a flow by default."
+                " If you meant to submit an autonomous task, you need to set"
+                " `prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=true`"
+                " and use `your_task.submit()` instead of `your_task()`."
+                " Mapping autonomous tasks is not yet supported."
+            )
+        from prefect.task_engine import submit_autonomous_task_run_to_engine
+
+        return submit_autonomous_task_run_to_engine(
+            task=task,
+            task_run=None,
+            parameters=parameters,
+            task_runner=task_runner,
+            wait_for=wait_for,
+            return_type=return_type,
+            client=get_client(),
         )
 
     if TaskRunContext.get():
@@ -1402,12 +1423,13 @@ def enter_task_run_engine(
 
 async def begin_task_map(
     task: Task,
-    flow_run_context: FlowRunContext,
+    flow_run_context: Optional[FlowRunContext],
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
-) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
+    autonomous: bool = False,
+) -> List[Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]]:
     """Async entrypoint for task mapping"""
     # We need to resolve some futures to map over their data, collect the upstream
     # links beforehand to retain relationship tracking.
@@ -1474,18 +1496,29 @@ async def begin_task_map(
         # Collapse any previously exploded kwargs
         call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
 
-        task_runs.append(
-            partial(
-                get_task_call_return_value,
-                task=task,
-                flow_run_context=flow_run_context,
-                parameters=call_parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-                task_runner=task_runner,
-                extra_task_inputs=task_inputs,
+        if autonomous:
+            task_runs.append(
+                await create_autonomous_task_run(
+                    task=task,
+                    parameters=call_parameters,
+                )
             )
-        )
+        else:
+            task_runs.append(
+                partial(
+                    get_task_call_return_value,
+                    task=task,
+                    flow_run_context=flow_run_context,
+                    parameters=call_parameters,
+                    wait_for=wait_for,
+                    return_type=return_type,
+                    task_runner=task_runner,
+                    extra_task_inputs=task_inputs,
+                )
+            )
+
+    if autonomous:
+        return task_runs
 
     # Maintain the order of the task runs when using the sequential task runner
     runner = task_runner if task_runner else flow_run_context.task_runner
@@ -1697,7 +1730,10 @@ async def create_task_run(
         task_inputs=task_inputs,
     )
 
-    logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
+    if flow_run_context.flow_run:
+        logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
+    else:
+        engine_logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
 
     return task_run
 
@@ -1715,7 +1751,7 @@ async def submit_task_run(
 
     if (
         task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL
-        and not flow_run_context.autonomous_task_run
+        and flow_run_context.flow_run
     ):
         logger.info(f"Executing {task_run.name!r} immediately...")
 
@@ -2181,7 +2217,6 @@ async def orchestrate_task_run(
                         f" state {terminal_state.name!r} and will attempt to run"
                         " again..."
                     ),
-                    extra={"send_to_api": False},
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
@@ -2801,7 +2836,10 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
         == "true"
     )
-    if state.is_failed() and flow.on_failure:
+
+    if state.is_running() and flow.on_running:
+        hooks = flow.on_running
+    elif state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
@@ -2924,7 +2962,8 @@ async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> 
 
             # TODO: Improve use of result storage for parameter storage / reference
             task.persist_result = True
-            factory = await ResultFactory.from_task(task, client=client)
+
+            factory = await ResultFactory.from_autonomous_task(task, client=client)
             await factory.store_parameters(parameters_id, parameters)
 
         task_run = await client.create_task_run(

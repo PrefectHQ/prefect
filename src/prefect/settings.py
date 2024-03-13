@@ -102,6 +102,8 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
+REMOVED_EXPERIMENTAL_FLAGS = {"PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI"}
+
 
 class Setting(Generic[T]):
     """
@@ -598,6 +600,15 @@ PREFECT_API_URL = Setting(
 If provided, the URL of a hosted Prefect API. Defaults to `None`.
 
 When using Prefect Cloud, this will include an account and workspace.
+"""
+
+PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+we would like to silence this warning so we will set it to `FALSE`.
 """
 
 PREFECT_API_KEY = Setting(
@@ -1276,6 +1287,21 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 The maximum size of a flow run graph on the v2 API
 """
 
+PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
+"""
+The maximum number of artifacts to show on a flow run graph on the v2 API
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=False)
+"""
+Whether or not to enable artifacts on the flow run graph.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=False)
+"""
+Whether or not to enable flow run states on the flow run graph.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1314,6 +1340,11 @@ Whether or not to warn when experimental Prefect visualize is used.
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental enhanced flow run cancellation.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS = Setting(bool, default=True)
+"""
+Whether or not to enable enhanced deployment parameters.
 """
 
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
@@ -1407,6 +1438,14 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 """
 The port the worker's webserver should bind to.
 """
+
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
+    str,
+    default="local-file-system/prefect-task-scheduling",
+)
+"""The `block-type/block-document` slug of a block to use as the default storage
+for autonomous tasks."""
+
 PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
     bool,
     default=True,
@@ -1429,6 +1468,16 @@ PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
 )
 """
 The maximum number of retries to queue for submission.
+"""
+
+PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
+    timedelta,
+    default=timedelta(seconds=30),
+)
+"""
+How long before a PENDING task are made available to another task server.  In practice,
+a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task server may have crashed.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
@@ -1476,10 +1525,6 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = Setting(bool, default=True)
-"""
-Whether or not to enable the enhanced scheduling UI.
-"""
 
 # Defaults -----------------------------------------------------------------------------
 
@@ -1603,7 +1648,8 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
-        values = warn_on_misconfigured_api_url(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(
@@ -2032,6 +2078,24 @@ class ProfilesCollection:
         )
 
 
+def _handle_removed_flags(profile_name: str, settings: dict) -> dict:
+    to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
+
+    for name in to_remove:
+        warnings.warn(
+            (
+                f"Experimental flag {name!r} has been removed, please "
+                f"update your {profile_name!r} profile."
+            ),
+            UserWarning,
+            stacklevel=3,
+        )
+
+        settings.pop(name)
+
+    return settings
+
+
 def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
     Read profiles from a path into a new `ProfilesCollection`.
@@ -2048,10 +2112,10 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
     active_profile = contents.get("active")
     raw_profiles = contents.get("profiles", {})
 
-    profiles = [
-        Profile(name=name, settings=settings, source=path)
-        for name, settings in raw_profiles.items()
-    ]
+    profiles = []
+    for name, settings in raw_profiles.items():
+        settings = _handle_removed_flags(name, settings)
+        profiles.append(Profile(name=name, settings=settings, source=path))
 
     return ProfilesCollection(profiles, active=active_profile)
 

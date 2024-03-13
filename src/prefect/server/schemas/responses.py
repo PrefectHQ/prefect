@@ -207,6 +207,7 @@ class FlowRunResponse(ORMBaseModel):
         example="my-work-pool",
     )
     state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
     @classmethod
     def from_orm(cls, orm_flow_run: "prefect.server.database.orm_models.ORMFlowRun"):
@@ -306,10 +307,10 @@ class DeploymentResponse(ORMBaseModel):
         # schedule as the primary schedule.
         if orm_deployment.schedules:
             response.schedule = orm_deployment.schedules[0].schedule
-            response.is_schedule_active = orm_deployment.schedules[0].active
         else:
             response.schedule = None
-            response.is_schedule_active = not orm_deployment.paused
+
+        response.is_schedule_active = not bool(orm_deployment.paused)
 
         return response
 

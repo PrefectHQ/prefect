@@ -84,6 +84,7 @@ API_ROUTERS = (
     api.collections.router,
     api.variables.router,
     api.ui.flow_runs.router,
+    api.ui.schemas.router,
     api.ui.task_runs.router,
     api.admin.router,
     api.root.router,
@@ -562,6 +563,9 @@ def create_app(
             service_instances.append(
                 services.flow_run_notifications.FlowRunNotifications()
             )
+
+        if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
         loop = asyncio.get_running_loop()
 

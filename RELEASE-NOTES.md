@@ -1,5 +1,175 @@
 # Prefect Release Notes
 
+## Release 2.16.3
+
+### Enhanced deployment parameters in the Prefect UI
+
+We’ve refined the deployment parameters UI to significantly enhance default value handling and list management. This release introduces support for tuple-type parameters and a revamped list UI, freeing users from the constraints of JSON for list inputs. You now have the flexibility to utilize JSON or Prefect variables for any parameter value, enhancing the versatility of deployment configurations. Moreover, we’ve synchronized validation across the UI and deployment schemas, ensuring that user inputs are consistently checked against the defined parameter requirements, which simplifies the deployment process and minimizes configuration errors.
+
+These improvements are aimed at providing a more efficient and user-friendly interface for managing deployment parameters. Check it out for yourself!
+
+<img width="791" alt="paramsui" src="https://github.com/PrefectHQ/prefect/assets/42048900/d95c854f-1b95-46fb-8214-9132c923214f">
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12168
+- https://github.com/PrefectHQ/prefect/pull/12179
+- https://github.com/PrefectHQ/prefect/pull/12186
+- https://github.com/PrefectHQ/prefect/pull/12187
+- https://github.com/PrefectHQ/prefect/pull/12182
+- https://github.com/PrefectHQ/prefect/pull/12219
+
+### Enhancements
+- Adds `on_running` state change hook — https://github.com/PrefectHQ/prefect/pull/12153
+- Add flow run state data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12130 
+- Add schedules shorthand support to `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12181
+- Send flow run and task run retry logs to API — https://github.com/PrefectHQ/prefect/pull/12211
+- Add the flow run graph states layer and handle selection — https://github.com/PrefectHQ/prefect/pull/12166 - asked Brandon
+- Add a paused deployment filter and update `is_schedule_active` filter — https://github.com/PrefectHQ/prefect/pull/12202
+- Updating client-side schemas for automation triggers to reflect updates in Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12205
+
+### Fixes
+- Address two memory leak in concurrency management — https://github.com/PrefectHQ/prefect/pull/12141
+
+### Experimental
+- Add Job Variables tab to the Flow Runs page — https://github.com/PrefectHQ/prefect/pull/12206
+- Add support for calling `.map` for autonomous task runs — https://github.com/PrefectHQ/prefect/pull/12171
+- Simplify already authenticated logic for `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12209
+- Add better parity with Prefect Cloud for task scheduling protocol - https://github.com/PrefectHQ/prefect/pull/12212
+- Allow creating autonomous task runs via `__call__` — https://github.com/PrefectHQ/prefect/pull/12158
+
+### Integrations
+- Fix VPC Connector usage in Cloud Run Worker v2 - https://github.com/PrefectHQ/prefect-gcp/pull/252
+
+### Documentation
+- Add advanced example to CI/CD guide — https://github.com/PrefectHQ/prefect/pull/12188
+- Add keyword for search to deployments concept doc — https://github.com/PrefectHQ/prefect/pull/12178
+- Add a `prefect-client` README — https://github.com/PrefectHQ/prefect/pull/12172
+- Add `prefect-soda-cloud` integration — https://github.com/PrefectHQ/prefect/pull/12208
+- Update Prefect self-hosted guide to clarify PostgreSQL Docker instructions — https://github.com/PrefectHQ/prefect/pull/12164
+- Update README example — https://github.com/PrefectHQ/prefect/pull/12167
+- Remove outdated sqlite version info from install docs — https://github.com/PrefectHQ/prefect/pull/12162
+
+### Contributors
+- @AlessandroLollo
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.2...2.16.3
+
+## Release 2.16.2
+
+### Enhancements
+- Add ability to use a module path entrypoint when using `.serve` or `.deploy` — https://github.com/PrefectHQ/prefect/pull/12134
+- Add `delete_task_run` client method — https://github.com/PrefectHQ/prefect/pull/12142
+- Add Artifacts on the flow run graph — https://github.com/PrefectHQ/prefect/pull/12156
+
+### Fixes
+- Support obfuscation of more complex log record messages — https://github.com/PrefectHQ/prefect/pull/12151
+
+### Documentation
+- Remove tab structure for three docs pages to improve navigation — https://github.com/PrefectHQ/prefect/pull/12127
+- Add clarifications and style updates on the events page — https://github.com/PrefectHQ/prefect/pull/12133
+
+### Experimental
+- Try to use the same block for autonomous task scheduling storage — https://github.com/PrefectHQ/prefect/pull/12122
+- Reliability improvements for autonomous task scheduling — https://github.com/PrefectHQ/prefect/pull/12115
+
+### Contributors
+- @eladm26
+- @seano-vs
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.1...2.16.2
+
+
+## Release 2.16.1
+
+### Enhanced multiple schedule support  
+
+`prefect.yaml` now supports specifying multiple schedules via the `schedules` key. This allows you to define multiple schedules for a single deployment, and each schedule can have its own `cron`, `interval`, or `rrule` configuration:
+
+```yaml
+ ...
+ schedules:
+    - cron: "0 0 * * *"
+      active: false
+    - interval: 3600
+      active: true
+    - rrule: "FREQ=YEARLY"
+      active: true
+```
+
+In addition, you can now specify multiple schedules via arguments to `prefect deploy`:
+
+`prefect deploy ... --cron '4 * * * *' --cron '1 * * * *' --rrule 'FREQ=DAILY'`
+
+We've also added support for multiple schedules to `flow.serve`, `flow.deploy` and `prefect.runner.serve`. You can provide multiple schedules by passing a list to the `cron`, `interval`, or `rrule` arguments:
+
+```python
+import datetime
+import random
+
+from prefect import flow
+
+
+@flow
+def trees():
+    tree = random.choice(["🌳", "🌴", "🌲", "🌵"])
+    print(f"Here's a happy little tree: {tree}")
+
+if __name__ == "__main__":
+    trees.serve(
+        name="trees",
+        interval=[3600, 7200, 14400],
+    )
+```
+
+This will create a deployment with three schedules, one that runs every hour, one that runs every two hours, and one that runs every four hours. For more advanced cases, use the `schedules` argument. 
+
+```python
+    trees.serve(
+        name="trees",
+        schedules=[
+            IntervalSchedule(interval=datetime.timedelta(minutes=30)),
+            {"schedule": RRuleSchedule(rrule="FREQ=YEARLY"), "active": True},
+            MinimalDeploymentSchedule(schedule=CronSchedule(cron="0 0 * * *"), active=False),
+        ]
+    )
+```
+
+Dive into these new scheduling capabilities today and streamline your workflows like never before. 
+
+For implementation details, see the following pull request:
+    - https://github.com/PrefectHQ/prefect/pull/12107
+
+### Enhancements
+- Add a logging filter to prevent logging the current API key — https://github.com/PrefectHQ/prefect/pull/12072
+- Update `flow.serve` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12107
+- Update `prefect deploy` to support multiple schedules — https://github.com/PrefectHQ/prefect/pull/12121
+
+### Fixes
+- Clear runs when updating or deleting schedules, even if the deployment is paused — https://github.com/PrefectHQ/prefect/pull/12089
+- Surface missing work pool error in CLI — https://github.com/PrefectHQ/prefect/pull/12087
+- Ignore outdated `schedule` in `Deployment.build_from_flow` — https://github.com/PrefectHQ/prefect/pull/12100
+- Fix schedule instructions for `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12101
+- Fix reference to `prefect deployment schedule create` — https://github.com/PrefectHQ/prefect/pull/12117
+- Ensure only scheduled runs can be marked late — https://github.com/PrefectHQ/prefect/pull/12113
+
+### Documentation
+- Update outdated automations concepts page image — https://github.com/PrefectHQ/prefect/pull/12059
+- Update automations concept page for recent triggers and actions — https://github.com/PrefectHQ/prefect/pull/12074
+- Add clarifications to tutorial and getting started pages — https://github.com/PrefectHQ/prefect/pull/12077
+- Add minimum Kubernetes version to worker guide — https://github.com/PrefectHQ/prefect/pull/12095
+- Add Coiled to integrations catalog docs page — https://github.com/PrefectHQ/prefect/pull/12098
+- Fix formatting on webhooks page — https://github.com/PrefectHQ/prefect/pull/12088
+
+### Experimental
+- Add artifact data to flow run graph API — https://github.com/PrefectHQ/prefect/pull/12105
+- Add feature flag for flow run infra overrides — https://github.com/PrefectHQ/prefect/pull/12065
+
+## New Contributors
+* @jrbourbeau made their first contribution in https://github.com/PrefectHQ/prefect/pull/12098
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.0...2.16.1
+
+
 ## Release 2.16.0
 
 ### 🕢 Deployments now support multiple schedules 🕐

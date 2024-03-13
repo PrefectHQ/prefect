@@ -9,6 +9,7 @@ from functools import partial
 from typing import Optional, Type
 
 import anyio
+from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
@@ -18,6 +19,7 @@ from prefect.engine import propose_state
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
@@ -71,6 +73,7 @@ class TaskServer:
         task_runner: Optional[Type[BaseTaskRunner]] = None,
     ):
         self.tasks: list[Task] = tasks
+
         self.task_runner: BaseTaskRunner = task_runner or ConcurrentTaskRunner()
         self.started: bool = False
         self.stopping: bool = False
@@ -106,7 +109,19 @@ class TaskServer:
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         async with asyncnullcontext() if self.started else self:
-            await self._subscribe_to_task_scheduling()
+            logger.info("Starting task server...")
+            try:
+                await self._subscribe_to_task_scheduling()
+            except InvalidStatusCode as exc:
+                if exc.status_code == 403:
+                    logger.error(
+                        "Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
+                        f" endpoint found at:\n\n {PREFECT_API_URL.value()}"
+                        "\n\nPlease double-check the values of your"
+                        " `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables."
+                    )
+                else:
+                    raise
 
     @sync_compatible
     async def stop(self):
@@ -123,6 +138,9 @@ class TaskServer:
         raise StopTaskServer
 
     async def _subscribe_to_task_scheduling(self):
+        logger.info(
+            f"Subscribing to tasks: {' | '.join(t.task_key.split('.')[-1] for t in self.tasks)}"
+        )
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
@@ -137,7 +155,7 @@ class TaskServer:
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
 
-        task = next((t for t in self.tasks if t.name in task_run.task_key), None)
+        task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
             if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
@@ -155,7 +173,7 @@ class TaskServer:
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
-            factory = await ResultFactory.from_task(task)
+            factory = await ResultFactory.from_autonomous_task(task)
             try:
                 parameters = await factory.read_parameters(parameters_id)
             except Exception as exc:

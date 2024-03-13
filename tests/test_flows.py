@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 import time
+import warnings
 from functools import partial
 from itertools import combinations
 from pathlib import Path
@@ -37,7 +38,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, RunnerDeployment
+from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     CancelledRun,
@@ -2272,6 +2273,22 @@ def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
     assert flow.fn() == "woof!"
 
 
+def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
+    @flow
+    def pretend_flow():
+        pass
+
+    import_object_mock = MagicMock(return_value=pretend_flow)
+    monkeypatch.setattr(
+        "prefect.flows.import_object",
+        import_object_mock,
+    )
+    result = load_flow_from_entrypoint("my.module.pretend_flow")
+
+    assert result == pretend_flow
+    import_object_mock.assert_called_with("my.module.pretend_flow")
+
+
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
@@ -3218,6 +3235,139 @@ class TestFlowHooksOnCrashed:
         my_mock.assert_not_called()
 
 
+class TestFlowHooksOnRunning:
+    def test_noniterable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_running'; got function instead. Please"
+                " provide a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=running_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_running'"):
+
+            @flow(on_running=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=[running_hook, "test"])
+            def flow2():
+                pass
+
+    def test_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, running2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_on_running_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, running2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_other_running_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def exception_hook(flow, flow_run, state):
+            raise Exception("oops")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, exception_hook, running2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_running_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_running=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+
 class TestFlowToDeployment:
     async def test_to_deployment_returns_runner_deployment(self):
         deployment = await test_flow.to_deployment(
@@ -3264,18 +3414,30 @@ class TestFlowToDeployment:
     async def test_to_deployment_accepts_interval(self):
         deployment = await test_flow.to_deployment(name="test", interval=3600)
 
-        assert isinstance(deployment.schedule, IntervalSchedule)
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.schedules
+        assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+
+    async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
+        deployment = await test_flow.to_deployment(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_to_deployment_accepts_cron(self):
         deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
-        assert deployment.schedule == CronSchedule(cron="* * * * *")
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self):
         deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
-        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
     async def test_to_deployment_invalid_name_raises(self):
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
@@ -3296,12 +3458,13 @@ class TestFlowToDeployment:
             )
         ],
     )
-    def test_to_deployment_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        with pytest.raises(ValueError, match=expected_message):
-            test_flow.to_deployment(__file__, **kwargs)
+    def test_to_deployment_raises_on_multiple_schedule_parameters(self, kwargs):
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            with pytest.raises(ValueError, match=expected_message):
+                test_flow.to_deployment(__file__, **kwargs)
 
 
 class TestFlowServe:
@@ -3330,7 +3493,7 @@ class TestFlowServe:
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -3345,7 +3508,16 @@ class TestFlowServe:
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
+        assert deployment.paused
         assert not deployment.is_schedule_active
+
+    async def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+        deployment = await test_flow.serve(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)
@@ -3406,11 +3578,12 @@ class TestFlowServe:
         ],
     )
     async def test_serve_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        with pytest.raises(ValueError, match=expected_message):
-            await test_flow.serve(__file__, **kwargs)
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            with pytest.raises(ValueError, match=expected_message):
+                await test_flow.serve(__file__, **kwargs)
 
     async def test_serve_starts_a_runner(self, mock_runner_start):
         """
@@ -3598,7 +3771,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3611,7 +3784,7 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
-                is_schedule_active=False,
+                paused=True,
             ),
             work_pool_name=work_pool.name,
             image=image,
@@ -3646,7 +3819,7 @@ class TestFlowDeploy:
             image=image,
             push=False,
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3659,7 +3832,7 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
-                is_schedule_active=False,
+                paused=True,
             ),
             work_pool_name=work_pool.name,
             image=image,

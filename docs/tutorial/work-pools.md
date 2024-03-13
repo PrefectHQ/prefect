@@ -209,8 +209,8 @@ Prefect Cloud's push work pools are a popular option in those cases.
 
 Serverless push work pools scale infinitely and provide more configuration options than Prefect Managed work pools.
 
-Prefect provides push work pools for AWS ECS on Fargate, Azure Container Instances, and Google Cloud Run.
-You will need to have an account with sufficient permissions on the cloud provider that you want to use.
+Prefect provides push work pools for AWS ECS on Fargate, Azure Container Instances, Google Cloud Run, and Modal.
+To use a push work pool, you will need an account with sufficient permissions on the cloud provider that you want to use.
 We'll use GCP for this example.
 
 Setting up the cloud provider pieces for infrastructure can be tricky and time consuming.
@@ -246,7 +246,7 @@ prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-po
 
 </div>
 
-Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
+Using the `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
 In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist.
 In your Prefect workspace, this command will create a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) for storing the service account key.
 
