@@ -1,6 +1,10 @@
 """
-The agent is responsible for checking for flow runs that are ready to run and starting
-their execution.
+DEPRECATION WARNING:
+
+This module, is deprecated as of version March 2024 and not be available after September 2024.
+Agents have been replaced by workers, which offer enhanced functionality and better performance.
+
+For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 """
 
 import inspect
