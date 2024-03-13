@@ -58,7 +58,7 @@ class InfrastructureResult(pydantic.BaseModel, abc.ABC):
 
 
 @deprecated_class(
-    start_date="Mar 2043",
+    start_date="Mar 2024",
     help="Use the `BaseWorker` class to create custom infrastructure integrations instead."
     " Refer to the upgrade guide for more information:"
     " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
