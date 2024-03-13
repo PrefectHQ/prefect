@@ -186,8 +186,7 @@ We can incrementally improve our data ingestion flow to take in another input du
 Let us extend this idea further, by pulling the cleaned JSON data and asking for input to create a Prefect artifact. Data quality checks can be very cumbersome, and require a user to juggle many different platforms to ensure the data has come in as expected. We can surface the newly created JSON block to the user, and provide input if we would want to create a Prefect artifact based off of it. Let us extend this example and provide another flow to help create this artifact.
 
 
-**`data-ingestion-example.py`**
-```python
+```python title="data-ingestion-example.py" hl_lines="22-23 75-92 122"
 from prefect.input import RunInput
 from prefect import get_run_logger
 from prefect.blocks.system import JSON
