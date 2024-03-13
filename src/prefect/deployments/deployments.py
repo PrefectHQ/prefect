@@ -16,6 +16,10 @@ import anyio
 import pendulum
 import yaml
 
+from prefect._internal.compatibility.deprecated import (
+    deprecated_callable,
+    deprecated_class,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 
@@ -24,12 +28,10 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.objects import (
-    DEFAULT_AGENT_WORK_POOL_NAME,
     FlowRun,
     MinimalDeploymentSchedule,
 )
@@ -297,6 +299,7 @@ async def load_flow_from_flow_run(
     return flow
 
 
+@deprecated_callable(start_date="Mar 2024")
 def load_deployments_from_yaml(
     path: str,
 ) -> PrefectObjectRegistry:
@@ -320,13 +323,20 @@ def load_deployments_from_yaml(
     return registry
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use `flow.deploy` to deploy your flows instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
 )
 class Deployment(BaseModel):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `flow.deploy`, which offers enhanced functionality and better a better user experience.
+    For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+
     A Prefect Deployment definition, used for specifying and building deployments.
 
     Args:
