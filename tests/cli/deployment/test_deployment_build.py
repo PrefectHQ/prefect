@@ -164,6 +164,27 @@ async def ensure_default_agent_pool_exists(session):
     assert default_work_pool is not None
 
 
+def test_deployment_build_prints_deprecation_warning(tmp_path, patch_import):
+    invoke_and_assert(
+        [
+            "deployment",
+            "build",
+            "fake-path.py:fn",
+            "-n",
+            "TEST",
+            "-o",
+            str(tmp_path / "test.yaml"),
+            "--no-schedule",
+        ],
+        temp_dir=tmp_path,
+        expected_output_contains=(
+            "WARNING: The 'deployment build' command has been deprecated.",
+            "It will not be available after Sep 2024.",
+            "Use 'prefect deploy' to deploy flows via YAML instead.",
+        ),
+    )
+
+
 class TestSchedules:
     def test_passing_no_schedule_and_cron_schedules_to_build_exits_with_error(
         self, patch_import, tmp_path
