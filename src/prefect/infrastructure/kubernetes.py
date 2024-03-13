@@ -1,7 +1,7 @@
 """
 DEPRECATION WARNING:
 
-This module, is deprecated as of version March 2024 and not be available after September 2024.
+This module is deprecated as of March 2024 and will not be available after September 2024.
 It has been replaced by the Kubernetes worker from the prefect-kubernetes package, which offers enhanced functionality and better performance.
 
 For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
@@ -70,7 +70,7 @@ class KubernetesJobResult(InfrastructureResult):
 
 
 @deprecated_class(
-    start_date="Mar 2023",
+    start_date="2024",
     help="Use the Kubernetes worker from prefect-kubernetes instead."
     " Refer to the upgrade guide for more information:"
     " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
