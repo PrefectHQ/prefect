@@ -41,13 +41,13 @@ async def run_shell_process(command: str, log_output: bool = True):
     out_stream = io.StringIO()
 
     process = await run_process(command_list, stream_output=(out_stream, err_stream))
-
-    if process.returncode != 0:
-        err_stream.seek(0)
-        logger.error(err_stream.read())
-    else:
-        out_stream.seek(0)
-        logger.info(out_stream.read())
+    if log_output:
+        if process.returncode != 0:
+            err_stream.seek(0)
+            logger.error(err_stream.read())
+        else:
+            out_stream.seek(0)
+            logger.info(out_stream.read())
 
 
 @shell_app.command("watch")
@@ -70,7 +70,7 @@ async def command(
 
 
 @shell_app.command("serve")
-async def serve(
+async def shell_serve(
     command: str,
     name: str = typer.Option(..., help="Name of the flow"),
     cron_schedule: str = typer.Option(None, help="Cron schedule for the flow"),
@@ -104,6 +104,6 @@ async def serve(
         name=deployment_name,
         parameters={"command": command, "log_output": True},
         entrypoint_type=EntrypointType.MODULE_PATH,
-        schedule=schedule,
+        schedules=[schedule],
     )
-    await prefect.serve(flow_from_source, name=name, limit=concurrency_limit)
+    await prefect.serve(flow_from_source, limit=concurrency_limit)

@@ -1451,6 +1451,26 @@ class TestUpdateDeployment:
 
         assert response.status_code == 204
 
+    async def test_update_deployment_hydrates_parameters(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                }
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_with_parameter_schema.id}"
+        )
+        assert response.json()["parameters"] == {"x": "str_of_json"}
+
     async def test_update_deployment_with_schedule_populates_schedules(
         self,
         client,
@@ -2284,7 +2304,7 @@ class TestSetScheduleActive:
         assert len(schedules) == 1
         assert schedules[0].active is True
 
-    async def test_set_schedule_active_enhanced_scheduling_off_multiple_schedules(
+    async def test_set_schedule_active_multiple_schedules(
         self,
         client,
         deployment,
@@ -2705,6 +2725,43 @@ class TestCreateFlowRunFromDeployment:
         assert response.status_code == 409
         assert "Validation failed for field 'person'" in response.text
         assert "Failure reason: 'name' is a required property" in response.text
+
+    async def test_create_flow_run_from_deployment_hydrates_parameters(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                }
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["parameters"]["x"] == "str_of_json"
+
+    async def test_create_flow_run_from_deployment_hydration_error(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '{"invalid": json}'}
+                }
+            },
+        )
+
+        assert response.status_code == 400
+        assert (
+            "Error hydrating flow run parameters: Invalid JSON: Expecting value:"
+            in response.json()["detail"]
+        )
 
 
 class TestGetDeploymentWorkQueueCheck:
