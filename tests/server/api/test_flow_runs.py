@@ -993,6 +993,7 @@ class TestResumeFlowrun:
         flow,
     ):
         class SimpleInput(RunInput):
+            how_many: Optional[str] = "5"
             approved: Optional[bool] = True
 
         state = schemas.states.Paused(pause_key="1")
@@ -1105,8 +1106,7 @@ class TestResumeFlowrun:
         assert response.status_code == 200
         assert response.json()["status"] == "REJECT"
         assert (
-            response.json()["details"]["reason"]
-            == "Run input validation failed: 'approved' is a required property"
+            "'approved' is a required property" in response.json()["details"]["reason"]
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1180,8 +1180,8 @@ class TestResumeFlowrun:
         assert response.status_code == 200
         assert response.json()["status"] == "REJECT"
         assert (
-            response.json()["details"]["reason"]
-            == "Run input validation failed: 'not a bool!' is not of type 'boolean'"
+            "'not a bool!' is not of type 'boolean'"
+            in response.json()["details"]["reason"]
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1209,6 +1209,55 @@ class TestResumeFlowrun:
 
         assert flow_run_input
         assert orjson.loads(flow_run_input.value) == {"approved": True}
+
+    async def test_resume_flow_run_waiting_for_input_with_hydrated_input(
+        self,
+        session,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {"how_many": {"__prefect_kind": "json", "value": '"3"'}}
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input_with_default.id,
+            key="paused-1-response",
+        )
+
+        assert flow_run_input
+        assert orjson.loads(flow_run_input.value) == {"how_many": "3"}
+        assert response.json()["state"]["id"] != str(
+            paused_flow_run_waiting_for_input_with_default.state_id
+        )
+
+    async def test_resume_flow_run_waiting_for_input_with_malformed_dehydrated_input(
+        self,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {
+                    "how_many": {
+                        "__prefect_kind": "json",
+                        "value": '{"invalid": json}',
+                    },
+                }
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert response.json()["details"]["reason"].startswith(
+            "Error hydrating run input: Invalid JSON"
+        )
 
 
 class TestSetFlowRunState:
