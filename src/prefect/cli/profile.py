@@ -289,6 +289,8 @@ async def check_orion_connection():
                     return ConnectionStatus.EPHEMERAL
                 else:
                     return ConnectionStatus.ORION_CONNECTED
+            except (CancelledError, TimeoutError):
+                return ConnectionStatus.ORION_ERROR
             except Exception as exc:
                 return ConnectionStatus.ORION_ERROR
         else:
