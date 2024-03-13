@@ -17,6 +17,17 @@ async def create_or_update_csrf_token(
     session: AsyncSession,
     client: str,
 ) -> core.CsrfToken:
+    """Create or update a CSRF token for a client. If the client already has a
+    token, it will be updated.
+
+    Args:
+        session (AsyncSession): The database session
+        client (str): The client identifier
+
+    Returns:
+        core.CsrfToken: The CSRF token
+    """
+
     expiration = (
         datetime.now(timezone.utc)
         + settings.PREFECT_SERVER_CSRF_TOKEN_EXPIRATION.value()
@@ -51,6 +62,15 @@ async def read_token_for_client(
     session: AsyncSession,
     client: str,
 ) -> Optional[core.CsrfToken]:
+    """Read a CSRF token for a client.
+
+    Args:
+        session (AsyncSession): The database session
+        client (str): The client identifier
+
+    Returns:
+        Optional[core.CsrfToken]: The CSRF token, if it exists
+    """
     token = (
         await session.execute(
             sa.select(db.CsrfToken).where(db.CsrfToken.client == client)
@@ -65,6 +85,15 @@ async def read_token_for_client(
 
 @inject_db
 async def delete_expired_tokens(db: PrefectDBInterface, session: AsyncSession) -> int:
+    """Delete expired CSRF tokens.
+
+    Args:
+        session (AsyncSession): The database session
+
+    Returns:
+        int: The number of tokens deleted
+    """
+
     result = await session.execute(
         sa.delete(db.CsrfToken).where(
             db.CsrfToken.expiration < datetime.now(timezone.utc)
