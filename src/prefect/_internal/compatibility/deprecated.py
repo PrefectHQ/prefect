@@ -107,6 +107,34 @@ def deprecated_callable(
     return decorator
 
 
+def deprecated_class(
+    *,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    stacklevel: int = 2,
+    help: str = "",
+) -> Callable[[T], T]:
+    def decorator(cls: T):
+        message = generate_deprecation_message(
+            name=to_qualified_name(cls),
+            start_date=start_date,
+            end_date=end_date,
+            help=help,
+        )
+
+        original_init = cls.__init__
+
+        @functools.wraps(original_init)
+        def new_init(self, *args, **kwargs):
+            warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
+            original_init(self, *args, **kwargs)
+
+        cls.__init__ = new_init
+        return cls
+
+    return decorator
+
+
 def deprecated_parameter(
     name: str,
     *,
