@@ -1,10 +1,12 @@
 import uuid
+import warnings
 from typing import Generator
 from unittest.mock import call
 
 import anyio
 import pytest
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
@@ -28,6 +30,17 @@ from prefect.states import (
 )
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
+
+
+@pytest.fixture(autouse=True)
+def ignore_agent_deprecation_warnings():
+    """
+    Ignore deprecation warnings from the agent module to avoid
+    test failures. Warning emission is tested in test_agent.py.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=PrefectDeprecationWarning)
+        yield
 
 
 @pytest.fixture
