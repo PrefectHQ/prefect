@@ -1,3 +1,11 @@
+"""
+DEPRECATION WARNING:
+
+This module is deprecated as of March 2024 and will not be available after September 2024.
+It has been replaced by the Kubernetes worker from the prefect-kubernetes package, which offers enhanced functionality and better performance.
+
+For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+"""
 import copy
 import enum
 import json
@@ -11,6 +19,9 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 import anyio.abc
 import yaml
 
+from prefect._internal.compatibility.deprecated import (
+    deprecated_class,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -58,6 +69,12 @@ class KubernetesJobResult(InfrastructureResult):
     """Contains information about the final state of a completed Kubernetes Job"""
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the Kubernetes worker from prefect-kubernetes instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class KubernetesJob(Infrastructure):
     """
     Runs a command as a Kubernetes Job.

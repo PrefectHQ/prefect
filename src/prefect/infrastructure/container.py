@@ -1,3 +1,11 @@
+"""
+DEPRECATION WARNING:
+
+This module is deprecated as of March 2024 and will not be available after September 2024.
+It has been replaced by the Docker worker from the prefect-docker package, which offers enhanced functionality and better performance.
+
+For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+"""
 import json
 import re
 import shlex
@@ -10,6 +18,7 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 import anyio.abc
 import packaging.version
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -54,6 +63,10 @@ class ImagePullPolicy(AutoEnum):
     NEVER = AutoEnum.auto()
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `DockerRegistryCredentials` class from prefect-docker instead.",
+)
 class BaseDockerLogin(Block, ABC):
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
     _block_schema_capabilities = ["docker-login"]
@@ -105,6 +118,10 @@ class BaseDockerLogin(Block, ABC):
         return docker_client
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `DockerRegistryCredentials` class from prefect-docker instead.",
+)
 class DockerRegistry(BaseDockerLogin):
     """
     Connects to a Docker registry.
@@ -170,6 +187,12 @@ class DockerContainerResult(InfrastructureResult):
     """Contains information about a completed Docker container"""
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the Docker worker from prefect-docker instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class DockerContainer(Infrastructure):
     """
     Runs a command in a container.

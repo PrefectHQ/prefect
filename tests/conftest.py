@@ -16,6 +16,7 @@ WARNING: Prefect settings cannot be modified in async fixtures.
     fixture, a sync fixture must be defined that consumes the async fixture to perform
     the settings context change. See `test_database_connection_url` for example.
 """
+
 import asyncio
 import logging
 import pathlib
