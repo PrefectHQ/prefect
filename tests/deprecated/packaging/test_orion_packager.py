@@ -13,9 +13,10 @@ from . import howdy
 
 
 @pytest.mark.parametrize(
-    "serializer", [SourceSerializer(), ImportSerializer(), PickleSerializer()]
+    "Serializer", [SourceSerializer, ImportSerializer, PickleSerializer]
 )
-async def test_orion_packager_by_serializer(serializer):
+async def test_orion_packager_by_serializer(Serializer):
+    serializer = Serializer()
     packager = OrionPackager(serializer=serializer)
     manifest = await packager.package(howdy)
 

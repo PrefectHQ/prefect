@@ -18,9 +18,10 @@ def foo(return_val="foo"):
 
 
 @pytest.mark.parametrize(
-    "serializer", [SourceSerializer(), ImportSerializer(), PickleSerializer()]
+    "Serializer", [SourceSerializer, ImportSerializer, PickleSerializer]
 )
-def test_serialize_function(serializer):
+def test_serialize_function(Serializer):
+    serializer = Serializer()
     blob = serializer.dumps(foo)
     result = serializer.loads(blob)
 
