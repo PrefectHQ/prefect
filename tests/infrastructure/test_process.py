@@ -488,11 +488,11 @@ base_job_template_with_defaults["variables"]["properties"]["stream_output"][
 
 
 @pytest.mark.parametrize(
-    "process,expected_template",
+    "kwargs,expected_template",
     [
-        (Process(), default_base_job_template),
+        ({}, default_base_job_template),
         (
-            Process(
+            dict(
                 command=["python", "my_script.py"],
                 env={"VAR1": "value1", "VAR2": "value2"},
                 labels={"label1": "value1", "label2": "value2"},
@@ -504,7 +504,7 @@ base_job_template_with_defaults["variables"]["properties"]["stream_output"][
         ),
     ],
 )
-async def test_generate_work_pool_base_job_template(process, expected_template):
-    template = await process.generate_work_pool_base_job_template()
+async def test_generate_work_pool_base_job_template(kwargs, expected_template):
+    template = await Process(**kwargs).generate_work_pool_base_job_template()
 
     assert template == expected_template
