@@ -38,6 +38,7 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
+    create_minimal_deployment_schedule,
     normalize_to_minimal_deployment_schedules,
 )
 from prefect.deployments.steps.core import run_steps
@@ -53,6 +54,7 @@ from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.states import Scheduled
 from prefect.tasks import Task
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
@@ -75,6 +77,7 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
+    job_variables: Optional[dict] = None,
 ) -> FlowRun:
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -194,6 +197,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
+        job_variables=job_variables,
     )
 
     flow_run_id = flow_run.id
@@ -647,21 +651,27 @@ class Deployment(BaseModel):
             )
         return values
 
-    @validator("schedule")
-    def validate_schedule(cls, value):
-        if value:
-            cls._validate_schedule(value)
-        return value
-
     @root_validator(pre=True)
-    def validate_schedules(cls, values):
-        if "schedules" in values:
-            values["schedules"] = normalize_to_minimal_deployment_schedules(
-                values["schedules"]
-            )
+    def reconcile_schedules(cls, values):
+        schedule = values.get("schedule", NotSet)
+        schedules = values.get("schedules", NotSet)
 
-            for schedule in values["schedules"]:
-                cls._validate_schedule(schedule.schedule)
+        if schedules is not NotSet:
+            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+        elif schedule is not NotSet:
+            values["schedule"] = None
+
+            if schedule is None:
+                values["schedules"] = []
+            else:
+                values["schedules"] = [
+                    create_minimal_deployment_schedule(
+                        schedule=schedule, active=values.get("is_schedule_active")
+                    )
+                ]
+
+        for schedule in values.get("schedules", []):
+            cls._validate_schedule(schedule.schedule)
 
         return values
 
@@ -982,11 +992,17 @@ class Deployment(BaseModel):
 
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
-        deployment = cls(
-            name=name,
-            schedules=schedules,
+
+        deployment_args = {
+            "name": name,
+            "flow_name": flow.name,
             **kwargs,
-        )
+        }
+
+        if schedules is not None:
+            deployment_args["schedules"] = schedules
+
+        deployment = cls(**deployment_args)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
             ## first see if an entrypoint can be determined

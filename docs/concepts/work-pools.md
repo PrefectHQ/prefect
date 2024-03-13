@@ -95,7 +95,7 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Google Cloud Run - Push              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.  |
     | AWS Elastic Container Service - Push | Execute flow runs within containers on AWS ECS. Works with existing ECS clusters and serverless execution via AWS Fargate. Requires an AWS account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.   |
     | Azure Container Instances - Push     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.    |
-    | Modal - Push                         │ Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker. |   
+    | Modal - Push                         | Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker.  |
     | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
 
 === "Prefect server instance"
