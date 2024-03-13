@@ -40,7 +40,7 @@ To receive input while paused or suspended use the `wait_for_input` parameter in
 The simplest way to pause or suspend and wait for input is to pass a built-in type:
 
 ```python
-from prefect import flow, pause_flow_run
+from prefect import flow, pause_flow_run, get_run_logger
 
 @flow
 def greet_user():
@@ -60,7 +60,7 @@ In this example, the flow run will pause until a user clicks the Resume button i
 Instead of a built-in type, you can pass in a `pydantic.BaseModel` class. This is useful if you already have a `BaseModel` you want to use:
 
 ```python
-from prefect import flow, pause_flow_run
+from prefect import flow, pause_flow_run, get_run_logger
 from pydantic import BaseModel
 
 
@@ -87,6 +87,7 @@ async def greet_user():
 Finally, for advanced use cases like overriding how Prefect stores flow run inputs, you can create a `RunInput` class:
 
 ```python
+from prefect import get_run_logger
 from prefect.input import RunInput
 
 class UserInput(RunInput):
@@ -113,6 +114,7 @@ You can set default values for fields in your model by using the `with_initial_d
 Expanding on the example above, you could make the `name` field default to "anonymous":
 
 ```python
+from prefect import get_run_logger
 from prefect.input import RunInput
 
 class UserInput(RunInput):
