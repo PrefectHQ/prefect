@@ -25,8 +25,6 @@
 * do not create `default-agent-pool` in empty state server by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12214
 * Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
 * Add backend support for creating and updating flow run `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12185
-* chore: remove unused `dotenv` by @hainenber in https://github.com/PrefectHQ/prefect/pull/12232
-* chore: revert docker login on python-tests by @parkedwards in https://github.com/PrefectHQ/prefect/pull/12237
 * Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
 * [task scheduling] avoid relative module path problem with subcription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
 * Workers use flow run overrides by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12242
