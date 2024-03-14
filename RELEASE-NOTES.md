@@ -58,14 +58,18 @@ Like agents, workers support creating deployments through the Prefect CLI and th
 ### Fixes
 * Fix support for legacy schedule in `build_from_flow` by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12257
 * Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
+* Prevent annoying invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
+* Hydrate run input when resuming a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12259
 ### Experimental
-* expose `serve` method on tasks by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12239
+* Expose `serve` method on tasks by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12239
+* Avoid relative module path problem with subscription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
 ### Deprecations
 * Deprecate `PrefectAgent` and `prefect agent` command group by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12273
 * Deprecate Infrastructrue blocks by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12282
 * Deprecate `Deployment` class and deployment `build` and `apply` commands by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12283
 * Deprecate the `packaging` module by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12291
 * Deprecate storage blocks with implementations in Prefect integration packages by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12299
+* Do not create `default-agent-pool` in empty state server by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12214
 ### Typing
 * Refactor: Inject Client by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12258
 * Fix: Variables methods type-hinting by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12278
@@ -75,12 +79,6 @@ Like agents, workers support creating deployments through the Prefect CLI and th
 * Add `on_running` state change hook to State -> Concepts docs by @discdiver in https://github.com/PrefectHQ/prefect/pull/12293
 * Fix some argument names in deploy guide by @kevingrismore in https://github.com/PrefectHQ/prefect/pull/12301
 * Chore: Update flow run graph documentation images by @brandonreid in https://github.com/PrefectHQ/prefect/pull/12296
-### Uncategorized
-* do not create `default-agent-pool` in empty state server by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12214
-* [task scheduling] avoid relative module path problem with subscription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
-* Pin `importlib-resources` to 6.1.x by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12266
-* prevent annoying invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
-* Hydrate run input when resuming a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12259
 
 ## New Contributors
 * @hainenber made their first contribution in https://github.com/PrefectHQ/prefect/pull/12232
