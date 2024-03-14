@@ -10,10 +10,13 @@ search:
 
 # Determining Upstream Dependencies
 
-Return values from tasks can be used by other tasks and subflows to determine their upstream dependencies. Prefect uses upstream dependencies in two ways:
+Results from tasks can be provided to other tasks and subflows to determine their upstream dependencies. Prefect uses upstream dependencies in two ways:
 
 1. To populate dependency arrows in the flow run graph
 2. To determine execution order for concurrently submitted units of work that depend on each other
+
+!!! Tasks as dependencies 
+    **Only results from tasks** inform Prefect's in-flow dependency capabilities. Return values from non-task-decorated functions, including subflows, do not carry the same information about their origin as task results.
 
 For example, compare how submitting tasks to the `ConcurrentTaskRunner` behaves both with and without stating their upstream dependencies:
 
@@ -97,8 +100,7 @@ For example, compare how submitting tasks to the `ConcurrentTaskRunner` behaves 
 
 A task or subflow's upstream dependencies can be inferred automatically via its inputs, or stated explicitly via the `wait_for` argument.
 
-!!! note 
-    **Only return values from tasks** inform Prefect's in-flow dependency capabilities. Return values from non-task-decorated functions, including subflows, do not carry the same information about their origin as return values from tasks.
+
 
 ## Automatic dependencies
 
@@ -146,7 +148,7 @@ def final_task(input):
 Tasks that do not share data can be informed of their upstream dependencies through the `wait_for` argument. Just as with automatic dependencies, this applies to calling task functions directly, calling [`.submit()`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit), or calling [`.map()`](/api-ref/prefect/tasks/#prefect.tasks.Task.map).
 
 !!! warning "Differences with `.map()`"
-    Manually defined upstream dependencies apply to all tasks submitted by `.map()`, so each mapped task must wait for both `downstream_1` _and_ `downstream_2` to finish. This is distinct from automatic dependencies for mapped tasks, where each mapped task must only wait for the upstream tasks whose results it depends on.
+    Manually defined upstream dependencies apply to all tasks submitted by `.map()`, so each mapped task must wait for _all_ upstream dependencies passed into `wait_for` to finish. This is distinct from automatic dependencies for mapped tasks, where each mapped task must only wait for the upstream tasks whose results it depends on.
 
 ```python
 from prefect import flow, task
