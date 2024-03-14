@@ -52,6 +52,7 @@ async def csrf_token(session: AsyncSession) -> schemas.core.CsrfToken:
     token = await models.csrf_token.create_or_update_csrf_token(
         session=session, client="client123"
     )
+    await session.commit()
     return token
 
 
@@ -123,6 +124,8 @@ async def test_csrf_403_expired_token(
         .where(db.CsrfToken.client == csrf_token.client)
         .values(expiration=datetime.now(timezone.utc) - timedelta(days=1))
     )
+    await session.commit()
+
     response = await client.post(
         "/",
         headers={

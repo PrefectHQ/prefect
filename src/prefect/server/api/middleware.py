@@ -42,7 +42,6 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value()
             and request_needs_csrf_protection
         ):
-            db = provide_database_interface()
             incoming_token = request.headers.get("Prefect-Csrf-Token")
             incoming_client = request.headers.get("Prefect-Csrf-Client")
 
@@ -58,6 +57,7 @@ class CsrfMiddleware(BaseHTTPMiddleware):
                     status_code=status.HTTP_403_FORBIDDEN,
                 )
 
+            db = provide_database_interface()
             async with db.session_context() as session:
                 token = await models.csrf_token.read_token_for_client(
                     session=session, client=incoming_client
