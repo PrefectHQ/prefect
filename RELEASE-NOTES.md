@@ -2,8 +2,43 @@
 
 ## Release 2.16.4
 
+### Enhanced flow run infrastructure customization
+
+We have added support for customizing infrastructure per flow-run via a new `job_variables` field on flow-runs. Now, if you supply `job_variables` when creating a flow-run from a deployment, those values will get merged with the deployment’s customizations and will be used to build the final job template on the worker.  Additionally, prefect validates the `job_variables` according to the schema defined on the target work pool’s base job template to make sure that the customizations provided are valid before attempting to create the run on your infrastructure. 
+
+<img width="1044" alt="image" src="https://github.com/PrefectHQ/prefect/assets/62311618/3f3b0e6a-3a86-4d51-9cf3-e3229803011d">
+
+
+For each flow-run created from a deployment, you’ll now be able to see the specific `job_variables` it was created with:
+<img width="878" alt="image 3" src="https://github.com/PrefectHQ/prefect/assets/62311618/f87adc8f-79ba-4cba-a4b7-9e40ad298ce5">
+
+You can also create runs with customized `job_variables` from the command line using a new `-jv/--job-variable` option:
+```bash
+❯ prefect deployment run hello/local-k8s-deployment -jv image=prefecthq/prefect:2.16.3-python3.8
+Creating flow run for deployment 'hello/local-k8s-deployment'...
+Created flow run 'khaki-robin'.
+└── UUID: 1c309e9f-78e0-4bfe-82fd-aacfb461e618
+└── Parameters: {}
+└── Job Variables: {'image': 'prefecthq/prefect:2.16.3-python3.8'}
+└── Scheduled start time: 2024-03-14 13:07:24 CDT (now)
+└── URL: http://127.0.0.1:4200/flow-runs/flow-run/1c309e9f-78e0-4bfe-82fd-aacfb461e618
+```
+
+To start using this feature on your self hosted prefect servers today, make sure to enable the flag when you start your server process:
+```
+export PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES=1
+prefect server start
+```
+
+Additionally, make sure your workers are using `prefect>=2.16.4` so that they use the new configuration building logic.
+
+See the following PRs for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12065
+- https://github.com/PrefectHQ/prefect/pull/12185
+- https://github.com/PrefectHQ/prefect/pull/12195
+- https://github.com/PrefectHQ/prefect/pull/12242
+
 ### Exciting New Features 🎉
-* Add client-side support for `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12195
 * Feature: API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
 ### Enhancements
 * Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
