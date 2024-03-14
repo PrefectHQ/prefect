@@ -67,7 +67,7 @@ async def ls(
 
     state_filter = {}
     if state:
-        state_filter["name"] = {"any_": state}
+        state_filter["name"] = {"any_": [s.capitalize() for s in state]}
     if state_type:
         state_filter["type"] = {"any_": state_type}
 
