@@ -1,4 +1,7 @@
-from unittest.mock import call
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
+from typing import AsyncGenerator, List, Tuple
+from unittest import mock
 
 import httpx
 import pytest
@@ -6,6 +9,7 @@ from httpx import AsyncClient, Request, Response
 from prefect._vendor.starlette import status
 
 from prefect.client.base import PrefectHttpxClient, PrefectResponse
+from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.settings import (
     PREFECT_CLIENT_MAX_RETRIES,
@@ -14,6 +18,8 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+
+now = datetime.now(timezone.utc)
 
 RESPONSE_429_RETRY_AFTER_0 = Response(
     status.HTTP_429_TOO_MANY_REQUESTS,
@@ -29,6 +35,31 @@ RESPONSE_429_RETRY_AFTER_MISSING = Response(
 
 RESPONSE_200 = Response(
     status.HTTP_200_OK,
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
+RESPONSE_CSRF = Response(
+    status.HTTP_200_OK,
+    json=CsrfToken(
+        client="test_client", token="test_token", expiration=now + timedelta(days=1)
+    ).dict(json_compatible=True, exclude_unset=True),
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
+RESPONSE_400 = Response(
+    status.HTTP_400_BAD_REQUEST,
+    json={"detail": "You done bad things"},
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
+RESPONSE_404 = Response(
+    status.HTTP_404_NOT_FOUND,
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
+RESPONSE_INVALID_TOKEN = Response(
+    status_code=status.HTTP_403_FORBIDDEN,
+    json={"detail": "Invalid CSRF token or client identifier."},
     request=Request("a test request", "fake.url/fake/route"),
 )
 
@@ -343,7 +374,7 @@ class TestPrefectHttpxClient:
                     url="fake.url/fake/route", data={"evenmorefake": "data"}
                 )
         assert response.status_code == status.HTTP_200_OK
-        mock_anyio_sleep.assert_has_awaits([call(2), call(4), call(8)])
+        mock_anyio_sleep.assert_has_awaits([mock.call(2), mock.call(4), mock.call(8)])
 
     @pytest.mark.usefixtures("disable_jitter")
     async def test_prefect_httpx_client_respects_retry_header_per_response(
@@ -370,7 +401,9 @@ class TestPrefectHttpxClient:
                     url="fake.url/fake/route", data={"evenmorefake": "data"}
                 )
         assert response.status_code == status.HTTP_200_OK
-        mock_anyio_sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
+        mock_anyio_sleep.assert_has_awaits(
+            [mock.call(5), mock.call(0), mock.call(10), mock.call(2.0)]
+        )
 
     async def test_prefect_httpx_client_adds_jitter_with_retry_header(
         self, monkeypatch, mock_anyio_sleep
@@ -433,7 +466,7 @@ class TestPrefectHttpxClient:
                 )
         assert response.status_code == status.HTTP_200_OK
         mock_anyio_sleep.assert_has_awaits(
-            [call(pytest.approx(n, rel=0.2)) for n in [2, 4, 8]]
+            [mock.call(pytest.approx(n, rel=0.2)) for n in [2, 4, 8]]
         )
 
     async def test_prefect_httpx_client_does_not_retry_other_exceptions(
@@ -490,3 +523,161 @@ class TestPrefectHttpxClient:
                 )
         expected = "Response: {'extra_info': [{'message': 'a test error message'}]}"
         assert expected in str(exc.exconly())
+
+
+@asynccontextmanager
+async def mocked_client(
+    responses: List[Response],
+) -> AsyncGenerator[Tuple[PrefectHttpxClient, mock.AsyncMock], None]:
+    with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
+        send.side_effect = responses
+        client = PrefectHttpxClient(enable_csrf_support=True)
+        async with client:
+            try:
+                yield client, send
+            finally:
+                pass
+
+
+class TestCsrfSupport:
+    async def test_no_csrf_headers_not_change_request(self):
+        async with mocked_client(responses=[RESPONSE_200]) as (client, send):
+            await client.get(url="fake.url/fake/route")
+
+        request = send.call_args[0][1]
+        assert isinstance(request, httpx.Request)
+
+        assert "Prefect-Csrf-Token" not in request.headers
+        assert "Prefect-Csrf-Client" not in request.headers
+
+    @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
+    async def test_csrf_headers_on_change_request(self, method: str):
+        async with mocked_client(responses=[RESPONSE_CSRF, RESPONSE_200]) as (
+            client,
+            send,
+        ):
+            await getattr(client, method)(url="fake.url/fake/route")
+
+        assert send.await_count == 2
+
+        # The first call should be for the CSRF token
+        request = send.call_args_list[0][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.method == "GET"
+        assert request.url == httpx.URL(
+            f"/csrf-token?client={str(client.csrf_client_id)}"
+        )
+
+        # The second call should be for the actual request
+        request = send.call_args_list[1][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.method == method.upper()
+        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert request.headers["Prefect-Csrf-Token"] == "test_token"
+        assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
+
+    async def test_refreshes_token_on_csrf_403(self):
+        async with mocked_client(
+            responses=[
+                RESPONSE_CSRF,
+                RESPONSE_INVALID_TOKEN,
+                RESPONSE_CSRF,
+                RESPONSE_200,
+            ]
+        ) as (
+            client,
+            send,
+        ):
+            await client.post(url="fake.url/fake/route")
+
+        assert send.await_count == 4
+
+        # The first call should be for the CSRF token
+        request = send.call_args_list[0][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.method == "GET"
+        assert request.url == httpx.URL(
+            f"/csrf-token?client={str(client.csrf_client_id)}"
+        )
+
+        # The second call should be for the actual request
+        request = send.call_args_list[1][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert request.headers["Prefect-Csrf-Token"] == "test_token"
+        assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
+
+        # The third call should be a refresh of the CSRF token
+        request = send.call_args_list[0][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.method == "GET"
+        assert request.url == httpx.URL(
+            f"/csrf-token?client={str(client.csrf_client_id)}"
+        )
+
+        # The fourth call should be for the actual request
+        request = send.call_args_list[1][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert request.headers["Prefect-Csrf-Token"] == "test_token"
+        assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
+
+    async def test_does_not_refresh_csrf_token_not_expired(self):
+        async with mocked_client(responses=[RESPONSE_200]) as (
+            client,
+            send,
+        ):
+            client.csrf_token = "fresh_token"
+            client.csrf_token_expiration = now + timedelta(days=1)
+            await client.post(url="fake.url/fake/route")
+
+        assert send.await_count == 1
+
+        request = send.call_args_list[0][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert request.headers["Prefect-Csrf-Token"] == "fresh_token"
+        assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
+
+    async def test_does_refresh_csrf_token_when_expired(self):
+        async with mocked_client(responses=[RESPONSE_CSRF, RESPONSE_200]) as (
+            client,
+            send,
+        ):
+            client.csrf_token = "old_token"
+            client.csrf_token_expiration = now - timedelta(days=1)
+            await client.post(url="fake.url/fake/route")
+
+        assert send.await_count == 2
+
+        # The first call should be for the CSRF token
+        request = send.call_args_list[0][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.method == "GET"
+        assert request.url == httpx.URL(
+            f"/csrf-token?client={str(client.csrf_client_id)}"
+        )
+
+        # The second call should be for the actual request
+        request = send.call_args_list[1][0][1]
+        assert isinstance(request, httpx.Request)
+        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert request.headers["Prefect-Csrf-Token"] == "test_token"
+        assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
+
+    async def test_raises_exception_bad_csrf_token_response(self):
+        async with mocked_client(responses=[RESPONSE_400]) as (
+            client,
+            _,
+        ):
+            with pytest.raises(PrefectHTTPStatusError):
+                await client.post(url="fake.url/fake/route")
+
+    async def test_disables_csrf_support_404_token_endpoint(self):
+        async with mocked_client(responses=[RESPONSE_404, RESPONSE_200]) as (
+            client,
+            send,
+        ):
+            assert client.enable_csrf_support is True
+            await client.post(url="fake.url/fake/route")
+            assert client.enable_csrf_support is False
