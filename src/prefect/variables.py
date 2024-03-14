@@ -1,12 +1,12 @@
 from typing import Optional
 
 from prefect.client.orchestration import PrefectClient
-from prefect.client.utilities import inject_client
+from prefect.client.utilities import get_or_create_client
 from prefect.utilities.asyncutils import sync_compatible
 
 
 @sync_compatible
-async def get(name: str, default: str = None) -> Optional[str]:
+async def get(name: str, default: Optional[str] = None) -> Optional[str]:
     """
     Get a variable by name. If doesn't exist return the default.
     ```
@@ -29,10 +29,10 @@ async def get(name: str, default: str = None) -> Optional[str]:
     return variable.value if variable else default
 
 
-@inject_client
 async def _get_variable_by_name(
     name: str,
-    client: PrefectClient,
+    client: Optional[PrefectClient] = None,
 ):
+    client, _ = get_or_create_client(client)
     variable = await client.read_variable_by_name(name)
     return variable
