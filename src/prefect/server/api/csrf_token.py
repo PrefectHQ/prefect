@@ -12,7 +12,7 @@ router = PrefectRouter(prefix="/csrf-token")
 
 
 @router.get("")
-async def csrf_token(
+async def create_csrf_token(
     db: PrefectDBInterface = Depends(provide_database_interface),
     client: str = Query(..., description="The client to create a CSRF token for"),
 ) -> schemas.core.CsrfToken:
