@@ -34,26 +34,21 @@ async def create_or_update_csrf_token(
     )
     token = secrets.token_hex(32)
 
-    # Try to update the token if it already exists
-    result = await session.execute(
-        sa.update(db.CsrfToken)
-        .where(db.CsrfToken.client == client)
-        .values(token=token, expiration=expiration)
-    )
-
-    if result.rowcount < 1:
-        # Client does not have a token, create a new one
-        model = db.CsrfToken(
+    await session.execute(
+        (await db.insert(db.CsrfToken))
+        .values(
             client=client,
             token=token,
             expiration=expiration,
         )
-        session.add(model)
-        await session.flush()
-        return core.CsrfToken.from_orm(model)
-    else:
-        # Return the updated token object
-        return await read_token_for_client(session=session, client=client)
+        .on_conflict_do_update(
+            index_elements=[db.CsrfToken.client],
+            set_={"token": token, "expiration": expiration},
+        ),
+    )
+
+    # Return the created / updated token object
+    return await read_token_for_client(session=session, client=client)
 
 
 @inject_db
