@@ -192,6 +192,24 @@ def test_ls_state_name_filter(
     )
 
 
+def test_ls_state_name_case_insensitive_filter(
+    scheduled_flow_run,
+    completed_flow_run,
+    running_flow_run,
+    late_flow_run,
+):
+    result = invoke_and_assert(
+        command=["flow-run", "ls", "--state", "late"],
+        expected_code=0,
+    )
+
+    assert_flow_runs_in_result(
+        result,
+        expected=[late_flow_run],
+        unexpected=[running_flow_run, scheduled_flow_run, completed_flow_run],
+    )
+
+
 def test_ls_limit(
     scheduled_flow_run,
     completed_flow_run,
