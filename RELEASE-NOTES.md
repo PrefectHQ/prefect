@@ -51,12 +51,12 @@ With this release we are adding a six month (September 14) deprecation warning t
 Like agents, workers support creating deployments through the Prefect CLI and through Python, but require different syntax.
 
 
-### Exciting New Features 🎉
-* Feature: API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
+
 ### Enhancements
 * Give better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
 * Allow table artifact cells to render markdown content [`#2190`](https://github.com/PrefectHQ/prefect-ui-library/pull/2190)
 * Add an 'AzureBlobStorageContainer' block [`#139`](https://github.com/PrefectHQ/prefect-azure/pull/139)
+* API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
 ### Fixes
 * Fix support for legacy schedule in `build_from_flow` by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12257
 * Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
