@@ -1,5 +1,46 @@
 # Prefect Release Notes
 
+## Release 2.16.4
+
+### Exciting New Features 🎉
+* Add client-side support for `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12195
+* Feature: API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
+### Fixes
+* Fix support for legacy schedule in `build_from_flow` by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12257
+### Experimental
+* expose `serve` method on tasks by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12239
+### Deprecations
+* Deprecate `PrefectAgent` and `prefect agent` command group by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12273
+* Deprecate Infrastructrue blocks by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12282
+* Deprecate `Deployment` class and deployment `build` and `apply` commands by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12283
+* Deprecate the `packaging` module by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12291
+* Deprecate storage blocks with implementations in Prefect integration packages by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12299
+### Documentation
+* Fix formatting in concept -> work-pools.md by @discdiver in https://github.com/PrefectHQ/prefect/pull/12230
+* Docs: Add `get_run_logger` to imports in interactive workflow examples by @pleek91 in https://github.com/PrefectHQ/prefect/pull/12284
+* Add `on_running` state change hook to State -> Concepts docs by @discdiver in https://github.com/PrefectHQ/prefect/pull/12293
+* Fix some argument names in deploy guide by @kevingrismore in https://github.com/PrefectHQ/prefect/pull/12301
+* Chore: Update flow run graph documentation images by @brandonreid in https://github.com/PrefectHQ/prefect/pull/12296
+### Uncategorized
+* do not create `default-agent-pool` in empty state server by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12214
+* Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
+* Add backend support for creating and updating flow run `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12185
+* chore: remove unused `dotenv` by @hainenber in https://github.com/PrefectHQ/prefect/pull/12232
+* chore: revert docker login on python-tests by @parkedwards in https://github.com/PrefectHQ/prefect/pull/12237
+* Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
+* [task scheduling] avoid relative module path problem with subcription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
+* Workers use flow run overrides by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12242
+* Pin `importlib-resources` to 6.1.x by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12266
+* prevent annoying invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
+* Hydrate run input when resuming a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12259
+* Refactor: Inject Client by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12258
+* Fix: Variables methods type-hinting by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12278
+
+## New Contributors
+* @hainenber made their first contribution in https://github.com/PrefectHQ/prefect/pull/12232
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.16.3...2.16.4
+
 ## Release 2.16.3
 
 ### Enhanced deployment parameters in the Prefect UI
