@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import anyio
 import fsspec
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -435,8 +436,17 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         return self._filesystem
 
 
+@deprecated_class(
+    start_date="Mar 2024", help="Use the `S3Bucket` block from prefect-aws instead."
+)
 class S3(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `S3Bucket` from the `prefect-aws` package, which offers enhanced functionality
+    and better a better user experience.
+
     Store data as a file on AWS S3.
 
     Example:
@@ -526,8 +536,16 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024", help="Use the `GcsBucket` block from prefect-gcp instead."
+)
 class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `GcsBucket` from the `prefect-gcp` package, which offers enhanced functionality
+    and better a better user experience.
     Store data as a file on Google Cloud Storage.
 
     Example:
@@ -619,8 +637,18 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `AzureBlobStorageContainer` block from prefect-azure instead.",
+)
 class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `AzureBlobStorageContainer` from the `prefect-azure` package, which
+    offers enhanced functionality and better a better user experience.
+
     Store data as a file on Azure Datalake and Azure Blob Storage.
 
     Example:
@@ -869,9 +897,19 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `GitHubRepository` block from prefect-github instead.",
+)
 class GitHub(ReadableDeploymentStorage):
     """
-    Interact with files stored on GitHub repositories.
+        DEPRECATION WARNING:
+
+        This class is deprecated as of March 2024 and will not be available after September 2024.
+        It has been replaced by `GitHubRepository` from the `prefect-github` package, which offers
+        enhanced functionality and better a better user experience.
+    q
+        Interact with files stored on GitHub repositories.
     """
 
     _block_type_name = "GitHub"
