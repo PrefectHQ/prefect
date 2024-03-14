@@ -39,6 +39,18 @@ See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12185
 - https://github.com/PrefectHQ/prefect/pull/12242
 
+### Agents
+
+A year ago, we released workers as a replacement for agents. Workers significantly enhance the experience of deploying flows and simplify the specification of each flow's infrastructure and runtime environment.
+
+With this release we are adding a six month (September 14) deprecation warning to agents and related concepts. Please note that:
+- Deprecation will not impact or break any work running with agents and agent-related concepts - although we encourage users to upgrade to workers because they provide a better deployment experience, you can continue to use existing agents and related concepts after deprecation
+- After September 14, Prefect Cloud users will not be able to create new agent work pools or infrastructure blocks
+- After September 14, new minor versions of the Prefect Python package will not include agents
+
+Like agents, workers support creating deployments through the Prefect CLI and through Python, but require different syntax.
+
+
 ### Exciting New Features 🎉
 * Feature: API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
 ### Enhancements
