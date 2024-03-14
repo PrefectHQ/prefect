@@ -49,7 +49,7 @@ For more information, please refer to the [Upgrade from Agents to Workers](https
 * Fix: Variables methods type-hinting - https://github.com/PrefectHQ/prefect/pull/12278
 ### Documentation
 * Fix formatting in concept -> work-pools.md - https://github.com/PrefectHQ/prefect/pull/12230
-* Docs: Add `get_run_logger` to imports in interactive workflow examples - https://github.com/PrefectHQ/prefect/pull/12284
+* Add `get_run_logger` to imports in interactive workflow examples - https://github.com/PrefectHQ/prefect/pull/12284
 * Add `on_running` state change hook to State -> Concepts docs - https://github.com/PrefectHQ/prefect/pull/12293
 * Fix some argument names in deploy guide - https://github.com/PrefectHQ/prefect/pull/12301
 
