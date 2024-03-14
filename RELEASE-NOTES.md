@@ -24,7 +24,7 @@ For more information, please refer to the [Upgrade from Agents to Workers](https
 
 ### Enhancements
 * Give better client-side feedback on websocket authT/authZ issues - https://github.com/PrefectHQ/prefect/pull/12221
-* Allow table artifact cells to render markdown content [`#2190`](https://github.com/PrefectHQ/prefect-ui-library/pull/2190)
+* Allow table artifact cells to render markdown content - [`#2190`](https://github.com/PrefectHQ/prefect-ui-library/pull/2190)
 * Add an 'AzureBlobStorageContainer' block [`#139`](https://github.com/PrefectHQ/prefect-azure/pull/139)
 * API for task run counts by state - https://github.com/PrefectHQ/prefect/pull/12244
 ### Fixes
