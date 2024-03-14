@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
 from prefect.server.api.ui.task_runs import TaskRunCount
-from prefect.server.schemas import core, filters, states
+from prefect.server.schemas import actions, core, filters, states
 from prefect.server.utilities.schemas import DateTimeTZ
 
 
@@ -128,3 +128,191 @@ class TestReadDashboardTaskRunCounts:
             TaskRunCount(completed=2, failed=3),
             TaskRunCount(completed=2, failed=2),
         ]
+
+
+class TestReadTaskRunCountsByState:
+    @pytest.fixture
+    def url(self) -> str:
+        return "/ui/task_runs/count"
+
+    @pytest.fixture
+    async def create_flow_runs(
+        self,
+        session: AsyncSession,
+        flow,
+    ):
+        run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=actions.FlowRunCreate(
+                flow_id=flow.id,
+                state=states.Completed(),
+            ),
+        )
+
+        run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=actions.FlowRunCreate(
+                flow_id=flow.id,
+                state=states.Failed(),
+            ),
+        )
+
+        run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=actions.FlowRunCreate(
+                flow_id=flow.id,
+                state=states.Pending(),
+            ),
+        )
+
+        await session.commit()
+
+        return [run_1, run_2, run_3]
+
+    @pytest.fixture
+    async def create_task_runs(
+        self,
+        session: AsyncSession,
+        flow_run,
+        create_flow_runs,
+    ):
+        task_runs_per_flow_run = 27
+        now = cast(DateTimeTZ, pendulum.datetime(2023, 6, 1, 18, tz="UTC"))
+
+        for flow_run in create_flow_runs:
+            for i in range(task_runs_per_flow_run):
+                # This means that each flow run should have task runs with the following states:
+                # 9 completed, 9 failed, 3 scheduled, 3 running, 2 cancelled, 1 crashed, 1 paused, 1 cancelling, 1 pending
+                if i < 9:
+                    state_type = states.StateType.COMPLETED
+                    state_name = "Completed"
+                elif i < 15:
+                    state_type = states.StateType.FAILED
+                    state_name = "Failed"
+                elif i < 18:
+                    state_type = states.StateType.SCHEDULED
+                    state_name = "Scheduled"
+                elif i < 21:
+                    state_type = states.StateType.RUNNING
+                    state_name = "Running"
+                elif i < 23:
+                    state_type = states.StateType.CANCELLED
+                    state_name = "Cancelled"
+                elif i < 24:
+                    state_type = states.StateType.CRASHED
+                    state_name = "Crashed"
+                elif i < 25:
+                    state_type = states.StateType.PAUSED
+                    state_name = "Paused"
+                elif i < 26:
+                    state_type = states.StateType.CANCELLING
+                    state_name = "Cancelling"
+                else:
+                    state_type = states.StateType.PENDING
+                    state_name = "Pending"
+
+                await models.task_runs.create_task_run(
+                    session=session,
+                    task_run=core.TaskRun(
+                        flow_run_id=flow_run.id,
+                        task_key=f"task-{i}",
+                        dynamic_key=str(i),
+                        state_type=state_type,
+                        state_name=state_name,
+                        start_time=now,
+                        end_time=now,
+                    ),
+                )
+
+        await session.commit()
+
+    async def test_returns_all_state_types(
+        self,
+        url: str,
+        client: AsyncClient,
+    ):
+        response = await client.post(url)
+        assert response.status_code == 200
+
+        counts = response.json()
+
+        assert set(counts.keys()) == set(states.StateType.__members__.keys())
+
+    async def test_none(
+        self,
+        url: str,
+        client: AsyncClient,
+    ):
+        response = await client.post(url)
+        assert response.status_code == 200
+
+        counts = response.json()
+        assert counts == {
+            "COMPLETED": 0,
+            "FAILED": 0,
+            "PENDING": 0,
+            "RUNNING": 0,
+            "CANCELLED": 0,
+            "CRASHED": 0,
+            "PAUSED": 0,
+            "CANCELLING": 0,
+            "SCHEDULED": 0,
+        }
+
+    async def test_returns_counts(
+        self,
+        url: str,
+        client: AsyncClient,
+        create_task_runs,
+    ):
+        response = await client.post(url)
+        assert response.status_code == 200
+
+        counts = response.json()
+
+        assert counts == {
+            "COMPLETED": 9 * 3,
+            "FAILED": 6 * 3,
+            "PENDING": 1 * 3,
+            "RUNNING": 3 * 3,
+            "CANCELLED": 2 * 3,
+            "CRASHED": 1 * 3,
+            "PAUSED": 1 * 3,
+            "CANCELLING": 1 * 3,
+            "SCHEDULED": 3 * 3,
+        }
+
+    async def test_returns_counts_with_filter(
+        self,
+        url: str,
+        client: AsyncClient,
+        create_task_runs,
+    ):
+        response = await client.post(
+            url,
+            json={
+                "flow_runs": filters.FlowRunFilter(
+                    state=filters.FlowRunFilterState(
+                        type=filters.FlowRunFilterStateType(
+                            any_=[states.StateType.COMPLETED]
+                        )
+                    )
+                ).dict(json_compatible=True)
+            },
+        )
+
+        assert response.status_code == 200
+
+        counts = response.json()
+
+        assert counts == {
+            "COMPLETED": 9,
+            "FAILED": 6,
+            "PENDING": 1,
+            "RUNNING": 3,
+            "CANCELLED": 2,
+            "CRASHED": 1,
+            "PAUSED": 1,
+            "CANCELLING": 1,
+            "SCHEDULED": 3,
+        }
