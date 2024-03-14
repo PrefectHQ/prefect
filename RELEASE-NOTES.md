@@ -5,6 +5,8 @@
 ### Exciting New Features 🎉
 * Add client-side support for `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12195
 * Feature: API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
+### Enhancements
+* Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
 ### Fixes
 * Fix support for legacy schedule in `build_from_flow` by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12257
 ### Experimental
@@ -23,7 +25,6 @@
 * Chore: Update flow run graph documentation images by @brandonreid in https://github.com/PrefectHQ/prefect/pull/12296
 ### Uncategorized
 * do not create `default-agent-pool` in empty state server by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12214
-* Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
 * Add backend support for creating and updating flow run `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12185
 * Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
 * [task scheduling] avoid relative module path problem with subscription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
