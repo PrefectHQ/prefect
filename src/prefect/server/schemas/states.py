@@ -43,6 +43,25 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
+class CountByState(PrefectBaseModel):
+    COMPLETED: int = Field(default=0)
+    PENDING: int = Field(default=0)
+    RUNNING: int = Field(default=0)
+    FAILED: int = Field(default=0)
+    CANCELLED: int = Field(default=0)
+    CRASHED: int = Field(default=0)
+    PAUSED: int = Field(default=0)
+    CANCELLING: int = Field(default=0)
+    SCHEDULED: int = Field(default=0)
+
+    @validator("*")
+    @classmethod
+    def check_key(cls, value, field):
+        if field.name not in StateType.__members__:
+            raise ValueError(f"{field.name} is not a valid StateType")
+        return value
+
+
 TERMINAL_STATES = {
     StateType.COMPLETED,
     StateType.CANCELLED,
