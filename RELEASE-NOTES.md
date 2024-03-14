@@ -6,7 +6,7 @@
 
 The Flow Run Graph has been updated to display additional layers of information! Interactive and real-time state changes and artifacts are now visible in context on the graph.
 
-<img width="967" alt="The Prefect flow run graph" src="https://github.com/PrefectHQ/prefect/assets/6776415/422a878e-f8bc-46b5-ae76-830f24861aaf">
+<img width="892" alt="The Prefect flow run graph" src="https://github.com/PrefectHQ/prefect/assets/6776415/422a878e-f8bc-46b5-ae76-830f24861aaf">
 
 ### Enhanced flow run infrastructure customization
 
@@ -58,7 +58,6 @@ With this release we are adding a six month (September 14) deprecation warning t
 - After September 14, new minor versions of the Prefect Python package will not include agents
 
 Like agents, workers support creating deployments through the Prefect CLI and through Python, but require different syntax.
-
 
 ### Enhancements
 * Give better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
