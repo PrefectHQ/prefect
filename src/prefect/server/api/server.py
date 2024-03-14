@@ -648,6 +648,9 @@ def create_app(
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
 
+    if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
+        app.add_middleware(api.middleware.CsrfMiddleware)
+
     api_app.mount(
         "/static",
         StaticFiles(
