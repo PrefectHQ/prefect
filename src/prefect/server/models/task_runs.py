@@ -342,7 +342,7 @@ async def count_task_runs_by_state(
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
     task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
     deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
-):
+) -> schemas.states.CountByState:
     """
     Count task runs by state.
 
