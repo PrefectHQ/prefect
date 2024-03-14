@@ -444,7 +444,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     DEPRECATION WARNING:
 
     This class is deprecated as of March 2024 and will not be available after September 2024.
-    It has been replaced by `S3Bucket` from the prefect-aws package, which offers enhanced functionality
+    It has been replaced by `S3Bucket` from the `prefect-aws` package, which offers enhanced functionality
     and better a better user experience.
 
     Store data as a file on AWS S3.
@@ -544,7 +544,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     DEPRECATION WARNING:
 
     This class is deprecated as of March 2024 and will not be available after September 2024.
-    It has been replaced by `GcsBucket` from the prefect-gcp package, which offers enhanced functionality
+    It has been replaced by `GcsBucket` from the `prefect-gcp` package, which offers enhanced functionality
     and better a better user experience.
     Store data as a file on Google Cloud Storage.
 
@@ -646,7 +646,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     DEPRECATION WARNING:
 
     This class is deprecated as of March 2024 and will not be available after September 2024.
-    It has been replaced by `AzureBlobStorageContainer` from the prefect-azuer package, which
+    It has been replaced by `AzureBlobStorageContainer` from the `prefect-azure` package, which
     offers enhanced functionality and better a better user experience.
 
     Store data as a file on Azure Datalake and Azure Blob Storage.
@@ -903,13 +903,13 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 )
 class GitHub(ReadableDeploymentStorage):
     """
-    DEPRECATION WARNING:
+        DEPRECATION WARNING:
 
-    This class is deprecated as of March 2024 and will not be available after September 2024.
-    It has been replaced by `GitHubRepository` from the prefect-github package, which offers
-    enhanced functionality and better a better user experience.
-
-    Interact with files stored on GitHub repositories.
+        This class is deprecated as of March 2024 and will not be available after September 2024.
+        It has been replaced by `GitHubRepository` from the `prefect-github` package, which offers
+        enhanced functionality and better a better user experience.
+    q
+        Interact with files stored on GitHub repositories.
     """
 
     _block_type_name = "GitHub"
