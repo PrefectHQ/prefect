@@ -196,7 +196,7 @@ async def read_task_run_counts_by_state(
     task_runs: Optional[schemas.filters.TaskRunFilter] = None,
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> schemas.states.CountByState:
     async with db.session_context(begin_transaction=False) as session:
         return await models.task_runs.count_task_runs_by_state(
             session=session,
