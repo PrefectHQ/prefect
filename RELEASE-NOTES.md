@@ -36,6 +36,7 @@ See the following PRs for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12065
 - https://github.com/PrefectHQ/prefect/pull/12185
 - https://github.com/PrefectHQ/prefect/pull/12195
+- https://github.com/PrefectHQ/prefect/pull/12185
 - https://github.com/PrefectHQ/prefect/pull/12242
 
 ### Exciting New Features 🎉
@@ -44,6 +45,7 @@ See the following PRs for implementation details:
 * Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
 ### Fixes
 * Fix support for legacy schedule in `build_from_flow` by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12257
+* Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
 ### Experimental
 * expose `serve` method on tasks by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12239
 ### Deprecations
@@ -60,10 +62,7 @@ See the following PRs for implementation details:
 * Chore: Update flow run graph documentation images by @brandonreid in https://github.com/PrefectHQ/prefect/pull/12296
 ### Uncategorized
 * do not create `default-agent-pool` in empty state server by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12214
-* Add backend support for creating and updating flow run `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12185
-* Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
 * [task scheduling] avoid relative module path problem with subscription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
-* Workers use flow run overrides by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12242
 * Pin `importlib-resources` to 6.1.x by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12266
 * prevent annoying invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
 * Hydrate run input when resuming a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12259
