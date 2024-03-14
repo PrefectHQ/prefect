@@ -1,8 +1,14 @@
+"""
+DEPRECATION WARNING:
+This module is deprecated as of March 2024 and will not be available after September 2024.
+"""
+
 import json
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -11,9 +17,9 @@ else:
     from pydantic import AnyHttpUrl, root_validator, validator
 from typing_extensions import Literal
 
+from prefect.deprecated.packaging.base import PackageManifest, Packager
+from prefect.deprecated.packaging.serializers import SourceSerializer
 from prefect.flows import Flow, load_flow_from_script
-from prefect.packaging.base import PackageManifest, Packager
-from prefect.packaging.serializers import SourceSerializer
 from prefect.software import CondaEnvironment, PythonEnvironment
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import (
@@ -26,8 +32,13 @@ from prefect.utilities.dockerutils import (
 from prefect.utilities.slugify import slugify
 
 
+@deprecated_class(start_date="Mar 2024")
 class DockerPackageManifest(PackageManifest):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     Represents a flow packaged in a Docker image
     """
 
@@ -40,8 +51,13 @@ class DockerPackageManifest(PackageManifest):
         return load_flow_from_script(self.image_flow_location, self.flow_name)
 
 
+@deprecated_class(start_date="Mar 2024")
 class DockerPackager(Packager):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     This packager builds a Docker image containing the flow and the runtime environment
     necessary to run the flow.  The resulting image is optionally pushed to a container
     registry, given by `registry_url`.

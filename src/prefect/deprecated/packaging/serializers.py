@@ -1,3 +1,8 @@
+"""
+DEPRECATION WARNING:
+This module is deprecated as of March 2024 and will not be available after September 2024.
+"""
+
 import base64
 import inspect
 import json
@@ -7,6 +12,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, List
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -16,7 +22,7 @@ else:
 
 from typing_extensions import Literal
 
-from prefect.packaging.base import Serializer
+from prefect.deprecated.packaging.base import Serializer
 from prefect.utilities.importtools import (
     from_qualified_name,
     load_script_as_module,
@@ -24,8 +30,13 @@ from prefect.utilities.importtools import (
 )
 
 
+@deprecated_class(start_date="Mar 2024")
 class PickleSerializer(Serializer):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     Serializes objects using the pickle protocol.
 
     If using cloudpickle, you may specify a list of 'pickle_modules'. These modules will
@@ -127,8 +138,13 @@ class PickleSerializer(Serializer):
         return pickler.loads(base64.decodebytes(blob))
 
 
+@deprecated_class(start_date="Mar 2024")
 class SourceSerializer(Serializer):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     Serializes objects by retrieving the source code of the module they are defined in.
 
     Creates a JSON blob with keys:
@@ -185,8 +201,13 @@ class SourceSerializer(Serializer):
         return getattr(module, document["symbol_name"])
 
 
+@deprecated_class(start_date="Mar 2024")
 class ImportSerializer(Serializer):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     Serializes objects by storing their importable path.
     """
 
