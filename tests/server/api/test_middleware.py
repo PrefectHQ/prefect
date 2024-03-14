@@ -1,11 +1,15 @@
+from datetime import datetime, timedelta, timezone
+
 import httpx
 import pytest
+import sqlalchemy as sa
 from httpx import ASGITransport
 from prefect._vendor.fastapi import FastAPI, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.api.middleware import CsrfMiddleware
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.settings import (
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     temporary_settings,
@@ -72,7 +76,7 @@ async def test_csrf_change_request_pass_through_disabled(
 async def test_csrf_403_no_token_or_client(client: httpx.AsyncClient):
     response = await client.post("/")
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert response.json() == {"detail": "Invalid CSRF token"}
+    assert response.json() == {"detail": "Missing CSRF token."}
 
 
 async def test_csrf_403_no_client(
@@ -80,7 +84,7 @@ async def test_csrf_403_no_client(
 ):
     response = await client.post("/", headers={"Prefect-Csrf-Token": csrf_token.token})
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert response.json() == {"detail": "Invalid CSRF token"}
+    assert response.json() == {"detail": "Missing client identifier."}
 
 
 async def test_csrf_403_no_token(
@@ -90,7 +94,7 @@ async def test_csrf_403_no_token(
         "/", headers={"Prefect-Csrf-Client": csrf_token.client}
     )
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert response.json() == {"detail": "Invalid CSRF token"}
+    assert response.json() == {"detail": "Missing CSRF token."}
 
 
 async def test_csrf_403_incorrect_token(
@@ -104,7 +108,30 @@ async def test_csrf_403_incorrect_token(
         },
     )
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert response.json() == {"detail": "Invalid CSRF token"}
+    assert response.json() == {"detail": "Invalid CSRF token or client identifier."}
+
+
+async def test_csrf_403_expired_token(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    client: httpx.AsyncClient,
+    csrf_token: schemas.core.CsrfToken,
+):
+    # Make the token expired
+    await session.execute(
+        sa.update(db.CsrfToken)
+        .where(db.CsrfToken.client == csrf_token.client)
+        .values(expiration=datetime.now(timezone.utc) - timedelta(days=1))
+    )
+    response = await client.post(
+        "/",
+        headers={
+            "Prefect-Csrf-Token": csrf_token.token,
+            "Prefect-Csrf-Client": csrf_token.client,
+        },
+    )
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.json() == {"detail": "Invalid CSRF token or client identifier."}
 
 
 @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])

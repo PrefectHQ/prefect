@@ -90,6 +90,20 @@ class TestTokenForClient:
         )
         assert token is None
 
+    async def test_none_expired_token(
+        self, db: PrefectDBInterface, session: AsyncSession, csrf_token: core.CsrfToken
+    ):
+        await session.execute(
+            sa.update(db.CsrfToken)
+            .where(db.CsrfToken.client == csrf_token.client)
+            .values(expiration=datetime.now(timezone.utc) - timedelta(days=1))
+        )
+
+        token = await models.csrf_token.read_token_for_client(
+            session=session, client=csrf_token.client
+        )
+        assert token is None
+
 
 class TestDeleteExpiredTokens:
     async def test_can_delete_expired_tokens(

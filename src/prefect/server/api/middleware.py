@@ -1,10 +1,9 @@
 from typing import Awaitable, Callable
 
-import orjson
 from prefect._vendor.fastapi import status
 from prefect._vendor.starlette.middleware.base import BaseHTTPMiddleware
 from prefect._vendor.starlette.requests import Request
-from prefect._vendor.starlette.responses import Response
+from prefect._vendor.starlette.responses import JSONResponse, Response
 
 from prefect import settings
 from prefect.server import models
@@ -47,16 +46,27 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             incoming_token = request.headers.get("Prefect-Csrf-Token")
             incoming_client = request.headers.get("Prefect-Csrf-Client")
 
+            if incoming_token is None:
+                return JSONResponse(
+                    {"detail": "Missing CSRF token."},
+                    status_code=status.HTTP_403_FORBIDDEN,
+                )
+
+            if incoming_client is None:
+                return JSONResponse(
+                    {"detail": "Missing client identifier."},
+                    status_code=status.HTTP_403_FORBIDDEN,
+                )
+
             async with db.session_context() as session:
                 token = await models.csrf_token.read_token_for_client(
                     session=session, client=incoming_client
                 )
 
                 if token is None or token.token != incoming_token:
-                    return Response(
+                    return JSONResponse(
+                        {"detail": "Invalid CSRF token or client identifier."},
                         status_code=status.HTTP_403_FORBIDDEN,
-                        content=orjson.dumps({"detail": "Invalid CSRF token"}),
-                        media_type="application/json",
                     )
 
         return await call_next(request)
