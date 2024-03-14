@@ -90,51 +90,7 @@ Like agents, workers support creating deployments through the Prefect CLI and th
 * Docs: Add `get_run_logger` to imports in interactive workflow examples by @pleek91 in https://github.com/PrefectHQ/prefect/pull/12284
 * Add `on_running` state change hook to State -> Concepts docs by @discdiver in https://github.com/PrefectHQ/prefect/pull/12293
 * Fix some argument names in deploy guide by @kevingrismore in https://github.com/PrefectHQ/prefect/pull/12301
-* Chore: Update flow run graph documentation images by @brandonreid in https://github.com/PrefectHQ/prefect/pull/12296
 
-- Feature: API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
-
-### Enhancements
-
-- Give better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
-- Allow table artifact cells to render markdown content [`#2190`](https://github.com/PrefectHQ/prefect-ui-library/pull/2190)
-- Add an 'AzureBlobStorageContainer' block [`#139`](https://github.com/PrefectHQ/prefect-azure/pull/139)
-
-### Fixes
-
-- Fix support for legacy schedule in `build_from_flow` by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12257
-- Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
-- Prevent invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
-- Hydrate run input when resuming a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12259
-- Fix state select in notifications [`#2216`](https://github.com/PrefectHQ/prefect-ui-library/pull/2216)
-- Adds porting of network configuration to generated base job templates [`#392`](https://github.com/PrefectHQ/prefect-aws/pull/392)
-
-### Experimental
-
-- Expose `serve` method on tasks by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12239
-- Avoid relative module path problem with subscription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
-
-### Deprecations
-
-- Deprecate `PrefectAgent` and `prefect agent` command group by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12273
-- Deprecate Infrastructrue blocks by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12282
-- Deprecate `Deployment` class and deployment `build` and `apply` commands by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12283
-- Deprecate the `packaging` module by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12291
-- Deprecate storage blocks with implementations in Prefect integration packages by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12299
-- Do not create `default-agent-pool` in empty state server by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12214
-
-### Typing
-
-- Refactor: Inject Client by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12258
-- Fix: Variables methods type-hinting by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12278
-
-### Documentation
-
-- Fix formatting in concept -> work-pools.md by @discdiver in https://github.com/PrefectHQ/prefect/pull/12230
-- Docs: Add `get_run_logger` to imports in interactive workflow examples by @pleek91 in https://github.com/PrefectHQ/prefect/pull/12284
-- Add `on_running` state change hook to State -> Concepts docs by @discdiver in https://github.com/PrefectHQ/prefect/pull/12293
-- Fix some argument names in deploy guide by @kevingrismore in https://github.com/PrefectHQ/prefect/pull/12301
-- Chore: Update flow run graph documentation images by @brandonreid in https://github.com/PrefectHQ/prefect/pull/12296
 
 ## New Contributors
 
