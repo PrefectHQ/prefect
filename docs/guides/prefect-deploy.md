@@ -365,7 +365,7 @@ if __name__ == "__main__":
         entrypoint="flows.py:my_flow",
     ).deploy(
         name="deployment-from-aws-flow",
-        work_pool="my_pool",
+        work_pool_name="my_pool",
     )
 ```
 
@@ -383,7 +383,7 @@ from prefect_aws.s3 import S3Bucket
 if __name__ == "__main__":
     flow.from_source(
         source=S3Bucket.load("my-code-storage"), entrypoint="my_file.py:my_flow"
-    ).deploy(name="test-s3", work_pool="my_pool")
+    ).deploy(name="test-s3", work_pool_name="my_pool")
 ```
 
 If you are familiar with the deployment creation mechanics with `.serve`, you will notice that `.deploy` is very similar. `.deploy` just requires a work pool name and has a number of parameters dealing with flow-code storage for Docker images.
