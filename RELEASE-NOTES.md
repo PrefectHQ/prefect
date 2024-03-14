@@ -54,6 +54,9 @@ See the following PRs for implementation details:
 * Deprecate `Deployment` class and deployment `build` and `apply` commands by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12283
 * Deprecate the `packaging` module by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12291
 * Deprecate storage blocks with implementations in Prefect integration packages by @desertaxle in https://github.com/PrefectHQ/prefect/pull/12299
+### Typing
+* Refactor: Inject Client by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12258
+* Fix: Variables methods type-hinting by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12278
 ### Documentation
 * Fix formatting in concept -> work-pools.md by @discdiver in https://github.com/PrefectHQ/prefect/pull/12230
 * Docs: Add `get_run_logger` to imports in interactive workflow examples by @pleek91 in https://github.com/PrefectHQ/prefect/pull/12284
@@ -66,8 +69,6 @@ See the following PRs for implementation details:
 * Pin `importlib-resources` to 6.1.x by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12266
 * prevent annoying invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
 * Hydrate run input when resuming a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12259
-* Refactor: Inject Client by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12258
-* Fix: Variables methods type-hinting by @aaazzam in https://github.com/PrefectHQ/prefect/pull/12278
 
 ## New Contributors
 * @hainenber made their first contribution in https://github.com/PrefectHQ/prefect/pull/12232
