@@ -20,6 +20,8 @@ With this release we are adding a six month (September 14) deprecation warning t
 
 Like agents, workers support creating deployments through the Prefect CLI and through Python, but require different syntax.
 
+For more information, please refer to the [Upgrade from Agents to Workers](https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/) guide
+
 ### Enhancements
 * Give better client-side feedback on websocket authT/authZ issues - https://github.com/PrefectHQ/prefect/pull/12221
 * Allow table artifact cells to render markdown content [`#2190`](https://github.com/PrefectHQ/prefect-ui-library/pull/2190)
