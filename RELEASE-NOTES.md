@@ -26,7 +26,7 @@
 * Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
 * Add backend support for creating and updating flow run `job_variables` by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12185
 * Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
-* [task scheduling] avoid relative module path problem with subcription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
+* [task scheduling] avoid relative module path problem with subscription keys by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12227
 * Workers use flow run overrides by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12242
 * Pin `importlib-resources` to 6.1.x by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12266
 * prevent annoying invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
