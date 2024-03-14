@@ -224,6 +224,8 @@ class TestReadTaskRunCountsByState:
                     ),
                 )
 
+        await session.commit()
+
     async def test_returns_all_state_types(
         self,
         url: str,
