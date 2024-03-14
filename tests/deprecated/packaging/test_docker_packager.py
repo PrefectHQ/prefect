@@ -7,7 +7,7 @@ from tarfile import TarFile, TarInfo
 
 import pytest
 
-from prefect.packaging.docker import DockerPackageManifest, DockerPackager
+from prefect.deprecated.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.conda import CondaEnvironment
 from prefect.software.python import PythonEnvironment
 from prefect.utilities.callables import parameter_schema
@@ -220,7 +220,7 @@ def assert_unpackaged_flow_works(docker: DockerClient, manifest: DockerPackageMa
     test_script = textwrap.dedent(
         f"""
     import asyncio
-    from prefect.packaging.docker import DockerPackageManifest
+    from prefect.deprecated.packaging.docker import DockerPackageManifest
 
     manifest = DockerPackageManifest.parse_raw({manifest.json()!r})
 

@@ -1,6 +1,12 @@
+"""
+DEPRECATION WARNING:
+This module is deprecated as of March 2024 and will not be available after September 2024.
+"""
+
 import abc
 from typing import Generic, TypeVar
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -16,9 +22,14 @@ from prefect.utilities.pydantic import PartialModel, add_type_dispatch
 D = TypeVar("D")
 
 
+@deprecated_class(start_date="Mar 2024")
 @add_type_dispatch
 class Serializer(BaseModel, Generic[D], abc.ABC):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     A serializer that can encode objects of type 'D' into bytes.
     """
 
@@ -31,9 +42,14 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
         """Decode the blob of bytes into an object."""
 
 
+@deprecated_class(start_date="Mar 2024")
 @add_type_dispatch
 class PackageManifest(BaseModel, abc.ABC):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     Describes a package.
     """
 
@@ -48,9 +64,14 @@ class PackageManifest(BaseModel, abc.ABC):
         """
 
 
+@deprecated_class(start_date="Mar 2024")
 @add_type_dispatch
 class Packager(BaseModel, abc.ABC):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of version March 2024 and will not be available after September 2024.
+
     Creates a package for a flow.
 
     A package contains the flow and is typically stored outside of Prefect. To

@@ -6,7 +6,7 @@ from typing import Generator
 
 import pytest
 
-from prefect.packaging.serializers import (
+from prefect.deprecated.packaging.serializers import (
     ImportSerializer,
     PickleSerializer,
     SourceSerializer,
@@ -18,9 +18,10 @@ def foo(return_val="foo"):
 
 
 @pytest.mark.parametrize(
-    "serializer", [SourceSerializer(), ImportSerializer(), PickleSerializer()]
+    "Serializer", [SourceSerializer, ImportSerializer, PickleSerializer]
 )
-def test_serialize_function(serializer):
+def test_serialize_function(Serializer):
+    serializer = Serializer()
     blob = serializer.dumps(foo)
     result = serializer.loads(blob)
 
