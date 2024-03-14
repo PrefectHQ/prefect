@@ -54,13 +54,13 @@ Like agents, workers support creating deployments through the Prefect CLI and th
 ### Exciting New Features 🎉
 * Feature: API for task run counts by state by @znicholasbrown in https://github.com/PrefectHQ/prefect/pull/12244
 ### Enhancements
-* Giving better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
+* Give better client-side feedback on websocket authT/authZ issues by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/12221
 * Allow table artifact cells to render markdown content [`#2190`](https://github.com/PrefectHQ/prefect-ui-library/pull/2190)
 * Add an 'AzureBlobStorageContainer' block [`#139`](https://github.com/PrefectHQ/prefect-azure/pull/139)
 ### Fixes
 * Fix support for legacy schedule in `build_from_flow` by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12257
 * Remove extra field from create endpoints by @urimandujano in https://github.com/PrefectHQ/prefect/pull/12240
-* Prevent annoying invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
+* Prevent invalid link problem for `prefect deployment run` by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/12267
 * Hydrate run input when resuming a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/12259
 * Fix state select in notifications [`#2216`](https://github.com/PrefectHQ/prefect-ui-library/pull/2216)
 * Adds porting of network configuration to generated base job templates [`#392`](https://github.com/PrefectHQ/prefect-aws/pull/392)
