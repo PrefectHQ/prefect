@@ -375,6 +375,7 @@ nav:
                       - "server.api.task_runs": api-ref/server/api/task_runs.md
                       - "server.api.task_run_states": api-ref/server/api/task_run_states.md
                 - "Models":
+                      - "server.models.csrf_token": api-ref/server/models/csrf_token.md
                       - "server.models.flows": api-ref/server/models/flows.md
                       - "server.models.flow_runs": api-ref/server/models/flow_runs.md
                       - "server.models.flow_run_states": api-ref/server/models/flow_run_states.md
