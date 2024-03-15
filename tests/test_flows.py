@@ -1391,7 +1391,7 @@ class TestFlowParameterTypes:
         else:
 
             @flow
-            def type_container_input_flow(arg1: list[str]) -> str:
+            def type_container_input_flow(arg1: List[str]) -> str:
                 print(arg1)
                 return ",".join(arg1)
 
