@@ -16,6 +16,7 @@ from . import (
     flow_runs,
     flows,
     logs,
+    middleware,
     root,
     run_history,
     saved_searches,
