@@ -6,8 +6,16 @@ from typing import Tuple
 import pytest
 
 import prefect
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.exceptions import InvalidRepositoryURLError
-from prefect.filesystems import Azure, GitHub, LocalFileSystem, RemoteFileSystem
+from prefect.filesystems import (
+    GCS,
+    S3,
+    Azure,
+    GitHub,
+    LocalFileSystem,
+    RemoteFileSystem,
+)
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
 
@@ -41,6 +49,44 @@ def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str
     assert set(os.listdir(sub_dir_path)) == child_contents
 
     return parent_contents, child_contents
+
+
+@pytest.mark.parametrize(
+    "Filesystem,kwargs,expected_message",
+    [
+        (
+            S3,
+            {"bucket_path": "bucket/path"},
+            "prefect.filesystems.S3 has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use the `S3Bucket` block from prefect-aws instead.",
+        ),
+        (
+            GCS,
+            {"bucket_path": "bucket/path"},
+            "prefect.filesystems.GCS has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use the `GcsBucket` block from prefect-gcp instead.",
+        ),
+        (
+            Azure,
+            {"bucket_path": "bucket/path"},
+            "prefect.filesystems.Azure has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use the `AzureBlobStorageContainer` block from prefect-azure instead.",
+        ),
+        (
+            GitHub,
+            {"repository": "https://github.com/org/repo.git"},
+            "prefect.filesystems.GitHub has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use the `GitHubRepository` block from prefect-github instead.",
+        ),
+    ],
+)
+def test_deprecated_filesystems_raise_a_warning(Filesystem, kwargs, expected_message):
+    with pytest.warns(PrefectDeprecationWarning, match=expected_message):
+        Filesystem(**kwargs)
 
 
 class TestLocalFileSystem:
