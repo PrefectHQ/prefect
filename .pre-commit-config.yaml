@@ -9,5 +9,9 @@ repos:
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
-    - id: codespell
-      exclude: package-lock.json|_vendor/.*
+      - id: codespell
+        exclude: package-lock.json|_vendor/.*
+  - repo: https://github.com/netromdk/vermin
+    rev: v1.6.0
+    hooks:
+      - id: vermin

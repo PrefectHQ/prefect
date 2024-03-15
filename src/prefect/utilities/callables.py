@@ -1,6 +1,7 @@
 """
 Utilities for working with Python callables.
 """
+
 import inspect
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
@@ -312,8 +313,9 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         ParameterSchema: the argument schema
     """
     try:
-        signature = inspect.signature(fn, eval_str=True)
+        signature = inspect.signature(fn, eval_str=True)  # novm
     except (NameError, TypeError):
+        # `eval_str` is not available in Python < 3.10
         signature = inspect.signature(fn)
 
     model_fields = {}

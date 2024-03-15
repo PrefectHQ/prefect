@@ -2,6 +2,7 @@
 Implementation of the `Call` data structure for transport of deferred function calls
 and low-level management of call execution.
 """
+
 import abc
 import asyncio
 import concurrent.futures
@@ -40,8 +41,8 @@ P = ParamSpec("P")
 # we already have strong references to the `Call` objects in other places
 # and b) this is used for performance optimizations where we have fallback
 # behavior if this weakref is garbage collected. A fix for issue #10952.
-current_call: contextvars.ContextVar["weakref.ref[Call]"] = contextvars.ContextVar(
-    "current_call"
+current_call: contextvars.ContextVar["weakref.ref[Call]"] = (  # novm
+    contextvars.ContextVar("current_call")
 )
 
 # Create a strong reference to tasks to prevent destruction during execution errors

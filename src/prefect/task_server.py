@@ -6,7 +6,7 @@ import socket
 import sys
 from contextlib import AsyncExitStack
 from functools import partial
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import anyio
 from websockets.exceptions import InvalidStatusCode
@@ -72,7 +72,7 @@ class TaskServer:
         *tasks: Task,
         task_runner: Optional[Type[BaseTaskRunner]] = None,
     ):
-        self.tasks: list[Task] = tasks
+        self.tasks: List[Task] = tasks
 
         self.task_runner: BaseTaskRunner = task_runner or ConcurrentTaskRunner()
         self.started: bool = False
