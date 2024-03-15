@@ -210,6 +210,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.ConcurrencyLimitV2
 
     @property
+    def CsrfToken(self):
+        """A csrf token model"""
+        return self.orm.CsrfToken
+
+    @property
     def WorkQueue(self):
         """A work queue model"""
         return self.orm.WorkQueue

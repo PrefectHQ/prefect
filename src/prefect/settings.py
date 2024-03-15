@@ -1207,6 +1207,13 @@ Note this setting only applies when calling `prefect server start`; if hosting t
 API with another tool you will need to configure this there instead.
 """
 
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
+"""Whether or not to protect the API from CSRF attacks. Experimental and
+currently defaults to `False`."""
+
+PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(timedelta, default=timedelta(hours=1))
+"""How long a CSRF token is valid for. Defaults to 1 hour."""
+
 PREFECT_UI_ENABLED = Setting(
     bool,
     default=True,
