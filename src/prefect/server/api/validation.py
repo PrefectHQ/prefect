@@ -1,3 +1,5 @@
+from typing import Union
+
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,7 +55,9 @@ async def _resolve_default_references(variables: dict, session: AsyncSession) ->
 
 
 async def validate_job_variables_for_flow_run(
-    flow_run: schemas.actions.DeploymentFlowRunCreate | schemas.actions.FlowRunUpdate,
+    flow_run: Union[
+        schemas.actions.DeploymentFlowRunCreate, schemas.actions.FlowRunUpdate
+    ],
     deployment: schemas.core.Deployment,
     session: AsyncSession,
 ) -> None:
