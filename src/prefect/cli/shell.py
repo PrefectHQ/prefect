@@ -6,13 +6,14 @@ import shlex
 import typer
 from pydantic import VERSION as PYDANTIC_VERSION
 
-import prefect
 from prefect import flow
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.deployments.runner import EntrypointType
 from prefect.logging.loggers import get_run_logger
+from prefect.runner import Runner
+from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.processutils import run_process
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -51,7 +52,7 @@ async def run_shell_process(command: str, log_output: bool = True):
 
 
 @shell_app.command("watch")
-async def command(
+async def watch(
     command: str,
     log_output: bool = typer.Option(
         True, help="Log the output of the command to Prefect"
@@ -79,10 +80,14 @@ async def serve(
     ),
     timezone: str = typer.Option(None, help="Timezone for the schedule"),
     concurrency_limit: int = typer.Option(
-        None, help="The maximum number of flow runs that can execute at the same time"
+        None,
+        help="The maximum number of flow runs that can execute at the same time",
     ),
     deployment_name: str = typer.Option(
         "CLI Runner Deployment", help="Name of the deployment"
+    ),
+    run_once: bool = typer.Option(
+        False, help="Run the agent loop once, instead of forever."
     ),
 ):
     """
@@ -100,10 +105,26 @@ async def serve(
     schedule = CronSchedule(cron=cron_schedule) if cron_schedule else None
     run_shell_process.name = name
 
-    flow_from_source = await run_shell_process.to_deployment(
+    runner_deployment = await run_shell_process.to_deployment(
         name=deployment_name,
         parameters={"command": command, "log_output": True},
         entrypoint_type=EntrypointType.MODULE_PATH,
         schedule=schedule,
     )
-    await prefect.serve(flow_from_source, name=name, limit=concurrency_limit)
+
+    runner = Runner(name=name)
+    deployment_id = await runner.add_deployment(runner_deployment)
+    help_message = (
+        f"[green]Your flow {runner_deployment.flow_name!r} is being served and polling"
+        " for scheduled runs!\n[/]\nTo trigger a run for this flow, use the following"
+        " command:\n[blue]\n\t$ prefect deployment run"
+        f" '{runner_deployment.flow_name}/{deployment_name}'\n[/]"
+    )
+    if PREFECT_UI_URL:
+        help_message += (
+            "\nYou can also run your flow via the Prefect UI:"
+            f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
+        )
+
+    app.console.print(help_message, soft_wrap=True)
+    await runner.start(run_once=run_once)
