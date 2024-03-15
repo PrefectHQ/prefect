@@ -83,6 +83,7 @@ API_ROUTERS = (
     api.block_capabilities.router,
     api.collections.router,
     api.variables.router,
+    api.csrf_token.router,
     api.ui.flow_runs.router,
     api.ui.schemas.router,
     api.ui.task_runs.router,
