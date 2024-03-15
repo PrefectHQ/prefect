@@ -116,6 +116,12 @@
   }
 }
 
+@screen 2xl {
+  .app-router-view {
+    width:95rem;
+  }
+}
+
 .app-router-view-fade-enter-active,
 .app-router-view-fade-leave-active {
   transition: opacity 0.25s ease;
