@@ -279,3 +279,33 @@ async def execute(
         exit_with_error("Could not determine the ID of the flow run to execute.")
 
     await Runner().execute_flow_run(id)
+
+
+@flow_run_app.command()
+async def resume(id: UUID):
+    """Resume a flow run by ID."""
+    async with get_client() as client:
+        try:
+            resume_state = State(
+                type=StateType.SCHEDULED, message="Retry from CLI", name="AwaitingRetry"
+            )
+            check_failed_or_crashed_flow = await client.read_flow_run(id)
+            if not (
+                check_failed_or_crashed_flow.state.is_failed()
+                or check_failed_or_crashed_flow.state.is_crashed()
+                or check_failed_or_crashed_flow.state.is_paused()
+            ):
+                exit_with_error(
+                    f"Flow run '{id}' is not in paused or crashed or failed state"
+                )
+            result = await client.set_flow_run_state(flow_run_id=id, state=resume_state)
+        except ObjectNotFound:
+            exit_with_error(f"Flow run '{id}' not found!")
+
+    if result.status == SetStateStatus.ABORT:
+        exit_with_error(
+            f"Flow run '{id}' was unable to retry. Reason:"
+            f" '{result.details.reason}'"
+        )
+
+    exit_with_success(f"Flow run '{id}' was successfully scheduled for retry.")

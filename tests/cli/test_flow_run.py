@@ -16,6 +16,7 @@ from prefect.states import (
     Crashed,
     Failed,
     Late,
+    Paused,
     Pending,
     Retrying,
     Running,
@@ -750,3 +751,80 @@ class TestFlowRunExecute:
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
+
+
+class TestResumeFlowRun:
+    @pytest.mark.parametrize(
+        "state",
+        [Crashed, Paused, Failed],
+    )
+    async def test_resume_crashed_paused_failed_state(self, prefect_client, state):
+        """Should set the state of the flow to Schedule state."""
+        deployment_id = await RunnerDeployment.from_flow(
+            name="scheduled_flow_run", flow=hello_flow
+        ).apply()
+        before = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id, state=state()
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "resume",
+                str(before.id),
+            ],
+            expected_code=0,
+            expected_output_contains=(
+                f"Flow run '{before.id}' was successfully scheduled for retry."
+            ),
+        )
+        after = await prefect_client.read_flow_run(before.id)
+        assert before.state.name != after.state.name
+        assert before.state.type != after.state.type
+        assert after.state.type == StateType.SCHEDULED
+        assert after.state.name == "AwaitingRetry"
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            AwaitingRetry,
+            Cancelled,
+            Completed,
+            Late,
+            Pending,
+            Retrying,
+            Running,
+            Scheduled,
+        ],
+    )
+    async def test_resume_without_paused_and_failed_status_error(
+        self, prefect_client, state
+    ):
+        before = await prefect_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "resume",
+                str(before.id),
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                f"Flow run '{before.id}' is not in paused or crashed or failed state"
+            ),
+        )
+        after = await prefect_client.read_flow_run(before.id)
+
+        assert after.state.name == before.state.name
+        assert after.state.type == before.state.type
+
+    def test_resume_wrong_id_exits_with_error(self):
+        bad_id = str(uuid4())
+        invoke_and_assert(
+            ["flow-run", "resume", bad_id],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{bad_id}' not found!\n",
+        )
