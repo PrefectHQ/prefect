@@ -35,7 +35,7 @@ async def create_or_update_csrf_token(
     token = secrets.token_hex(32)
 
     await session.execute(
-        db.insert(db.CsrfToken)
+        (await db.insert(db.CsrfToken))
         .values(
             client=client,
             token=token,

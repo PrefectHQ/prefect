@@ -2,7 +2,6 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Prefect REST API.
 """
-
 from copy import copy
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
@@ -626,7 +625,7 @@ async def create_block_document_reference(
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
     db: PrefectDBInterface,
 ):
-    insert_stmt = db.insert(db.BlockDocumentReference).values(
+    insert_stmt = (await db.insert(db.BlockDocumentReference)).values(
         **block_document_reference.dict(
             shallow=True, exclude_unset=True, exclude={"created", "updated"}
         )

@@ -57,7 +57,7 @@ async def create_task_run(
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:
         insert_stmt = (
-            db.insert(db.TaskRun)
+            (await db.insert(db.TaskRun))
             .values(
                 created=now,
                 **task_run.dict(

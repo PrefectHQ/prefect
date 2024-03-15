@@ -28,8 +28,8 @@ logger = get_logger("server.api")
 
 @db_injector
 async def run_history(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: sa.orm.Session,
     run_type: Literal["flow_run", "task_run"],
     history_start: DateTimeTZ,
     history_end: DateTimeTZ,

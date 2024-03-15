@@ -2,7 +2,6 @@
 Functions for interacting with worker ORM objects.
 Intended for internal use by the Prefect REST API.
 """
-
 import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
@@ -630,7 +629,7 @@ async def worker_heartbeat(
         update_values["heartbeat_interval_seconds"] = heartbeat_interval_seconds
 
     insert_stmt = (
-        db.insert(db.Worker)
+        (await db.insert(db.Worker))
         .values(**base_values, **update_values)
         .on_conflict_do_update(
             index_elements=[
