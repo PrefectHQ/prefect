@@ -6,12 +6,12 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect import settings
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import core
 
 
-@inject_db
+@db_injector
 async def create_or_update_csrf_token(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -35,7 +35,7 @@ async def create_or_update_csrf_token(
     token = secrets.token_hex(32)
 
     await session.execute(
-        (await db.insert(db.CsrfToken))
+        db.insert(db.CsrfToken)
         .values(
             client=client,
             token=token,
@@ -51,7 +51,7 @@ async def create_or_update_csrf_token(
     return await read_token_for_client(session=session, client=client)
 
 
-@inject_db
+@db_injector
 async def read_token_for_client(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -78,7 +78,7 @@ async def read_token_for_client(
     return core.CsrfToken.from_orm(token)
 
 
-@inject_db
+@db_injector
 async def delete_expired_tokens(db: PrefectDBInterface, session: AsyncSession) -> int:
     """Delete expired CSRF tokens.
 
