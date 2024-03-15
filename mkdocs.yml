@@ -370,6 +370,7 @@ nav:
                       - "server.api.flows": api-ref/server/api/flows.md
                       - "server.api.flow_runs": api-ref/server/api/flow_runs.md
                       - "server.api.flow_run_states": api-ref/server/api/flow_run_states.md
+                      - "server.api.middleware": api-ref/server/api/middleware.md
                       - "server.api.run_history": api-ref/server/api/run_history.md
                       - "server.api.saved_searches": api-ref/server/api/saved_searches.md
                       - "server.api.server": api-ref/server/api/server.md

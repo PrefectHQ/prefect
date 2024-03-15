@@ -64,11 +64,17 @@ async def read_token_for_client(
         client (str): The client identifier
 
     Returns:
-        Optional[core.CsrfToken]: The CSRF token, if it exists
+        Optional[core.CsrfToken]: The CSRF token, if it exists and is not
+            expired.
     """
     token = (
         await session.execute(
-            sa.select(db.CsrfToken).where(db.CsrfToken.client == client)
+            sa.select(db.CsrfToken).where(
+                sa.and_(
+                    db.CsrfToken.expiration > datetime.now(timezone.utc),
+                    db.CsrfToken.client == client,
+                )
+            )
         )
     ).scalar_one_or_none()
 
