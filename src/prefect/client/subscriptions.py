@@ -74,9 +74,9 @@ class Subscription(Generic[S]):
             auth: Dict[str, Any] = orjson.loads(await websocket.recv())
             assert auth["type"] == "auth_success", auth.get("message")
 
-            message = {"type": "subscribe", "keys": self.keys} | {
-                **(dict(client_id=self.client_id) if self.client_id else {})
-            }
+            message = {"type": "subscribe", "keys": self.keys}
+            if self.client_id:
+                message.update({"client_id": self.client_id})
 
             await websocket.send(orjson.dumps(message).decode())
         except (
