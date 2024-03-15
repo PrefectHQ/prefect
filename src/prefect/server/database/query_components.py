@@ -58,7 +58,7 @@ class BaseQueryComponents(ABC):
     # --- dialect-specific SqlAlchemy bindings
 
     @abstractmethod
-    def insert(self, obj):
+    def insert(self, obj) -> Union[postgresql.Insert, sqlite.Insert]:
         """dialect-specific insert statement"""
 
     @abstractmethod
@@ -619,7 +619,7 @@ class BaseQueryComponents(ABC):
 class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
 
-    def insert(self, obj):
+    def insert(self, obj) -> postgresql.Insert:
         return postgresql.insert(obj)
 
     def greatest(self, *values):
@@ -945,7 +945,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 class AioSqliteQueryComponents(BaseQueryComponents):
     # --- Sqlite-specific SqlAlchemy bindings
 
-    def insert(self, obj):
+    def insert(self, obj) -> sqlite.Insert:
         return sqlite.insert(obj)
 
     def greatest(self, *values):
