@@ -50,7 +50,7 @@ async def inspect(id: UUID):
 
 @task_run_app.command()
 async def ls(
-    task_name: List[str] = typer.Option(None, help="Name of the task"),
+    task_run_name: List[str] = typer.Option(None, help="Name of the task"),
     limit: int = typer.Option(15, help="Maximum number of task runs to list"),
     state: List[str] = typer.Option(None, help="Name of the task run's state"),
     state_type: List[StateType] = typer.Option(
@@ -63,14 +63,14 @@ async def ls(
 
     state_filter = {}
     if state:
-        state_filter["name"] = {"any_": state}
+        state_filter["name"] = {"any_": [s.capitalize() for s in state]}
     if state_type:
         state_filter["type"] = {"any_": state_type}
 
     async with get_client() as client:
         task_runs = await client.read_task_runs(
             task_run_filter=TaskRunFilter(
-                name={"any_": task_name} if task_name else None,
+                name={"any_": task_run_name} if task_run_name else None,
                 state=state_filter if state_filter else None,
             ),
             limit=limit,
