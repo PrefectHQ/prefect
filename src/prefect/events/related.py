@@ -74,7 +74,7 @@ async def related_resources_from_run_context(
     if flow_run_id is None:
         return []
 
-    related_objects: list[ResourceCacheEntry] = []
+    related_objects: List[ResourceCacheEntry] = []
 
     async with get_client() as client:
 
