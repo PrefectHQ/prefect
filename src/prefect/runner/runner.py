@@ -74,7 +74,11 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.deployments.deployments import load_flow_from_flow_run
-from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+from prefect.deployments.runner import (
+    EntrypointType,
+    RunnerDeployment,
+)
+from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -224,7 +228,7 @@ class Runner:
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -233,6 +237,7 @@ class Runner:
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -260,6 +265,8 @@ class Runner:
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
         """
         api = PREFECT_API_URL.value()
         if any([interval, cron, rrule]) and not api:
@@ -284,6 +291,7 @@ class Runner:
             tags=tags,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
         )
         return await self.add_deployment(deployment)
 

@@ -1451,6 +1451,26 @@ class TestUpdateDeployment:
 
         assert response.status_code == 204
 
+    async def test_update_deployment_hydrates_parameters(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                }
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_with_parameter_schema.id}"
+        )
+        assert response.json()["parameters"] == {"x": "str_of_json"}
+
     async def test_update_deployment_with_schedule_populates_schedules(
         self,
         client,
@@ -2284,7 +2304,7 @@ class TestSetScheduleActive:
         assert len(schedules) == 1
         assert schedules[0].active is True
 
-    async def test_set_schedule_active_enhanced_scheduling_off_multiple_schedules(
+    async def test_set_schedule_active_multiple_schedules(
         self,
         client,
         deployment,
@@ -2559,6 +2579,28 @@ class TestCreateFlowRunFromDeployment:
 
         assert deployment.work_queue_name == default_queue
 
+    async def test_create_flow_run_from_deployment_includes_job_variables(
+        self, deployment, client, session
+    ):
+        job_vars = {"foo": "bar"}
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == 201
+        flow_run_id = response.json()["id"]
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert flow_run.job_variables == job_vars
+
+        response = await client.get(f"flow_runs/{flow_run_id}")
+        assert response.status_code == 200
+        assert response.json()["job_variables"] == job_vars
+
     async def test_create_flow_run_from_deployment_disambiguates_queue_name_from_other_pools(
         self, deployment, client, session
     ):
@@ -2705,6 +2747,43 @@ class TestCreateFlowRunFromDeployment:
         assert response.status_code == 409
         assert "Validation failed for field 'person'" in response.text
         assert "Failure reason: 'name' is a required property" in response.text
+
+    async def test_create_flow_run_from_deployment_hydrates_parameters(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                }
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["parameters"]["x"] == "str_of_json"
+
+    async def test_create_flow_run_from_deployment_hydration_error(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "json", "value": '{"invalid": json}'}
+                }
+            },
+        )
+
+        assert response.status_code == 400
+        assert (
+            "Error hydrating flow run parameters: Invalid JSON: Expecting value:"
+            in response.json()["detail"]
+        )
 
 
 class TestGetDeploymentWorkQueueCheck:

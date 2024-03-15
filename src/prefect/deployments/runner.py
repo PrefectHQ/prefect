@@ -29,11 +29,12 @@ Example:
 
 """
 
+import enum
 import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union, get_args
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -62,6 +63,11 @@ from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
 )
+from prefect.deployments.schedules import (
+    FlexibleScheduleList,
+    create_minimal_deployment_schedule,
+    normalize_to_minimal_deployment_schedules,
+)
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     ObjectNotFound,
@@ -82,22 +88,25 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     from prefect.flows import Flow
 
-FlexibleScheduleList = Union[MinimalDeploymentSchedule, dict, SCHEDULE_TYPES]
-
 __all__ = ["RunnerDeployment"]
-
-
-def _to_deployment_schedule(
-    schedule: Optional[SCHEDULE_TYPES] = None,
-    active: Optional[bool] = True,
-) -> MinimalDeploymentSchedule:
-    return MinimalDeploymentSchedule(schedule=schedule, active=active)
 
 
 class DeploymentApplyError(RuntimeError):
     """
     Raised when an error occurs while applying a deployment.
     """
+
+
+class EntrypointType(enum.Enum):
+    """
+    Enum representing a entrypoint type.
+
+    File path entrypoints are in the format: `path/to/file.py:function_name`.
+    Module path entrypoints are in the format: `path.to.module.function_name`.
+    """
+
+    FILE_PATH = "file_path"
+    MODULE_PATH = "module_path"
 
 
 class RunnerDeployment(BaseModel):
@@ -205,12 +214,19 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+    _entrypoint_type: EntrypointType = PrivateAttr(
+        default=EntrypointType.FILE_PATH,
+    )
     _path: Optional[str] = PrivateAttr(
         default=None,
     )
     _parameter_openapi_schema: ParameterSchema = PrivateAttr(
         default_factory=ParameterSchema,
     )
+
+    @property
+    def entrypoint_type(self) -> EntrypointType:
+        return self._entrypoint_type
 
     @validator("triggers", allow_reuse=True)
     def validate_automation_names(cls, field_value, values, field, config):
@@ -244,23 +260,9 @@ class RunnerDeployment(BaseModel):
         schedules = values.get("schedules")
 
         if schedules is None and schedule is not None:
-            values["schedules"] = [_to_deployment_schedule(schedule)]
+            values["schedules"] = [create_minimal_deployment_schedule(schedule)]
         elif schedules is not None and len(schedules) > 0:
-            reconciled = []
-            for obj in schedules:
-                if isinstance(obj, get_args(SCHEDULE_TYPES)):
-                    reconciled.append(_to_deployment_schedule(obj))
-                elif isinstance(obj, dict):
-                    reconciled.append(_to_deployment_schedule(**obj))
-                elif isinstance(obj, MinimalDeploymentSchedule):
-                    reconciled.append(obj)
-                else:
-                    raise ValueError(
-                        "Invalid schedule provided. Must be a schedule object, a dict,"
-                        " or a MinimalDeploymentSchedule."
-                    )
-
-            values["schedules"] = reconciled
+            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
 
         return values
 
@@ -369,8 +371,8 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
-    ) -> Union[List[MinimalDeploymentSchedule], List[FlexibleScheduleList]]:
+        schedules: Optional[FlexibleScheduleList] = None,
+    ) -> Union[List[MinimalDeploymentSchedule], FlexibleScheduleList]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -428,7 +430,7 @@ class RunnerDeployment(BaseModel):
                 value = [value]
 
             return [
-                _to_deployment_schedule(
+                create_minimal_deployment_schedule(
                     construct_schedule(
                         **{
                             schedule_type: v,
@@ -440,7 +442,7 @@ class RunnerDeployment(BaseModel):
                 for v in value
             ]
         else:
-            return [_to_deployment_schedule(schedule)]
+            return [create_minimal_deployment_schedule(schedule)]
 
     def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)
@@ -461,7 +463,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -473,6 +475,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -545,29 +548,41 @@ class RunnerDeployment(BaseModel):
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
             mod_name = getattr(flow, "__module__", None)
-            if not flow_file:
-                if not mod_name:
-                    raise ValueError(no_file_location_error)
-                try:
-                    module = importlib.import_module(mod_name)
-                    flow_file = getattr(module, "__file__", None)
-                except ModuleNotFoundError as exc:
-                    if "__prefect_loader__" in str(exc):
-                        raise ValueError(
-                            "Cannot create a RunnerDeployment from a flow that has been"
-                            " loaded from an entrypoint. To deploy a flow via"
-                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
-                        )
-                    raise ValueError(no_file_location_error)
+            if entrypoint_type == EntrypointType.MODULE_PATH:
+                if mod_name:
+                    deployment.entrypoint = f"{mod_name}.{flow.__name__}"
+                else:
+                    raise ValueError(
+                        "Unable to determine module path for provided flow."
+                    )
+            else:
                 if not flow_file:
-                    raise ValueError(no_file_location_error)
+                    if not mod_name:
+                        raise ValueError(no_file_location_error)
+                    try:
+                        module = importlib.import_module(mod_name)
+                        flow_file = getattr(module, "__file__", None)
+                    except ModuleNotFoundError as exc:
+                        if "__prefect_loader__" in str(exc):
+                            raise ValueError(
+                                "Cannot create a RunnerDeployment from a flow that has been"
+                                " loaded from an entrypoint. To deploy a flow via"
+                                " entrypoint, use RunnerDeployment.from_entrypoint instead."
+                            )
+                        raise ValueError(no_file_location_error)
+                    if not flow_file:
+                        raise ValueError(no_file_location_error)
 
-            # set entrypoint
-            entry_path = Path(flow_file).absolute().relative_to(Path.cwd().absolute())
-            deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
+                # set entrypoint
+                entry_path = (
+                    Path(flow_file).absolute().relative_to(Path.cwd().absolute())
+                )
+                deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
-        if not deployment._path:
+        if entrypoint_type == EntrypointType.FILE_PATH and not deployment._path:
             deployment._path = "."
+
+        deployment._entrypoint_type = entrypoint_type
 
         cls._set_defaults_from_flow(deployment, flow)
 
@@ -584,7 +599,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -682,7 +697,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[FlexibleScheduleList]] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -905,7 +920,10 @@ async def deploy(
     """
     work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
 
-    if not image and not all(d.storage for d in deployments):
+    if not image and not all(
+        d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
+        for d in deployments
+    ):
         raise ValueError(
             "Either an image or remote storage location must be provided when deploying"
             " a deployment."
