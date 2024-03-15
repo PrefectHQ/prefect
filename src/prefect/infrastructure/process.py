@@ -1,3 +1,12 @@
+"""
+DEPRECATION WARNING:
+
+This module is deprecated as of March 2024 and will not be available after September 2024.
+It has been replaced by the process worker from the `prefect.workers` module, which offers enhanced functionality and better performance.
+
+For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+"""
+
 import asyncio
 import contextlib
 import os
@@ -14,6 +23,7 @@ import anyio
 import anyio.abc
 import sniffio
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -57,6 +67,12 @@ def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
     return hostname, int(pid)
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the process worker instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class Process(Infrastructure):
     """
     Run a command in a new process.

@@ -1,3 +1,4 @@
+import datetime
 import json
 import re
 from unittest import mock
@@ -10,10 +11,13 @@ import respx
 import yaml
 from httpx import Response
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
-from prefect.client.schemas.schedules import RRuleSchedule
+from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
+from prefect.deployments.deployments import load_flow_from_flow_run
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1.error_wrappers import ValidationError
@@ -34,8 +38,21 @@ from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
 from prefect.server.schemas import states
 from prefect.server.schemas.core import TaskRunResult
-from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_API_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
+    temporary_settings,
+)
 from prefect.utilities.slugify import slugify
+
+
+@pytest.fixture
+def enable_infra_overrides():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -54,6 +71,19 @@ async def ensure_default_agent_pool_exists(session):
             ),
         )
         await session.commit()
+
+
+def test_deployment_emits_deprecation_warning():
+    with pytest.warns(
+        PrefectDeprecationWarning,
+        match=(
+            "prefect.deployments.deployments.Deployment has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use `flow.deploy` to deploy your flows instead."
+            " Refer to the upgrade guide for more information"
+        ),
+    ):
+        Deployment(name="foo")
 
 
 class TestDeploymentBasicInterface:
@@ -514,6 +544,61 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.is_schedule_active == is_active
+
+    async def test_build_from_flow_set_schedules_shorthand(self, flow_function):
+        deployment = await Deployment.build_from_flow(
+            flow=flow_function,
+            name="foo",
+            schedules=[
+                CronSchedule(cron="0 0 * * *"),
+                {"schedule": {"interval": datetime.timedelta(minutes=10)}},
+            ],
+        )
+
+        assert len(deployment.schedules) == 2
+        assert all(
+            isinstance(s, MinimalDeploymentSchedule) for s in deployment.schedules
+        )
+
+    async def test_build_from_flow_legacy_schedule_supported(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="legacy_schedule_supported",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+    async def test_build_from_flow_clear_schedules_via_legacy_schedule(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=None,
+        )
+
+        deployment_id_2 = await deployment.apply()
+        assert deployment_id == deployment_id_2
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule is None
 
 
 class TestYAML:
@@ -1040,6 +1125,50 @@ class TestRunDeployment:
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
 
+    async def test_run_deployment_emits_warning(
+        self,
+        test_deployment,
+        prefect_client,
+        enable_infra_overrides,
+    ):
+        # This can be removed once the flow run infra overrides is no longer an experiment
+        _, deployment_id = test_deployment
+
+        with pytest.warns(
+            ExperimentalFeature,
+            match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+        ):
+            await run_deployment(
+                deployment_id,
+                timeout=0,
+                job_variables={"foo": "bar"},
+                client=prefect_client,
+            )
+
+    async def test_run_deployment_with_job_vars_creates_run_with_job_vars(
+        self,
+        test_deployment,
+        prefect_client,
+        enable_infra_overrides,
+    ):
+        # This can be removed once the flow run infra overrides is no longer an experiment
+        _, deployment_id = test_deployment
+
+        job_vars = {"foo": "bar"}
+        with pytest.warns(
+            ExperimentalFeature,
+            match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+        ):
+            flow_run = await run_deployment(
+                deployment_id,
+                timeout=0,
+                job_variables=job_vars,
+                client=prefect_client,
+            )
+        assert flow_run.job_variables == job_vars
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.job_variables == job_vars
+
     def test_returns_flow_run_on_timeout(
         self,
         test_deployment,
@@ -1316,3 +1445,35 @@ class TestRunDeployment:
                 )
             ]
         }
+
+
+class TestLoadFlowFromFlowRun:
+    async def test_load_flow_from_module_entrypoint(
+        self, prefect_client: PrefectClient, monkeypatch
+    ):
+        @flow
+        def pretend_flow():
+            pass
+
+        load_flow_from_entrypoint = mock.MagicMock(return_value=pretend_flow)
+        monkeypatch.setattr(
+            "prefect.deployments.deployments.load_flow_from_entrypoint",
+            load_flow_from_entrypoint,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(pretend_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my.module.pretend_flow",
+            flow_id=flow_id,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run, client=prefect_client)
+
+        assert result == pretend_flow
+        load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")

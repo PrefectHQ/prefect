@@ -1,6 +1,7 @@
 """
 Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
 """
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
@@ -40,7 +41,7 @@ from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
-from prefect.deployments.runner import DeploymentImage, deploy
+from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -182,6 +183,7 @@ class Flow(Generic[P, R]):
         on_completion: An optional list of callables to run when the flow enters a completed state.
         on_cancellation: An optional list of callables to run when the flow enters a cancelling state.
         on_crashed: An optional list of callables to run when the flow enters a crashed state.
+        on_running: An optional list of callables to run when the flow enters a running state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -211,6 +213,7 @@ class Flow(Generic[P, R]):
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
         if name is not None and not isinstance(name, str):
             raise TypeError(
@@ -226,8 +229,20 @@ class Flow(Generic[P, R]):
             )
 
         # Validate if hook passed is list and contains callables
-        hook_categories = [on_completion, on_failure, on_cancellation, on_crashed]
-        hook_names = ["on_completion", "on_failure", "on_cancellation", "on_crashed"]
+        hook_categories = [
+            on_completion,
+            on_failure,
+            on_cancellation,
+            on_crashed,
+            on_running,
+        ]
+        hook_names = [
+            "on_completion",
+            "on_failure",
+            "on_cancellation",
+            "on_crashed",
+            "on_running",
+        ]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
                 if not hooks:
@@ -349,6 +364,7 @@ class Flow(Generic[P, R]):
         self.on_failure = on_failure
         self.on_cancellation = on_cancellation
         self.on_crashed = on_crashed
+        self.on_running = on_running
 
         # Used for flows loaded from remote storage
         self._storage: Optional[RunnerStorage] = None
@@ -386,6 +402,7 @@ class Flow(Generic[P, R]):
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ) -> Self:
         """
         Create a new flow from the current object, updating provided options.
@@ -414,6 +431,7 @@ class Flow(Generic[P, R]):
             on_completion: A new list of callables to run when the flow enters a completed state.
             on_cancellation: A new list of callables to run when the flow enters a cancelling state.
             on_crashed: A new list of callables to run when the flow enters a crashed state.
+            on_running: A new list of callables to run when the flow enters a running state.
 
         Returns:
             A new `Flow` instance.
@@ -449,9 +467,11 @@ class Flow(Generic[P, R]):
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
             retries=retries if retries is not None else self.retries,
-            retry_delay_seconds=retry_delay_seconds
-            if retry_delay_seconds is not None
-            else self.retry_delay_seconds,
+            retry_delay_seconds=(
+                retry_delay_seconds
+                if retry_delay_seconds is not None
+                else self.retry_delay_seconds
+            ),
             timeout_seconds=(
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
@@ -481,6 +501,7 @@ class Flow(Generic[P, R]):
             on_failure=on_failure or self.on_failure,
             on_cancellation=on_cancellation or self.on_cancellation,
             on_crashed=on_crashed or self.on_crashed,
+            on_running=on_running or self.on_running,
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint
@@ -605,6 +626,7 @@ class Flow(Generic[P, R]):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -617,7 +639,7 @@ class Flow(Generic[P, R]):
             rrule: An rrule schedule of when to execute runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
-                Used to define multiple schedules or additional scheduling options like `timezone`.
+                Used to define multiple schedules or additional scheduling options such as `timezone`.
             schedule: A schedule object defining when to execute runs of this deployment.
             is_schedule_active: Whether or not to set the schedule for this deployment as active. If
                 not provided when creating a deployment, the schedule will be set as active. If not
@@ -636,6 +658,8 @@ class Flow(Generic[P, R]):
                 If not provided the default work queue for the work pool will be used.
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
 
         Examples:
             Prepare two deployments and serve them:
@@ -703,6 +727,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
+                entrypoint_type=entrypoint_type,
             )
 
     @sync_compatible
@@ -733,22 +758,27 @@ class Flow(Generic[P, R]):
         print_starting_message: bool = True,
         limit: Optional[int] = None,
         webserver: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the new deployment. Accepts either a number
-                or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this deployment.
-            rrule: An rrule schedule of when to execute runs of this deployment.
+            interval: An interval on which to execute the deployment. Accepts a number or a
+                timedelta object to create a single schedule. If a number is given, it will be
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
+                multiple schedules.
+            cron: A cron schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of cron schedule strings to create multiple schedules.
+            rrule: An rrule schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of rrule schedule strings to create multiple schedules.
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options like `timezone`.
+                define additional scheduling options such as `timezone`.
             is_schedule_active: Whether or not to set the schedule for this deployment as active. If
                 not provided when creating a deployment, the schedule will be set as active. If not
                 provided when updating a deployment, the schedule's activation will not be changed.
@@ -765,6 +795,8 @@ class Flow(Generic[P, R]):
             print_starting_message: Whether or not to print the starting message when flow is served.
             limit: The maximum number of runs that can be executed concurrently.
             webserver: Whether or not to start a monitoring webserver for this flow.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
 
         Examples:
             Serve a flow:
@@ -817,6 +849,7 @@ class Flow(Generic[P, R]):
             tags=tags,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
         )
         if print_starting_message:
             help_message = (
@@ -935,6 +968,7 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
     ) -> UUID:
         """
@@ -961,10 +995,14 @@ class Flow(Generic[P, R]):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
-            interval: An interval on which to execute the new deployment. Accepts either a number
-                or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this deployment.
-            rrule: An rrule schedule of when to execute runs of this deployment.
+            interval: An interval on which to execute the deployment. Accepts a number or a
+                timedelta object to create a single schedule. If a number is given, it will be
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
+                multiple schedules.
+            cron: A cron schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of cron schedule strings to create multiple schedules.
+            rrule: An rrule schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of rrule schedule strings to create multiple schedules.
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
@@ -982,8 +1020,10 @@ class Flow(Generic[P, R]):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
             print_next_steps_message: Whether or not to print a message with next steps
-            after deploying the deployments.
+                after deploying the deployments.
 
         Returns:
             The ID of the created/updated deployment.
@@ -1050,6 +1090,7 @@ class Flow(Generic[P, R]):
             enforce_parameter_schema=enforce_parameter_schema,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            entrypoint_type=entrypoint_type,
         )
 
         deployment_ids = await deploy(
@@ -1310,6 +1351,7 @@ def flow(
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -1337,6 +1379,7 @@ def flow(
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -1400,6 +1443,8 @@ def flow(
         on_crashed: An optional list of functions to call when the flow run crashes. Each
             function should accept three arguments: the flow, the flow run, and the
             final state of the flow run.
+        on_running: An optional list of functions to call when the flow run is started. Each
+            function should accept three arguments: the flow, the flow run, and the current state
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -1462,6 +1507,7 @@ def flow(
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
+                on_running=on_running,
             ),
         )
     else:
@@ -1487,6 +1533,7 @@ def flow(
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
+                on_running=on_running,
             ),
         )
 
@@ -1585,7 +1632,8 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
     Extract a flow object from a script at an entrypoint by running all of the code in the file.
 
     Args:
-        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
+            to a flow function
 
     Returns:
         The flow object from the script
@@ -1598,8 +1646,11 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
         block_code_execution=True,
         capture_failures=True,
     ):
-        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
-        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        if ":" in entrypoint:
+            # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+            path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        else:
+            path, func_name = entrypoint.rsplit(".", maxsplit=1)
         try:
             flow = import_object(entrypoint)
         except AttributeError as exc:

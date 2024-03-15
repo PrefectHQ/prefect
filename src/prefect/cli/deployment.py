@@ -624,7 +624,13 @@ async def clear_schedules(
         exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
 
 
-@deployment_app.command("set-schedule", deprecated=True)
+@deployment_app.command(
+    "set-schedule",
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use 'prefect deployment schedule create' instead.",
+    deprecated_name="deployment set-schedule",
+)
 async def _set_schedule(
     name: str,
     interval: Optional[float] = typer.Option(
@@ -664,7 +670,7 @@ async def _set_schedule(
     """
     Set schedule for a given deployment.
 
-    This command is deprecated. Use `prefect deployment schedule create` instead.
+    This command is deprecated. Use 'prefect deployment schedule create' instead.
     """
     assert_deployment_name_format(name)
 
@@ -714,7 +720,13 @@ async def _set_schedule(
             )
 
 
-@deployment_app.command("pause-schedule", deprecated=True)
+@deployment_app.command(
+    "pause-schedule",
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use 'prefect deployment schedule pause' instead.",
+    deprecated_name="deployment pause-schedule",
+)
 async def _pause_schedule(
     name: str,
 ):
@@ -743,7 +755,13 @@ async def _pause_schedule(
         return await pause_schedule(name, deployment.schedules[0].id)
 
 
-@deployment_app.command("resume-schedule", deprecated=True)
+@deployment_app.command(
+    "resume-schedule",
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use 'prefect deployment schedule resume' instead.",
+    deprecated_name="deployment resume-schedule",
+)
 async def _resume_schedule(
     name: str,
 ):
@@ -820,6 +838,16 @@ async def run(
         None,
         "--id",
         help=("A deployment id to search for if no name is given"),
+    ),
+    job_variables: List[str] = typer.Option(
+        None,
+        "-jv",
+        "--job-variable",
+        help=(
+            "A key, value pair (key=value) specifying a flow run job variable. The value will"
+            " be interpreted as JSON. May be passed multiple times to specify multiple"
+            " job variable values."
+        ),
     ),
     params: List[str] = typer.Option(
         None,
@@ -911,6 +939,7 @@ async def run(
         )
     parameters = {**multi_params, **cli_params}
 
+    job_vars = _load_json_key_values(job_variables, "job variable")
     if start_in and start_at:
         exit_with_error(
             "Only one of `--start-in` or `--start-at` can be set, not both."
@@ -985,6 +1014,7 @@ async def run(
                 parameters=parameters,
                 state=Scheduled(scheduled_time=scheduled_start_time),
                 tags=tags,
+                job_variables=job_vars,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")
@@ -1014,10 +1044,12 @@ async def run(
             f"""
         └── UUID: {flow_run.id}
         └── Parameters: {flow_run.parameters}
+        └── Job Variables: {flow_run.job_variables}
         └── Scheduled start time: {scheduled_display}
         └── URL: {run_url}
         """
-        ).strip()
+        ).strip(),
+        soft_wrap=True,
     )
     if watch:
         watch_interval = 5 if watch_interval is None else watch_interval
@@ -1072,7 +1104,12 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
     return specs
 
 
-@deployment_app.command()
+@deployment_app.command(
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_name="deployment apply",
+    deprecated_help="Use 'prefect deploy' to deploy flows via YAML instead.",
+)
 async def apply(
     paths: List[str] = typer.Argument(
         ...,
@@ -1239,7 +1276,12 @@ builtin_infrastructure_types = [
 ]
 
 
-@deployment_app.command()
+@deployment_app.command(
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_name="deployment build",
+    deprecated_help="Use 'prefect deploy' to deploy flows via YAML instead.",
+)
 async def build(
     entrypoint: str = typer.Argument(
         ...,
