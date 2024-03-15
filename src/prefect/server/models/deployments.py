@@ -83,7 +83,7 @@ async def create_deployment(
     )
 
     insert_stmt = (
-        (await db.insert(db.Deployment))
+        db.insert(db.Deployment)
         .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.deployment_unique_upsert_columns,
