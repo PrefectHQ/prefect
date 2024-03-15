@@ -364,6 +364,7 @@ nav:
                 - api-ref/server/index.md
                 - "API":
                       - "server.api.admin": api-ref/server/api/admin.md
+                      - "server.api.csrf_token": api-ref/server/api/csrf_token.md
                       - "server.api.dependencies": api-ref/server/api/dependencies.md
                       - "server.api.deployments": api-ref/server/api/deployments.md
                       - "server.api.flows": api-ref/server/api/flows.md
