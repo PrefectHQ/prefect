@@ -60,7 +60,7 @@ jobs:
           - "3.11"
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
@@ -212,7 +212,7 @@ jobs:
           - "3.8"
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
@@ -371,7 +371,7 @@ jobs:
           - "3.8"
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
@@ -566,7 +566,7 @@ jobs:
         python-version:
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
