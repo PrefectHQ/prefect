@@ -41,7 +41,7 @@ jobs:
         if: ${{ matrix.build-docker-images }}
         uses: docker/setup-buildx-action@v3
         with:
-          version: v0.12.5
+          version: v0.12.1
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
