@@ -849,6 +849,47 @@ class TestWorkerProcess:
         assert workers_response.json()[0]["status"] == "OFFLINE"
 
 
+class TestDeleteWorker:
+    async def test_delete_worker(self, client, work_pool, session, db):
+        work_pool_id = work_pool.id
+        deleted_worker_name = "worker1"
+        for i in range(2):
+            insert_stmt = (await db.insert(db.Worker)).values(
+                name=f"worker{i}",
+                work_pool_id=work_pool_id,
+                last_heartbeat_time=pendulum.now(),
+            )
+            await session.execute(insert_stmt)
+            await session.commit()
+
+        response = await client.delete(
+            f"/work_pools/{work_pool.name}/workers/{deleted_worker_name}"
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        remaining_workers = await models.workers.read_workers(
+            session=session,
+            work_pool_id=work_pool_id,
+            db=db,
+        )
+        assert deleted_worker_name not in map(lambda x: x.name, remaining_workers)
+
+    async def test_nonexistent_worker(self, client, work_pool, session, db):
+        worker_name = "worker1"
+        work_pool_id = work_pool.id
+        insert_stmt = (await db.insert(db.Worker)).values(
+            name=worker_name,
+            work_pool_id=work_pool_id,
+            last_heartbeat_time=pendulum.now(),
+        )
+        await session.execute(insert_stmt)
+        await session.commit()
+
+        response = await client.delete(
+            f"/work_pools/${work_pool.name}/workers/does-not-exist"
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
 class TestGetScheduledRuns:
     @pytest.fixture(autouse=True)
     async def setup(self, session, flow):
