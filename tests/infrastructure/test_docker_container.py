@@ -8,6 +8,7 @@ import anyio.abc
 import docker
 import pytest
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.container import (
     CONTAINER_LABELS,
@@ -499,7 +500,7 @@ def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
 ):
     monkeypatch.setattr("sys.platform", "darwin")
 
-    with assert_does_not_warn():
+    with assert_does_not_warn(ignore_warnings=[PrefectDeprecationWarning]):
         runner = DockerContainer(
             command=["echo", "hello"],
             network_mode="host",
@@ -697,7 +698,7 @@ def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url(
     monkeypatch.setattr("sys.platform", "linux")
     mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-    with assert_does_not_warn():
+    with assert_does_not_warn(ignore_warnings=[PrefectDeprecationWarning]):
         DockerContainer(
             command=["echo", "hello"],
             env={"PREFECT_API_URL": "http://my-domain.test/api"},
@@ -736,7 +737,7 @@ def test_does_not_warn_about_gateway_if_not_using_linux(
     monkeypatch.setattr("sys.platform", platform)
     mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-    with assert_does_not_warn():
+    with assert_does_not_warn(ignore_warnings=[PrefectDeprecationWarning]):
         DockerContainer(
             command=["echo", "hello"],
         ).run()

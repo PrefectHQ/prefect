@@ -16,6 +16,7 @@ WARNING: Prefect settings cannot be modified in async fixtures.
     fixture, a sync fixture must be defined that consumes the async fixture to perform
     the settings context change. See `test_database_connection_url` for example.
 """
+
 import asyncio
 import logging
 import pathlib
@@ -76,6 +77,7 @@ from .fixtures.api import *
 from .fixtures.client import *
 from .fixtures.collections_registry import *
 from .fixtures.database import *
+from .fixtures.deprecation import *
 from .fixtures.docker import *
 from .fixtures.logging import *
 from .fixtures.storage import *

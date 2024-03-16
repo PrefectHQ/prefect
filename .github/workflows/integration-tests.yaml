@@ -105,7 +105,7 @@ jobs:
           - prefect-version: "2.7"
             server_command: "prefect orion start"
 
-      fail-fast: false
+      fail-fast: true
 
     runs-on: ubuntu-latest
     steps:

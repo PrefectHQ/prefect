@@ -1,6 +1,7 @@
 """
 Command line interface for working with agent services
 """
+
 import os
 from functools import partial
 from typing import List
@@ -25,7 +26,12 @@ from prefect.utilities.processutils import setup_signal_handlers_agent
 from prefect.utilities.services import critical_service_loop
 
 agent_app = PrefectTyper(
-    name="agent", help="Commands for starting and interacting with agent processes."
+    name="agent",
+    help="Commands for starting and interacting with agent processes.",
+    deprecated=True,
+    deprecated_name="agent",
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use `prefect worker start` instead. Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/. ",
 )
 app.add_typer(agent_app)
 
