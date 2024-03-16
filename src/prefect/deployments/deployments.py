@@ -16,6 +16,10 @@ import anyio
 import pendulum
 import yaml
 
+from prefect._internal.compatibility.deprecated import (
+    deprecated_callable,
+    deprecated_class,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 
@@ -24,12 +28,10 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.objects import (
-    DEFAULT_AGENT_WORK_POOL_NAME,
     FlowRun,
     MinimalDeploymentSchedule,
 )
@@ -38,6 +40,7 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
+    create_minimal_deployment_schedule,
     normalize_to_minimal_deployment_schedules,
 )
 from prefect.deployments.steps.core import run_steps
@@ -53,6 +56,7 @@ from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.states import Scheduled
 from prefect.tasks import Task
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
@@ -295,6 +299,7 @@ async def load_flow_from_flow_run(
     return flow
 
 
+@deprecated_callable(start_date="Mar 2024")
 def load_deployments_from_yaml(
     path: str,
 ) -> PrefectObjectRegistry:
@@ -318,13 +323,20 @@ def load_deployments_from_yaml(
     return registry
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use `flow.deploy` to deploy your flows instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
 )
 class Deployment(BaseModel):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `flow.deploy`, which offers enhanced functionality and better a better user experience.
+    For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+
     A Prefect Deployment definition, used for specifying and building deployments.
 
     Args:
@@ -649,21 +661,27 @@ class Deployment(BaseModel):
             )
         return values
 
-    @validator("schedule")
-    def validate_schedule(cls, value):
-        if value:
-            cls._validate_schedule(value)
-        return value
-
     @root_validator(pre=True)
-    def validate_schedules(cls, values):
-        if "schedules" in values:
-            values["schedules"] = normalize_to_minimal_deployment_schedules(
-                values["schedules"]
-            )
+    def reconcile_schedules(cls, values):
+        schedule = values.get("schedule", NotSet)
+        schedules = values.get("schedules", NotSet)
 
-            for schedule in values["schedules"]:
-                cls._validate_schedule(schedule.schedule)
+        if schedules is not NotSet:
+            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+        elif schedule is not NotSet:
+            values["schedule"] = None
+
+            if schedule is None:
+                values["schedules"] = []
+            else:
+                values["schedules"] = [
+                    create_minimal_deployment_schedule(
+                        schedule=schedule, active=values.get("is_schedule_active")
+                    )
+                ]
+
+        for schedule in values.get("schedules", []):
+            cls._validate_schedule(schedule.schedule)
 
         return values
 
@@ -984,11 +1002,17 @@ class Deployment(BaseModel):
 
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
-        deployment = cls(
-            name=name,
-            schedules=schedules,
+
+        deployment_args = {
+            "name": name,
+            "flow_name": flow.name,
             **kwargs,
-        )
+        }
+
+        if schedules is not None:
+            deployment_args["schedules"] = schedules
+
+        deployment = cls(**deployment_args)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
             ## first see if an entrypoint can be determined

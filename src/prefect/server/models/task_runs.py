@@ -4,6 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -332,6 +333,54 @@ async def count_task_runs(
 
     result = await session.execute(query)
     return result.scalar()
+
+
+async def count_task_runs_by_state(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+) -> schemas.states.CountByState:
+    """
+    Count task runs by state.
+
+    Args:
+        session: a database session
+        flow_filter: only count task runs whose flows match these filters
+        flow_run_filter: only count task runs whose flow runs match these filters
+        task_run_filter: only count task runs that match these filters
+        deployment_filter: only count task runs whose deployments match these filters
+    Returns:
+        schemas.states.CountByState: count of task runs by state
+    """
+
+    base_query = (
+        select(
+            db.TaskRun.state_type,
+            sa.func.count(sa.text("*")).label("count"),
+        )
+        .select_from(db.TaskRun)
+        .group_by(db.TaskRun.state_type)
+    )
+
+    query = await _apply_task_run_filters(
+        base_query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
+    )
+
+    result = await session.execute(query)
+
+    counts = schemas.states.CountByState()
+
+    for row in result:
+        setattr(counts, row.state_type, row.count)
+
+    return counts
 
 
 @inject_db
