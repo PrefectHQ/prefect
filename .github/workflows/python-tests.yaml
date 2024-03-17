@@ -60,7 +60,7 @@ jobs:
           - "3.11"
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
@@ -75,6 +75,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.12.1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -212,7 +214,7 @@ jobs:
           - "3.8"
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
@@ -227,6 +229,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.12.1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -371,7 +375,7 @@ jobs:
           - "3.8"
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
@@ -386,6 +390,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.12.1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -566,7 +572,7 @@ jobs:
         python-version:
           - "3.12"
 
-      fail-fast: false
+      fail-fast: true
 
     timeout-minutes: 45
 
@@ -581,6 +587,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.12.1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

@@ -1,10 +1,13 @@
 """
 Injected database interface dependencies
 """
+
 import inspect
 from contextlib import ExitStack, contextmanager
 from functools import wraps
-from typing import Callable, Type
+from typing import Callable, Type, TypeVar
+
+from typing_extensions import Concatenate, ParamSpec
 
 from prefect.server.database.configurations import (
     AioSqliteConfiguration,
@@ -31,6 +34,9 @@ MODELS_DEPENDENCIES = {
     "orm": None,
     "interface_class": None,
 }
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def provide_database_interface() -> PrefectDBInterface:
@@ -127,6 +133,44 @@ def inject_db(fn: Callable) -> Callable:
         return async_wrapper
 
     return sync_wrapper
+
+
+def db_injector(
+    func: Callable[Concatenate[PrefectDBInterface, P], R],
+) -> Callable[P, R]:
+    """
+    Decorator to inject a PrefectDBInterface instance as the first positional
+    argument to the decorated function.
+
+    Unlike `inject_db`, which injects the database connection as a keyword
+    argument, `db_injector` adds it explicitly as the first positional
+    argument. This change enhances type hinting by making the dependency on
+    PrefectDBInterface explicit in the function signature.
+
+    Args:
+        func: The function to decorate, which can be either synchronous or
+        asynchronous.
+
+    Returns:
+        A wrapped function with the PrefectDBInterface instance injected as the
+        first argument, preserving the original function's other parameters and
+        return type.
+    """
+
+    @wraps(func)
+    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        db = provide_database_interface()
+        return func(db, *args, **kwargs)
+
+    @wraps(func)
+    async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        db = provide_database_interface()
+        return await func(db, *args, **kwargs)  # type: ignore
+
+    if inspect.iscoroutinefunction(func):
+        return async_wrapper  # type: ignore
+    else:
+        return sync_wrapper
 
 
 @contextmanager

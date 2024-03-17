@@ -30,7 +30,7 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
-SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
+SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
 )
 

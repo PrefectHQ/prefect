@@ -11,6 +11,7 @@ import respx
 import yaml
 from httpx import Response
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -70,6 +71,19 @@ async def ensure_default_agent_pool_exists(session):
             ),
         )
         await session.commit()
+
+
+def test_deployment_emits_deprecation_warning():
+    with pytest.warns(
+        PrefectDeprecationWarning,
+        match=(
+            "prefect.deployments.deployments.Deployment has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use `flow.deploy` to deploy your flows instead."
+            " Refer to the upgrade guide for more information"
+        ),
+    ):
+        Deployment(name="foo")
 
 
 class TestDeploymentBasicInterface:
@@ -545,6 +559,46 @@ class TestDeploymentBuild:
         assert all(
             isinstance(s, MinimalDeploymentSchedule) for s in deployment.schedules
         )
+
+    async def test_build_from_flow_legacy_schedule_supported(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="legacy_schedule_supported",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+    async def test_build_from_flow_clear_schedules_via_legacy_schedule(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=None,
+        )
+
+        deployment_id_2 = await deployment.apply()
+        assert deployment_id == deployment_id_2
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule is None
 
 
 class TestYAML:

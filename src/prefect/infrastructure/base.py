@@ -1,3 +1,11 @@
+"""
+DEPRECATION WARNING:
+
+This module is deprecated as of March 2024 and will not be available after September 2024.
+Infrastructure blocks have been replaced by workers, which offer enhanced functionality and better performance.
+
+For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+"""
 import abc
 import shlex
 import warnings
@@ -5,6 +13,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 import anyio.abc
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.compatibility.experimental import (
     EXPERIMENTAL_WARNING,
     ExperimentalFeature,
@@ -48,6 +57,12 @@ class InfrastructureResult(pydantic.BaseModel, abc.ABC):
         return self.status_code == 0
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `BaseWorker` class to create custom infrastructure integrations instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class Infrastructure(Block, abc.ABC):
     _block_schema_capabilities = ["run-infrastructure"]
 

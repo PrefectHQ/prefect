@@ -1383,6 +1383,13 @@ class ORMFlowRunInput:
     __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
 
 
+@declarative_mixin
+class ORMCsrfToken:
+    token = sa.Column(sa.String, nullable=False)
+    client = sa.Column(sa.String, nullable=False, unique=True)
+    expiration = sa.Column(Timestamp(), nullable=False)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1443,6 +1450,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        csrf_token_mixin=ORMCsrfToken,
         flow_run_input_mixin=ORMFlowRunInput,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -1499,6 +1507,7 @@ class BaseORMConfiguration(ABC):
             configuration_mixin=configuration_mixin,
             variable_mixin=variable_mixin,
             flow_run_input_mixin=flow_run_input_mixin,
+            csrf_token_mixin=csrf_token_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1549,6 +1558,7 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        csrf_token_mixin=ORMCsrfToken,
         flow_run_input_mixin=ORMFlowRunInput,
     ):
         """
@@ -1625,6 +1635,9 @@ class BaseORMConfiguration(ABC):
         class BlockDocumentReference(block_document_reference_mixin, self.Base):
             pass
 
+        class CsrfToken(csrf_token_mixin, self.Base):
+            pass
+
         class FlowRunNotificationPolicy(flow_run_notification_policy_mixin, self.Base):
             pass
 
@@ -1668,6 +1681,7 @@ class BaseORMConfiguration(ABC):
         self.Configuration = Configuration
         self.Variable = Variable
         self.FlowRunInput = FlowRunInput
+        self.CsrfToken = CsrfToken
 
     @property
     @abstractmethod

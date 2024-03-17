@@ -32,7 +32,7 @@ from prefect._internal.compatibility.deprecated import (
 from prefect._internal.schemas.bases import PrefectBaseModel
 
 if TYPE_CHECKING:
-    from prefect.packaging.base import PackageManifest
+    from prefect.deprecated.packaging.base import PackageManifest
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
@@ -243,7 +243,7 @@ class PackageManifestSerializer:
 
     @staticmethod
     def loads(blob: bytes) -> "PackageManifest":
-        from prefect.packaging.base import PackageManifest
+        from prefect.deprecated.packaging.base import PackageManifest
 
         return PackageManifest.parse_raw(blob)
 

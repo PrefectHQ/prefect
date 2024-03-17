@@ -24,6 +24,7 @@ from prefect.settings import (
 )
 from prefect.task_server import TaskServer
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.hashing import hash_objects
 
 
 @sync_compatible
@@ -398,3 +399,23 @@ class TestMap:
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {"x": i + 1, "mappable": ["some", "iterable"]}
+
+
+class TestTaskKey:
+    def test_task_key_not_hashed_if_not_main_module(self):
+        def some_fn():
+            pass
+
+        t = Task(fn=some_fn)
+
+        assert t.task_key.endswith(".some_fn")
+
+    def test_task_key_is_hashed_if_main_module(self, monkeypatch):
+        def some_fn():
+            pass
+
+        monkeypatch.setattr(some_fn, "__module__", "__main__")
+
+        t = Task(fn=some_fn)
+
+        assert t.task_key == hash_objects(t.name, __file__)
