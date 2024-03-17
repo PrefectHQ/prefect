@@ -1,5 +1,5 @@
-name: null
-prefect-version: null
+prefect-version: 2.16.4
+name: "prefect-deploy-local-recipe"
 description: "Store code on a local filesystem"
 
 build: null
@@ -15,9 +15,9 @@ deployments:
     description: null
     schedule: {}
     flow_name: null
-    entrypoint: null
+    entrypoint: main.py
     parameters: {}
     work_pool:
-      name: null
+      name: my_work_pool
       work_queue_name: null
       job_variables: {}

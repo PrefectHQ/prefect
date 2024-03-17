@@ -1,5 +1,5 @@
-prefect-version: null
-name: null
+prefect-version: 2.16.4
+name: "prefect-deploy-docker-gcs-recipe"
 description: "Store code within GCS and build a custom docker image for runtime"
 
 required_inputs:
@@ -40,10 +40,10 @@ deployments:
     description: null
     schedule: {}
     flow_name: null
-    entrypoint: null
+    entrypoint: main.py
     parameters: {}
     work_pool:
-      name: null
+      name: my_work_pool
       work_queue_name: null
       job_variables: 
         # uses the `image` output from the `build_image` step
