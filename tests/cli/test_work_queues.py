@@ -272,7 +272,7 @@ class TestPauseWorkQueue:
     def test_pause(self, prefect_client, work_queue):
         assert not work_queue.is_paused
         invoke_and_assert(
-            command=f"work-queue pause {work_queue.name}",
+            command=f"work-queue pause {work_queue.name} --pool default-agent-pool",
             expected_code=0,
         )
         q = read_queue(prefect_client, work_queue.name)
@@ -281,7 +281,7 @@ class TestPauseWorkQueue:
     def test_pause_by_id(self, prefect_client, work_queue):
         assert not work_queue.is_paused
         invoke_and_assert(
-            command=f"work-queue pause {work_queue.id}",
+            command=f"work-queue pause {work_queue.id} --pool default-agent-pool",
             expected_code=0,
         )
         q = read_queue(prefect_client, work_queue.name)
@@ -327,10 +327,31 @@ class TestPauseWorkQueue:
             expected_code=1,
         )
 
+    def test_pause_without_specifying_pool_name_without_confirmation(
+        self,
+        work_queue,
+    ):
+        invoke_and_assert(
+            command=f"work-queue pause {work_queue.name}",
+            expected_code=1,
+        )
+
+    def test_pause_without_specifying_pool_name_with_confirmation(
+        self,
+        work_queue,
+    ):
+        invoke_and_assert(
+            command=f"work-queue pause {work_queue.name}",
+            user_input="Y",
+            expected_code=0,
+        )
+
 
 class TestResumeWorkQueue:
     def test_resume(self, prefect_client, work_queue):
-        invoke_and_assert(command=f"work-queue pause {work_queue.name}")
+        invoke_and_assert(
+            command=f"work-queue pause {work_queue.name} --pool default-agent-pool"
+        )
         invoke_and_assert(
             command=f"work-queue resume {work_queue.name}",
             expected_code=0,
@@ -339,7 +360,9 @@ class TestResumeWorkQueue:
         assert not q.is_paused
 
     def test_resume_by_id(self, prefect_client, work_queue):
-        invoke_and_assert(command=f"work-queue pause {work_queue.name}")
+        invoke_and_assert(
+            command=f"work-queue pause {work_queue.name} --pool default-agent-pool"
+        )
         invoke_and_assert(
             command=f"work-queue resume {work_queue.id}",
             expected_code=0,
