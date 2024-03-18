@@ -324,7 +324,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Unique columns for upserting a BlockDocument"""
         return self.orm.block_document_unique_upsert_columns
 
-    async def insert(self, model):
+    def insert(self, model):
         """INSERTs a model into the database"""
         return self.queries.insert(model)
 

@@ -143,7 +143,7 @@ async def record_agent_poll(
         id=agent_id, work_queue_id=work_queue_id, last_activity_time=pendulum.now("UTC")
     )
     insert_stmt = (
-        (await db.insert(db.Agent))
+        db.insert(db.Agent)
         .values(
             **agent_data.dict(
                 include={"id", "name", "work_queue_id", "last_activity_time"}

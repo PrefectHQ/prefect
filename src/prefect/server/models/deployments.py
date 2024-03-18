@@ -83,7 +83,7 @@ async def create_deployment(
     )
 
     insert_stmt = (
-        (await db.insert(db.Deployment))
+        db.insert(db.Deployment)
         .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.deployment_unique_upsert_columns,
@@ -663,9 +663,10 @@ async def _insert_scheduled_flow_runs(
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
-    insert = await db.insert(db.FlowRun)
     await session.execute(
-        insert.on_conflict_do_nothing(index_elements=db.flow_run_unique_upsert_columns),
+        db.insert(db.FlowRun).on_conflict_do_nothing(
+            index_elements=db.flow_run_unique_upsert_columns
+        ),
         runs,
     )
 

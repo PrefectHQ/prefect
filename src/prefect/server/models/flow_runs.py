@@ -78,7 +78,7 @@ async def create_flow_run(
     # otherwise let the database take care of enforcing idempotency
     else:
         insert_stmt = (
-            (await db.insert(db.FlowRun))
+            db.insert(db.FlowRun)
             .values(**flow_run_dict)
             .on_conflict_do_nothing(
                 index_elements=db.flow_run_unique_upsert_columns,
