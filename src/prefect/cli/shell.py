@@ -3,6 +3,7 @@
 import io
 import logging
 import shlex
+from typing import List
 
 import typer
 from pydantic import VERSION as PYDANTIC_VERSION
@@ -61,7 +62,7 @@ async def watch(
     ),
     flows_run_name: str = typer.Option(None, help="Name of the flow"),
     flow_name: str = typer.Option(None, help="Name of the flow"),
-    flow_run_tags: list[str] = typer.Option(None, "--tag", help="Tags for the flow"),
+    flow_run_tags: List[str] = typer.Option(None, "--tag", help="Tags for the flow"),
 ):
     """
     Executes a shell command asynchronously.
@@ -80,7 +81,7 @@ async def watch(
 async def serve(
     command: str,
     name: str = typer.Option(..., help="Name of the flow"),
-    tags: list[str] = typer.Option(None, "--tag", help="Tags for the flow"),
+    tags: List[str] = typer.Option(None, "--tag", help="Tags for the flow"),
     log_output: bool = typer.Option(
         True, help="Stream the output of the command", hidden=True
     ),
