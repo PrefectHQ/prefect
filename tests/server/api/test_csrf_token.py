@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from unittest import mock
 
 import pytest
 import sqlalchemy as sa
@@ -54,7 +53,7 @@ async def test_422_when_csrf_protection_disabled(client: AsyncClient):
         assert response.json() == {"detail": "CSRF protection is disabled."}
 
 
-async def test_can_delete_expired_tokens(
+async def test_deletes_expired_tokens(
     db: PrefectDBInterface, session: AsyncSession, client: AsyncClient
 ):
     # Create some tokens
@@ -72,25 +71,14 @@ async def test_can_delete_expired_tokens(
 
     await session.commit()
 
-    # Tokens should be removed on 10% of create requests. To test this we're
-    # setting the random number generator to return 0.15, which should result
-    # in the tokens NOT being removed.
-    with mock.patch("prefect.server.api.csrf_token.random.random", return_value=0.15):
-        response = await client.get("/csrf-token?client=client123")
-        assert response.status_code == 200
+    response = await client.get("/csrf-token?client=client123")
+    assert response.status_code == 200
 
     all_tokens = (await session.execute(sa.select(db.CsrfToken))).scalars().all()
-    assert len(all_tokens) == 6
-    assert "client0" in [t.client for t in all_tokens]
-    assert "client1" in [t.client for t in all_tokens]
 
-    # Now we'll set the random number generator to return 0.05, which should
-    # result in the expired tokens being removed.
-    with mock.patch("prefect.server.api.csrf_token.random.random", return_value=0.05):
-        response = await client.get("/csrf-token?client=client123")
-        assert response.status_code == 200
-
-    all_tokens = (await session.execute(sa.select(db.CsrfToken))).scalars().all()
+    # Five tokens were created upfront, one was created from the client.get
+    # request, and two of those were expired. (5 + 1) - 2 = 4
     assert len(all_tokens) == 4
+
     assert "client0" not in [t.client for t in all_tokens]
     assert "client1" not in [t.client for t in all_tokens]
