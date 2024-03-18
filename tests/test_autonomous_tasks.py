@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+import os
 from pathlib import Path
 from typing import AsyncGenerator, Iterable, Tuple
 from unittest import mock
@@ -402,20 +404,19 @@ class TestMap:
 
 
 class TestTaskKey:
-    def test_task_key_not_hashed_if_not_main_module(self):
+    def test_task_key_includes_qualname_and_source_file_hash(self):
         def some_fn():
             pass
 
         t = Task(fn=some_fn)
+        source_file = os.path.abspath(inspect.getsourcefile(some_fn))
+        task_origin_hash = hash_objects(t.name, source_file)
+        assert t.task_key == f"{some_fn.__qualname__}-{task_origin_hash}"
 
-        assert t.task_key.endswith(".some_fn")
-
-    def test_task_key_is_hashed_if_main_module(self, monkeypatch):
+    def test_task_key_handles_unknown_source_file(self, monkeypatch):
         def some_fn():
             pass
 
-        monkeypatch.setattr(some_fn, "__module__", "__main__")
-
+        monkeypatch.setattr(inspect, "getsourcefile", lambda x: None)
         t = Task(fn=some_fn)
-
-        assert t.task_key == hash_objects(t.name, __file__)
+        assert t.task_key == f"{some_fn.__qualname__}-unknown-source-file"
