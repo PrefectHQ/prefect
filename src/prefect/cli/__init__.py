@@ -26,3 +26,4 @@ import prefect.cli.variable
 import prefect.cli.work_pool
 import prefect.cli.work_queue
 import prefect.cli.worker
+import prefect.cli.task_run

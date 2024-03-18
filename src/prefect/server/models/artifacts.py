@@ -24,7 +24,7 @@ async def _insert_into_artifact_collection(
         shallow=True, exclude_unset=True, exclude={"id", "updated", "created"}
     )
     upsert_new_latest_id = (
-        (await db.insert(db.ArtifactCollection))
+        db.insert(db.ArtifactCollection)
         .values(latest_id=artifact.id, updated=now, created=now, **insert_values)
         .on_conflict_do_update(
             index_elements=db.artifact_collection_unique_upsert_columns,
@@ -78,7 +78,7 @@ async def _insert_into_artifact(
     Inserts a new artifact into the artifact table.
     """
     artifact_id = artifact.id
-    insert_stmt = (await db.insert(db.Artifact)).values(
+    insert_stmt = db.insert(db.Artifact).values(
         created=now,
         updated=now,
         **artifact.dict(exclude={"created", "updated"}, shallow=True),
