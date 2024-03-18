@@ -76,6 +76,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_UNIT_TEST_MODE,
@@ -1352,6 +1353,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1366,6 +1368,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1378,6 +1381,7 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -2242,3 +2246,25 @@ class TestPrefectClientDeploymentSchedules:
             await prefect_client.delete_deployment_schedule(
                 deployment.id, nonexistent_schedule_id
             )
+
+
+class TestPrefectClientCsrfSupport:
+    def test_enabled_ephemeral(self, prefect_client: PrefectClient):
+        assert prefect_client.server_type == ServerType.EPHEMERAL
+        assert prefect_client._client.enable_csrf_support
+
+    async def test_enabled_server_type(self, hosted_api_server):
+        async with PrefectClient(hosted_api_server) as prefect_client:
+            assert prefect_client.server_type == ServerType.SERVER
+            assert prefect_client._client.enable_csrf_support
+
+    async def test_not_enabled_server_type_cloud(self):
+        async with PrefectClient(PREFECT_CLOUD_API_URL.value()) as prefect_client:
+            assert prefect_client.server_type == ServerType.CLOUD
+            assert not prefect_client._client.enable_csrf_support
+
+    async def test_disabled_setting_disabled(self, hosted_api_server):
+        with temporary_settings({PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False}):
+            async with PrefectClient(hosted_api_server) as prefect_client:
+                assert prefect_client.server_type == ServerType.SERVER
+                assert not prefect_client._client.enable_csrf_support
