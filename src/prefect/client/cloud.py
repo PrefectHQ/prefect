@@ -72,7 +72,7 @@ class CloudClient:
         httpx_settings.setdefault("base_url", host)
         if not PREFECT_UNIT_TEST_MODE.value():
             httpx_settings.setdefault("follow_redirects", True)
-        self._client = PrefectHttpxClient(**httpx_settings)
+        self._client = PrefectHttpxClient(**httpx_settings, enable_csrf_support=False)
 
     async def api_healthcheck(self):
         """

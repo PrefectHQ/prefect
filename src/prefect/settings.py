@@ -657,6 +657,21 @@ A comma-separated list of extra HTTP status codes to retry on. Defaults to an em
 may result in unexpected behavior.
 """
 
+PREFECT_CLIENT_CSRF_SUPPORT_ENABLED = Setting(bool, default=True)
+"""
+Determines if CSRF token handling is active in the Prefect client for API
+requests.
+
+When enabled (`True`), the client automatically manages CSRF tokens by
+retrieving, storing, and including them in applicable state-changing requests
+(POST, PUT, PATCH, DELETE) to the API.
+
+Disabling this setting (`False`) means the client will not handle CSRF tokens,
+which might be suitable for environments where CSRF protection is disabled.
+
+Defaults to `True`, ensuring CSRF protection is enabled by default.
+"""
+
 PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
@@ -1208,11 +1223,31 @@ API with another tool you will need to configure this there instead.
 """
 
 PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
-"""Whether or not to protect the API from CSRF attacks. Experimental and
-currently defaults to `False`."""
+"""
+Controls the activation of CSRF protection for the Prefect server API.
+
+When enabled (`True`), the server enforces CSRF validation checks on incoming
+state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
+token to be included in the request headers or body. This adds a layer of
+security by preventing unauthorized or malicious sites from making requests on
+behalf of authenticated users.
+
+It is recommended to enable this setting in production environments where the
+API is exposed to web clients to safeguard against CSRF attacks.
+
+Note: Enabling this setting requires corresponding support in the client for
+CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
+"""
 
 PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(timedelta, default=timedelta(hours=1))
-"""How long a CSRF token is valid for. Defaults to 1 hour."""
+"""
+Specifies the duration for which a CSRF token remains valid after being issued
+by the server.
+
+The default expiration time is set to 1 hour, which offers a reasonable
+compromise. Adjust this setting based on your specific security requirements
+and usage patterns.
+"""
 
 PREFECT_UI_ENABLED = Setting(
     bool,

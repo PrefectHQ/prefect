@@ -136,6 +136,7 @@ from prefect.settings import (
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
@@ -316,7 +317,15 @@ class PrefectClient:
 
         if not PREFECT_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
-        self._client = PrefectHttpxClient(**httpx_settings)
+
+        enable_csrf_support = (
+            self.server_type != ServerType.CLOUD
+            and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
+        )
+
+        self._client = PrefectHttpxClient(
+            **httpx_settings, enable_csrf_support=enable_csrf_support
+        )
         self._loop = None
 
         # See https://www.python-httpx.org/advanced/#custom-transports
