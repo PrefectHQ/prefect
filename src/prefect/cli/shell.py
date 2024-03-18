@@ -1,6 +1,7 @@
 """Tasks for interacting with shell commands"""
 
 import io
+import logging
 import shlex
 
 import typer
@@ -10,6 +11,7 @@ from prefect import flow
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
+from prefect.context import tags
 from prefect.deployments.runner import EntrypointType
 from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
@@ -35,7 +37,7 @@ async def run_shell_process(command: str, log_output: bool = True):
         log_output (bool, optional): Whether to log the output of the process. Defaults to True.
     """
     # Explicitly configure logging
-    logger = get_run_logger()
+    logger = get_run_logger() if log_output else logging.getLogger("prefect")
 
     command_list = shlex.split(command)
     err_stream = io.StringIO()
@@ -57,6 +59,9 @@ async def watch(
     log_output: bool = typer.Option(
         True, help="Log the output of the command to Prefect"
     ),
+    flows_run_name: str = typer.Option(None, help="Name of the flow"),
+    flow_name: str = typer.Option(None, help="Name of the flow"),
+    flow_run_tags: list[str] = typer.Option(None, "--tag", help="Tags for the flow"),
 ):
     """
     Executes a shell command asynchronously.
@@ -67,17 +72,19 @@ async def watch(
     """
 
     # Call the shell_run_command flow with provided arguments
-    await run_shell_process(command=command, log_output=log_output)
+    with tags(*flow_run_tags.append("shell") if flow_run_tags else "shell"):
+        await run_shell_process(command=command, log_output=log_output)
 
 
 @shell_app.command("serve")
 async def serve(
     command: str,
     name: str = typer.Option(..., help="Name of the flow"),
-    cron_schedule: str = typer.Option(None, help="Cron schedule for the flow"),
+    tags: list[str] = typer.Option(None, "--tag", help="Tags for the flow"),
     log_output: bool = typer.Option(
         True, help="Stream the output of the command", hidden=True
     ),
+    cron_schedule: str = typer.Option(None, help="Cron schedule for the flow"),
     timezone: str = typer.Option(None, help="Timezone for the schedule"),
     concurrency_limit: int = typer.Option(
         None,
@@ -107,9 +114,10 @@ async def serve(
 
     runner_deployment = await run_shell_process.to_deployment(
         name=deployment_name,
-        parameters={"command": command, "log_output": True},
+        parameters={"command": command, "log_output": log_output},
         entrypoint_type=EntrypointType.MODULE_PATH,
         schedule=schedule,
+        tags=tags.append("shell") if tags else ["shell"],
     )
 
     runner = Runner(name=name)
