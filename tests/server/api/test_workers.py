@@ -681,7 +681,7 @@ class TestWorkPoolStatus:
         """Work pools with only offline workers should have a status of NOT_READY."""
         now = pendulum.now("UTC")
 
-        insert_stmt = (await db.insert(db.Worker)).values(
+        insert_stmt = db.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
             last_heartbeat_time=now.subtract(minutes=5),
@@ -805,7 +805,7 @@ class TestWorkerProcess:
     ):
         now = pendulum.now("UTC")
 
-        insert_stmt = (await db.insert(db.Worker)).values(
+        insert_stmt = db.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
             last_heartbeat_time=now.subtract(minutes=5),
@@ -832,7 +832,7 @@ class TestWorkerProcess:
         """
         now = pendulum.now("UTC")
 
-        insert_stmt = (await db.insert(db.Worker)).values(
+        insert_stmt = db.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
             last_heartbeat_time=now.subtract(seconds=10),

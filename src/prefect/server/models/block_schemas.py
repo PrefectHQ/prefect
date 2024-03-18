@@ -2,6 +2,7 @@
 Functions for interacting with block schema ORM objects.
 Intended for internal use by the Prefect REST API.
 """
+
 import json
 from copy import copy
 from typing import Dict, List, Optional, Tuple, Union
@@ -90,7 +91,7 @@ async def create_block_schema(
         "block_schema_references", {}
     )
 
-    insert_stmt = (await db.insert(db.BlockSchema)).values(**insert_values)
+    insert_stmt = db.insert(db.BlockSchema).values(**insert_values)
     if override:
         insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=db.block_schema_unique_upsert_columns,
@@ -799,7 +800,7 @@ async def create_block_schema_reference(
     if existing_reference:
         return existing_reference
 
-    insert_stmt = (await db.insert(db.BlockSchemaReference)).values(
+    insert_stmt = db.insert(db.BlockSchemaReference).values(
         **block_schema_reference.dict(
             shallow=True, exclude_unset=True, exclude={"created", "updated"}
         )
