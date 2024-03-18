@@ -4,11 +4,14 @@ import typing_extensions
 from pydantic import BaseModel
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS
 
 IncEx: typing_extensions.TypeAlias = (
     "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
 )
+
+logger = get_logger("prefect._internal.pydantic")
 
 
 def model_dump(
@@ -24,29 +27,37 @@ def model_dump(
     round_trip: bool = False,
     warnings: bool = True,
 ) -> Dict[str, Any]:
-    if HAS_PYDANTIC_V2:
-        if PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS:
-            return model_instance.model_dump(
-                mode=mode,
-                include=include,
-                exclude=exclude,
-                by_alias=by_alias,
-                exclude_unset=exclude_unset,
-                exclude_defaults=exclude_defaults,
-                exclude_none=exclude_none,
-                round_trip=round_trip,
-                warnings=warnings,
+    should_dump_as_v2_model = all(
+        [
+            HAS_PYDANTIC_V2,
+            PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS,
+            isinstance(model_instance, BaseModel),
+        ]
+    )
+
+    if should_dump_as_v2_model:
+        logger.debug(
+            "Using Pydantic v2 compatibility layer for `model_dump`. This will be removed in a future release."
+        )
+        return model_instance.model_dump(
+            mode=mode,
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+        )
+    else:
+        if HAS_PYDANTIC_V2:
+            logger.debug(
+                "Pydantic v2 compatibility layer is disabled. To enable, set `PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS` to `True`."
             )
         else:
-            return model_instance.dict(
-                include=include,
-                exclude=exclude,
-                by_alias=by_alias,
-                exclude_unset=exclude_unset,
-                exclude_defaults=exclude_defaults,
-                exclude_none=exclude_none,
-            )
-    else:
+            logger.debug("Pydantic v2 is not installed.")
+
         return model_instance.dict(
             include=include,
             exclude=exclude,
