@@ -27,12 +27,13 @@ def model_dump(
     round_trip: bool = False,
     warnings: bool = True,
 ) -> Dict[str, Any]:
-    should_dump_as_v2_model = all(
-        [
-            HAS_PYDANTIC_V2,
-            PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS,
-            isinstance(model_instance, BaseModel),
-        ]
+    if not isinstance(model_instance, BaseModel):
+        raise TypeError(
+            f"Expected a Pydantic model, but got {type(model_instance).__name__}"
+        )
+
+    should_dump_as_v2_model = (
+        HAS_PYDANTIC_V2 and PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS
     )
 
     if should_dump_as_v2_model:

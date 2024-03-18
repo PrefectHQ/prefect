@@ -43,3 +43,8 @@ def test_model_dump_with_flag_disabled(caplog):
         assert "Pydantic v2 compatibility layer is disabled" in caplog.text
     else:
         assert "Pydantic v2 is not installed." in caplog.text
+
+
+def test_model_dump_with_non_basemodel_raises():
+    with pytest.raises(TypeError, match="Expected a Pydantic model"):
+        model_dump("not a model")
