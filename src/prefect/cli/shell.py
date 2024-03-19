@@ -10,7 +10,6 @@ import shlex
 from typing import List, Optional
 
 import typer
-from pydantic import VERSION as PYDANTIC_VERSION
 from typing_extensions import Annotated
 
 from prefect import flow
@@ -23,11 +22,6 @@ from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.processutils import run_process
-
-if PYDANTIC_VERSION.startswith("2."):
-    pass
-else:
-    pass
 
 shell_app = PrefectTyper(name="shell", help="Commands for working with shell commands.")
 app.add_typer(shell_app)
@@ -48,9 +42,6 @@ async def run_shell_process(
         log_output (bool, optional): If True, the output of the command (both stdout and stderr) is logged to prefectas.
                                      Defaults to True.
 
-    Raises:
-        Exception: If the command exits with a non-zero return code, indicating failure.
-
     """
 
     logger = get_run_logger() if log_output else logging.getLogger("prefect")
@@ -64,6 +55,7 @@ async def run_shell_process(
     if process.returncode != 0:
         err_stream.seek(0)
         logger.error(err_stream.read())
+
     else:
         out_stream.seek(0)
         logger.info(out_stream.read())
@@ -140,8 +132,6 @@ async def serve(
         concurrency_limit (int, optional): The maximum number of instances of the flow that can run simultaneously.
         deployment_name (str, optional): The name of the deployment. This helps distinguish deployments within the Prefect platform.
         run_once (bool, optional): When True, the flow will only run once upon deployment initiation, rather than continuously.
-
-    This command provides a powerful way to automate and schedule tasks that run in a shell environment, fully integrated with Prefect's monitoring, logging, and scheduling capabilities.
     """
     schedule = (
         CronSchedule(cron=cron_schedule, timezone=timezone) if cron_schedule else None

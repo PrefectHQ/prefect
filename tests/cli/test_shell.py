@@ -2,11 +2,6 @@ from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
-###
-# Test flow success and failure
-# run flow, test success and failure in serve
-# Test deployment flags correctly represented
-###
 async def test_shell_serve(prefect_client):
     flow_name = "Flood Brothers"
     deployment_name = "3065 Rockwell Export"
