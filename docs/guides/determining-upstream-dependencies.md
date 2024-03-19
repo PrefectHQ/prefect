@@ -13,7 +13,7 @@ search:
 Results from tasks can be provided to other tasks and subflows to determine their upstream dependencies. Prefect uses upstream dependencies in two ways:
 
 1. To populate dependency arrows in the flow run graph
-2. To determine execution order for concurrently submitted units of work that depend on each other
+2. To determine execution order for [concurrently submitted](/concepts/task-runners) units of work that depend on each other
 
 !!! note "Tasks vs. other functions"
     **Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including subflows, do not carry the same information about their origin as task results.
