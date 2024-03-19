@@ -6,6 +6,7 @@ import datetime
 from typing import List
 from uuid import UUID
 
+import anyio
 import pendulum
 from prefect._vendor.fastapi import (
     Body,
@@ -289,7 +290,11 @@ async def scheduled_task_subscription(websocket: WebSocket):
     subscribed_queue = MultiQueue(task_keys)
 
     while True:
-        task_run = await subscribed_queue.get()
+        try:
+            with anyio.fail_after(5):
+                task_run = await subscribed_queue.get()
+        except TimeoutError:
+            continue
 
         try:
             await websocket.send_json(task_run.dict(json_compatible=True))
