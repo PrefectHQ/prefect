@@ -104,7 +104,7 @@ A task or subflow's upstream dependencies can be inferred automatically via its 
 
 ### Automatic
 
-When a result from an upstream task is used as input for another task, Prefect automatically determines that the task producing the result is an upstream dependency of the task that uses its result as input.
+When a result from a task is used as input for another task or subflow, Prefect automatically recognizes that the task that result originated from as an upstream dependency.
 
 This is true for every way you can run tasks with Prefect, whether you're calling the task function directly, calling [`.submit()`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit), or calling [`.map()`](/api-ref/prefect/tasks/#prefect.tasks.Task.map).
 
