@@ -15,10 +15,10 @@ Results from tasks can be provided to other tasks and subflows to determine thei
 1. To populate dependency arrows in the flow run graph
 2. To determine execution order for concurrently submitted units of work that depend on each other
 
-!!! Tasks as dependencies 
-    **Only results from tasks** inform Prefect's in-flow dependency capabilities. Return values from non-task-decorated functions, including subflows, do not carry the same information about their origin as task results.
+!!! note "Tasks vs. other functions"
+    **Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including subflows, do not carry the same information about their origin as task results.
 
-For example, compare how submitting tasks to the `ConcurrentTaskRunner` behaves both with and without stating their upstream dependencies:
+For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave with and without stated upstream dependencies:
 
 === "Without dependencies"
 
@@ -98,11 +98,11 @@ For example, compare how submitting tasks to the `ConcurrentTaskRunner` behaves 
     Flow run 'statuesque-waxbill' - Finished in state Completed('All states completed.')
     ```
 
+## Determination methods
+
 A task or subflow's upstream dependencies can be inferred automatically via its inputs, or stated explicitly via the `wait_for` argument.
 
-
-
-## Automatic dependencies
+### Automatic
 
 When a result from an upstream task is used as input for another task, Prefect automatically determines that the task producing the result is an upstream dependency of the task that uses its result as input.
 
@@ -143,7 +143,7 @@ def final_task(input):
 
 ![Flow run graph for automatic task dependencies](/img/guides/automatic-task-dependencies.png)
 
-## Manual dependencies
+### Manual
 
 Tasks that do not share data can be informed of their upstream dependencies through the `wait_for` argument. Just as with automatic dependencies, this applies to calling task functions directly, calling [`.submit()`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit), or calling [`.map()`](/api-ref/prefect/tasks/#prefect.tasks.Task.map).
 
@@ -185,11 +185,53 @@ def final_task():
 
 ![Flow run graph for manual task dependencies](/img/guides/manual-task-dependencies.png)
 
-## Upstream dependencies for subflows
+## Deployments as dependencies
 
-Subflows will also wait to run if they are provided with task results, either as input or to `wait_for`. This is especially useful for ensuring subflows run after submitted tasks whose logic or data they may depend on.
+For more complex workflows, parts of your logic may require additional resources, different infrastructure, or independent parallel execution. A typical approach for addressing these needs is to execute that logic as separate [deployment](/concepts/deployments) runs from within a flow.
 
-=== "Without dependencies"
-=== "Automatic dependencies"
-=== "Manual dependencies"
+Composing deployment runs into a flow such that they can be treated as upstream dependencies is as simple as calling [`run_deployment`](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) from within a task.
+
+Given a deployment `process-user` of flow `parallel-work`, a flow of deployments might look like this:
+
+```python
+from prefect import flow, task
+from prefect.deployments import run_deployment
+
+
+@flow
+def flow_of_deployments():
+    deployment_run_1 = run_deployment_task.submit(
+        flow_name="parallel-work",
+        deployment_name="process-user",
+        parameters={"user_id": 1},
+    )
+    deployment_run_2 = run_deployment_task.submit(
+        flow_name="parallel-work",
+        deployment_name="process-user",
+        parameters={"user_id": 2},
+    )
+    downstream_task(wait_for=[deployment_run_1, deployment_run_2])
+
+
+@task(task_run_name="Run deployment {flow_name}/{deployment_name}")
+def run_deployment_task(
+    flow_name: str,
+    deployment_name: str,
+    parameters: dict
+):
+    run_deployment(
+        name=f"{flow_name}/{deployment_name}",
+        parameters=parameters
+    )
+
+
+@task
+def downstream_task():
+    print("I'm downstream!")
+```
+
+![Flow of deployments](/img/guides/flow-of-deployments.png)
+
+By default, deployments started from `run_deployment` will also appear as sublfows for tracking purposes, though this can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
+
 
