@@ -124,19 +124,8 @@ class TestDeleteExpiredTokens:
 
         await models.csrf_token.delete_expired_tokens(session=session)
 
-        removed = [
-            await models.csrf_token.read_token_for_client(
-                session=session, client=f"client{i}"
-            )
-            for i in range(2)
-        ]
+        all_tokens = (await session.execute(sa.select(db.CsrfToken))).scalars().all()
 
-        existing = [
-            await models.csrf_token.read_token_for_client(
-                session=session, client=f"client{i}"
-            )
-            for i in range(2, 5)
-        ]
-
-        assert removed == [None, None]
-        assert all(token is not None for token in existing)
+        assert len(all_tokens) == 3
+        assert "client0" not in [t.client for t in all_tokens]
+        assert "client1" not in [t.client for t in all_tokens]

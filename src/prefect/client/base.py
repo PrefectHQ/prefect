@@ -361,9 +361,16 @@ class PrefectHttpxClient(httpx.AsyncClient):
             try:
                 token_response = await self.send(token_request)
             except PrefectHTTPStatusError as exc:
-                if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                    # The token endpoint is not available, likely an older
-                    # server version; disable CSRF support
+                old_server = exc.response.status_code == status.HTTP_404_NOT_FOUND
+                unconfigured_server = (
+                    exc.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+                    and "CSRF protection is disabled." in exc.response.text
+                )
+
+                if old_server or unconfigured_server:
+                    # The token endpoint is either unavailable, suggesting an
+                    # older server, or CSRF protection is disabled. In either
+                    # case we should disable CSRF support.
                     self.enable_csrf_support = False
                     return
 
