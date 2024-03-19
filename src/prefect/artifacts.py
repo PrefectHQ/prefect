@@ -88,7 +88,7 @@ class Artifact(ArtifactRequest):
     @classmethod
     @sync_compatible
     async def get_or_create(
-        cls: type[Self],
+        cls,
         key: Optional[str] = None,
         description: Optional[str] = None,
         data: Optional[Union[Dict[str, Any], Any]] = None,
