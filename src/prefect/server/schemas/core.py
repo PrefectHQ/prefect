@@ -1316,3 +1316,16 @@ class FlowRunInput(ORMBaseModel):
     def validate_name_characters(cls, v):
         raise_on_name_alphanumeric_dashes_only(v)
         return v
+
+
+class CsrfToken(ORMBaseModel):
+    token: str = Field(
+        default=...,
+        description="The CSRF token",
+    )
+    client: str = Field(
+        default=..., description="The client id associated with the CSRF token"
+    )
+    expiration: DateTimeTZ = Field(
+        default=..., description="The expiration time of the CSRF token"
+    )
