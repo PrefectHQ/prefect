@@ -2005,7 +2005,9 @@ async def orchestrate_task_run(
     last_event = emit_task_run_state_change_event(
         task_run=task_run, initial_state=None, validated_state=task_run.state
     )
-    last_state = task_run.state
+    last_state = (
+        task_run.state if not flow_run_context.autonomous_task_run else Pending()
+    )
 
     # Completed states with persisted results should have result data. If it's missing,
     # this could be a manual state transition, so we should use the Unknown result type

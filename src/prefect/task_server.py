@@ -207,7 +207,7 @@ class TaskServer:
 
         emit_task_run_state_change_event(
             task_run=task_run,
-            initial_state=Pending(),
+            initial_state=task_run.state,
             validated_state=state,
         )
 
