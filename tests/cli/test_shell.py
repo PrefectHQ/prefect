@@ -20,8 +20,6 @@ async def test_shell_serve(prefect_client):
             "echo 'Hello, World!'",
             "--name",
             flow_name,
-            "--timezone",
-            "America/New_York",
             "--concurrency-limit",
             "5",
             "--deployment-name",
@@ -46,17 +44,42 @@ async def test_shell_serve(prefect_client):
     deployment = await prefect_client.read_deployment_by_name(
         f"{flow_name}/{deployment_name}"
     )
+    deployments_tags.append("shell")
     assert deployment.name == deployment_name
-    assert deployment.tags == deployments_tags.append("shell")
+    assert deployment.tags == deployments_tags
 
     schedule = deployment.schedules[0].schedule
     assert schedule.cron == "0 4 * * *"
     assert schedule.timezone == "America/Chicago"
 
 
-def test_shell_watch(caplog):
-    invoke_and_assert(
-        ["shell", "watch", "echo 'Hello, World!'"],
+async def test_shell_watch(caplog, prefect_client):
+    flow_name = "Chicago River Flow"
+    flows_run_name = "Reverse Flow"
+    flow_run_tags = ["chair", "table", "bucket"]
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "shell",
+            "watch",
+            "echo 'Hello, World!'",
+            "--flow-name",
+            flow_name,
+            "--flow-run-name",
+            flows_run_name,
+            "--tag",
+            flow_run_tags[0],
+            "--tag",
+            flow_run_tags[1],
+            "--tag",
+            flow_run_tags[2],
+        ],
         expected_code=0,
     )
     assert "Hello, World!" in caplog.text
+
+    assert len(flow_runs := await prefect_client.read_flow_runs()) == 1
+    flow_run_tags.append("shell")
+    flow_run = flow_runs[0]
+    assert flow_run.name == flows_run_name
+    assert set(flow_run.tags) == set(flow_run_tags)
