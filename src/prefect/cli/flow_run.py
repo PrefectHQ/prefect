@@ -57,19 +57,24 @@ async def ls(
     flow_name: List[str] = typer.Option(None, help="Name of the flow"),
     limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
     state: List[str] = typer.Option(None, help="Name of the flow run's state"),
-    state_type: List[StateType] = typer.Option(
-        None, help="Type of the flow run's state"
-    ),
+    state_type: List[str] = typer.Option(None, help="Type of the flow run's state"),
 ):
     """
     View recent flow runs or flow runs for specific flows
     """
+    for state_type_value in state_type:
+        enum_values = [item.value for item in StateType]
+        if state_type_value.upper() not in enum_values:
+            exit_with_error(
+                f"Invalid value for '--state-type': '{state_type_value}' is not one of"
+                f" '{enum_values}'."
+            )
 
     state_filter = {}
     if state:
         state_filter["name"] = {"any_": [s.capitalize() for s in state]}
     if state_type:
-        state_filter["type"] = {"any_": state_type}
+        state_filter["type"] = {"any_": [s.upper() for s in state_type]}
 
     async with get_client() as client:
         flow_runs = await client.read_flow_runs(
