@@ -57,6 +57,12 @@ RESPONSE_404 = Response(
     request=Request("a test request", "fake.url/fake/route"),
 )
 
+RESPONSE_CSRF_DISABLED = Response(
+    status.HTTP_422_UNPROCESSABLE_ENTITY,
+    json={"detail": "CSRF protection is disabled."},
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
 RESPONSE_INVALID_TOKEN = Response(
     status_code=status.HTTP_403_FORBIDDEN,
     json={"detail": "Invalid CSRF token or client identifier."},
@@ -675,6 +681,15 @@ class TestCsrfSupport:
 
     async def test_disables_csrf_support_404_token_endpoint(self):
         async with mocked_client(responses=[RESPONSE_404, RESPONSE_200]) as (
+            client,
+            send,
+        ):
+            assert client.enable_csrf_support is True
+            await client.post(url="fake.url/fake/route")
+            assert client.enable_csrf_support is False
+
+    async def test_disables_csrf_support_422_csrf_disabled(self):
+        async with mocked_client(responses=[RESPONSE_CSRF_DISABLED, RESPONSE_200]) as (
             client,
             send,
         ):
