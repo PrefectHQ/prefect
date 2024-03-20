@@ -141,7 +141,11 @@ def final_task(input):
     print(input)
 ```
 
-![Flow run graph for automatic task dependencies](/img/guides/automatic-task-dependencies.png)
+<figure markdown="span">
+  ![Flow run graph for automatic task dependencies](/img/guides/automatic-task-dependencies.png)
+  <figcaption>Flow run graph displaying inferred dependencies with the "Dependency grid" layout selected</figcaption>
+</figure>
+
 
 ### Manual
 
@@ -183,7 +187,10 @@ def final_task():
     pass
 ```
 
-![Flow run graph for manual task dependencies](/img/guides/manual-task-dependencies.png)
+<figure markdown="span">
+  ![Flow run graph for manual task dependencies](/img/guides/manual-task-dependencies.png)
+  <figcaption>Flow run graph displaying manual dependencies with the "Dependency grid" layout selected</figcaption>
+</figure>
 
 ## Deployments as dependencies
 
@@ -232,4 +239,7 @@ def downstream_task():
 
 By default, deployments started from `run_deployment` will also appear as sublfows for tracking purposes. This behavior can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
 
-![Flow of deployments](/img/guides/flow-of-deployments.png)
+<figure markdown="span">
+  ![Flow of deployments](/img/guides/flow-of-deployments.png)
+  <figcaption>Flow run graph displaying deployments as dependencies with the "Dependency grid" layout selected</figcaption>
+</figure>
