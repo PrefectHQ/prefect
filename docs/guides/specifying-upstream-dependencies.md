@@ -20,7 +20,7 @@ Results from a task can be provided to other tasks (or subflows) as upstream dep
 
 When using non-sequential task runners such as the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted tasks is not guaranteed unless their dependencies are specified.
 
-For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave with and without upstream dependencies:
+For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave with and without upstream dependencies by clicking on the tabs below.
 
 === "Without dependencies"
 
