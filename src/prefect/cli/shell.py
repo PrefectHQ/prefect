@@ -81,7 +81,7 @@ async def watch(
         True, help="Log the output of the command to Prefect logs."
     ),
     flow_run_name: str = typer.Option(None, help="Name of the flow run."),
-    flow_name: str = typer.Option(None, help="Name of the flow."),
+    flow_name: str = typer.Option("Shell Command", help="Name of the flow."),
     tag: Annotated[
         Optional[List[str]], typer.Option(help="Optional tags for the flow run.")
     ] = None,
@@ -99,7 +99,7 @@ async def watch(
     tag = (tag or []) + ["shell"]
 
     # Call the shell_run_command flow with provided arguments
-    defined_flow = run_shell_process.with_option(
+    defined_flow = run_shell_process.with_options(
         name=flow_name, flow_run_name=flow_run_name
     )
     with tags(*tag):

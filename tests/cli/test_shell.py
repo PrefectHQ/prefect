@@ -4,6 +4,31 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 async def test_shell_serve(prefect_client):
     flow_name = "Flood Brothers"
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "shell",
+            "serve",
+            "echo 'Hello, World!'",
+            "--name",
+            flow_name,
+            "--run-once",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Your flow {flow_name!r} is being served and polling for scheduled runs!"
+        ],
+    )
+    deployment = await prefect_client.read_deployment_by_name(
+        f"{flow_name}/CLI Runner Deployment"
+    )
+    assert deployment.name == "CLI Runner Deployment"
+    assert deployment.tags == ["shell"]
+
+
+async def test_shell_serve_options(prefect_client):
+    flow_name = "Flood Brothers"
     deployment_name = "3065 Rockwell Export"
     deployments_tags = ["dry", "wet", "dipped"]
 
@@ -78,3 +103,21 @@ async def test_shell_watch(caplog, prefect_client):
     flow_run = flow_runs[0]
     assert flow_run.name == flows_run_name
     assert set(flow_run.tags) == set(flow_run_tags)
+
+
+async def test_shell_watch_options(caplog, prefect_client):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "shell",
+            "watch",
+            "echo 'Hello, World!'",
+        ],
+        expected_code=0,
+    )
+    assert "Hello, World!" in caplog.text
+
+    assert len(flow_runs := await prefect_client.read_flow_runs()) == 1
+    flow_run = flow_runs[0]
+    assert flow_run.name == "Shell Command"
+    assert flow_run.tags == ["shell"]
