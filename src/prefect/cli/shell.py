@@ -6,18 +6,20 @@ with options for logging output, scheduling, and deployment customization.
 
 import logging
 import subprocess
+import sys
 import threading
 from typing import List, Optional
 
 import typer
 from typing_extensions import Annotated
 
-from prefect import flow, states
+from prefect import flow
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.context import tags
 from prefect.deployments.runner import EntrypointType
+from prefect.exceptions import FailedRun
 from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
@@ -26,17 +28,16 @@ shell_app = PrefectTyper(name="shell", help="Commands for working with shell com
 app.add_typer(shell_app)
 
 
-def stream_output(pipe, logger_function):
+def collect_output(pipe, container):
     """
-    Read from a pipe line by line and log using the provided logging function.
+    Collects output from a subprocess pipe and stores it in a container list.
 
     Args:
-        pipe (IO): A file-like object for reading process output.
-        logger_function (function): A logging function from the logger.
+        pipe: The output pipe of the subprocess, either stdout or stderr.
+        container: A list to store the collected output lines.
     """
-    with pipe:
-        for line in iter(pipe.readline, ""):
-            logger_function(line.strip())
+    for line in iter(pipe.readline, ""):
+        container.append(line)
 
 
 @flow
@@ -60,15 +61,23 @@ def run_shell_process(
     logger = get_run_logger() if log_output else logging.getLogger("prefect")
 
     # Start the process
+    stdout_container = []
+    stderr_container = []
     with subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=True,
+        text=True,
+        bufsize=1,
+        universal_newlines=True,
     ) as proc:
-        # Create threads for streaming stdout and stderr
+        # Create threads for collecting stdout and stderr
         stdout_thread = threading.Thread(
-            target=stream_output, args=(proc.stdout, logger.info)
+            target=collect_output, args=(proc.stdout, stdout_container)
         )
         stderr_thread = threading.Thread(
-            target=stream_output, args=(proc.stderr, logger.error)
+            target=collect_output, args=(proc.stderr, stderr_container)
         )
 
         stdout_thread.start()
@@ -78,9 +87,15 @@ def run_shell_process(
         stderr_thread.join()
 
         proc.wait()
-        if proc.returncode != 0:
-            logger.error(f"Command failed with exit code {proc.returncode}")
-            raise states.Failed(f"Command failed with exit code {proc.returncode}")
+        if proc.returncode == 0:
+            if stdout_container:
+                logger.info("".join(stdout_container).strip())
+        else:
+            if stderr_container:
+                logger.error("".join(stderr_container).strip())
+            # logger.error(f"Command failed with exit code {proc.returncode}")
+            sys.tracebacklimit = 0
+            raise FailedRun(f"Command failed with exit code {proc.returncode}")
 
 
 @shell_app.command("watch")
