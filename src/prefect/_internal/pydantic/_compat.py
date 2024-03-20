@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, Set, Union
+from typing import Any, Dict, Literal, Optional, Set, Type, Union
 
 import typing_extensions
 from pydantic import BaseModel
@@ -52,7 +52,7 @@ def is_pydantic_v2_compatible(
     TypeError
         If `model_instance` is provided but is not an instance of a Pydantic BaseModel.
     """
-    if not isinstance(model_instance, BaseModel):
+    if model_instance and not isinstance(model_instance, BaseModel):
         raise TypeError(
             f"Expected a Pydantic model, but got {type(model_instance).__name__}"
         )
@@ -139,7 +139,7 @@ JsonSchemaMode = Literal["validation", "serialization"]
 
 
 def model_json_schema(
-    model_instance: BaseModel,
+    model: Type[BaseModel],
     *,
     by_alias: bool = True,
     ref_template: str = DEFAULT_REF_TEMPLATE,
@@ -165,18 +165,16 @@ def model_json_schema(
     dict[str, Any]
         The JSON schema for the given model class.
     """
-    if is_pydantic_v2_compatible(
-        model_instance=model_instance, fn_name="model_json_schema"
-    ):
+    if is_pydantic_v2_compatible(fn_name="model_json_schema"):
         schema_generator = GenerateJsonSchema
-        return model_instance.model_json_schema(
+        return model.model_json_schema(
             by_alias=by_alias,
             ref_template=ref_template,
             schema_generator=schema_generator,
             mode=mode,
         )
 
-    return model_instance.schema(
+    return model.schema(
         by_alias=by_alias,
         ref_template=ref_template,
     )
