@@ -2006,7 +2006,9 @@ async def orchestrate_task_run(
         task_run=task_run, initial_state=None, validated_state=task_run.state
     )
     last_state = (
-        task_run.state if not flow_run_context.autonomous_task_run else Pending()
+        Pending()
+        if flow_run_context and flow_run_context.autonomous_task_run
+        else task_run.state
     )
 
     # Completed states with persisted results should have result data. If it's missing,
