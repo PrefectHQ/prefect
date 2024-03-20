@@ -67,8 +67,8 @@ def run_shell_process(
                 if stderr:
                     logger.error(stderr.strip())
                     logger.error(f"Command failed with exit code {proc.returncode}")
-                sys.tracebacklimit = 0
-                raise typer.Exit(1)
+                    sys.tracebacklimit = 0
+                    raise typer.Exit(proc.returncode)
     except SubprocessError as e:
         logger.error(f"An error occurred while executing the command: {e}")
 
