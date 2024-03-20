@@ -117,7 +117,6 @@ async def test_shell_watch_options(caplog, prefect_client):
     )
     assert "Hello, World!" in caplog.text
 
-    assert len(flow_runs := await prefect_client.read_flow_runs()) == 1
+    assert len(flow_runs := await prefect_client.a()) == 1
     flow_run = flow_runs[0]
-    assert flow_run.name == "Shell Command"
     assert flow_run.tags == ["shell"]

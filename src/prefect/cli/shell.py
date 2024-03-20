@@ -110,8 +110,11 @@ async def watch(
 async def serve(
     command: str,
     name: str = typer.Option(..., help="Name of the flow"),
+    deployment_name: str = typer.Option(
+        "CLI Runner Deployment", help="Name of the deployment"
+    ),
     deployment_tags: List[str] = typer.Option(
-        None, "--tag", help="Tags for the deployment"
+        None, "--tag", help="Tag for the deployment (can be provided multiple times)"
     ),
     log_output: bool = typer.Option(
         True, help="Stream the output of the command", hidden=True
@@ -122,9 +125,6 @@ async def serve(
         None,
         min=1,
         help="The maximum number of flow runs that can execute at the same time",
-    ),
-    deployment_name: str = typer.Option(
-        "CLI Runner Deployment", help="Name of the deployment"
     ),
     run_once: bool = typer.Option(
         False, help="Run the agent loop once, instead of forever."
