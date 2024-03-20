@@ -2,17 +2,9 @@ import { AxiosError, AxiosInstance, InternalAxiosRequestConfig, isAxiosError } f
 import { randomId } from '@prefecthq/prefect-design'
 import { Api, AxiosInstanceSetupHook, PrefectConfig } from '@prefecthq/prefect-ui-library'
 import { CreateActions } from '@prefecthq/vue-compositions'
-
-export type CsrfToken = {
-    token: string
-    expiration: Date
-    issued: Date
-}
-
-export type CsrfTokenResponse = {
-    token: string
-    expiration: Date
-}
+import { CsrfToken } from '@/models/CsrfToken'
+import { CsrfTokenResponse } from '@/types/csrfTokenResponse'
+import { mapper } from '@/services/mapper'
 
 export class CsrfTokenApi extends Api {
     public csrfToken?: CsrfToken
@@ -58,13 +50,9 @@ export class CsrfTokenApi extends Api {
 
         const refresh = async () => {
             try {
+
                 const response = await this.get<CsrfTokenResponse>(`/csrf-token?client=${this.clientId}`)
-                const now = new Date()
-                this.csrfToken = {
-                    token: response.data.token,
-                    expiration: new Date(response.data.expiration),
-                    issued: now,
-                }
+                this.csrfToken = mapper.map('CsrfTokenResponse', response.data, 'CsrfToken')
                 this.ongoingRefresh = null
             } catch (error) {
                 this.ongoingRefresh = null
