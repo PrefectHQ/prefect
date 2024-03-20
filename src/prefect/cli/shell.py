@@ -39,8 +39,8 @@ async def run_shell_process(
 
     Args:
         command (str): The shell command to execute.
-        log_output (bool, optional): If True, the output of the command (both stdout and stderr) is logged to prefectas.
-                                     Defaults to True.
+        log_output (bool, optional): If True, the output of the command (both stdout and stderr) is logged to Prefect.
+                                     Defaults to True
 
     """
 
