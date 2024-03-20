@@ -476,6 +476,8 @@ def test_enabled_experiments_with_opt_in():
         "enhanced_cancellation",
         "enhanced_deployment_parameters",
         "work_queue_status",
+        "artifacts_on_flow_run_graph",
+        "states_on_flow_run_graph",
     }
 
 
@@ -490,4 +492,6 @@ def test_enabled_experiments_without_opt_in():
         "enhanced_cancellation",
         "enhanced_deployment_parameters",
         "work_queue_status",
+        "artifacts_on_flow_run_graph",
+        "states_on_flow_run_graph",
     }
