@@ -115,7 +115,7 @@ async def serve(
     ),
 ):
     """
-    Creates and serves a Prefect deployment that runs a specified shell command according to a cron schedule or on-demand.
+    Creates and serves a Prefect deployment that runs a specified shell command according to a cron schedule or ad hoc.
 
     This function allows users to integrate shell command execution into Prefect workflows seamlessly. It provides options for
     scheduled execution via cron expressions, flow and deployment naming for better management, and the application of tags for
