@@ -41,8 +41,8 @@ def run_shell_process(
 
     Args:
         command (str): The shell command to execute.
-        log_output (bool, optional): If True, the output of the command (both stdout and stderr) is logged to prefectas.
-                                     Defaults to True.
+        log_output (bool, optional): If True, the output of the command (both stdout and stderr) is logged to Prefect.
+                                     Defaults to True
 
     """
 
@@ -120,6 +120,7 @@ async def serve(
     timezone: str = typer.Option(None, help="Timezone for the schedule"),
     concurrency_limit: int = typer.Option(
         None,
+        min=1,
         help="The maximum number of flow runs that can execute at the same time",
     ),
     deployment_name: str = typer.Option(
@@ -130,7 +131,7 @@ async def serve(
     ),
 ):
     """
-    Creates and serves a Prefect deployment that runs a specified shell command according to a cron schedule or on-demand.
+    Creates and serves a Prefect deployment that runs a specified shell command according to a cron schedule or ad hoc.
 
     This function allows users to integrate shell command execution into Prefect workflows seamlessly. It provides options for
     scheduled execution via cron expressions, flow and deployment naming for better management, and the application of tags for
