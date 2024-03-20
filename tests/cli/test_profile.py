@@ -50,6 +50,7 @@ class TestChangingProfileAndCheckingOrionConnection:
                     settings={
                         "PREFECT_API_URL": prefect_cloud_orion_api_url,
                         "PREFECT_API_KEY": "a working cloud api key",
+                        "PREFECT_CLIENT_MAX_RETRIES": 0,
                     },
                 ),
                 Profile(
@@ -57,17 +58,19 @@ class TestChangingProfileAndCheckingOrionConnection:
                     settings={
                         "PREFECT_API_URL": prefect_cloud_orion_api_url,
                         "PREFECT_API_KEY": "a broken cloud api key",
+                        "PREFECT_CLIENT_MAX_RETRIES": 0,
                     },
                 ),
                 Profile(
                     name="hosted-orion",
                     settings={
                         "PREFECT_API_URL": hosted_orion_api_url,
+                        "PREFECT_CLIENT_MAX_RETRIES": 0,
                     },
                 ),
                 Profile(
                     name="ephemeral-prefect",
-                    settings={},
+                    settings={"PREFECT_CLIENT_MAX_RETRIES": 0},
                 ),
             ],
             active=None,
@@ -164,6 +167,7 @@ class TestChangingProfileAndCheckingOrionConnection:
 
     def test_unhealthy_cloud_connection(self, unhealthy_cloud, profiles):
         save_profiles(profiles)
+
         invoke_and_assert(
             ["profile", "use", "prefect-cloud"],
             expected_output_contains="Error connecting to Prefect Cloud",
