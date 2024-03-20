@@ -230,6 +230,6 @@ def downstream_task():
     print("I'm downstream!")
 ```
 
-By default, deployments started from `run_deployment` will also appear as sublfows for tracking purposes, though this can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
+By default, deployments started from `run_deployment` will also appear as sublfows for tracking purposes. This behavior can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
 
 ![Flow of deployments](/img/guides/flow-of-deployments.png)
