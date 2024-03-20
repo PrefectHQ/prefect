@@ -8,7 +8,7 @@ search:
   boost: 2
 ---
 
-# Determining Upstream Dependencies
+# Specifying Upstream Dependencies
 
 Results from a task can be provided to other tasks (or subflows) as upstream dependencies. Prefect uses upstream dependencies in two ways:
 
