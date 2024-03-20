@@ -189,7 +189,7 @@ def final_task():
 
 For more complex workflows, parts of your logic may require additional resources, different infrastructure, or independent parallel execution. A typical approach for addressing these needs is to execute that logic as separate [deployment](/concepts/deployments) runs from within a flow.
 
-Composing deployment runs into a flow such that they can be treated as upstream dependencies is as simple as calling [`run_deployment`](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) from within a task.
+Composing deployment runs into a flow so that they can be treated as upstream dependencies is as simple as calling [`run_deployment`](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) from within a task.
 
 Given a deployment `process-user` of flow `parallel-work`, a flow of deployments might look like this:
 
