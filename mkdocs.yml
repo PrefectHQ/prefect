@@ -165,7 +165,6 @@ nav:
     - How-to Guides:
           - guides/index.md
           - Development:
-                - Determining Upstream Dependencies: guides/determining-upstream-dependencies.md
                 - Hosting: guides/host.md
                 - Profiles & Settings: guides/settings.md
                 - Testing: guides/testing.md
@@ -178,6 +177,7 @@ nav:
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - CI/CD: guides/ci-cd.md
+                - Determining Upstream Dependencies: guides/determining-upstream-dependencies.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
