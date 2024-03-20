@@ -105,6 +105,7 @@ async def serve(
     timezone: str = typer.Option(None, help="Timezone for the schedule"),
     concurrency_limit: int = typer.Option(
         None,
+        min=1,
         help="The maximum number of flow runs that can execute at the same time",
     ),
     deployment_name: str = typer.Option(
