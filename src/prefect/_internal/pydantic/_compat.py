@@ -135,7 +135,6 @@ def model_dump(
 
 
 DEFAULT_REF_TEMPLATE = "#/$defs/{model}"
-
 JsonSchemaMode = Literal["validation", "serialization"]
 
 
