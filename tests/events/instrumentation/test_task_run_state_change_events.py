@@ -1,6 +1,19 @@
+import pytest
+
 from prefect import flow, task
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
+    temporary_settings,
+)
+from prefect.task_server import TaskServer
+
+
+@pytest.fixture
+def enable_task_scheduling():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True}):
+        yield
 
 
 async def test_task_state_change_happy_path(
@@ -129,3 +142,47 @@ async def test_task_state_change_task_failure(
         }
 
         last_state = task_run_state
+
+
+async def test_background_task_state_changes(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events,
+    prefect_client,
+    enable_task_scheduling,
+):
+    @task
+    def foo():
+        pass
+
+    task_run = foo.submit()
+
+    await TaskServer(foo).execute_task_run(task_run)
+
+    task_run_states = await prefect_client.read_task_run_states(task_run.id)
+
+    await asserting_events_worker.drain()
+
+    events = sorted(asserting_events_worker._client.events, key=lambda e: e.occurred)
+
+    assert len(events) == 5  # 4 state changes + 1 block save
+
+    assert len(task_run_states) == 4
+
+    assert [e.event for e in events] == [
+        "prefect.task-run.Scheduled",
+        "prefect.task-run.Pending",
+        "prefect.block.local-file-system.save.called",
+        "prefect.task-run.Running",
+        "prefect.task-run.Completed",
+    ]
+
+    assert [
+        (e.payload["intended"]["from"], e.payload["intended"]["to"])
+        for e in events
+        if e.event.startswith("prefect.task-run.")
+    ] == [
+        (None, "SCHEDULED"),
+        ("SCHEDULED", "PENDING"),
+        ("PENDING", "RUNNING"),
+        ("RUNNING", "COMPLETED"),
+    ]
