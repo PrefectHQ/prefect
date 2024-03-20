@@ -2,16 +2,19 @@
 Interface for creating and reading artifacts.
 """
 
+from __future__ import annotations
+
 import json  # noqa: I001
 import math
-from typing import Any, Dict, List, Optional, Union, Tuple
-from typing_extensions import Self
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
+
+from typing_extensions import Self
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
-from prefect.client.schemas.objects import Artifact as ArtifactResponse
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+from prefect.client.schemas.objects import Artifact as ArtifactResponse
 from prefect.client.schemas.sorting import ArtifactSort
 from prefect.client.utilities import get_or_create_client, inject_client
 from prefect.utilities.asyncutils import sync_compatible
@@ -88,7 +91,7 @@ class Artifact(ArtifactRequest):
     @classmethod
     @sync_compatible
     async def get_or_create(
-        cls: type[Self],
+        cls,
         key: Optional[str] = None,
         description: Optional[str] = None,
         data: Optional[Union[Dict[str, Any], Any]] = None,
