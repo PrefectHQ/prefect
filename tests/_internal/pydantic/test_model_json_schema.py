@@ -1,3 +1,6 @@
+"""
+Tests for `prefect._internal.pydantic.model_json_schema` function.
+"""
 import pytest
 from pydantic import BaseModel
 
