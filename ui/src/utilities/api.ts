@@ -3,7 +3,7 @@ import { createActions } from '@prefecthq/vue-compositions'
 import { InjectionKey } from 'vue'
 import { AdminApi } from '@/services/adminApi'
 import { CsrfTokenApi, setupCsrfInterceptor } from '@/services/csrfTokenApi'
-import { AxiosInstance } from 'axios';
+import { AxiosInstance } from 'axios'
 
 
 

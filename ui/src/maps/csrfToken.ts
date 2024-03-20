@@ -1,10 +1,11 @@
 import { CsrfToken } from "@/models/CsrfToken"
 import { CsrfTokenResponse } from "@/types/csrfTokenResponse"
+import { MapFunction } from '@/services/mapper'
 
-export const mapCsrfTokenResponseToCsrfToken = (response: CsrfTokenResponse): CsrfToken => {
+export const mapCsrfTokenResponseToCsrfToken: MapFunction<CsrfTokenResponse, CsrfToken> = function(source) {
     return {
-        token: response.token,
-        expiration: new Date(response.expiration),
+        token: source.token,
+        expiration: this.map('string', source.expiration, 'Date'),
         issued: new Date(),
     }
 }
