@@ -1,5 +1,5 @@
 ---
-description: Getting tasks to run in a desired order.
+description: Run tasks in a desired order
 tags:
   - tasks
   - dependencies
