@@ -15,7 +15,6 @@ from typing_extensions import Annotated
 
 from prefect import flow
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.context import tags
@@ -67,9 +66,9 @@ def run_shell_process(
             else:
                 if stderr:
                     logger.error(stderr.strip())
-
+                    logger.error(f"Command failed with exit code {proc.returncode}")
                 sys.tracebacklimit = 0
-                exit_with_error(f"Command failed with exit code {proc.returncode}")
+                raise typer.Exit(1)
     except SubprocessError as e:
         logger.error(f"An error occurred while executing the command: {e}")
 
