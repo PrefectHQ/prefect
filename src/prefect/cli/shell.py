@@ -68,7 +68,7 @@ def run_shell_process(
                 if stderr:
                     logger.error(stderr.strip())
 
-                sys.tracebacklimit = 0
+                sys.tracebacklimit = 1
                 exit_with_error(f"Command failed with exit code {proc.returncode}")
     except SubprocessError as e:
         logger.error(f"An error occurred while executing the command: {e}")
@@ -109,7 +109,7 @@ async def watch(
 @shell_app.command("serve")
 async def serve(
     command: str,
-    name: str = typer.Option(..., help="Name of the flow"),
+    flow_name: str = typer.Option(..., help="Name of the flow"),
     deployment_name: str = typer.Option(
         "CLI Runner Deployment", help="Name of the deployment"
     ),
@@ -152,7 +152,7 @@ async def serve(
     schedule = (
         CronSchedule(cron=cron_schedule, timezone=timezone) if cron_schedule else None
     )
-    defined_flow = run_shell_process.with_options(name=name)
+    defined_flow = run_shell_process.with_options(name=flow_name)
 
     runner_deployment = await defined_flow.to_deployment(
         name=deployment_name,
@@ -162,7 +162,7 @@ async def serve(
         tags=(deployment_tags or []) + ["shell"],
     )
 
-    runner = Runner(name=name)
+    runner = Runner(name=flow_name)
     deployment_id = await runner.add_deployment(runner_deployment)
     help_message = (
         f"[green]Your flow {runner_deployment.flow_name!r} is being served and polling"
