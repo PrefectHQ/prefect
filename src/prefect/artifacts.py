@@ -227,12 +227,14 @@ async def create_link_artifact(
     Returns:
         The table artifact ID.
     """
-    return await LinkArtifact(
+    artifact = await LinkArtifact(
         key=key,
         description=description,
         link=link,
         link_text=link_text,
     ).create(client)
+
+    return artifact.id
 
 
 @sync_compatible
@@ -254,11 +256,13 @@ async def create_markdown_artifact(
     Returns:
         The table artifact ID.
     """
-    return await MarkdownArtifact(
+    artifact = await MarkdownArtifact(
         key=key,
         description=description,
         markdown=markdown,
     ).create()
+
+    return artifact.id
 
 
 @sync_compatible
@@ -281,8 +285,10 @@ async def create_table_artifact(
         The table artifact ID.
     """
 
-    return await TableArtifact(
+    artifact = await TableArtifact(
         key=key,
         description=description,
         table=table,
     ).create()
+
+    return artifact.id
