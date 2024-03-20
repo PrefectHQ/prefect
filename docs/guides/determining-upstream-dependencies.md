@@ -10,7 +10,7 @@ search:
 
 # Determining Upstream Dependencies
 
-Results from tasks can be provided to other tasks and subflows to determine their upstream dependencies. Prefect uses upstream dependencies in two ways:
+Results from a task can be provided to other tasks (or subflows) to determine their upstream dependencies. Prefect uses upstream dependencies in two ways:
 
 1. To populate dependency arrows in the flow run graph
 2. To determine execution order for [concurrently submitted](/concepts/task-runners) units of work that depend on each other
