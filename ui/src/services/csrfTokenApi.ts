@@ -3,10 +3,10 @@ import { randomId, showToast } from '@prefecthq/prefect-design';
 import { Api, AxiosInstanceSetupHook, PrefectConfig } from '@prefecthq/prefect-ui-library'
 
 export type CsrfToken = {
-    token: string | null;
-    expiration: Date | null;
-    client: string;
-    issued: Date | null;
+    token: string
+    expiration: Date
+    client: string
+    issued: Date
 }
 
 export type CsrfTokenResponse = {
@@ -15,12 +15,7 @@ export type CsrfTokenResponse = {
 }
 
 export class CsrfTokenApi extends Api {
-    public csrfToken: CsrfToken = {
-        token: null,
-        expiration: null,
-        client: randomId(),
-        issued: null,
-    };
+    public csrfToken?: CsrfToken
     public csrfSupportEnabled = true;
     private refreshTimeout: ReturnType<typeof setTimeout> | null = null;
     private ongoingRefresh: Promise<void> | null = null;
@@ -54,7 +49,7 @@ export class CsrfTokenApi extends Api {
                 const now = new Date();
                 this.csrfToken.token = response.data.token;
                 this.csrfToken.expiration = response.data.expiration;
-                this.csrfToken.issued = now;
+                this.csrfToken.issued = new Date();
                 this.ongoingRefresh = null;
             } catch (error) {
                 this.ongoingRefresh = null;
@@ -78,8 +73,17 @@ export class CsrfTokenApi extends Api {
     }
 
     private shouldRefreshToken(): boolean {
+        if(!this.csrfSupportEnabled) {
+          return false
+        }
+        
+        if(!this.csrfToken.token || !this.csrfToken.expiration) {
+          return true
+        }
+        
         const now = new Date()
-        return !!(this.csrfSupportEnabled && (!this.csrfToken.token || (this.csrfToken.expiration && now > this.csrfToken.expiration)))
+        
+        return now > this.csrfToken.expiration
     }
 
     private disableCsrfSupport() {
