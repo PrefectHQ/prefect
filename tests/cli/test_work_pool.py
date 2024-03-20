@@ -487,8 +487,7 @@ class TestLS:
             invoke_and_assert,
             "work-pool ls",
         )
-        assert 'None' not in res.output
-
+        assert "None" not in res.output
 
 
 class TestUpdate:
