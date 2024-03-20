@@ -95,7 +95,7 @@ def model_json_schema(
         GenerateEmptySchemaForUserClasses
     ] = GenerateEmptySchemaForUserClasses,
     mode: JsonSchemaMode = "validation",
-):
+) -> Dict[str, Any]:
     """
     Generates a JSON schema for a model class.
 
