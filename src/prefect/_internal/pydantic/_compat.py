@@ -18,11 +18,11 @@ if HAS_PYDANTIC_V2:
 
 
 def is_pydantic_v2_compatible(
-    _model_instance: Optional[BaseModel] = None, fn_name: Optional[str] = None
+    model_instance: Optional[BaseModel] = None, fn_name: Optional[str] = None
 ) -> bool:
-    if not isinstance(_model_instance, BaseModel):
+    if not isinstance(model_instance, BaseModel):
         raise TypeError(
-            f"Expected a Pydantic model, but got {type(_model_instance).__name__}"
+            f"Expected a Pydantic model, but got {type(model_instance).__name__}"
         )
 
     should_dump_as_v2_model = (
@@ -60,7 +60,7 @@ def model_dump(
     round_trip: bool = False,
     warnings: bool = True,
 ) -> Dict[str, Any]:
-    if is_pydantic_v2_compatible(_model_instance=model_instance, fn_name="model_dump"):
+    if is_pydantic_v2_compatible(model_instance=model_instance, fn_name="model_dump"):
         return model_instance.model_dump(
             mode=mode,
             include=include,
@@ -116,7 +116,7 @@ def model_json_schema(
         The JSON schema for the given model class.
     """
     if is_pydantic_v2_compatible(
-        _model_instance=model_instance, fn_name="model_json_schema"
+        model_instance=model_instance, fn_name="model_json_schema"
     ):
         schema_generator = GenerateJsonSchema
         return model_instance.model_json_schema(
