@@ -1,10 +1,9 @@
-from typing import Any, Dict, Literal, Optional, Set, Type, Union
+from typing import Any, Dict, Literal, Optional, Set, Union
 
 import typing_extensions
 from pydantic import BaseModel
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS
 
@@ -13,6 +12,9 @@ IncEx: typing_extensions.TypeAlias = (
 )
 
 logger = get_logger("prefect._internal.pydantic")
+
+if HAS_PYDANTIC_V2:
+    from pydantic.json_schema import GenerateJsonSchema
 
 
 def is_pydantic_v2_compatible(
@@ -91,9 +93,7 @@ def model_json_schema(
     *,
     by_alias: bool = True,
     ref_template: str = DEFAULT_REF_TEMPLATE,
-    schema_generator: Type[
-        GenerateEmptySchemaForUserClasses
-    ] = GenerateEmptySchemaForUserClasses,
+    schema_generator=None,
     mode: JsonSchemaMode = "validation",
 ) -> Dict[str, Any]:
     """
@@ -118,6 +118,7 @@ def model_json_schema(
     if is_pydantic_v2_compatible(
         _model_instance=model_instance, fn_name="model_json_schema"
     ):
+        schema_generator = GenerateJsonSchema
         return model_instance.model_json_schema(
             by_alias=by_alias,
             ref_template=ref_template,
