@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from prefect.exceptions import InvalidNameError
 
@@ -19,8 +20,12 @@ def raise_on_name_with_banned_characters(name: str) -> None:
         )
 
 
-def raise_on_name_alphanumeric_dashes_only(value, field_name: str = "value"):
-    if not bool(re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)):
+def raise_on_name_alphanumeric_dashes_only(
+    value: Optional[str], field_name: str = "value"
+):
+    if value and not bool(
+        re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)
+    ):
         raise ValueError(
             f"{field_name} must only contain lowercase letters, numbers, and dashes."
         )
