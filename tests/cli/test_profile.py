@@ -8,7 +8,6 @@ from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
-    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_DEBUG_MODE,
     PREFECT_PROFILES_PATH,
     Profile,
@@ -169,12 +168,11 @@ class TestChangingProfileAndCheckingOrionConnection:
     def test_unhealthy_cloud_connection(self, unhealthy_cloud, profiles):
         save_profiles(profiles)
 
-        with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 0}):
-            invoke_and_assert(
-                ["profile", "use", "prefect-cloud"],
-                expected_output_contains="Error connecting to Prefect Cloud",
-                expected_code=1,
-            )
+        invoke_and_assert(
+            ["profile", "use", "prefect-cloud"],
+            expected_output_contains="Error connecting to Prefect Cloud",
+            expected_code=1,
+        )
 
         profiles = load_profiles()
         assert profiles.active_name == "prefect-cloud"
