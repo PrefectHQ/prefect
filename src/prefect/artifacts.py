@@ -88,7 +88,7 @@ class Artifact(ArtifactRequest):
     @classmethod
     @sync_compatible
     async def get_or_create(
-        cls,
+        cls: type[Self],
         key: Optional[str] = None,
         description: Optional[str] = None,
         data: Optional[Union[Dict[str, Any], Any]] = None,
@@ -225,7 +225,6 @@ async def create_link_artifact(
         The table artifact ID.
     """
     return await LinkArtifact(
-        type=type,
         key=key,
         description=description,
         link=link,
@@ -253,7 +252,6 @@ async def create_markdown_artifact(
         The table artifact ID.
     """
     return await MarkdownArtifact(
-        type=type,
         key=key,
         description=description,
         markdown=markdown,
@@ -281,7 +279,6 @@ async def create_table_artifact(
     """
 
     return await TableArtifact(
-        type=type,
         key=key,
         description=description,
         table=table,
