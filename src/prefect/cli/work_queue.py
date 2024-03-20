@@ -267,12 +267,10 @@ async def pause(
     # If work pool name is not specified,
     # Get confirmation from user that they're OK to pause the work queue
     # in the default work pool.
-    if not pool:
-        pause_workqueue_in_default_workpool = typer.confirm(
-            f"Do you want stop work queue {name} in default work pool ({DEFAULT_AGENT_WORK_POOL_NAME})?"
+    if not pool and not typer.confirm(
+            f"You have not specified a work pool. Are you sure you want to pause {name} work queue in `{DEFAULT_AGENT_WORK_POOL_NAME}`?"
         )
-        if not pause_workqueue_in_default_workpool:
-            raise typer.Abort()
+        exit_with_error("Work queue pause aborted! ")
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
