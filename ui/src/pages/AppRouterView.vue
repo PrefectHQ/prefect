@@ -38,7 +38,7 @@
 
   const { can } = useCreateCan()
   const { config } = await useApiConfig()
-  const api = createPrefectApi(config)
+  const api = await createPrefectApi(config)
   const routes = createWorkspaceRoutes()
 
   provide(canKey, can)
