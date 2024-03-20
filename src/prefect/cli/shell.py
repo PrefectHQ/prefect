@@ -4,9 +4,10 @@ Includes functionalities for running shell commands ad-hoc or serving them as Pr
 with options for logging output, scheduling, and deployment customization.
 """
 
-import io
 import logging
-import shlex
+import subprocess
+import sys
+from subprocess import Popen, SubprocessError
 from typing import List, Optional
 
 import typer
@@ -14,6 +15,7 @@ from typing_extensions import Annotated
 
 from prefect import flow
 from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.context import tags
@@ -21,13 +23,13 @@ from prefect.deployments.runner import EntrypointType
 from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
-from prefect.utilities.processutils import run_process
 
 shell_app = PrefectTyper(name="shell", help="Commands for working with shell commands.")
 app.add_typer(shell_app)
 
 
-async def run_shell_process(
+@flow
+def run_shell_process(
     command: str,
     log_output: bool = True,
 ):
@@ -46,19 +48,30 @@ async def run_shell_process(
 
     logger = get_run_logger() if log_output else logging.getLogger("prefect")
 
-    command_list = shlex.split(command)
-    err_stream = io.StringIO()
-    out_stream = io.StringIO()
+    try:
+        # Execute the command
+        with Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            text=True,
+        ) as proc:
+            stdout, stderr = proc.communicate()
 
-    process = await run_process(command_list, stream_output=(out_stream, err_stream))
+            # Check the exit code
+            if proc.returncode == 0:
+                # Log stdout if the command succeeded
+                if stdout:
+                    logger.info(stdout.strip())
+            else:
+                if stderr:
+                    logger.error(stderr.strip())
 
-    if process.returncode != 0:
-        err_stream.seek(0)
-        logger.error(err_stream.read())
-
-    else:
-        out_stream.seek(0)
-        logger.info(out_stream.read())
+                sys.tracebacklimit = 0
+                exit_with_error(f"Command failed with exit code {proc.returncode}")
+    except SubprocessError as e:
+        logger.error(f"An error occurred while executing the command: {e}")
 
 
 @shell_app.command("watch")
@@ -86,9 +99,11 @@ async def watch(
     tag = (tag or []) + ["shell"]
 
     # Call the shell_run_command flow with provided arguments
-    defined_flow = flow(run_shell_process, name=flow_name, flow_run_name=flow_run_name)
+    defined_flow = run_shell_process.with_option(
+        name=flow_name, flow_run_name=flow_run_name
+    )
     with tags(*tag):
-        await defined_flow(command=command, log_output=log_output)
+        defined_flow(command=command, log_output=log_output)
 
 
 @shell_app.command("serve")
@@ -136,8 +151,7 @@ async def serve(
     schedule = (
         CronSchedule(cron=cron_schedule, timezone=timezone) if cron_schedule else None
     )
-    defined_flow = flow(run_shell_process, name=name)
-    run_shell_process.name = name
+    defined_flow = run_shell_process.with_options(name=name)
 
     runner_deployment = await defined_flow.to_deployment(
         name=deployment_name,
