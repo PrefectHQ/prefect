@@ -130,6 +130,9 @@ async def serve_login_api(cancel_scope, task_status):
         cause = exc.__context__  # Hide the system exit
         traceback.print_exception(type(cause), value=cause, tb=cause.__traceback__)
         cancel_scope.cancel()
+    except KeyboardInterrupt:
+        # `uvicorn.serve` can raise `KeyboardInterrupt` when it's done serving.
+        cancel_scope.cancel()
     else:
         # Exit if we are done serving the API
         # Uvicorn overrides signal handlers so without this Ctrl-C is broken
