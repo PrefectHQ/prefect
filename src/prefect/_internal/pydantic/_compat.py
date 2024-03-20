@@ -90,7 +90,7 @@ def model_json_schema(
     model_instance: BaseModel,
     *,
     by_alias: bool = True,
-    # ref_template: str = DEFAULT_REF_TEMPLATE,
+    ref_template: str = DEFAULT_REF_TEMPLATE,
     schema_generator: Type[
         GenerateEmptySchemaForUserClasses
     ] = GenerateEmptySchemaForUserClasses,
@@ -115,18 +115,17 @@ def model_json_schema(
     dict[str, Any]
         The JSON schema for the given model class.
     """
-    pass
-    # if is_pydantic_v2_compatible(
-    #     _model_instance=model_instance, fn_name="model_json_schema"
-    # ):
-    #     return model_instance.model_json_schema(
-    #         by_alias=by_alias,
-    #         # ref_template=ref_template,
-    #         schema_generator=schema_generator,
-    #         mode=mode,
-    #     )
+    if is_pydantic_v2_compatible(
+        _model_instance=model_instance, fn_name="model_json_schema"
+    ):
+        return model_instance.model_json_schema(
+            by_alias=by_alias,
+            ref_template=ref_template,
+            schema_generator=schema_generator,
+            mode=mode,
+        )
 
-    # return model_instance.schema(
-    #     by_alias=by_alias,
-    #     # ref_template=ref_template,
-    # )
+    return model_instance.schema(
+        by_alias=by_alias,
+        ref_template=ref_template,
+    )
