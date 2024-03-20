@@ -8,7 +8,7 @@ import { AxiosInstance } from 'axios';
 
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-export async function createPrefectApi(config: PrefectConfig) {
+export function createPrefectApi(config: PrefectConfig) {
   const csrfTokenApi = createActions(new CsrfTokenApi(config))
 
   function axiosInstanceSetupHook(axiosInstance: AxiosInstance) {
