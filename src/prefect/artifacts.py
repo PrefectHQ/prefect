@@ -124,7 +124,7 @@ class Artifact(ArtifactRequest):
 
 class LinkArtifact(Artifact):
     link: str
-    link_text: Optional[str]
+    link_text: Optional[str] = None
     type: Optional[str] = "markdown"
 
     async def format(self) -> str:
