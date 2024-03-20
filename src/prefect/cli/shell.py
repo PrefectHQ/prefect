@@ -6,14 +6,13 @@ with options for logging output, scheduling, and deployment customization.
 
 import logging
 import subprocess
-import sys
-from subprocess import Popen, SubprocessError
+import threading
 from typing import List, Optional
 
 import typer
 from typing_extensions import Annotated
 
-from prefect import flow
+from prefect import flow, states
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
@@ -25,6 +24,19 @@ from prefect.settings import PREFECT_UI_URL
 
 shell_app = PrefectTyper(name="shell", help="Commands for working with shell commands.")
 app.add_typer(shell_app)
+
+
+def stream_output(pipe, logger_function):
+    """
+    Read from a pipe line by line and log using the provided logging function.
+
+    Args:
+        pipe (IO): A file-like object for reading process output.
+        logger_function (function): A logging function from the logger.
+    """
+    with pipe:
+        for line in iter(pipe.readline, ""):
+            logger_function(line.strip())
 
 
 @flow
@@ -47,30 +59,28 @@ def run_shell_process(
 
     logger = get_run_logger() if log_output else logging.getLogger("prefect")
 
-    try:
-        # Execute the command
-        with Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True,
-            text=True,
-        ) as proc:
-            stdout, stderr = proc.communicate()
+    # Start the process
+    with subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True
+    ) as proc:
+        # Create threads for streaming stdout and stderr
+        stdout_thread = threading.Thread(
+            target=stream_output, args=(proc.stdout, logger.info)
+        )
+        stderr_thread = threading.Thread(
+            target=stream_output, args=(proc.stderr, logger.error)
+        )
 
-            # Check the exit code
-            if proc.returncode == 0:
-                # Log stdout if the command succeeded
-                if stdout:
-                    logger.info(stdout.strip())
-            else:
-                if stderr:
-                    logger.error(stderr.strip())
-                    logger.error(f"Command failed with exit code {proc.returncode}")
-                    sys.tracebacklimit = 0
-                    raise typer.Exit(proc.returncode)
-    except SubprocessError as e:
-        logger.error(f"An error occurred while executing the command: {e}")
+        stdout_thread.start()
+        stderr_thread.start()
+
+        stdout_thread.join()
+        stderr_thread.join()
+
+        proc.wait()
+        if proc.returncode != 0:
+            logger.error(f"Command failed with exit code {proc.returncode}")
+            raise states.Failed(f"Command failed with exit code {proc.returncode}")
 
 
 @shell_app.command("watch")
