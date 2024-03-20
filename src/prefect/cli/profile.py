@@ -4,6 +4,7 @@ Command line interface for working with profiles.
 
 import os
 import textwrap
+from asyncio import CancelledError
 from typing import Optional
 
 import httpx
@@ -288,6 +289,8 @@ async def check_orion_connection():
                     return ConnectionStatus.EPHEMERAL
                 else:
                     return ConnectionStatus.ORION_CONNECTED
+            except (CancelledError, TimeoutError):
+                return ConnectionStatus.ORION_ERROR
             except Exception as exc:
                 return ConnectionStatus.ORION_ERROR
         else:
@@ -310,3 +313,5 @@ async def check_orion_connection():
             return ConnectionStatus.ORION_ERROR
     except (httpx.ConnectError, httpx.UnsupportedProtocol):
         return ConnectionStatus.INVALID_API
+    except (CancelledError, TimeoutError):
+        return ConnectionStatus.CLOUD_ERROR
