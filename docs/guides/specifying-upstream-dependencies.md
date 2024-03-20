@@ -18,7 +18,9 @@ Results from a task can be provided to other tasks (or subflows) as upstream dep
 !!! note "Tasks vs. other functions"
     **Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including subflows, do not carry the same information about their origin as task results.
 
-For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave with and without stated upstream dependencies:
+When using non-sequential task runners such as the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted tasks is not guaranteed unless their dependencies are specified.
+
+For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave with and without upstream dependencies:
 
 === "Without dependencies"
 
