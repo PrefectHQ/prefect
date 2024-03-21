@@ -1012,6 +1012,7 @@ class TestRunDeployment:
                 ),
             ]
 
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
@@ -1059,6 +1060,7 @@ class TestRunDeployment:
                 ),
             ]
 
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
@@ -1184,6 +1186,7 @@ class TestRunDeployment:
         with respx.mock(
             base_url=PREFECT_API_URL.value(), assert_all_mocked=True
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
@@ -1217,6 +1220,7 @@ class TestRunDeployment:
             assert_all_mocked=True,
             assert_all_called=False,
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
@@ -1261,6 +1265,7 @@ class TestRunDeployment:
             assert_all_mocked=True,
             assert_all_called=False,
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
