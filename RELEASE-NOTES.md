@@ -47,8 +47,6 @@
 * @baisystems made their first contribution in https://github.com/PrefectHQ/prefect/pull/11771
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.4...2.16.5
-
-
 ## Release 2.16.4
 
 ### Flow Run Graph updates
