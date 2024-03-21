@@ -492,7 +492,7 @@ In this case, the trigger will only fire if it sees the `daily-export-initiator`
 
 The `within` parameter for compound and sequence triggers constrains how close in time (in seconds) the child triggers must fire to satisfy the composite trigger.  For example, if the `daily-export-initiator` flow runs, but the other three flows don't write their result files until three hours later, this trigger won't fire.  Placing these time constraints on the triggers can prevent a misfire if you know that the events will generally happen within a specific timeframe, and you don't want a stray older event to be included in the evaluation of the trigger.  If this isn't a concern for you, you may omit the `within` period, in which case there is no limit to how far apart in time the underlying triggers occur.
 
-Any type of triggers may be composed into higher-order composite triggers, including proactive event triggers and metric triggers.  In this example, the trigger will fire if we see flow runs that are stuck in `Pending`, a work pool becoming unready, or the average amount of `Late` work in your workspace going over 10 minutes:
+Any type of trigger may be composed into higher-order composite triggers, including proactive event triggers and metric triggers.  In the following example, the compound trigger will fire if we see any of the following events occur: a flow run stuck in `Pending`, a work pool becoming unready, or the average amount of `Late` work in your workspace going over 10 minutes:
 
 ```json
 {
