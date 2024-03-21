@@ -432,7 +432,7 @@ For example, if you want to run a deployment only after 3 different flows in you
 }
 ```
 
-This trigger will fire once it sees at least one of each of the underlying events happen, then it will reset it's state waiting for the next time these three events all happen again.  The order of the events won't matter, just that they all happen within an hour of one another.
+This trigger will fire once it sees at least one of each of the underlying events happen, then it will reset its state waiting for the next time these three events all happen again.  The order of the events won't matter, just that they all happen within an hour of one another.
 
 If you only want to start looking for those exports after an initial flow run has completed, you can combine the entire previous trigger as the second part of a sequence of two triggers:
 
