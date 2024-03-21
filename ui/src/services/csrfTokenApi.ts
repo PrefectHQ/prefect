@@ -20,13 +20,13 @@ export class CsrfTokenApi extends Api {
         this.startBackgroundTokenRefresh()
     }
 
-    public async addCsrfHeaders(config: InternalAxiosRequestConfig) {
+    public async addCsrfHeaders(config: InternalAxiosRequestConfig, retryCount: number = 0) {
         if (this.csrfSupportEnabled) {
             const csrfToken = await this.getCsrfToken()
             config.headers = config.headers || {}
             config.headers['Prefect-Csrf-Token'] = csrfToken.token
             config.headers['Prefect-Csrf-Client'] = this.clientId
-            config.headers['Prefect-Csrf-Retry-Count'] = config.headers['Prefect-Csrf-Retry-Count'] ?? '0'
+            config.headers['Prefect-Csrf-Retry-Count'] = retryCount.toString()
         }
     }
 
@@ -145,8 +145,7 @@ export function setupCsrfInterceptor(csrfTokenApi: CreateActions<CsrfTokenApi>, 
             if (config && config.headers['Prefect-Csrf-Retry-Count']) {
                 const retryCount = parseInt(config.headers['Prefect-Csrf-Retry-Count'], 10)
                 if (retryCount < MAX_RETRIES) {
-                    await csrfTokenApi.addCsrfHeaders(config)
-                    config.headers['Prefect-Csrf-Retry-Count'] = (retryCount + 1).toString()
+                    await csrfTokenApi.addCsrfHeaders(config, retryCount + 1)
                     return axiosInstance(config)
                 }
             }
