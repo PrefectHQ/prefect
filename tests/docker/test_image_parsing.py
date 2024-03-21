@@ -7,6 +7,8 @@ from prefect.utilities.dockerutils import (
     split_repository_path,
 )
 
+pytestmark = pytest.mark.enable_client_retries
+
 
 @pytest.mark.parametrize(
     "value,expected",

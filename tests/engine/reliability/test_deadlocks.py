@@ -9,6 +9,10 @@ from tests.generic_tasks import (
 
 from prefect import flow
 
+# Enable client retries for all tests in this module, as many rely on
+# retry functionality
+pytestmark = pytest.mark.enable_client_retries
+
 
 @pytest.mark.skip(reason="This test takes multiple minutes")
 def test_map_wait_for_many_tasks():
