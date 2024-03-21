@@ -2,17 +2,9 @@ from httpx import AsyncClient
 
 
 class TestUISchemasValidate:
-    async def test_experiment_disabled(
-        self, client: AsyncClient, disable_enhanced_deployment_parameters
-    ):
-        res = await client.post(
-            "/ui/schemas/validate",
-            json={"schema": {}, "values": {}},
-        )
-        assert res.status_code == 404
-
-    async def test_experiment_enabled(
-        self, client: AsyncClient, enable_enhanced_deployment_parameters
+    async def test_empty_schema_and_values(
+        self,
+        client: AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -21,7 +13,8 @@ class TestUISchemasValidate:
         assert res.status_code == 200
 
     async def test_invalid_schema(
-        self, client: AsyncClient, enable_enhanced_deployment_parameters
+        self,
+        client: AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -45,7 +38,8 @@ class TestUISchemasValidate:
         )
 
     async def test_validation_passed(
-        self, client: AsyncClient, enable_enhanced_deployment_parameters
+        self,
+        client: AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -67,7 +61,8 @@ class TestUISchemasValidate:
         assert "valid" in res and res["valid"] is True
 
     async def test_validation_failed(
-        self, client: AsyncClient, enable_enhanced_deployment_parameters
+        self,
+        client: AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -94,7 +89,8 @@ class TestUISchemasValidate:
         assert "valid" in res and res["valid"] is False
 
     async def test_circular_schema_reference(
-        self, client: AsyncClient, enable_enhanced_deployment_parameters
+        self,
+        client: AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",

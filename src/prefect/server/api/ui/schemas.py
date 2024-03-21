@@ -2,7 +2,6 @@ from typing import Any, Dict
 
 from prefect._vendor.fastapi import Body, Depends, HTTPException, status
 
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
@@ -27,11 +26,6 @@ async def validate_obj(
     values: Dict[str, Any] = Body(..., embed=True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
-    if not experiment_enabled("enhanced_deployment_parameters"):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
     schema = preprocess_schema(schema)
 
     try:
