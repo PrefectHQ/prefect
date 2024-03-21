@@ -39,6 +39,8 @@ from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
 
+pytestmark = pytest.mark.enable_client_retries
+
 
 def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
