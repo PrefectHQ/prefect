@@ -116,16 +116,16 @@ Event triggers are the most common types of trigger, and they are intended to re
 
 The schema that defines an event trigger is as follows:
 
-| Name               | Type               | Supports trailing wildcards | Description |
-| ------------------ | ------------------ | --------------------------- | ----------- |
-| **match**          | object             | :material-check:            | Labels for resources which this Automation will match. |
-| **match_related**  | object             | :material-check:            | Labels for related resources which this Automation will match. |
-| **posture**        | string enum        | N/A                         | The posture of this Automation, either Reactive or Proactive. Reactive automations respond to the presence of the expected events, while Proactive automations respond to the absence of those expected events. |
-| **after**          | array of strings   | :material-check:            | Event(s), one of which must have first been seen to start this automation. |
-| **expect**         | array of strings   | :material-check:            | The event(s) this automation is expecting to see. If empty, this automation will evaluate any matched event. |
-| **for_each**       | array of strings   | :material-close:            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
-| **threshold**      | integer            | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations) |
-| **within**         | number             | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers |
+| Name              | Type             | Supports trailing wildcards | Description                                                                                                                                                                                                                                                                                                                                          |
+| ----------------- | ---------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **match**         | object           | :material-check:            | Labels for resources which this Automation will match.                                                                                                                                                                                                                                                                                               |
+| **match_related** | object           | :material-check:            | Labels for related resources which this Automation will match.                                                                                                                                                                                                                                                                                       |
+| **posture**       | string enum      | N/A                         | The posture of this Automation, either Reactive or Proactive. Reactive automations respond to the presence of the expected events, while Proactive automations respond to the absence of those expected events.                                                                                                                                      |
+| **after**         | array of strings | :material-check:            | Event(s), one of which must have first been seen to start this automation.                                                                                                                                                                                                                                                                           |
+| **expect**        | array of strings | :material-check:            | The event(s) this automation is expecting to see. If empty, this automation will evaluate any matched event.                                                                                                                                                                                                                                         |
+| **for_each**      | array of strings | :material-close:            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
+| **threshold**     | integer          | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations)                                                                                                                                                                                                |
+| **within**        | number           | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers                                                                                                                                                                                     |
 
 ### Resource matching
 
@@ -329,21 +329,21 @@ Prefect defines three metrics today:
 
 The schema of a metric trigger is as follows:
 
-| Name               | Type               | Supports trailing wildcards | Description |
-| ------------------ | ------------------ | --------------------------- | ----------- |
-| **match**          | object             | :material-check:            | Labels for resources which this Automation will match. |
-| **match_related**  | object             | :material-check:            | Labels for related resources which this Automation will match. |
-| **metric**         | `MetricTriggerQuery`        | N/A                         | The definition of the metric query to run |
+| Name              | Type                 | Supports trailing wildcards | Description                                                    |
+| ----------------- | -------------------- | --------------------------- | -------------------------------------------------------------- |
+| **match**         | object               | :material-check:            | Labels for resources which this Automation will match.         |
+| **match_related** | object               | :material-check:            | Labels for related resources which this Automation will match. |
+| **metric**        | `MetricTriggerQuery` | N/A                         | The definition of the metric query to run                      |
 
 And the `MetricTriggerQuery` query is defined as:
 
-| Name               | Type                 |  Description |
-| ------------------ | -------------------- |  ----------- |
-| **name**          | string               |  The name of the Prefect metric to evaluate (see above). |
-| **threshold**  | number               |  The threshold to which the current metric value is compared |
-| **operator**         | string (`"<"`, `"<="`, `">"`, `">="`) | The comparison operator to use to decide if the threshold value is met |
-| **range**         | duration in seconds | How far back to evaluate the metric |
-| **firing_for**         | duration in seconds | How long the value must exceed the threshold before this trigger fires |
+| Name           | Type                                  | Description                                                            |
+| -------------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| **name**       | string                                | The name of the Prefect metric to evaluate (see above).                |
+| **threshold**  | number                                | The threshold to which the current metric value is compared            |
+| **operator**   | string (`"<"`, `"<="`, `">"`, `">="`) | The comparison operator to use to decide if the threshold value is met |
+| **range**      | duration in seconds                   | How far back to evaluate the metric                                    |
+| **firing_for** | duration in seconds                   | How long the value must exceed the threshold before this trigger fires |
 
 For example, to fire when flow runs tagged `production` in your workspace are failing at a rate of 10% or worse for the last hour (in other words, your success rate is below 90%), create this trigger:
 
