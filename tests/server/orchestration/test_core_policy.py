@@ -82,7 +82,6 @@ def fizzling_rule():
     return FizzlingRule
 
 
-# @pytest.mark.enable_client_retries
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestWaitForScheduledTimeRule:
     @pytest.mark.parametrize(

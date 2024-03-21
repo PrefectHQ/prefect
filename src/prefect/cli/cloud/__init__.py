@@ -5,7 +5,6 @@ import signal
 import traceback
 import urllib.parse
 import webbrowser
-from asyncio import CancelledError
 from contextlib import asynccontextmanager
 from typing import Hashable, Iterable, List, Optional, Tuple, Union
 
@@ -428,8 +427,6 @@ async def login(
             )
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
-        except (CancelledError, TimeoutError):
-            exit_with_error("Error connecting to Prefect Cloud: Connection timed out.")
 
     if workspace_handle:
         # Search for the given workspace

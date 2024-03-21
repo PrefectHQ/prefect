@@ -5,8 +5,6 @@ import pytest
 from prefect.testing.docker import capture_builders
 from prefect.utilities.dockerutils import ImageBuilder
 
-pytestmark = pytest.mark.enable_client_retries
-
 
 @pytest.fixture
 def contexts() -> Path:
