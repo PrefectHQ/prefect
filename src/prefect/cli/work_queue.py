@@ -264,9 +264,6 @@ async def pause(
     Pause a work queue.
     """
 
-    # If work pool name is not specified,
-    # Get confirmation from user that they're OK to pause the work queue
-    # in the default work pool.
     if not pool and not typer.confirm(
             f"You have not specified a work pool. Are you sure you want to pause {name} work queue in `{DEFAULT_AGENT_WORK_POOL_NAME}`?"
         )
