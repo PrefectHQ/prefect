@@ -438,9 +438,11 @@ If you want a flow run to complete prior to starting to watch for those three ev
 
 ```json
 {
+  // the outer trigger is now a "sequence" trigger
   "type": "sequence",
   "within": 7200,
   "triggers": [
+    // with the first child trigger expecting a Completed event
     {
       "type": "event",
       "posture": "Reactive",
@@ -450,6 +452,7 @@ If you want a flow run to complete prior to starting to watch for those three ev
         "prefect.resource.role": "flow"
       }
     },
+    // and the second child trigger being the compound trigger from the prior example
     {
       "type": "compound",
       "require": "all",
