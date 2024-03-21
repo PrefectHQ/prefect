@@ -20,7 +20,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
 - Feature : #11773 UI: Add checkboxes for runs for an individual flow to allow multi-selection/-deletion — https://github.com/PrefectHQ/prefect/pull/12285
 - Add a capability to verify ssl certificates in Prefect CLI — https://github.com/PrefectHQ/prefect/pull/11771
-- Add prefect task-runs to cli — https://github.com/PrefectHQ/prefect/pull/12307
+- Add `prefect task-run` command group to CLI — https://github.com/PrefectHQ/prefect/pull/12307
 - Correct emit background task state change events — https://github.com/PrefectHQ/prefect/pull/12352
 - Update `CsrfTokenApi` to retry failed requests due to invalid tokens — https://github.com/PrefectHQ/prefect/pull/12373
 
@@ -46,7 +46,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376 
 
 ### Uncategorized
-- Pin Buildkit to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
+- Pin `BuildKit` to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
 - Backporting the Prefect Cloud composite trigger schemas — https://github.com/PrefectHQ/prefect/pull/12378
 
 ### Contributors
@@ -55,6 +55,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 * @baisystems made their first contribution in https://github.com/PrefectHQ/prefect/pull/11771
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.4...2.16.5
+
 ## Release 2.16.4
 
 ### Flow Run Graph updates
