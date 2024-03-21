@@ -50,8 +50,8 @@ from prefect.settings import (
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
-    PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
@@ -329,6 +329,8 @@ def pytest_sessionstart(session):
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
             # Code is being executed in a unit test context
             PREFECT_UNIT_TEST_MODE: True,
+            # Disable retries unless we opt in explicitly to test retries
+            PREFECT_CLIENT_MAX_RETRIES: 0,
         },
         source=__file__,
     )
@@ -533,26 +535,6 @@ def enable_enhanced_cancellation():
         {
             PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: 1,
             PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: 0,
-        }
-    ):
-        yield
-
-
-@pytest.fixture
-def enable_enhanced_deployment_parameters():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS: 1,
-        }
-    ):
-        yield
-
-
-@pytest.fixture
-def disable_enhanced_deployment_parameters():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS: 0,
         }
     ):
         yield
