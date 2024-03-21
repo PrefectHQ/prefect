@@ -20,7 +20,11 @@ with silence_docker_warnings():
     from docker import DockerClient
     from docker.errors import NotFound
 
-pytestmark = pytest.mark.service("docker")
+pytestmark = [
+    pytest.mark.service("docker"),
+    pytest.mark.timeout(120.0),
+    pytest.mark.enable_client_retries,
+]
 
 
 @pytest.fixture
