@@ -6,6 +6,7 @@
 - The flow run graph UI enhancements for visualizing state changes and artifacts added in 2.16.4 are now enabled by default.
 
 ### Enhancements
+- Render artifacts and states on the flow run graph by default. — https://github.com/PrefectHQ/prefect/pull/12300
 - Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
 - Add a select all flow runs checkbox to the flow runs page. — https://github.com/PrefectHQ/prefect/pull/12356
 - remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
@@ -27,40 +28,25 @@
 - Integrate `CsrfMiddleware` into API server — https://github.com/PrefectHQ/prefect/pull/12303
 - Add CSRF support to client — https://github.com/PrefectHQ/prefect/pull/12314
 - Return 422 when CSRF is disabled and delete expired tokens — https://github.com/PrefectHQ/prefect/pull/12342
-- [pydantic v2] init compat layer — https://github.com/PrefectHQ/prefect/pull/12345
+- Add `model_dump` definition for Pydantic v2 compatibility layer — https://github.com/PrefectHQ/prefect/pull/12345
 - Implement CSRF support in the UI — https://github.com/PrefectHQ/prefect/pull/12354
 
 ### Documentation
 - Add upstream dependencies guide to docs — https://github.com/PrefectHQ/prefect/pull/12351
-- Documentation updates for event and metric triggers — https://github.com/PrefectHQ/prefect/pull/12366
-- Documentation for the new compound and sequence triggers — https://github.com/PrefectHQ/prefect/pull/12374
+- Update documentation on event and metric automation triggers — https://github.com/PrefectHQ/prefect/pull/12366
+- Add documentation on compound and sequence automation triggers — https://github.com/PrefectHQ/prefect/pull/12374
 - Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376 
 
 ### Uncategorized
 - Pin Buildkit to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
 - Backporting the Prefect Cloud composite trigger schemas — https://github.com/PrefectHQ/prefect/pull/12378
 
-## New Contributors
+### Contributors
+* @hainenber
 * @JiginJayaprakash made their first contribution in https://github.com/PrefectHQ/prefect/pull/12307
 * @baisystems made their first contribution in https://github.com/PrefectHQ/prefect/pull/11771
 
-### Contributors
-- @JiginJayaprakash
-- @abrookins
-- @baisystems
-- @bunchesofdonald
-- @chrisguidry
-- @collincchoy
-- @hainenber
-- @jakekaplan
-- @kevingrismore
-- @urimandujano
-- @znicholasbrown
-- @zzstoatzz
-
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.4...2.16.5
-
-
 ## Release 2.16.4
 
 ### Flow Run Graph updates
