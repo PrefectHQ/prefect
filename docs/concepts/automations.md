@@ -391,7 +391,7 @@ To detect when the average lateness of your Kubernetes workloads (running on a w
 
 ### Composite triggers
 
-To express scenarios involving several kinds of events and metrics, you can use Prefect's `compound` and `sequence` triggers.  These higher-order triggers are composed from combinations of underlying `event` and `metric` triggers, and will fire when some combination of those underlying triggers do.
+To express scenarios involving several kinds of events and metrics, you can use Prefect's `compound` and `sequence` triggers.  These higher-order triggers are composed from a set of underlying `event` and `metric` triggers, and will fire when some defined combination of those triggers do.
 
 For example, if you want to run a deployment only after 3 different flows in your workspace have written their results to an S3 bucket, combine them with a 'compound' trigger:
 
@@ -432,7 +432,7 @@ For example, if you want to run a deployment only after 3 different flows in you
 }
 ```
 
-This trigger will fire once it sees at least one of each of the underlying events happen, then it will reset its state waiting for the next time these three events all happen again.  The order of the events won't matter, just that all of the events occur within one hour.
+This trigger will fire once it sees at least one of each of the underlying event triggers fire, then it will reset its state waiting for the next time these three events all happen again.  The order of the events won't matter, just that all of the events occur within one hour.
 
 If you only want to start looking for those export flow runs after an initial flow run has completed, you can combine the entire previous trigger as the second part of a sequence of two triggers:
 
@@ -490,7 +490,7 @@ If you only want to start looking for those export flow runs after an initial fl
 
 In this case, the trigger will only fire if it sees the `daily-export-initiator` flow complete, and then the three files written by the other flows.
 
-The `within` parameter for compound and sequence triggers constrains how close in time (in seconds) the child triggers must fire to satisfy the composite trigger.  For example, if the `daily-export-initiator` flow runs, but the other three flows don't write their result files until three hours later, this trigger won't fire.  Placing these time constraints on the triggers can prevent a misfire if you know that the events will generally happen within a specific timeframe, and you don't want a stray older event to be included in the evaluation of the trigger.  If this isn't a concern for you, you may omit the `within` period, in which case there is no limit to how far apart in time the underlying triggers occur.
+The `within` parameter for compound and sequence triggers constrains how close in time (in seconds) the child triggers must fire to satisfy the composite trigger.  For example, if the `daily-export-initiator` flow runs, but the other three flows don't write their result files until three hours later, this trigger won't fire.  Placing these time constraints on the triggers can prevent a misfire if you know that the events will generally happen within a specific timeframe, and you don't want a stray older event to be included in the evaluation of the trigger.  If this isn't a concern for you, you may omit the `within` period, in which case there is no limit to how far apart in time the child triggers occur.
 
 Any type of trigger may be composed into higher-order composite triggers, including proactive event triggers and metric triggers.  In the following example, the compound trigger will fire if we see any of the following events occur: a flow run stuck in `Pending`, a work pool becoming unready, or the average amount of `Late` work in your workspace going over 10 minutes:
 
@@ -532,22 +532,22 @@ Any type of trigger may be composed into higher-order composite triggers, includ
 }
 ```
 
-For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of underlying triggers.  In the example above, if you feel that you are receiving too many spurious notifications for issues that resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order for the compound trigger to fire indicating a more serious problem.  Sequence triggers, on the other hand, always require all of their underlying triggers to fire.
+For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of child triggers.  In the example above, if you feel that you are receiving too many spurious notifications for issues that resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order for the compound trigger to fire indicating a more serious problem.  Sequence triggers, on the other hand, always require all of their child triggers to fire.
 
 Compound triggers are defined as:
 
-| Name         | Type                        | Description                                                                  |
-| ------------ | --------------------------- | ---------------------------------------------------------------------------- |
-| **require**  | number, `"any"`, or `"all"` | How many of the underlying triggers must fire for this trigger to fire       |
-| **within**   | time, in seconds            | How close in time the underlying triggers must fire for this trigger to fire |
-| **triggers** | array of other triggers     |                                                                              |
+| Name         | Type                        | Description                                                             |
+| ------------ | --------------------------- | ----------------------------------------------------------------------- |
+| **require**  | number, `"any"`, or `"all"` | How many of the child triggers must fire for this trigger to fire       |
+| **within**   | time, in seconds            | How close in time the child triggers must fire for this trigger to fire |
+| **triggers** | array of other triggers     |                                                                         |
 
 Sequence triggers are defined as:
 
-| Name         | Type                    | Description                                                                  |
-| ------------ | ----------------------- | ---------------------------------------------------------------------------- |
-| **within**   | time, in seconds        | How close in time the underlying triggers must fire for this trigger to fire |
-| **triggers** | array of other triggers |                                                                              |
+| Name         | Type                    | Description                                                             |
+| ------------ | ----------------------- | ----------------------------------------------------------------------- |
+| **within**   | time, in seconds        | How close in time the child triggers must fire for this trigger to fire |
+| **triggers** | array of other triggers |                                                                         |
 
 
 ## Create an automation via deployment triggers
