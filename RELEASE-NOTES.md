@@ -21,7 +21,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - Feature : #11773 UI: Add checkboxes for runs for an individual flow to allow multi-selection/-deletion — https://github.com/PrefectHQ/prefect/pull/12285
 - Add a capability to verify ssl certificates in Prefect CLI — https://github.com/PrefectHQ/prefect/pull/11771
 - Add prefect task-runs to cli — https://github.com/PrefectHQ/prefect/pull/12307
-- [background tasks] emit pending event — https://github.com/PrefectHQ/prefect/pull/12352
+- Correct emit background task state change events — https://github.com/PrefectHQ/prefect/pull/12352
 - Update `CsrfTokenApi` to retry failed requests due to invalid tokens — https://github.com/PrefectHQ/prefect/pull/12373
 
 ### Fixes
