@@ -19,7 +19,6 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
 - remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
 - Feature : #11773 UI: Add checkboxes for runs for an individual flow to allow multi-selection/-deletion — https://github.com/PrefectHQ/prefect/pull/12285
-- Retry 500s to make flow and task runs more resilient — https://github.com/PrefectHQ/prefect/pull/12084
 - Add a capability to verify ssl certificates in Prefect CLI — https://github.com/PrefectHQ/prefect/pull/11771
 - Add prefect task-runs to cli — https://github.com/PrefectHQ/prefect/pull/12307
 - [background tasks] emit pending event — https://github.com/PrefectHQ/prefect/pull/12352
