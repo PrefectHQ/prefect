@@ -102,7 +102,10 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
-REMOVED_EXPERIMENTAL_FLAGS = {"PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI"}
+REMOVED_EXPERIMENTAL_FLAGS = {
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+}
 
 
 class Setting(Generic[T]):
@@ -590,6 +593,16 @@ PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
 )
 """If `True`, disables SSL checking to allow insecure requests.
 This is recommended only during development, e.g. when using self-signed certificates.
+"""
+
+PREFECT_API_SSL_CERT_FILE = Setting(
+    str,
+    default=os.environ.get("SSL_CERT_FILE"),
+)
+"""
+This configuration settings option specifies the path to an SSL certificate file. 
+When set, it allows the application to use the specified certificate for secure communication. 
+If left unset, the setting will default to the value provided by the `SSL_CERT_FILE` environment variable.
 """
 
 PREFECT_API_URL = Setting(
@@ -1382,11 +1395,6 @@ Whether or not to warn when experimental Prefect visualize is used.
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental enhanced flow run cancellation.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS = Setting(bool, default=True)
-"""
-Whether or not to enable enhanced deployment parameters.
 """
 
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
