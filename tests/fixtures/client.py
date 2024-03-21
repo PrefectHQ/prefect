@@ -5,11 +5,7 @@ import pytest
 from prefect import flow
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.settings import (
-    PREFECT_CLIENT_MAX_RETRIES,
-    PREFECT_CLOUD_API_URL,
-    temporary_settings,
-)
+from prefect.settings import PREFECT_CLOUD_API_URL
 
 
 @pytest.fixture
@@ -53,19 +49,3 @@ def test_block():
         foo: str
 
     return x
-
-
-@pytest.fixture(autouse=True)
-def enable_client_retries_if_marked(request):
-    """
-    Client retries are disabled during testing by default to reduce overhead.
-
-    Test functions or classes can be marked with `@pytest.mark.enable_client_retries`
-    to turn on client retries if they are testing retry functionality.
-    """
-    marker = request.node.get_closest_marker("enable_client_retries")
-    if marker is not None:
-        with temporary_settings(updates={PREFECT_CLIENT_MAX_RETRIES: 5}):
-            yield True
-    else:
-        yield False

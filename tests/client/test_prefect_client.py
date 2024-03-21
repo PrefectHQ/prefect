@@ -79,7 +79,6 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
-    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLOUD_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_UNIT_TEST_MODE,
@@ -88,10 +87,6 @@ from prefect.settings import (
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-
-# Enable client retries for all tests in this module, as many rely on
-# retry functionality
-pytestmark = pytest.mark.enable_client_retries
 
 
 @pytest.fixture
@@ -2125,12 +2120,11 @@ async def test_server_error_does_not_raise_on_client():
     app = create_app(ephemeral=True)
     app.api_app.add_api_route("/raise_error", raise_error)
 
-    with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 0}):
-        async with PrefectClient(
-            api=app,
-        ) as client:
-            with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
-                await client._client.get("/raise_error")
+    async with PrefectClient(
+        api=app,
+    ) as client:
+        with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
+            await client._client.get("/raise_error")
 
 
 async def test_prefect_client_follow_redirects():
