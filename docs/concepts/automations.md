@@ -535,7 +535,7 @@ Any type of trigger may be composed into higher-order composite triggers, includ
 }
 ```
 
-For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of child triggers.  In the example above, if you feel that you are receiving too many spurious notifications for issues that resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order for the compound trigger to fire.  Sequence triggers, on the other hand, always require all of their child triggers to fire before they fire..
+For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of child triggers.  In the example above, if you feel that you are receiving too many spurious notifications for issues that resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order for the compound trigger to fire.  Sequence triggers, on the other hand, always require all of their child triggers to fire before they fire.
 
 Compound triggers are defined as:
 
