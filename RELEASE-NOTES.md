@@ -19,7 +19,7 @@
 - Integrate `CsrfMiddleware` into server — https://github.com/PrefectHQ/prefect/pull/12303
 - Add CSRF support to orchestration client — https://github.com/PrefectHQ/prefect/pull/12314
 - Return 422 when CSRF is disabled and delete expired tokens — https://github.com/PrefectHQ/prefect/pull/12342
-- [pydantic v2] init compat layer — https://github.com/PrefectHQ/prefect/pull/12345
+- Add `model_dump` definition for Pydantic v2 compatibility layer — https://github.com/PrefectHQ/prefect/pull/12345
 - Implement CSRF support in the UI — https://github.com/PrefectHQ/prefect/pull/12354
 
 ### Documentation
