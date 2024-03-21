@@ -102,7 +102,10 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
-REMOVED_EXPERIMENTAL_FLAGS = {"PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI"}
+REMOVED_EXPERIMENTAL_FLAGS = {
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+}
 
 
 class Setting(Generic[T]):
@@ -1382,11 +1385,6 @@ Whether or not to warn when experimental Prefect visualize is used.
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental enhanced flow run cancellation.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS = Setting(bool, default=True)
-"""
-Whether or not to enable enhanced deployment parameters.
 """
 
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
