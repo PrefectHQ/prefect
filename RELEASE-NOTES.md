@@ -2,10 +2,8 @@
 
 ## Release 2.16.5
 
-### Exciting New Features 🎉
-- Render artifacts and states on the flow run graph by default. — https://github.com/PrefectHQ/prefect/pull/12300
-
 ### Enhancements
+- Render artifacts and states on the flow run graph by default. — https://github.com/PrefectHQ/prefect/pull/12300
 - Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
 - Add a select all flow runs checkbox to the flow runs page. — https://github.com/PrefectHQ/prefect/pull/12356
 - remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
