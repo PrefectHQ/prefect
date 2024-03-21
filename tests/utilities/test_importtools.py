@@ -34,6 +34,10 @@ class Foo:
 # Note we use the hosted API to avoid Postgres engine caching errors
 pytest.mark.usefixtures("hosted_orion")
 
+# Enable client retries for all tests in this module, as many rely on
+# retry functionality
+pytestmark = pytest.mark.enable_client_retries
+
 
 @pytest.mark.parametrize(
     "obj,expected",

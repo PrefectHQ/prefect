@@ -1,7 +1,10 @@
 import pytest
 
 from prefect.logging.handlers import APILogHandler
-from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
+from prefect.settings import (
+    PREFECT_LOGGING_TO_API_ENABLED,
+    temporary_settings,
+)
 
 
 @pytest.fixture(autouse=True)

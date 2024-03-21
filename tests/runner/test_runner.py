@@ -45,6 +45,8 @@ from prefect.settings import (
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import parse_image_tag
 
+pytestmark = pytest.mark.enable_client_retries
+
 
 @flow(version="test")
 def dummy_flow_1():
