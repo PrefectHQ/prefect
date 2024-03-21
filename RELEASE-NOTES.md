@@ -13,7 +13,6 @@ See the following pull request for implementation details:
 ## Visualize state changes and artifacts in the UI
 Additionally, the flow run graph UI enhancements for visualizing state changes and artifacts added in 2.16.4 are now enabled by default. See [the release notes in 2.16.14 for more details](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-2164)!
 
-
 ### Enhancements
 - Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
 - remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
