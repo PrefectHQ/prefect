@@ -391,7 +391,166 @@ To detect when the average lateness of your Kubernetes workloads (running on a w
 
 ### Composite triggers
 
-[more information coming soon]
+To create a trigger from multiple kinds of events and metrics, use a `compound` or `sequence` trigger.  These higher-order triggers are composed from a set of underlying `event` and `metric` triggers.
+
+For example, if you want to run a deployment only after three different flows in your workspace have written their results to a remote filesystem, combine them with a 'compound' trigger:
+
+```json
+{
+  "type": "compound",
+  "require": "all",
+  "within": 3600,
+  "triggers": [
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.block.remote-file-system.write_path.called"],
+      "match_related": {
+        "prefect.resource.name": "daily-customer-export",
+        "prefect.resource.role": "flow"
+      }
+    },
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.block.remote-file-system.write_path.called"],
+      "match_related": {
+        "prefect.resource.name": "daily-revenue-export",
+        "prefect.resource.role": "flow"
+      }
+    },
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.block.remote-file-system.write_path.called"],
+      "match_related": {
+        "prefect.resource.name": "daily-expenses-export",
+        "prefect.resource.role": "flow"
+      }
+    }
+  ]
+}
+```
+
+This trigger will fire once it sees at least one of each of the underlying event triggers fire within the time frame specified. Then the trigger will reset its state and fire the next time these three events all happen.  The order the events occur doesn't matter, just that all of the events occur within one hour.
+
+If you want a flow run to complete prior to starting to watch for those three events,  you can combine the entire previous trigger as the second part of a sequence of two triggers:
+
+```json
+{
+  // the outer trigger is now a "sequence" trigger
+  "type": "sequence",
+  "within": 7200,
+  "triggers": [
+    // with the first child trigger expecting a Completed event
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.flow-run.Completed"],
+      "match_related": {
+        "prefect.resource.name": "daily-export-initiator",
+        "prefect.resource.role": "flow"
+      }
+    },
+    // and the second child trigger being the compound trigger from the prior example
+    {
+      "type": "compound",
+      "require": "all",
+      "within": 3600,
+      "triggers": [
+        {
+          "type": "event",
+          "posture": "Reactive",
+          "expect": ["prefect.block.remote-file-system.write_path.called"],
+          "match_related": {
+            "prefect.resource.name": "daily-customer-export",
+            "prefect.resource.role": "flow"
+          }
+        },
+        {
+          "type": "event",
+          "posture": "Reactive",
+          "expect": ["prefect.block.remote-file-system.write_path.called"],
+          "match_related": {
+            "prefect.resource.name": "daily-revenue-export",
+            "prefect.resource.role": "flow"
+          }
+        },
+        {
+          "type": "event",
+          "posture": "Reactive",
+          "expect": ["prefect.block.remote-file-system.write_path.called"],
+          "match_related": {
+            "prefect.resource.name": "daily-expenses-export",
+            "prefect.resource.role": "flow"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+In this case, the trigger will only fire if it sees the `daily-export-initiator` flow complete, and then the three files written by the other flows.
+
+The `within` parameter for compound and sequence triggers constrains how close in time (in seconds) the child triggers must fire to satisfy the composite trigger.  For example, if the `daily-export-initiator` flow runs, but the other three flows don't write their result files until three hours later, this trigger won't fire.  Placing these time constraints on the triggers can prevent a misfire if you know that the events will generally happen within a specific timeframe, and you don't want a stray older event to be included in the evaluation of the trigger.  If this isn't a concern for you, you may omit the `within` period, in which case there is no limit to how far apart in time the child triggers occur.
+
+Any type of trigger may be composed into higher-order composite triggers, including proactive event triggers and metric triggers.  In the following example, the compound trigger will fire if any of the following events occur: a flow run stuck in `Pending`, a work pool becoming unready, or the average amount of `Late` work in your workspace going over 10 minutes:
+
+```json
+{
+  "type": "compound",
+  "require": "any",
+  "triggers": [
+    {
+      "type": "event",
+      "posture": "Proactive",
+      "after": ["prefect.flow-run.Pending"],
+      "expect": ["prefect.flow-run.Running", "prefect.flow-run.Crashed"],
+      "for_each": ["prefect.resource.id"],
+      "match_related": {
+        "prefect.resource.name": "daily-customer-export",
+        "prefect.resource.role": "flow"
+      }
+    },
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.work-pool.not_ready"],
+      "match": {
+        "prefect.resource.name": "kubernetes-workers",
+      }
+    },
+    {
+      "type": "metric",
+      "metric": {
+        "name": "lateness",
+        "operator": ">",
+        "threshold": 600,
+        "range": 3600,
+        "firing_for": 300
+      }
+    }
+  ]
+}
+```
+
+For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of child triggers.  In the example above, if you feel that you are receiving too many spurious notifications for issues that resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order for the compound trigger to fire.  Sequence triggers, on the other hand, always require all of their child triggers to fire before they fire.
+
+Compound triggers are defined as:
+
+| Name         | Type                        | Description                                                             |
+| ------------ | --------------------------- | ----------------------------------------------------------------------- |
+| **require**  | number, `"any"`, or `"all"` | How many of the child triggers must fire for this trigger to fire       |
+| **within**   | time, in seconds            | How close in time the child triggers must fire for this trigger to fire |
+| **triggers** | array of other triggers     |                                                                         |
+
+Sequence triggers are defined as:
+
+| Name         | Type                    | Description                                                             |
+| ------------ | ----------------------- | ----------------------------------------------------------------------- |
+| **within**   | time, in seconds        | How close in time the child triggers must fire for this trigger to fire |
+| **triggers** | array of other triggers |                                                                         |
 
 
 ## Create an automation via deployment triggers
