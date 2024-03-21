@@ -1390,6 +1390,7 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1410,6 +1411,7 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1430,6 +1432,7 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
