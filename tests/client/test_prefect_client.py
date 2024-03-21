@@ -8,6 +8,7 @@ from unittest.mock import ANY, MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
+import certifi
 import httpcore
 import httpx
 import pendulum
@@ -74,10 +75,10 @@ from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
+    PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
-    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLOUD_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_UNIT_TEST_MODE,
@@ -1366,6 +1367,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
     mock.assert_called_once_with(
         headers=ANY,
+        verify=ANY,
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
@@ -1379,6 +1381,70 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
+        verify=ANY,
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+        enable_csrf_support=ANY,
+    )
+
+
+async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
+    with temporary_settings(
+        updates={
+            PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False,
+            PREFECT_API_SSL_CERT_FILE: "my_cert.pem",
+        }
+    ):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify="my_cert.pem",
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+        enable_csrf_support=ANY,
+    )
+
+
+async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
+    os.environ["SSL_CERT_FILE"] = "my_cert.pem"
+
+    with temporary_settings(
+        updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
+        set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
+    ):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify="my_cert.pem",
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+        enable_csrf_support=ANY,
+    )
+
+
+async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
+    os.environ["SSL_CERT_FILE"] = ""
+
+    with temporary_settings(
+        updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
+        set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
+    ):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify=certifi.where(),
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
@@ -2054,12 +2120,11 @@ async def test_server_error_does_not_raise_on_client():
     app = create_app(ephemeral=True)
     app.api_app.add_api_route("/raise_error", raise_error)
 
-    with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 0}):
-        async with PrefectClient(
-            api=app,
-        ) as client:
-            with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
-                await client._client.get("/raise_error")
+    async with PrefectClient(
+        api=app,
+    ) as client:
+        with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
+            await client._client.get("/raise_error")
 
 
 async def test_prefect_client_follow_redirects():
