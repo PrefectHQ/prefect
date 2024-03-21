@@ -391,7 +391,7 @@ To detect when the average lateness of your Kubernetes workloads (running on a w
 
 ### Composite triggers
 
-To create a trigger from multiple kinds of events and metrics, use a `compound` or`sequence` trigger.  These higher-order triggers are composed from a set of underlying `event` and `metric` triggers.
+To create a trigger from multiple kinds of events and metrics, use a `compound` or `sequence` trigger.  These higher-order triggers are composed from a set of underlying `event` and `metric` triggers.
 
 For example, if you want to run a deployment only after three different flows in your workspace have written their results to a remote filesystem, combine them with a 'compound' trigger:
 
