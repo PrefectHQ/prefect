@@ -15,7 +15,7 @@ from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
-from prefect.engine import propose_state
+from prefect.engine import emit_task_run_state_change_event, propose_state
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
@@ -204,6 +204,12 @@ class TaskServer:
                 f" server returned a non-pending state {state.type.value!r}."
                 " Task run may have already begun execution."
             )
+
+        emit_task_run_state_change_event(
+            task_run=task_run,
+            initial_state=task_run.state,
+            validated_state=state,
+        )
 
         self._runs_task_group.start_soon(
             partial(
