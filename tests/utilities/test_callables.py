@@ -626,29 +626,49 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
-            assert schema.dict() == {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "color": {
-                        "title": "color",
-                        "default": "RED",
-                        "allOf": [{"$ref": "#/definitions/Color"}],
-                        "position": 0,
-                    }
-                },
-                "definitions": {
-                    "Color": {
-                        "title": "Color",
-                        "description": "An enumeration.",
-                        "enum": [
-                            "RED",
-                            "GREEN",
-                            "BLUE",
-                        ],
-                    }
-                },
-            }
+
+            if HAS_PYDANTIC_V2:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "color": {
+                            "allOf": [{"$ref": "#/definitions/Color"}],
+                            "default": "RED",
+                            "position": 0,
+                            "title": "color",
+                        }
+                    },
+                    "definitions": {
+                        "Color": {
+                            "enum": ["RED", "GREEN", "BLUE"],
+                            "title": "Color",
+                            "type": "string",
+                        }
+                    },
+                }
+            else:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "color": {
+                            "title": "color",
+                            "default": "RED",
+                            "position": 0,
+                            "allOf": [{"$ref": "#/definitions/Color"}],
+                        }
+                    },
+                    "definitions": {
+                        "Color": {
+                            "title": "Color",
+                            "description": "An enumeration.",
+                            "enum": ["RED", "GREEN", "BLUE"],
+                        }
+                    },
+                }
+
+            assert schema.dict() == expected_schema
 
     def test_methods_with_complex_arguments(self):
         class Foo:
@@ -665,26 +685,54 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
-            assert schema.dict() == {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "title": "x",
-                        "type": "string",
-                        "format": "date-time",
-                        "position": 0,
+            if HAS_PYDANTIC_V2:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "x": {
+                            "format": "date-time",
+                            "position": 0,
+                            "title": "x",
+                            "type": "string",
+                        },
+                        "y": {
+                            "default": 42,
+                            "position": 1,
+                            "title": "y",
+                            "type": "integer",
+                        },
+                        "z": {
+                            "default": None,
+                            "position": 2,
+                            "title": "z",
+                            "type": "boolean",
+                        },
                     },
-                    "y": {
-                        "title": "y",
-                        "default": 42,
-                        "type": "integer",
-                        "position": 1,
+                    "required": ["x"],
+                }
+            else:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "x": {
+                            "title": "x",
+                            "type": "string",
+                            "format": "date-time",
+                            "position": 0,
+                        },
+                        "y": {
+                            "title": "y",
+                            "default": 42,
+                            "type": "integer",
+                            "position": 1,
+                        },
+                        "z": {"title": "z", "type": "boolean", "position": 2},
                     },
-                    "z": {"title": "z", "type": "boolean", "position": 2},
-                },
-                "required": ["x"],
-            }
+                    "required": ["x"],
+                }
+            assert schema.dict() == expected_schema
 
 
 class TestParseFlowDescriptionToSchema:
