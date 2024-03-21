@@ -26,8 +26,8 @@
 
 ### Documentation
 - Add upstream dependencies guide to docs — https://github.com/PrefectHQ/prefect/pull/12351
-- Documentation updates for event and metric triggers — https://github.com/PrefectHQ/prefect/pull/12366
-- Documentation for the new compound and sequence triggers — https://github.com/PrefectHQ/prefect/pull/12374
+- Update documentation on event and metric automation triggers — https://github.com/PrefectHQ/prefect/pull/12366
+- Add documentation on compound and sequence automation triggers — https://github.com/PrefectHQ/prefect/pull/12374
 
 ### Uncategorized
 - Ft 12250: Added prefect task-runs to cli — https://github.com/PrefectHQ/prefect/pull/12307
