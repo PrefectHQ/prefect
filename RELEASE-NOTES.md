@@ -46,7 +46,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376 
 
 ### Uncategorized
-- Pin Buildkit to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
+- Pin `BuildKit` to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
 - Backporting the Prefect Cloud composite trigger schemas — https://github.com/PrefectHQ/prefect/pull/12378
 
 ### Contributors
