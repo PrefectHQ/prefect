@@ -3,17 +3,23 @@
 ## Release 2.16.5
 
 ### Exciting New Features 🎉
-- Render artifacts and states on the flow run graph by default. — https://github.com/PrefectHQ/prefect/pull/12300
+- The flow run graph UI enhancements for visualizing state changes and artifacts added in 2.16.4 are now enabled by default.
 
 ### Enhancements
 - Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
 - Add a select all flow runs checkbox to the flow runs page. — https://github.com/PrefectHQ/prefect/pull/12356
 - remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
 - Feature : #11773 UI: Add checkboxes for runs for an individual flow to allow multi-selection/-deletion — https://github.com/PrefectHQ/prefect/pull/12285
+- Retry 500s to make flow and task runs more resilient — https://github.com/PrefectHQ/prefect/pull/12084
+- Add a capability to verify ssl certificates in Prefect CLI — https://github.com/PrefectHQ/prefect/pull/11771
+- Add prefect task-runs to cli — https://github.com/PrefectHQ/prefect/pull/12307
+- [background tasks] emit pending event — https://github.com/PrefectHQ/prefect/pull/12352
+- Update `CsrfTokenApi` to retry failed requests due to invalid tokens — https://github.com/PrefectHQ/prefect/pull/12373
 
 ### Fixes
 - Refactor logic to set `task_key` for background tasks — https://github.com/PrefectHQ/prefect/pull/12337
 - Correct a memory leak with the outbound task run websockets — https://github.com/PrefectHQ/prefect/pull/12346
+- fix(task/flow): correct type hint for possibly async `@flow` hooks — https://github.com/PrefectHQ/prefect/pull/12231
 
 ### Experimental
 - Create `CsrfToken` model and utilities — https://github.com/PrefectHQ/prefect/pull/12289
@@ -28,17 +34,10 @@
 - Add upstream dependencies guide to docs — https://github.com/PrefectHQ/prefect/pull/12351
 - Documentation updates for event and metric triggers — https://github.com/PrefectHQ/prefect/pull/12366
 - Documentation for the new compound and sequence triggers — https://github.com/PrefectHQ/prefect/pull/12374
+- Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376 
 
 ### Uncategorized
-- Ft 12250: Added prefect task-runs to cli — https://github.com/PrefectHQ/prefect/pull/12307
-- Fail fast everywhere — https://github.com/PrefectHQ/prefect/pull/12323
 - Pin Buildkit to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
-- [background tasks] emit pending event — https://github.com/PrefectHQ/prefect/pull/12352
-- Enhancement: Base client retry on 500 — https://github.com/PrefectHQ/prefect/pull/12084
-- fix(task/flow): correct type hint for possibly async `@flow` hooks — https://github.com/PrefectHQ/prefect/pull/12231
-- Update `CsrfTokenApi` to retry failed requests due to invalid tokens — https://github.com/PrefectHQ/prefect/pull/12373
-- Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376
-- add a capability to verify ssl certificate in Prefect CLI — https://github.com/PrefectHQ/prefect/pull/11771
 - Backporting the Prefect Cloud composite trigger schemas — https://github.com/PrefectHQ/prefect/pull/12378
 
 ## New Contributors
