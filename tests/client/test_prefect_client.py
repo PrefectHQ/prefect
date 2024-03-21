@@ -88,10 +88,6 @@ from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 
-# Enable client retries for all tests in this module, as many rely on
-# retry functionality
-pytestmark = pytest.mark.enable_client_retries
-
 
 @pytest.fixture
 def enable_infra_overrides():
@@ -1389,7 +1385,6 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
-        enable_csrf_support=ANY,
     )
 
 
@@ -1410,7 +1405,6 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
-        enable_csrf_support=ANY,
     )
 
 
@@ -1431,7 +1425,6 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
-        enable_csrf_support=ANY,
     )
 
 

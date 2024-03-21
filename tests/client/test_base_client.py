@@ -76,11 +76,6 @@ def disable_jitter():
         yield
 
 
-# Enable client retries for all tests in this module, as many rely on
-# retry functionality
-pytestmark = pytest.mark.enable_client_retries
-
-
 class TestPrefectHttpxClient:
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
