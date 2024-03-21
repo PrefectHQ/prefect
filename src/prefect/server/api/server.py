@@ -83,7 +83,9 @@ API_ROUTERS = (
     api.block_capabilities.router,
     api.collections.router,
     api.variables.router,
+    api.csrf_token.router,
     api.ui.flow_runs.router,
+    api.ui.schemas.router,
     api.ui.task_runs.router,
     api.admin.router,
     api.root.router,
@@ -563,6 +565,9 @@ def create_app(
                 services.flow_run_notifications.FlowRunNotifications()
             )
 
+        if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
+
         loop = asyncio.get_running_loop()
 
         app.state.services = {
@@ -642,6 +647,9 @@ def create_app(
         == "sqlite"
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
+
+    if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
+        app.add_middleware(api.middleware.CsrfMiddleware)
 
     api_app.mount(
         "/static",

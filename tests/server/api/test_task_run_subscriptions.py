@@ -10,9 +10,9 @@ from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.starlette.testclient import TestClient, WebSocketTestSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.client.schemas import TaskRun
 from prefect.server import models
 from prefect.server.api import task_runs
-from prefect.server.schemas.core import TaskRun
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
@@ -21,7 +21,7 @@ from prefect.states import Scheduled
 
 
 @pytest.fixture
-def task_scheduling_enabled() -> None:
+def task_scheduling_enabled() -> Generator[None, None, None]:
     with temporary_settings(
         {
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
@@ -31,7 +31,7 @@ def task_scheduling_enabled() -> None:
 
 
 @pytest.fixture
-def reset_task_queues(task_scheduling_enabled: None) -> None:
+def reset_task_queues(task_scheduling_enabled: None) -> Generator[None, None, None]:
     task_runs.TaskQueue.reset()
 
     yield
@@ -92,7 +92,7 @@ async def taskA_run1(reset_task_queues: None) -> TaskRun:
 
 def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscription", "keys": ["mytasks.taskA"]})
+        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
 
         (received,) = drain(socket)
 
@@ -115,7 +115,7 @@ def test_acknowledging_between_each_run(
     app: FastAPI, taskA_run1: TaskRun, taskA_run2: TaskRun
 ):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscription", "keys": ["mytasks.taskA"]})
+        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
 
         (first, second) = drain(socket, 2)
 
@@ -170,7 +170,7 @@ def test_server_only_delivers_tasks_for_subscribed_keys(
 ):
     with authenticated_socket(app) as socket:
         socket.send_json(
-            {"type": "subscription", "keys": ["mytasks.taskA", "other_tasks.taskB"]}
+            {"type": "subscribe", "keys": ["mytasks.taskA", "other_tasks.taskB"]}
         )
 
         received = drain(socket, 3)
@@ -203,8 +203,8 @@ def test_only_one_socket_gets_each_task_run(
     received2: List[TaskRun] = []
 
     with authenticated_socket(app) as first, authenticated_socket(app) as second:
-        first.send_json({"type": "subscription", "keys": ["mytasks.taskA"]})
-        second.send_json({"type": "subscription", "keys": ["mytasks.taskA"]})
+        first.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
+        second.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
 
         for i in range(5):
             received1 += drain(first, 1, quit=(i == 4))
@@ -231,7 +231,7 @@ def test_only_one_socket_gets_each_task_run(
 
 def test_server_redelivers_unacknowledged_runs(app: FastAPI, taskA_run1: TaskRun):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscription", "keys": ["mytasks.taskA"]})
+        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
 
         received = socket.receive_json()
         assert received["id"] == str(taskA_run1.id)
@@ -240,7 +240,7 @@ def test_server_redelivers_unacknowledged_runs(app: FastAPI, taskA_run1: TaskRun
         socket.close()
 
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscription", "keys": ["mytasks.taskA"]})
+        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
 
         (received,) = drain(socket)
         assert received.id == taskA_run1.id
@@ -284,7 +284,7 @@ def test_server_restores_scheduled_task_runs_at_startup(
     preexisting_runs: List[TaskRun],
 ):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscription", "keys": ["mytasks.taskA"]})
+        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
 
         received = drain(socket, expecting=len(preexisting_runs))
 

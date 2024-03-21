@@ -102,6 +102,11 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
+REMOVED_EXPERIMENTAL_FLAGS = {
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+}
+
 
 class Setting(Generic[T]):
     """
@@ -610,6 +615,15 @@ If provided, the URL of a hosted Prefect API. Defaults to `None`.
 When using Prefect Cloud, this will include an account and workspace.
 """
 
+PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+we would like to silence this warning so we will set it to `FALSE`.
+"""
+
 PREFECT_API_KEY = Setting(
     str,
     default=None,
@@ -654,6 +668,21 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
 429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
 may result in unexpected behavior.
+"""
+
+PREFECT_CLIENT_CSRF_SUPPORT_ENABLED = Setting(bool, default=True)
+"""
+Determines if CSRF token handling is active in the Prefect client for API
+requests.
+
+When enabled (`True`), the client automatically manages CSRF tokens by
+retrieving, storing, and including them in applicable state-changing requests
+(POST, PUT, PATCH, DELETE) to the API.
+
+Disabling this setting (`False`) means the client will not handle CSRF tokens,
+which might be suitable for environments where CSRF protection is disabled.
+
+Defaults to `True`, ensuring CSRF protection is enabled by default.
 """
 
 PREFECT_CLOUD_API_URL = Setting(
@@ -1206,6 +1235,33 @@ Note this setting only applies when calling `prefect server start`; if hosting t
 API with another tool you will need to configure this there instead.
 """
 
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
+"""
+Controls the activation of CSRF protection for the Prefect server API.
+
+When enabled (`True`), the server enforces CSRF validation checks on incoming
+state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
+token to be included in the request headers or body. This adds a layer of
+security by preventing unauthorized or malicious sites from making requests on
+behalf of authenticated users.
+
+It is recommended to enable this setting in production environments where the
+API is exposed to web clients to safeguard against CSRF attacks.
+
+Note: Enabling this setting requires corresponding support in the client for
+CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
+"""
+
+PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(timedelta, default=timedelta(hours=1))
+"""
+Specifies the duration for which a CSRF token remains valid after being issued
+by the server.
+
+The default expiration time is set to 1 hour, which offers a reasonable
+compromise. Adjust this setting based on your specific security requirements
+and usage patterns.
+"""
+
 PREFECT_UI_ENABLED = Setting(
     bool,
     default=True,
@@ -1284,6 +1340,21 @@ remain in non-terminal states.
 PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 """
 The maximum size of a flow run graph on the v2 API
+"""
+
+PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
+"""
+The maximum number of artifacts to show on a flow run graph on the v2 API
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
+"""
+Whether or not to enable artifacts on the flow run graph.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
+"""
+Whether or not to enable flow run states on the flow run graph.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
@@ -1417,6 +1488,14 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 """
 The port the worker's webserver should bind to.
 """
+
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
+    str,
+    default="local-file-system/prefect-task-scheduling",
+)
+"""The `block-type/block-document` slug of a block to use as the default storage
+for autonomous tasks."""
+
 PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
     bool,
     default=True,
@@ -1439,6 +1518,16 @@ PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
 )
 """
 The maximum number of retries to queue for submission.
+"""
+
+PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
+    timedelta,
+    default=timedelta(seconds=30),
+)
+"""
+How long before a PENDING task are made available to another task server.  In practice,
+a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task server may have crashed.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
@@ -1486,9 +1575,9 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS = Setting(bool, default=False)
 """
-Whether or not to enable the enhanced scheduling UI.
+Whether or not to enable internal experimental Pydantic v2 behavior.
 """
 
 # Defaults -----------------------------------------------------------------------------
@@ -1613,7 +1702,8 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
-        values = warn_on_misconfigured_api_url(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(
@@ -2042,6 +2132,24 @@ class ProfilesCollection:
         )
 
 
+def _handle_removed_flags(profile_name: str, settings: dict) -> dict:
+    to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
+
+    for name in to_remove:
+        warnings.warn(
+            (
+                f"Experimental flag {name!r} has been removed, please "
+                f"update your {profile_name!r} profile."
+            ),
+            UserWarning,
+            stacklevel=3,
+        )
+
+        settings.pop(name)
+
+    return settings
+
+
 def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
     Read profiles from a path into a new `ProfilesCollection`.
@@ -2058,10 +2166,10 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
     active_profile = contents.get("active")
     raw_profiles = contents.get("profiles", {})
 
-    profiles = [
-        Profile(name=name, settings=settings, source=path)
-        for name, settings in raw_profiles.items()
-    ]
+    profiles = []
+    for name, settings in raw_profiles.items():
+        settings = _handle_removed_flags(name, settings)
+        profiles.append(Profile(name=name, settings=settings, source=path))
 
     return ProfilesCollection(profiles, active=active_profile)
 

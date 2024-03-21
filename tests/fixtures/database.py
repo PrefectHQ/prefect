@@ -3,6 +3,8 @@ import datetime
 import gc
 import uuid
 import warnings
+from contextlib import asynccontextmanager
+from typing import AsyncContextManager, AsyncGenerator, Callable
 
 import aiosqlite
 import asyncpg
@@ -28,6 +30,8 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import states
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
+
+AsyncSessionGetter = Callable[[], AsyncContextManager[AsyncSession]]
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -139,10 +143,28 @@ async def clear_db(db, request):
 
 
 @pytest.fixture
-async def session(db) -> AsyncSession:
+async def session(db) -> AsyncGenerator[AsyncSession, None]:
     session = await db.session()
     async with session:
         yield session
+
+
+@pytest.fixture
+async def get_server_session(db) -> AsyncSessionGetter:
+    """
+    Returns a context manager factory that yields
+    an database session.
+
+    Note: if you commit or rollback a transaction, scoping
+    will be reset. Fixture should be used as a context manager.
+    """
+
+    @asynccontextmanager
+    async def _get_server_session() -> AsyncGenerator[AsyncSession, None]:
+        async with await db.session() as session:
+            yield session
+
+    return _get_server_session
 
 
 @pytest.fixture
@@ -557,6 +579,7 @@ async def deployment_with_parameter_schema(
             parameter_openapi_schema={
                 "type": "object",
                 "properties": {"x": {"type": "string"}},
+                "required": ["x"],
             },
             parameters={"x": "y"},
             enforce_parameter_schema=True,
@@ -864,6 +887,7 @@ async def commit_task_run_state(
     state_type: states.StateType,
     state_details=None,
     state_data=None,
+    state_name=None,
 ):
     if state_type is None:
         return None
@@ -874,6 +898,7 @@ async def commit_task_run_state(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
+        name=state_name,
     )
 
     result = await models.task_runs.set_task_run_state(
@@ -893,6 +918,7 @@ async def commit_flow_run_state(
     state_type: states.StateType,
     state_details=None,
     state_data=None,
+    state_name=None,
 ):
     if state_type is None:
         return None
@@ -903,6 +929,7 @@ async def commit_flow_run_state(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
+        name=state_name,
     )
 
     result = await models.flow_runs.set_flow_run_state(
@@ -933,6 +960,8 @@ def initialize_orchestration(flow):
         flow_run_count: int = None,
         resuming: bool = None,
         initial_flow_run_state_details=None,
+        initial_state_name: str = None,
+        proposed_state_name: str = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
@@ -996,12 +1025,15 @@ def initialize_orchestration(flow):
             initial_state_type,
             initial_details,
             state_data=initial_state_data,
+            state_name=initial_state_name,
         )
 
         proposed_details = proposed_details if proposed_details else dict()
         if proposed_state_type is not None:
             psd = states.StateDetails(**proposed_details)
-            proposed_state = states.State(type=proposed_state_type, state_details=psd)
+            proposed_state = states.State(
+                type=proposed_state_type, state_details=psd, name=proposed_state_name
+            )
         else:
             proposed_state = None
 

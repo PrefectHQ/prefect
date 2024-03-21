@@ -29,6 +29,7 @@ import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
+from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
@@ -69,7 +70,7 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas import Automation, Posture, Trigger
+from prefect.events.schemas import Automation, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
@@ -77,13 +78,24 @@ from prefect.settings import (
     PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
+    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+
+
+@pytest.fixture
+def enable_infra_overrides():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
+    ):
+        yield
 
 
 class TestGetClient:
@@ -988,18 +1000,35 @@ async def test_create_flow_run_from_deployment_idempotency(prefect_client, deplo
 
 
 async def test_create_flow_run_from_deployment_with_options(prefect_client, deployment):
+    job_variables = {"foo": "bar"}
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment.id,
         name="test-run-name",
         tags={"foo", "bar"},
         state=Pending(message="test"),
         parameters={"foo": "bar"},
+        job_variables=job_variables,
     )
     assert flow_run.name == "test-run-name"
     assert set(flow_run.tags) == {"foo", "bar"}.union(deployment.tags)
     assert flow_run.state.type == StateType.PENDING
     assert flow_run.state.message == "test"
     assert flow_run.parameters == {"foo": "bar"}
+    assert flow_run.job_variables == job_variables
+
+
+async def test_create_flow_run_from_deployment_with_options_emits_warning(
+    prefect_client, deployment, enable_infra_overrides
+):
+    with pytest.warns(
+        ExperimentalFeature,
+        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+    ):
+        await prefect_client.create_flow_run_from_deployment(
+            deployment.id,
+            name="test-run-name",
+            job_variables={"foo": "bar"},
+        )
 
 
 async def test_update_flow_run(prefect_client):
@@ -1059,6 +1088,24 @@ async def test_update_flow_run_overrides_tags(prefect_client):
     assert updated_flow_run.tags == ["hello", "world"]
 
 
+async def test_update_flow_run_with_job_vars_emits_warning(
+    prefect_client, deployment, enable_infra_overrides
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        name="test-run-name",
+    )
+
+    with pytest.warns(
+        ExperimentalFeature,
+        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+    ):
+        await prefect_client.update_flow_run(
+            flow_run.id,
+            job_variables={"foo": "bar"},
+        )
+
+
 async def test_create_then_read_task_run(prefect_client):
     @flow
     def foo():
@@ -1079,6 +1126,20 @@ async def test_create_then_read_task_run(prefect_client):
     lookup.estimated_start_time_delta = task_run.estimated_start_time_delta
     lookup.estimated_run_time = task_run.estimated_run_time
     assert lookup == task_run
+
+
+async def test_delete_task_run(prefect_client):
+    @task
+    def bar():
+        pass
+
+    task_run = await prefect_client.create_task_run(
+        bar, flow_run_id=None, dynamic_key="0"
+    )
+
+    await prefect_client.delete_task_run(task_run.id)
+    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="Not Found"):
+        await prefect_client.read_task_run(task_run.id)
 
 
 async def test_create_then_read_task_run_with_state(prefect_client):
@@ -1295,6 +1356,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1310,6 +1372,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1383,6 +1446,7 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1993,7 +2057,7 @@ class TestAutomations:
     def automation(self):
         return Automation(
             name="test-automation",
-            trigger=Trigger(
+            trigger=EventTrigger(
                 match={"flow_run_id": "123"},
                 posture=Posture.Reactive,
                 threshold=1,
@@ -2054,11 +2118,12 @@ async def test_server_error_does_not_raise_on_client():
     app = create_app(ephemeral=True)
     app.api_app.add_api_route("/raise_error", raise_error)
 
-    async with PrefectClient(
-        api=app,
-    ) as client:
-        with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
-            await client._client.get("/raise_error")
+    with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 0}):
+        async with PrefectClient(
+            api=app,
+        ) as client:
+            with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
+                await client._client.get("/raise_error")
 
 
 async def test_prefect_client_follow_redirects():
@@ -2247,3 +2312,25 @@ class TestPrefectClientDeploymentSchedules:
             await prefect_client.delete_deployment_schedule(
                 deployment.id, nonexistent_schedule_id
             )
+
+
+class TestPrefectClientCsrfSupport:
+    def test_enabled_ephemeral(self, prefect_client: PrefectClient):
+        assert prefect_client.server_type == ServerType.EPHEMERAL
+        assert prefect_client._client.enable_csrf_support
+
+    async def test_enabled_server_type(self, hosted_api_server):
+        async with PrefectClient(hosted_api_server) as prefect_client:
+            assert prefect_client.server_type == ServerType.SERVER
+            assert prefect_client._client.enable_csrf_support
+
+    async def test_not_enabled_server_type_cloud(self):
+        async with PrefectClient(PREFECT_CLOUD_API_URL.value()) as prefect_client:
+            assert prefect_client.server_type == ServerType.CLOUD
+            assert not prefect_client._client.enable_csrf_support
+
+    async def test_disabled_setting_disabled(self, hosted_api_server):
+        with temporary_settings({PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False}):
+            async with PrefectClient(hosted_api_server) as prefect_client:
+                assert prefect_client.server_type == ServerType.SERVER
+                assert not prefect_client._client.enable_csrf_support
