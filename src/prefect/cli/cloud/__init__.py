@@ -597,23 +597,44 @@ async def set(
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
 
-    if workspace_handle:
-        # Search for the given workspace
-        for workspace in workspaces:
-            if workspace.handle == workspace_handle:
-                break
+        if workspace_handle:
+            # Search for the given workspace
+            for workspace in workspaces:
+                if workspace.handle == workspace_handle:
+                    break
+            else:
+                exit_with_error(f"Workspace {workspace_handle!r} not found.")
         else:
-            exit_with_error(f"Workspace {workspace_handle!r} not found.")
-    else:
-        workspace = prompt_select_from_list(
-            app.console,
-            "Which workspace would you like to use?",
-            [(workspace, workspace.handle) for workspace in workspaces],
+            # don't force two choices if there's not that many workspaces
+            if len(workspaces) > 10:
+                accounts = await client.read_accounts()
+
+                if len(accounts) == 1:
+                    account = accounts[0]
+                    workspaces = await client.read_workspaces(
+                        account_id=account["account_id"]
+                    )
+                else:
+                    account = prompt_select_from_list(
+                        app.console,
+                        "Which account would you like to use?",
+                        [(account, account["account_handle"]) for account in accounts],
+                    )
+                    workspaces = await client.read_workspaces(
+                        account_id=account["account_id"]
+                    )
+
+            if not workspaces:
+                exit_with_error("No workspaces found in the selected account.")
+
+            workspace = prompt_select_from_list(
+                app.console,
+                "Which workspace would you like to use?",
+                [(workspace, workspace.handle) for workspace in workspaces],
+            )
+
+        profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
+        exit_with_success(
+            f"Successfully set workspace to {workspace.handle!r} in profile"
+            f" {profile.name!r}."
         )
-
-    profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
-
-    exit_with_success(
-        f"Successfully set workspace to {workspace.handle!r} in profile"
-        f" {profile.name!r}."
-    )
