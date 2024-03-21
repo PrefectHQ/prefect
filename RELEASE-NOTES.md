@@ -2,9 +2,17 @@
 
 ## Release 2.16.5
 
-### Exciting New Features 🎉
-- The flow run graph UI enhancements for visualizing state changes and artifacts added in 2.16.4 are now enabled by default. — https://github.com/PrefectHQ/prefect/pull/12300
-- It is now easier to bulk select and delete flow runs through the UI. Listings of filterable and selectable flow runs (e.g. on the flow runs, flow, and deployment pages) now include a top-level checkbox for (de)selecting all currently filtered flow runs for bulk deletion. - https://github.com/PrefectHQ/prefect/pull/12356 https://github.com/PrefectHQ/prefect-ui-library/pull/2227 & https://github.com/PrefectHQ/prefect/pull/12285
+### Multi-select deletion of flow runs
+It is now easier to bulk select and delete flow runs through the UI. Listings of filterable and selectable flow runs (e.g. on the flow runs, flow, and deployment pages) now include a top-level checkbox for (de)selecting all currently filtered flow runs for bulk deletion. 
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12356 
+- https://github.com/PrefectHQ/prefect-ui-library/pull/2227
+- https://github.com/PrefectHQ/prefect/pull/12285
+
+## Visualize state changes and artifacts in the UI
+Additionally, the flow run graph UI enhancements for visualizing state changes and artifacts added in 2.16.4 are now enabled by default. See [the release notes in 2.16.14 for more details](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-2164)!
+
 
 ### Enhancements
 - Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
