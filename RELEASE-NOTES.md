@@ -27,7 +27,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 ### Fixes
 - Refactor logic to set `task_key` for background tasks — https://github.com/PrefectHQ/prefect/pull/12337
 - Correct a memory leak with the outbound task run websockets — https://github.com/PrefectHQ/prefect/pull/12346
-- fix(task/flow): correct type hint for possibly async `@flow` hooks — https://github.com/PrefectHQ/prefect/pull/12231
+- Correctly type hint in flow run state change hooks — https://github.com/PrefectHQ/prefect/pull/12231
 
 ### Experimental
 - Create `CsrfToken` model and utilities — https://github.com/PrefectHQ/prefect/pull/12289
