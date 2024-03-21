@@ -527,7 +527,7 @@ class FlowRun(ObjectBaseModel):
         example=State(type=StateType.COMPLETED),
     )
     job_variables: Optional[dict] = Field(
-        default=None, description="Parameters for the flow run."
+        default=None, description="Job variables for the flow run."
     )
 
     def __eq__(self, other: Any) -> bool:
@@ -1631,4 +1631,17 @@ class GlobalConcurrencyLimit(ObjectBaseModel):
             "Controls the rate at which slots are released when the concurrency limit"
             " is used as a rate limit."
         ),
+    )
+
+
+class CsrfToken(ObjectBaseModel):
+    token: str = Field(
+        default=...,
+        description="The CSRF token",
+    )
+    client: str = Field(
+        default=..., description="The client id associated with the CSRF token"
+    )
+    expiration: DateTimeTZ = Field(
+        default=..., description="The expiration time of the CSRF token"
     )

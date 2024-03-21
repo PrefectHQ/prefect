@@ -5,6 +5,7 @@ import signal
 import traceback
 import urllib.parse
 import webbrowser
+from asyncio import CancelledError
 from contextlib import asynccontextmanager
 from typing import Hashable, Iterable, List, Optional, Tuple, Union
 
@@ -128,6 +129,9 @@ async def serve_login_api(cancel_scope, task_status):
         app.console.print("[red][bold]X Error starting login service!")
         cause = exc.__context__  # Hide the system exit
         traceback.print_exception(type(cause), value=cause, tb=cause.__traceback__)
+        cancel_scope.cancel()
+    except KeyboardInterrupt:
+        # `uvicorn.serve` can raise `KeyboardInterrupt` when it's done serving.
         cancel_scope.cancel()
     else:
         # Exit if we are done serving the API
@@ -424,6 +428,8 @@ async def login(
             )
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
+        except (CancelledError, TimeoutError):
+            exit_with_error("Error connecting to Prefect Cloud: Connection timed out.")
 
     if workspace_handle:
         # Search for the given workspace
