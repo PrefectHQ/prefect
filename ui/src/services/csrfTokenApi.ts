@@ -6,6 +6,8 @@ import { CsrfToken } from '@/models/CsrfToken'
 import { CsrfTokenResponse } from '@/types/csrfTokenResponse'
 import { mapper } from '@/services/mapper'
 
+const MAX_RETRIES: number = 1
+
 export class CsrfTokenApi extends Api {
     public csrfToken?: CsrfToken
     public clientId: string = randomId()
@@ -24,6 +26,7 @@ export class CsrfTokenApi extends Api {
             config.headers = config.headers || {}
             config.headers['Prefect-Csrf-Token'] = csrfToken.token
             config.headers['Prefect-Csrf-Client'] = this.clientId
+            config.headers['Prefect-Csrf-Retry-Count'] = config.headers['Prefect-Csrf-Retry-Count'] ?? '0'
         }
     }
 
@@ -50,7 +53,6 @@ export class CsrfTokenApi extends Api {
 
         const refresh = async () => {
             try {
-
                 const response = await this.get<CsrfTokenResponse>(`/csrf-token?client=${this.clientId}`)
                 this.csrfToken = mapper.map('CsrfTokenResponse', response.data, 'CsrfToken')
                 this.ongoingRefresh = null
@@ -77,7 +79,7 @@ export class CsrfTokenApi extends Api {
         }
 
         if (!this.csrfToken) {
-            return true;
+            return true
         }
 
         if (!this.csrfToken.token || !this.csrfToken.expiration) {
@@ -88,7 +90,11 @@ export class CsrfTokenApi extends Api {
     }
 
     private isUnconfiguredServer(error: AxiosError<any, any>): boolean {
-        return error.response?.status === 422 && error.response?.data.detail.includes('CSRF protection is disabled.')
+        return error.response?.status === 422 && error.response?.data.detail.includes('CSRF protection is disabled')
+    }
+
+    public isInvalidCsrfToken(error: AxiosError<any, any>): boolean {
+        return error.response?.status === 403 && error.response?.data.detail.includes('Invalid CSRF token')
     }
 
     private disableCsrfSupport() {
@@ -130,5 +136,22 @@ export function setupCsrfInterceptor(csrfTokenApi: CreateActions<CsrfTokenApi>, 
         }
 
         return config
+    })
+
+    axiosInstance.interceptors.response.use(undefined, async (error: AxiosError) => {
+        if (isAxiosError(error) && csrfTokenApi.isInvalidCsrfToken(error)) {
+            const config = error.config
+
+            if (config && config.headers['Prefect-Csrf-Retry-Count']) {
+                const retryCount = parseInt(config.headers['Prefect-Csrf-Retry-Count'], 10)
+                if (retryCount < MAX_RETRIES) {
+                    await csrfTokenApi.addCsrfHeaders(config)
+                    config.headers['Prefect-Csrf-Retry-Count'] = (retryCount + 1).toString()
+                    return axiosInstance(config)
+                }
+            }
+        }
+
+        return Promise.reject(error)
     })
 }
