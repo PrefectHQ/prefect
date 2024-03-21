@@ -37,6 +37,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - Add CSRF support to client — https://github.com/PrefectHQ/prefect/pull/12314
 - Return 422 when CSRF is disabled and delete expired tokens — https://github.com/PrefectHQ/prefect/pull/12342
 - Add `model_dump` definition for Pydantic v2 compatibility layer — https://github.com/PrefectHQ/prefect/pull/12345
+- Add experimental `model_json_schema` definition for Pydantic V2 compatibility - https://github.com/PrefectHQ/prefect/pull/12362
 - Implement CSRF support in the UI — https://github.com/PrefectHQ/prefect/pull/12354
 
 ### Documentation
