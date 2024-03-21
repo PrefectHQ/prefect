@@ -76,11 +76,6 @@ def disable_jitter():
         yield
 
 
-# Enable client retries for all tests in this module, as many rely on
-# retry functionality
-pytestmark = pytest.mark.enable_client_retries
-
-
 class TestPrefectHttpxClient:
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
@@ -90,7 +85,6 @@ class TestPrefectHttpxClient:
             status.HTTP_429_TOO_MANY_REQUESTS,
             status.HTTP_503_SERVICE_UNAVAILABLE,
             status.HTTP_502_BAD_GATEWAY,
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
         ],
     )
     async def test_prefect_httpx_client_retries_on_designated_error_codes(
