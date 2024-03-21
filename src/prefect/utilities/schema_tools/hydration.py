@@ -149,9 +149,13 @@ def null_handler(obj: Dict, ctx: HydrationContext):
 @handler("json")
 def json_handler(obj: Dict, ctx: HydrationContext):
     if "value" in obj:
+        if isinstance(obj["value"], dict):
+            dehydrated_json = _hydrate(obj["value"], ctx)
+        else:
+            dehydrated_json = obj["value"]
         try:
-            return json.loads(obj["value"])
-        except json.decoder.JSONDecodeError as e:
+            return json.loads(dehydrated_json)
+        except (json.decoder.JSONDecodeError, TypeError) as e:
             return InvalidJSON(detail=str(e))
     else:
         # If `value` is not in the object, we need special handling to help
@@ -166,11 +170,15 @@ def json_handler(obj: Dict, ctx: HydrationContext):
 @handler("workspace_variable")
 def workspace_variable_handler(obj: Dict, ctx: HydrationContext):
     if "variable_name" in obj:
-        variable = obj["variable_name"]
-        if variable in ctx.workspace_variables:
-            return ctx.workspace_variables[variable]
+        if isinstance(obj["variable_name"], dict):
+            dehydrated_variable = _hydrate(obj["variable_name"], ctx)
         else:
-            return WorkspaceVariableNotFound(detail=variable)
+            dehydrated_variable = obj["variable_name"]
+
+        if dehydrated_variable in ctx.workspace_variables:
+            return ctx.workspace_variables[dehydrated_variable]
+        else:
+            return WorkspaceVariableNotFound(detail=dehydrated_variable)
     else:
         # Special handling if `variable_name` is not in the object.
         # If an object looks like {"__prefect_kind": "workspace_variable"}
