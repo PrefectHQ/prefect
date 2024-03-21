@@ -7,7 +7,6 @@
 - It is now easier to bulk select and delete flow runs through the UI. Listings of filterable and selectable flow runs (e.g. on the flow runs, flow, and deployment pages) now include a top-level checkbox for (de)selecting all currently filtered flow runs for bulk deletion. - https://github.com/PrefectHQ/prefect/pull/12356 https://github.com/PrefectHQ/prefect-ui-library/pull/2227 & https://github.com/PrefectHQ/prefect/pull/12285
 
 ### Enhancements
-- Render artifacts and states on the flow run graph by default. 
 - Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
 - remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
 - Feature : #11773 UI: Add checkboxes for runs for an individual flow to allow multi-selection/-deletion — https://github.com/PrefectHQ/prefect/pull/12285
