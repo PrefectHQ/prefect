@@ -47,10 +47,10 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 
 ### Triggers
 
-Triggers specify the conditions under which your action should be performed. The Prefect UI includes templates for many common conditions, like:
+Triggers specify the conditions under which your action should be performed. The Prefect UI includes templates for many common conditions, such as:
 
 - Flow run state change
-  - Note - Flow Run Tags currently are only evaluated with `OR` criteria
+    - Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work pool status
 - Work queue status
 - Deployment status
@@ -106,7 +106,7 @@ Specify a name and, optionally, a description for the automation.
 
 When you need a trigger that doesn't quite fit the templates in UI trigger builder, you can define a custom trigger in JSON.  With custom triggers, you have access to the full capabilities of Prefect's automation system - allowing you to react to many kinds of events and metrics in your workspace.
 
-Every automation has a single trigger that, when fired, will cause all of its associated actions to run.  That single trigger may be a reactive or proactive event trigger, a trigger monitoring the value of a metric, or a composite trigger that combines several underlying triggers.
+Each automation has a single trigger that, when fired, will cause all of its associated actions to run.  That single trigger may be a reactive or proactive event trigger, a trigger monitoring the value of a metric, or a composite trigger that combines several underlying triggers.
 
 ### Event triggers
 
@@ -324,7 +324,7 @@ Prefect's metrics are all derived by examining your workspace's events, and if a
 Prefect defines three metrics today:
 
 * **Successes** (`{"name": "successes"}`), defined as the number of flow runs that went `Pending` and then the latest state we saw was not a failure (`Failed` or `Crashed`).  This metric accounts for retries if the ultimate state was successful.
-* **Duration** (`{"name": "duration"}`), defined as the _length of time_ that a flow remains in a `Running` state before transitioning to a terminal state like `Completed`, `Failed`, or `Crashed`.  Because this time is derived in terms of flow run state change events, it may be greater than the runtime of your function.
+* **Duration** (`{"name": "duration"}`), defined as the _length of time_ that a flow remains in a `Running` state before transitioning to a terminal state such as `Completed`, `Failed`, or `Crashed`.  Because this time is derived in terms of flow run state change events, it may be greater than the runtime of your function.
 * **Lateness** (`{"name": "lateness"}`), defined as the _length of time_ that a `Scheduled` flow remains in a `Late` state before transitioning to a `Running` and/or `Crashed` state.  Only flow runs that the system marks `Late` are included.
 
 The schema of a metric trigger is as follows:
