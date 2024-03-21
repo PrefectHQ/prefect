@@ -387,7 +387,7 @@ class CompoundTrigger(CompositeTrigger):
     fired within the given time period"""
 
     type: Literal["compound"] = "compound"
-    require: int | Literal["any", "all"]
+    require: Union[int, Literal["any", "all"]]
 
     @root_validator
     def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
