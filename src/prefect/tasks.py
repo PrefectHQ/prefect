@@ -391,8 +391,12 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
         refresh_cache: Optional[bool] = NotSet,
-        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_completion: Optional[
+            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
+        ] = None,
+        on_failure: Optional[
+            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
+        ] = None,
         retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
