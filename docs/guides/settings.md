@@ -103,7 +103,7 @@ PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
 If using a local Prefect server instance, you can configure CSRF protection settings.
 
 `PREFECT_SERVER_CSRF_PROTECTION_ENABLED`
-- Activates CSRF protection on the server, requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. Defaults to True.
+- Activates CSRF protection on the server, requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. Defaults to False.
 
 ```bash
 PREFECT_SERVER_CSRF_PROTECTION_ENABLED=True
