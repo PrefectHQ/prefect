@@ -85,6 +85,10 @@ from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 
+# Enable client retries for all tests in this module, as many rely on
+# retry functionality
+pytestmark = pytest.mark.enable_client_retries
+
 
 @pytest.fixture
 def enable_infra_overrides():
