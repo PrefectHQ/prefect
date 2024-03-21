@@ -24,8 +24,8 @@
 ### Experimental
 - Create `CsrfToken` model and utilities — https://github.com/PrefectHQ/prefect/pull/12289
 - Create `csrf_token` endpoint to generate tokens for clients — https://github.com/PrefectHQ/prefect/pull/12297
-- Integrate `CsrfMiddleware` into server — https://github.com/PrefectHQ/prefect/pull/12303
-- Add CSRF support to orchestration client — https://github.com/PrefectHQ/prefect/pull/12314
+- Integrate `CsrfMiddleware` into API server — https://github.com/PrefectHQ/prefect/pull/12303
+- Add CSRF support to client — https://github.com/PrefectHQ/prefect/pull/12314
 - Return 422 when CSRF is disabled and delete expired tokens — https://github.com/PrefectHQ/prefect/pull/12342
 - [pydantic v2] init compat layer — https://github.com/PrefectHQ/prefect/pull/12345
 - Implement CSRF support in the UI — https://github.com/PrefectHQ/prefect/pull/12354
