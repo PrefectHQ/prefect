@@ -372,8 +372,52 @@ class MetricTrigger(ResourceTrigger):
     )
 
 
-TriggerTypes: TypeAlias = Union[EventTrigger, MetricTrigger]
+class CompositeTrigger(Trigger, abc.ABC):
+    """
+    Requires some number of triggers to have fired within the given time period.
+    """
+
+    type: Literal["compound", "sequence"]
+    triggers: List["TriggerTypes"]
+    within: Optional[timedelta]
+
+
+class CompoundTrigger(CompositeTrigger):
+    """A composite trigger that requires some number of triggers to have
+    fired within the given time period"""
+
+    type: Literal["compound"] = "compound"
+    require: Union[int, Literal["any", "all"]]
+
+    @root_validator
+    def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        require = values.get("require")
+
+        if isinstance(require, int):
+            if require < 1:
+                raise ValueError("required must be at least 1")
+            if require > len(values["triggers"]):
+                raise ValueError(
+                    "required must be less than or equal to the number of triggers"
+                )
+
+        return values
+
+
+class SequenceTrigger(CompositeTrigger):
+    """A composite trigger that requires some number of triggers to have fired
+    within the given time period in a specific order"""
+
+    type: Literal["sequence"] = "sequence"
+
+
+TriggerTypes: TypeAlias = Union[
+    EventTrigger, MetricTrigger, CompoundTrigger, SequenceTrigger
+]
 """The union of all concrete trigger types that a user may actually create"""
+
+CompoundTrigger.update_forward_refs()
+SequenceTrigger.update_forward_refs()
 
 
 class Automation(PrefectBaseModel):
