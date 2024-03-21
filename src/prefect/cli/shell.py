@@ -28,7 +28,20 @@ shell_app = PrefectTyper(name="shell", help="Commands for working with shell com
 app.add_typer(shell_app)
 
 
-def collect_output(pipe, container):
+def output_stream(pipe, logger_function):
+    """
+    Read from a pipe line by line and log using the provided logging function.
+
+    Args:
+        pipe (IO): A file-like object for reading process output.
+        logger_function (function): A logging function from the logger.
+    """
+    with pipe:
+        for line in iter(pipe.readline, ""):
+            logger_function(line.strip())
+
+
+def output_collect(pipe, container):
     """
     Collects output from a subprocess pipe and stores it in a container list.
 
@@ -44,6 +57,7 @@ def collect_output(pipe, container):
 def run_shell_process(
     command: str,
     log_output: bool = True,
+    stream_output: bool = False,
 ):
     """
     Asynchronously executes the specified shell command and logs its output.
@@ -60,9 +74,8 @@ def run_shell_process(
 
     logger = get_run_logger() if log_output else logging.getLogger("prefect")
 
-    # Start the process
-    stdout_container = []
-    stderr_container = []
+    # Containers for log batching
+    stdout_container, stderr_container = [], []
     with subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -73,11 +86,21 @@ def run_shell_process(
         universal_newlines=True,
     ) as proc:
         # Create threads for collecting stdout and stderr
+        if stream_output:
+            stdout_logger = logger.info
+            stderr_logger = logger.error
+            output = output_stream
+        else:
+            stdout_logger = stdout_container
+            stderr_logger = stderr_container
+            output = output_collect
+
         stdout_thread = threading.Thread(
-            target=collect_output, args=(proc.stdout, stdout_container)
+            target=output, args=(proc.stdout, stdout_logger)
         )
+
         stderr_thread = threading.Thread(
-            target=collect_output, args=(proc.stderr, stderr_container)
+            target=output, args=(proc.stderr, stderr_logger)
         )
 
         stdout_thread.start()
@@ -87,13 +110,13 @@ def run_shell_process(
         stderr_thread.join()
 
         proc.wait()
-        if proc.returncode == 0:
-            if stdout_container:
-                logger.info("".join(stdout_container).strip())
-        else:
-            if stderr_container:
-                logger.error("".join(stderr_container).strip())
-            # logger.error(f"Command failed with exit code {proc.returncode}")
+        if stdout_container:
+            logger.info("".join(stdout_container).strip())
+
+        if stderr_container:
+            logger.error("".join(stderr_container).strip())
+            # Suppress traceback
+        if proc.returncode != 0:
             sys.tracebacklimit = 0
             raise FailedRun(f"Command failed with exit code {proc.returncode}")
 
@@ -106,6 +129,7 @@ async def watch(
     ),
     flow_run_name: str = typer.Option(None, help="Name of the flow run."),
     flow_name: str = typer.Option("Shell Command", help="Name of the flow."),
+    stream_output: bool = typer.Option(True, help="Stream the output of the command."),
     tag: Annotated[
         Optional[List[str]], typer.Option(help="Optional tags for the flow run.")
     ] = None,
@@ -127,7 +151,9 @@ async def watch(
         name=flow_name, flow_run_name=flow_run_name
     )
     with tags(*tag):
-        defined_flow(command=command, log_output=log_output)
+        defined_flow(
+            command=command, log_output=log_output, stream_output=stream_output
+        )
 
 
 @shell_app.command("serve")
@@ -143,6 +169,7 @@ async def serve(
     log_output: bool = typer.Option(
         True, help="Stream the output of the command", hidden=True
     ),
+    stream_output: bool = typer.Option(True, help="Stream the output of the command"),
     cron_schedule: str = typer.Option(None, help="Cron schedule for the flow"),
     timezone: str = typer.Option(None, help="Timezone for the schedule"),
     concurrency_limit: int = typer.Option(
@@ -180,7 +207,11 @@ async def serve(
 
     runner_deployment = await defined_flow.to_deployment(
         name=deployment_name,
-        parameters={"command": command, "log_output": log_output},
+        parameters={
+            "command": command,
+            "log_output": log_output,
+            "stream_output": stream_output,
+        },
         entrypoint_type=EntrypointType.MODULE_PATH,
         schedule=schedule,
         tags=(deployment_tags or []) + ["shell"],
