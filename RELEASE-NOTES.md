@@ -8,6 +8,9 @@ The Flow Run Graph has been updated to display additional layers of information!
 
 <img width="892" alt="The Prefect flow run graph" src="https://github.com/PrefectHQ/prefect/assets/6776415/422a878e-f8bc-46b5-ae76-830f24861aaf">
 
+
+These new layers are available for opt-in usage via the `PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH` and `PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH` settings.
+
 ### Agents
 
 A year ago, we released workers as a replacement for agents. Workers significantly enhance the experience of deploying flows and simplify the specification of each flow's infrastructure and runtime environment.
