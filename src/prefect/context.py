@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 
 For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
+import json
 import os
 import sys
 import warnings
@@ -18,6 +19,7 @@ from typing import (
     Any,
     ContextManager,
     Dict,
+    Iterable,
     List,
     Optional,
     Set,
@@ -26,6 +28,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from uuid import UUID
 
 import anyio.abc
 import pendulum
@@ -51,6 +54,21 @@ from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
+
+if TYPE_CHECKING:
+    from prefect.tasks import Task as TaskObject
+from prefect.client.schemas import (
+    OrchestrationResult,
+    SetStateStatus,
+    StateAcceptDetails,
+)
+from prefect.client.schemas.objects import (
+    Constant,
+    Flow,
+    Parameter,
+    TaskRunPolicy,
+    TaskRunResult,
+)
 
 T = TypeVar("T")
 
@@ -263,6 +281,221 @@ class EngineContext(RunContext):
 
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
+
+    # Storage for client side orchestration
+    task_run_file_directory: str | None = None
+
+    def get_file_path_for_task_run(self, task_run_id: UUID) -> str:
+        return f"{self.task_run_file_directory}/task-run-{task_run_id}.json"
+
+    def get_file_path_for_task_run_state(self, task_run_state_id: UUID) -> str:
+        return f"{self.task_run_file_directory}/task-run-state-{task_run_state_id}.json"
+
+    def write_task_run_data(self, task_run: TaskRun) -> None:
+        # Write data to file instead
+        file_path = self.get_file_path_for_task_run(task_run_id=task_run.id)
+        with open(file_path, "w") as f:
+            import json
+
+            f.write(json.dumps(task_run.dict(json_compatible=True)))
+
+        # print(f"Created or updated task run {task_run.id} and wrote to {file_path} ...")
+
+    def write_task_run_state_data(self, task_run_state: State) -> None:
+        # Write data to file instead
+        file_path = self.get_file_path_for_task_run_state(
+            task_run_state_id=task_run_state.id
+        )
+        with open(file_path, "w") as f:
+            import json
+
+            f.write(json.dumps(task_run_state.dict(json_compatible=True)))
+
+        # print(f"Created task run state {task_run_state.id} and wrote to {file_path} ...")
+
+    async def read_task_run_state(self, task_run_state_id: UUID) -> State:
+        with open(
+            self.get_file_path_for_task_run_state(task_run_state_id=task_run_state_id)
+        ) as f:
+            contents = json.load(f)
+
+        state = State(**contents)
+        return state
+
+    async def read_task_run(self, task_run_id: UUID) -> TaskRun:
+        with open(self.get_file_path_for_task_run(task_run_id=task_run_id)) as f:
+            contents = json.load(f)
+
+        task_run = TaskRun(**contents)
+        if task_run.state_id is not None:
+            task_run.state = await self.read_task_run_state(
+                task_run_state_id=task_run.state_id
+            )
+
+        return task_run
+
+    async def create_task_run(
+        self,
+        task: "TaskObject",
+        flow_run_id: Optional[UUID],
+        dynamic_key: str,
+        name: str = None,
+        extra_tags: Iterable[str] = None,
+        state: prefect.states.State = None,
+        task_inputs: Dict[
+            str,
+            List[
+                Union[
+                    TaskRunResult,
+                    Parameter,
+                    Constant,
+                ]
+            ],
+        ] = None,
+    ) -> TaskRun:
+        """
+        Create a task run
+
+        Args:
+            task: The Task to run
+            flow_run_id: The flow run id with which to associate the task run
+            dynamic_key: A key unique to this particular run of a Task within the flow
+            name: An optional name for the task run
+            extra_tags: an optional list of extra tags to apply to the task run in
+                addition to `task.tags`
+            state: The initial state for the run. If not provided, defaults to
+                `Pending` for now. Should always be a `Scheduled` type.
+            task_inputs: the set of inputs passed to the task
+
+        Returns:
+            The created task run.
+        """
+        tags = set(task.tags).union(extra_tags or [])
+
+        if state is None:
+            state = prefect.states.Pending()
+
+        def generate_stable_uuid(input_uuid, input_string, input_integer):
+            import uuid
+
+            # Concatenate your inputs into a single string. Ensure the integer is converted to string
+            name = f"{input_string}-{str(input_integer)}"
+            # Generate a stable UUID based on the SHA-1 hash of the namespace and name
+            stable_uuid = uuid.uuid5(input_uuid, name)
+            return stable_uuid
+
+        task_run_id = generate_stable_uuid(
+            input_uuid=flow_run_id,
+            input_string=task.task_key,
+            input_integer=dynamic_key,
+        )
+        task_run_data = TaskRun(
+            id=task_run_id,
+            created=pendulum.now("UTC"),
+            updated=pendulum.now("UTC"),
+            name=name,
+            flow_run_id=flow_run_id,
+            task_key=task.task_key,
+            dynamic_key=dynamic_key,
+            tags=list(tags),
+            task_version=task.version,
+            expected_start_time=pendulum.now("UTC"),
+            empirical_policy=TaskRunPolicy(
+                retries=task.retries,
+                retry_delay=task.retry_delay_seconds,
+                retry_jitter_factor=task.retry_jitter_factor,
+            ),
+            # state=state.to_state_create(),
+            task_inputs=task_inputs or {},
+        )
+
+        # Write data to file instead
+        self.write_task_run_data(task_run=task_run_data)
+
+        # Set the task runs state
+        await self.set_task_run_state(task_run_id=task_run_id, state=state)
+
+        # Read the updated task run and return
+        return await self.read_task_run(task_run_id=task_run_id)
+
+    async def set_task_run_state(
+        self,
+        task_run_id: UUID,
+        state: State,
+        force: bool = False,
+    ) -> OrchestrationResult:
+        """
+        Set the state of a task run.
+
+        Args:
+            task_run_id: the id of the task run
+            state: the state to set
+            force: if True, disregard orchestration logic when setting the state,
+                forcing the Prefect API to accept the state
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        # print(f"Setting state for task run {task_run_id} to {state.name} ...")
+
+        # TODO - handle the `data` associated with a state
+        state.data = None
+
+        # Mock orchestration rules for task runs
+        # This needs to match prefect.server.orchestration.global_policy.GlobalTaskPolicy
+        # and prefect.server.orchestration.core_policy.CorePolicy
+        # TODO - only minimum tracking rules are implemented so far and we should
+        # handle exception cases similar to server side
+        task_run = await self.read_task_run(task_run_id=task_run_id)
+        if not task_run:
+            raise Exception(f"Could not find task run {task_run_id}")
+
+        # Implements the following
+        # def COMMON_GLOBAL_TRANSFORMS():
+        #     return [
+        #         SetRunStateType,
+        #         SetRunStateName,
+        #         SetRunStateTimestamp,
+        #         SetStartTime,
+        #         SetEndTime,
+        #         IncrementRunTime, (not implemented)
+        #         SetExpectedStartTime, (not implemented)
+        #         SetNextScheduledStartTime, (not implemented)
+        #         UpdateStateDetails,
+        #     ]
+        task_run.state_type = state.type
+        task_run.state_name = state.name
+        if state.is_running() and task_run.start_time is None:
+            task_run.start_time = state.timestamp
+
+        if state.is_final():
+            task_run.end_time = state.timestamp
+
+        state.state_details.flow_run_id = task_run.flow_run_id
+        state.state_details.task_run_id = task_run.id
+
+        # This is effectively the "COMMIT" of the transaction
+        state.task_run_id = state.id
+        task_run.state_id = state.id
+
+        # Write the new task run state
+        self.write_task_run_state_data(task_run_state=state)
+
+        # Write the updated task run
+        self.write_task_run_data(task_run=task_run)
+
+        # Return orchestration result
+        # TODO - handle abort / wait
+        return OrchestrationResult(
+            state=state,
+            status=SetStateStatus.ACCEPT,
+            details=StateAcceptDetails(),
+        )
+
+    async def set_task_run_name(self, task_run_id: UUID, task_run_name: str) -> None:
+        task_run = await self.read_task_run(task_run_id=task_run_id)
+        task_run.name = task_run_name
+        self.write_task_run_data(task_run=task_run)
 
     __var__ = ContextVar("flow_run")
 

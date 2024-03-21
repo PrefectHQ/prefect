@@ -43,7 +43,7 @@ import prefect.exceptions
 import prefect.settings
 import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas import FlowRun, OrchestrationResult, State, TaskRun
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -2205,6 +2205,22 @@ class PrefectClient:
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
         )
         return TaskRun.parse_obj(response.json())
+
+    async def bulk_upload_task_runs(self, task_runs: list[TaskRun]) -> None:
+        task_run_data = [
+            tr.dict(
+                json_compatible=True,
+                exclude={"estimated_run_time", "state", "estimated_start_time_delta"},
+            )
+            for tr in task_runs
+        ]
+        await self._client.put("/task_runs/", json=task_run_data)
+        return None
+
+    async def bulk_upload_task_run_states(self, task_run_states: list[State]) -> None:
+        task_run_state_data = [tr.dict(json_compatible=True) for tr in task_run_states]
+        await self._client.put("/task_run_states/", json=task_run_state_data)
+        return None
 
     async def read_task_run(self, task_run_id: UUID) -> TaskRun:
         """
