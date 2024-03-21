@@ -41,23 +41,10 @@
 - add a capability to verify ssl certificate in Prefect CLI — https://github.com/PrefectHQ/prefect/pull/11771
 - Backporting the Prefect Cloud composite trigger schemas — https://github.com/PrefectHQ/prefect/pull/12378
 
-## New Contributors
+### Contributors
+* @hainenber
 * @JiginJayaprakash made their first contribution in https://github.com/PrefectHQ/prefect/pull/12307
 * @baisystems made their first contribution in https://github.com/PrefectHQ/prefect/pull/11771
-
-### Contributors
-- @JiginJayaprakash
-- @abrookins
-- @baisystems
-- @bunchesofdonald
-- @chrisguidry
-- @collincchoy
-- @hainenber
-- @jakekaplan
-- @kevingrismore
-- @urimandujano
-- @znicholasbrown
-- @zzstoatzz
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.4...2.16.5
 
