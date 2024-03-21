@@ -393,7 +393,7 @@ To detect when the average lateness of your Kubernetes workloads (running on a w
 
 To express scenarios involving several kinds of events and metrics, you can use Prefect's `compound` and `sequence` triggers.  These higher-order triggers are composed from a set of underlying `event` and `metric` triggers, and will fire when some defined combination of those triggers do.
 
-For example, if you want to run a deployment only after 3 different flows in your workspace have written their results to an S3 bucket, combine them with a 'compound' trigger:
+For example, if you want to run a deployment only after 3 different flows in your workspace have written their results to a remote filesystem, combine them with a 'compound' trigger:
 
 ```json
 {
