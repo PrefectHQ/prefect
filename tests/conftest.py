@@ -62,6 +62,7 @@ from prefect.settings import (
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
+    PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
@@ -508,6 +509,12 @@ def caplog(caplog):
                 logger.handlers.append(caplog.handler)
 
     yield caplog
+
+
+@pytest.fixture(autouse=True)
+def disable_csrf_protection():
+    with temporary_settings({PREFECT_SERVER_CSRF_PROTECTION_ENABLED: False}):
+        yield
 
 
 @pytest.fixture
