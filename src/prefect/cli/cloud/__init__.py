@@ -3,10 +3,11 @@ Command line interface for interacting with Prefect Cloud
 """
 import signal
 import traceback
+import uuid
 import urllib.parse
 import webbrowser
 from contextlib import asynccontextmanager
-from typing import Hashable, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Hashable, Iterable, List, Optional, Tuple, Union
 
 import anyio
 import httpx
@@ -585,7 +586,6 @@ async def set(
 ):
     """Set current workspace. Shows a workspace picker if no workspace is specified."""
     confirm_logged_in()
-
     async with get_cloud_client() as client:
         try:
             workspaces = await client.read_workspaces()
@@ -602,24 +602,33 @@ async def set(
             else:
                 exit_with_error(f"Workspace {workspace_handle!r} not found.")
         else:
-            # don't force two choices if there's not that many workspaces
             if len(workspaces) > 10:
-                accounts = await client.read_accounts()
-
-                if len(accounts) == 1:
-                    account = accounts[0]
-                    workspaces = await client.read_workspaces(
-                        account_id=account["account_id"]
+                # Group workspaces by account_id
+                workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
+                for workspace in workspaces:
+                    workspace_by_account.setdefault(workspace.account_id, []).append(
+                        workspace
                     )
+
+                if len(workspace_by_account) == 1:
+                    account_id = next(iter(workspace_by_account.keys()))
+                    workspaces = workspace_by_account[account_id]
                 else:
+                    accounts = [
+                        {
+                            "account_id": account_id,
+                            "account_handle": workspace_by_account[account_id][
+                                0
+                            ].account_handle,
+                        }
+                        for account_id in workspace_by_account.keys()
+                    ]
                     account = prompt_select_from_list(
                         app.console,
                         "Which account would you like to use?",
                         [(account, account["account_handle"]) for account in accounts],
                     )
-                    workspaces = await client.read_workspaces(
-                        account_id=account["account_id"]
-                    )
+                    workspaces = workspace_by_account[account["account_id"]]
 
             if not workspaces:
                 exit_with_error("No workspaces found in the selected account.")

@@ -1,6 +1,5 @@
 import re
-from typing import Any, Dict, List, Optional, Union
-from uuid import UUID
+from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
@@ -85,20 +84,11 @@ class CloudClient:
         with anyio.fail_after(10):
             await self.read_workspaces()
 
-    async def read_workspaces(
-        self, account_id: Optional[Union[UUID, str]] = None
-    ) -> List[Workspace]:
+    async def read_workspaces(self) -> List[Workspace]:
         workspaces = pydantic.parse_obj_as(
             List[Workspace], await self.get("/me/workspaces")
         )
-        if account_id:
-            if isinstance(account_id, str):
-                account_id = UUID(account_id)
-            return [w for w in workspaces if w.account_id == account_id]
         return workspaces
-
-    async def read_accounts(self) -> List[Dict[str, Any]]:
-        return await self.get("/me/accounts")
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
         configured_url = prefect.settings.PREFECT_API_URL.value()
