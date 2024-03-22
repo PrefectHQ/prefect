@@ -67,54 +67,54 @@ jobs:
 
           - prefect-version: "2.0"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.1"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.2"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.3"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.4"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.5"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.6"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
             # 2.6 containers have a bad version of httpcore installed
             extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
           - prefect-version: "2.7"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.8"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.9"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.10"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.11"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.12"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.13"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.14"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.15"
             server-incompatible: true
-            server-csrf: false
+            server-disable-csrf: true
           - prefect-version: "2.16"
             server-incompatible: false
 
@@ -162,7 +162,7 @@ jobs:
           ./scripts/run-integration-flows.py
 
       - name: Turn off CSRF protection for older clients.
-        if: ${{ ! matrix.server-csrf }}
+        if: ${{ matrix.server-disable-csrf }}
         run: |
           echo "PREFECT_SERVER_CSRF_PROTECTION_ENABLED=0" >> $GITHUB_ENV
 
