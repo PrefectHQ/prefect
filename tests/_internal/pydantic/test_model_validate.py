@@ -1,5 +1,5 @@
 import pytest
-from pydantic import BaseModel, ValidationError, warnings
+from pydantic import BaseModel, ValidationError
 
 from prefect._internal.pydantic._compat import HAS_PYDANTIC_V2, model_validate
 from prefect.settings import (
@@ -38,7 +38,9 @@ def test_model_validate(caplog):
 def test_model_validate_with_flag_disabled(caplog):
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: False}):
         if HAS_PYDANTIC_V2:
-            with pytest.warns(warnings.PydanticDeprecatedSince20):
+            from pydantic.warnings import PydanticDeprecatedSince20
+
+            with pytest.warns(PydanticDeprecatedSince20):
                 model_instance = model_validate(Model, {"a": 1, "b": "test"})
         else:
             model_instance = model_validate(Model, {"a": 1, "b": "test"})
@@ -64,4 +66,4 @@ def test_model_validate_with_invalid_model(caplog):
         error = errors[0]
 
         assert error["loc"] == ("a",)
-        assert "Input should be a valid integer" in error["msg"]
+        assert "valid integer" in error["msg"]
