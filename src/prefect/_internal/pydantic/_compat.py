@@ -178,3 +178,36 @@ def model_json_schema(
         by_alias=by_alias,
         ref_template=ref_template,
     )
+
+
+def model_validate(
+    model: Type[BaseModel],
+    obj: Any,
+    *,
+    strict: bool = False,
+    from_attributes: bool = False,
+    context: Optional[Dict[str, Any]] = None,
+) -> Union[BaseModel, Dict[str, Any]]:
+    """Validate a pydantic model instance.
+
+    Args:
+        obj: The object to validate.
+        strict: Whether to enforce types strictly.
+        from_attributes: Whether to extract data from object attributes.
+        context: Additional context to pass to the validator.
+
+    Raises:
+        ValidationError: If the object could not be validated.
+
+    Returns:
+        The validated model instance.
+    """
+    if is_pydantic_v2_compatible(fn_name="model_validate"):
+        return model.model_validate(
+            obj=obj,
+            strict=strict,
+            from_attributes=from_attributes,
+            context=context,
+        )
+
+    return model.parse_obj(obj)
