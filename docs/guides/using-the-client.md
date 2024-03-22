@@ -160,7 +160,9 @@ if __name__ == "__main__":
 Instead of the last three from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last three completed flow runs of a specific deployment.
 
 ### Transition all running flows to cancelled via the Client
-Sometimes it can be cumbersome to use the UI to cancel many flow runs that you want removed from the orchestrator. An automation can be used for any newly created runs, but using `get_client` for running flow runs will immediately cancel these runs. In this example we are removing all flow runs that are currently stuck in `Pending`, `Running`, `Scheduled`, and `Late`.
+It can be cumbersome to cancel many flow runs through the UI. 
+You can use `get_client`to set multiple. runs to a `Cancelled` state.
+The code below will cancel  all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
 ```python
 import anyio
 
