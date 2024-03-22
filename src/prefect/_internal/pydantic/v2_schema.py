@@ -7,7 +7,7 @@ import typing as t
 import pendulum
 import pydantic
 from pydantic import BaseModel as V2BaseModel
-from pydantic import ConfigDict, create_model
+from pydantic import ConfigDict, PydanticUndefinedAnnotation, create_model
 from pydantic.type_adapter import TypeAdapter
 
 from prefect._internal.pydantic.annotations.pendulum import (
@@ -106,7 +106,11 @@ def create_v2_schema(
     model = create_model(
         name_, __config__=model_cfg, __base__=model_base, **model_fields
     )
-    adapter = TypeAdapter(model)
+    try:
+        adapter = TypeAdapter(model)
+    except PydanticUndefinedAnnotation as exc:
+        # in v1 this raises a TypeError, which is handled by parameter_schema
+        raise TypeError(exc.message)
 
     # root model references under #definitions
     schema = adapter.json_schema(
