@@ -85,7 +85,10 @@ class CloudClient:
             await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Workspace]:
-        return pydantic.parse_obj_as(List[Workspace], await self.get("/me/workspaces"))
+        workspaces = pydantic.parse_obj_as(
+            List[Workspace], await self.get("/me/workspaces")
+        )
+        return workspaces
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
         configured_url = prefect.settings.PREFECT_API_URL.value()

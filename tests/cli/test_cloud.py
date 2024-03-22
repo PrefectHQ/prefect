@@ -971,6 +971,121 @@ def test_set_workspace_updates_profile(respx_mock):
     }
 
 
+@pytest.mark.usefixtures("interactive_console")
+def test_set_workspace_with_account_selection(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test1", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
+        )
+    )
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/accounts").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                {"account_handle": "test1", "account_id": "account1"},
+                {"account_handle": "test2", "account_id": "account2"},
+            ],
+        )
+    )
+
+    respx_mock.get(
+        PREFECT_CLOUD_API_URL.value() + "/me/workspaces?account_id=account2"
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[bar_workspace.dict(json_compatible=True)],
+        )
+    )
+
+    cloud_profile = "cloud-foo"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=cloud_profile,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "fake-key",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "workspace", "set"],
+            expected_code=0,
+            user_input=readchar.key.DOWN + readchar.key.ENTER + readchar.key.ENTER,
+            expected_output_contains=[
+                f"Successfully set workspace to {bar_workspace.handle!r} in profile {cloud_profile!r}.",
+            ],
+        )
+
+    profiles = load_profiles()
+    assert profiles[cloud_profile].settings == {
+        PREFECT_API_URL: bar_workspace.api_url(),
+        PREFECT_API_KEY: "fake-key",
+    }
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_set_workspace_with_less_than_10_workspaces(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test1", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
+        )
+    )
+
+    cloud_profile = "cloud-foo"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=cloud_profile,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "fake-key",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "workspace", "set"],
+            expected_code=0,
+            user_input=readchar.key.DOWN + readchar.key.ENTER,
+            expected_output_contains=[
+                f"Successfully set workspace to {bar_workspace.handle!r} in profile {cloud_profile!r}.",
+            ],
+        )
+
+    profiles = load_profiles()
+    assert profiles[cloud_profile].settings == {
+        PREFECT_API_URL: bar_workspace.api_url(),
+        PREFECT_API_KEY: "fake-key",
+    }
+
+
 def test_cannot_get_webhook_if_you_are_not_logged_in():
     cloud_profile = "cloud-foo"
     save_profiles(
