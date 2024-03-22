@@ -462,6 +462,34 @@ async def login(
             )
 
         if prompt_switch_workspace:
+            if len(workspaces) > 10:
+                # Group workspaces by account_id
+                workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
+                for workspace in workspaces:
+                    workspace_by_account.setdefault(workspace.account_id, []).append(
+                        workspace
+                    )
+
+                if len(workspace_by_account) == 1:
+                    account_id = next(iter(workspace_by_account.keys()))
+                    workspaces = workspace_by_account[account_id]
+                else:
+                    accounts = [
+                        {
+                            "account_id": account_id,
+                            "account_handle": workspace_by_account[account_id][
+                                0
+                            ].account_handle,
+                        }
+                        for account_id in workspace_by_account.keys()
+                    ]
+                    account = prompt_select_from_list(
+                        app.console,
+                        "Which account would you like to use?",
+                        [(account, account["account_handle"]) for account in accounts],
+                    )
+                    workspaces = workspace_by_account[account["account_id"]]
+
             workspace = prompt_select_from_list(
                 app.console,
                 "Which workspace would you like to use?",
