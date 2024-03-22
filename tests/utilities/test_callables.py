@@ -139,33 +139,63 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
-            "title": "Parameters",
-            "type": "object",
-            "properties": {
-                "x": {
-                    "title": "x",
-                    "type": "string",
-                    "format": "date-time",
-                    "position": 0,
+        if HAS_PYDANTIC_V2:
+            expected_schema = {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "format": "date-time",
+                        "position": 0,
+                        "title": "x",
+                        "type": "string",
+                    },
+                    "y": {
+                        "default": "2025-01-01T00:00:00Z",
+                        "format": "date-time",
+                        "position": 1,
+                        "title": "y",
+                        "type": "string",
+                    },
+                    "z": {
+                        "default": "PT5S",
+                        "format": "duration",
+                        "position": 2,
+                        "title": "z",
+                        "type": "string",
+                    },
                 },
-                "y": {
-                    "title": "y",
-                    "default": "2025-01-01T00:00:00+00:00",
-                    "type": "string",
-                    "format": "date-time",
-                    "position": 1,
+                "required": ["x"],
+            }
+        else:
+            expected_schema = {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "title": "x",
+                        "type": "string",
+                        "format": "date-time",
+                        "position": 0,
+                    },
+                    "y": {
+                        "title": "y",
+                        "default": "2025-01-01T00:00:00+00:00",
+                        "type": "string",
+                        "format": "date-time",
+                        "position": 1,
+                    },
+                    "z": {
+                        "title": "z",
+                        "default": 5.0,
+                        "type": "number",
+                        "format": "time-delta",
+                        "position": 2,
+                    },
                 },
-                "z": {
-                    "title": "z",
-                    "default": 5.0,
-                    "type": "number",
-                    "format": "time-delta",
-                    "position": 2,
-                },
-            },
-            "required": ["x"],
-        }
+                "required": ["x"],
+            }
+        assert schema.dict() == expected_schema
 
     def test_function_with_enum_argument(self):
         class Color(Enum):
@@ -177,29 +207,53 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
-            "title": "Parameters",
-            "type": "object",
-            "properties": {
-                "x": {
-                    "title": "x",
-                    "default": "RED",
-                    "allOf": [{"$ref": "#/definitions/Color"}],
-                    "position": 0,
-                }
-            },
-            "definitions": {
-                "Color": {
-                    "title": "Color",
-                    "description": "An enumeration.",
-                    "enum": [
-                        "RED",
-                        "GREEN",
-                        "BLUE",
-                    ],
-                }
-            },
-        }
+
+        if HAS_PYDANTIC_V2:
+            expected_schema = {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        "default": "RED",
+                        "position": 0,
+                        "title": "x",
+                    }
+                },
+                "definitions": {
+                    "Color": {
+                        "enum": ["RED", "GREEN", "BLUE"],
+                        "title": "Color",
+                        "type": "string",
+                    }
+                },
+            }
+        else:
+            expected_schema = {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "title": "x",
+                        "default": "RED",
+                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        "position": 0,
+                    }
+                },
+                "definitions": {
+                    "Color": {
+                        "title": "Color",
+                        "description": "An enumeration.",
+                        "enum": [
+                            "RED",
+                            "GREEN",
+                            "BLUE",
+                        ],
+                    }
+                },
+            }
+
+        assert schema.dict() == expected_schema
 
     def test_function_with_generic_arguments(self):
         def f(
@@ -211,48 +265,84 @@ class TestFunctionToSchema:
         ):
             pass
 
-        # pydantic 1.9.0 adds min and max item counts to the parameter schema
-        min_max_items = (
-            {
-                "minItems": 2,
-                "maxItems": 2,
-            }
-            if Version(pydantic.version.VERSION) >= Version("1.9.0")
-            else {}
-        )
-
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
-            "title": "Parameters",
-            "type": "object",
-            "properties": {
-                "a": {
-                    "title": "a",
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "position": 0,
+
+        if HAS_PYDANTIC_V2:
+            expected_schema = {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "a": {
+                        "items": {"type": "string"},
+                        "position": 0,
+                        "title": "a",
+                        "type": "array",
+                    },
+                    "b": {"position": 1, "title": "b", "type": "object"},
+                    "c": {"position": 2, "title": "c"},
+                    "d": {
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "position": 3,
+                        "prefixItems": [{"type": "integer"}, {"type": "number"}],
+                        "title": "d",
+                        "type": "array",
+                    },
+                    "e": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {"format": "binary", "type": "string"},
+                            {"type": "integer"},
+                        ],
+                        "position": 4,
+                        "title": "e",
+                    },
                 },
-                "b": {"title": "b", "type": "object", "position": 1},
-                "c": {"title": "c", "position": 2},
-                "d": {
-                    "title": "d",
-                    "type": "array",
-                    "items": [{"type": "integer"}, {"type": "number"}],
-                    **min_max_items,
-                    "position": 3,
+                "required": ["a", "b", "c", "d", "e"],
+            }
+        else:
+            # pydantic 1.9.0 adds min and max item counts to the parameter schema
+            min_max_items = (
+                {
+                    "minItems": 2,
+                    "maxItems": 2,
+                }
+                if Version(pydantic.version.VERSION) >= Version("1.9.0")
+                else {}
+            )
+            expected_schema = {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "a": {
+                        "title": "a",
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "position": 0,
+                    },
+                    "b": {"title": "b", "type": "object", "position": 1},
+                    "c": {"title": "c", "position": 2},
+                    "d": {
+                        "title": "d",
+                        "type": "array",
+                        "items": [{"type": "integer"}, {"type": "number"}],
+                        **min_max_items,
+                        "position": 3,
+                    },
+                    "e": {
+                        "title": "e",
+                        "anyOf": [
+                            {"type": "string"},
+                            {"type": "string", "format": "binary"},
+                            {"type": "integer"},
+                        ],
+                        "position": 4,
+                    },
                 },
-                "e": {
-                    "title": "e",
-                    "anyOf": [
-                        {"type": "string"},
-                        {"type": "string", "format": "binary"},
-                        {"type": "integer"},
-                    ],
-                    "position": 4,
-                },
-            },
-            "required": ["a", "b", "c", "d", "e"],
-        }
+                "required": ["a", "b", "c", "d", "e"],
+            }
+
+        assert schema.dict() == expected_schema
 
     def test_function_with_user_defined_type(self):
         class Foo:
@@ -536,29 +626,49 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
-            assert schema.dict() == {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "color": {
-                        "title": "color",
-                        "default": "RED",
-                        "allOf": [{"$ref": "#/definitions/Color"}],
-                        "position": 0,
-                    }
-                },
-                "definitions": {
-                    "Color": {
-                        "title": "Color",
-                        "description": "An enumeration.",
-                        "enum": [
-                            "RED",
-                            "GREEN",
-                            "BLUE",
-                        ],
-                    }
-                },
-            }
+
+            if HAS_PYDANTIC_V2:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "color": {
+                            "allOf": [{"$ref": "#/definitions/Color"}],
+                            "default": "RED",
+                            "position": 0,
+                            "title": "color",
+                        }
+                    },
+                    "definitions": {
+                        "Color": {
+                            "enum": ["RED", "GREEN", "BLUE"],
+                            "title": "Color",
+                            "type": "string",
+                        }
+                    },
+                }
+            else:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "color": {
+                            "title": "color",
+                            "default": "RED",
+                            "position": 0,
+                            "allOf": [{"$ref": "#/definitions/Color"}],
+                        }
+                    },
+                    "definitions": {
+                        "Color": {
+                            "title": "Color",
+                            "description": "An enumeration.",
+                            "enum": ["RED", "GREEN", "BLUE"],
+                        }
+                    },
+                }
+
+            assert schema.dict() == expected_schema
 
     def test_methods_with_complex_arguments(self):
         class Foo:
@@ -575,26 +685,54 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
-            assert schema.dict() == {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "title": "x",
-                        "type": "string",
-                        "format": "date-time",
-                        "position": 0,
+            if HAS_PYDANTIC_V2:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "x": {
+                            "format": "date-time",
+                            "position": 0,
+                            "title": "x",
+                            "type": "string",
+                        },
+                        "y": {
+                            "default": 42,
+                            "position": 1,
+                            "title": "y",
+                            "type": "integer",
+                        },
+                        "z": {
+                            "default": None,
+                            "position": 2,
+                            "title": "z",
+                            "type": "boolean",
+                        },
                     },
-                    "y": {
-                        "title": "y",
-                        "default": 42,
-                        "type": "integer",
-                        "position": 1,
+                    "required": ["x"],
+                }
+            else:
+                expected_schema = {
+                    "title": "Parameters",
+                    "type": "object",
+                    "properties": {
+                        "x": {
+                            "title": "x",
+                            "type": "string",
+                            "format": "date-time",
+                            "position": 0,
+                        },
+                        "y": {
+                            "title": "y",
+                            "default": 42,
+                            "type": "integer",
+                            "position": 1,
+                        },
+                        "z": {"title": "z", "type": "boolean", "position": 2},
                     },
-                    "z": {"title": "z", "type": "boolean", "position": 2},
-                },
-                "required": ["x"],
-            }
+                    "required": ["x"],
+                }
+            assert schema.dict() == expected_schema
 
 
 class TestParseFlowDescriptionToSchema:
