@@ -32,6 +32,13 @@ class RunDeployment(Action):
         ),
     )
     deployment_id: UUID = Field(..., description="The identifier of the deployment")
+    job_variables: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Job variables to pass to the run, or None to use the "
+            "deployment's default job variables"
+        ),
+    )
 
 
 class SendNotification(Action):
