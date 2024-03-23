@@ -7,7 +7,7 @@ See the following pull request for implementation details: https://github.com/Pr
 
 ### Enhancements
 - Improve nested schema hydration for templating — https://github.com/PrefectHQ/prefect/pull/12384
-- Improve interactive workspace selection — https://github.com/PrefectHQ/prefect/pull/12387
+- Improve interactive workspace selection in the CLI — https://github.com/PrefectHQ/prefect/pull/12387
 - Use Pydantic V2 for schema generation where possible — https://github.com/PrefectHQ/prefect/pull/12210
 - Enable CSRF protection by default — https://github.com/PrefectHQ/prefect/pull/12377
 
