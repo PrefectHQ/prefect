@@ -233,7 +233,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=30,
         limit=None,
         heartbeat_interval_seconds=30,
@@ -261,7 +261,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=100,
         limit=None,
         heartbeat_interval_seconds=30,
@@ -290,7 +290,7 @@ def test_start_worker_with_limit(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=10,
         limit=5,
         heartbeat_interval_seconds=30,

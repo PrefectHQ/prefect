@@ -139,7 +139,7 @@ def test_start_agent_respects_work_queue_names(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=["a", "b"],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name=None,
         prefetch_seconds=ANY,
         limit=None,
@@ -171,7 +171,7 @@ def test_start_agent_respects_limit(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=["test"],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name=None,
         prefetch_seconds=ANY,
         limit=10,
@@ -187,7 +187,7 @@ def test_start_agent_respects_work_pool_name(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=["test"],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name="test-pool",
         prefetch_seconds=ANY,
         limit=None,
@@ -221,7 +221,7 @@ def test_start_agent_with_just_work_pool(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=[],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name="test-pool",
         prefetch_seconds=ANY,
         limit=None,
