@@ -620,6 +620,9 @@ async def delete_worker(
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
             session=session, work_pool_name=work_pool_name
         )
-        await models.workers.delete_worker(
-            session=session, work_pool_id=work_pool_id, worker_name=worker_name, db=db
+        deleted = await models.workers.delete_worker(
+            session=session, work_pool_id=work_pool_id, worker_name=worker_name
         )
+        if not deleted:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Worker not found.")
+
