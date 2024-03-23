@@ -1,24 +1,39 @@
-from typing import Any, Dict, Literal, Optional, Set, Type, Union
+import os
+from typing import Any, Dict, Optional, Set, Type, Union
 
-import typing_extensions
-from pydantic import BaseModel
+from typing_extensions import Literal, TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS
 
-IncEx: typing_extensions.TypeAlias = (
-    "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
-)
+if HAS_PYDANTIC_V2:
+    # We cannot load this setting through the normal pattern due to circular
+    # imports; instead just check if its a truthy setting directly
+    if os.getenv("PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS", "0").lower() in [
+        "true",
+        "1",
+    ]:
+        from pydantic import BaseModel as CurrentBaseModel
+    else:
+        from pydantic.v1 import BaseModel as CurrentBaseModel
+    from pydantic.json_schema import GenerateJsonSchema
+else:
+    from pydantic import BaseModel as CurrentBaseModel
+
+    class GenerateJsonSchema:
+        pass
+
+
+DEFAULT_REF_TEMPLATE = "#/$defs/{model}"
+IncEx: TypeAlias = "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
+JsonSchemaMode = Literal["validation", "serialization"]
 
 logger = get_logger("prefect._internal.pydantic")
 
-if HAS_PYDANTIC_V2:
-    from pydantic.json_schema import GenerateJsonSchema
 
-
-def is_pydantic_v2_compatible(
-    model_instance: Optional[BaseModel] = None, fn_name: Optional[str] = None
+def should_use_pydantic_v2(
+    model_instance: Optional[CurrentBaseModel] = None, method_name: Optional[str] = None
 ) -> bool:
     """
     Determines if the current environment is compatible with Pydantic V2 features,
@@ -31,12 +46,12 @@ def is_pydantic_v2_compatible(
 
     Parameters:
     -----------
-    model_instance : Optional[BaseModel], optional
+    model_instance : Optional[CurrentBaseModel], optional
         An instance of a Pydantic model. This parameter is used to perform a type check
         to ensure the passed object is a Pydantic model instance. If not provided or if
         the object is not a Pydantic model, a TypeError is raised. Defaults to None.
 
-    fn_name : Optional[str], optional
+    method_name : Optional[str], optional
         The name of the function or feature for which V2 compatibility is being checked.
         This is used for logging purposes to provide more context in debug messages.
         Defaults to None.
@@ -52,7 +67,7 @@ def is_pydantic_v2_compatible(
     TypeError
         If `model_instance` is provided but is not an instance of a Pydantic BaseModel.
     """
-    if model_instance and not isinstance(model_instance, BaseModel):
+    if model_instance and not isinstance(model_instance, CurrentBaseModel):
         raise TypeError(
             f"Expected a Pydantic model, but got {type(model_instance).__name__}"
         )
@@ -63,7 +78,7 @@ def is_pydantic_v2_compatible(
 
     if should_dump_as_v2_model:
         logger.debug(
-            f"Using Pydantic v2 compatibility layer for `{fn_name}`. This will be removed in a future release."
+            f"Using Pydantic v2 compatibility layer for `{method_name}`. This will be removed in a future release."
         )
 
         return True
@@ -80,7 +95,7 @@ def is_pydantic_v2_compatible(
 
 
 def model_dump(
-    model_instance: BaseModel,
+    model_instance: CurrentBaseModel,
     *,
     mode: Union[Literal["json", "python"], str] = "python",
     include: IncEx = None,
@@ -111,8 +126,9 @@ def model_dump(
     Returns:
         A dictionary representation of the model.
     """
-    if is_pydantic_v2_compatible(model_instance=model_instance, fn_name="model_dump"):
-        return model_instance.model_dump(
+
+    if should_use_pydantic_v2(model_instance=model_instance, method_name="model_dump"):
+        return super(CompatBaseModel, model_instance).model_dump(
             mode=mode,
             include=include,
             exclude=exclude,
@@ -134,16 +150,12 @@ def model_dump(
     )
 
 
-DEFAULT_REF_TEMPLATE = "#/$defs/{model}"
-JsonSchemaMode = Literal["validation", "serialization"]
-
-
 def model_json_schema(
-    model: Type[BaseModel],
+    model_type: Type[CurrentBaseModel],
     *,
     by_alias: bool = True,
     ref_template: str = DEFAULT_REF_TEMPLATE,
-    schema_generator=None,
+    schema_generator: Optional[Type[GenerateJsonSchema]] = None,
     mode: JsonSchemaMode = "validation",
 ) -> Dict[str, Any]:
     """
@@ -151,6 +163,7 @@ def model_json_schema(
 
     Parameters
     ----------
+    model_type : Type[CurrentBaseModel]
     by_alias : bool, optional
         Whether to use attribute aliases or not, by default True
     ref_template : str, optional
@@ -162,19 +175,115 @@ def model_json_schema(
 
     Returns
     -------
-    dict[str, Any]
+    Dict[str, Any]
         The JSON schema for the given model class.
     """
-    if is_pydantic_v2_compatible(fn_name="model_json_schema"):
-        schema_generator = GenerateJsonSchema
-        return model.model_json_schema(
+
+    if should_use_pydantic_v2(method_name="model_json_schema"):
+        return super(CompatBaseModel, model_type).model_json_schema(
+            by_alias=by_alias,
+            ref_template=ref_template,
+            schema_generator=schema_generator or GenerateJsonSchema,
+            mode=mode,
+        )
+
+    return model_type.schema(
+        by_alias=by_alias,
+        ref_template=ref_template,
+    )
+
+
+"""
+This class serves as a compatibility layer for Pydantic v2 features.
+
+It exposes the main methods offered by the v2 BaseModel class, such as `model_dump` and `model_json_schema`,
+and switches between the v1 and v2 implementations based on the availability of Pydantic v2 and a global setting
+that enables v2 features, `PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS`.
+"""
+
+
+class CompatBaseModel(CurrentBaseModel):
+    def model_dump(
+        self,
+        mode: Union[Literal["json", "python"], str] = "python",
+        include: IncEx = None,
+        exclude: IncEx = None,
+        by_alias: bool = False,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        round_trip: bool = False,
+        warnings: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
+
+        Args:
+            mode: The mode in which `to_python` should run.
+                If mode is 'json', the output will only contain JSON serializable types.
+                If mode is 'python', the output may contain non-JSON-serializable Python objects.
+            include: A list of fields to include in the output.
+            exclude: A list of fields to exclude from the output.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+            round_trip: If True, dumped values should be valid as input for non-idempotent types such as Json[T].
+            warnings: Whether to log warnings when invalid fields are encountered.
+
+        Returns:
+            A dictionary representation of the model.
+        """
+        return model_dump(
+            self,
+            mode=mode,
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+        )
+
+    @classmethod
+    def model_json_schema(
+        cls: Type[CurrentBaseModel],
+        *,
+        by_alias: bool = True,
+        ref_template: str = DEFAULT_REF_TEMPLATE,
+        schema_generator: Optional[Type[GenerateJsonSchema]] = None,
+        mode: JsonSchemaMode = "validation",
+    ) -> Dict[str, Any]:
+        """
+        Generates a JSON schema for the model.
+
+        Parameters
+        ----------
+        cls : Type[CurrentBaseModel]
+        by_alias : bool, optional
+            Whether to use attribute aliases or not, by default True
+        ref_template : str, optional
+            The reference template, by default DEFAULT_REF_TEMPLATE
+        schema_generator : type[GenerateEmptySchemaForUserClasses], optional
+            To override the logic used to generate the JSON schema, as a subclass of Generate
+            EmptySchemaForUserClasses with your desired modifications, by default GenerateEmptySchemaForUserClasses
+        mode : JsonSchemaMode, optional
+            The mode in which to generate the schema, by default 'validation'
+
+        Returns
+        -------
+        Dict[str, Any]
+            The JSON schema for the model.
+        """
+        return model_json_schema(
+            cls,
             by_alias=by_alias,
             ref_template=ref_template,
             schema_generator=schema_generator,
             mode=mode,
         )
 
-    return model.schema(
-        by_alias=by_alias,
-        ref_template=ref_template,
-    )
+
+BaseModel = CompatBaseModel
