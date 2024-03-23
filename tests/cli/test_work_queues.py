@@ -346,6 +346,17 @@ class TestPauseWorkQueue:
             expected_code=0,
         )
 
+    def test_pause_without_specifying_pool_name_with_abort(
+        self,
+        work_queue,
+    ):
+        invoke_and_assert(
+            command=f"work-queue pause {work_queue.name}",
+            user_input="N",
+            expected_code=1,
+            expected_output_contains="Work queue pause aborted!",
+        )
+
 
 class TestResumeWorkQueue:
     def test_resume(self, prefect_client, work_queue):
