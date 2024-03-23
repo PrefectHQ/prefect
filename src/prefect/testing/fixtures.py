@@ -18,7 +18,12 @@ from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
-from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    get_current_settings,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.processutils import open_process
 
@@ -118,7 +123,12 @@ def use_hosted_api_server(hosted_api_server):
     """
     Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
     """
-    with temporary_settings({PREFECT_API_URL: hosted_api_server}):
+    with temporary_settings(
+        {
+            PREFECT_API_URL: hosted_api_server,
+            PREFECT_SERVER_CSRF_PROTECTION_ENABLED: False,
+        }
+    ):
         yield hosted_api_server
 
 

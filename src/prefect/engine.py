@@ -2002,10 +2002,14 @@ async def orchestrate_task_run(
     )
 
     # Emit an event to capture that the task run was in the `PENDING` state.
-    last_event = _emit_task_run_state_change_event(
+    last_event = emit_task_run_state_change_event(
         task_run=task_run, initial_state=None, validated_state=task_run.state
     )
-    last_state = task_run.state
+    last_state = (
+        Pending()
+        if flow_run_context and flow_run_context.autonomous_task_run
+        else task_run.state
+    )
 
     # Completed states with persisted results should have result data. If it's missing,
     # this could be a manual state transition, so we should use the Unknown result type
@@ -2094,7 +2098,7 @@ async def orchestrate_task_run(
                 break
 
     # Emit an event to capture the result of proposing a `RUNNING` state.
-    last_event = _emit_task_run_state_change_event(
+    last_event = emit_task_run_state_change_event(
         task_run=task_run,
         initial_state=last_state,
         validated_state=state,
@@ -2187,7 +2191,7 @@ async def orchestrate_task_run(
                     await _check_task_failure_retriable(task, task_run, terminal_state)
                 )
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
-            last_event = _emit_task_run_state_change_event(
+            last_event = emit_task_run_state_change_event(
                 task_run=task_run,
                 initial_state=last_state,
                 validated_state=state,
@@ -2220,7 +2224,7 @@ async def orchestrate_task_run(
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
-                last_event = _emit_task_run_state_change_event(
+                last_event = emit_task_run_state_change_event(
                     task_run=task_run,
                     initial_state=last_state,
                     validated_state=state,
@@ -2896,7 +2900,7 @@ async def check_api_reachable(client: PrefectClient, fail_message: str):
     API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
 
 
-def _emit_task_run_state_change_event(
+def emit_task_run_state_change_event(
     task_run: TaskRun,
     initial_state: Optional[State],
     validated_state: State,

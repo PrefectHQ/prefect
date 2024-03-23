@@ -1,5 +1,61 @@
 # Prefect Release Notes
 
+## Release 2.16.5
+
+### Multi-select deletion of flow runs
+It is now easier to bulk select and delete flow runs through the UI. Listings of filterable and selectable flow runs (e.g. on the flow runs, flow, and deployment pages) now include a top-level checkbox for (de)selecting all currently filtered flow runs for bulk deletion.
+
+![image](https://github.com/PrefectHQ/prefect/assets/42048900/2431caf4-c1be-4afd-bcff-3c24fa94dc64)
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12356 
+- https://github.com/PrefectHQ/prefect-ui-library/pull/2227
+- https://github.com/PrefectHQ/prefect/pull/12285
+
+### Visualize state changes and artifacts in the UI
+Additionally, the flow run graph UI enhancements for visualizing state changes and artifacts added in 2.16.4 are now enabled by default. See [the release notes in 2.16.14 for more details](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-2164)!
+
+### Enhancements
+- Keep artifacts file in prefect-client — https://github.com/PrefectHQ/prefect/pull/12316
+- remove feature flagging around enhanced-deployment-experiment — https://github.com/PrefectHQ/prefect/pull/12360
+- Feature : #11773 UI: Add checkboxes for runs for an individual flow to allow multi-selection/-deletion — https://github.com/PrefectHQ/prefect/pull/12285
+- Add a capability to verify ssl certificates in Prefect CLI — https://github.com/PrefectHQ/prefect/pull/11771
+- Add `prefect task-run` command group to CLI — https://github.com/PrefectHQ/prefect/pull/12307
+- Correct emit background task state change events — https://github.com/PrefectHQ/prefect/pull/12352
+- Update `CsrfTokenApi` to retry failed requests due to invalid tokens — https://github.com/PrefectHQ/prefect/pull/12373
+
+### Fixes
+- Refactor logic to set `task_key` for background tasks — https://github.com/PrefectHQ/prefect/pull/12337
+- Correct a memory leak with the outbound task run websockets — https://github.com/PrefectHQ/prefect/pull/12346
+- Correctly type hint in flow run state change hooks — https://github.com/PrefectHQ/prefect/pull/12231
+
+### Experimental
+- Create `CsrfToken` model and utilities — https://github.com/PrefectHQ/prefect/pull/12289
+- Create `csrf_token` endpoint to generate tokens for clients — https://github.com/PrefectHQ/prefect/pull/12297
+- Integrate `CsrfMiddleware` into API server — https://github.com/PrefectHQ/prefect/pull/12303
+- Add CSRF support to client — https://github.com/PrefectHQ/prefect/pull/12314
+- Return 422 when CSRF is disabled and delete expired tokens — https://github.com/PrefectHQ/prefect/pull/12342
+- Add `model_dump` definition for Pydantic v2 compatibility layer — https://github.com/PrefectHQ/prefect/pull/12345
+- Add experimental `model_json_schema` definition for Pydantic V2 compatibility - https://github.com/PrefectHQ/prefect/pull/12362
+- Implement CSRF support in the UI — https://github.com/PrefectHQ/prefect/pull/12354
+
+### Documentation
+- Add upstream dependencies guide to docs — https://github.com/PrefectHQ/prefect/pull/12351
+- Update documentation on event and metric automation triggers — https://github.com/PrefectHQ/prefect/pull/12366
+- Add documentation on compound and sequence automation triggers — https://github.com/PrefectHQ/prefect/pull/12374
+- Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376 
+
+### Uncategorized
+- Pin `BuildKit` to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
+- Backporting the Prefect Cloud composite trigger schemas — https://github.com/PrefectHQ/prefect/pull/12378
+
+### Contributors
+* @hainenber
+* @JiginJayaprakash made their first contribution in https://github.com/PrefectHQ/prefect/pull/12307
+* @baisystems made their first contribution in https://github.com/PrefectHQ/prefect/pull/11771
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.4...2.16.5
+
 ## Release 2.16.4
 
 ### Flow Run Graph updates
@@ -7,6 +63,9 @@
 The Flow Run Graph has been updated to display additional layers of information! Interactive and real-time state changes and artifacts are now visible in context on the graph.
 
 <img width="892" alt="The Prefect flow run graph" src="https://github.com/PrefectHQ/prefect/assets/6776415/422a878e-f8bc-46b5-ae76-830f24861aaf">
+
+
+These new layers are available for opt-in usage via the `PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH` and `PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH` settings.
 
 ### Agents
 
