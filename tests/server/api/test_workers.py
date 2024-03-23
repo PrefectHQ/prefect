@@ -873,20 +873,21 @@ class TestDeleteWorker:
         )
         assert deleted_worker_name not in map(lambda x: x.name, remaining_workers)
 
-    async def test_nonexistent_worker(self, client, work_pool, session, db):
+    async def test_nonexistent_worker(self, client, session, db):
         worker_name = "worker1"
-        work_pool_id = work_pool.id
+        wp = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="A"),
+        )
         insert_stmt = (await db.insert(db.Worker)).values(
             name=worker_name,
-            work_pool_id=work_pool_id,
+            work_pool_id=wp.id,
             last_heartbeat_time=pendulum.now(),
         )
         await session.execute(insert_stmt)
         await session.commit()
 
-        response = await client.delete(
-            f"/work_pools/${work_pool.name}/workers/does-not-exist"
-        )
+        response = await client.delete(f"/work_pools/${wp.name}/workers/does-not-exist")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
