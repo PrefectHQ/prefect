@@ -9,7 +9,7 @@ See the following pull request for implementation details: https://github.com/Pr
 - Improve nested schema hydration for templating — https://github.com/PrefectHQ/prefect/pull/12384
 - Improve interactive workspace selection — https://github.com/PrefectHQ/prefect/pull/12387
 - Use pydantic v2 for schema generation where possible — https://github.com/PrefectHQ/prefect/pull/12210
-- Turn CSRF protection on by default — https://github.com/PrefectHQ/prefect/pull/12377
+- Enable CSRF protection by default — https://github.com/PrefectHQ/prefect/pull/12377
 
 ### Fixes
 - Handle new `typer.Option` behavior — https://github.com/PrefectHQ/prefect/pull/12398
