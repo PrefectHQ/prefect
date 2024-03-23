@@ -1,5 +1,24 @@
 # Prefect Release Notes
 
+## Release 2.16.6
+
+### Fix new behavior in `typer 0.10.0` that broke the `prefect` CLI
+See the following pull request for implementation details: https://github.com/PrefectHQ/prefect/pull/12398
+
+### Enhancements
+- Improve nested schema hydration for templating — https://github.com/PrefectHQ/prefect/pull/12384
+- Improve interactive workspace selection in the CLI — https://github.com/PrefectHQ/prefect/pull/12387
+- Use Pydantic V2 for schema generation where possible — https://github.com/PrefectHQ/prefect/pull/12210
+- Enable CSRF protection by default — https://github.com/PrefectHQ/prefect/pull/12377
+
+### Fixes
+- Handle new `typer.Option` behavior — https://github.com/PrefectHQ/prefect/pull/12398
+
+### Experimental
+- Add experimental `model_validate` function for Pydantic V2 compatibility — https://github.com/PrefectHQ/prefect/pull/12370
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.5...2.16.6
+
 ## Release 2.16.5
 
 ### Multi-select deletion of flow runs
