@@ -13,7 +13,6 @@ from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.server.api.validation import validate_job_variables_for_flow_run
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
@@ -241,22 +240,19 @@ async def update_deployment(
                 )
 
         if deployment.parameters is not None:
-            if experiment_enabled("enhanced_deployment_parameters"):
-                try:
-                    dehydrated_params = deployment.parameters
-                    ctx = await HydrationContext.build(
-                        session=session,
-                        raise_on_error=True,
-                    )
-                    parameters = hydrate(dehydrated_params, ctx)
-                    deployment.parameters = parameters
-                except HydrationError as exc:
-                    raise HTTPException(
-                        status.HTTP_400_BAD_REQUEST,
-                        detail=f"Error hydrating deployment parameters: {exc}",
-                    )
-            else:
-                parameters = deployment.parameters
+            try:
+                dehydrated_params = deployment.parameters
+                ctx = await HydrationContext.build(
+                    session=session,
+                    raise_on_error=True,
+                )
+                parameters = hydrate(dehydrated_params, ctx)
+                deployment.parameters = parameters
+            except HydrationError as exc:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error hydrating deployment parameters: {exc}",
+                )
         else:
             parameters = existing_deployment.parameters
 
@@ -612,20 +608,16 @@ async def create_flow_run_from_deployment(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
 
-        if experiment_enabled("enhanced_deployment_parameters"):
-            try:
-                dehydrated_params = deployment.parameters
-                dehydrated_params.update(flow_run.parameters or {})
-                ctx = await HydrationContext.build(session=session, raise_on_error=True)
-                parameters = hydrate(dehydrated_params, ctx)
-            except HydrationError as exc:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    detail=f"Error hydrating flow run parameters: {exc}",
-                )
-        else:
-            parameters = deployment.parameters
-            parameters.update(flow_run.parameters or {})
+        try:
+            dehydrated_params = deployment.parameters
+            dehydrated_params.update(flow_run.parameters or {})
+            ctx = await HydrationContext.build(session=session, raise_on_error=True)
+            parameters = hydrate(dehydrated_params, ctx)
+        except HydrationError as exc:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"Error hydrating flow run parameters: {exc}",
+            )
 
         if deployment.enforce_parameter_schema:
             if not isinstance(deployment.parameter_openapi_schema, dict):

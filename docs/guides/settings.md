@@ -98,6 +98,35 @@ The `PREFECT_LOCAL_STORAGE_PATH` value specifies the default location of local s
 PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
 ```
 
+### CSRF Protection Settings
+
+If using a local Prefect server instance, you can configure CSRF protection settings.
+
+`PREFECT_SERVER_CSRF_PROTECTION_ENABLED`
+- Activates CSRF protection on the server, requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. Defaults to False.
+
+```bash
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED=True
+```
+
+`PREFECT_SERVER_CSRF_TOKEN_EXPIRATION`
+- Sets the expiration duration for server-issued CSRF tokens, influencing how often tokens need to be refreshed. The default is 1 hour.
+
+```bash
+PREFECT_SERVER_CSRF_TOKEN_EXPIRATION='3600'  # 1 hour in seconds
+```
+
+By default clients expect that CSRF protection is enabled on the server. If you are running a server without CSRF protection, you can disable CSRF support in the client.
+
+`PREFECT_CLIENT_CSRF_SUPPORT_ENABLED`
+- Enables or disables CSRF token handling in the Prefect client. When enabled, the client manages CSRF tokens for state-changing API requests. Defaults to True.
+
+```bash
+PREFECT_CLIENT_CSRF_SUPPORT_ENABLED=True
+```
+
+
+
 ### Database settings
 
 If running a self-hosted Prefect server instance, there are several database configuration settings you can read about [here](/host/).

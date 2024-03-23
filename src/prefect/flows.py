@@ -1345,8 +1345,12 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_completion: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
+    on_failure: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
     on_cancellation: Optional[
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
@@ -1373,8 +1377,12 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_completion: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
+    on_failure: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
     on_cancellation: Optional[
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,

@@ -3,10 +3,11 @@ Command line interface for interacting with Prefect Cloud
 """
 import signal
 import traceback
+import uuid
 import urllib.parse
 import webbrowser
 from contextlib import asynccontextmanager
-from typing import Hashable, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Hashable, Iterable, List, Optional, Tuple, Union
 
 import anyio
 import httpx
@@ -461,6 +462,34 @@ async def login(
             )
 
         if prompt_switch_workspace:
+            if len(workspaces) > 10:
+                # Group workspaces by account_id
+                workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
+                for workspace in workspaces:
+                    workspace_by_account.setdefault(workspace.account_id, []).append(
+                        workspace
+                    )
+
+                if len(workspace_by_account) == 1:
+                    account_id = next(iter(workspace_by_account.keys()))
+                    workspaces = workspace_by_account[account_id]
+                else:
+                    accounts = [
+                        {
+                            "account_id": account_id,
+                            "account_handle": workspace_by_account[account_id][
+                                0
+                            ].account_handle,
+                        }
+                        for account_id in workspace_by_account.keys()
+                    ]
+                    account = prompt_select_from_list(
+                        app.console,
+                        "Which account would you like to use?",
+                        [(account, account["account_handle"]) for account in accounts],
+                    )
+                    workspaces = workspace_by_account[account["account_id"]]
+
             workspace = prompt_select_from_list(
                 app.console,
                 "Which workspace would you like to use?",
@@ -585,7 +614,6 @@ async def set(
 ):
     """Set current workspace. Shows a workspace picker if no workspace is specified."""
     confirm_logged_in()
-
     async with get_cloud_client() as client:
         try:
             workspaces = await client.read_workspaces()
@@ -594,23 +622,53 @@ async def set(
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
 
-    if workspace_handle:
-        # Search for the given workspace
-        for workspace in workspaces:
-            if workspace.handle == workspace_handle:
-                break
+        if workspace_handle:
+            # Search for the given workspace
+            for workspace in workspaces:
+                if workspace.handle == workspace_handle:
+                    break
+            else:
+                exit_with_error(f"Workspace {workspace_handle!r} not found.")
         else:
-            exit_with_error(f"Workspace {workspace_handle!r} not found.")
-    else:
-        workspace = prompt_select_from_list(
-            app.console,
-            "Which workspace would you like to use?",
-            [(workspace, workspace.handle) for workspace in workspaces],
+            if len(workspaces) > 10:
+                # Group workspaces by account_id
+                workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
+                for workspace in workspaces:
+                    workspace_by_account.setdefault(workspace.account_id, []).append(
+                        workspace
+                    )
+
+                if len(workspace_by_account) == 1:
+                    account_id = next(iter(workspace_by_account.keys()))
+                    workspaces = workspace_by_account[account_id]
+                else:
+                    accounts = [
+                        {
+                            "account_id": account_id,
+                            "account_handle": workspace_by_account[account_id][
+                                0
+                            ].account_handle,
+                        }
+                        for account_id in workspace_by_account.keys()
+                    ]
+                    account = prompt_select_from_list(
+                        app.console,
+                        "Which account would you like to use?",
+                        [(account, account["account_handle"]) for account in accounts],
+                    )
+                    workspaces = workspace_by_account[account["account_id"]]
+
+            if not workspaces:
+                exit_with_error("No workspaces found in the selected account.")
+
+            workspace = prompt_select_from_list(
+                app.console,
+                "Which workspace would you like to use?",
+                [(workspace, workspace.handle) for workspace in workspaces],
+            )
+
+        profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
+        exit_with_success(
+            f"Successfully set workspace to {workspace.handle!r} in profile"
+            f" {profile.name!r}."
         )
-
-    profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
-
-    exit_with_success(
-        f"Successfully set workspace to {workspace.handle!r} in profile"
-        f" {profile.name!r}."
-    )
