@@ -17,7 +17,7 @@ See the following pull request for implementation details: https://github.com/Pr
 ### Experimental
 - Add experimental `model_validate` function for Pydantic V2 compatibility — https://github.com/PrefectHQ/prefect/pull/12370
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.5...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.5...2.16.6
 
 ## Release 2.16.5
 
