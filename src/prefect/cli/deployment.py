@@ -884,7 +884,7 @@ async def run(
         ),
     ),
     tags: List[str] = typer.Option(
-        [],
+        None,
         "--tag",
         help=("Tag(s) to be applied to flow run."),
     ),
@@ -930,7 +930,7 @@ async def run(
             exit_with_error(
                 "`--watch-interval` can only be used with `--watch`.",
             )
-    cli_params = _load_json_key_values(params, "parameter")
+    cli_params = _load_json_key_values(params or [], "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
         app.console.print(
@@ -939,7 +939,7 @@ async def run(
         )
     parameters = {**multi_params, **cli_params}
 
-    job_vars = _load_json_key_values(job_variables, "job variable")
+    job_vars = _load_json_key_values(job_variables or [], "job variable")
     if start_in and start_at:
         exit_with_error(
             "Only one of `--start-in` or `--start-at` can be set, not both."

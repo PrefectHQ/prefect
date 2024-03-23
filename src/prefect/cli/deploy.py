@@ -271,7 +271,7 @@ async def deploy(
             prefect_file=prefect_file, ci=ci
         )
         parsed_names = []
-        for name in names:
+        for name in names or []:
             if "*" in name:
                 parsed_names.extend(_parse_name_from_pattern(deploy_configs, name))
             else:
