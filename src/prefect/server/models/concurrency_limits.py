@@ -31,7 +31,7 @@ async def create_concurrency_limit(
     concurrency_limit.updated = pendulum.now("UTC")
 
     insert_stmt = (
-        (await db.insert(db.ConcurrencyLimit))
+        db.insert(db.ConcurrencyLimit)
         .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.concurrency_limit_unique_upsert_columns,

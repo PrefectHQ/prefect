@@ -67,6 +67,7 @@ class CsrfMiddleware(BaseHTTPMiddleware):
                     return JSONResponse(
                         {"detail": "Invalid CSRF token or client identifier."},
                         status_code=status.HTTP_403_FORBIDDEN,
+                        headers={"Access-Control-Allow-Origin": "*"},
                     )
 
         return await call_next(request)

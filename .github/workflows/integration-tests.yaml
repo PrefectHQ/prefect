@@ -27,8 +27,9 @@ jobs:
   compatibility-tests:
     name: "Check compatibility with Prefect ${{ matrix.prefect-version }}"
     timeout-minutes: 10
-
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: true
       matrix:
         prefect-version:
           # These versions correspond to Prefect image tags, the patch version is
@@ -49,6 +50,7 @@ jobs:
           - "2.13"
           - "2.14"
           - "2.15"
+          - "2.16"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -61,53 +63,61 @@ jobs:
           # incompatibilities are allowed.
 
           # All servers prior to 2.6.0 will not accept 2.6.0+ result types
+          # All servers prior to 2.16.0 will not accept `Deployment.schedules`
+
           - prefect-version: "2.0"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.1"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.2"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.3"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.4"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.5"
             server-incompatible: true
-
-          # All servers prior to 2.16.0 will not accept `Deployment.schedules`
+            server-disable-csrf: true
           - prefect-version: "2.6"
             server-incompatible: true
+            server-disable-csrf: true
+            # 2.6 containers have a bad version of httpcore installed
+            extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
           - prefect-version: "2.7"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.8"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.9"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.10"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.11"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.12"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.13"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.14"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.15"
             server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.16"
+            server-incompatible: false
 
-          # 2.6 containers have a bad version of httpcore installed
-          - prefect-version: "2.6"
-            extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
-            server_command: "prefect orion start"
-
-          # 2.6/2.7 require `prefect orion start` instead of prefect server start
-          - prefect-version: "2.7"
-            server_command: "prefect orion start"
-
-      fail-fast: true
-
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -150,6 +160,11 @@ jobs:
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           TEST_CLIENT_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           ./scripts/run-integration-flows.py
+
+      - name: Turn off CSRF protection for older clients.
+        if: ${{ matrix.server-disable-csrf }}
+        run: |
+          echo "PREFECT_SERVER_CSRF_PROTECTION_ENABLED=0" >> $GITHUB_ENV
 
       - name: Start server@dev
         run: |

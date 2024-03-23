@@ -22,6 +22,7 @@
 
         <div class="flow-runs__list">
           <p-list-header sticky>
+            <p-select-all-checkbox v-model="selectedFlowRuns" :selectable="flowRuns.map(flowRun => flowRun.id)" item-name="flow run" />
             <ResultsCount v-if="selectedFlowRuns.length == 0" :count="flowRunCount" label="Flow run" />
             <SelectedCount v-else :count="selectedFlowRuns.length" />
             <FlowRunsDeleteButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
