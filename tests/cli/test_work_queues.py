@@ -588,6 +588,10 @@ class TestLS:
             expected_code=0,
         )
         invoke_and_assert(
+            command="work-queue set-concurrency-limit default 0",
+            expected_code=0,
+        )
+        invoke_and_assert(
             command=f"work-queue ls -p {work_queue_1.work_pool.name}",
             expected_code=0,
             expected_output_does_not_contain="None",
