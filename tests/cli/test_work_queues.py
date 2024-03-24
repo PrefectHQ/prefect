@@ -338,6 +338,7 @@ class TestPauseWorkQueue:
 
     def test_pause_without_specifying_pool_name_with_confirmation(
         self,
+        prefect_client,
         work_queue,
     ):
         invoke_and_assert(
@@ -345,9 +346,12 @@ class TestPauseWorkQueue:
             user_input="Y",
             expected_code=0,
         )
+        q = read_queue(prefect_client, work_queue.name)
+        assert q.is_paused
 
     def test_pause_without_specifying_pool_name_with_abort(
         self,
+        prefect_client,
         work_queue,
     ):
         invoke_and_assert(
@@ -356,6 +360,8 @@ class TestPauseWorkQueue:
             expected_code=1,
             expected_output_contains="Work queue pause aborted!",
         )
+        q = read_queue(prefect_client, work_queue.name)
+        assert not q.is_paused
 
 
 class TestResumeWorkQueue:
