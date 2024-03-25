@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 from _pytest.logging import LogCaptureFixture
 from pydantic import BaseModel
@@ -22,7 +24,11 @@ def test_model_dump_json(caplog: LogCaptureFixture):
 
     model = TestModel(a=1, b="2")
 
-    assert model_dump_json(model) == '{"a":1,"b":"2"}'
+    json_string = model_dump_json(model)
+    if sys.version_info < (3, 9):
+        assert json_string == '{"a":1,"b":"2"}'
+    else:
+        assert json_string == '{"a":1,"b":"2"}'
 
     if HAS_PYDANTIC_V2:
         assert (
@@ -47,8 +53,10 @@ def test_model_dump_json_with_flag_disabled(caplog: LogCaptureFixture):
                 json_string = model_dump_json(model)
         else:
             json_string = model_dump_json(model)
-
-        assert json_string == '{"a":1,"b":"2"}'
+        if sys.version_info < (3, 9):
+            assert json_string == '{"a":1,"b":"2"}'
+        else:
+            assert json_string == '{"a": 1, "b": "2"}'
 
     if HAS_PYDANTIC_V2:
         assert "Pydantic v2 compatibility layer is disabled" in caplog.text
