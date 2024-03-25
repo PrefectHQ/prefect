@@ -290,3 +290,33 @@ def model_validate(
         )
 
     return model.parse_obj(obj)
+
+
+def model_validate_json(
+    model: Type[BaseModel],
+    json_data: Union[str, bytes, bytearray],
+    *,
+    strict: bool = False,
+    context: Optional[Dict[str, Any]] = None,
+) -> BaseModel:
+    """Validate the given JSON data against the Pydantic model.
+
+    Args:
+        json_data: The JSON data to validate.
+        strict: Whether to enforce types strictly.
+        context: Extra variables to pass to the validator.
+
+    Returns:
+        The validated Pydantic model.
+
+    Raises:
+        ValueError: If `json_data` is not a JSON string.
+    """
+    if is_pydantic_v2_compatible(fn_name="model_validate_json"):
+        return model.model_validate_json(
+            json_data=json_data,
+            strict=strict,
+            context=context,
+        )
+
+    return model.parse_raw(json_data)
