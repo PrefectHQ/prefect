@@ -12,6 +12,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
 )
+from prefect.states import Running
 from prefect.task_server import TaskServer, serve
 from prefect.tasks import task_input_hash
 
@@ -140,6 +141,36 @@ async def test_task_server_client_id_is_set():
         task_server._client = MagicMock(api_url="http://localhost:4200")
 
         assert task_server._client_id == "foo-42"
+
+
+async def test_task_server_handles_aborted_task_run_submission(
+    foo_task, prefect_client, caplog
+):
+    task_server = TaskServer(foo_task)
+
+    task_run = foo_task.submit(42)
+
+    await prefect_client.set_task_run_state(task_run.id, Running(), force=True)
+
+    await task_server.execute_task_run(task_run)
+
+    assert "in a RUNNING state and cannot transition to a PENDING state." in caplog.text
+
+
+async def test_task_server_handles_deleted_task_run_submission(
+    foo_task, prefect_client, caplog
+):
+    task_server = TaskServer(foo_task)
+
+    task_run = foo_task.submit(42)
+
+    await prefect_client.delete_task_run(task_run.id)
+
+    await task_server.execute_task_run(task_run)
+
+    assert (
+        f"Task run {task_run.id!r} not found. It may have been deleted." in caplog.text
+    )
 
 
 @pytest.mark.usefixtures("mock_task_server_start")
