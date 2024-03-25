@@ -31,6 +31,7 @@ Example:
 
 import enum
 import importlib
+import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -833,12 +834,16 @@ class DeploymentImage:
     def reference(self):
         return f"{self.name}:{self.tag}"
 
-    def build(self):
+    def build(self, stream_docker_build_progress_to_stdout):
         full_image_name = self.reference
         build_kwargs = self.build_kwargs.copy()
         build_kwargs["context"] = Path.cwd()
         build_kwargs["tag"] = full_image_name
         build_kwargs["pull"] = build_kwargs.get("pull", True)
+        if stream_docker_build_progress_to_stdout:
+            build_kwargs["stream_progress_to"] = build_kwargs.get(
+                "stream_progress_to", sys.stdout
+            )
 
         if self.dockerfile == "auto":
             with generate_default_dockerfile():
@@ -866,6 +871,7 @@ async def deploy(
     push: bool = True,
     print_next_steps_message: bool = True,
     ignore_warnings: bool = False,
+    stream_docker_build_progress_to_stdout: bool = True,
 ) -> List[UUID]:
     """
     Deploy the provided list of deployments to dynamic infrastructure via a
@@ -890,6 +896,8 @@ async def deploy(
         push: Whether or not to skip pushing the built image to a registry.
         print_next_steps_message: Whether or not to print a message with next steps
             after deploying the deployments.
+        stream_docker_build_progress_to_stdout: Whether or not to stream `docker build`
+            progress to stdout.
 
     Returns:
         A list of deployment IDs for the created/updated deployments.
@@ -938,7 +946,16 @@ async def deploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DeploymentImage(name=image_name, tag=image_tag)
+        build_kwargs = (
+            {"stream_progress_to": sys.stdout}
+            if stream_docker_build_progress_to_stdout
+            else {}
+        )
+        image = DeploymentImage(
+            name=image_name,
+            tag=image_tag,
+            **build_kwargs,
+        )
 
     try:
         async with get_client() as client:
@@ -990,7 +1007,7 @@ async def deploy(
             console=console,
         ) as progress:
             docker_build_task = progress.add_task("docker_build", total=1)
-            image.build()
+            image.build(stream_docker_build_progress_to_stdout)
 
             progress.update(docker_build_task, completed=1)
             console.print(

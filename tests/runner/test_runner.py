@@ -1370,7 +1370,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=sys.stdout,
         )
         mock_docker_client.api.push.assert_called_once_with(
             repository="test-registry/test-image",
@@ -1424,7 +1427,10 @@ class TestDeploy:
             assert len(deployment_ids) == 2
             mock_generate_default_dockerfile.assert_called_once()
             mock_build_image.assert_called_once_with(
-                tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+                tag="test-registry/test-image:test-tag",
+                context=Path.cwd(),
+                pull=True,
+                stream_progress_to=sys.stdout,
             )
             mock_docker_client.api.push.assert_called_once_with(
                 repository="test-registry/test-image",
@@ -1527,6 +1533,7 @@ class TestDeploy:
             tag="test-registry/test-image:test-tag",
             context=Path.cwd(),
             pull=True,
+            stream_progress_to=sys.stdout,
             dockerfile="Dockerfile",
         )
 
@@ -1587,7 +1594,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=sys.stdout,
         )
         mock_docker_client.api.push.assert_not_called()
 
@@ -1616,6 +1626,66 @@ class TestDeploy:
         assert len(deployment_ids) == 2
 
         assert "prefect deployment run [DEPLOYMENT_NAME]" not in capsys.readouterr().out
+
+    async def test_deploy_not_stream_docker_build_progress_to_stdout(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+            stream_docker_build_progress_to_stdout=False,
+        )
+        assert len(deployment_ids) == 2
+        mock_generate_default_dockerfile.assert_called_once()
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+        )
+
+    async def test_priority_for_deploy_stream_docker_build_progress_to_stdout_arg(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+                stream_progress_to=sys.stderr,
+            ),
+            stream_docker_build_progress_to_stdout=False,
+        )
+        assert len(deployment_ids) == 2
+        mock_generate_default_dockerfile.assert_called_once()
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=sys.stderr,
+        )
 
     async def test_deploy_push_work_pool(
         self,
@@ -1705,6 +1775,7 @@ class TestDeploy:
             tag="test-registry/test-image:test-tag",
             context=Path.cwd(),
             pull=True,
+            stream_progress_to=sys.stdout,
         )
 
     async def test_deploy_without_image_with_flow_stored_remotely(

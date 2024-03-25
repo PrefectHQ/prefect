@@ -970,6 +970,7 @@ class Flow(Generic[P, R]):
         enforce_parameter_schema: bool = False,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
+        stream_docker_build_progress_to_stdout: bool = True,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
@@ -1024,6 +1025,8 @@ class Flow(Generic[P, R]):
                 entrypoint, ensure that the module will be importable in the execution environment.
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
+            stream_docker_build_progress_to_stdout: Whether or not to stream `docker build`
+                progress to stdout.
 
         Returns:
             The ID of the created/updated deployment.
@@ -1100,6 +1103,7 @@ class Flow(Generic[P, R]):
             build=build,
             push=push,
             print_next_steps_message=False,
+            stream_docker_build_progress_to_stdout=stream_docker_build_progress_to_stdout,
         )
 
         if print_next_steps:

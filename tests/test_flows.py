@@ -3791,6 +3791,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             print_next_steps_message=False,
+            stream_docker_build_progress_to_stdout=True,
         )
 
         console_output = capsys.readouterr().out
@@ -3839,6 +3840,7 @@ class TestFlowDeploy:
             build=True,
             push=False,
             print_next_steps_message=False,
+            stream_docker_build_progress_to_stdout=True,
         )
 
     async def test_deploy_non_existent_work_pool(
