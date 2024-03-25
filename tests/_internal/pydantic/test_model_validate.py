@@ -1,4 +1,7 @@
+from typing import cast
+
 import pytest
+from _pytest.logging import LogCaptureFixture
 from pydantic import BaseModel, ValidationError
 
 from prefect._internal.pydantic._compat import HAS_PYDANTIC_V2, model_validate
@@ -19,12 +22,12 @@ class Model(BaseModel):
     b: str
 
 
-def test_model_validate(caplog):
+def test_model_validate(caplog: LogCaptureFixture):
     model_instance = model_validate(Model, {"a": 1, "b": "test"})
 
-    assert model_instance.a == 1
+    assert cast(Model, model_instance).a == 1
 
-    assert model_instance.b == "test"
+    assert cast(Model, model_instance).b == "test"
 
     if HAS_PYDANTIC_V2:
         assert (
@@ -35,7 +38,7 @@ def test_model_validate(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_validate_with_flag_disabled(caplog):
+def test_model_validate_with_flag_disabled(caplog: LogCaptureFixture):
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: False}):
         if HAS_PYDANTIC_V2:
             from pydantic.warnings import PydanticDeprecatedSince20
@@ -45,9 +48,9 @@ def test_model_validate_with_flag_disabled(caplog):
         else:
             model_instance = model_validate(Model, {"a": 1, "b": "test"})
 
-    assert model_instance.a == 1
+    assert cast(Model, model_instance).a == 1
 
-    assert model_instance.b == "test"
+    assert cast(Model, model_instance).b == "test"
 
     if HAS_PYDANTIC_V2:
         assert "Pydantic v2 compatibility layer is disabled" in caplog.text
@@ -55,7 +58,7 @@ def test_model_validate_with_flag_disabled(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_validate_with_invalid_model(caplog):
+def test_model_validate_with_invalid_model(caplog: LogCaptureFixture):
     try:
         model_validate(Model, {"a": "not an int", "b": "test"})
     except ValidationError as e:
