@@ -278,7 +278,7 @@ class TestProjectDeploySingleDeploymentYAML:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar"
+                " 1.0.0 -v env=prod -jv kind=single -t foo-bar"
             ),
             expected_code=0,
             # check for deprecation message
@@ -302,7 +302,7 @@ class TestProjectDeploySingleDeploymentYAML:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.infra_overrides == {"env": "prod", "kind": "single"}
 
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir, prefect_client

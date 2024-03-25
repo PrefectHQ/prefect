@@ -140,6 +140,12 @@ async def deploy(
         None,
         "-v",
         "--variable",
+        help=("DEPRECATED: Please use --jv/--job-variable for similar functionality "),
+    ),
+    job_variables: List[str] = typer.Option(
+        None,
+        "-jv",
+        "--job-variable",
         help=(
             "One or more job variable overrides for the work pool provided in the"
             " format of key=value string or a JSON object"
@@ -247,6 +253,12 @@ async def deploy(
             style="yellow",
         )
 
+    if variables is None:
+        variables = list()
+    if job_variables is None:
+        job_variables = list()
+    job_variables.extend(variables)
+
     options = {
         "entrypoint": entrypoint,
         "flow_name": flow_name,
@@ -255,7 +267,7 @@ async def deploy(
         "tags": tags,
         "work_pool_name": work_pool_name,
         "work_queue_name": work_queue_name,
-        "variables": variables,
+        "variables": job_variables,
         "cron": cron,
         "interval": interval,
         "anchor_date": interval_anchor,
