@@ -82,7 +82,7 @@ def is_pydantic_v2_compatible(
 def model_dump_json(
     model_instance: BaseModel,
     *,
-    indent: int | None = None,
+    indent: Optional[int] = None,
     include: IncEx = None,
     exclude: IncEx = None,
     by_alias: bool = False,
