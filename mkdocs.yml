@@ -348,7 +348,6 @@ nav:
                       - "slugify": api-ref/prefect/utilities/slugify.md
                       - "templating": api-ref/prefect/utilities/templating.md
                       - "text": api-ref/prefect/utilities/text.md
-                      - "validation": api-ref/prefect/utilities/validation.md
                       - "visualization": api-ref/prefect/utilities/visualization.md
                 - "prefect.variables": api-ref/prefect/variables.md
                 - "prefect.workers":

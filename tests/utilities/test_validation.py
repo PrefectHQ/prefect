@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.utilities.validation import (
+from prefect._internal.schemas.validators import (
     validate_schema,
     validate_values_conform_to_schema,
 )

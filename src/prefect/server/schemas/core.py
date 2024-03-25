@@ -18,16 +18,16 @@ else:
 from typing_extensions import Literal
 
 import prefect.server.database
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_with_banned_characters,
+)
 from prefect.server.schemas import schedules, states
 from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
-from prefect.server.utilities.schemas.validators import (
-    raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_with_banned_characters,
-)
 from prefect.settings import (
     PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
 )
