@@ -16,6 +16,7 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.engine import emit_task_run_state_change_event, propose_state
+from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
@@ -192,18 +193,31 @@ class TaskServer:
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
 
-        state = await propose_state(
-            client=get_client(),  # TODO prove that we cannot use self._client here
-            state=Pending(),
-            task_run_id=task_run.id,
-        )
+        try:
+            state = await propose_state(
+                client=get_client(),  # TODO prove that we cannot use self._client here
+                state=Pending(),
+                task_run_id=task_run.id,
+            )
+        except Abort as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
+            )
+            return
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                logger.warning(
+                    f"Task run {task_run.id!r} not found. It may have been deleted."
+                )
+                return
+            raise
 
         if not state.is_pending():
             logger.warning(
-                f"Aborted task run {task_run.id!r} -"
+                f"Cancelling submission of task run {task_run.id!r} -"
                 f" server returned a non-pending state {state.type.value!r}."
-                " Task run may have already begun execution."
             )
+            return
 
         emit_task_run_state_change_event(
             task_run=task_run,
