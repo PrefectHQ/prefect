@@ -579,6 +579,24 @@ class TestLS:
             expected_code=0,
         )
 
+    def test_ls_with_zero_concurrency_limit(
+        self,
+        work_queue_1,
+    ):
+        invoke_and_assert(
+            command=f"work-queue set-concurrency-limit {work_queue_1.name} 0",
+            expected_code=0,
+        )
+        invoke_and_assert(
+            command="work-queue set-concurrency-limit default 0",
+            expected_code=0,
+        )
+        invoke_and_assert(
+            command=f"work-queue ls -p {work_queue_1.work_pool.name}",
+            expected_code=0,
+            expected_output_does_not_contain="None",
+        )
+
     def test_ls_with_bad_pool(
         self,
         work_queue_1,
