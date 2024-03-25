@@ -645,7 +645,7 @@ async def create_flow_run_from_deployment(
                 )
 
         if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES:
-            validate_job_variables_for_flow_run(flow_run, deployment)
+            await validate_job_variables_for_flow_run(flow_run, deployment, session)
 
         work_queue_name = deployment.work_queue_name
         work_queue_id = deployment.work_queue_id

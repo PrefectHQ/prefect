@@ -126,7 +126,7 @@ async def update_flow_run(
                         detail="A deployment for the flow run could not be found",
                     )
 
-                validate_job_variables_for_flow_run(flow_run, deployment)
+                await validate_job_variables_for_flow_run(flow_run, deployment, session)
 
         result = await models.flow_runs.update_flow_run(
             session=session, flow_run=flow_run, flow_run_id=flow_run_id
