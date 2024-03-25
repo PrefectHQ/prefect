@@ -648,3 +648,9 @@ With your deployment created, navigate to its detail page and create a new flow 
 You'll see the flow start running without ever having to poll the work pool, because Prefect Cloud securely connected to your serverless infrastructure, created a job, ran the job, and began reporting on its execution.
 
 ![A flow running on a cloud run push work pool](/img/guides/push-flow-running.png)
+
+## Next steps
+
+Learn more about workers and work pools in the [Prefect concept documentation](/concepts/work-pools/).
+
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying Flows to Work Pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
