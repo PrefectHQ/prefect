@@ -1,4 +1,3 @@
-import datetime
 import io
 import json
 import os
@@ -5820,7 +5819,7 @@ class TestDeploymentTrigger:
                         "for_each": set(),
                         "posture": Posture.Reactive,
                         "threshold": 1,
-                        "within": datetime.timedelta(0),
+                        "within": None,
                         "parameters": None,
                         "metric": None,
                     }
