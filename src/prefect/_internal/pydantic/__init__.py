@@ -16,4 +16,5 @@ from ._compat import (
     model_validate,
     IncEx,
     model_dump_json,
+    model_copy,
 )
