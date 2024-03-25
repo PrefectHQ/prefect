@@ -21,7 +21,7 @@ def test_model_dump_json(caplog):
 
     model = TestModel(a=1, b="2")
 
-    assert model_dump_json(model) == '{"a":1,"b":"2"}'
+    assert model_dump_json(model) == '{"a": 1,"b": "2"}'
 
     if HAS_PYDANTIC_V2:
         assert (
@@ -44,7 +44,7 @@ def test_model_dump_json_with_flag_disabled(caplog):
         with pytest.warns(
             PydanticDeprecatedSince20, match="The `json` method is deprecated"
         ):
-            assert model_dump_json(model) == '{"a":1,"b":"2"}'
+            assert model_dump_json(model) == '{"a": 1,"b": "2"}'
 
     if HAS_PYDANTIC_V2:
         assert "Pydantic v2 compatibility layer is disabled" in caplog.text
