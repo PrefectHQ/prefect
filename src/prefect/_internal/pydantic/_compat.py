@@ -125,7 +125,6 @@ def model_dump_json(
         )
 
     return model_instance.json(  # type: ignore
-        indent=indent,
         include=include,
         exclude=exclude,
         by_alias=by_alias,

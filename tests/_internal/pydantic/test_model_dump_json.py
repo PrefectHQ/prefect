@@ -24,7 +24,9 @@ def test_model_dump_json(caplog):
     assert model_dump_json(model) == '{"a":1,"b":"2"}'
 
     if HAS_PYDANTIC_V2:
-        assert "Using Pydantic v2 compatibility layer for `model_dump`" in caplog.text
+        assert (
+            "Using Pydantic v2 compatibility layer for `model_dump_json`" in caplog.text
+        )
     else:
         assert "Pydantic v2 is not installed." in caplog.text
 
