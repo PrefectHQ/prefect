@@ -477,6 +477,18 @@ class TestLS:
         )
         assert res.exit_code == 0
 
+    async def test_ls_with_zero_concurrency_limit(self, prefect_client, work_pool):
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool set-concurrency-limit {work_pool.name} 0",
+        )
+        assert res.exit_code == 0
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool ls",
+        )
+        assert "None" not in res.output
+
 
 class TestUpdate:
     async def test_update_description(self, prefect_client, work_pool):
