@@ -14,7 +14,7 @@ def enable_v2_internals():
         yield
 
 
-def test_model_dump(caplog):
+def test_model_dump_json(caplog):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -29,7 +29,7 @@ def test_model_dump(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_dump_with_flag_disabled(caplog):
+def test_model_dump_json_with_flag_disabled(caplog):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -45,6 +45,6 @@ def test_model_dump_with_flag_disabled(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_dump_with_non_basemodel_raises():
+def test_model_dump_json_with_non_basemodel_raises():
     with pytest.raises(TypeError, match="Expected a Pydantic model"):
         model_dump_json("not a model")
