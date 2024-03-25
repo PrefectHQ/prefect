@@ -162,7 +162,7 @@ Instead of the last three from the whole workspace, you could also use the `Depl
 ### Transition all running flows to cancelled via the Client
 It can be cumbersome to cancel many flow runs through the UI. 
 You can use `get_client`to set multiple runs to a `Cancelled` state.
-The code below will cancel  all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
+The code below will cancel all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
 ```python
 import anyio
 
