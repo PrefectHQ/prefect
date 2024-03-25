@@ -52,7 +52,7 @@ def is_pydantic_v2_compatible(
     TypeError
         If `model_instance` is provided but is not an instance of a Pydantic BaseModel.
     """
-    if model_instance and not isinstance(model_instance, BaseModel):
+    if model_instance and not isinstance(model_instance, BaseModel):  # type: ignore
         raise TypeError(
             f"Expected a Pydantic model, but got {type(model_instance).__name__}"
         )
@@ -77,6 +77,62 @@ def is_pydantic_v2_compatible(
         logger.debug("Pydantic v2 is not installed.")
 
     return False
+
+
+def model_dump_json(
+    model_instance: BaseModel,
+    *,
+    indent: int | None = None,
+    include: IncEx = None,
+    exclude: IncEx = None,
+    by_alias: bool = False,
+    exclude_unset: bool = False,
+    exclude_defaults: bool = False,
+    exclude_none: bool = False,
+    round_trip: bool = False,
+    warnings: bool = True,
+) -> str:
+    """
+    Generate a JSON representation of the model, optionally specifying which fields to include or exclude.
+
+    Args:
+        indent: If provided, the number of spaces to indent the JSON output.
+        include: A list of fields to include in the output.
+        exclude: A list of fields to exclude from the output.
+        by_alias: Whether to use the field's alias in the dictionary key if defined.
+        exclude_unset: Whether to exclude fields that have not been explicitly set.
+        exclude_defaults: Whether to exclude fields that are set to their default value.
+        exclude_none: Whether to exclude fields that have a value of `None`.
+        round_trip: If True, dumped values should be valid as input for non-idempotent types such as Json[T].
+        warnings: Whether to log warnings when invalid fields are encountered.
+
+    Returns:
+        A JSON representation of the model.
+    """
+    if is_pydantic_v2_compatible(
+        model_instance=model_instance, fn_name="model_dump_json"
+    ):
+        return model_instance.model_dump_json(
+            indent=indent,
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+        )
+
+    return model_instance.json(  # type: ignore
+        indent=indent,
+        include=include,
+        exclude=exclude,
+        by_alias=by_alias,
+        exclude_unset=exclude_unset,
+        exclude_defaults=exclude_defaults,
+        exclude_none=exclude_none,
+    )
 
 
 def model_dump(
@@ -124,7 +180,7 @@ def model_dump(
             warnings=warnings,
         )
 
-    return model_instance.dict(
+    return model_instance.dict(  # type: ignore
         include=include,
         exclude=exclude,
         by_alias=by_alias,
@@ -143,7 +199,7 @@ def model_json_schema(
     *,
     by_alias: bool = True,
     ref_template: str = DEFAULT_REF_TEMPLATE,
-    schema_generator=None,
+    schema_generator: Any = None,
     mode: JsonSchemaMode = "validation",
 ) -> Dict[str, Any]:
     """
@@ -166,7 +222,7 @@ def model_json_schema(
         The JSON schema for the given model class.
     """
     if is_pydantic_v2_compatible(fn_name="model_json_schema"):
-        schema_generator = GenerateJsonSchema
+        schema_generator = GenerateJsonSchema  # type: ignore
         return model.model_json_schema(
             by_alias=by_alias,
             ref_template=ref_template,
@@ -174,7 +230,7 @@ def model_json_schema(
             mode=mode,
         )
 
-    return model.schema(
+    return model.schema(  # type: ignore
         by_alias=by_alias,
         ref_template=ref_template,
     )
