@@ -48,8 +48,11 @@ RUN apt-get update && \
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
 
-# Package the UI into the distributable.
-COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
+# Package the UI into the distributable if it was built.
+RUN if [ "$SKIP_UI_BUILD" = "false" ]; then \
+    mkdir -p ./src/prefect/server/ui && \
+    cp -r /opt/ui/dist/* ./src/prefect/server/ui; \
+    fi
 
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && python setup.py sdist
