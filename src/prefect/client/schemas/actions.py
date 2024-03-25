@@ -652,7 +652,7 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
     limit: int = FieldFrom(objects.GlobalConcurrencyLimit)
     active: Optional[bool] = FieldFrom(objects.GlobalConcurrencyLimit)
     active_slots: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
-    slot_decay_per_second: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
+    slot_decay_per_second: Optional[float] = FieldFrom(objects.GlobalConcurrencyLimit)
 
 
 @copy_model_fields
@@ -663,4 +663,4 @@ class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     limit: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
     active: Optional[bool] = FieldFrom(objects.GlobalConcurrencyLimit)
     active_slots: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
-    slot_decay_per_second: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
+    slot_decay_per_second: Optional[float] = FieldFrom(objects.GlobalConcurrencyLimit)
