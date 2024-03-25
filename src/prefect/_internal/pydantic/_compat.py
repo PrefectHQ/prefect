@@ -14,7 +14,13 @@ IncEx: typing_extensions.TypeAlias = (
 logger = get_logger("prefect._internal.pydantic")
 
 if HAS_PYDANTIC_V2:
+    from pydantic import TypeAdapter
     from pydantic.json_schema import GenerateJsonSchema
+    from pydantic.v1 import parse_obj_as
+else:
+    from pydantic import parse_obj_as
+
+    TypeAdapter = None
 
 
 def is_pydantic_v2_compatible(
@@ -241,3 +247,35 @@ def model_validate_json(
         )
 
     return model.parse_raw(json_data)
+
+
+def validate_python(
+    type_: Type[BaseModel],
+    __object: Any,
+    *,
+    strict: Union[bool, None] = None,
+    from_attributes: Union[bool, None] = None,
+):
+    """Validate a Python object against the model.
+
+    Args:
+        __object: The Python object to validate against the model.
+        strict: Whether to strictly check types.
+        from_attributes: Whether to extract data from object attributes.
+        context: Additional context to pass to the validator.
+
+    !!! note
+        When using `TypeAdapter` with a Pydantic `dataclass`, the use of the `from_attributes`
+        argument is not supported.
+
+    Returns:
+        The validated object.
+    """
+    if is_pydantic_v2_compatible(fn_name="validate_python"):
+        return TypeAdapter(type_).validate_python(
+            __object,
+            strict=strict,
+            from_attributes=from_attributes,
+        )
+
+    return parse_obj_as(type_, __object)

@@ -15,5 +15,6 @@ from ._compat import (
     model_json_schema,
     model_validate,
     model_validate_json,
+    validate_python,
     IncEx,
 )
