@@ -600,8 +600,8 @@ PREFECT_API_SSL_CERT_FILE = Setting(
     default=os.environ.get("SSL_CERT_FILE"),
 )
 """
-This configuration settings option specifies the path to an SSL certificate file. 
-When set, it allows the application to use the specified certificate for secure communication. 
+This configuration settings option specifies the path to an SSL certificate file.
+When set, it allows the application to use the specified certificate for secure communication.
 If left unset, the setting will default to the value provided by the `SSL_CERT_FILE` environment variable.
 """
 
@@ -1421,6 +1421,16 @@ PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
 """
 Whether or not to enable flow run input.
 """
+
+
+# Prefect Events feature flags
+
+PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
+"""
+Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
+will always emit events during flow and task runs regardless of this setting.
+"""
+
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
