@@ -1,4 +1,5 @@
 import pytest
+from _pytest.logging import LogCaptureFixture
 from pydantic import BaseModel
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2, model_dump_json
@@ -14,7 +15,7 @@ def enable_v2_internals():
         yield
 
 
-def test_model_dump_json(caplog):
+def test_model_dump_json(caplog: LogCaptureFixture):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -31,7 +32,7 @@ def test_model_dump_json(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_dump_json_with_flag_disabled(caplog):
+def test_model_dump_json_with_flag_disabled(caplog: LogCaptureFixture):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -39,7 +40,15 @@ def test_model_dump_json_with_flag_disabled(caplog):
     model = TestModel(a=1, b="2")
 
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: False}):
-        assert model_dump_json(model) == '{"a":1,"b":"2"}'
+        if HAS_PYDANTIC_V2:
+            from pydantic.warnings import PydanticDeprecatedSince20
+
+            with pytest.warns(PydanticDeprecatedSince20):
+                json_string = model_dump_json(model)
+        else:
+            json_string = model_dump_json(model)
+
+        assert json_string == '{"a":1,"b":"2"}'
 
     if HAS_PYDANTIC_V2:
         assert "Pydantic v2 compatibility layer is disabled" in caplog.text
