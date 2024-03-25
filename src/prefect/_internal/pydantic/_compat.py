@@ -79,6 +79,30 @@ def is_pydantic_v2_compatible(
     return False
 
 
+def model_copy(
+    model_instance: BaseModel,
+    *,
+    update: Optional[Dict[str, Any]] = None,
+    deep: bool = False,
+) -> BaseModel:
+    """Usage docs: https://docs.pydantic.dev/2.7/concepts/serialization/#model_copy
+
+    Returns a copy of the model.
+
+    Args:
+        update: Values to change/add in the new model. Note: the data is not validated
+            before creating the new model. You should trust this data.
+        deep: Set to `True` to make a deep copy of the model.
+
+    Returns:
+        New model instance.
+    """
+    if is_pydantic_v2_compatible(model_instance=model_instance, fn_name="model_copy"):
+        return model_instance.model_copy(update=update, deep=deep)
+
+    return model_instance.copy(update=update, deep=deep)  # type: ignore
+
+
 def model_dump(
     model_instance: BaseModel,
     *,
