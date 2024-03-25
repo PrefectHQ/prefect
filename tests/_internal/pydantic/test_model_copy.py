@@ -1,4 +1,5 @@
 import pytest
+from _pytest.logging import LogCaptureFixture
 from pydantic import BaseModel
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2, model_copy
@@ -28,7 +29,7 @@ def test_model_copy():
     assert model.a == 1  # Original model should remain unchanged
 
 
-def test_model_copy_with_flag_disabled(caplog):
+def test_model_copy_with_flag_disabled(caplog: LogCaptureFixture):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -36,7 +37,13 @@ def test_model_copy_with_flag_disabled(caplog):
     model = TestModel(a=1, b="2")
 
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: False}):
-        updated_model = model_copy(model, update={"a": 3}, deep=True)
+        if HAS_PYDANTIC_V2:
+            from pydantic.warnings import PydanticDeprecatedSince20
+
+            with pytest.warns(PydanticDeprecatedSince20):
+                updated_model = model_copy(model, update={"a": 3}, deep=True)
+        else:
+            updated_model = model_copy(model, update={"a": 3}, deep=True)
 
     assert isinstance(updated_model, TestModel)
     assert updated_model.a == 3
@@ -51,4 +58,4 @@ def test_model_copy_with_flag_disabled(caplog):
 
 def test_model_copy_with_non_basemodel_raises():
     with pytest.raises(TypeError, match="Expected a Pydantic model"):
-        model_copy("not a model")
+        model_copy("not a model")  # type: ignore
