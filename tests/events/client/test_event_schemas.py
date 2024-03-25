@@ -17,12 +17,14 @@ from prefect.events.actions import RunDeployment
 from prefect.events.schemas import (
     Automation,
     AutomationCreateFromTrigger,
+    CompoundTrigger,
     DeploymentTrigger,
     Event,
     EventTrigger,
     Posture,
     RelatedResource,
     Resource,
+    SequenceTrigger,
 )
 
 
@@ -192,4 +194,101 @@ def test_deployment_trigger_as_automation():
             )
         ],
         owner_resource=f"prefect.deployment.{trigger._deployment_id}",
+    )
+
+
+def test_compound_deployment_trigger_as_automation():
+    trigger = DeploymentTrigger(
+        name="A deployment automation",
+        type="compound",
+        require="all",
+        triggers=[
+            EventTrigger(posture=Posture.Reactive, expect=["foo.bar"]),
+            EventTrigger(posture=Posture.Reactive, expect=["buz.baz"]),
+        ],
+        within=datetime.timedelta(42),
+    )
+    trigger.set_deployment_id(uuid4())
+
+    automation = trigger.as_automation()
+
+    assert automation == Automation(
+        name="A deployment automation",
+        description="",
+        enabled=True,
+        trigger=CompoundTrigger(
+            require="all",
+            triggers=[
+                EventTrigger(
+                    posture=Posture.Reactive,
+                    threshold=1,
+                    within=datetime.timedelta(0),
+                    expect=["foo.bar"],
+                ),
+                EventTrigger(
+                    posture=Posture.Reactive,
+                    threshold=1,
+                    within=datetime.timedelta(0),
+                    expect=["buz.baz"],
+                ),
+            ],
+            within=datetime.timedelta(42),
+        ),
+        actions=[
+            RunDeployment(
+                type="run-deployment",
+                source="selected",
+                parameters=None,
+                deployment_id=trigger._deployment_id,
+            )
+        ],
+        owner_resource=f"prefect.deployment.{trigger._deployment_id}",
+    )
+
+
+def test_sequence_deployment_trigger_as_automation():
+    trigger = DeploymentTrigger(
+        name="A deployment automation",
+        type="sequence",
+        triggers=[
+            EventTrigger(posture=Posture.Reactive, expect=["foo.bar"]),
+            EventTrigger(posture=Posture.Reactive, expect=["buz.baz"]),
+        ],
+    )
+    trigger.set_deployment_id(uuid4())
+
+    automation = trigger.as_automation()
+
+    assert (
+        automation.dict()
+        == Automation(
+            name="A deployment automation",
+            description="",
+            enabled=True,
+            trigger=SequenceTrigger(
+                triggers=[
+                    EventTrigger(
+                        posture=Posture.Reactive,
+                        threshold=1,
+                        within=datetime.timedelta(0),
+                        expect=["foo.bar"],
+                    ),
+                    EventTrigger(
+                        posture=Posture.Reactive,
+                        threshold=1,
+                        within=datetime.timedelta(0),
+                        expect=["buz.baz"],
+                    ),
+                ]
+            ),
+            actions=[
+                RunDeployment(
+                    type="run-deployment",
+                    source="selected",
+                    parameters=None,
+                    deployment_id=trigger._deployment_id,
+                )
+            ],
+            owner_resource=f"prefect.deployment.{trigger._deployment_id}",
+        ).dict()
     )

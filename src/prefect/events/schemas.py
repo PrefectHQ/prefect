@@ -460,6 +460,12 @@ class AutomationCreateFromTrigger(PrefectBaseModel):
     description: str = Field("", description="A longer description of this automation")
     enabled: bool = Field(True, description="Whether this automation will be evaluated")
 
+    # from Trigger
+
+    type: Literal["event", "metric", "compound", "sequence"] = Field(
+        "event", description="The type of trigger"
+    )
+
     # from ResourceTrigger
 
     match: ResourceSpecification = Field(
@@ -522,8 +528,11 @@ class AutomationCreateFromTrigger(PrefectBaseModel):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
-        timedelta(0),
+
+    # From EventTrigger and CompositeTrigger
+
+    within: Optional[timedelta] = Field(
+        None,
         minimum=0.0,
         exclusiveMinimum=False,
         description=(
@@ -540,18 +549,41 @@ class AutomationCreateFromTrigger(PrefectBaseModel):
         description="The metric query to evaluate for this trigger. ",
     )
 
+    # from Compound Trigger and Sequence Trigger
+
+    triggers: List[TriggerTypes] = Field(default_factory=list)
+
+    # from Compound Trigger
+
+    require: Optional[Union[int, Literal["any", "all"]]] = Field(None)
+
     def as_automation(self) -> Automation:
         assert self.name
 
-        if self.posture == Posture.Metric:
+        if self.type == "compound":
+            trigger = CompoundTrigger(
+                require=self.require,
+                triggers=self.triggers,
+                within=self.within,
+            )
+        elif self.type == "sequence":
+            trigger = SequenceTrigger(
+                triggers=self.triggers,
+                within=self.within,
+            )
+        elif self.type == "metric" or self.posture == Posture.Metric:
             trigger = MetricTrigger(
-                type="metric",
                 match=self.match,
                 match_related=self.match_related,
                 posture=self.posture,
                 metric=self.metric,
             )
         else:
+            default_within = (
+                timedelta(seconds=0)
+                if self.posture == Posture.Reactive
+                else timedelta(seconds=10)
+            )
             trigger = EventTrigger(
                 match=self.match,
                 match_related=self.match_related,
@@ -560,7 +592,7 @@ class AutomationCreateFromTrigger(PrefectBaseModel):
                 for_each=self.for_each,
                 posture=self.posture,
                 threshold=self.threshold,
-                within=self.within,
+                within=self.within if self.within is not None else default_within,
             )
 
         return Automation(
