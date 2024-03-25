@@ -417,7 +417,7 @@ async def ls(
                     str(queue.id),
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
@@ -458,7 +458,7 @@ async def ls(
                     str(queue.id),
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
@@ -493,7 +493,7 @@ async def ls(
                     f"{queue.priority}",
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
