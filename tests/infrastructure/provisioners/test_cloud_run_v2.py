@@ -116,7 +116,7 @@ default_cloud_run_push_base_job_template = {
             "launch_stage": {
                 "title": "Launch Stage",
                 "description": "The launch stage of the Cloud Run Job V2.",
-                "default": "GA",
+                "default": "BETA",
                 "enum": [
                     "ALPHA",
                     "BETA",
