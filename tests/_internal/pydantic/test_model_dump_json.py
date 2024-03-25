@@ -1,5 +1,5 @@
 import pytest
-from pydantic import BaseModel, PydanticDeprecatedSince20
+from pydantic import BaseModel
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2, model_dump_json
 from prefect.settings import (
@@ -39,6 +39,8 @@ def test_model_dump_json_with_flag_disabled(caplog):
     model = TestModel(a=1, b="2")
 
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: False}):
+        if HAS_PYDANTIC_V2:
+            from pydantic.warnings import PydanticDeprecatedSince20
         with pytest.warns(
             PydanticDeprecatedSince20, match="The `json` method is deprecated"
         ):
