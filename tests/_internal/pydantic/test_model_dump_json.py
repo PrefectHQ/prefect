@@ -1,5 +1,5 @@
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, PydanticDeprecatedSince20
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2, model_dump_json
 from prefect.settings import (
@@ -14,7 +14,7 @@ def enable_v2_internals():
         yield
 
 
-def test_model_dump(caplog):
+def test_model_dump_json(caplog):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -29,7 +29,7 @@ def test_model_dump(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_dump_with_flag_disabled(caplog):
+def test_model_dump_json_with_flag_disabled(caplog):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -37,7 +37,10 @@ def test_model_dump_with_flag_disabled(caplog):
     model = TestModel(a=1, b="2")
 
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: False}):
-        assert model_dump_json(model) == '{"a":1,"b":"2"}'
+        with pytest.warns(
+            PydanticDeprecatedSince20, match="The `json` method is deprecated"
+        ):
+            assert model_dump_json(model) == '{"a":1,"b":"2"}'
 
     if HAS_PYDANTIC_V2:
         assert "Pydantic v2 compatibility layer is disabled" in caplog.text
@@ -45,6 +48,6 @@ def test_model_dump_with_flag_disabled(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_dump_with_non_basemodel_raises():
+def test_model_dump_json_with_non_basemodel_raises():
     with pytest.raises(TypeError, match="Expected a Pydantic model"):
         model_dump_json("not a model")
