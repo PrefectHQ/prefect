@@ -1625,8 +1625,8 @@ class GlobalConcurrencyLimit(ObjectBaseModel):
         default=0,
         description="Number of tasks currently using a concurrency slot.",
     )
-    slot_decay_per_second: Optional[int] = Field(
-        default=0,
+    slot_decay_per_second: Optional[float] = Field(
+        default=0.0,
         description=(
             "Controls the rate at which slots are released when the concurrency limit"
             " is used as a rate limit."
