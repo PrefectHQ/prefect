@@ -19,14 +19,6 @@ from uuid import UUID
 from typing_extensions import Self
 
 import prefect
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-
-else:
-    import pydantic
-
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingResult
@@ -36,6 +28,7 @@ from prefect.filesystems import (
     WritableFileSystem,
 )
 from prefect.logging import get_logger
+from prefect.pydantic import BaseModel, Field, PrivateAttr
 from prefect.serializers import Serializer
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
@@ -177,7 +170,7 @@ def _format_user_supplied_storage_key(key):
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
-class ResultFactory(pydantic.BaseModel):
+class ResultFactory(BaseModel):
     """
     A utility to generate `Result` types.
     """
@@ -481,12 +474,12 @@ class ResultFactory(pydantic.BaseModel):
 
 
 @add_type_dispatch
-class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
+class BaseResult(BaseModel, abc.ABC, Generic[R]):
     type: str
     artifact_type: Optional[str]
     artifact_description: Optional[str]
 
-    _cache: Any = pydantic.PrivateAttr(NotSet)
+    _cache: Any = PrivateAttr(NotSet)
 
     def _cache_object(self, obj: Any) -> None:
         self._cache = obj
@@ -595,7 +588,7 @@ class PersistedResult(BaseResult):
     storage_block_id: uuid.UUID
     storage_key: str
 
-    _should_cache_object: bool = pydantic.PrivateAttr(default=True)
+    _should_cache_object: bool = PrivateAttr(default=True)
 
     @sync_compatible
     @inject_client
@@ -696,7 +689,7 @@ class PersistedResult(BaseResult):
         return result
 
 
-class PersistedResultBlob(pydantic.BaseModel):
+class PersistedResultBlob(BaseModel):
     """
     The format of the content stored by a persisted result.
 
@@ -705,7 +698,7 @@ class PersistedResultBlob(pydantic.BaseModel):
 
     serializer: Serializer
     data: bytes
-    prefect_version: str = pydantic.Field(default=prefect.__version__)
+    prefect_version: str = Field(default=prefect.__version__)
 
     def to_bytes(self) -> bytes:
         return self.json().encode()
