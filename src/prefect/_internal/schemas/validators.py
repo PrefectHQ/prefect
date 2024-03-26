@@ -263,7 +263,12 @@ def validate_rrule_timezone(v: str) -> str:
     Unfortunately this list is slightly different from the list of valid
     timezones in pendulum that we use for cron and interval timezone validation.
     """
-    import pytz
+    from prefect._internal.pytz import HAS_PYTZ
+
+    if HAS_PYTZ:
+        import pytz
+    else:
+        from prefect._internal import pytz
 
     if v and v not in pytz.all_timezones_set:
         raise ValueError(f'Invalid timezone: "{v}"')
