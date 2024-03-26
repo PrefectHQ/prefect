@@ -15,7 +15,7 @@ class Model(BaseModel):
 
 @pytest.mark.skipif(
     EXPECT_DEPRECATION_WARNINGS,
-    reason="Valid when compatibility is enabled or v1 is installed",
+    reason="These tests are only valid when compatibility is enabled or v1 is installed",
 )
 @pytest.mark.parametrize(
     "type_, value, expected",
@@ -28,12 +28,18 @@ class Model(BaseModel):
     ],
 )
 def test_validate_python(type_, value, expected):
+    """with either:
+        - v2 installed and compatibility layer enabled
+        - or v1 installed
+
+    everything should work without deprecation warnings
+    """
     assert validate_python(type_, value) == expected
 
 
 @pytest.mark.skipif(
     not EXPECT_DEPRECATION_WARNINGS,
-    reason="Valid when compatibility is disabled and v2 is installed",
+    reason="These tests are only valid when compatibility is disabled and v2 is installed",
 )
 @pytest.mark.parametrize(
     "type_, value, expected",
@@ -46,6 +52,7 @@ def test_validate_python(type_, value, expected):
     ],
 )
 def test_validate_python_with_deprecation_warnings(type_, value, expected):
+    """with v2 installed and compatibility layer disabled, we should see deprecation warnings"""
     from pydantic import PydanticDeprecatedSince20
 
     with pytest.warns(PydanticDeprecatedSince20):
