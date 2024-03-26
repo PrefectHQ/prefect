@@ -10,8 +10,7 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from prefect.events.actions import RunDeployment
-from prefect.events.schemas.automations import (
+from prefect.events import (
     Automation,
     CompoundTrigger,
     EventTrigger,
@@ -20,6 +19,7 @@ from prefect.events.schemas.automations import (
     Posture,
     SequenceTrigger,
 )
+from prefect.events.actions import RunDeployment
 from prefect.events.schemas.deployment_triggers import (
     DeploymentCompoundTrigger,
     DeploymentEventTrigger,

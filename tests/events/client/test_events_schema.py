@@ -4,13 +4,6 @@ from uuid import UUID, uuid4
 import pendulum
 from pendulum.datetime import DateTime
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    pass
-else:
-    pass
-
 from prefect.events import Event, RelatedResource, Resource
 
 

@@ -61,10 +61,7 @@ from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas.deployment_triggers import (
-    DeploymentTrigger,
-    DeploymentTriggerTypes,
-)
+from prefect.events.schemas import DeploymentTrigger, DeploymentTriggerTypes
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
