@@ -6,12 +6,12 @@ import pytest
 from prefect import flow, task
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
+from prefect.events import RelatedResource
 from prefect.events.related import (
     MAX_CACHE_SIZE,
     _get_and_cache_related_object,
     related_resources_from_run_context,
 )
-from prefect.events.schemas import RelatedResource
 from prefect.states import Running
 
 

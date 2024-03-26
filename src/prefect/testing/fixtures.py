@@ -220,12 +220,14 @@ class Recorder:
 class Puppeteer:
     token: Optional[str]
 
+    hard_auth_failure: bool
     refuse_any_further_connections: bool
     hard_disconnect_after: Optional[UUID]
 
     outgoing_events: List[Event]
 
     def __init__(self):
+        self.hard_auth_failure = False
         self.refuse_any_further_connections = False
         self.hard_disconnect_after = None
         self.outgoing_events = []
@@ -275,9 +277,14 @@ async def events_server(
     async def outgoing_events(socket: WebSocketServerProtocol):
         # 1. authentication
         auth_message = json.loads(await socket.recv())
+
         assert auth_message["type"] == "auth"
         recorder.token = auth_message["token"]
         if puppeteer.token != recorder.token:
+            if not puppeteer.hard_auth_failure:
+                await socket.send(
+                    json.dumps({"type": "auth_failure", "reason": "nope"})
+                )
             await socket.close(WS_1008_POLICY_VIOLATION)
             return
 

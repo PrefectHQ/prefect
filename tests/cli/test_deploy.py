@@ -38,7 +38,7 @@ from prefect.deployments.base import (
     initialize_project,
 )
 from prefect.deployments.steps.core import StepExecutionError
-from prefect.events.schemas import DeploymentEventTrigger, Posture
+from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import (

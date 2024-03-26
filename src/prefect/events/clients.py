@@ -16,11 +16,7 @@ from uuid import UUID
 
 import orjson
 import pendulum
-
-try:
-    from cachetools import TTLCache
-except ImportError:
-    pass
+from cachetools import TTLCache
 from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
@@ -33,8 +29,8 @@ from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 
-if TYPE_CHECKING:
-    from prefect.events.filters import EventFilter
+if TYPE_CHECKING:  # pragma: no branch
+    from prefect.events.filters import EventFilter  # pragma: no cover
 
 logger = get_logger(__name__)
 
@@ -304,6 +300,8 @@ class PrefectCloudEventSubscriber:
         )
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
+        if self._reconnection_attempts < 0:
+            raise ValueError("reconnection_attempts must be a non-negative integer")
 
     async def __aenter__(self) -> "PrefectCloudEventSubscriber":
         # Don't handle any errors in the initial connection, because these are most
@@ -335,9 +333,10 @@ class PrefectCloudEventSubscriber:
             assert message["type"] == "auth_success", message.get("reason", "")
         except (AssertionError, ConnectionClosedError) as e:
             if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
+                reason = None
                 if isinstance(e, AssertionError):
                     reason = e.args[0]
-                elif isinstance(e, ConnectionClosedError):
+                elif isinstance(e, ConnectionClosedError):  # pragma: no branch
                     reason = e.reason
 
                 raise Exception(
@@ -345,7 +344,7 @@ class PrefectCloudEventSubscriber:
                     "provided api_key you are using is valid for this environment. "
                     f"Reason: {reason}"
                 ) from e
-            raise
+            raise  # pragma: no cover
 
         from prefect.events.filters import EventOccurredFilter
 
@@ -374,7 +373,8 @@ class PrefectCloudEventSubscriber:
         return self
 
     async def __anext__(self) -> Event:
-        for i in range(self._reconnection_attempts + 1):
+        assert self._reconnection_attempts >= 0
+        for i in range(self._reconnection_attempts + 1):  # pragma: no branch
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.

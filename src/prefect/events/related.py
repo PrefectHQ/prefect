@@ -17,7 +17,7 @@ from uuid import UUID
 import pendulum
 from pendulum.datetime import DateTime
 
-from .schemas import RelatedResource
+from .schemas.events import RelatedResource
 
 if TYPE_CHECKING:
     from prefect._internal.schemas.bases import ObjectBaseModel
