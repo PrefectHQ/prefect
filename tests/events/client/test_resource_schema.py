@@ -22,39 +22,21 @@ from prefect.events.schemas.labelling import LabelDiver
 
 
 def test_resource_openapi_schema() -> None:
-    if HAS_PYDANTIC_V2:
-        assert Resource.schema() == {
-            "title": "Resource",
-            "description": "An observable business object of interest to the user",
-            "type": "object",
-            # This does not seem correct, but is what pydantic v2 returns
-            "additionalProperties": False,
-        }
-    else:
-        assert Resource.schema() == {
-            "title": "Resource",
-            "description": "An observable business object of interest to the user",
-            "type": "object",
-            "additionalProperties": {"type": "string"},
-        }
+    assert Resource.schema() == {
+        "title": "Resource",
+        "description": "An observable business object of interest to the user",
+        "type": "object",
+        "additionalProperties": {"type": "string"},
+    }
 
 
 def test_related_resource_openapi_schema() -> None:
-    if HAS_PYDANTIC_V2:
-        assert RelatedResource.schema() == {
-            "title": "RelatedResource",
-            "description": "A Resource with a specific role in an Event",
-            "type": "object",
-            # This does not seem correct, but is what pydantic v2 returns
-            "additionalProperties": False,
-        }
-    else:
-        assert RelatedResource.schema() == {
-            "title": "RelatedResource",
-            "description": "A Resource with a specific role in an Event",
-            "type": "object",
-            "additionalProperties": {"type": "string"},
-        }
+    assert RelatedResource.schema() == {
+        "title": "RelatedResource",
+        "description": "A Resource with a specific role in an Event",
+        "type": "object",
+        "additionalProperties": {"type": "string"},
+    }
 
 
 @pytest.mark.parametrize(

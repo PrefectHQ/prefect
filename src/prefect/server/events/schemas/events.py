@@ -31,12 +31,6 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
-
-
 logger = get_logger(__name__)
 
 
