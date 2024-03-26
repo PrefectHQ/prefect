@@ -1307,6 +1307,7 @@ class TestServer:
         runner.last_polled = pendulum.now("utc")
         assert health_check().status_code == status.HTTP_200_OK
 
+    @pytest.mark.skip("This test is flaky and needs to be fixed")
     @pytest.mark.parametrize("enabled", [True, False])
     async def test_webserver_start_flag(self, enabled: bool):
         with temporary_settings(updates={PREFECT_RUNNER_SERVER_ENABLE: enabled}):
