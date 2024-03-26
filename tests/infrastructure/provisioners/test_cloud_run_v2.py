@@ -11,7 +11,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
-from prefect.infrastructure.provisioners.cloud_run_v2 import CloudRunV2PushProvisioner
+from prefect.infrastructure.provisioners.cloud_run import CloudRunV2PushProvisioner
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     load_current_profile,
@@ -249,7 +249,7 @@ def mock_run_process(monkeypatch):
     mock = AsyncMock(spec=run_process)
     mock.side_effect = mock_gcloud
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.run_process", mock
+        "prefect.infrastructure.provisioners.cloud_run.run_process", mock
     )
     return mock
 
@@ -354,11 +354,11 @@ async def test_provision_interactive_with_default_names(
     mock_confirm = MagicMock(return_value=True)
 
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.prompt_select_from_table",
+        "prefect.infrastructure.provisioners.cloud_run.prompt_select_from_table",
         mock_prompt_select_from_table,
     )
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.Confirm.ask", mock_confirm
+        "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
     )
     provisioner = CloudRunV2PushProvisioner()
     monkeypatch.setattr(provisioner._console, "is_interactive", True)
@@ -434,14 +434,14 @@ async def test_provision_interactive_with_custom_names(
     mock_confirm = MagicMock(return_value=True)
 
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.prompt", mock_prompt
+        "prefect.infrastructure.provisioners.cloud_run.prompt", mock_prompt
     )
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.prompt_select_from_table",
+        "prefect.infrastructure.provisioners.cloud_run.prompt_select_from_table",
         mock_prompt_select_from_table,
     )
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.Confirm.ask", mock_confirm
+        "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
     )
     provisioner = CloudRunV2PushProvisioner()
     monkeypatch.setattr(provisioner._console, "is_interactive", True)
@@ -508,11 +508,11 @@ async def test_provision_interactive_reject_provisioning(
     mock_confirm = MagicMock(return_value=False)
 
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.prompt_select_from_table",
+        "prefect.infrastructure.provisioners.cloud_run.prompt_select_from_table",
         mock_prompt_select_from_table,
     )
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.cloud_run_v2.Confirm.ask", mock_confirm
+        "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
     )
     provisioner = CloudRunV2PushProvisioner()
     monkeypatch.setattr(provisioner._console, "is_interactive", True)
