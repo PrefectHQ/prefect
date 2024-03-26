@@ -384,7 +384,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # This is used to determine if the static files need to be copied again
         # when the server is restarted
         with open(os.path.join(static_dir, reference_file_name), "w") as f:
-            f.write(base_url)
+            f.write(f"{prefect.__version__}:{base_url}")
 
     ui_app.add_middleware(GZipMiddleware)
 
