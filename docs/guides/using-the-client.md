@@ -159,5 +159,54 @@ if __name__ == "__main__":
 
 Instead of the last three from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last three completed flow runs of a specific deployment.
 
+### Transition all running flows to cancelled via the Client
+It can be cumbersome to cancel many flow runs through the UI. 
+You can use `get_client`to set multiple runs to a `Cancelled` state.
+The code below will cancel all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
+```python
+import anyio
+
+from prefect import get_client
+from prefect.server.schemas.filters import FlowRunFilter, FlowRunFilterState, FlowRunFilterStateName
+from prefect.client.schemas.objects import StateType
+
+async def list_flow_runs_with_states(states: list[str]):
+    async with get_client() as client:
+        flow_runs = await client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    name=FlowRunFilterStateName(any_=states)
+                )
+            )
+        )
+    return flow_runs
+
+
+async def cancel_flow_runs(flow_runs):
+    async with get_client() as client:
+        for idx, flow_run in enumerate(flow_runs):
+            print(f"[{idx + 1}] Cancelling flow run '{flow_run.name}' with ID '{flow_run.id}'")
+            state_updates = {}
+            state_updates.setdefault("name", "Cancelled")
+            state_updates.setdefault("type", StateType.CANCELLED)
+            state = flow_run.state.copy(update=state_updates)
+            await client.set_flow_run_state(flow_run.id, state, force=True)
+
+
+async def bulk_cancel_flow_runs():
+    states = ["Pending", "Running", "Scheduled", "Late"]
+    flow_runs = await list_flow_runs_with_states(states)
+
+    while len(flow_runs) > 0:
+        print(f"Cancelling {len(flow_runs)} flow runs\n")
+        await cancel_flow_runs(flow_runs)
+        flow_runs = await list_flow_runs_with_states(states)
+    print("Done!")
+
+
+if __name__ == "__main__":
+    anyio.run(bulk_cancel_flow_runs)
+```
+
 !!! tip "There are other ways to filter objects like flow runs"
     See [`the filters API reference`](/api-ref/prefect/client/schemas/#prefect.client.schemas.filters) for more ways to filter flow runs and other objects in your Prefect ecosystem.

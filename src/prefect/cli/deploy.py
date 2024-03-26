@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import typer
 import typer.core
 import yaml
@@ -54,7 +61,7 @@ from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events.schemas import DeploymentTrigger, DeploymentTriggerTypes
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
@@ -271,7 +278,7 @@ async def deploy(
             prefect_file=prefect_file, ci=ci
         )
         parsed_names = []
-        for name in names:
+        for name in names or []:
             if "*" in name:
                 parsed_names.extend(_parse_name_from_pattern(deploy_configs, name))
             else:
@@ -1597,7 +1604,7 @@ def _initialize_deployment_triggers(
     triggers = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
-        triggers.append(DeploymentTrigger(**spec))
+        triggers.append(pydantic.parse_obj_as(DeploymentTriggerTypes, spec))
 
     return triggers
 
