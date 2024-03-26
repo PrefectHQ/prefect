@@ -19,65 +19,6 @@ if HAS_PYDANTIC_V2:
 T = TypeVar("T", bound=PydanticBaseModel)
 
 
-def is_pydantic_v2_compatible(
-    model_instance: PydanticBaseModel, fn_name: Optional[str] = None
-) -> bool:
-    """
-    Determines if the current environment is compatible with Pydantic V2 features,
-    based on the presence of Pydantic V2 and a global setting that enables V2 functionalities.
-
-    This function primarily serves to facilitate conditional logic in code that needs to
-    operate differently depending on the availability of Pydantic V2 features. It checks
-    two conditions: whether Pydantic V2 is installed, and whether the use of V2 features
-    is explicitly enabled through a global setting (`PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS`).
-
-    Parameters:
-    -----------
-    model_instance : Optional[PydanticBaseModel], optional
-        An instance of a Pydantic model. This parameter is used to perform a type check
-        to ensure the passed object is a Pydantic model instance. If not provided or if
-        the object is not a Pydantic model, a TypeError is raised. Defaults to None.
-
-    fn_name : Optional[str], optional
-        The name of the function or feature for which V2 compatibility is being checked.
-        This is used for logging purposes to provide more context in debug messages.
-        Defaults to None.
-
-    Returns:
-    --------
-    bool
-        True if the current environment supports Pydantic V2 features and if the global
-        setting for enabling V2 features is set to True. False otherwise.
-
-    Raises:
-    -------
-    TypeError
-        If `model_instance` is provided but is not an instance of a Pydantic PydanticBaseModel.
-    """
-
-    if model_instance and not isinstance(model_instance, PydanticBaseModel):  # type: ignore
-        raise TypeError(
-            f"Expected a Pydantic model, but got {type(model_instance).__name__}"
-        )
-
-    if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
-        logger.debug(
-            f"Using Pydantic v2 compatibility layer for `{fn_name}`. This will be removed in a future release."
-        )
-
-        return True
-
-    elif HAS_PYDANTIC_V2 and not USE_PYDANTIC_V2:
-        logger.debug(
-            "Pydantic v2 compatibility layer is disabled. To enable, set `PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS` to `True`."
-        )
-
-    else:
-        logger.debug("Pydantic v2 is not installed.")
-
-    return False
-
-
 def model_copy(
     model_instance: PydanticBaseModel,
     *,
@@ -96,7 +37,12 @@ def model_copy(
     Returns:
         New model instance.
     """
-    if is_pydantic_v2_compatible(model_instance=model_instance, fn_name="model_copy"):
+    if not hasattr(model_instance, "copy") and not hasattr(
+        model_instance, "model_copy"
+    ):
+        raise TypeError("Expected a Pydantic model instance")
+
+    if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
         return model_instance.model_copy(update=update, deep=deep)
 
     return model_instance.copy(update=update, deep=deep)  # type: ignore
@@ -132,6 +78,11 @@ def model_dump_json(
     Returns:
         A JSON representation of the model.
     """
+    if not hasattr(model_instance, "json") and not hasattr(
+        model_instance, "model_dump_json"
+    ):
+        raise TypeError("Expected a Pydantic model instance")
+
     if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
         return model_instance.model_dump_json(
             indent=indent,
@@ -187,6 +138,11 @@ def model_dump(
     Returns:
         A dictionary representation of the model.
     """
+    if not hasattr(model_instance, "dict") and not hasattr(
+        model_instance, "model_dump"
+    ):
+        raise TypeError("Expected a Pydantic model instance")
+
     if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
         return model_instance.model_dump(
             mode=mode,
@@ -241,6 +197,9 @@ def model_json_schema(
     dict[str, Any]
         The JSON schema for the given model class.
     """
+    if not hasattr(model, "schema") and not hasattr(model, "model_json_schema"):
+        raise TypeError("Expected a Pydantic model type")
+
     if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
         schema_generator = GenerateJsonSchema  # type: ignore
         return model.model_json_schema(
@@ -278,6 +237,9 @@ def model_validate(
     Returns:
         The validated model instance.
     """
+    if not hasattr(model, "parse_obj") and not hasattr(model, "model_validate"):
+        raise TypeError("Expected a Pydantic model type")
+
     if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
         return model.model_validate(
             obj=obj,
@@ -286,7 +248,7 @@ def model_validate(
             context=context,
         )
 
-    return getattr(model, "validate")(obj)
+    return getattr(model, "parse_obj")(obj)
 
 
 def model_validate_json(
@@ -309,6 +271,9 @@ def model_validate_json(
     Raises:
         ValueError: If `json_data` is not a JSON string.
     """
+    if not hasattr(model, "parse_raw") and not hasattr(model, "model_validate_json"):
+        raise TypeError("Expected a Pydantic model type")
+
     if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
         return model.model_validate_json(
             json_data=json_data,
@@ -416,5 +381,20 @@ else:
                 obj,
                 strict=strict,
                 from_attributes=from_attributes,
+                context=context,
+            )
+
+        @classmethod
+        def model_validate_json(
+            cls: Type["Self"],
+            json_data: Union[str, bytes, bytearray],
+            *,
+            strict: bool = False,
+            context: Optional[Dict[str, Any]] = None,
+        ) -> "Self":
+            return model_validate_json(
+                cls,
+                json_data,
+                strict=strict,
                 context=context,
             )
