@@ -207,6 +207,93 @@ def test_compound_deployment_trigger_as_automation():
     )
 
 
+def test_deeply_nested_compound_deployment_trigger_as_automation():
+    trigger = pydantic.parse_obj_as(
+        DeploymentTriggerTypes,
+        {
+            "name": "A deployment automation",
+            "type": "compound",
+            "require": "all",
+            "within": "42",
+            "triggers": [
+                {
+                    "type": "compound",
+                    "require": "any",
+                    "triggers": [
+                        {"posture": "Reactive", "expect": ["foo.bar"]},
+                        {"posture": "Reactive", "expect": ["buz.baz"]},
+                    ],
+                },
+                {
+                    "type": "sequence",
+                    "triggers": [
+                        {"posture": "Reactive", "expect": ["flibbdy.jibbidy"]},
+                        {"posture": "Reactive", "expect": ["floobity.bop"]},
+                    ],
+                },
+            ],
+        },
+    )
+    assert isinstance(trigger, DeploymentCompoundTrigger)
+    trigger.set_deployment_id(uuid4())
+
+    automation = trigger.as_automation()
+
+    assert automation == Automation(
+        name="A deployment automation",
+        description="",
+        enabled=True,
+        trigger=CompoundTrigger(
+            require="all",
+            triggers=[
+                CompoundTrigger(
+                    require="any",
+                    triggers=[
+                        EventTrigger(
+                            posture=Posture.Reactive,
+                            threshold=1,
+                            within=datetime.timedelta(0),
+                            expect=["foo.bar"],
+                        ),
+                        EventTrigger(
+                            posture=Posture.Reactive,
+                            threshold=1,
+                            within=datetime.timedelta(0),
+                            expect=["buz.baz"],
+                        ),
+                    ],
+                ),
+                SequenceTrigger(
+                    triggers=[
+                        EventTrigger(
+                            posture=Posture.Reactive,
+                            threshold=1,
+                            within=datetime.timedelta(0),
+                            expect=["flibbdy.jibbidy"],
+                        ),
+                        EventTrigger(
+                            posture=Posture.Reactive,
+                            threshold=1,
+                            within=datetime.timedelta(0),
+                            expect=["floobity.bop"],
+                        ),
+                    ],
+                ),
+            ],
+            within=datetime.timedelta(seconds=42),
+        ),
+        actions=[
+            RunDeployment(
+                type="run-deployment",
+                source="selected",
+                parameters=None,
+                deployment_id=trigger._deployment_id,
+            )
+        ],
+        owner_resource=f"prefect.deployment.{trigger._deployment_id}",
+    )
+
+
 def test_sequence_deployment_trigger_as_automation():
     trigger = pydantic.parse_obj_as(
         DeploymentTriggerTypes,
