@@ -17,3 +17,11 @@ from ._compat import (
     model_validate_json,
     IncEx,
 )
+
+__all__ = [
+    "model_dump",
+    "model_json_schema",
+    "model_validate",
+    "model_validate_json",
+    "IncEx",
+]

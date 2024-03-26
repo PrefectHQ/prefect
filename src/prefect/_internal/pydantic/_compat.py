@@ -1,24 +1,26 @@
 from typing import Any, Dict, Literal, Optional, Set, Type, Union
 
 import typing_extensions
-from pydantic import BaseModel
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._flags import (
+    HAS_PYDANTIC_V2,
+    USE_PYDANTIC_V2,
+)
 from prefect.logging.loggers import get_logger
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS
+
+from ._base_model import BaseModel as PydanticBaseModel
 
 IncEx: typing_extensions.TypeAlias = (
     "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
 )
-
 logger = get_logger("prefect._internal.pydantic")
 
 if HAS_PYDANTIC_V2:
-    from pydantic.json_schema import GenerateJsonSchema
+    from pydantic.json_schema import GenerateJsonSchema  # type: ignore
 
 
 def is_pydantic_v2_compatible(
-    model_instance: Optional[BaseModel] = None, fn_name: Optional[str] = None
+    model_instance: Any = None, fn_name: Optional[str] = None
 ) -> bool:
     """
     Determines if the current environment is compatible with Pydantic V2 features,
@@ -31,7 +33,7 @@ def is_pydantic_v2_compatible(
 
     Parameters:
     -----------
-    model_instance : Optional[BaseModel], optional
+    model_instance : Optional[PydanticBaseModel], optional
         An instance of a Pydantic model. This parameter is used to perform a type check
         to ensure the passed object is a Pydantic model instance. If not provided or if
         the object is not a Pydantic model, a TypeError is raised. Defaults to None.
@@ -50,25 +52,22 @@ def is_pydantic_v2_compatible(
     Raises:
     -------
     TypeError
-        If `model_instance` is provided but is not an instance of a Pydantic BaseModel.
+        If `model_instance` is provided but is not an instance of a Pydantic PydanticBaseModel.
     """
-    if model_instance and not isinstance(model_instance, BaseModel):
+
+    if model_instance and not isinstance(model_instance, PydanticBaseModel):  # type: ignore
         raise TypeError(
             f"Expected a Pydantic model, but got {type(model_instance).__name__}"
         )
 
-    should_dump_as_v2_model = (
-        HAS_PYDANTIC_V2 and PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS
-    )
-
-    if should_dump_as_v2_model:
+    if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
         logger.debug(
             f"Using Pydantic v2 compatibility layer for `{fn_name}`. This will be removed in a future release."
         )
 
         return True
 
-    elif HAS_PYDANTIC_V2:
+    elif HAS_PYDANTIC_V2 and not USE_PYDANTIC_V2:
         logger.debug(
             "Pydantic v2 compatibility layer is disabled. To enable, set `PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS` to `True`."
         )
@@ -80,7 +79,7 @@ def is_pydantic_v2_compatible(
 
 
 def model_dump(
-    model_instance: BaseModel,
+    model_instance: PydanticBaseModel,
     *,
     mode: Union[Literal["json", "python"], str] = "python",
     include: IncEx = None,
@@ -111,7 +110,7 @@ def model_dump(
     Returns:
         A dictionary representation of the model.
     """
-    if is_pydantic_v2_compatible(model_instance=model_instance, fn_name="model_dump"):
+    if is_pydantic_v2_compatible(model_instance, fn_name="model_dump"):
         return model_instance.model_dump(
             mode=mode,
             include=include,
@@ -124,7 +123,7 @@ def model_dump(
             warnings=warnings,
         )
 
-    return model_instance.dict(
+    return getattr(model_instance, "dict")(
         include=include,
         exclude=exclude,
         by_alias=by_alias,
@@ -139,11 +138,11 @@ JsonSchemaMode = Literal["validation", "serialization"]
 
 
 def model_json_schema(
-    model: Type[BaseModel],
+    model: Type[PydanticBaseModel],
     *,
     by_alias: bool = True,
     ref_template: str = DEFAULT_REF_TEMPLATE,
-    schema_generator=None,
+    schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema,  # type: ignore
     mode: JsonSchemaMode = "validation",
 ) -> Dict[str, Any]:
     """
@@ -166,7 +165,7 @@ def model_json_schema(
         The JSON schema for the given model class.
     """
     if is_pydantic_v2_compatible(fn_name="model_json_schema"):
-        schema_generator = GenerateJsonSchema
+        schema_generator = GenerateJsonSchema  # type: ignore
         return model.model_json_schema(
             by_alias=by_alias,
             ref_template=ref_template,
@@ -174,20 +173,20 @@ def model_json_schema(
             mode=mode,
         )
 
-    return model.schema(
+    return getattr(model, "schema")(
         by_alias=by_alias,
         ref_template=ref_template,
     )
 
 
 def model_validate(
-    model: Type[BaseModel],
+    model: Type[PydanticBaseModel],
     obj: Any,
     *,
     strict: bool = False,
     from_attributes: bool = False,
     context: Optional[Dict[str, Any]] = None,
-) -> Union[BaseModel, Dict[str, Any]]:
+) -> Union[PydanticBaseModel, Dict[str, Any]]:
     """Validate a pydantic model instance.
 
     Args:
@@ -210,16 +209,16 @@ def model_validate(
             context=context,
         )
 
-    return model.parse_obj(obj)
+    return getattr(model, "validate")(obj)
 
 
 def model_validate_json(
-    model: Type[BaseModel],
+    model: Type[PydanticBaseModel],
     json_data: Union[str, bytes, bytearray],
     *,
     strict: bool = False,
     context: Optional[Dict[str, Any]] = None,
-) -> BaseModel:
+) -> PydanticBaseModel:
     """Validate the given JSON data against the Pydantic model.
 
     Args:
@@ -240,4 +239,39 @@ def model_validate_json(
             context=context,
         )
 
-    return model.parse_raw(json_data)
+    return getattr(model, "parse_raw")(json_data)
+
+
+if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
+    # In this case, there's no functionality to add, so we just alias the Pydantic v2 BaseModel
+    class BaseModel(PydanticBaseModel):  # type: ignore
+        pass
+
+else:
+    # In this case, we're working with a Pydantic v1 model, so we need to add Pydantic v2 functionality
+    class BaseModel(PydanticBaseModel):
+        def model_dump(
+            self: "BaseModel",
+            *,
+            mode: str = "python",
+            include: IncEx = None,
+            exclude: IncEx = None,
+            by_alias: bool = False,
+            exclude_unset: bool = False,
+            exclude_defaults: bool = False,
+            exclude_none: bool = False,
+            round_trip: bool = False,
+            warnings: bool = True,
+        ) -> Dict[str, Any]:
+            return model_dump(
+                self,
+                mode=mode,
+                include=include,
+                exclude=exclude,
+                by_alias=by_alias,
+                exclude_unset=exclude_unset,
+                exclude_defaults=exclude_defaults,
+                exclude_none=exclude_none,
+                round_trip=round_trip,
+                warnings=warnings,
+            )
