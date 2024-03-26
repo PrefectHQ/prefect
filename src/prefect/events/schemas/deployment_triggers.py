@@ -29,10 +29,10 @@ from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
     from pydantic.v1.fields import ModelField
 else:
-    from pydantic import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic import Field, PrivateAttr, root_validator, validator
     from pydantic.fields import ModelField
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -52,14 +52,11 @@ from .automations import (
 from .events import ResourceSpecification
 
 
-class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC):
+class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
     """
-
-    class Config:
-        extra = Extra.ignore
 
     # Fields from Automation
 

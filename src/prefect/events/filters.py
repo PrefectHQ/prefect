@@ -15,11 +15,8 @@ else:
     from pydantic import Field
 
 
-class EventDataFilter(PrefectBaseModel):
+class EventDataFilter(PrefectBaseModel, extra="forbid"):
     """A base class for filtering event data."""
-
-    class Config:
-        extra = "forbid"
 
     def get_filters(self) -> List["EventDataFilter"]:
         return [

@@ -71,14 +71,8 @@ class LabelDiver:
             raise AttributeError
 
 
-class Labelled(PrefectBaseModel):
+class Labelled(PrefectBaseModel, extra="ignore"):
     """An object defined by string labels and values"""
-
-    # Only necessary because we override this with a conditional setting in
-    # PrefectBaseModel that breaks the schema generation
-    # https://github.com/pydantic/pydantic/issues/3505
-    class Config:
-        extra = "ignore"
 
     __root__: Dict[str, str]
 

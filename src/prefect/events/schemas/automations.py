@@ -17,10 +17,10 @@ from typing_extensions import TypeAlias
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Extra, Field, root_validator, validator
+    from pydantic.v1 import Field, root_validator, validator
     from pydantic.v1.fields import ModelField
 else:
-    from pydantic import Extra, Field, root_validator, validator
+    from pydantic import Field, root_validator, validator
     from pydantic.fields import ModelField
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -36,14 +36,11 @@ class Posture(AutoEnum):
     Metric = "Metric"
 
 
-class Trigger(PrefectBaseModel, abc.ABC):
+class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
     """
-
-    class Config:
-        extra = Extra.ignore
 
     type: str
 
@@ -278,12 +275,9 @@ CompoundTrigger.update_forward_refs()
 SequenceTrigger.update_forward_refs()
 
 
-class Automation(PrefectBaseModel):
+class Automation(PrefectBaseModel, extra="ignore"):
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
-
-    class Config:
-        extra = Extra.ignore
 
     name: str = Field(..., description="The name of this automation")
     description: str = Field("", description="A longer description of this automation")
