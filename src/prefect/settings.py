@@ -1634,6 +1634,19 @@ when attempting to serve the UI from the default directory (for example when run
 """
 
 
+# Events settings ------------------------------------------------------------------
+
+PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
+"""
+The maximum number of labels a resource may have.
+"""
+
+PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
+"""
+The maximum number of related resources an Event may have.
+"""
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 

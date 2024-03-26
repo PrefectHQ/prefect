@@ -23,7 +23,7 @@ else:
     import pydantic
     from pydantic import Field
 
-from prefect.events.schemas import (
+from prefect.events.schemas.automations import (
     EventTrigger,
     MetricTrigger,
     MetricTriggerQuery,

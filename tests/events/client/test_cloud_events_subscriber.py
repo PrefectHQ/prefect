@@ -73,13 +73,66 @@ async def test_subscriber_can_connect_and_receive_one_event(
     assert recorder.filter == filter
 
 
-async def test_subscriber_raises_on_invalid_auth(
+async def test_subscriber_specifying_negative_reconnects_gets_error(
     events_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
+    puppeteer.token = "my-token"
+    puppeteer.outgoing_events = [example_event_1, example_event_2]
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    with pytest.raises(ValueError, match="non-negative"):
+        async with PrefectCloudEventSubscriber(
+            events_api_url,
+            "my-token",
+            filter,
+            reconnection_attempts=-1,
+        ):
+            pass
+
+    assert recorder.connections == 0
+
+
+async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
+    events_api_url: str,
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    puppeteer.token = "my-token"
+    puppeteer.outgoing_events = [example_event_1, example_event_2]
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    with pytest.raises(Exception, match="Unable to authenticate"):
+        async with PrefectCloudEventSubscriber(
+            events_api_url,
+            "bogus",
+            filter,
+            reconnection_attempts=0,
+        ) as subscriber:
+            async for event in subscriber:
+                recorder.events.append(event)
+
+    assert recorder.connections == 1
+    assert recorder.path == "/accounts/A/workspaces/W/events/out"
+    assert recorder.token == "bogus"
+    assert recorder.events == []
+
+
+async def test_subscriber_raises_on_invalid_auth_with_hard_denial(
+    events_api_url: str,
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    puppeteer.hard_auth_failure = True
     puppeteer.token = "my-token"
     puppeteer.outgoing_events = [example_event_1, example_event_2]
 
