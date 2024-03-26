@@ -1,6 +1,7 @@
 import datetime
 import logging
 import re
+from typing import Tuple, Union
 
 import jsonschema
 import pendulum
@@ -235,7 +236,7 @@ def default_anchor_date(v: DateTimeTZ) -> DateTimeTZ:
     return pendulum.instance(v)
 
 
-def get_valid_timezones(v: str):
+def get_valid_timezones(v: str) -> Union[Tuple[str, ...], list]:
     # pendulum.tz.timezones is a callable in 3.0 and above
     # https://github.com/PrefectHQ/prefect/issues/11619
     if callable(pendulum.tz.timezones):
