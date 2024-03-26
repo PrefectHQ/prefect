@@ -343,7 +343,7 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     # There is a poorly understood edge case we've seen in CI where the key is
     # removed from the dict before we begin generator iteration.
     except KeyError:
-        logger.warn("The event loop shutdown callback was not properly registered. ")
+        logger.warning("The event loop shutdown callback was not properly registered. ")
         pass
 
 
