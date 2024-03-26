@@ -243,7 +243,7 @@ def get_valid_timezones(v: str):
         return pendulum.tz.timezones
 
 
-def validate_timezone(v: str, timezones: list):
+def validate_timezone(v: str, timezones: list) -> str:
     if v and v not in timezones:
         raise ValueError(
             f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
@@ -252,7 +252,7 @@ def validate_timezone(v: str, timezones: list):
     return v
 
 
-def default_timezone(v: str, values: dict):
+def default_timezone(v: str, values: dict) -> str:
     timezones = get_valid_timezones(v)
 
     if v is not None:
@@ -270,4 +270,18 @@ def default_timezone(v: str, values: dict):
             return "UTC"
 
     # cron schedules
+    return v
+
+
+def validate_cron_string(v: str) -> str:
+    from croniter import croniter
+
+    # croniter allows "random" and "hashed" expressions
+    # which we do not support https://github.com/kiorky/croniter
+    if not croniter.is_valid(v):
+        raise ValueError(f'Invalid cron string: "{v}"')
+    elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
+        raise ValueError(
+            f'Random and Hashed expressions are unsupported, received: "{v}"'
+        )
     return v

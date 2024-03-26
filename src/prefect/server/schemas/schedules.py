@@ -22,6 +22,7 @@ from prefect._internal.schemas.validators import (
     default_anchor_date,
     default_timezone,
     interval_schedule_must_be_positive,
+    validate_cron_string,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
@@ -237,16 +238,8 @@ class CronSchedule(PrefectBaseModel):
         return default_timezone(v, values)
 
     @validator("cron")
-    def valid_cron_string(cls, v):
-        # croniter allows "random" and "hashed" expressions
-        # which we do not support https://github.com/kiorky/croniter
-        if not croniter.is_valid(v):
-            raise ValueError(f'Invalid cron string: "{v}"')
-        elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
-            raise ValueError(
-                f'Random and Hashed expressions are unsupported, received: "{v}"'
-            )
-        return v
+    def validate_cron_string(cls, v):
+        return validate_cron_string(v)
 
     async def get_dates(
         self,

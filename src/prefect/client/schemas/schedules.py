@@ -8,13 +8,13 @@ from typing import Optional, Union
 import dateutil
 import dateutil.rrule
 import pendulum
-from croniter import croniter
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
     default_anchor_date,
     default_timezone,
     interval_schedule_must_be_positive,
+    validate_cron_string,
 )
 
 if HAS_PYDANTIC_V2:
@@ -126,32 +126,12 @@ class CronSchedule(PrefectBaseModel):
     )
 
     @validator("timezone")
-    def valid_timezone(cls, v):
-        # pendulum.tz.timezones is a callable in 3.0 and above
-        # https://github.com/PrefectHQ/prefect/issues/11619
-        if callable(pendulum.tz.timezones):
-            timezones = pendulum.tz.timezones()
-        else:
-            timezones = pendulum.tz.timezones
-
-        if v and v not in timezones:
-            raise ValueError(
-                f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
-                " America/New_York)"
-            )
-        return v
+    def validate_timezone(cls, v, *, values, **kwargs):
+        return default_timezone(v, values)
 
     @validator("cron")
-    def valid_cron_string(cls, v):
-        # croniter allows "random" and "hashed" expressions
-        # which we do not support https://github.com/kiorky/croniter
-        if not croniter.is_valid(v):
-            raise ValueError(f'Invalid cron string: "{v}"')
-        elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
-            raise ValueError(
-                f'Random and Hashed expressions are unsupported, received: "{v}"'
-            )
-        return v
+    def validate_cron_string(cls, v):
+        return validate_cron_string(v)
 
 
 DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
