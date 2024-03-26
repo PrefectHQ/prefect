@@ -61,7 +61,7 @@ from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger, DeploymentTriggerTypes
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
@@ -1600,7 +1600,7 @@ def _check_if_identical_deployment_in_prefect_file(
 
 def _initialize_deployment_triggers(
     deployment_name: str, triggers_spec: List[Dict[str, Any]]
-) -> List[DeploymentTrigger]:
+) -> List[DeploymentTriggerTypes]:
     triggers = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
@@ -1610,7 +1610,7 @@ def _initialize_deployment_triggers(
 
 
 async def _create_deployment_triggers(
-    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTrigger]
+    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTriggerTypes]
 ):
     if client.server_type == ServerType.CLOUD:
         # The triggers defined in the deployment spec are, essentially,
@@ -1686,7 +1686,7 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
         app.console.print(
             generate_deprecation_message(
                 "Defining a schedule via the `schedule` key in the deployment",
-                start_date="Mar 2023",
+                start_date="Mar 2024",
                 help=(
                     "Please use `schedules` instead by renaming the "
                     "`schedule` key to `schedules` and providing a list of "

@@ -21,6 +21,14 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_class,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    handle_openapi_schema,
+    infrastructure_must_have_capabilities,
+    reconcile_schedules,
+    storage_must_have_capabilities,
+    validate_automation_names,
+    validate_deprecated_schedule_fields,
+)
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 
 if HAS_PYDANTIC_V2:
@@ -40,11 +48,9 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
-    create_minimal_deployment_schedule,
-    normalize_to_minimal_deployment_schedules,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
@@ -56,7 +62,6 @@ from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.states import Scheduled
 from prefect.tasks import Task
-from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
@@ -579,7 +584,7 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
-    triggers: List[DeploymentTrigger] = Field(
+    triggers: List[DeploymentTriggerTypes] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -593,97 +598,28 @@ class Deployment(BaseModel):
     )
 
     @validator("infrastructure", pre=True)
-    def infrastructure_must_have_capabilities(cls, value):
-        if isinstance(value, dict):
-            if "_block_type_slug" in value:
-                # Replace private attribute with public for dispatch
-                value["block_type_slug"] = value.pop("_block_type_slug")
-            block = Block(**value)
-        elif value is None:
-            return value
-        else:
-            block = value
-
-        if "run-infrastructure" not in block.get_block_capabilities():
-            raise ValueError(
-                "Infrastructure block must have 'run-infrastructure' capabilities."
-            )
-        return block
+    def validate_infrastructure_capabilities(cls, value):
+        return infrastructure_must_have_capabilities(value)
 
     @validator("storage", pre=True)
-    def storage_must_have_capabilities(cls, value):
-        if isinstance(value, dict):
-            block_type = Block.get_block_class_from_key(value.pop("_block_type_slug"))
-            block = block_type(**value)
-        elif value is None:
-            return value
-        else:
-            block = value
-
-        capabilities = block.get_block_capabilities()
-        if "get-directory" not in capabilities:
-            raise ValueError(
-                "Remote Storage block must have 'get-directory' capabilities."
-            )
-        return block
+    def validate_storage(cls, value):
+        return storage_must_have_capabilities(value)
 
     @validator("parameter_openapi_schema", pre=True)
-    def handle_openapi_schema(cls, value):
-        """
-        This method ensures setting a value of `None` is handled gracefully.
-        """
-        if value is None:
-            return ParameterSchema()
-        return value
+    def validate_parameter_openapi_schema(cls, value):
+        return handle_openapi_schema(value)
 
     @validator("triggers")
-    def validate_automation_names(cls, field_value, values, field, config):
-        """Ensure that each trigger has a name for its automation if none is provided."""
-        for i, trigger in enumerate(field_value, start=1):
-            if trigger.name is None:
-                trigger.name = f"{values['name']}__automation_{i}"
-
-        return field_value
+    def validate_triggers(cls, field_value, values, field, config):
+        return validate_automation_names(field_value, values, field, config)
 
     @root_validator(pre=True)
-    def validate_deprecated_schedule_fields(cls, values):
-        if values.get("schedule") and not values.get("schedules"):
-            logger.warning(
-                "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
-                "available after Sep 2024. Define schedules in the `schedules` list instead."
-            )
-        elif values.get("is_schedule_active") and not values.get("schedules"):
-            logger.warning(
-                "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
-                "not be available after Sep 2024. Use the `active` flag within a schedule in "
-                "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
-                "all schedules."
-            )
-        return values
+    def validate_schedule(cls, values):
+        return validate_deprecated_schedule_fields(values, logger)
 
     @root_validator(pre=True)
-    def reconcile_schedules(cls, values):
-        schedule = values.get("schedule", NotSet)
-        schedules = values.get("schedules", NotSet)
-
-        if schedules is not NotSet:
-            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
-        elif schedule is not NotSet:
-            values["schedule"] = None
-
-            if schedule is None:
-                values["schedules"] = []
-            else:
-                values["schedules"] = [
-                    create_minimal_deployment_schedule(
-                        schedule=schedule, active=values.get("is_schedule_active")
-                    )
-                ]
-
-        for schedule in values.get("schedules", []):
-            cls._validate_schedule(schedule.schedule)
-
-        return values
+    def validate_backwards_compatibility_for_schedule(cls, values):
+        return reconcile_schedules(cls, values)
 
     @classmethod
     @sync_compatible
