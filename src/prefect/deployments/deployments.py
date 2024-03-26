@@ -50,7 +50,7 @@ from prefect.deployments.schedules import (
     FlexibleScheduleList,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
@@ -584,7 +584,7 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
-    triggers: List[DeploymentTrigger] = Field(
+    triggers: List[DeploymentTriggerTypes] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
