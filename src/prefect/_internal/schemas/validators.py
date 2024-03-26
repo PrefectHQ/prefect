@@ -3,6 +3,7 @@ import re
 import jsonschema
 
 from prefect.exceptions import InvalidNameError
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import remove_nested_keys
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -97,3 +98,121 @@ def validate_values_conform_to_schema(
             "The provided schema is not a valid json schema. Schema error:"
             f" {exc.message}"
         ) from exc
+
+
+def infrastructure_must_have_capabilities(value):
+    """
+    Ensure that the provided value is an infrastructure block with the required capabilities.
+    """
+
+    from prefect.blocks.core import Block
+
+    if isinstance(value, dict):
+        if "_block_type_slug" in value:
+            # Replace private attribute with public for dispatch
+            value["block_type_slug"] = value.pop("_block_type_slug")
+        block = Block(**value)
+    elif value is None:
+        return value
+    else:
+        block = value
+
+    if "run-infrastructure" not in block.get_block_capabilities():
+        raise ValueError(
+            "Infrastructure block must have 'run-infrastructure' capabilities."
+        )
+    return block
+
+
+def storage_must_have_capabilities(value):
+    """
+    Ensure that the provided value is a storage block with the required capabilities.
+    """
+    from prefect.blocks.core import Block
+
+    if isinstance(value, dict):
+        block_type = Block.get_block_class_from_key(value.pop("_block_type_slug"))
+        block = block_type(**value)
+    elif value is None:
+        return value
+    else:
+        block = value
+
+    capabilities = block.get_block_capabilities()
+    if "get-directory" not in capabilities:
+        raise ValueError("Remote Storage block must have 'get-directory' capabilities.")
+    return block
+
+
+def handle_openapi_schema(value):
+    """
+    This method ensures setting a value of `None` is handled gracefully.
+    """
+    from prefect.utilities.callables import ParameterSchema
+
+    if value is None:
+        return ParameterSchema()
+    return value
+
+
+def validate_automation_names(field_value, values, field, config):
+    """
+    Ensure that each trigger has a name for its automation if none is provided.
+    """
+    for i, trigger in enumerate(field_value, start=1):
+        if trigger.name is None:
+            trigger.name = f"{values['name']}__automation_{i}"
+
+    return field_value
+
+
+def validate_deprecated_schedule_fields(values, logger):
+    """
+    Validate and log deprecation warnings for deprecated schedule fields.
+    """
+    if values.get("schedule") and not values.get("schedules"):
+        logger.warning(
+            "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
+            "available after Sep 2024. Define schedules in the `schedules` list instead."
+        )
+    elif values.get("is_schedule_active") and not values.get("schedules"):
+        logger.warning(
+            "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
+            "not be available after Sep 2024. Use the `active` flag within a schedule in "
+            "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
+            "all schedules."
+        )
+    return values
+
+
+def reconcile_schedules(cls, values):
+    """
+    Reconcile the `schedule` and `schedules` fields in a deployment.
+    """
+
+    from prefect.deployments.schedules import (
+        create_minimal_deployment_schedule,
+        normalize_to_minimal_deployment_schedules,
+    )
+
+    schedule = values.get("schedule", NotSet)
+    schedules = values.get("schedules", NotSet)
+
+    if schedules is not NotSet:
+        values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+    elif schedule is not NotSet:
+        values["schedule"] = None
+
+        if schedule is None:
+            values["schedules"] = []
+        else:
+            values["schedules"] = [
+                create_minimal_deployment_schedule(
+                    schedule=schedule, active=values.get("is_schedule_active")
+                )
+            ]
+
+    for schedule in values.get("schedules", []):
+        cls._validate_schedule(schedule.schedule)
+
+    return values
