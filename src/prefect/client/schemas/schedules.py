@@ -15,7 +15,8 @@ from prefect._internal.schemas.validators import (
     default_timezone,
     interval_schedule_must_be_positive,
     validate_cron_string,
-    validate_rrule,
+    validate_rrule_str,
+    validate_rrule_timezone,
 )
 
 if HAS_PYDANTIC_V2:
@@ -26,9 +27,9 @@ else:
 from prefect._internal.pytz import HAS_PYTZ
 
 if HAS_PYTZ:
-    import pytz
+    pass
 else:
-    from prefect._internal import pytz
+    pass
 
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -165,8 +166,8 @@ class RRuleSchedule(PrefectBaseModel):
     timezone: Optional[str] = Field(default=None, example="America/New_York")
 
     @validator("rrule")
-    def validate_rrule_str(cls, v):
-        return validate_rrule(v)
+    def validate_rrule_string(cls, v):
+        return validate_rrule_str(v)
 
     @classmethod
     def from_rrule(cls, rrule: dateutil.rrule.rrule):
@@ -273,11 +274,7 @@ class RRuleSchedule(PrefectBaseModel):
 
     @validator("timezone", always=True)
     def valid_timezone(cls, v):
-        if v and v not in pytz.all_timezones_set:
-            raise ValueError(f'Invalid timezone: "{v}"')
-        elif v is None:
-            return "UTC"
-        return v
+        return validate_rrule_timezone(v)
 
 
 class NoSchedule(PrefectBaseModel):

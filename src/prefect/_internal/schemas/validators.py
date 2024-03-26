@@ -244,6 +244,22 @@ def get_valid_timezones(v: str):
         return pendulum.tz.timezones
 
 
+def validate_rrule_timezone(v: str) -> str:
+    """
+    Validate that the provided timezone is a valid IANA timezone.
+
+    Unfortunately this list is slightly different from the list of valid
+    timezones in pendulum that we use for cron and interval timezone validation.
+    """
+    import pytz
+
+    if v and v not in pytz.all_timezones_set:
+        raise ValueError(f'Invalid timezone: "{v}"')
+    elif v is None:
+        return "UTC"
+    return v
+
+
 def validate_timezone(v: str, timezones: list) -> str:
     if v and v not in timezones:
         raise ValueError(
@@ -292,7 +308,7 @@ def validate_cron_string(v: str) -> str:
 MAX_RRULE_LENGTH = 6500
 
 
-def validate_rrule(v: str) -> str:
+def validate_rrule_str(v: str) -> str:
     import dateutil.rrule
 
     # attempt to parse the rrule string as an rrule object
