@@ -37,9 +37,8 @@ from prefect.client.schemas.filters import (
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
 from prefect.engine import propose_state
-from prefect.events import Event, emit_event
+from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
-from prefect.events.schemas import RelatedResource
 from prefect.exceptions import (
     Abort,
     InfrastructureNotAvailable,

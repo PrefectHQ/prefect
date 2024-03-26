@@ -51,6 +51,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Generic,
     Iterable,
     List,
@@ -1633,6 +1634,19 @@ when attempting to serve the UI from the default directory (for example when run
 """
 
 
+# Events settings ------------------------------------------------------------------
+
+PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
+"""
+The maximum number of labels a resource may have.
+"""
+
+PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
+"""
+The maximum number of related resources an Event may have.
+"""
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 
@@ -1887,10 +1901,10 @@ def get_default_settings() -> Settings:
 
 @contextmanager
 def temporary_settings(
-    updates: Mapping[Setting, Any] = None,
-    set_defaults: Mapping[Setting, Any] = None,
-    restore_defaults: Iterable[Setting] = None,
-) -> Settings:
+    updates: Optional[Mapping[Setting[T], Any]] = None,
+    set_defaults: Optional[Mapping[Setting[T], Any]] = None,
+    restore_defaults: Optional[Iterable[Setting[T]]] = None,
+) -> Generator[Settings, None, None]:
     """
     Temporarily override the current settings by entering a new profile.
 
@@ -2142,7 +2156,9 @@ class ProfilesCollection:
         )
 
 
-def _handle_removed_flags(profile_name: str, settings: dict) -> dict:
+def _handle_removed_flags(
+    profile_name: str, settings: Dict[str, Any]
+) -> Dict[str, Any]:
     to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
 
     for name in to_remove:
