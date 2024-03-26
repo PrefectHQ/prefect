@@ -24,13 +24,6 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, validator
 
-from prefect._internal.pytz import HAS_PYTZ
-
-if HAS_PYTZ:
-    pass
-else:
-    pass
-
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
