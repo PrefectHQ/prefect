@@ -1,0 +1,10 @@
+#!/bin/bash
+pytest \
+    --cov=src/prefect/events \
+    --cov=src/prefect/server/events \
+    --cov=tests/events \
+    --no-cov-on-fail \
+    --cov-branch \
+    --cov-report=term-missing \
+    tests/events/ \
+    $@
