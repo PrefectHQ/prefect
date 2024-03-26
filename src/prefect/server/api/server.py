@@ -338,6 +338,7 @@ def create_api_app(
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
+    cache_key = f"{prefect.__version__}:{base_url}"
     stripped_base_url = base_url.rstrip("/")
     static_dir = (
         prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
@@ -363,7 +364,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         if os.path.exists(static_dir):
             try:
                 with open(reference_file_path, "r") as f:
-                    return f.read() == base_url
+                    return f.read() == cache_key
             except FileNotFoundError:
                 return False
         else:
@@ -384,7 +385,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # This is used to determine if the static files need to be copied again
         # when the server is restarted
         with open(os.path.join(static_dir, reference_file_name), "w") as f:
-            f.write(f"{prefect.__version__}:{base_url}")
+            f.write(cache_key)
 
     ui_app.add_middleware(GZipMiddleware)
 
