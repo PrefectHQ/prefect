@@ -712,7 +712,7 @@ class Task(Generic[P, R]):
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-        defer: bool = False,
+        background: bool = False,
         **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun, Awaitable[TaskRun]]:
         """
@@ -726,7 +726,7 @@ class Task(Generic[P, R]):
         the flow function will continue executing. However, note that the `SequentialTaskRunner`
         does not implement parallel execution for sync tasks and they are fully resolved on submission.
 
-        Calling this method from a flow run context with `defer=True` or from outside of a flow run context
+        Calling this method from a flow run context with `background=True` or from outside of a flow run context
         will submit the task as a background task to the API. If any, the current flow run will not wait
         for the task run in any way, and the task run will not be directly associated with the flow run.
 
@@ -735,7 +735,7 @@ class Task(Generic[P, R]):
             return_state: Return the result of the flow run wrapped in a
                 Prefect State.
             wait_for: Upstream task futures to wait for before starting the task
-            defer: If `True`, the task will submitted as a background task and not
+            background: If `True`, the task will submitted as a background task and not
                 directly associated the with any calling flow run. This is not required
                 when submitting task runs from outside of a flow run context.
             **kwargs: Keyword arguments to run the task with
@@ -824,7 +824,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     task_1.submit(defer=True)
+            >>>     task_1.submit(background=True)
 
         """
 
@@ -845,15 +845,15 @@ class Task(Generic[P, R]):
                 background_tasks_enabled
                 := PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
             )
-            and defer
+            and background
         ):
             raise RuntimeError(
                 "You must set `PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING` to `True`"
-                "  to `defer` task runs from within a flow run context."
+                "  to `background` task runs from within a flow run context."
             )
 
         if background_tasks_enabled and (
-            not (ctx := FlowRunContext.get()) or (ctx and defer)
+            not (ctx := FlowRunContext.get()) or (ctx and background)
         ):
             create_autonomous_task_run_call = create_call(
                 create_autonomous_task_run, task=self, parameters=parameters
@@ -916,13 +916,13 @@ class Task(Generic[P, R]):
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-        defer: bool = False,
+        background: bool = False,
         **kwargs: Any,
     ) -> Any:
         """
         Submit a mapped run of the task to a worker.
 
-        Must be called within a flow function (if not deferred). If writing an async
+        Must be called within a flow function (if not backgrounded). If writing an async
         task, this call must be awaited.
 
         Must be called with at least one iterable and all iterables must be
@@ -938,7 +938,7 @@ class Task(Generic[P, R]):
         for sync tasks and they are fully resolved on submission.
 
         To create background task runs with mapped tasks, either call this method
-        with `defer=True` from within a flow run context or call it from outside
+        with `background=True` from within a flow run context or call it from outside
         of a flow run context - both will submit the task runs as background tasks
         to the API. If any, the current flow run will not wait for the task runs in
         any way, and the task runs will not be directly associated with the flow run.
@@ -949,6 +949,7 @@ class Task(Generic[P, R]):
                 of each task run.
             wait_for: Upstream task futures to wait for before starting the
                 task
+            background: If `True`, the task will submitted as a background task
             **kwargs: Keyword iterable arguments to run the task with
 
         Returns:
@@ -1053,7 +1054,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     task_1.map([1, 2, 3], defer=True)
+            >>>     task_1.map([1, 2, 3], background=True)
         """
 
         from prefect.engine import begin_task_map, enter_task_run_engine
@@ -1074,15 +1075,15 @@ class Task(Generic[P, R]):
                 background_tasks_enabled
                 := PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
             )
-            and defer
+            and background
         ):
             raise RuntimeError(
                 "You must set `PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING` to `True`"
-                "  to `defer` task runs from within a flow run context."
+                "  to `background` task runs from within a flow run context."
             )
 
         if background_tasks_enabled and (
-            not (ctx := FlowRunContext.get()) or (ctx and defer)
+            not (ctx := FlowRunContext.get()) or (ctx and background)
         ):
             map_call = create_call(
                 begin_task_map,

@@ -423,13 +423,15 @@ class TestTaskKey:
         assert t.task_key == f"{some_fn.__qualname__}-unknown-source-file"
 
 
-class TestDefer:
+class TestBackgroundedTaskRunsFromFlowRun:
     class TestSubmit:
-        async def test_defer_task_run_from_flow_run(self, prefect_client, foo_task):
+        async def test_background_task_run_from_flow_run(
+            self, prefect_client, foo_task
+        ):
             @flow
             def f() -> tuple:
                 run_context = get_run_context()
-                return foo_task.submit(42, defer=True), run_context
+                return foo_task.submit(42, background=True), run_context
 
             task_run, ctx = f()
 
@@ -443,10 +445,10 @@ class TestDefer:
             )
             assert (await prefect_client.read_task_run(task_run.id)).flow_run_id is None
 
-        async def test_defer_task_run_when_flag_disabled_fails(self, foo_task):
+        async def test_background_task_run_when_flag_disabled_fails(self, foo_task):
             @flow
             def f():
-                foo_task.submit(42, defer=True)
+                foo_task.submit(42, background=True)
 
             with temporary_settings(
                 {PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}
@@ -458,11 +460,13 @@ class TestDefer:
                     f()
 
     class TestMap:
-        async def test_defer_task_runs_from_flow_run(self, prefect_client, foo_task):
+        async def test_background_task_runs_from_flow_run(
+            self, prefect_client, foo_task
+        ):
             @flow
             def f() -> tuple:
                 run_context = get_run_context()
-                return foo_task.map([1, 2, 3], defer=True), run_context
+                return foo_task.map([1, 2, 3], background=True), run_context
 
             task_runs, ctx = f()
 
@@ -481,10 +485,10 @@ class TestDefer:
                 ]
             )
 
-        async def test_defer_task_runs_when_flag_disabled_fails(self, foo_task):
+        async def test_background_task_runs_when_flag_disabled_fails(self, foo_task):
             @flow
             def f():
-                foo_task.map([1, 2, 3], defer=True)
+                foo_task.map([1, 2, 3], background=True)
 
             with temporary_settings(
                 {PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}
