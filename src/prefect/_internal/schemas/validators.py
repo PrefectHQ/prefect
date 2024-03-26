@@ -11,7 +11,6 @@ from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
 
-
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
