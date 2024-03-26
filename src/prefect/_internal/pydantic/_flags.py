@@ -3,7 +3,7 @@ import os
 # Retrieve current version of Pydantic installed in environment
 from pydantic.version import VERSION as PYDANTIC_VERSION
 
-# Check if Pydantic version 2 is being used
+# Check if Pydantic version 2 is the installed version
 HAS_PYDANTIC_V2 = PYDANTIC_VERSION.startswith("2.")
 
 # Determine if Pydantic v2 internals should be used based on an environment variable.
