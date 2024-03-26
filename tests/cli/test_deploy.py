@@ -38,7 +38,7 @@ from prefect.deployments.base import (
     initialize_project,
 )
 from prefect.deployments.steps.core import StepExecutionError
-from prefect.events.schemas import DeploymentTrigger, Posture
+from prefect.events.schemas import DeploymentEventTrigger, Posture
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import (
@@ -5804,7 +5804,7 @@ class TestDeploymentTrigger:
 
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
             assert triggers == [
-                DeploymentTrigger(
+                DeploymentEventTrigger(
                     **{
                         "name": "Trigger McTriggerson",
                         "description": "",
@@ -5819,9 +5819,7 @@ class TestDeploymentTrigger:
                         "for_each": set(),
                         "posture": Posture.Reactive,
                         "threshold": 1,
-                        "within": None,
-                        "parameters": None,
-                        "metric": None,
+                        "within": timedelta(0),
                     }
                 )
             ]
