@@ -1,7 +1,11 @@
+import datetime
+import logging
 import re
 
 import jsonschema
+import pendulum
 
+from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import remove_nested_keys
@@ -166,7 +170,7 @@ def validate_automation_names(field_value, values, field, config):
     return field_value
 
 
-def validate_deprecated_schedule_fields(values, logger):
+def validate_deprecated_schedule_fields(values: dict, logger: logging.Logger) -> dict:
     """
     Validate and log deprecation warnings for deprecated schedule fields.
     """
@@ -185,7 +189,7 @@ def validate_deprecated_schedule_fields(values, logger):
     return values
 
 
-def reconcile_schedules(cls, values):
+def reconcile_schedules(cls, values: dict) -> dict:
     """
     Reconcile the `schedule` and `schedules` fields in a deployment.
     """
@@ -216,3 +220,54 @@ def reconcile_schedules(cls, values):
         cls._validate_schedule(schedule.schedule)
 
     return values
+
+
+def interval_schedule_must_be_positive(v: datetime.timedelta) -> datetime.timedelta:
+    if v.total_seconds() <= 0:
+        raise ValueError("The interval must be positive")
+    return v
+
+
+def default_anchor_date(v: DateTimeTZ) -> DateTimeTZ:
+    if v is None:
+        return pendulum.now("UTC")
+    return pendulum.instance(v)
+
+
+def get_valid_timezones(v: str):
+    # pendulum.tz.timezones is a callable in 3.0 and above
+    # https://github.com/PrefectHQ/prefect/issues/11619
+    if callable(pendulum.tz.timezones):
+        return pendulum.tz.timezones()
+    else:
+        return pendulum.tz.timezones
+
+
+def validate_timezone(v: str, timezones: list):
+    if v and v not in timezones:
+        raise ValueError(
+            f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
+            " America/New_York)"
+        )
+    return v
+
+
+def default_timezone(v: str, values: dict):
+    timezones = get_valid_timezones(v)
+
+    if v is not None:
+        return validate_timezone(v, timezones)
+
+    # anchor schedules
+    elif v is None and values.get("anchor_date"):
+        tz = values["anchor_date"].tz.name
+        if tz in timezones:
+            return tz
+        # sometimes anchor dates have "timezones" that are UTC offsets
+        # like "-04:00". This happens when parsing ISO8601 strings.
+        # In this case we, the correct inferred localization is "UTC".
+        else:
+            return "UTC"
+
+    # cron schedules
+    return v

@@ -11,6 +11,11 @@ import pendulum
 from croniter import croniter
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    default_anchor_date,
+    default_timezone,
+    interval_schedule_must_be_positive,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, validator
@@ -71,41 +76,16 @@ class IntervalSchedule(PrefectBaseModel):
     timezone: Optional[str] = Field(default=None, example="America/New_York")
 
     @validator("interval")
-    def interval_must_be_positive(cls, v):
-        if v.total_seconds() <= 0:
-            raise ValueError("The interval must be positive")
-        return v
+    def validate_interval_schedule(cls, v):
+        return interval_schedule_must_be_positive(v)
 
     @validator("anchor_date", always=True)
-    def default_anchor_date(cls, v):
-        if v is None:
-            return pendulum.now("UTC")
-        return pendulum.instance(v)
+    def validate_anchor_date(cls, v):
+        return default_anchor_date(v)
 
     @validator("timezone", always=True)
-    def default_timezone(cls, v, *, values, **kwargs):
-        # pendulum.tz.timezones is a callable in 3.0 and above
-        # https://github.com/PrefectHQ/prefect/issues/11619
-        if callable(pendulum.tz.timezones):
-            timezones = pendulum.tz.timezones()
-        else:
-            timezones = pendulum.tz.timezones
-        # if was provided, make sure its a valid IANA string
-        if v and v not in timezones:
-            raise ValueError(f'Invalid timezone: "{v}"')
-
-        # otherwise infer the timezone from the anchor date
-        elif v is None and values.get("anchor_date"):
-            tz = values["anchor_date"].tz.name
-            if tz in timezones:
-                return tz
-            # sometimes anchor dates have "timezones" that are UTC offsets
-            # like "-04:00". This happens when parsing ISO8601 strings.
-            # In this case we, the correct inferred localization is "UTC".
-            else:
-                return "UTC"
-
-        return v
+    def validate_default_timezone(cls, v, values):
+        return default_timezone(v, values=values)
 
 
 class CronSchedule(PrefectBaseModel):
