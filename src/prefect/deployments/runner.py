@@ -69,7 +69,7 @@ from prefect.deployments.schedules import (
     create_minimal_deployment_schedule,
     normalize_to_minimal_deployment_schedules,
 )
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
@@ -176,7 +176,7 @@ class RunnerDeployment(BaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    triggers: List[DeploymentTrigger] = Field(
+    triggers: List[DeploymentTriggerTypes] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -468,7 +468,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -604,7 +604,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -702,7 +702,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,

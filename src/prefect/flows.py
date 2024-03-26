@@ -75,7 +75,7 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
     MissingFlowError,
     ObjectNotFound,
@@ -618,7 +618,7 @@ class Flow(Generic[P, R]):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -748,7 +748,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List["FlexibleScheduleList"]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -962,7 +962,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List[MinimalDeploymentSchedule]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,

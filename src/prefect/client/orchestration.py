@@ -128,7 +128,7 @@ from prefect.client.schemas.sorting import (
     TaskRunSort,
 )
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas import Automation, ExistingAutomation
+from prefect.events.schemas.automations import Automation, ExistingAutomation
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,

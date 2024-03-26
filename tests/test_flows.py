@@ -39,7 +39,7 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.context import PrefectObjectRegistry
 from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
@@ -3399,9 +3399,10 @@ class TestFlowToDeployment:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.triggers == [
-            DeploymentTrigger(
+            DeploymentEventTrigger(
                 name="Happiness",
                 enabled=True,
+                posture=Posture.Reactive,
                 match={"prefect.resource.id": "prefect.flow-run.*"},
                 expect=["prefect.flow-run.Completed"],
                 match_related={
