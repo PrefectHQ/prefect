@@ -1,6 +1,7 @@
 from .schemas.events import Event, ReceivedEvent
 from .schemas.events import Resource, RelatedResource, ResourceSpecification
 from .schemas.automations import (
+    Automation,
     Posture,
     Trigger,
     ResourceTrigger,
@@ -20,6 +21,7 @@ __all__ = [
     "Resource",
     "RelatedResource",
     "ResourceSpecification",
+    "Automation",
     "Posture",
     "Trigger",
     "ResourceTrigger",
