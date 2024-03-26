@@ -83,6 +83,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Call a webhook
 - Suspend a flow run
 - Declare an incident (available on Pro and Enterprise plans)
+- Change the state of a flow run
 
 ![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
 
