@@ -10,4 +10,22 @@ from pydantic.version import VERSION as PYDANTIC_VERSION
 
 HAS_PYDANTIC_V2 = PYDANTIC_VERSION.startswith("2.")
 
-from ._compat import model_dump, model_json_schema, model_validate, IncEx
+from ._compat import (
+    model_dump,
+    model_json_schema,
+    model_validate,
+    IncEx,
+    model_dump_json,
+    model_copy,
+    model_validate_json,
+)
+
+__all__ = [
+    "model_dump",
+    "model_json_schema",
+    "model_validate",
+    "IncEx",
+    "model_dump_json",
+    "model_copy",
+    "model_validate_json",
+]
