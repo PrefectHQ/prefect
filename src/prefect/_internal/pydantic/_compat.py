@@ -14,9 +14,16 @@ IncEx: TypeAlias = "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], No
 logger = get_logger("prefect._internal.pydantic")
 
 if HAS_PYDANTIC_V2:
+    from pydantic import TypeAdapter, parse_obj_as
     from pydantic.json_schema import GenerateJsonSchema  # type: ignore
+else:
+    from pydantic import parse_obj_as
+
+    TypeAdapter = None  # type: ignore
 
 T = TypeVar("T", bound=PydanticBaseModel)
+
+# BaseModel methods and definitions
 
 
 def model_copy(
@@ -398,3 +405,41 @@ else:
                 strict=strict,
                 context=context,
             )
+
+
+# TypeAdapter methods and definitions
+
+
+def validate_python(
+    type_: Type[T],
+    __object: Any,
+    *,
+    strict: bool | None = None,
+    from_attributes: bool | None = None,
+    context: Dict[str, Any] | None = None,
+) -> T:
+    """Validate a Python object against the model.
+
+    Args:
+        type_: The type to validate against.
+        __object: The Python object to validate against the model.
+        strict: Whether to strictly check types.
+        from_attributes: Whether to extract data from object attributes.
+        context: Additional context to pass to the validator.
+
+    !!! note
+        When using `TypeAdapter` with a Pydantic `dataclass`, the use of the `from_attributes`
+        argument is not supported.
+
+    Returns:
+        The validated object.
+    """
+    if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
+        return TypeAdapter(type_).validate_python(
+            __object,
+            strict=strict,
+            from_attributes=from_attributes,
+            context=context,
+        )
+
+    return parse_obj_as(type_, __object)
