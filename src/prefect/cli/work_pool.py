@@ -259,7 +259,7 @@ async def ls(
             str(pool.id),
             (
                 f"[red]{pool.concurrency_limit}"
-                if pool.concurrency_limit
+                if pool.concurrency_limit is not None
                 else "[blue]None"
             ),
         ]

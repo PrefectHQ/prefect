@@ -194,7 +194,7 @@ async def bulk_increment_active_slots(
             )
 
         def num_blocking_slots(limit: schemas.core.ConcurrencyLimitV2) -> float:
-            if limit.slot_decay_per_second > 0:
+            if limit.slot_decay_per_second > 0.0:
                 return slots + limit.denied_slots
             else:
                 return (slots + limit.denied_slots) / limit.limit

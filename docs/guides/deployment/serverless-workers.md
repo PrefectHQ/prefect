@@ -61,3 +61,5 @@ Options for push versions on AWS ECS, Azure Container Instances, and Google Clou
 Read more in the [Serverless Push Work Pool Guide](/guides/deployment/push-work-pools/).
 
 Learn more about workers and work pools in the [Prefect concept documentation](/concepts/work-pools/).
+
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying Flows to Work Pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
