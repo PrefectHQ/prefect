@@ -28,7 +28,7 @@ from prefect.settings import (
 )
 
 
-class BaseCloudRunPushProvisioner:
+class CloudRunPushProvisioner:
     def __init__(self):
         self._console = Console()
         self._project = None
@@ -434,11 +434,3 @@ class BaseCloudRunPushProvisioner:
         )
 
         return base_job_template_copy
-
-
-class CloudRunPushProvisioner(BaseCloudRunPushProvisioner):
-    pass
-
-
-class CloudRunV2PushProvisioner(BaseCloudRunPushProvisioner):
-    pass

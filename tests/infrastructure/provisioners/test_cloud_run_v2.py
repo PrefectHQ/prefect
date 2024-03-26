@@ -11,7 +11,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
-from prefect.infrastructure.provisioners.cloud_run import CloudRunV2PushProvisioner
+from prefect.infrastructure.provisioners.cloud_run import CloudRunPushProvisioner
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     load_current_profile,
@@ -263,7 +263,7 @@ def assert_commands(mock: MagicMock, *commands: Union[str, re.Pattern]):
 
 
 async def test_provision(mock_run_process, prefect_client: PrefectClient):
-    provisioner = CloudRunV2PushProvisioner()
+    provisioner = CloudRunPushProvisioner()
     new_base_job_template = await provisioner.provision(
         work_pool_name="test",
         base_job_template=default_cloud_run_v2_push_base_job_template,
@@ -320,7 +320,7 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
 
 async def test_check_for_gcloud_failure(mock_run_process):
     mock_run_process.side_effect = MagicMock(returncode=1)
-    provisioner = CloudRunV2PushProvisioner()
+    provisioner = CloudRunPushProvisioner()
 
     with pytest.raises(RuntimeError):
         await provisioner._verify_gcloud_ready()
@@ -331,7 +331,7 @@ async def test_no_active_gcloud_account(mock_run_process):
         MagicMock(returncode=0, stdout=b"Google Cloud SDK 123.456.789"),
         MagicMock(returncode=0, stdout=json.dumps([]).encode()),
     ]
-    provisioner = CloudRunV2PushProvisioner()
+    provisioner = CloudRunPushProvisioner()
 
     with pytest.raises(RuntimeError):
         await provisioner._verify_gcloud_ready()
@@ -360,7 +360,7 @@ async def test_provision_interactive_with_default_names(
     monkeypatch.setattr(
         "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
     )
-    provisioner = CloudRunV2PushProvisioner()
+    provisioner = CloudRunPushProvisioner()
     monkeypatch.setattr(provisioner._console, "is_interactive", True)
     new_base_job_template = await provisioner.provision(
         work_pool_name="test",
@@ -443,7 +443,7 @@ async def test_provision_interactive_with_custom_names(
     monkeypatch.setattr(
         "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
     )
-    provisioner = CloudRunV2PushProvisioner()
+    provisioner = CloudRunPushProvisioner()
     monkeypatch.setattr(provisioner._console, "is_interactive", True)
     new_base_job_template = await provisioner.provision(
         work_pool_name="test",
@@ -514,7 +514,7 @@ async def test_provision_interactive_reject_provisioning(
     monkeypatch.setattr(
         "prefect.infrastructure.provisioners.cloud_run.Confirm.ask", mock_confirm
     )
-    provisioner = CloudRunV2PushProvisioner()
+    provisioner = CloudRunPushProvisioner()
     monkeypatch.setattr(provisioner._console, "is_interactive", True)
 
     unchanged_base_job_template = await provisioner.provision(
