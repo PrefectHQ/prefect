@@ -96,11 +96,10 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
-          #       so that CI test runs are faster
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
@@ -110,26 +109,6 @@ jobs:
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
-
-      - name: Build Conda flavored test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            BASE_IMAGE=prefect-conda
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda
-          outputs: type=docker,dest=/tmp/image-conda.tar
-          cache-from: type=gha
-          # We do not cache Conda image layers because they very big and slow to upload
-          # cache-to: type=gha,mode=max
-
-      - name: Test Conda flavored Docker image
-        run: |
-          docker load --input /tmp/image-conda.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda conda --version
 
       - name: Install packages
         run: |
@@ -254,11 +233,10 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
-          #       so that CI test runs are faster
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
@@ -268,26 +246,6 @@ jobs:
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
-
-      - name: Build Conda flavored test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            BASE_IMAGE=prefect-conda
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda
-          outputs: type=docker,dest=/tmp/image-conda.tar
-          cache-from: type=gha
-          # We do not cache Conda image layers because they very big and slow to upload
-          # cache-to: type=gha,mode=max
-
-      - name: Test Conda flavored Docker image
-        run: |
-          docker load --input /tmp/image-conda.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda conda --version
 
       - name: Install packages
         run: |
@@ -415,11 +373,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
-          #       so that CI test runs are faster
+          # SKIP_UI_BUILD is set to true to avoid building the UI in these tests (not needed)
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
@@ -429,26 +387,6 @@ jobs:
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
-
-      - name: Build Conda flavored test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            BASE_IMAGE=prefect-conda
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda
-          outputs: type=docker,dest=/tmp/image-conda.tar
-          cache-from: type=gha
-          # We do not cache Conda image layers because they very big and slow to upload
-          # cache-to: type=gha,mode=max
-
-      - name: Test Conda flavored Docker image
-        run: |
-          docker load --input /tmp/image-conda.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda conda --version
 
       - name: Install packages
         run: |
@@ -608,11 +546,10 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
-          #       so that CI test runs are faster
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
@@ -622,26 +559,6 @@ jobs:
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
-
-      - name: Build Conda flavored test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            BASE_IMAGE=prefect-conda
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda
-          outputs: type=docker,dest=/tmp/image-conda.tar
-          cache-from: type=gha
-          # We do not cache Conda image layers because they very big and slow to upload
-          # cache-to: type=gha,mode=max
-
-      - name: Test Conda flavored Docker image
-        run: |
-          docker load --input /tmp/image-conda.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda conda --version
 
       - name: Install packages
         run: |
