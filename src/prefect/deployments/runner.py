@@ -68,7 +68,10 @@ from prefect.deployments.schedules import (
     create_minimal_deployment_schedule,
     normalize_to_minimal_deployment_schedules,
 )
-from prefect.events.schemas import DeploymentTrigger, DeploymentTriggerTypes
+from prefect.events.schemas.deployment_triggers import (
+    DeploymentTrigger,
+    DeploymentTriggerTypes,
+)
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,

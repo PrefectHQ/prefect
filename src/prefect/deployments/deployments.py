@@ -44,7 +44,7 @@ from prefect.deployments.schedules import (
     normalize_to_minimal_deployment_schedules,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events.schemas.deployment_triggers import DeploymentTrigger
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,

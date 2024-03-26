@@ -39,7 +39,8 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.context import PrefectObjectRegistry
 from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
-from prefect.events.schemas import DeploymentEventTrigger, Posture
+from prefect.events import Posture
+from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,

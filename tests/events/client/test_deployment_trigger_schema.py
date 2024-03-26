@@ -11,19 +11,21 @@ else:
     import pydantic
 
 from prefect.events.actions import RunDeployment
-from prefect.events.schemas import (
+from prefect.events.schemas.automations import (
     Automation,
     CompoundTrigger,
-    DeploymentCompoundTrigger,
-    DeploymentEventTrigger,
-    DeploymentMetricTrigger,
-    DeploymentSequenceTrigger,
-    DeploymentTriggerTypes,
     EventTrigger,
     MetricTrigger,
     MetricTriggerQuery,
     Posture,
     SequenceTrigger,
+)
+from prefect.events.schemas.deployment_triggers import (
+    DeploymentCompoundTrigger,
+    DeploymentEventTrigger,
+    DeploymentMetricTrigger,
+    DeploymentSequenceTrigger,
+    DeploymentTriggerTypes,
 )
 
 

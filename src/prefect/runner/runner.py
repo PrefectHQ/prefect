@@ -80,7 +80,7 @@ from prefect.deployments.runner import (
 )
 from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.engine import propose_state
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events.schemas.deployment_triggers import DeploymentTrigger
 from prefect.exceptions import (
     Abort,
 )

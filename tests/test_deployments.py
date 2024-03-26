@@ -34,7 +34,9 @@ from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
-from prefect.events.schemas import DeploymentTriggerTypes
+from prefect.events.schemas.deployment_triggers import (
+    DeploymentTriggerTypes,
+)
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process

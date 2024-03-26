@@ -75,7 +75,7 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events.schemas.deployment_triggers import DeploymentTrigger
 from prefect.exceptions import (
     MissingFlowError,
     ObjectNotFound,

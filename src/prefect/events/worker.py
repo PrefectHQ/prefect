@@ -11,7 +11,7 @@ from prefect.utilities.context import temporary_context
 
 from .clients import EventsClient, NullEventsClient, PrefectCloudEventsClient
 from .related import related_resources_from_run_context
-from .schemas import Event
+from .schemas.events import Event
 
 
 def emit_events_to_cloud() -> bool:

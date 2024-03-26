@@ -1,11 +1,13 @@
-from .schemas import (
-    Event,
-    RelatedResource,
-    Resource,
+from .schemas.events import Event, ReceivedEvent
+from .schemas.events import Resource, RelatedResource, ResourceSpecification
+from .schemas.automations import (
+    Posture,
     Trigger,
     ResourceTrigger,
     EventTrigger,
     MetricTrigger,
+    MetricTriggerOperator,
+    MetricTriggerQuery,
     CompositeTrigger,
     CompoundTrigger,
     SequenceTrigger,
@@ -14,14 +16,19 @@ from .utilities import emit_event
 
 __all__ = [
     "Event",
+    "ReceivedEvent",
     "Resource",
     "RelatedResource",
-    "emit_event",
+    "ResourceSpecification",
+    "Posture",
     "Trigger",
     "ResourceTrigger",
     "EventTrigger",
     "MetricTrigger",
+    "MetricTriggerOperator",
+    "MetricTriggerQuery",
     "CompositeTrigger",
     "CompoundTrigger",
     "SequenceTrigger",
+    "emit_event",
 ]
