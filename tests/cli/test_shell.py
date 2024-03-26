@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, patch
+
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -120,3 +122,26 @@ async def test_shell_watch_options(caplog, prefect_client):
     assert len(flow_runs := await prefect_client.read_flow_runs()) == 1
     flow_run = flow_runs[0]
     assert flow_run.tags == ["shell"]
+
+
+async def test_shell_runner_integration(monkeypatch):
+    with patch("prefect.cli.shell.Runner.start", new_callable=AsyncMock) as runner_mock:
+        flow_name = "Flood Brothers"
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "shell",
+                "serve",
+                "echo 'Hello, World!'",
+                "--flow-name",
+                flow_name,
+                "--run-once",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Your flow {flow_name!r} is being served and polling for scheduled runs!"
+            ],
+        )
+
+        runner_mock.assert_awaited_once_with(run_once=True)
