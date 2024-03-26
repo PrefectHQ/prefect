@@ -1,7 +1,5 @@
-"""
-Tests for `prefect._internal.pydantic.model_json_schema` function.
-"""
 import pytest
+from _pytest.logging import LogCaptureFixture
 from pydantic import BaseModel
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2, model_json_schema
@@ -17,7 +15,7 @@ def enable_v2_internals():
         yield
 
 
-def test_model_json_schema(caplog):
+def test_model_json_schema(caplog: LogCaptureFixture):
     class TestModel(BaseModel):
         a: int
         b: str
@@ -39,7 +37,7 @@ def test_model_json_schema(caplog):
         assert "Pydantic v2 is not installed." in caplog.text
 
 
-def test_model_json_schema_with_flag_disabled(caplog):
+def test_model_json_schema_with_flag_disabled(caplog: LogCaptureFixture):
     class TestModel(BaseModel):
         a: int
         b: str
