@@ -459,7 +459,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                         )
                     return
         except Exception as exc:
-            logger.warn(
+            logger.warning(
                 ""
                 f"Unable to read memo_store.toml from {PREFECT_MEMO_STORE_PATH} during "
                 f"block auto-registration: {exc!r}.\n"
@@ -477,7 +477,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                     toml.dumps({"block_auto_registration": current_blocks_loading_hash})
                 )
             except Exception as exc:
-                logger.warn(
+                logger.warning(
                     "Unable to write to memo_store.toml at"
                     f" {PREFECT_MEMO_STORE_PATH} after block auto-registration:"
                     f" {exc!r}.\n Subsequent server start ups will perform block"

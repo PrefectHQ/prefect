@@ -98,7 +98,7 @@ class TaskSchedulingTimeouts(LoopService):
                 if prior_scheduled_state.type == states.StateType.SCHEDULED:
                     break
             else:
-                self.logger.warn(
+                self.logger.warning(
                     "No prior scheduled state found for task run %s", task_run.id
                 )
                 continue
