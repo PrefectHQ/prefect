@@ -10,20 +10,22 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from prefect.events.actions import RunDeployment
-from prefect.events.schemas import (
+from prefect.events import (
     Automation,
     CompoundTrigger,
-    DeploymentCompoundTrigger,
-    DeploymentEventTrigger,
-    DeploymentMetricTrigger,
-    DeploymentSequenceTrigger,
-    DeploymentTriggerTypes,
     EventTrigger,
     MetricTrigger,
     MetricTriggerQuery,
     Posture,
     SequenceTrigger,
+)
+from prefect.events.actions import RunDeployment
+from prefect.events.schemas.deployment_triggers import (
+    DeploymentCompoundTrigger,
+    DeploymentEventTrigger,
+    DeploymentMetricTrigger,
+    DeploymentSequenceTrigger,
+    DeploymentTriggerTypes,
 )
 
 
