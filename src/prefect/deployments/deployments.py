@@ -610,8 +610,8 @@ class Deployment(BaseModel):
         return handle_openapi_schema(value)
 
     @validator("triggers")
-    def validate_triggers(cls, field_value, values, field, config):
-        return validate_automation_names(field_value, values, field, config)
+    def validate_triggers(cls, field_value, values):
+        return validate_automation_names(field_value, values)
 
     @root_validator(pre=True)
     def validate_schedule(cls, values):

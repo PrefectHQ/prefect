@@ -1,18 +1,25 @@
+from __future__ import annotations
+
 import datetime
 import logging
 import re
-from typing import Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import jsonschema
 import pendulum
 
 from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
+
+if TYPE_CHECKING:
+    from prefect.blocks.core import Block
+    from prefect.utilities.callables import ParameterSchema
 
 
 def raise_on_name_with_banned_characters(name: str) -> None:
@@ -106,7 +113,9 @@ def validate_values_conform_to_schema(
         ) from exc
 
 
-def infrastructure_must_have_capabilities(value):
+def infrastructure_must_have_capabilities(
+    value: Union[Dict[str, Any], "Block", None],
+) -> Optional["Block"]:
     """
     Ensure that the provided value is an infrastructure block with the required capabilities.
     """
@@ -130,7 +139,9 @@ def infrastructure_must_have_capabilities(value):
     return block
 
 
-def storage_must_have_capabilities(value):
+def storage_must_have_capabilities(
+    value: Union[Dict[str, Any], "Block", None],
+) -> Optional["Block"]:
     """
     Ensure that the provided value is a storage block with the required capabilities.
     """
@@ -150,7 +161,7 @@ def storage_must_have_capabilities(value):
     return block
 
 
-def handle_openapi_schema(value):
+def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchema":
     """
     This method ensures setting a value of `None` is handled gracefully.
     """
@@ -161,7 +172,9 @@ def handle_openapi_schema(value):
     return value
 
 
-def validate_automation_names(field_value, values, field, config):
+def validate_automation_names(
+    field_value: List[DeploymentTrigger], values: dict
+) -> List[DeploymentTrigger]:
     """
     Ensure that each trigger has a name for its automation if none is provided.
     """
