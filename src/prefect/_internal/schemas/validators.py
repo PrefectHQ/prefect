@@ -8,7 +8,6 @@ import pendulum
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.collections import remove_nested_keys
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
@@ -82,6 +81,8 @@ def validate_values_conform_to_schema(
         ValueError: If the parameters do not conform to the schema.
 
     """
+    from prefect.utilities.collections import remove_nested_keys
+
     if ignore_required:
         schema = remove_nested_keys(["required"], schema)
 
@@ -283,5 +284,28 @@ def validate_cron_string(v: str) -> str:
     elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
         raise ValueError(
             f'Random and Hashed expressions are unsupported, received: "{v}"'
+        )
+    return v
+
+
+# approx. 1 years worth of RDATEs + buffer
+MAX_RRULE_LENGTH = 6500
+
+
+def validate_rrule(v: str) -> str:
+    import dateutil.rrule
+
+    # attempt to parse the rrule string as an rrule object
+    # this will error if the string is invalid
+    try:
+        dateutil.rrule.rrulestr(v, cache=True)
+    except ValueError as exc:
+        # rrules errors are a mix of cryptic and informative
+        # so reraise to be clear that the string was invalid
+        raise ValueError(f'Invalid RRule string "{v}": {exc}')
+    if len(v) > MAX_RRULE_LENGTH:
+        raise ValueError(
+            f'Invalid RRule string "{v[:40]}..."\n'
+            f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
         )
     return v

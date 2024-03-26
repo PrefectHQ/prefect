@@ -15,6 +15,7 @@ from prefect._internal.schemas.validators import (
     default_timezone,
     interval_schedule_must_be_positive,
     validate_cron_string,
+    validate_rrule,
 )
 
 if HAS_PYDANTIC_V2:
@@ -165,20 +166,7 @@ class RRuleSchedule(PrefectBaseModel):
 
     @validator("rrule")
     def validate_rrule_str(cls, v):
-        # attempt to parse the rrule string as an rrule object
-        # this will error if the string is invalid
-        try:
-            dateutil.rrule.rrulestr(v, cache=True)
-        except ValueError as exc:
-            # rrules errors are a mix of cryptic and informative
-            # so reraise to be clear that the string was invalid
-            raise ValueError(f'Invalid RRule string "{v}": {exc}')
-        if len(v) > MAX_RRULE_LENGTH:
-            raise ValueError(
-                f'Invalid RRule string "{v[:40]}..."\n'
-                f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
-            )
-        return v
+        return validate_rrule(v)
 
     @classmethod
     def from_rrule(cls, rrule: dateutil.rrule.rrule):
