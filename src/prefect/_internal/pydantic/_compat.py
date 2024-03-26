@@ -1,6 +1,6 @@
-from typing import Any, Dict, Literal, Optional, Set, Type, Union
+from typing import Any, Dict, Literal, Optional, Set, Type, TypeVar, Union
 
-import typing_extensions
+from typing_extensions import Self, TypeAlias
 
 from prefect._internal.pydantic._flags import (
     HAS_PYDANTIC_V2,
@@ -10,13 +10,13 @@ from prefect.logging.loggers import get_logger
 
 from ._base_model import BaseModel as PydanticBaseModel
 
-IncEx: typing_extensions.TypeAlias = (
-    "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
-)
+IncEx: TypeAlias = "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
 logger = get_logger("prefect._internal.pydantic")
 
 if HAS_PYDANTIC_V2:
     from pydantic.json_schema import GenerateJsonSchema  # type: ignore
+
+T = TypeVar("T", bound=PydanticBaseModel)
 
 
 def is_pydantic_v2_compatible(
@@ -257,13 +257,13 @@ def model_json_schema(
 
 
 def model_validate(
-    model: Type[PydanticBaseModel],
+    model: Type[T],
     obj: Any,
     *,
-    strict: bool = False,
-    from_attributes: bool = False,
+    strict: Optional[bool] = False,
+    from_attributes: Optional[bool] = False,
     context: Optional[Dict[str, Any]] = None,
-) -> Union[PydanticBaseModel, Dict[str, Any]]:
+) -> T:
     """Validate a pydantic model instance.
 
     Args:
@@ -290,12 +290,12 @@ def model_validate(
 
 
 def model_validate_json(
-    model: Type[PydanticBaseModel],
+    model: Type[T],
     json_data: Union[str, bytes, bytearray],
     *,
     strict: bool = False,
     context: Optional[Dict[str, Any]] = None,
-) -> PydanticBaseModel:
+) -> T:
     """Validate the given JSON data against the Pydantic model.
 
     Args:
@@ -351,4 +351,70 @@ else:
                 exclude_none=exclude_none,
                 round_trip=round_trip,
                 warnings=warnings,
+            )
+
+        def model_dump_json(
+            self,
+            *,
+            indent: Optional[int] = None,
+            include: Optional[IncEx] = None,
+            exclude: Optional[IncEx] = None,
+            by_alias: bool = False,
+            exclude_unset: bool = False,
+            exclude_defaults: bool = False,
+            exclude_none: bool = False,
+            round_trip: bool = False,
+            warnings: bool = True,
+        ) -> str:
+            return super().model_dump_json(
+                indent=indent,
+                include=include,
+                exclude=exclude,
+                by_alias=by_alias,
+                exclude_unset=exclude_unset,
+                exclude_defaults=exclude_defaults,
+                exclude_none=exclude_none,
+                round_trip=round_trip,
+                warnings=warnings,
+            )
+
+        def model_copy(
+            self: "Self",
+            *,
+            update: Optional[Dict[str, Any]] = None,
+            deep: bool = False,
+        ) -> "Self":
+            return super().model_copy(update=update, deep=deep)
+
+        @classmethod
+        def model_json_schema(
+            cls,
+            by_alias: bool = True,
+            ref_template: str = DEFAULT_REF_TEMPLATE,
+            schema_generator: Any = None,
+            mode: JsonSchemaMode = "validation",
+        ) -> Dict[str, Any]:
+            return model_json_schema(
+                cls,
+                by_alias=by_alias,
+                ref_template=ref_template,
+                schema_generator=schema_generator,
+                mode=mode,
+            )
+
+        @classmethod
+        def model_validate(
+            cls: Type["Self"],
+            obj: Any,
+            *,
+            strict: Optional[bool] = False,
+            from_attributes: Optional[bool] = False,
+            context: Optional[Dict[str, Any]] = None,
+        ) -> "Self":
+            return model_validate(
+                cls,
+                obj,
+                strict=strict,
+                from_attributes=from_attributes,
+                context=context,
             )
