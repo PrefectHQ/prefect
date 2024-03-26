@@ -13,6 +13,13 @@ from .schemas.automations import (
     CompoundTrigger,
     SequenceTrigger,
 )
+from .schemas.deployment_triggers import (
+    DeploymentTriggerTypes,
+    DeploymentEventTrigger,
+    DeploymentMetricTrigger,
+    DeploymentCompoundTrigger,
+    DeploymentSequenceTrigger,
+)
 from .utilities import emit_event
 
 __all__ = [
@@ -32,5 +39,10 @@ __all__ = [
     "CompositeTrigger",
     "CompoundTrigger",
     "SequenceTrigger",
+    "DeploymentTriggerTypes",
+    "DeploymentEventTrigger",
+    "DeploymentMetricTrigger",
+    "DeploymentCompoundTrigger",
+    "DeploymentSequenceTrigger",
     "emit_event",
 ]
