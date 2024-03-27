@@ -750,7 +750,7 @@ class TaskRun(ObjectBaseModel):
 
     @validator("name", pre=True)
     def set_default_name(cls, name):
-        get_or_create_run_name(name)
+        return get_or_create_run_name(name)
 
 
 class Workspace(PrefectBaseModel):
