@@ -11,7 +11,6 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.pydantic import JsonPatch
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -450,6 +449,8 @@ def set_default_image(values: dict) -> dict:
     """
     Set the default image for a Kubernetes job if not provided.
     """
+    from prefect.utilities.dockerutils import get_prefect_image_name
+
     job = values.get("job")
     image = values.get("image")
     job_image = (
