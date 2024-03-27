@@ -15,6 +15,7 @@ from uuid import UUID
 from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_trigger_within
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, root_validator, validator
@@ -130,10 +131,7 @@ class EventTrigger(ResourceTrigger):
     def enforce_minimum_within(
         cls, value: timedelta, values, config, field: ModelField
     ):
-        minimum = field.field_info.extra["minimum"]
-        if value.total_seconds() < minimum:
-            raise ValueError("The minimum within is 0 seconds")
-        return value
+        return validate_trigger_within(value, field)
 
     @root_validator(skip_on_failure=True)
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
