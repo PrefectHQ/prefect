@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import jsonschema
 import pendulum
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
 
@@ -17,7 +17,13 @@ LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
+    from prefect.events.schemas import DeploymentTrigger
     from prefect.utilities.callables import ParameterSchema
+
+    if HAS_PYDANTIC_V2:
+        from pydantic.v1.fields import ModelField
+    else:
+        from pydantic.fields import ModelField
 
 
 def raise_on_name_with_banned_characters(name: str) -> None:
@@ -111,6 +117,9 @@ def validate_values_conform_to_schema(
         ) from exc
 
 
+### DEPLOYMENT SCHEMA VALIDATORS ###
+
+
 def infrastructure_must_have_capabilities(
     value: Union[Dict[str, Any], "Block", None],
 ) -> Optional["Block"]:
@@ -171,8 +180,8 @@ def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchem
 
 
 def validate_automation_names(
-    field_value: List[DeploymentTrigger], values: dict
-) -> List[DeploymentTrigger]:
+    field_value: List["DeploymentTrigger"], values: dict
+) -> List["DeploymentTrigger"]:
     """
     Ensure that each trigger has a name for its automation if none is provided.
     """
@@ -181,6 +190,9 @@ def validate_automation_names(
             trigger.name = f"{values['name']}__automation_{i}"
 
     return field_value
+
+
+### SCHEDULE SCHEMA VALIDATORS ###
 
 
 def validate_deprecated_schedule_fields(values: dict, logger: logging.Logger) -> dict:
@@ -342,3 +354,15 @@ def validate_rrule_string(v: str) -> str:
             f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
         )
     return v
+
+
+### AUTOMATION SCHEMA VALIDATORS ###
+
+
+def validate_trigger_within(
+    value: datetime.timedelta, field: "ModelField"
+) -> datetime.timedelta:
+    minimum = field.field_info.extra["minimum"]
+    if value.total_seconds() < minimum:
+        raise ValueError("The minimum `within` is 0 seconds")
+    return value
