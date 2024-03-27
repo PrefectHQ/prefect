@@ -369,3 +369,37 @@ def validate_trigger_within(
     if value.total_seconds() < minimum:
         raise ValueError("The minimum `within` is 0 seconds")
     return value
+
+
+def validate_proactive_trigger_within(values: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate that the `within` field is greater than the minimum value for proactive triggers.
+    """
+    from prefect.events.schemas.automations import Posture
+
+    posture: Optional[Posture] = values.get("posture")
+    within: Optional[datetime.timedelta] = values.get("within")
+
+    if posture == Posture.Proactive:
+        if not within or within == datetime.timedelta(0):
+            values["within"] = datetime.timedelta(seconds=10.0)
+        elif within < datetime.timedelta(seconds=10.0):
+            raise ValueError("The minimum within for Proactive triggers is 10 seconds")
+
+    return values
+
+
+def validate_require_value_for_compound_trigger(
+    values: Dict[str, Any],
+) -> Dict[str, Any]:
+    require = values.get("require")
+
+    if isinstance(require, int):
+        if require < 1:
+            raise ValueError("required must be at least 1")
+        if require > len(values["triggers"]):
+            raise ValueError(
+                "required must be less than or equal to the number of triggers"
+            )
+
+    return values
