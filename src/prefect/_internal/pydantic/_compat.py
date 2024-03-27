@@ -17,7 +17,10 @@ T = TypeVar("T")
 B = TypeVar("B", bound=PydanticBaseModel)
 
 if HAS_PYDANTIC_V2:
-    from pydantic import TypeAdapter  # type: ignore
+    from pydantic import (
+        TypeAdapter,  # type: ignore
+        parse_obj_as,  # type: ignore
+    )
     from pydantic.json_schema import GenerateJsonSchema  # type: ignore
 else:
     from pydantic import parse_obj_as  # type: ignore
