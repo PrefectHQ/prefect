@@ -362,6 +362,9 @@ def validate_rrule_string(v: str) -> str:
 def validate_trigger_within(
     value: datetime.timedelta, field: "ModelField"
 ) -> datetime.timedelta:
+    """
+    Validate that the `within` field is greater than the minimum value.
+    """
     minimum = field.field_info.extra["minimum"]
     if value.total_seconds() < minimum:
         raise ValueError("The minimum `within` is 0 seconds")
