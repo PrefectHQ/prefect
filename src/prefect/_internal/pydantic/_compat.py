@@ -18,12 +18,19 @@ B = TypeVar("B", bound=PydanticBaseModel)
 
 if HAS_PYDANTIC_V2:
     from pydantic import (
-        TypeAdapter,  # type: ignore
+        TypeAdapter as BaseTypeAdapter,
+    )
+    from pydantic import (
         parse_obj_as,  # type: ignore
     )
     from pydantic.json_schema import GenerateJsonSchema  # type: ignore
 else:
     from pydantic import parse_obj_as  # type: ignore
+
+if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
+    TypeAdapter = BaseTypeAdapter  # type: ignore
+
+else:
 
     class TypeAdapter(Generic[T]):
         def __init__(self, type_: Union[T, Type[T]]) -> None:
