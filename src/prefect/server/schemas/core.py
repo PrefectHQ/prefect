@@ -19,6 +19,7 @@ from typing_extensions import Literal
 
 import prefect.server.database
 from prefect._internal.schemas.validators import (
+    get_or_create_run_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
 )
@@ -68,8 +69,7 @@ class Flow(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class FlowRunnerSettings(PrefectBaseModel):
@@ -305,7 +305,7 @@ class FlowRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -520,7 +520,7 @@ class TaskRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
     @validator("cache_key")
     def validate_cache_key_length(cls, cache_key):
@@ -652,8 +652,7 @@ class Deployment(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class ConcurrencyLimit(ORMBaseModel):
@@ -689,8 +688,7 @@ class ConcurrencyLimitV2(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockType(ORMBaseModel):
@@ -718,8 +716,7 @@ class BlockType(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockSchema(ORMBaseModel):
@@ -799,9 +796,7 @@ class BlockDocument(ORMBaseModel):
     def validate_name_characters(cls, v):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
-        if v is not None:
-            raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
@@ -986,8 +981,7 @@ class WorkQueue(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1138,8 +1132,7 @@ class WorkPool(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):

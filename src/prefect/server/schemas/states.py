@@ -16,6 +16,7 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, root_validator, validator
 
+from prefect._internal.schemas.validators import get_or_create_state_name
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
     PrefectBaseModel,
@@ -159,13 +160,7 @@ class State(StateBaseModel, Generic[R]):
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
-        """If a name is not provided, use the type"""
-
-        # if `type` is not in `values` it means the `type` didn't pass its own
-        # validation check and an error will be raised after this function is called
-        if v is None and values.get("type"):
-            v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
-        return v
+        return get_or_create_state_name(v, values)
 
     @root_validator
     def default_scheduled_start_time(cls, values):
