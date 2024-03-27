@@ -461,12 +461,4 @@ def validate_python(
     Returns:
         The validated object.
     """
-    if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
-        return TypeAdapter(type_).validate_python(
-            __object,
-            strict=strict,
-            from_attributes=from_attributes,
-            context=context,
-        )
-
     return TypeAdapter(type_).validate_python(__object)
