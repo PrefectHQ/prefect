@@ -123,6 +123,40 @@ def test_deployment_trigger_proactive_trigger_with_defaults():
     )
 
 
+def test_deployment_trigger_disallows_negative_withins():
+    with pytest.raises(pydantic.ValidationError, match="minimum within"):
+        pydantic.parse_obj_as(
+            DeploymentTriggerTypes,
+            {
+                "name": "A deployment automation",
+                "posture": "Reactive",
+                "within": -1,
+            },
+        )
+
+    with pytest.raises(pydantic.ValidationError, match="minimum within"):
+        pydantic.parse_obj_as(
+            DeploymentTriggerTypes,
+            {
+                "name": "A deployment automation",
+                "posture": "Proactive",
+                "within": -1,
+            },
+        )
+
+
+def test_deployment_trigger_proactive_trigger_disallows_short_withins():
+    with pytest.raises(pydantic.ValidationError, match="minimum within"):
+        pydantic.parse_obj_as(
+            DeploymentTriggerTypes,
+            {
+                "name": "A deployment automation",
+                "posture": "Proactive",
+                "within": 9,
+            },
+        )
+
+
 def test_deployment_trigger_metric_trigger():
     trigger = pydantic.parse_obj_as(
         DeploymentTriggerTypes,
