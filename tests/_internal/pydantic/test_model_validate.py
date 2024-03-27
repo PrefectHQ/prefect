@@ -28,9 +28,9 @@ def test_model_validate():
 
     assert isinstance(model_instance, Model)
 
-    assert cast(Model, model_instance).a == 1
+    assert cast(Model, model_instance).a == 1  # type: ignore
 
-    assert cast(Model, model_instance).b == "test"
+    assert cast(Model, model_instance).b == "test"  # type: ignore
 
 
 @pytest.mark.skipif(
@@ -44,9 +44,9 @@ def test_model_validate_with_flag_disabled():
     with pytest.warns(PydanticDeprecatedSince20):
         model_instance = model_validate(Model, {"a": 1, "b": "test"})
 
-    assert cast(Model, model_instance).a == 1
+    assert cast(Model, model_instance).a == 1  # type: ignore
 
-    assert cast(Model, model_instance).b == "test"
+    assert cast(Model, model_instance).b == "test"  # type: ignore
 
 
 @pytest.mark.skipif(
