@@ -8,11 +8,12 @@ from unittest import mock
 import pytest
 
 import prefect.results
-from prefect import Task, task, unmapped
+from prefect import Task, flow, task, unmapped
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import StateType
+from prefect.context import get_run_context
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultFactory
 from prefect.server.api.task_runs import TaskQueue
@@ -420,3 +421,80 @@ class TestTaskKey:
         monkeypatch.setattr(inspect, "getsourcefile", lambda x: None)
         t = Task(fn=some_fn)
         assert t.task_key == f"{some_fn.__qualname__}-unknown-source-file"
+
+
+class TestBackgroundedTaskRunsFromFlowRun:
+    class TestSubmit:
+        async def test_background_task_run_from_flow_run(
+            self, prefect_client, foo_task
+        ):
+            @flow
+            def f() -> tuple:
+                run_context = get_run_context()
+                return foo_task.submit(42, background=True), run_context
+
+            task_run, ctx = f()
+
+            assert isinstance(task_run, TaskRun)
+            assert task_run.state.is_scheduled()
+            assert (
+                ctx.task_run_futures
+                == list(ctx.task_run_results.values())
+                == ctx.task_run_states
+                == []
+            )
+            assert (await prefect_client.read_task_run(task_run.id)).flow_run_id is None
+
+        async def test_background_task_run_when_flag_disabled_fails(self, foo_task):
+            @flow
+            def f():
+                foo_task.submit(42, background=True)
+
+            with temporary_settings(
+                {PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}
+            ):
+                with pytest.raises(
+                    RuntimeError,
+                    match="You must set `PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING` to `True`",
+                ):
+                    f()
+
+    class TestMap:
+        async def test_background_task_runs_from_flow_run(
+            self, prefect_client, foo_task
+        ):
+            @flow
+            def f() -> tuple:
+                run_context = get_run_context()
+                return foo_task.map([1, 2, 3], background=True), run_context
+
+            task_runs, ctx = f()
+
+            assert all(isinstance(tr, TaskRun) for tr in task_runs)
+            assert all(tr.state.is_scheduled() for tr in task_runs)
+            assert (
+                ctx.task_run_futures
+                == list(ctx.task_run_results.values())
+                == ctx.task_run_states
+                == []
+            )
+            assert all(
+                [
+                    (await prefect_client.read_task_run(tr.id)).flow_run_id is None
+                    for tr in task_runs
+                ]
+            )
+
+        async def test_background_task_runs_when_flag_disabled_fails(self, foo_task):
+            @flow
+            def f():
+                foo_task.map([1, 2, 3], background=True)
+
+            with temporary_settings(
+                {PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}
+            ):
+                with pytest.raises(
+                    RuntimeError,
+                    match="You must set `PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING` to `True`",
+                ):
+                    f()
