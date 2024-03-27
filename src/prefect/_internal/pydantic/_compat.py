@@ -427,14 +427,14 @@ else:
 
 
 def validate_python(
-    type_: Union[B, Type[B]],
+    type_: Union[T, Type[T]],
     __object: Any,
     /,
     *,
     strict: Optional[bool] = None,
     from_attributes: Optional[bool] = None,
     context: Optional[Dict[str, Any]] = None,
-) -> B:
+) -> T:
     """Validate a Python object against the model.
 
     Args:
