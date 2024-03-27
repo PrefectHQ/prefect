@@ -1,5 +1,5 @@
-prefect-version: null
-name: null
+prefect-version: 2.16.4
+name: "prefect-deploy-docker-azure-recipe"
 description: "Store code within an Azure Blob Storage container and build a custom docker image for runtime"
 
 required_inputs:
@@ -23,14 +23,14 @@ push:
       credentials: null
   - prefect_azure.deployments.steps.push_to_azure_blob_storage:
       id: "push_code"
-      requires: "prefect-azure>=0.2.8"
+      requires: "prefect-azure[blob_storage]>=0.2.8"
       container: "{{ container }}"
       folder: "{{ name }}"
 
 pull:
   - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
       id: "pull_code"
-      requires: "prefect-azure>=0.2.8"
+      requires: "prefect-azure[blob_storage]>=0.2.8"
       container: "{{ push_code.container }}"
       folder: "{{ push_code.folder }}"
 
@@ -41,10 +41,10 @@ deployments:
     description: null
     schedule: {}
     flow_name: null
-    entrypoint: null
+    entrypoint: main.py
     parameters: {}
     work_pool:
-      name: null
+      name: default_work_pool
       work_queue_name: null
       job_variables: 
         # uses the `image` output from the `build_image` step
