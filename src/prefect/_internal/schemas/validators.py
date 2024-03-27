@@ -179,19 +179,6 @@ def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchem
     return value
 
 
-def validate_automation_names(
-    field_value: List["DeploymentTrigger"], values: dict
-) -> List["DeploymentTrigger"]:
-    """
-    Ensure that each trigger has a name for its automation if none is provided.
-    """
-    for i, trigger in enumerate(field_value, start=1):
-        if trigger.name is None:
-            trigger.name = f"{values['name']}__automation_{i}"
-
-    return field_value
-
-
 ### SCHEDULE SCHEMA VALIDATORS ###
 
 
@@ -403,3 +390,16 @@ def validate_require_value_for_compound_trigger(
             )
 
     return values
+
+
+def validate_automation_names(
+    field_value: List["DeploymentTrigger"], values: dict
+) -> List["DeploymentTrigger"]:
+    """
+    Ensure that each trigger has a name for its automation if none is provided.
+    """
+    for i, trigger in enumerate(field_value, start=1):
+        if trigger.name is None:
+            trigger.name = f"{values['name']}__automation_{i}"
+
+    return field_value
