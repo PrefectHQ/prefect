@@ -1,4 +1,4 @@
-from .main import BaseModel, PrefectBaseModel
+from .main import BaseModel, PrefectBaseModel, Field, PrivateAttr
 
 
-__all__ = ["BaseModel", "PrefectBaseModel"]
+__all__ = ["BaseModel", "PrefectBaseModel", "Field", "PrivateAttr"]
