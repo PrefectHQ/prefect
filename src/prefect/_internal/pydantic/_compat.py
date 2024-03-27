@@ -13,22 +13,31 @@ from ._base_model import BaseModel as PydanticBaseModel
 IncEx: TypeAlias = "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
 logger = get_logger("prefect._internal.pydantic")
 
+
 if HAS_PYDANTIC_V2:
     if USE_PYDANTIC_V2:
         from pydantic import Field as PydanticField
         from pydantic import PrivateAttr as PydanticPrivateAttr
+        from pydantic import TypeAdapter
     else:
         from pydantic.v1 import Field as PydanticField
         from pydantic.v1 import PrivateAttr as PydanticPrivateAttr
+    from pydantic import parse_obj_as
     from pydantic.json_schema import GenerateJsonSchema  # type: ignore
 else:
     from pydantic import Field as PydanticField
     from pydantic import PrivateAttr as PydanticPrivateAttr
+    from pydantic import parse_obj_as
+
+    TypeAdapter = None  # type: ignore
 
 Field = PydanticField
 PrivateAttr = PydanticPrivateAttr
 
+
 T = TypeVar("T", bound=PydanticBaseModel)
+
+# BaseModel methods and definitions
 
 
 def model_copy(
@@ -443,3 +452,41 @@ else:
                 strict=strict,
                 context=context,
             )
+
+
+# TypeAdapter methods and definitions
+
+
+def validate_python(
+    type_: Type[T],
+    __object: Any,
+    *,
+    strict: Optional[bool] = None,
+    from_attributes: Optional[bool] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> T:
+    """Validate a Python object against the model.
+
+    Args:
+        type_: The type to validate against.
+        __object: The Python object to validate against the model.
+        strict: Whether to strictly check types.
+        from_attributes: Whether to extract data from object attributes.
+        context: Additional context to pass to the validator.
+
+    !!! note
+        When using `TypeAdapter` with a Pydantic `dataclass`, the use of the `from_attributes`
+        argument is not supported.
+
+    Returns:
+        The validated object.
+    """
+    if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
+        return TypeAdapter(type_).validate_python(
+            __object,
+            strict=strict,
+            from_attributes=from_attributes,
+            context=context,
+        )
+
+    return parse_obj_as(type_, __object)

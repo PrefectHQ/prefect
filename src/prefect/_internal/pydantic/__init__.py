@@ -18,6 +18,7 @@ from ._compat import (
     model_dump_json,
     model_copy,
     model_validate_json,
+    validate_python,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "model_dump_json",
     "model_copy",
     "model_validate_json",
+    "validate_python",
 ]

@@ -1686,7 +1686,7 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
         app.console.print(
             generate_deprecation_message(
                 "Defining a schedule via the `schedule` key in the deployment",
-                start_date="Mar 2023",
+                start_date="Mar 2024",
                 help=(
                     "Please use `schedules` instead by renaming the "
                     "`schedule` key to `schedules` and providing a list of "
