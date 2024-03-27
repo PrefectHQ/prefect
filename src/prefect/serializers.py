@@ -16,7 +16,6 @@ import warnings
 from typing import Any, Generic, Optional, TypeVar
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.pydantic import TypeAdapter
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -56,8 +55,8 @@ def prefect_json_object_decoder(result: dict):
     with `prefect_json_object_encoder`
     """
     if "__class__" in result:
-        return TypeAdapter(from_qualified_name(result["__class__"])).validate_python(
-            result["data"]
+        return pydantic.parse_obj_as(
+            from_qualified_name(result["__class__"]), result["data"]
         )
     elif "__exc_type__" in result:
         return from_qualified_name(result["__exc_type__"])(result["message"])
