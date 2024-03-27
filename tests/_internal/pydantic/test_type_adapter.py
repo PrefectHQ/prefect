@@ -1,10 +1,12 @@
-from typing import List
+from typing import Any, List, Type, TypeVar, Union
 
 import pytest
 from pydantic import BaseModel
 
 from prefect._internal.pydantic import validate_python
 from prefect._internal.pydantic._flags import EXPECT_DEPRECATION_WARNINGS
+
+T = TypeVar("T")
 
 
 class Model(BaseModel):
@@ -27,7 +29,7 @@ class Model(BaseModel):
         (List[Model], [{"a": 42, "b": "42", "c": True}], [Model(a=42, b="42", c=True)]),
     ],
 )
-def test_validate_python(type_, value, expected):
+def test_validate_python(type_: Union[T, Type[T]], value: Any, expected: Any) -> None:
     """with either:
         - v2 installed and compatibility layer enabled
         - or v1 installed
@@ -51,7 +53,9 @@ def test_validate_python(type_, value, expected):
         (List[Model], [{"a": 42, "b": "42", "c": True}], [Model(a=42, b="42", c=True)]),
     ],
 )
-def test_validate_python_with_deprecation_warnings(type_, value, expected):
+def test_validate_python_with_deprecation_warnings(
+    type_: Type[T], value: Any, expected: Any
+) -> None:
     """with v2 installed and compatibility layer disabled, we should see deprecation warnings"""
     from pydantic import PydanticDeprecatedSince20
 
