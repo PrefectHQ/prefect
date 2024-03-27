@@ -1,13 +1,23 @@
+import datetime
+import logging
 import re
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import jsonschema
+import pendulum
 
+from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import InvalidNameError
-from prefect.utilities.collections import remove_nested_keys
+from prefect.utilities.annotations import NotSet
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
+
+if TYPE_CHECKING:
+    from prefect.blocks.core import Block
+    from prefect.utilities.callables import ParameterSchema
 
 
 def raise_on_name_with_banned_characters(name: str) -> None:
@@ -77,6 +87,8 @@ def validate_values_conform_to_schema(
         ValueError: If the parameters do not conform to the schema.
 
     """
+    from prefect.utilities.collections import remove_nested_keys
+
     if ignore_required:
         schema = remove_nested_keys(["required"], schema)
 
@@ -97,3 +109,236 @@ def validate_values_conform_to_schema(
             "The provided schema is not a valid json schema. Schema error:"
             f" {exc.message}"
         ) from exc
+
+
+def infrastructure_must_have_capabilities(
+    value: Union[Dict[str, Any], "Block", None],
+) -> Optional["Block"]:
+    """
+    Ensure that the provided value is an infrastructure block with the required capabilities.
+    """
+
+    from prefect.blocks.core import Block
+
+    if isinstance(value, dict):
+        if "_block_type_slug" in value:
+            # Replace private attribute with public for dispatch
+            value["block_type_slug"] = value.pop("_block_type_slug")
+        block = Block(**value)
+    elif value is None:
+        return value
+    else:
+        block = value
+
+    if "run-infrastructure" not in block.get_block_capabilities():
+        raise ValueError(
+            "Infrastructure block must have 'run-infrastructure' capabilities."
+        )
+    return block
+
+
+def storage_must_have_capabilities(
+    value: Union[Dict[str, Any], "Block", None],
+) -> Optional["Block"]:
+    """
+    Ensure that the provided value is a storage block with the required capabilities.
+    """
+    from prefect.blocks.core import Block
+
+    if isinstance(value, dict):
+        block_type = Block.get_block_class_from_key(value.pop("_block_type_slug"))
+        block = block_type(**value)
+    elif value is None:
+        return value
+    else:
+        block = value
+
+    capabilities = block.get_block_capabilities()
+    if "get-directory" not in capabilities:
+        raise ValueError("Remote Storage block must have 'get-directory' capabilities.")
+    return block
+
+
+def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchema":
+    """
+    This method ensures setting a value of `None` is handled gracefully.
+    """
+    from prefect.utilities.callables import ParameterSchema
+
+    if value is None:
+        return ParameterSchema()
+    return value
+
+
+def validate_automation_names(
+    field_value: List[DeploymentTrigger], values: dict
+) -> List[DeploymentTrigger]:
+    """
+    Ensure that each trigger has a name for its automation if none is provided.
+    """
+    for i, trigger in enumerate(field_value, start=1):
+        if trigger.name is None:
+            trigger.name = f"{values['name']}__automation_{i}"
+
+    return field_value
+
+
+def validate_deprecated_schedule_fields(values: dict, logger: logging.Logger) -> dict:
+    """
+    Validate and log deprecation warnings for deprecated schedule fields.
+    """
+    if values.get("schedule") and not values.get("schedules"):
+        logger.warning(
+            "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
+            "available after Sep 2024. Define schedules in the `schedules` list instead."
+        )
+    elif values.get("is_schedule_active") and not values.get("schedules"):
+        logger.warning(
+            "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
+            "not be available after Sep 2024. Use the `active` flag within a schedule in "
+            "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
+            "all schedules."
+        )
+    return values
+
+
+def reconcile_schedules(cls, values: dict) -> dict:
+    """
+    Reconcile the `schedule` and `schedules` fields in a deployment.
+    """
+
+    from prefect.deployments.schedules import (
+        create_minimal_deployment_schedule,
+        normalize_to_minimal_deployment_schedules,
+    )
+
+    schedule = values.get("schedule", NotSet)
+    schedules = values.get("schedules", NotSet)
+
+    if schedules is not NotSet:
+        values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+    elif schedule is not NotSet:
+        values["schedule"] = None
+
+        if schedule is None:
+            values["schedules"] = []
+        else:
+            values["schedules"] = [
+                create_minimal_deployment_schedule(
+                    schedule=schedule, active=values.get("is_schedule_active")
+                )
+            ]
+
+    for schedule in values.get("schedules", []):
+        cls._validate_schedule(schedule.schedule)
+
+    return values
+
+
+def interval_schedule_must_be_positive(v: datetime.timedelta) -> datetime.timedelta:
+    if v.total_seconds() <= 0:
+        raise ValueError("The interval must be positive")
+    return v
+
+
+def default_anchor_date(v: DateTimeTZ) -> DateTimeTZ:
+    if v is None:
+        return pendulum.now("UTC")
+    return pendulum.instance(v)
+
+
+def get_valid_timezones(v: str) -> Tuple[str, ...]:
+    # pendulum.tz.timezones is a callable in 3.0 and above
+    # https://github.com/PrefectHQ/prefect/issues/11619
+    if callable(pendulum.tz.timezones):
+        return pendulum.tz.timezones()
+    else:
+        return pendulum.tz.timezones
+
+
+def validate_rrule_timezone(v: str) -> str:
+    """
+    Validate that the provided timezone is a valid IANA timezone.
+
+    Unfortunately this list is slightly different from the list of valid
+    timezones in pendulum that we use for cron and interval timezone validation.
+    """
+    from prefect._internal.pytz import HAS_PYTZ
+
+    if HAS_PYTZ:
+        import pytz
+    else:
+        from prefect._internal import pytz
+
+    if v and v not in pytz.all_timezones_set:
+        raise ValueError(f'Invalid timezone: "{v}"')
+    elif v is None:
+        return "UTC"
+    return v
+
+
+def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
+    if v and v not in timezones:
+        raise ValueError(
+            f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
+            " America/New_York)"
+        )
+    return v
+
+
+def default_timezone(v: str, values: Optional[dict] = {}) -> str:
+    timezones = get_valid_timezones(v)
+
+    if v is not None:
+        return validate_timezone(v, timezones)
+
+    # anchor schedules
+    elif v is None and values and values.get("anchor_date"):
+        tz = values["anchor_date"].tz.name
+        if tz in timezones:
+            return tz
+        # sometimes anchor dates have "timezones" that are UTC offsets
+        # like "-04:00". This happens when parsing ISO8601 strings.
+        # In this case we, the correct inferred localization is "UTC".
+        else:
+            return "UTC"
+
+    # cron schedules
+    return v
+
+
+def validate_cron_string(v: str) -> str:
+    from croniter import croniter
+
+    # croniter allows "random" and "hashed" expressions
+    # which we do not support https://github.com/kiorky/croniter
+    if not croniter.is_valid(v):
+        raise ValueError(f'Invalid cron string: "{v}"')
+    elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
+        raise ValueError(
+            f'Random and Hashed expressions are unsupported, received: "{v}"'
+        )
+    return v
+
+
+# approx. 1 years worth of RDATEs + buffer
+MAX_RRULE_LENGTH = 6500
+
+
+def validate_rrule_string(v: str) -> str:
+    import dateutil.rrule
+
+    # attempt to parse the rrule string as an rrule object
+    # this will error if the string is invalid
+    try:
+        dateutil.rrule.rrulestr(v, cache=True)
+    except ValueError as exc:
+        # rrules errors are a mix of cryptic and informative
+        # so reraise to be clear that the string was invalid
+        raise ValueError(f'Invalid RRule string "{v}": {exc}')
+    if len(v) > MAX_RRULE_LENGTH:
+        raise ValueError(
+            f'Invalid RRule string "{v[:40]}..."\n'
+            f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
+        )
+    return v
