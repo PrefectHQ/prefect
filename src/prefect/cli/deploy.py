@@ -260,6 +260,19 @@ async def deploy(
             style="yellow",
         )
 
+    if variables is not None:
+        app.console.print(
+            generate_deprecation_message(
+                name="The `--variable` flag",
+                start_date="Mar 2024",
+                help=(
+                    "Please use the `--job-variable foo=bar` argument instead: `prefect"
+                    " deploy --job-variable`."
+                ),
+            ),
+            style="yellow",
+        )
+
     if variables is None:
         variables = list()
     if job_variables is None:
