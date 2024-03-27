@@ -123,8 +123,8 @@ def test_deployment_trigger_proactive_trigger_with_defaults():
     )
 
 
-def test_deployment_trigger_disallows_negative_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum within"):
+def test_deployment_reactive_trigger_disallows_negative_withins():
+    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
         pydantic.parse_obj_as(
             DeploymentTriggerTypes,
             {
@@ -134,7 +134,9 @@ def test_deployment_trigger_disallows_negative_withins():
             },
         )
 
-    with pytest.raises(pydantic.ValidationError, match="minimum within"):
+
+def test_deployment_proactive_trigger_disallows_negative_withins():
+    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
         pydantic.parse_obj_as(
             DeploymentTriggerTypes,
             {
@@ -146,7 +148,7 @@ def test_deployment_trigger_disallows_negative_withins():
 
 
 def test_deployment_trigger_proactive_trigger_disallows_short_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum within"):
+    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
         pydantic.parse_obj_as(
             DeploymentTriggerTypes,
             {
