@@ -277,7 +277,7 @@ def validate_rrule_timezone(v: str) -> str:
     return v
 
 
-def validate_timezone(v: str, timezones: list) -> str:
+def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
     if v and v not in timezones:
         raise ValueError(
             f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
@@ -286,14 +286,14 @@ def validate_timezone(v: str, timezones: list) -> str:
     return v
 
 
-def default_timezone(v: str, values: dict) -> str:
+def default_timezone(v: str, values: Optional[dict] = {}) -> str:
     timezones = get_valid_timezones(v)
 
     if v is not None:
         return validate_timezone(v, timezones)
 
     # anchor schedules
-    elif v is None and values.get("anchor_date"):
+    elif v is None and values and values.get("anchor_date"):
         tz = values["anchor_date"].tz.name
         if tz in timezones:
             return tz
@@ -325,7 +325,7 @@ def validate_cron_string(v: str) -> str:
 MAX_RRULE_LENGTH = 6500
 
 
-def validate_rrule_str(v: str) -> str:
+def validate_rrule_string(v: str) -> str:
     import dateutil.rrule
 
     # attempt to parse the rrule string as an rrule object

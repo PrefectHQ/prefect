@@ -15,7 +15,7 @@ from prefect._internal.schemas.validators import (
     default_timezone,
     interval_schedule_must_be_positive,
     validate_cron_string,
-    validate_rrule_str,
+    validate_rrule_string,
     validate_rrule_timezone,
 )
 
@@ -121,11 +121,11 @@ class CronSchedule(PrefectBaseModel):
     )
 
     @validator("timezone")
-    def validate_timezone(cls, v, *, values, **kwargs):
-        return default_timezone(v, values)
+    def valid_timezone(cls, v):
+        return default_timezone(v)
 
     @validator("cron")
-    def validate_cron_string(cls, v):
+    def valid_cron_string(cls, v):
         return validate_cron_string(v)
 
 
@@ -159,8 +159,8 @@ class RRuleSchedule(PrefectBaseModel):
     timezone: Optional[str] = Field(default=None, example="America/New_York")
 
     @validator("rrule")
-    def validate_rrule_string(cls, v):
-        return validate_rrule_str(v)
+    def validate_rrule_str(cls, v):
+        return validate_rrule_string(v)
 
     @classmethod
     def from_rrule(cls, rrule: dateutil.rrule.rrule):
