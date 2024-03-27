@@ -1643,18 +1643,22 @@ class TestCancellation:
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
+    @pytest.mark.parametrize("infrastructure_pid", [None, "", "test"])
     async def test_worker_cancel_run_handles_missing_deployment(
         self,
         prefect_client: PrefectClient,
         worker_deployment_wq1,
         cancelling_constructor,
         work_pool,
+        infrastructure_pid: str,
     ):
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
-
+        await prefect_client.update_flow_run(
+            flow_run.id, infrastructure_pid=infrastructure_pid
+        )
         await prefect_client.delete_deployment(worker_deployment_wq1.id)
 
         async with WorkerTestImpl(
