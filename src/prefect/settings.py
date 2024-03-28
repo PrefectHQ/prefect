@@ -1629,8 +1629,20 @@ The directory to serve static files from. This should be used when running into 
 when attempting to serve the UI from the default directory (for example when running in a Docker container)
 """
 
+# Messaging system settings
 
-# Events settings ------------------------------------------------------------------
+PREFECT_MESSAGING_BROKER = Setting(str, default="memory")
+"""
+Which message broker implementation to use for the messaging system.
+"""
+
+PREFECT_MESSAGING_CACHE = Setting(str, default="memory")
+"""
+Which cache implementation to use for the events system.
+"""
+
+
+# Events settings
 
 PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
 """
