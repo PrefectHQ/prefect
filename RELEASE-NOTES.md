@@ -56,7 +56,6 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.6...2.16.7
 
-
 ## Release 2.16.6
 
 ### Fix new behavior in `typer 0.10.0` that broke the `prefect` CLI
