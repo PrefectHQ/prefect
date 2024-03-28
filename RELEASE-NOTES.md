@@ -2,6 +2,25 @@
 
 ## Release 2.16.7
 
+### Introducing `prefect shell` 💻 for observing CLI commands
+You can now observe CLI commands as a Prefect flow. For example, take the command:
+```console
+» curl http://wttr.in/Chicago\?format\=3
+Chicago: ⛅️  +50°F
+```
+
+To run this as a Prefect flow, you can use the following code:
+
+```python
+prefect shell watch "curl http://wttr.in/Chicago?format=3"
+
+» prefect shell watch "curl http://wttr.in/Chicago?format=3"
+17:32:39.562 | INFO    | prefect.engine - Created flow run 'powerful-mushroom' for flow 'Shell Command'
+17:32:40.171 | INFO    | Flow run 'powerful-mushroom' - Chicago: ⛅️  +50°F
+17:32:40.315 | INFO    | Flow run 'powerful-mushroom' - Finished in state Completed()
+```
+
+
 ### Enhancements
 - Integrating composite triggers with the `DeploymentTrigger` YAML representation — https://github.com/PrefectHQ/prefect/pull/12413
 - Feature: JSON Artifacts — https://github.com/PrefectHQ/prefect/pull/12295
