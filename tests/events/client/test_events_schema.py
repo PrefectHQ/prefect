@@ -1,4 +1,3 @@
-import datetime
 import json
 from uuid import UUID, uuid4
 
@@ -6,24 +5,7 @@ import pendulum
 import pytest
 from pendulum.datetime import DateTime
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
-
-from prefect.events.actions import RunDeployment
-from prefect.events.schemas import (
-    Automation,
-    AutomationCreateFromTrigger,
-    DeploymentTrigger,
-    Event,
-    EventTrigger,
-    Posture,
-    RelatedResource,
-    Resource,
-)
+from prefect.events import Event, RelatedResource, Resource
 
 
 def test_client_events_generate_an_id_by_default():
@@ -116,33 +98,6 @@ def test_json_representation():
     }
 
 
-def test_limit_on_labels(monkeypatch: pytest.MonkeyPatch):
-    labels = {"prefect.resource.id": "the.thing"}
-    labels.update({str(i): str(i) for i in range(10)})
-
-    monkeypatch.setattr("prefect.events.schemas.MAXIMUM_LABELS_PER_RESOURCE", 10)
-    with pytest.raises(ValidationError, match="maximum number of labels"):
-        Resource(__root__=labels)
-
-
-def test_limit_on_related_resources(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("prefect.events.schemas.MAXIMUM_RELATED_RESOURCES", 10)
-    with pytest.raises(ValidationError, match="maximum number of related"):
-        Event(
-            occurred=pendulum.now("UTC"),
-            event="anything",
-            resource={"prefect.resource.id": "the.thing"},
-            related=[
-                {
-                    "prefect.resource.id": f"another.thing.{i}",
-                    "prefect.resource.role": "related",
-                }
-                for i in range(11)
-            ],
-            id=uuid4(),
-        )
-
-
 def test_client_event_involved_resources():
     event = Event(
         occurred=pendulum.now("UTC"),
@@ -160,36 +115,97 @@ def test_client_event_involved_resources():
     ]
 
 
-def test_resource_trigger_actions_not_implemented():
-    trigger = AutomationCreateFromTrigger()
-    with pytest.raises(NotImplementedError):
-        trigger.actions()
-
-
-def test_deployment_trigger_as_automation():
-    trigger = DeploymentTrigger(
-        name="A deployment automation",
-    )
-    trigger.set_deployment_id(uuid4())
-
-    automation = trigger.as_automation()
-
-    assert automation == Automation(
-        name="A deployment automation",
-        description="",
-        enabled=True,
-        trigger=EventTrigger(
-            posture=Posture.Reactive,
-            threshold=1,
-            within=datetime.timedelta(0),
-        ),
-        actions=[
-            RunDeployment(
-                type="run-deployment",
-                source="selected",
-                parameters=None,
-                deployment_id=trigger._deployment_id,
-            )
+def test_client_events_may_have_a_name_label():
+    event = Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={"prefect.resource.id": "hello", "prefect.resource.name": "Hello!"},
+        related=[
+            {
+                "prefect.resource.id": "related-1",
+                "prefect.resource.role": "role-1",
+                "prefect.resource.name": "Related 1",
+            },
+            {
+                "prefect.resource.id": "related-2",
+                "prefect.resource.role": "role-1",
+                "prefect.resource.name": "Related 2",
+            },
+            {
+                "prefect.resource.id": "related-3",
+                "prefect.resource.role": "role-2",
+                # deliberately lacks a name
+            },
         ],
-        owner_resource=f"prefect.deployment.{trigger._deployment_id}",
+        id=uuid4(),
     )
+    assert event.resource.name == "Hello!"
+    assert [related.name for related in event.related] == [
+        "Related 1",
+        "Related 2",
+        None,
+    ]
+
+
+@pytest.fixture
+def example_event() -> Event:
+    return Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={
+            "prefect.resource.id": "hello",
+            "name": "Hello!",
+            "related:psychout:name": "Psych!",
+        },
+        related=[
+            {
+                "prefect.resource.id": "related-1",
+                "prefect.resource.role": "role-1",
+                "name": "Related 1",
+            },
+            {
+                "prefect.resource.id": "related-2",
+                "prefect.resource.role": "role-1",
+                "name": "Related 2",
+            },
+            {
+                "prefect.resource.id": "related-3",
+                "prefect.resource.role": "role-2",
+                "name": "Related 3",
+            },
+        ],
+        id=uuid4(),
+    )
+
+
+def test_finding_resource_label_top_level(example_event: Event):
+    assert example_event.find_resource_label("name") == "Hello!"
+
+
+def test_finding_resource_label_first_related(example_event: Event):
+    assert example_event.find_resource_label("related:role-1:name") == "Related 1"
+
+
+def test_finding_resource_label_other_related(example_event: Event):
+    assert example_event.find_resource_label("related:role-2:name") == "Related 3"
+
+
+def test_finding_resource_label_fallsback_to_resource(example_event: Event):
+    assert example_event.find_resource_label("related:psychout:name") == "Psych!"
+
+
+def test_finding_resource_in_role(example_event: Event):
+    assert example_event.resource_in_role["role-1"].id == "related-1"
+    assert example_event.resource_in_role["role-2"].id == "related-3"
+
+    with pytest.raises(KeyError):
+        assert example_event.resource_in_role["role-3"] is None
+
+
+def test_finding_resources_in_role(example_event: Event):
+    assert [r.id for r in example_event.resources_in_role["role-1"]] == [
+        "related-1",
+        "related-2",
+    ]
+    assert [r.id for r in example_event.resources_in_role["role-2"]] == ["related-3"]
+    assert example_event.resources_in_role["role-3"] == []

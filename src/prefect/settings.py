@@ -51,6 +51,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Generic,
     Iterable,
     List,
@@ -600,8 +601,8 @@ PREFECT_API_SSL_CERT_FILE = Setting(
     default=os.environ.get("SSL_CERT_FILE"),
 )
 """
-This configuration settings option specifies the path to an SSL certificate file. 
-When set, it allows the application to use the specified certificate for secure communication. 
+This configuration settings option specifies the path to an SSL certificate file.
+When set, it allows the application to use the specified certificate for secure communication.
 If left unset, the setting will default to the value provided by the `SSL_CERT_FILE` environment variable.
 """
 
@@ -1177,7 +1178,7 @@ this often. Defaults to `5`.
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
-    default=timedelta(seconds=5),
+    default=timedelta(seconds=15),
 )
 """The late runs service will mark runs as late after they
 have exceeded their scheduled start time by this many seconds. Defaults
@@ -1235,7 +1236,7 @@ Note this setting only applies when calling `prefect server start`; if hosting t
 API with another tool you will need to configure this there instead.
 """
 
-PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=True)
 """
 Controls the activation of CSRF protection for the Prefect server API.
 
@@ -1422,6 +1423,16 @@ PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
 Whether or not to enable flow run input.
 """
 
+
+# Prefect Events feature flags
+
+PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
+"""
+Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
+will always emit events during flow and task runs regardless of this setting.
+"""
+
+
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
@@ -1575,10 +1586,6 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS = Setting(bool, default=False)
-"""
-Whether or not to enable internal experimental Pydantic v2 behavior.
-"""
 
 # Defaults -----------------------------------------------------------------------------
 
@@ -1620,6 +1627,19 @@ PREFECT_UI_STATIC_DIRECTORY = Setting(
 """
 The directory to serve static files from. This should be used when running into permissions issues
 when attempting to serve the UI from the default directory (for example when running in a Docker container)
+"""
+
+
+# Events settings ------------------------------------------------------------------
+
+PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
+"""
+The maximum number of labels a resource may have.
+"""
+
+PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
+"""
+The maximum number of related resources an Event may have.
 """
 
 
@@ -1877,10 +1897,10 @@ def get_default_settings() -> Settings:
 
 @contextmanager
 def temporary_settings(
-    updates: Mapping[Setting, Any] = None,
-    set_defaults: Mapping[Setting, Any] = None,
-    restore_defaults: Iterable[Setting] = None,
-) -> Settings:
+    updates: Optional[Mapping[Setting[T], Any]] = None,
+    set_defaults: Optional[Mapping[Setting[T], Any]] = None,
+    restore_defaults: Optional[Iterable[Setting[T]]] = None,
+) -> Generator[Settings, None, None]:
     """
     Temporarily override the current settings by entering a new profile.
 
@@ -2132,7 +2152,9 @@ class ProfilesCollection:
         )
 
 
-def _handle_removed_flags(profile_name: str, settings: dict) -> dict:
+def _handle_removed_flags(
+    profile_name: str, settings: Dict[str, Any]
+) -> Dict[str, Any]:
     to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
 
     for name in to_remove:

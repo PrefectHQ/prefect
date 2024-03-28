@@ -17,9 +17,9 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import ValidationError
 
+from prefect._internal.schemas.validators import MAX_RRULE_LENGTH
 from prefect.server.schemas.schedules import (
     MAX_ITERATIONS,
-    MAX_RRULE_LENGTH,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,

@@ -164,6 +164,14 @@ class TestHydrateWithJsonPrefectKind:
                     )
                 },
             ),
+            (
+                {"param": {"__prefect_kind": "json", "value": 12346}},
+                {
+                    "param": InvalidJSON(
+                        detail="the JSON object must be str, bytes or bytearray, not int"
+                    )
+                },
+            ),
             # Cases where __prefect_kind is "json", but value is missing
             ({"param": {"__prefect_kind": "json"}}, {}),
             ({"__prefect_kind": "json"}, {}),
@@ -210,4 +218,33 @@ class TestHydrateWithWorkspaceVariablePrefectKind:
         ],
     )
     def test_hydrate_with_null_prefect_kind(self, input_object, expected_output, ctx):
+        assert hydrate(input_object, ctx) == expected_output
+
+
+class TestNestedHydration:
+    @pytest.mark.parametrize(
+        "input_object, expected_output, ctx",
+        [
+            (
+                # The workspace variable is resolved first.
+                # It returns a json string.
+                # The JSON string is then decoded to give
+                # an actual integer value.
+                {
+                    "param": {
+                        "__prefect_kind": "json",
+                        "value": {
+                            "__prefect_kind": "workspace_variable",
+                            "variable_name": "four_json_string",
+                        },
+                    },
+                },
+                {"param": 4},
+                HydrationContext(
+                    workspace_variables={"four_json_string": "4"},
+                ),
+            ),
+        ],
+    )
+    def test_nested_hydration(self, input_object, expected_output, ctx):
         assert hydrate(input_object, ctx) == expected_output

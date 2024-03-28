@@ -7,7 +7,7 @@ import pendulum
 from prefect._internal.schemas.fields import DateTimeTZ
 
 from .clients import AssertingEventsClient, PrefectCloudEventsClient
-from .schemas import Event, RelatedResource
+from .schemas.events import Event, RelatedResource
 from .worker import EventsWorker, emit_events_to_cloud
 
 TIGHT_TIMING = timedelta(minutes=5)
@@ -40,7 +40,7 @@ def emit_event(
 
     Returns:
         The event that was emitted if worker is using a client that emit
-        events, otherwise None.
+        events, otherwise None
     """
     if not emit_events_to_cloud():
         return None
