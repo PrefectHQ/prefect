@@ -57,7 +57,8 @@ def output_collect(pipe, container):
 def run_shell_process(
     command: str,
     log_output: bool = True,
-    stream_output: bool = False,
+    stream_stdout: bool = False,
+    log_stderr: bool = False,
 ):
     """
     Asynchronously executes the specified shell command and logs its output.
@@ -69,6 +70,9 @@ def run_shell_process(
         command (str): The shell command to execute.
         log_output (bool, optional): If True, the output of the command (both stdout and stderr) is logged to Prefect.
                                      Defaults to True
+        stream_stdout (bool, optional): If True, the stdout of the command is streamed to Prefect logs. Defaults to False.
+        log_stderr (bool, optional): If True, the stderr of the command is logged to Prefect logs. Defaults to False.
+
 
     """
 
@@ -86,13 +90,11 @@ def run_shell_process(
         universal_newlines=True,
     ) as proc:
         # Create threads for collecting stdout and stderr
-        if stream_output:
+        if stream_stdout:
             stdout_logger = logger.info
-            stderr_logger = logger.error
             output = output_stream
         else:
             stdout_logger = stdout_container
-            stderr_logger = stderr_container
             output = output_collect
 
         stdout_thread = threading.Thread(
@@ -100,7 +102,7 @@ def run_shell_process(
         )
 
         stderr_thread = threading.Thread(
-            target=output, args=(proc.stderr, stderr_logger)
+            target=output_collect, args=(proc.stderr, stderr_container)
         )
 
         stdout_thread.start()
@@ -113,10 +115,11 @@ def run_shell_process(
         if stdout_container:
             logger.info("".join(stdout_container).strip())
 
-        if stderr_container:
+        if stderr_container and log_stderr:
             logger.error("".join(stderr_container).strip())
             # Suppress traceback
         if proc.returncode != 0:
+            logger.error("".join(stderr_container).strip())
             sys.tracebacklimit = 0
             raise FailedRun(f"Command failed with exit code {proc.returncode}")
 
@@ -129,7 +132,7 @@ async def watch(
     ),
     flow_run_name: str = typer.Option(None, help="Name of the flow run."),
     flow_name: str = typer.Option("Shell Command", help="Name of the flow."),
-    stream_output: bool = typer.Option(True, help="Stream the output of the command."),
+    stream_stdout: bool = typer.Option(True, help="Stream the output of the command."),
     tag: Annotated[
         Optional[List[str]], typer.Option(help="Optional tags for the flow run.")
     ] = None,
@@ -152,7 +155,7 @@ async def watch(
     )
     with tags(*tag):
         defined_flow(
-            command=command, log_output=log_output, stream_output=stream_output
+            command=command, log_output=log_output, stream_stdout=stream_stdout
         )
 
 
@@ -169,7 +172,7 @@ async def serve(
     log_output: bool = typer.Option(
         True, help="Stream the output of the command", hidden=True
     ),
-    stream_output: bool = typer.Option(True, help="Stream the output of the command"),
+    stream_stdout: bool = typer.Option(True, help="Stream the output of the command"),
     cron_schedule: str = typer.Option(None, help="Cron schedule for the flow"),
     timezone: str = typer.Option(None, help="Timezone for the schedule"),
     concurrency_limit: int = typer.Option(
@@ -210,7 +213,7 @@ async def serve(
         parameters={
             "command": command,
             "log_output": log_output,
-            "stream_output": stream_output,
+            "stream_stdout": stream_stdout,
         },
         entrypoint_type=EntrypointType.MODULE_PATH,
         schedule=schedule,
