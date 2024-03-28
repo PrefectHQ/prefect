@@ -321,10 +321,10 @@ jobs:
           && docker container logs postgres
           || echo "Ignoring bad exit code"
 
-  run-pydantic-v2-compat-tests:
+  run-pydantic-v2-tests:
     runs-on:
       group: oss-larger-runners
-    name: pydantic v2 compat, python:${{ matrix.python-version }}
+    name: pydantic v2, python:${{ matrix.python-version }}
     strategy:
       matrix:
         database:
