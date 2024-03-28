@@ -11,6 +11,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import JsonPatch
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -28,16 +29,18 @@ if TYPE_CHECKING:
         from pydantic.fields import ModelField
 
 
-def raise_on_name_with_banned_characters(name: str) -> None:
+def raise_on_name_with_banned_characters(name: str) -> str:
     """
     Raise an InvalidNameError if the given name contains any invalid
     characters.
     """
-    if any(c in name for c in BANNED_CHARACTERS):
-        raise InvalidNameError(
-            f"Name {name!r} contains an invalid character. "
-            f"Must not contain any of: {BANNED_CHARACTERS}."
-        )
+    if name is not None:
+        if any(c in name for c in BANNED_CHARACTERS):
+            raise InvalidNameError(
+                f"Name {name!r} contains an invalid character. "
+                f"Must not contain any of: {BANNED_CHARACTERS}."
+            )
+    return name
 
 
 def raise_on_name_alphanumeric_dashes_only(
@@ -465,3 +468,17 @@ def set_default_image(values: dict) -> dict:
         values["image"] = get_prefect_image_name()
 
     return values
+
+
+def get_or_create_state_name(v: str, values: dict) -> str:
+    """If a name is not provided, use the type"""
+
+    # if `type` is not in `values` it means the `type` didn't pass its own
+    # validation check and an error will be raised after this function is called
+    if v is None and values.get("type"):
+        v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
+    return v
+
+
+def get_or_create_run_name(name):
+    return name or generate_slug(2)
