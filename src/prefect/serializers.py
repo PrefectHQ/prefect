@@ -16,6 +16,13 @@ import warnings
 from typing import Any, Generic, Optional, TypeVar
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    cast_type_names_to_serializers,
+    validate_compressionlib,
+    validate_dump_kwargs,
+    validate_load_kwargs,
+    validate_picklelib,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -101,27 +108,7 @@ class PickleSerializer(Serializer):
 
     @pydantic.validator("picklelib")
     def check_picklelib(cls, value):
-        """
-        Check that the given pickle library is importable and has dumps/loads methods.
-        """
-        try:
-            pickler = from_qualified_name(value)
-        except (ImportError, AttributeError) as exc:
-            raise ValueError(
-                f"Failed to import requested pickle library: {value!r}."
-            ) from exc
-
-        if not callable(getattr(pickler, "dumps", None)):
-            raise ValueError(
-                f"Pickle library at {value!r} does not have a 'dumps' method."
-            )
-
-        if not callable(getattr(pickler, "loads", None)):
-            raise ValueError(
-                f"Pickle library at {value!r} does not have a 'loads' method."
-            )
-
-        return value
+        return validate_picklelib(value)
 
     @pydantic.root_validator
     def check_picklelib_version(cls, values):
@@ -196,23 +183,11 @@ class JSONSerializer(Serializer):
 
     @pydantic.validator("dumps_kwargs")
     def dumps_kwargs_cannot_contain_default(cls, value):
-        # `default` is set by `object_encoder`. A user provided callable would make this
-        # class unserializable anyway.
-        if "default" in value:
-            raise ValueError(
-                "`default` cannot be provided. Use `object_encoder` instead."
-            )
-        return value
+        return validate_dump_kwargs(value)
 
     @pydantic.validator("loads_kwargs")
     def loads_kwargs_cannot_contain_object_hook(cls, value):
-        # `object_hook` is set by `object_decoder`. A user provided callable would make
-        # this class unserializable anyway.
-        if "object_hook" in value:
-            raise ValueError(
-                "`object_hook` cannot be provided. Use `object_decoder` instead."
-            )
-        return value
+        return validate_load_kwargs(value)
 
     def dumps(self, data: Any) -> bytes:
         json = from_qualified_name(self.jsonlib)
@@ -251,35 +226,12 @@ class CompressedSerializer(Serializer):
     compressionlib: str = "lzma"
 
     @pydantic.validator("serializer", pre=True)
-    def cast_type_names_to_serializers(cls, value):
-        if isinstance(value, str):
-            return Serializer(type=value)
-        return value
+    def validate_serializer(cls, value):
+        return cast_type_names_to_serializers(value)
 
     @pydantic.validator("compressionlib")
     def check_compressionlib(cls, value):
-        """
-        Check that the given pickle library is importable and has compress/decompress
-        methods.
-        """
-        try:
-            compressor = from_qualified_name(value)
-        except (ImportError, AttributeError) as exc:
-            raise ValueError(
-                f"Failed to import requested compression library: {value!r}."
-            ) from exc
-
-        if not callable(getattr(compressor, "compress", None)):
-            raise ValueError(
-                f"Compression library at {value!r} does not have a 'compress' method."
-            )
-
-        if not callable(getattr(compressor, "decompress", None)):
-            raise ValueError(
-                f"Compression library at {value!r} does not have a 'decompress' method."
-            )
-
-        return value
+        return validate_compressionlib(value)
 
     def dumps(self, obj: Any) -> bytes:
         blob = self.serializer.dumps(obj)
