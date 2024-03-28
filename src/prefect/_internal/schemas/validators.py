@@ -536,7 +536,7 @@ def validate_github_access_token(v: str, values: dict) -> str:
 ### SERIALIZER SCHEMA VALIDATORS ###
 
 
-def validate_picklelib(value):
+def validate_picklelib(value: str) -> str:
     """
     Check that the given pickle library is importable and has dumps/loads methods.
     """
@@ -556,7 +556,7 @@ def validate_picklelib(value):
     return value
 
 
-def validate_dump_kwargs(value):
+def validate_dump_kwargs(value: dict) -> dict:
     # `default` is set by `object_encoder`. A user provided callable would make this
     # class unserializable anyway.
     if "default" in value:
@@ -564,7 +564,7 @@ def validate_dump_kwargs(value):
     return value
 
 
-def validate_load_kwargs(value: dict):
+def validate_load_kwargs(value: dict) -> dict:
     # `object_hook` is set by `object_decoder`. A user provided callable would make
     # this class unserializable anyway.
     if "object_hook" in value:
@@ -580,7 +580,7 @@ def cast_type_names_to_serializers(value):
     return value
 
 
-def validate_compressionlib(value):
+def validate_compressionlib(value: str) -> str:
     """
     Check that the given pickle library is importable and has compress/decompress
     methods.
