@@ -1178,7 +1178,7 @@ this often. Defaults to `5`.
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
-    default=timedelta(seconds=5),
+    default=timedelta(seconds=15),
 )
 """The late runs service will mark runs as late after they
 have exceeded their scheduled start time by this many seconds. Defaults
