@@ -13,6 +13,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.serializers import Serializer
+from prefect.settings import SETTING_VARIABLES, Setting
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
@@ -602,3 +603,23 @@ def validate_compressionlib(value):
         )
 
     return value
+
+
+### SETTINGS SCHEMA VALIDATORS ###
+
+
+def validate_settings(value: dict) -> dict:
+    if value is None:
+        return value
+
+    # Cast string setting names to variables
+    validated = {}
+    for setting, val in value.items():
+        if isinstance(setting, str) and setting in SETTING_VARIABLES:
+            validated[SETTING_VARIABLES[setting]] = val
+        elif isinstance(setting, Setting):
+            validated[setting] = val
+        else:
+            raise ValueError(f"Unknown setting {setting!r}.")
+
+    return validated

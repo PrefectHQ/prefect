@@ -68,6 +68,7 @@ from urllib.parse import urlparse
 import toml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import (
@@ -1951,20 +1952,7 @@ class Profile(BaseModel):
 
     @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
-        if value is None:
-            return value
-
-        # Cast string setting names to variables
-        validated = {}
-        for setting, val in value.items():
-            if isinstance(setting, str) and setting in SETTING_VARIABLES:
-                validated[SETTING_VARIABLES[setting]] = val
-            elif isinstance(setting, Setting):
-                validated[setting] = val
-            else:
-                raise ValueError(f"Unknown setting {setting!r}.")
-
-        return validated
+        return validate_settings(value)
 
     def validate_settings(self) -> None:
         """
