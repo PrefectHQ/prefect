@@ -72,10 +72,6 @@ This command schedules a Prefect flow to fetch Chicago's weather conditions dail
 
 ## Next Steps
 
-With the `watch` and `serve` commands at your disposal, you're ready to incorporate shell command automation into your Prefect workflows. Start with straightforward tasks like weather data fetching and expand to more complex automation scenarios to enhance your workflows' efficiency and capabilities.
+With the `watch` and `serve` commands at your disposal, you're ready to incorporate shell command automation into your Prefect workflows. Start with straightforward tasks like observing cron jobs and expand to more complex automation scenarios to enhance your workflows' efficiency and capabilities.
 
 For more insights into Prefect's features and best practices, visit the [Prefect documentation](https://docs.prefect.io/).
-
-Explore further into advanced scheduling, deployment strategies, and workflow management by checking out the [Advanced Deployments](https://docs.prefect.io/orchestration/) guide.
-
-Embark on enhancing your workflows with automated, data-driven tasks today!
