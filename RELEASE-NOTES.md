@@ -1,5 +1,51 @@
 # Prefect Release Notes
 
+## Release 2.16.7
+
+### Enhancements
+- Integrating composite triggers with the `DeploymentTrigger` YAML representation — https://github.com/PrefectHQ/prefect/pull/12413
+- Feature: JSON Artifacts — https://github.com/PrefectHQ/prefect/pull/12295
+- Introducing CLI Commands for Shell Flows — https://github.com/PrefectHQ/prefect/pull/11998
+- Add auto-provisioning option for Cloud Run V2 push work pools — https://github.com/PrefectHQ/prefect/pull/12422
+- Increase late runs after seconds setting default — https://github.com/PrefectHQ/prefect/pull/12457
+
+### Fixes
+- Properly display falsy `concurrency_limit` value in CLI — https://github.com/PrefectHQ/prefect/pull/12358
+- Correct wrong date in `prefect deploy` deprecation warning for `schedule` — https://github.com/PrefectHQ/prefect/pull/12399
+- Prompt user confirmation for pausing work queue in default work pool — https://github.com/PrefectHQ/prefect/pull/12334
+- Correct type for `slot_decay_per_second` in client SDK — https://github.com/PrefectHQ/prefect/pull/12401
+- Sync SDK with UI upgrades — https://github.com/PrefectHQ/prefect/pull/12429
+
+### Experimental
+- More robust error handling in `TaskServer` — https://github.com/PrefectHQ/prefect/pull/12382
+- Introducing the feature flag for Prefect's event subsystem — https://github.com/PrefectHQ/prefect/pull/12407
+- Add `model_validate_json` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12412
+- Add `model_dump_json` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12406
+- Add hybrid `BaseModel` and public `pydantic` module — https://github.com/PrefectHQ/prefect/pull/12424
+- enhancement: add full Pydantic TypeAdapter backport  — https://github.com/PrefectHQ/prefect/pull/12445
+- Add model_copy to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12418
+
+### Documentation
+- Shell docs — https://github.com/PrefectHQ/prefect/pull/12474
+- Add links to serverless and push serverless work pool guides for dependency management — https://github.com/PrefectHQ/prefect/pull/12392
+- Adding small client cancel flow runs example — https://github.com/PrefectHQ/prefect/pull/12390
+- Remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
+
+### Uncategorized
+- Carving out room in the test suite for server-side event tests. — https://github.com/PrefectHQ/prefect/pull/12411
+- Add change flow run state action to actions list — https://github.com/PrefectHQ/prefect/pull/12435
+- Adding rotate note and updating account role — https://github.com/PrefectHQ/prefect/pull/12443
+- Removing note around cluster and region in awscredblock — https://github.com/PrefectHQ/prefect/pull/12447
+- Adding back in region — https://github.com/PrefectHQ/prefect/pull/12450
+- Pin uvicorn to < 0.29 — https://github.com/PrefectHQ/prefect/pull/12463
+
+### Contributors
+- @Sahiler
+- @hainenber
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.6...2.16.7
+
+
 ## Release 2.16.6
 
 ### Fix new behavior in `typer 0.10.0` that broke the `prefect` CLI
