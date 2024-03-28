@@ -18,9 +18,12 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, SecretStr, validator
 
-from prefect._internal.schemas.validators import stringify_path, validate_basepath
+from prefect._internal.schemas.validators import (
+    stringify_path,
+    validate_basepath,
+    validate_github_access_token,
+)
 from prefect.blocks.core import Block
-from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
@@ -928,22 +931,7 @@ class GitHub(ReadableDeploymentStorage):
 
     @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
-        """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs.
-
-        Note: validates `access_token` specifically so that it only fires when
-        private repositories are used.
-        """
-        if v is not None:
-            if urllib.parse.urlparse(values["repository"]).scheme != "https":
-                raise InvalidRepositoryURLError(
-                    "Crendentials can only be used with GitHub repositories "
-                    "using the 'HTTPS' format. You must either remove the "
-                    "credential if you wish to use the 'SSH' format and are not "
-                    "using a private repository, or you must change the repository "
-                    "URL to the 'HTTPS' format. "
-                )
-
-        return v
+        return validate_github_access_token(v, values)
 
     def _create_repo_url(self) -> str:
         """Format the URL provided to the `git clone` command.
