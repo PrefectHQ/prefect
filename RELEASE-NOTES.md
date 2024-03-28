@@ -52,7 +52,6 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 - Remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
 
 ### Contributors
-- @Sahiler
 - @hainenber
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.6...2.16.7
