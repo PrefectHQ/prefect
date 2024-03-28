@@ -26,8 +26,8 @@ Here's what you'll learn:
 
 Before you begin, ensure you have:
 
-- An introductory understanding of Prefect and flow concepts. Start with the [Getting Started](https://docs.prefect.io/core/getting_started.html) guide if you're new.
-- Prefect CLI installed, following the instructions in the [Prefect documentation](https://docs.prefect.io/core/getting_started/installation.html).
+- An introductory understanding of Prefect and flow concepts. Start with the [Getting Started](/getting-started/quickstart/) guide if you're new.
+- Prefect CLI installed, following the instructions in the [Prefect documentation](/getting-started/installation/).
 - A command-line environment ready for executing commands.
 
 ## The `watch` Command
