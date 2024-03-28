@@ -1,5 +1,61 @@
 # Prefect Release Notes
 
+## Release 2.16.7
+
+### Introducing `prefect shell` 💻 for observing CLI commands
+You can now observe CLI commands as a Prefect flow. For example, take the command:
+```console
+» curl http://wttr.in/Chicago\?format\=3
+Chicago: ⛅️  +50°F
+```
+
+To run this as a Prefect flow, you can use the following CLI command:
+```python
+» prefect shell watch "curl http://wttr.in/Chicago?format=3"
+17:32:39.562 | INFO    | prefect.engine - Created flow run 'powerful-mushroom' for flow 'Shell Command'
+17:32:40.171 | INFO    | Flow run 'powerful-mushroom' - Chicago: ⛅️  +50°F
+17:32:40.315 | INFO    | Flow run 'powerful-mushroom' - Finished in state Completed()
+```
+
+See these [docs](https://docs.prefect.io/latest/guides/cli-shell) to learn how to:
+- run a shell command as a Prefect flow on-demand with `watch`
+- schedule a shell command as a recurring Prefect flow using `serve`
+
+See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/11998
+
+### Enhancements
+- Integrate composite triggers with the `DeploymentTrigger` YAML representation — https://github.com/PrefectHQ/prefect/pull/12413
+- Add JSON Artifacts — https://github.com/PrefectHQ/prefect/pull/12295
+- Add auto-provisioning option for Cloud Run V2 push work pools — https://github.com/PrefectHQ/prefect/pull/12422
+- Increase late runs after seconds setting default — https://github.com/PrefectHQ/prefect/pull/12457
+
+### Fixes
+- Properly display falsy `concurrency_limit` value in CLI — https://github.com/PrefectHQ/prefect/pull/12358
+- Correct wrong date in `prefect deploy` deprecation warning for `schedule` — https://github.com/PrefectHQ/prefect/pull/12399
+- Prompt user confirmation for pausing work queue in default work pool — https://github.com/PrefectHQ/prefect/pull/12334
+- Correct type for `slot_decay_per_second` in client SDK — https://github.com/PrefectHQ/prefect/pull/12401
+- Sync SDK upgrades with UI upgrades — https://github.com/PrefectHQ/prefect/pull/12429
+- Pin uvicorn to < 0.29 — https://github.com/PrefectHQ/prefect/pull/12463
+
+### Experimental
+- More robust error handling in `TaskServer` — https://github.com/PrefectHQ/prefect/pull/12382
+- Add `model_validate_json` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12412
+- Add `model_dump_json` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12406
+- Add hybrid `BaseModel` and public `pydantic` module — https://github.com/PrefectHQ/prefect/pull/12424
+- Add Pydantic `TypeAdapter` backport  — https://github.com/PrefectHQ/prefect/pull/12445
+- Add `model_copy` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12418
+
+### Documentation
+- Add `prefect shell` CLI documentation — https://github.com/PrefectHQ/prefect/pull/12474
+- Add links to serverless and push serverless work pool guides for dependency management — https://github.com/PrefectHQ/prefect/pull/12392
+- Add example of transitioning all running flows to `CANCELLED` via Prefect client — https://github.com/PrefectHQ/prefect/pull/12390
+- Temporarily remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
+
+### Contributors
+- @hainenber
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.6...2.16.7
+
 ## Release 2.16.6
 
 ### Fix new behavior in `typer 0.10.0` that broke the `prefect` CLI
