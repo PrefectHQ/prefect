@@ -31,7 +31,8 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 - Correct wrong date in `prefect deploy` deprecation warning for `schedule` — https://github.com/PrefectHQ/prefect/pull/12399
 - Prompt user confirmation for pausing work queue in default work pool — https://github.com/PrefectHQ/prefect/pull/12334
 - Correct type for `slot_decay_per_second` in client SDK — https://github.com/PrefectHQ/prefect/pull/12401
-- Sync SDK with UI upgrades — https://github.com/PrefectHQ/prefect/pull/12429
+- Sync SDK upgrades with UI upgrades — https://github.com/PrefectHQ/prefect/pull/12429
+- Pin uvicorn to < 0.29 — https://github.com/PrefectHQ/prefect/pull/12463
 
 ### Experimental
 - More robust error handling in `TaskServer` — https://github.com/PrefectHQ/prefect/pull/12382
@@ -46,14 +47,6 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 - Add links to serverless and push serverless work pool guides for dependency management — https://github.com/PrefectHQ/prefect/pull/12392
 - Adding small client cancel flow runs example — https://github.com/PrefectHQ/prefect/pull/12390
 - Remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
-
-### Uncategorized
-- Carving out room in the test suite for server-side event tests. — https://github.com/PrefectHQ/prefect/pull/12411
-- Add change flow run state action to actions list — https://github.com/PrefectHQ/prefect/pull/12435
-- Adding rotate note and updating account role — https://github.com/PrefectHQ/prefect/pull/12443
-- Removing note around cluster and region in awscredblock — https://github.com/PrefectHQ/prefect/pull/12447
-- Adding back in region — https://github.com/PrefectHQ/prefect/pull/12450
-- Pin uvicorn to < 0.29 — https://github.com/PrefectHQ/prefect/pull/12463
 
 ### Contributors
 - @Sahiler
