@@ -388,7 +388,7 @@ jobs:
           python -m pip install -U pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: set PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS env var
+      - name: Set PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS env var
         run: echo "PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS=1" >> $GITHUB_ENV
 
       - name: Start database container
