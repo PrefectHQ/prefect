@@ -39,11 +39,11 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 
 ### Experimental
 - More robust error handling in `TaskServer` — https://github.com/PrefectHQ/prefect/pull/12382
-- Add `model_validate_json` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12412
-- Add `model_dump_json` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12406
+- Add `model_validate_json` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12412
+- Add `model_dump_json` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12406
 - Add hybrid `BaseModel` and public `pydantic` module — https://github.com/PrefectHQ/prefect/pull/12424
 - Add Pydantic `TypeAdapter` backport  — https://github.com/PrefectHQ/prefect/pull/12445
-- Add `model_copy` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12418
+- Add `model_copy` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12418
 
 ### Documentation
 - Add `prefect shell` CLI documentation — https://github.com/PrefectHQ/prefect/pull/12474
