@@ -21,9 +21,10 @@ from prefect._internal.schemas.transformations import FieldFrom, copy_model_fiel
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
+    return_none_schedule,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
-from prefect.client.schemas.schedules import SCHEDULE_TYPES, NoSchedule
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
@@ -234,10 +235,8 @@ class DeploymentUpdate(ActionBaseModel):
         return values_copy
 
     @validator("schedule")
-    def return_none_schedule(cls, v):
-        if isinstance(v, NoSchedule):
-            return None
-        return v
+    def validate_none_schedule(cls, v):
+        return return_none_schedule(v)
 
     version: Optional[str] = FieldFrom(objects.Deployment)
     schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
