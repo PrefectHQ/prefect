@@ -12,7 +12,6 @@ import pendulum
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
-from prefect.serializers import Serializer
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
@@ -574,6 +573,8 @@ def validate_load_kwargs(value: dict) -> dict:
 
 
 def cast_type_names_to_serializers(value):
+    from prefect.serializers import Serializer
+
     if isinstance(value, str):
         return Serializer(type=value)
     return value
