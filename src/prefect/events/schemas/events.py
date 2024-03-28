@@ -247,8 +247,19 @@ class ResourceSpecification(PrefectBaseModel):
             for label, value in self.__root__.items()
         ]
 
+    def __contains__(self, key: str) -> bool:
+        return self.__root__.__contains__(key)
+
+    def __getitem__(self, key: str) -> List[str]:
+        value = self.__root__[key]
+        if not value:
+            return []
+        if not isinstance(value, list):
+            value = [value]
+        return value
+
     def pop(
-        self, key: str, default: Optional[Union[str, List[str]]]
+        self, key: str, default: Optional[Union[str, List[str]]] = None
     ) -> Optional[List[str]]:
         value = self.__root__.pop(key, default)
         if not value:
@@ -258,7 +269,7 @@ class ResourceSpecification(PrefectBaseModel):
         return value
 
     def get(
-        self, key: str, default: Optional[Union[str, List[str]]]
+        self, key: str, default: Optional[Union[str, List[str]]] = None
     ) -> Optional[List[str]]:
         value = self.__root__.get(key, default)
         if not value:

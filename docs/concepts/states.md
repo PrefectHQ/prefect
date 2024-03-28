@@ -53,7 +53,7 @@ The full complement of states and state types includes:
 | Name | Type | Terminal? | Description
 | --- | --- | --- | --- |
 | Scheduled | SCHEDULED | No | The run will begin at a particular time in the future. |
-| Late | SCHEDULED | No | The run's scheduled start time has passed, but it has not transitioned to PENDING (5 seconds by default). |
+| Late | SCHEDULED | No | The run's scheduled start time has passed, but it has not transitioned to PENDING (15 seconds by default). |
 | <span class="no-wrap">AwaitingRetry</span> | SCHEDULED | No | The run did not complete successfully because of a code issue and had remaining retry attempts. |
 | Pending | PENDING | No | The run has been submitted to run, but is waiting on necessary preconditions to be satisfied. |
 | Running | RUNNING | No | The run code is currently executing. |

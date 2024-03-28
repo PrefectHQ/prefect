@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -10,6 +11,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.pydantic import JsonPatch
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
@@ -38,8 +40,12 @@ def raise_on_name_with_banned_characters(name: str) -> None:
         )
 
 
-def raise_on_name_alphanumeric_dashes_only(value, field_name: str = "value"):
-    if not bool(re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)):
+def raise_on_name_alphanumeric_dashes_only(
+    value: Optional[str], field_name: str = "value"
+):
+    if value and not bool(
+        re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)
+    ):
         raise ValueError(
             f"{field_name} must only contain lowercase letters, numbers, and dashes."
         )
@@ -369,3 +375,93 @@ def validate_automation_names(
             trigger.name = f"{values['name']}__automation_{i}"
 
     return field_value
+
+
+### INFRASTRUCTURE SCHEMA VALIDATORS ###
+
+
+def validate_k8s_job_required_components(cls, value: Dict[str, Any]):
+    """
+    Validate that a Kubernetes job manifest has all required components.
+    """
+    from prefect.utilities.pydantic import JsonPatch
+
+    patch = JsonPatch.from_diff(value, cls.base_job_manifest())
+    missing_paths = sorted([op["path"] for op in patch if op["op"] == "add"])
+    if missing_paths:
+        raise ValueError(
+            "Job is missing required attributes at the following paths: "
+            f"{', '.join(missing_paths)}"
+        )
+    return value
+
+
+def validate_k8s_job_compatible_values(cls, value: Dict[str, Any]):
+    """
+    Validate that the provided job values are compatible with the job type.
+    """
+    from prefect.utilities.pydantic import JsonPatch
+
+    patch = JsonPatch.from_diff(value, cls.base_job_manifest())
+    incompatible = sorted(
+        [
+            f"{op['path']} must have value {op['value']!r}"
+            for op in patch
+            if op["op"] == "replace"
+        ]
+    )
+    if incompatible:
+        raise ValueError(
+            "Job has incompatible values for the following attributes: "
+            f"{', '.join(incompatible)}"
+        )
+    return value
+
+
+def cast_k8s_job_customizations(
+    cls, value: Union[JsonPatch, str, List[Dict[str, Any]]]
+):
+    if isinstance(value, list):
+        return JsonPatch(value)
+    elif isinstance(value, str):
+        try:
+            return JsonPatch(json.loads(value))
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"Unable to parse customizations as JSON: {value}. Please make sure"
+                " that the provided value is a valid JSON string."
+            ) from exc
+    return value
+
+
+def set_default_namespace(values: dict) -> dict:
+    """
+    Set the default namespace for a Kubernetes job if not provided.
+    """
+    job = values.get("job")
+
+    namespace = values.get("namespace")
+    job_namespace = job["metadata"].get("namespace") if job else None
+
+    if not namespace and not job_namespace:
+        values["namespace"] = "default"
+
+    return values
+
+
+def set_default_image(values: dict) -> dict:
+    """
+    Set the default image for a Kubernetes job if not provided.
+    """
+    from prefect.utilities.dockerutils import get_prefect_image_name
+
+    job = values.get("job")
+    image = values.get("image")
+    job_image = (
+        job["spec"]["template"]["spec"]["containers"][0].get("image") if job else None
+    )
+
+    if not image and not job_image:
+        values["image"] = get_prefect_image_name()
+
+    return values
