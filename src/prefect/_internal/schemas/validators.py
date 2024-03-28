@@ -22,9 +22,9 @@ import jsonschema
 import pendulum
 import yaml
 
+from prefect._internal._flags import USE_PYDANTIC_V2
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.events.schemas.events import RelatedResource
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -39,12 +39,15 @@ LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
     from prefect.events.schemas import DeploymentTrigger
+    from prefect.events.schemas.events import RelatedResource
     from prefect.utilities.callables import ParameterSchema
 
     if HAS_PYDANTIC_V2:
-        from pydantic.v1.fields import ModelField
-    else:
-        from pydantic.fields import ModelField
+        if USE_PYDANTIC_V2:
+            # TODO: I think we need to account for rewriting the validator to not use ModelField
+            pass
+        if not USE_PYDANTIC_V2:
+            from pydantic.v1.fields import ModelField
 
 
 def raise_on_name_with_banned_characters(name: str) -> str:
@@ -801,8 +804,8 @@ def check_volume_format(volumes: List[str]) -> List[str]:
 
 
 def enforce_maximum_related_resources(
-    value: List[RelatedResource],
-) -> List[RelatedResource]:
+    value: List["RelatedResource"],
+) -> List["RelatedResource"]:
     from prefect.settings import (
         PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
     )
