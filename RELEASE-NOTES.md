@@ -21,7 +21,7 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 
 ### Enhancements
 - Integrating composite triggers with the `DeploymentTrigger` YAML representation — https://github.com/PrefectHQ/prefect/pull/12413
-- Feature: JSON Artifacts — https://github.com/PrefectHQ/prefect/pull/12295
+- Introduce JSON Artifacts — https://github.com/PrefectHQ/prefect/pull/12295
 - Introducing CLI Commands for Shell Flows — https://github.com/PrefectHQ/prefect/pull/11998
 - Add auto-provisioning option for Cloud Run V2 push work pools — https://github.com/PrefectHQ/prefect/pull/12422
 - Increase late runs after seconds setting default — https://github.com/PrefectHQ/prefect/pull/12457
