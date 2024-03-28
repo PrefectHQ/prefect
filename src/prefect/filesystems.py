@@ -18,6 +18,7 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, SecretStr, validator
 
+from prefect._internal.schemas.validators import stringify_path, validate_basepath
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -97,9 +98,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
-        if isinstance(value, Path):
-            return str(value)
-        return value
+        return stringify_path(value)
 
     def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
@@ -280,23 +279,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @validator("basepath")
     def check_basepath(cls, value):
-        scheme, netloc, _, _, _ = urllib.parse.urlsplit(value)
-
-        if not scheme:
-            raise ValueError(f"Base path must start with a scheme. Got {value!r}.")
-
-        if not netloc:
-            raise ValueError(
-                f"Base path must include a location after the scheme. Got {value!r}."
-            )
-
-        if scheme == "file":
-            raise ValueError(
-                "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for"
-                " local file access."
-            )
-
-        return value
+        return validate_basepath(value)
 
     def _resolve_path(self, path: str) -> str:
         base_scheme, base_netloc, base_urlpath, _, _ = urllib.parse.urlsplit(

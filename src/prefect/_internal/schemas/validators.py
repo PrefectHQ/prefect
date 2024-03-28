@@ -2,6 +2,8 @@ import datetime
 import json
 import logging
 import re
+import urllib.parse
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import jsonschema
@@ -478,3 +480,29 @@ def get_or_create_state_name(v: str, values: dict) -> str:
 
 def get_or_create_run_name(name):
     return name or generate_slug(2)
+
+
+def stringify_path(value: Union[str, Path]) -> str:
+    if isinstance(value, Path):
+        return str(value)
+    return value
+
+
+def validate_basepath(value: str) -> str:
+    scheme, netloc, _, _, _ = urllib.parse.urlsplit(value)
+
+    if not scheme:
+        raise ValueError(f"Base path must start with a scheme. Got {value!r}.")
+
+    if not netloc:
+        raise ValueError(
+            f"Base path must include a location after the scheme. Got {value!r}."
+        )
+
+    if scheme == "file":
+        raise ValueError(
+            "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for"
+            " local file access."
+        )
+
+    return value
