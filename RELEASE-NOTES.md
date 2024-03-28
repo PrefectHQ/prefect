@@ -18,15 +18,14 @@
 
 ### Experimental
 - More robust error handling in `TaskServer` — https://github.com/PrefectHQ/prefect/pull/12382
-- Introducing the feature flag for Prefect's event subsystem — https://github.com/PrefectHQ/prefect/pull/12407
 - Add `model_validate_json` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12412
 - Add `model_dump_json` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12406
 - Add hybrid `BaseModel` and public `pydantic` module — https://github.com/PrefectHQ/prefect/pull/12424
-- enhancement: add full Pydantic TypeAdapter backport  — https://github.com/PrefectHQ/prefect/pull/12445
-- Add model_copy to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12418
+- Add Pydantic `TypeAdapter` backport  — https://github.com/PrefectHQ/prefect/pull/12445
+- Add `model_copy` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12418
 
 ### Documentation
-- Shell docs — https://github.com/PrefectHQ/prefect/pull/12474
+- Add shell CLI documentation — https://github.com/PrefectHQ/prefect/pull/12474
 - Add links to serverless and push serverless work pool guides for dependency management — https://github.com/PrefectHQ/prefect/pull/12392
 - Adding small client cancel flow runs example — https://github.com/PrefectHQ/prefect/pull/12390
 - Remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
