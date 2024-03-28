@@ -9,8 +9,7 @@ You can now observe CLI commands as a Prefect flow. For example, take the comman
 Chicago: ⛅️  +50°F
 ```
 
-To run this as a Prefect flow, you can use the following code:
-
+To run this as a Prefect flow, you can use the following CLI command:
 ```python
 » prefect shell watch "curl http://wttr.in/Chicago?format=3"
 17:32:39.562 | INFO    | prefect.engine - Created flow run 'powerful-mushroom' for flow 'Shell Command'
@@ -18,6 +17,7 @@ To run this as a Prefect flow, you can use the following code:
 17:32:40.315 | INFO    | Flow run 'powerful-mushroom' - Finished in state Completed()
 ```
 
+See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/11998
 
 ### Enhancements
 - Integrating composite triggers with the `DeploymentTrigger` YAML representation — https://github.com/PrefectHQ/prefect/pull/12413
