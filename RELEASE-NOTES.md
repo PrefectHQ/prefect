@@ -46,7 +46,7 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 - Add `model_copy` to pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12418
 
 ### Documentation
-- Add shell CLI documentation — https://github.com/PrefectHQ/prefect/pull/12474
+- Add `prefect shell` CLI documentation — https://github.com/PrefectHQ/prefect/pull/12474
 - Add links to serverless and push serverless work pool guides for dependency management — https://github.com/PrefectHQ/prefect/pull/12392
 - Adding small client cancel flow runs example — https://github.com/PrefectHQ/prefect/pull/12390
 - Remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
