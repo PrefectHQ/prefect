@@ -1,5 +1,5 @@
 import json
-from typing import Type
+from typing import Dict, Type
 from uuid import uuid4
 
 import pendulum
@@ -214,6 +214,27 @@ def test_resources_support_indexing(resource_class: Type[Resource]) -> None:
     assert resource["this.thing"] == "hello"
     assert resource["that.thing"] == "world"
 
+    resource["this.thing"] = "goodbye"
+    assert resource["this.thing"] == "goodbye"
+
+    assert "new.thing" not in resource
+    resource["new.thing"] = "new thing"
+    assert resource["new.thing"] == "new thing"
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+def test_resources_support_contains(resource_class: Type[Resource]) -> None:
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "my.unique.resource",
+            "prefect.resource.role": "any-role",
+            "this.thing": "hello",
+            "that.thing": "world",
+        }
+    )
+    assert "this.thing" in resource
+    assert "that.thing" in resource
+
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resource_id_shortcut(resource_class: Type[Resource]) -> None:
@@ -290,6 +311,53 @@ def test_resources_export_to_simple_dicts(resource_class: Type[Resource]) -> Non
     }
 
 
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+def test_resources_export_label_value_arrays(resource_class: Type[Resource]) -> None:
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "my.unique.resource",
+            "prefect.resource.role": "any-role",
+            "hello": "world",
+            "goodbye": "moon",
+        }
+    )
+    assert resource.as_label_value_array() == [
+        {"label": "prefect.resource.id", "value": "my.unique.resource"},
+        {"label": "prefect.resource.role", "value": "any-role"},
+        {"label": "hello", "value": "world"},
+        {"label": "goodbye", "value": "moon"},
+    ]
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+def test_resources_can_test_for_labels(resource_class: Type[Resource]) -> None:
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "my.unique.resource",
+            "prefect.resource.role": "any-role",
+            "hello": "world",
+            "goodbye": "moon",
+        }
+    )
+    assert resource.has_all_labels({"hello": "world"})
+    assert resource.has_all_labels({"hello": "world", "goodbye": "moon"})
+    assert not resource.has_all_labels({"hello": "world", "goodbye": "mars"})
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+def test_resources_provide_label_divers(resource_class: Type[Resource]) -> None:
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "my.unique.resource",
+            "prefect.resource.role": "any-role",
+            "hello": "world",
+            "goodbye": "moon",
+        }
+    )
+    assert isinstance(resource.labels, LabelDiver)
+    assert str(resource.labels.hello) == "world"
+
+
 def test_label_diving_repr():
     representation = repr(
         LabelDiver(
@@ -327,6 +395,19 @@ def test_label_diving():
     assert str(diver.first.second.fourth) == "d"
     assert str(diver.fifth.sixth) == "e"
 
+    assert diver["first"] == "a"
+    assert diver["first.second"] == "b"
+
+    assert len(diver) == 6
+    assert set(diver) == {
+        ("first", "a"),
+        ("first.second", "b"),
+        ("first.second.third", "c"),
+        ("first.second.fourth", "d"),
+        ("fifth.sixth", "e"),
+        ("seventh", "f"),
+    }
+
     with pytest.raises(AttributeError):
         diver.non_existant
 
@@ -335,6 +416,12 @@ def test_label_diving():
 
     with pytest.raises(AttributeError):
         diver.seventh.eighth
+
+    with pytest.raises(AttributeError):
+        diver._something_else
+
+    with pytest.raises(AttributeError):
+        getattr(diver, "_something_else")
 
 
 def test_limit_on_labels():
@@ -364,3 +451,220 @@ def test_limit_on_related_resources():
                 ],
                 id=uuid4(),
             )
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize(
+    "example",
+    [
+        {"a-label": "a-value"},
+        {"a-label": "a-value", "another-label": "a-value"},
+        {"a-label": "a-value", "another-label": "another-value"},
+    ],
+)
+def test_resource_specification_matches_resource(
+    resource_class: Type[Resource], example: Dict[str, str]
+):
+    specification = ResourceSpecification(__root__={"a-label": "a-value"})
+
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "anything",
+            "prefect.resource.role": "anyhoo",
+            **example,
+        }
+    )
+
+    assert specification.matches(resource)
+    assert specification.includes([resource])
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize(
+    "example",
+    [
+        {"a-label": "a-value"},
+        {"a-label": "a-value", "another-label": "a-value"},
+        {"a-label": "a-value", "another-label": "another-value"},
+        {"a-label": "a-val", "another-label": "another-value"},
+        {"a-label": "a-valerie", "another-label": "another-value"},
+        {"a-label": "a-val kilmer", "another-label": "another-value"},
+        {"a-label": "a-valiant-effort", "another-label": "another-value"},
+        {"a-label": "a-val.iant-effort", "another-label": "another-value"},
+    ],
+)
+def test_resource_specification_wildcard_matches_resource(
+    resource_class: Type[Resource], example: Dict[str, str]
+):
+    specification = ResourceSpecification(__root__={"a-label": "a-val*"})
+
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "anything",
+            "prefect.resource.role": "anyhoo",
+            **example,
+        }
+    )
+
+    assert specification.matches(resource)
+    assert specification.includes([resource])
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize(
+    "example",
+    [
+        {},
+        {"a-label": "another-value"},
+        {"a-label": ""},
+        {"another-label": "another-value"},
+    ],
+)
+def test_resource_specification_does_not_match_resource(
+    resource_class: Type[Resource], example: Dict[str, str]
+):
+    specification = ResourceSpecification(__root__={"a-label": "a-value"})
+
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "anything",
+            "prefect.resource.role": "anyhoo",
+            **example,
+        }
+    )
+
+    assert not specification.matches(resource)
+    assert not specification.includes([resource])
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize(
+    "example",
+    [
+        {},
+        {"a-label": "another-value"},
+        {"a-label": ""},
+        {"another-label": "another-value"},
+        {"a-label": "a-vanquishment"},
+        {"a-label": "a-va"},
+    ],
+)
+def test_resource_specification_wildcard_does_not_match_resource(
+    resource_class: Type[Resource], example: Dict[str, str]
+):
+    specification = ResourceSpecification(__root__={"a-label": "a-val*"})
+
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "anything",
+            "prefect.resource.role": "anyhoo",
+            **example,
+        }
+    )
+
+    assert not specification.matches(resource)
+    assert not specification.includes([resource])
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+def test_resource_specification_matches_every_resource(resource_class: Type[Resource]):
+    specification = ResourceSpecification(__root__={})
+    assert specification.matches_every_resource()
+    assert specification.matches_every_resource_of_kind("anything")
+    assert specification.matches_every_resource_of_kind("yep.this.too")
+
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "anything",
+            "prefect.resource.role": "anyhoo",
+        }
+    )
+    assert specification.matches(resource)
+    assert specification.includes([resource])
+
+
+@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+def test_resource_specification_matches_every_resource_of_kind(
+    resource_class: Type[Resource],
+):
+    specification = ResourceSpecification(__root__={"prefect.resource.id": "any.old.*"})
+    assert not specification.matches_every_resource()
+    assert specification.matches_every_resource_of_kind("any.old")
+    assert not specification.matches_every_resource_of_kind("nope.not.this")
+
+    resource = resource_class(
+        __root__={
+            "prefect.resource.id": "any.old.thing",
+            "prefect.resource.role": "anyhoo",
+        }
+    )
+    assert specification.matches(resource)
+    assert specification.includes([resource])
+
+
+def test_resource_specification_does_not_match_every_resource_of_kind():
+    specification = ResourceSpecification(
+        __root__={"prefect.resource.id": "any.old.*", "but-also": "another-thing"}
+    )
+    assert not specification.matches_every_resource()
+    assert not specification.matches_every_resource_of_kind("any.old")
+
+    specification = ResourceSpecification(__root__={"but-also": "another-thing"})
+    assert not specification.matches_every_resource()
+    assert not specification.matches_every_resource_of_kind("any.old")
+
+
+def test_resource_specification_is_dictlike():
+    specification = ResourceSpecification(
+        __root__={
+            "prefect.resource.id": "any.old.*",
+            "but-also": ["another-thing", "or-this"],
+            "": ["is kinda weird"],
+            "also": "kinda weird",
+            "empty": "",
+        }
+    )
+
+    assert specification["prefect.resource.id"] == ["any.old.*"]
+    assert specification["but-also"] == ["another-thing", "or-this"]
+    assert specification[""] == ["is kinda weird"]
+    assert specification["also"] == ["kinda weird"]
+    assert specification["empty"] == []
+    with pytest.raises(KeyError):
+        assert specification["not-here"]
+
+    assert specification.get("prefect.resource.id") == ["any.old.*"]
+    assert specification.get("but-also") == ["another-thing", "or-this"]
+    assert specification.get("") == ["is kinda weird"]
+    assert specification.get("also") == ["kinda weird"]
+    assert specification.get("empty") == []
+    assert specification.get("not-here") == []
+    assert specification.get("not-here", "foo") == ["foo"]
+
+    assert "prefect.resource.id" in specification
+    assert specification.pop("prefect.resource.id") == ["any.old.*"]
+    assert "prefect.resource.id" not in specification
+
+    assert "but-also" in specification
+    assert specification.pop("but-also") == ["another-thing", "or-this"]
+    assert "but-also" not in specification
+
+    assert "whatever" not in specification
+    assert specification.pop("whatever", None) == []
+    assert specification.pop("whatever", "foo") == ["foo"]
+    assert "whatever" not in specification
+
+
+def test_resource_specification_deepcopy():
+    specification = ResourceSpecification(
+        __root__={
+            "prefect.resource.id": "any.old.*",
+            "but-also": ["another-thing", "or-this"],
+        }
+    )
+    copy = specification.deepcopy()
+    assert specification == copy
+    assert specification is not copy
+    assert specification["prefect.resource.id"] == copy["prefect.resource.id"]
+    assert specification["but-also"] == copy["but-also"]
+    assert specification["but-also"] is not copy["but-also"]

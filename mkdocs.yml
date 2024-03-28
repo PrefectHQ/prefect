@@ -130,25 +130,25 @@ extra:
                       Thank you for your feedback! Feel free to
                       <a href="https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=docs%2Cstatus%3Atriage&projects=&template=4_docs_change.yaml"
                       target="_blank"> open an issue </a> with more detail.
-    social:
-        - icon: fontawesome/brands/slack
-          link: https://www.prefect.io/slack/
-        - icon: fontawesome/brands/discourse
-          link: https://discourse.prefect.io/
-        - icon: fontawesome/brands/youtube
-          link: https://www.youtube.com/c/PrefectIO/videos
-        - icon: fontawesome/regular/newspaper
-          link: https://prefect.io/guide/
-        - icon: fontawesome/brands/twitter
-          link: https://twitter.com/PrefectIO
-        - icon: fontawesome/brands/linkedin
-          link: https://www.linkedin.com/company/prefect/
-        - icon: fontawesome/brands/github
-          link: https://github.com/PrefectHQ/prefect
-        - icon: fontawesome/brands/docker
-          link: https://hub.docker.com/r/prefecthq/prefect/
-        - icon: fontawesome/brands/python
-          link: https://pypi.org/project/prefect/
+    # social:
+    #     - icon: fontawesome/brands/slack
+    #       link: https://www.prefect.io/slack/
+    #     - icon: fontawesome/brands/discourse
+    #       link: https://discourse.prefect.io/
+    #     - icon: fontawesome/brands/youtube
+    #       link: https://www.youtube.com/c/PrefectIO/videos
+    #     - icon: fontawesome/regular/newspaper
+    #       link: https://prefect.io/guide/
+    #     - icon: fontawesome/brands/twitter
+    #       link: https://twitter.com/PrefectIO
+    #     - icon: fontawesome/brands/linkedin
+    #       link: https://www.linkedin.com/company/prefect/
+    #     - icon: fontawesome/brands/github
+    #       link: https://github.com/PrefectHQ/prefect
+    #     - icon: fontawesome/brands/docker
+    #       link: https://hub.docker.com/r/prefecthq/prefect/
+    #     - icon: fontawesome/brands/python
+    #       link: https://pypi.org/project/prefect/
 
 nav:
     - Getting Started:
@@ -188,6 +188,7 @@ nav:
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
                 - Managed Execution: guides/managed-execution.md
+                - Shell Commands: guides/cli-shell.md
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md

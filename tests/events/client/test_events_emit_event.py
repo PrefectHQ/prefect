@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest import mock
 from uuid import UUID
 
 import pendulum
@@ -112,6 +113,19 @@ def test_noop_with_null_events_client():
     with temporary_settings(updates={PREFECT_API_URL: None}):
         worker = EventsWorker.instance()
         assert worker.client_type == NullEventsClient
+
+        assert (
+            emit_event(
+                event="vogon.poetry.read",
+                resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+            )
+            is None
+        )
+
+
+def test_noop_with_non_cloud_client(mock_emit_events_to_cloud: mock.Mock):
+    with temporary_settings(updates={PREFECT_API_URL: "http://localhost:4242"}):
+        mock_emit_events_to_cloud.return_value = None
 
         assert (
             emit_event(
