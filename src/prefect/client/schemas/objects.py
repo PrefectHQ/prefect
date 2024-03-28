@@ -27,6 +27,8 @@ from typing_extensions import Literal
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect._internal.schemas.validators import (
+    get_or_create_run_name,
+    get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
 )
@@ -242,13 +244,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
-        """If a name is not provided, use the type"""
-
-        # if `type` is not in `values` it means the `type` didn't pass its own
-        # validation check and an error will be raised after this function is called
-        if v is None and values.get("type"):
-            v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
-        return v
+        return get_or_create_state_name(v, values)
 
     @root_validator
     def default_scheduled_start_time(cls, values):
@@ -546,7 +542,7 @@ class FlowRun(ObjectBaseModel):
 
     @validator("name", pre=True)
     def set_default_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
     # These are server-side optimizations and should not be present on client models
     # TODO: Deprecate these fields
@@ -754,7 +750,7 @@ class TaskRun(ObjectBaseModel):
 
     @validator("name", pre=True)
     def set_default_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
 
 class Workspace(PrefectBaseModel):
@@ -831,8 +827,7 @@ class BlockType(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockSchema(ObjectBaseModel):
@@ -890,9 +885,7 @@ class BlockDocument(ObjectBaseModel):
     def validate_name_characters(cls, v):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
-        if v is not None:
-            raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
@@ -917,8 +910,7 @@ class Flow(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class FlowRunnerSettings(PrefectBaseModel):
@@ -1079,8 +1071,7 @@ class Deployment(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class ConcurrencyLimit(ObjectBaseModel):
@@ -1267,8 +1258,7 @@ class WorkQueue(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1431,8 +1421,7 @@ class WorkPool(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):
