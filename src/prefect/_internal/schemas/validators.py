@@ -24,13 +24,8 @@ import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
 from prefect.events.schemas.events import RelatedResource
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
-from prefect.settings import (
-    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
-    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
-)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
@@ -736,6 +731,8 @@ def validate_not_negative(v: Optional[float]) -> Optional[float]:
 
 
 def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
+    from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
+
     if v is not None:
         try:
             v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
@@ -806,6 +803,10 @@ def check_volume_format(volumes: List[str]) -> List[str]:
 def enforce_maximum_related_resources(
     value: List[RelatedResource],
 ) -> List[RelatedResource]:
+    from prefect.settings import (
+        PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
+    )
+
     if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
         raise ValueError(
             "The maximum number of related resources "
@@ -819,6 +820,10 @@ def enforce_maximum_related_resources(
 
 
 def validate_cache_key_length(cache_key: Optional[str]) -> Optional[str]:
+    from prefect.settings import (
+        PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
+    )
+
     if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
         raise ValueError(
             "Cache key exceeded maximum allowed length of"
