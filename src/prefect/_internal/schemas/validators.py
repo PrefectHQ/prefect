@@ -8,12 +8,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import jsonschema
 import pendulum
+import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
-from prefect.serializers import Serializer
-from prefect.settings import SETTING_VARIABLES, Setting
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
@@ -187,6 +186,14 @@ def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchem
     if value is None:
         return ParameterSchema()
     return value
+
+
+def return_none_schedule(v: Optional[Union[str, dict]]) -> Optional[Union[str, dict]]:
+    from prefect.client.schemas.schedules import NoSchedule
+
+    if isinstance(v, NoSchedule):
+        return None
+    return v
 
 
 ### SCHEDULE SCHEMA VALIDATORS ###
@@ -575,6 +582,8 @@ def validate_load_kwargs(value: dict) -> dict:
 
 
 def cast_type_names_to_serializers(value):
+    from prefect.serializers import Serializer
+
     if isinstance(value, str):
         return Serializer(type=value)
     return value
@@ -609,6 +618,8 @@ def validate_compressionlib(value: str) -> str:
 
 
 def validate_settings(value: dict) -> dict:
+    from prefect.settings import SETTING_VARIABLES, Setting
+
     if value is None:
         return value
 
@@ -623,3 +634,9 @@ def validate_settings(value: dict) -> dict:
             raise ValueError(f"Unknown setting {setting!r}.")
 
     return validated
+
+
+def validate_yaml(value: Union[str, dict]) -> dict:
+    if isinstance(value, str):
+        return yaml.safe_load(value)
+    return value
