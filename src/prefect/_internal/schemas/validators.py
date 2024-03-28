@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import urllib.parse
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -12,6 +13,7 @@ import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.importtools import from_qualified_name
@@ -47,7 +49,9 @@ def raise_on_name_with_banned_characters(name: str) -> str:
     return name
 
 
-def raise_on_name_alphanumeric_dashes_only(value, field_name: str = "value"):
+def raise_on_name_alphanumeric_dashes_only(
+    value: str, field_name: str = "value"
+) -> str:
     if not bool(re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)):
         raise ValueError(
             f"{field_name} must only contain lowercase letters, numbers, and dashes."
@@ -563,6 +567,48 @@ def validate_picklelib(value: str) -> str:
     return value
 
 
+def validate_picklelib_version(values: dict) -> dict:
+    """
+    Infers a default value for `picklelib_version` if null or ensures it matches
+    the version retrieved from the `pickelib`.
+    """
+    picklelib = values.get("picklelib")
+    picklelib_version = values.get("picklelib_version")
+
+    if not picklelib:
+        raise ValueError("Unable to check version of unrecognized picklelib module")
+
+    pickler = from_qualified_name(picklelib)
+    pickler_version = getattr(pickler, "__version__", None)
+
+    if not picklelib_version:
+        values["picklelib_version"] = pickler_version
+    elif picklelib_version != pickler_version:
+        warnings.warn(
+            (
+                f"Mismatched {picklelib!r} versions. Found {pickler_version} in the"
+                f" environment but {picklelib_version} was requested. This may"
+                " cause the serializer to fail."
+            ),
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
+    return values
+
+
+def validate_picklelib_and_modules(values: dict) -> dict:
+    """
+    Prevents modules from being specified if picklelib is not cloudpickle
+    """
+    if values.get("picklelib") != "cloudpickle" and values.get("pickle_modules"):
+        raise ValueError(
+            "`pickle_modules` cannot be used without 'cloudpickle'. Got"
+            f" {values.get('picklelib')!r}."
+        )
+    return values
+
+
 def validate_dump_kwargs(value: dict) -> dict:
     # `default` is set by `object_encoder`. A user provided callable would make this
     # class unserializable anyway.
@@ -640,3 +686,82 @@ def validate_yaml(value: Union[str, dict]) -> dict:
     if isinstance(value, str):
         return yaml.safe_load(value)
     return value
+
+
+# TODO: if we use this elsewhere we can change the error message to be more generic
+def list_length_50_or_less(v: Optional[List[float]]) -> Optional[List[float]]:
+    if isinstance(v, list) and (len(v) > 50):
+        raise ValueError("Can not configure more than 50 retry delays per task.")
+    return v
+
+
+# TODO: if we use this elsewhere we can change the error message to be more generic
+def validate_not_negative(v: Optional[float]) -> Optional[float]:
+    if v is not None and v < 0:
+        raise ValueError("`retry_jitter_factor` must be >= 0.")
+    return v
+
+
+def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
+    if v is not None:
+        try:
+            v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
+        except KeyError as exc:
+            raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
+    return v
+
+
+def validate_default_queue_id_not_none(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        raise ValueError(
+            "`default_queue_id` is a required field. If you are "
+            "creating a new WorkPool and don't have a queue "
+            "ID yet, use the `actions.WorkPoolCreate` model instead."
+        )
+    return v
+
+
+def validate_max_metadata_length(
+    v: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    max_metadata_length = 500
+    if not isinstance(v, dict):
+        return v
+    for key in v.keys():
+        if len(str(v[key])) > max_metadata_length:
+            v[key] = str(v[key])[:max_metadata_length] + "..."
+    return v
+
+
+### DOCKER SCHEMA VALIDATORS ###
+
+
+def validate_registry_url(value: Optional[str]) -> Optional[str]:
+    if isinstance(value, str):
+        if "://" not in value:
+            return "https://" + value
+    return value
+
+
+def convert_labels_to_docker_format(labels: Dict[str, str]) -> Dict[str, str]:
+    labels = labels or {}
+    new_labels = {}
+    for name, value in labels.items():
+        if "/" in name:
+            namespace, key = name.split("/", maxsplit=1)
+            new_namespace = ".".join(reversed(namespace.split(".")))
+            new_labels[f"{new_namespace}.{key}"] = value
+        else:
+            new_labels[name] = value
+    return new_labels
+
+
+def check_volume_format(volumes):
+    for volume in volumes:
+        if ":" not in volume:
+            raise ValueError(
+                "Invalid volume specification. "
+                f"Expected format 'path:container_path', but got {volume!r}"
+            )
+
+    return volumes

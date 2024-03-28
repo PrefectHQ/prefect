@@ -20,6 +20,10 @@ import packaging.version
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    check_volume_format,
+    convert_labels_to_docker_format,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, validator
@@ -317,28 +321,12 @@ class DockerContainer(Infrastructure):
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer"
 
     @validator("labels")
-    def convert_labels_to_docker_format(cls, labels: Dict[str, str]):
-        labels = labels or {}
-        new_labels = {}
-        for name, value in labels.items():
-            if "/" in name:
-                namespace, key = name.split("/", maxsplit=1)
-                new_namespace = ".".join(reversed(namespace.split(".")))
-                new_labels[f"{new_namespace}.{key}"] = value
-            else:
-                new_labels[name] = value
-        return new_labels
+    def validate_labels(cls, labels: Dict[str, str]):
+        return convert_labels_to_docker_format(labels)
 
     @validator("volumes")
-    def check_volume_format(cls, volumes):
-        for volume in volumes:
-            if ":" not in volume:
-                raise ValueError(
-                    "Invalid volume specification. "
-                    f"Expected format 'path:container_path', but got {volume!r}"
-                )
-
-        return volumes
+    def validate_volumes(cls, volumes):
+        return check_volume_format(volumes)
 
     @sync_compatible
     async def run(
