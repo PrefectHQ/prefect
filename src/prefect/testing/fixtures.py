@@ -4,6 +4,7 @@ import socket
 import sys
 from contextlib import contextmanager
 from typing import AsyncGenerator, Generator, List, Optional, Union
+from unittest import mock
 from uuid import UUID
 
 import anyio
@@ -319,8 +320,11 @@ def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
 
 
 @pytest.fixture
-def mock_emit_events_to_cloud(monkeypatch):
-    monkeypatch.setattr("prefect.events.utilities.emit_events_to_cloud", lambda: True)
+def mock_emit_events_to_cloud(monkeypatch) -> mock.Mock:
+    m = mock.Mock()
+    m.return_value = True
+    monkeypatch.setattr("prefect.events.utilities.emit_events_to_cloud", m)
+    return m
 
 
 @pytest.fixture
