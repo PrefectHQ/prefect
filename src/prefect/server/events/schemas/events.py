@@ -23,12 +23,12 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, root_validator, validator
 
+from prefect._internal.schemas.validators import enforce_maximum_related_resources
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
-    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
 
 logger = get_logger(__name__)
@@ -151,14 +151,8 @@ class Event(PrefectBaseModel):
         return resources
 
     @validator("related")
-    def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
-        if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
-            raise ValueError(
-                "The maximum number of related resources "
-                f"is {PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value()}"
-            )
-
-        return value
+    def enforce_max_related_resources(cls, value: List[RelatedResource]):
+        return enforce_maximum_related_resources(value)
 
     def receive(self, received: Optional[pendulum.DateTime] = None) -> "ReceivedEvent":
         kwargs = self.dict()

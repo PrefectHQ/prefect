@@ -20,10 +20,10 @@ from pydantic import Field, root_validator, validator
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
+from prefect._internal.schemas.validators import enforce_maximum_related_resources
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
-    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
 
 if HAS_PYDANTIC_V2:
@@ -155,14 +155,8 @@ class Event(PrefectBaseModel):
         return resources
 
     @validator("related")
-    def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
-        if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
-            raise ValueError(
-                "The maximum number of related resources "
-                f"is {PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value()}"
-            )
-
-        return value
+    def enforce_max_related_resources(cls, value: List[RelatedResource]):
+        return enforce_maximum_related_resources(value)
 
     def find_resource_label(self, label: str) -> Optional[str]:
         """Finds the value of the given label in this event's resource or one of its

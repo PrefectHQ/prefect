@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import re
+import sys
 import urllib.parse
 import warnings
 from pathlib import Path
@@ -14,8 +15,14 @@ import yaml
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
+from prefect.events.schemas.events import RelatedResource
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
+from prefect.settings import (
+    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
+    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
+)
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import JsonPatch
@@ -189,6 +196,22 @@ def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchem
 
     if value is None:
         return ParameterSchema()
+    return value
+
+
+def validate_parameters_conform_to_schema(value: dict, values: dict) -> dict:
+    """Validate that the parameters conform to the parameter schema."""
+    if values.get("enforce_parameter_schema"):
+        validate_values_conform_to_schema(
+            value, values.get("parameter_openapi_schema"), ignore_required=True
+        )
+    return value
+
+
+def validate_parameter_openapi_schema(value: dict, values: dict) -> dict:
+    """Validate that the parameter_openapi_schema is a valid json schema."""
+    if values.get("enforce_parameter_schema"):
+        validate_schema(value)
     return value
 
 
@@ -756,7 +779,7 @@ def convert_labels_to_docker_format(labels: Dict[str, str]) -> Dict[str, str]:
     return new_labels
 
 
-def check_volume_format(volumes):
+def check_volume_format(volumes: List[str]) -> List[str]:
     for volume in volumes:
         if ":" not in volume:
             raise ValueError(
@@ -765,3 +788,69 @@ def check_volume_format(volumes):
             )
 
     return volumes
+
+
+### EVENTS SCHEMA VALIDATORS ###
+
+
+def enforce_maximum_related_resources(
+    value: List[RelatedResource],
+) -> List[RelatedResource]:
+    if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
+        raise ValueError(
+            "The maximum number of related resources "
+            f"is {PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value()}"
+        )
+
+    return value
+
+
+### TASK RUN SCHEMA VALIDATORS ###
+
+
+def validate_cache_key_length(cache_key: Optional[str]) -> Optional[str]:
+    if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
+        raise ValueError(
+            "Cache key exceeded maximum allowed length of"
+            f" {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
+        )
+    return cache_key
+
+
+### PYTHON ENVIRONMENT SCHEMA VALIDATORS ###
+
+
+def infer_python_version(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return f"{sys.version_info.major}.{sys.version_info.minor}"
+    return value
+
+
+def return_v_or_none(v: Optional[str]) -> Optional[str]:
+    """Make sure that empty strings are treated as None"""
+    if not v:
+        return None
+    return v
+
+
+### INFRASTRUCTURE BLOCK SCHEMA VALIDATORS ###
+
+
+def validate_block_is_infrastructure(v: "Block") -> "Block":
+    from prefect.infrastructure.base import Infrastructure
+
+    print("v: ", v)
+    if not isinstance(v, Infrastructure):
+        raise TypeError("Provided block is not a valid infrastructure block.")
+
+    return v
+
+
+### PROCESS JOB CONFIGURATION VALIDATORS ###
+
+
+def validate_command(v: str) -> Path:
+    """Make sure that the working directory is formatted for the current platform."""
+    if v:
+        return relative_path_to_current_platform(v)
+    return v
