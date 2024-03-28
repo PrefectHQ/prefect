@@ -22,8 +22,8 @@ import jsonschema
 import pendulum
 import yaml
 
-from prefect._internal._flags import USE_PYDANTIC_V2
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
