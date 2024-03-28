@@ -38,11 +38,11 @@ from prefect.server.utilities.schemas import PrefectBaseModel
 class V1Trigger(PrefectBaseModel):
     """A copy of the original events.automations.Trigger class for reference."""
 
-    match: ResourceSpecification = Field(
+    match: ResourceSpecification = Field(  # pragma: no branch
         default_factory=lambda: ResourceSpecification(__root__={}),
         description="Labels for resources which this Automation will match.",
     )
-    match_related: ResourceSpecification = Field(
+    match_related: ResourceSpecification = Field(  # pragma: no branch
         default_factory=lambda: ResourceSpecification(__root__={}),
         description="Labels for related resources which this Automation will match.",
     )
@@ -162,7 +162,7 @@ def assert_triggers_match(v1_trigger: V1Trigger, v2_trigger: ResourceTrigger):
         assert v2_trigger.threshold == v1_trigger.threshold
         assert v2_trigger.within == v1_trigger.within
 
-    elif isinstance(v2_trigger, MetricTrigger):
+    elif isinstance(v2_trigger, MetricTrigger):  # pragma: no branch
         assert v2_trigger.type == "metric"
         assert v2_trigger.dict()["type"] == "metric"
 

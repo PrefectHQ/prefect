@@ -40,7 +40,7 @@ def emit_event(
 
     Returns:
         The event that was emitted if worker is using a client that emit
-        events, otherwise None.
+        events, otherwise None
     """
     if not emit_events_to_cloud():
         return None

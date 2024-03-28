@@ -2,6 +2,7 @@ import json
 from uuid import UUID, uuid4
 
 import pendulum
+import pytest
 from pendulum.datetime import DateTime
 
 from prefect.events import Event, RelatedResource, Resource
@@ -144,3 +145,67 @@ def test_client_events_may_have_a_name_label():
         "Related 2",
         None,
     ]
+
+
+@pytest.fixture
+def example_event() -> Event:
+    return Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={
+            "prefect.resource.id": "hello",
+            "name": "Hello!",
+            "related:psychout:name": "Psych!",
+        },
+        related=[
+            {
+                "prefect.resource.id": "related-1",
+                "prefect.resource.role": "role-1",
+                "name": "Related 1",
+            },
+            {
+                "prefect.resource.id": "related-2",
+                "prefect.resource.role": "role-1",
+                "name": "Related 2",
+            },
+            {
+                "prefect.resource.id": "related-3",
+                "prefect.resource.role": "role-2",
+                "name": "Related 3",
+            },
+        ],
+        id=uuid4(),
+    )
+
+
+def test_finding_resource_label_top_level(example_event: Event):
+    assert example_event.find_resource_label("name") == "Hello!"
+
+
+def test_finding_resource_label_first_related(example_event: Event):
+    assert example_event.find_resource_label("related:role-1:name") == "Related 1"
+
+
+def test_finding_resource_label_other_related(example_event: Event):
+    assert example_event.find_resource_label("related:role-2:name") == "Related 3"
+
+
+def test_finding_resource_label_fallsback_to_resource(example_event: Event):
+    assert example_event.find_resource_label("related:psychout:name") == "Psych!"
+
+
+def test_finding_resource_in_role(example_event: Event):
+    assert example_event.resource_in_role["role-1"].id == "related-1"
+    assert example_event.resource_in_role["role-2"].id == "related-3"
+
+    with pytest.raises(KeyError):
+        assert example_event.resource_in_role["role-3"] is None
+
+
+def test_finding_resources_in_role(example_event: Event):
+    assert [r.id for r in example_event.resources_in_role["role-1"]] == [
+        "related-1",
+        "related-2",
+    ]
+    assert [r.id for r in example_event.resources_in_role["role-2"]] == ["related-3"]
+    assert example_event.resources_in_role["role-3"] == []

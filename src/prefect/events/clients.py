@@ -17,7 +17,6 @@ from uuid import UUID
 import orjson
 import pendulum
 from cachetools import TTLCache
-from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
     ConnectionClosed,
@@ -29,8 +28,8 @@ from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 
-if TYPE_CHECKING:  # pragma: no branch
-    from prefect.events.filters import EventFilter  # pragma: no cover
+if TYPE_CHECKING:
+    from prefect.events.filters import EventFilter
 
 logger = get_logger(__name__)
 
@@ -331,20 +330,18 @@ class PrefectCloudEventSubscriber:
             message: Dict[str, Any] = orjson.loads(await self._websocket.recv())
             logger.debug("  auth result %s", message)
             assert message["type"] == "auth_success", message.get("reason", "")
-        except (AssertionError, ConnectionClosedError) as e:
-            if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
-                reason = None
-                if isinstance(e, AssertionError):
-                    reason = e.args[0]
-                elif isinstance(e, ConnectionClosedError):  # pragma: no branch
-                    reason = e.reason
-
-                raise Exception(
-                    "Unable to authenticate to the event stream. Please ensure the "
-                    "provided api_key you are using is valid for this environment. "
-                    f"Reason: {reason}"
-                ) from e
-            raise  # pragma: no cover
+        except AssertionError as e:
+            raise Exception(
+                "Unable to authenticate to the event stream. Please ensure the "
+                "provided api_key you are using is valid for this environment. "
+                f"Reason: {e.args[0]}"
+            )
+        except ConnectionClosedError as e:
+            raise Exception(
+                "Unable to authenticate to the event stream. Please ensure the "
+                "provided api_key you are using is valid for this environment. "
+                f"Reason: {e.reason}"
+            ) from e
 
         from prefect.events.filters import EventOccurredFilter
 

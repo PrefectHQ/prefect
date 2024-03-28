@@ -162,6 +162,33 @@ def test_server_events_can_be_received_from_client_events(start_of_test: DateTim
     assert start_of_test <= server_event.received <= pendulum.now("UTC")
 
 
+def test_server_events_can_be_received_from_client_events_with_times(
+    start_of_test: DateTime,
+):
+    client_event = Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        related=[
+            {"prefect.resource.id": "related-1", "prefect.resource.role": "role-1"},
+        ],
+        id=uuid4(),
+    )
+
+    expected_received = pendulum.now("UTC").subtract(minutes=5)
+
+    server_event = client_event.receive(received=expected_received)
+
+    assert isinstance(server_event, ReceivedEvent)
+
+    assert server_event.occurred == client_event.occurred
+    assert server_event.event == client_event.event
+    assert server_event.resource == client_event.resource
+    assert server_event.related == client_event.related
+    assert server_event.id == client_event.id
+    assert server_event.received == expected_received
+
+
 def test_json_representation():
     event = ReceivedEvent(
         occurred=pendulum.now("UTC"),
@@ -193,3 +220,84 @@ def test_json_representation():
         "follows": None,
         "received": event.received.isoformat(),
     }
+
+
+def test_client_event_involved_resources():
+    event = Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        related=[
+            {"prefect.resource.id": "related-1", "prefect.resource.role": "role-1"},
+        ],
+        id=uuid4(),
+    )
+
+    assert [resource.id for resource in event.involved_resources] == [
+        "hello",
+        "related-1",
+    ]
+
+
+@pytest.fixture
+def example_event() -> Event:
+    return Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={
+            "prefect.resource.id": "hello",
+            "name": "Hello!",
+            "related:psychout:name": "Psych!",
+        },
+        related=[
+            {
+                "prefect.resource.id": "related-1",
+                "prefect.resource.role": "role-1",
+                "name": "Related 1",
+            },
+            {
+                "prefect.resource.id": "related-2",
+                "prefect.resource.role": "role-1",
+                "name": "Related 2",
+            },
+            {
+                "prefect.resource.id": "related-3",
+                "prefect.resource.role": "role-2",
+                "name": "Related 3",
+            },
+        ],
+        id=uuid4(),
+    )
+
+
+def test_finding_resource_label_top_level(example_event: Event):
+    assert example_event.find_resource_label("name") == "Hello!"
+
+
+def test_finding_resource_label_first_related(example_event: Event):
+    assert example_event.find_resource_label("related:role-1:name") == "Related 1"
+
+
+def test_finding_resource_label_other_related(example_event: Event):
+    assert example_event.find_resource_label("related:role-2:name") == "Related 3"
+
+
+def test_finding_resource_label_fallsback_to_resource(example_event: Event):
+    assert example_event.find_resource_label("related:psychout:name") == "Psych!"
+
+
+def test_finding_resource_in_role(example_event: Event):
+    assert example_event.resource_in_role["role-1"].id == "related-1"
+    assert example_event.resource_in_role["role-2"].id == "related-3"
+
+    with pytest.raises(KeyError):
+        assert example_event.resource_in_role["role-3"] is None
+
+
+def test_finding_resources_in_role(example_event: Event):
+    assert [r.id for r in example_event.resources_in_role["role-1"]] == [
+        "related-1",
+        "related-2",
+    ]
+    assert [r.id for r in example_event.resources_in_role["role-2"]] == ["related-3"]
+    assert example_event.resources_in_role["role-3"] == []

@@ -3,10 +3,10 @@ from uuid import UUID
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
-if HAS_PYDANTIC_V2:  # pragma: no branch
+if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field
 else:
-    from pydantic import Field  # pragma: no cover
+    from pydantic import Field
 
 from typing_extensions import Literal
 
