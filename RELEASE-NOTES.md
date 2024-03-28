@@ -17,6 +17,10 @@ To run this as a Prefect flow, you can use the following CLI command:
 17:32:40.315 | INFO    | Flow run 'powerful-mushroom' - Finished in state Completed()
 ```
 
+See these [docs](https://docs.prefect.io/latest/guides/cli-shell) to learn how to:
+- run a shell command as a Prefect flow on-demand with `watch`
+- schedule a shell command as a recurring Prefect flow using `serve`
+
 See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/11998
 
 ### Enhancements
