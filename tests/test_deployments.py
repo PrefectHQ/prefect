@@ -20,8 +20,10 @@ from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
 from prefect.deployments.deployments import load_flow_from_flow_run
 
 if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
     from pydantic.v1.error_wrappers import ValidationError
 else:
+    import pydantic
     from pydantic.error_wrappers import ValidationError
 
 import prefect.server.models as models
@@ -32,7 +34,7 @@ from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
@@ -153,7 +155,10 @@ class TestDeploymentBasicInterface:
         deployment = Deployment(
             name="TEST",
             flow_name="fn",
-            triggers=[DeploymentTrigger(), DeploymentTrigger(name="run-it")],
+            triggers=[
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {}),
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {"name": "run-it"}),
+            ],
         )
 
         assert deployment.triggers[0].name == "TEST__automation_1"
@@ -902,7 +907,7 @@ class TestDeploymentApply:
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
 
-        trigger = DeploymentTrigger()
+        trigger = pydantic.parse_obj_as(DeploymentTriggerTypes, {})
 
         deployment = Deployment(
             name="TEST",
