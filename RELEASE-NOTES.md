@@ -49,7 +49,7 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 - Add `prefect shell` CLI documentation — https://github.com/PrefectHQ/prefect/pull/12474
 - Add links to serverless and push serverless work pool guides for dependency management — https://github.com/PrefectHQ/prefect/pull/12392
 - Add example of transitioning all running flows to `CANCELLED` via Prefect client — https://github.com/PrefectHQ/prefect/pull/12390
-- Remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
+- Temporarily remove social cards  — https://github.com/PrefectHQ/prefect/pull/12465
 
 ### Contributors
 - @hainenber
