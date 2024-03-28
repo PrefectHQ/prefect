@@ -24,7 +24,7 @@ See these [docs](https://docs.prefect.io/latest/guides/cli-shell) to learn how t
 See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/11998
 
 ### Enhancements
-- Integrating composite triggers with the `DeploymentTrigger` YAML representation — https://github.com/PrefectHQ/prefect/pull/12413
+- Integrate composite triggers with the `DeploymentTrigger` YAML representation — https://github.com/PrefectHQ/prefect/pull/12413
 - Introduce JSON Artifacts — https://github.com/PrefectHQ/prefect/pull/12295
 - Introducing CLI Commands for Shell Flows — https://github.com/PrefectHQ/prefect/pull/11998
 - Add auto-provisioning option for Cloud Run V2 push work pools — https://github.com/PrefectHQ/prefect/pull/12422
