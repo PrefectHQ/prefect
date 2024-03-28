@@ -1179,7 +1179,7 @@ this often. Defaults to `5`.
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
-    default=timedelta(seconds=5),
+    default=timedelta(seconds=15),
 )
 """The late runs service will mark runs as late after they
 have exceeded their scheduled start time by this many seconds. Defaults
@@ -1587,10 +1587,6 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS = Setting(bool, default=False)
-"""
-Whether or not to enable internal experimental Pydantic v2 behavior.
-"""
 
 # Defaults -----------------------------------------------------------------------------
 
