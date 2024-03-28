@@ -12,8 +12,6 @@ Chicago: ⛅️  +50°F
 To run this as a Prefect flow, you can use the following code:
 
 ```python
-prefect shell watch "curl http://wttr.in/Chicago?format=3"
-
 » prefect shell watch "curl http://wttr.in/Chicago?format=3"
 17:32:39.562 | INFO    | prefect.engine - Created flow run 'powerful-mushroom' for flow 'Shell Command'
 17:32:40.171 | INFO    | Flow run 'powerful-mushroom' - Chicago: ⛅️  +50°F
