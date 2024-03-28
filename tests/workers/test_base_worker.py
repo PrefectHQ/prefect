@@ -1329,12 +1329,12 @@ class TestPrepareForFlowRun:
         return FlowRun(name="my-flow-run-name", flow_id=uuid.uuid4())
 
     @pytest.fixture
-    def deployment(self):
-        return DeploymentResponse(name="my-deployment-name")
-
-    @pytest.fixture
     def flow(self):
         return Flow(name="my-flow-name")
+
+    @pytest.fixture
+    def deployment(self, flow):
+        return DeploymentResponse(name="my-deployment-name", flow_id=flow.id)
 
     def test_prepare_for_flow_run_without_deployment_and_flow(
         self, job_config, flow_run

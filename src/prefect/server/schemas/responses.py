@@ -20,11 +20,8 @@ import prefect.server.schemas as schemas
 from prefect.server.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
-from prefect.server.utilities.schemas.transformations import (
-    FieldFrom,
-    copy_model_fields,
-)
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.names import generate_slug
 
 if TYPE_CHECKING:
     import prefect.server.database.orm_models
@@ -168,35 +165,119 @@ class WorkerFlowRunResponse(PrefectBaseModel):
     flow_run: schemas.core.FlowRun
 
 
-@copy_model_fields
 class FlowRunResponse(ORMBaseModel):
-    name: str = FieldFrom(schemas.core.FlowRun)
-    flow_id: UUID = FieldFrom(schemas.core.FlowRun)
-    state_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    work_queue_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    context: dict = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    state_type: Optional[schemas.states.StateType] = FieldFrom(schemas.core.FlowRun)
-    state_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    run_count: int = FieldFrom(schemas.core.FlowRun)
-    expected_start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
-    next_scheduled_start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
-    start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
-    end_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
-    total_run_time: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
-    estimated_run_time: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
-    estimated_start_time_delta: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
-    auto_scheduled: bool = FieldFrom(schemas.core.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    created_by: Optional[CreatedBy] = FieldFrom(schemas.core.FlowRun)
+    name: str = Field(
+        default_factory=lambda: generate_slug(2),
+        description=(
+            "The name of the flow run. Defaults to a random slug if not specified."
+        ),
+        example="my-flow-run",
+    )
+    flow_id: UUID = Field(default=..., description="The id of the flow being run.")
+    state_id: Optional[UUID] = Field(
+        default=None, description="The id of the flow run's current state."
+    )
+    deployment_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "The id of the deployment associated with this flow run, if available."
+        ),
+    )
+    work_queue_id: Optional[UUID] = Field(
+        default=None, description="The id of the run's work pool queue."
+    )
+    work_queue_name: Optional[str] = Field(
+        default=None, description="The work queue that handled this flow run."
+    )
+    flow_version: Optional[str] = Field(
+        default=None,
+        description="The version of the flow executed in this flow run.",
+        example="1.0",
+    )
+    parameters: dict = Field(
+        default_factory=dict, description="Parameters for the flow run."
+    )
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "An optional idempotency key for the flow run. Used to ensure the same flow"
+            " run is not created multiple times."
+        ),
+    )
+    context: dict = Field(
+        default_factory=dict,
+        description="Additional context for the flow run.",
+        example={"my_var": "my_val"},
+    )
+    empirical_policy: FlowRunPolicy = Field(
+        default_factory=FlowRunPolicy,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags on the flow run",
+        example=["tag-1", "tag-2"],
+    )
+    parent_task_run_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "If the flow run is a subflow, the id of the 'dummy' task in the parent"
+            " flow used to track subflow state."
+        ),
+    )
+    state_type: Optional[schemas.states.StateType] = Field(
+        default=None, description="The type of the current flow run state."
+    )
+    state_name: Optional[str] = Field(
+        default=None, description="The name of the current flow run state."
+    )
+    run_count: int = Field(
+        default=0, description="The number of times the flow run was executed."
+    )
+    expected_start_time: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The flow run's expected start time.",
+    )
+    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The next time the flow run is scheduled to start.",
+    )
+    start_time: Optional[DateTimeTZ] = Field(
+        default=None, description="The actual start time."
+    )
+    end_time: Optional[DateTimeTZ] = Field(
+        default=None, description="The actual end time."
+    )
+    total_run_time: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description=(
+            "Total run time. If the flow run was executed multiple times, the time of"
+            " each run will be summed."
+        ),
+    )
+    estimated_run_time: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description="A real-time estimate of the total run time.",
+    )
+    estimated_start_time_delta: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description="The difference between actual and expected start time.",
+    )
+    auto_scheduled: bool = Field(
+        default=False,
+        description="Whether or not the flow run was automatically scheduled.",
+    )
+    infrastructure_document_id: Optional[UUID] = Field(
+        default=None,
+        description="The block document defining infrastructure to use this flow run.",
+    )
+    infrastructure_pid: Optional[str] = Field(
+        default=None,
+        description="The id of the flow run as returned by an infrastructure block.",
+    )
+    created_by: Optional[CreatedBy] = Field(
+        default=None,
+        description="Optional information about the creator of this flow run.",
+    )
     work_pool_id: Optional[UUID] = Field(
         default=None,
         description="The id of the flow run's work pool.",
@@ -206,8 +287,13 @@ class FlowRunResponse(ORMBaseModel):
         description="The name of the flow run's work pool.",
         example="my-work-pool",
     )
-    state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
-    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
+    state: Optional[schemas.states.State] = Field(
+        default=None, description="The current state of the flow run."
+    )
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Variables used as overrides in the base job template",
+    )
 
     @classmethod
     def from_orm(cls, orm_flow_run: "prefect.server.database.orm_models.ORMFlowRun"):
@@ -236,45 +322,108 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
-@copy_model_fields
 class DeploymentResponse(ORMBaseModel):
-    name: str = FieldFrom(schemas.core.Deployment)
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    flow_id: UUID = FieldFrom(schemas.core.Deployment)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.Deployment
+    name: str = Field(default=..., description="The name of the deployment.")
+    version: Optional[str] = Field(
+        default=None, description="An optional version for the deployment."
     )
-    is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    paused: bool = FieldFrom(schemas.core.Deployment)
-    schedules: List[schemas.core.DeploymentSchedule] = FieldFrom(
-        schemas.core.Deployment
+    description: Optional[str] = Field(
+        default=None, description="A description for the deployment."
     )
-    infra_overrides: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
-    tags: List[str] = FieldFrom(schemas.core.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.Deployment)
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
-        schemas.core.Deployment
+    flow_id: UUID = Field(
+        default=..., description="The flow id associated with the deployment."
     )
-    path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
-    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    created_by: Optional[CreatedBy] = FieldFrom(schemas.core.Deployment)
-    updated_by: Optional[UpdatedBy] = FieldFrom(schemas.core.Deployment)
-    work_pool_name: Optional[str] = Field(
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        default=None, description="A schedule for the deployment."
+    )
+    is_schedule_active: bool = Field(
+        default=True, description="Whether or not the deployment schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
+    schedules: List[schemas.core.DeploymentSchedule] = Field(
+        default_factory=list, description="A list of schedules for the deployment."
+    )
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides to apply to the base infrastructure block at runtime.",
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags for the deployment",
+        example=["tag-1", "tag-2"],
+    )
+    work_queue_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's work pool.",
+        description=(
+            "The work queue for the deployment. If no work queue is set, work will not"
+            " be scheduled."
+        ),
+    )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The last time the deployment was polled for status updates.",
+    )
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The parameter schema of the flow, including defaults.",
+    )
+    path: Optional[str] = Field(
+        default=None,
+        description=(
+            "The path to the working directory for the workflow, relative to remote"
+            " storage or an absolute path."
+        ),
+    )
+    pull_steps: Optional[List[dict]] = Field(
+        default=None, description="Pull steps for cloning and running this deployment."
+    )
+    entrypoint: Optional[str] = Field(
+        default=None,
+        description=(
+            "The path to the entrypoint for the workflow, relative to the `path`."
+        ),
+    )
+    manifest_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "The path to the flow's manifest file, relative to the chosen storage."
+        ),
+    )
+    storage_document_id: Optional[UUID] = Field(
+        default=None,
+        description="The block document defining storage used for this flow.",
+    )
+    infrastructure_document_id: Optional[UUID] = Field(
+        default=None,
+        description="The block document defining infrastructure to use for flow runs.",
+    )
+    created_by: Optional[CreatedBy] = Field(
+        default=None,
+        description="Optional information about the creator of this deployment.",
+    )
+    updated_by: Optional[UpdatedBy] = Field(
+        default=None,
+        description="Optional information about the updater of this deployment.",
+    )
+    work_pool_name: Optional[str] = Field(
+        default=None, description="The name of the deployment's work pool."
     )
     status: Optional[schemas.statuses.DeploymentStatus] = Field(
         default=schemas.statuses.DeploymentStatus.NOT_READY,
         description="Whether the deployment is ready to run flows.",
     )
-    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
 
     @classmethod
     def from_orm(
