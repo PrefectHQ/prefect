@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, Set, Type, TypeVar, Union
+from typing import Any, Dict, Generic, Literal, Optional, Set, Type, TypeVar, Union
 
 from typing_extensions import Self, TypeAlias
 
@@ -13,10 +13,42 @@ from ._base_model import BaseModel as PydanticBaseModel
 IncEx: TypeAlias = "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
 logger = get_logger("prefect._internal.pydantic")
 
-if HAS_PYDANTIC_V2:
-    from pydantic.json_schema import GenerateJsonSchema  # type: ignore
+T = TypeVar("T")
+B = TypeVar("B", bound=PydanticBaseModel)
 
-T = TypeVar("T", bound=PydanticBaseModel)
+if HAS_PYDANTIC_V2:
+    from pydantic import (
+        TypeAdapter as BaseTypeAdapter,
+    )
+    from pydantic import (
+        parse_obj_as,  # type: ignore
+    )
+    from pydantic.json_schema import GenerateJsonSchema  # type: ignore
+else:
+    from pydantic import parse_obj_as  # type: ignore
+
+if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
+    TypeAdapter = BaseTypeAdapter  # type: ignore
+
+else:
+
+    class TypeAdapter(Generic[T]):
+        def __init__(self, type_: Union[T, Type[T]]) -> None:
+            self.type_ = type_
+
+        def validate_python(
+            self,
+            __object: Any,
+            /,
+            *,
+            strict: Optional[bool] = None,
+            from_attributes: Optional[bool] = None,
+            context: Optional[Dict[str, Any]] = None,
+        ) -> Any:
+            return parse_obj_as(self.type_, __object)  # type: ignore
+
+
+# BaseModel methods and definitions
 
 
 def model_copy(
@@ -216,13 +248,13 @@ def model_json_schema(
 
 
 def model_validate(
-    model: Type[T],
+    model: Type[B],
     obj: Any,
     *,
     strict: Optional[bool] = False,
     from_attributes: Optional[bool] = False,
     context: Optional[Dict[str, Any]] = None,
-) -> T:
+) -> B:
     """Validate a pydantic model instance.
 
     Args:
@@ -252,12 +284,12 @@ def model_validate(
 
 
 def model_validate_json(
-    model: Type[T],
+    model: Type[B],
     json_data: Union[str, bytes, bytearray],
     *,
-    strict: bool = False,
+    strict: Optional[bool] = False,
     context: Optional[Dict[str, Any]] = None,
-) -> T:
+) -> B:
     """Validate the given JSON data against the Pydantic model.
 
     Args:
@@ -331,7 +363,8 @@ else:
             round_trip: bool = False,
             warnings: bool = True,
         ) -> str:
-            return super().model_dump_json(
+            return model_dump_json(
+                model_instance=self,
                 indent=indent,
                 include=include,
                 exclude=exclude,
@@ -389,7 +422,7 @@ else:
             cls: Type["Self"],
             json_data: Union[str, bytes, bytearray],
             *,
-            strict: bool = False,
+            strict: Optional[bool] = False,
             context: Optional[Dict[str, Any]] = None,
         ) -> "Self":
             return model_validate_json(
@@ -398,3 +431,34 @@ else:
                 strict=strict,
                 context=context,
             )
+
+
+# TypeAdapter methods and definitions
+
+
+def validate_python(
+    type_: Union[T, Type[T]],
+    __object: Any,
+    /,
+    *,
+    strict: Optional[bool] = None,
+    from_attributes: Optional[bool] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> T:
+    """Validate a Python object against the model.
+
+    Args:
+        type_: The type to validate against.
+        __object: The Python object to validate against the model.
+        strict: Whether to strictly check types.
+        from_attributes: Whether to extract data from object attributes.
+        context: Additional context to pass to the validator.
+
+    !!! note
+        When using `TypeAdapter` with a Pydantic `dataclass`, the use of the `from_attributes`
+        argument is not supported.
+
+    Returns:
+        The validated object.
+    """
+    return TypeAdapter(type_).validate_python(__object)
