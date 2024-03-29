@@ -195,7 +195,7 @@ When running flows, you can pass in job variables that override any values set o
 
 ### Using the custom run form in the UI
 
-Custom runs allow yo uto pass in a dictionary of variables into your flow run infrastructure. Using the same `env` example from above, we could do the following.
+Custom runs allow you to pass in a dictionary of variables into your flow run infrastructure. Using the same `env` example from above, we could do the following:
 
 ![Job variables via custom run](/img/ui/deployment-job-variables.png)
 
