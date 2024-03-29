@@ -7,7 +7,14 @@ if typing.TYPE_CHECKING:
     from pydantic import Field, SecretField, validator, root_validator
     from .main import BaseModel, PrefectBaseModel
 
-__all__ = ["BaseModel", "Field", "SecretField", "validator", "root_validator"]
+__all__ = [
+    "BaseModel",
+    "PrefectBaseModel",
+    "Field",
+    "SecretField",
+    "validator",
+    "root_validator",
+]
 
 _dynamic_imports: "typing.Dict[str, tuple[str, str]]" = {
     "BaseModel": ("prefect.pydantic", ".main"),
