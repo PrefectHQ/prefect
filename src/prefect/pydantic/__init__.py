@@ -16,7 +16,7 @@ __all__ = [
     "root_validator",
 ]
 
-_dynamic_imports: "typing.Dict[str, tuple[str, str]]" = {
+_dynamic_imports: "typing.Dict[str, typing.Tuple[str, str]]" = {
     "BaseModel": ("prefect.pydantic", ".main"),
     "PrefectBaseModel": ("prefect.pydantic", ".main"),
 }
