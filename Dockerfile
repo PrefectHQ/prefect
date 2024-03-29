@@ -12,24 +12,28 @@ ARG BUILD_PYTHON_VERSION=3.8
 ARG NODE_VERSION=16.15
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""
-# Skip building the UI
-ARG SKIP_UI_BUILD=false
 
 # Build the UI distributable.
 FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
 
 WORKDIR /opt/ui
 
-RUN if [ "$SKIP_UI_BUILD" = "false" ]; then \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && npm install -g npm@8 \
-    && npm ci \
-    && npm run build; \
-    fi
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install a newer npm to avoid esbuild errors
+RUN npm install -g npm@8
+
+# Install dependencies separately so they cache
+COPY ./ui/package*.json ./
+RUN npm ci
+
+# Build static UI files
+COPY ./ui .
+RUN npm run build
 
 
 # Build the Python distributable.
@@ -48,11 +52,8 @@ RUN apt-get update && \
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
 
-# Package the UI into the distributable if it was built.
-RUN if [ "$SKIP_UI_BUILD" = "false" ]; then \
-    mkdir -p ./src/prefect/server/ui && \
-    cp -r /opt/ui/dist/* ./src/prefect/server/ui; \
-    fi
+# Package the UI into the distributable.
+COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && python setup.py sdist
