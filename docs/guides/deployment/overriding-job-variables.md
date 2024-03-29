@@ -209,7 +209,7 @@ prefect deployment run --id "fb8e3073-c449-474b-b993-851fe5e80e53" --job-variabl
 
 ### Using job variables in automations
 
-Additionally, runs kicked off via automation actions can use job variables, including ones rendered from jinja templates.
+Additionally, runs kicked off via automation actions can use job variables, including ones rendered from Jinja templates.
 
 ![Job variables via automation action](/img/ui/automations-action-job-variable.png)
 
