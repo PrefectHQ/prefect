@@ -126,6 +126,7 @@ jobs:
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
+        id: setup_python
         with:
           python-version: "3.10"
 
@@ -137,7 +138,7 @@ jobs:
         id: cache-uv
         with:
           path: ~/.cache/uv
-          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Install python packages
         run: |
