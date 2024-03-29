@@ -207,7 +207,7 @@ Similarly, runs kicked off via cli accept job variables with the `-jv --job-vari
 prefect deployment run --id "fb8e3073-c449-474b-b993-851fe5e80e53" --job-variable MY_NEW_ENV_VAR=42 --job-variable HELLO=THERE
 ```
 
-### Using job variables in Automations
+### Using job variables in automations
 
 Additionally, runs kicked off via automation actions can use job variables, including ones rendered from jinja templates.
 
