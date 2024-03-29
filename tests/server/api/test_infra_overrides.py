@@ -3,6 +3,7 @@ from typing import Optional
 
 import pytest
 
+from prefect.infrastructure import KubernetesClusterConfig
 from prefect.server import models, schemas
 from prefect.server.models import deployments
 from prefect.settings import (
@@ -17,6 +18,13 @@ def enable_infra_overrides():
         {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
     ):
         yield
+
+
+@pytest.fixture
+async def k8s_credentials():
+    block = KubernetesClusterConfig(context_name="default", config={})
+    await block.save("k8s-credentials")
+    return block
 
 
 async def create_work_pool(
@@ -373,6 +381,72 @@ class TestInfraOverrides:
         # verify validation passed since the job templates's default was used
         assert response.status_code == 201
 
+    async def test_base_job_template_default_references_to_blocks(
+        self,
+        session,
+        client,
+        k8s_credentials,
+        enable_infra_overrides,
+    ):
+        # create a pool with a pool schema that has a default value referencing a block
+        *_, deployment = await create_objects_for_pool(
+            session,
+            pool_job_config={
+                "variables": {
+                    "type": "object",
+                    "required": ["k8s_credentials"],
+                    "properties": {
+                        "k8s_credentials": {
+                            "allOf": [{"$ref": "#/definitions/k8s_credentials"}],
+                            "title": "K8s Credentials",
+                            "default": {
+                                "$ref": {
+                                    "block_document_id": f"{k8s_credentials._block_document_id}"
+                                }
+                            },
+                            "description": "The credentials to use to authenticate with K8s.",
+                        },
+                    },
+                    "definitions": {
+                        "k8s_credentials": {
+                            "type": "object",
+                            "title": "k8s_credentials",
+                            "required": ["context_name", "config"],
+                            "properties": {
+                                "context_name": {
+                                    "type": "string",
+                                    "title": "Context name",
+                                },
+                                "config": {
+                                    "type": "object",
+                                    "title": "Config",
+                                },
+                            },
+                            "description": "Block used to manage K8s Credentials.",
+                            "block_type_slug": "k8s-credentials",
+                            "block_schema_references": {},
+                        }
+                    },
+                    "description": "Variables for a Modal flow run.",
+                },
+                "job_configuration": {
+                    "k8s_credentials": "{{ k8s_credentials }}",
+                },
+            },
+        )
+
+        # create a flow run with no overrides
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run", json={}
+        )
+
+        # a successful response means the block was resolved
+        assert response.status_code == 201, response.text
+
+        # because we the default came from the default base job template,
+        # the job_variables should not pull that value in
+        assert response.json()["job_variables"] == {}
+
 
 class TestInfraOverridesUpdates:
     async def test_updating_flow_run_with_valid_updates(
@@ -547,3 +621,79 @@ class TestInfraOverridesUpdates:
         # verify the update failed
         assert response.status_code == 404
         assert response.json()["detail"] == "Flow run not found"
+
+    async def test_base_job_template_default_references_to_blocks(
+        self,
+        session,
+        client,
+        k8s_credentials,
+        enable_infra_overrides,
+    ):
+        # create a pool with a pool schema that has a default value referencing a block
+        *_, deployment = await create_objects_for_pool(
+            session,
+            pool_job_config={
+                "variables": {
+                    "type": "object",
+                    "required": ["k8s_credentials"],
+                    "properties": {
+                        "k8s_credentials": {
+                            "allOf": [{"$ref": "#/definitions/k8s_credentials"}],
+                            "title": "K8s Credentials",
+                            "default": {
+                                "$ref": {
+                                    "block_document_id": f"{k8s_credentials._block_document_id}"
+                                }
+                            },
+                            "description": "The credentials to use to authenticate with K8s.",
+                        },
+                    },
+                    "definitions": {
+                        "k8s_credentials": {
+                            "type": "object",
+                            "title": "k8s_credentials",
+                            "required": ["context_name", "config"],
+                            "properties": {
+                                "context_name": {
+                                    "type": "string",
+                                    "title": "Context name",
+                                },
+                                "config": {
+                                    "type": "object",
+                                    "title": "Config",
+                                },
+                            },
+                            "description": "Block used to manage K8s Credentials.",
+                            "block_type_slug": "k8s-credentials",
+                            "block_schema_references": {},
+                        }
+                    },
+                    "description": "Variables for a Modal flow run.",
+                },
+                "job_configuration": {
+                    "k8s_credentials": "{{ k8s_credentials }}",
+                },
+            },
+        )
+
+        # create a flow run with custom overrides
+        updates = {"k8s_credentials": {"context_name": "foo", "config": {}}}
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run",
+            json={"job_variables": updates},
+        )
+        assert response.status_code == 201, response.text
+        assert response.json()["job_variables"] == updates
+
+        # update the flow run to force it to refer to the default block's value
+        flow_run_id = response.json()["id"]
+        response = await client.patch(
+            f"/flow_runs/{flow_run_id}", json={"job_variables": {}}
+        )
+        assert response.status_code == 204, response.text
+
+        # verify that the flow run's job variables are removed
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert flow_run.job_variables == {}
