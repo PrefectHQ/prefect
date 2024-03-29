@@ -1236,7 +1236,7 @@ Note this setting only applies when calling `prefect server start`; if hosting t
 API with another tool you will need to configure this there instead.
 """
 
-PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=True)
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
 """
 Controls the activation of CSRF protection for the Prefect server API.
 
