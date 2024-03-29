@@ -879,7 +879,7 @@ class TestDeleteWorker:
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="A"),
         )
-        insert_stmt = (await db.insert(db.Worker)).values(
+        insert_stmt = (db.insert(db.Worker)).values(
             name=worker_name,
             work_pool_id=wp.id,
             last_heartbeat_time=pendulum.now(),
