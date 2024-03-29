@@ -302,11 +302,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:v0.12.5
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         id: setup_python
@@ -329,23 +324,6 @@ jobs:
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-
-      - name: Build test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
-
-      - name: Test Docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
