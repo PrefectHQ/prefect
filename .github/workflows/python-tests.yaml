@@ -269,7 +269,7 @@ jobs:
           uv pip install --upgrade --system -e .[dev]
 
       - name: Force install pydantic for unit tests
-        run: uv pip install "pydantic<2"
+        run: uv pip install "pydantic<2" --system
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -562,7 +562,7 @@ jobs:
           uv pip install --upgrade --system -e .[dev]
 
       - name: Force install sqlalchemy for unit tests
-        run: uv pip install "sqlalchemy[asyncio]<2"
+        run: uv pip install "sqlalchemy[asyncio]<2" --system
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
