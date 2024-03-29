@@ -338,6 +338,7 @@ def create_api_app(
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
+    cache_key = f"{prefect.__version__}:{base_url}"
     stripped_base_url = base_url.rstrip("/")
     static_dir = (
         prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
@@ -363,7 +364,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         if os.path.exists(static_dir):
             try:
                 with open(reference_file_path, "r") as f:
-                    return f.read() == base_url
+                    return f.read() == cache_key
             except FileNotFoundError:
                 return False
         else:
@@ -384,7 +385,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # This is used to determine if the static files need to be copied again
         # when the server is restarted
         with open(os.path.join(static_dir, reference_file_name), "w") as f:
-            f.write(base_url)
+            f.write(cache_key)
 
     ui_app.add_middleware(GZipMiddleware)
 
@@ -458,7 +459,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                         )
                     return
         except Exception as exc:
-            logger.warn(
+            logger.warning(
                 ""
                 f"Unable to read memo_store.toml from {PREFECT_MEMO_STORE_PATH} during "
                 f"block auto-registration: {exc!r}.\n"
@@ -476,7 +477,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                     toml.dumps({"block_auto_registration": current_blocks_loading_hash})
                 )
             except Exception as exc:
-                logger.warn(
+                logger.warning(
                     "Unable to write to memo_store.toml at"
                     f" {PREFECT_MEMO_STORE_PATH} after block auto-registration:"
                     f" {exc!r}.\n Subsequent server start ups will perform block"

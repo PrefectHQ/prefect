@@ -2,6 +2,7 @@
 Functions for interacting with worker ORM objects.
 Intended for internal use by the Prefect REST API.
 """
+
 import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
@@ -629,7 +630,7 @@ async def worker_heartbeat(
         update_values["heartbeat_interval_seconds"] = heartbeat_interval_seconds
 
     insert_stmt = (
-        (await db.insert(db.Worker))
+        db.insert(db.Worker)
         .values(**base_values, **update_values)
         .on_conflict_do_update(
             index_elements=[
@@ -641,4 +642,32 @@ async def worker_heartbeat(
     )
 
     result = await session.execute(insert_stmt)
+    return result.rowcount > 0
+
+
+@inject_db
+async def delete_worker(
+    session: AsyncSession,
+    work_pool_id: UUID,
+    worker_name: str,
+    db: PrefectDBInterface,
+) -> bool:
+    """
+    Delete a work pool's worker.
+
+    Args:
+        session (AsyncSession): a database session
+        work_pool_id (UUID): a work pool ID
+        worker_name (str): a worker name
+
+    Returns:
+        bool: whether or not the Worker was deleted
+
+    """
+    result = await session.execute(
+        delete(db.Worker).where(
+            db.Worker.work_pool_id == work_pool_id, db.Worker.name == worker_name
+        )
+    )
+
     return result.rowcount > 0

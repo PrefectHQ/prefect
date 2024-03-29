@@ -1,196 +1,159 @@
+"""
+Schemas for defining triggers within a Prefect deployment YAML.  This is a separate
+parallel hierarchy for representing triggers so that they can also include the
+information necessary to create an automation.
+
+These triggers should follow the validation rules of the main Trigger class hierarchy as
+closely as possible (because otherwise users will get validation errors creating
+triggers), but we can be more liberal with the defaults here to make it simpler to
+create them from YAML.
+"""
+
 import abc
+import textwrap
+import warnings
 from datetime import timedelta
-from enum import Enum
 from typing import (
     Any,
     Dict,
-    Iterable,
     List,
     Literal,
     Optional,
     Set,
-    Tuple,
     Union,
-    cast,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
-import pendulum
 from typing_extensions import TypeAlias
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_trigger_within
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
     from pydantic.v1.fields import ModelField
 else:
-    from pydantic import Extra, Field, PrivateAttr, root_validator, validator
+    from pydantic import Field, PrivateAttr, root_validator, validator
     from pydantic.fields import ModelField
 
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    PREFECT_EXPERIMENTAL_WARN,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.events.actions import ActionTypes, RunDeployment
-from prefect.utilities.collections import AutoEnum
+from prefect.events.actions import RunDeployment
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
+)
 
-# These are defined by Prefect Cloud
-MAXIMUM_LABELS_PER_RESOURCE = 500
-MAXIMUM_RELATED_RESOURCES = 500
-
-
-class Posture(AutoEnum):
-    Reactive = "Reactive"
-    Proactive = "Proactive"
-    Metric = "Metric"
-
-
-class ResourceSpecification(PrefectBaseModel):
-    __root__: Dict[str, Union[str, List[str]]]
-
-
-class Labelled(PrefectBaseModel):
-    """An object defined by string labels and values"""
-
-    __root__: Dict[str, str]
-
-    def keys(self) -> Iterable[str]:
-        return self.__root__.keys()
-
-    def items(self) -> Iterable[Tuple[str, str]]:
-        return self.__root__.items()
-
-    def __getitem__(self, label: str) -> str:
-        return self.__root__[label]
-
-    def __setitem__(self, label: str, value: str) -> str:
-        self.__root__[label] = value
-        return value
+from .automations import (
+    Automation,
+    CompoundTrigger,
+    EventTrigger,
+    MetricTrigger,
+    MetricTriggerQuery,
+    Posture,
+    SequenceTrigger,
+    Trigger,
+    TriggerTypes,
+)
+from .events import ResourceSpecification
 
 
-class Resource(Labelled):
-    """An observable business object of interest to the user"""
-
-    @root_validator(pre=True)
-    def enforce_maximum_labels(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        if len(labels) > MAXIMUM_LABELS_PER_RESOURCE:
-            raise ValueError(
-                "The maximum number of labels per resource "
-                f"is {MAXIMUM_LABELS_PER_RESOURCE}"
-            )
-
-        return values
-
-    @root_validator(pre=True)
-    def requires_resource_id(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        labels = cast(Dict[str, str], labels)
-
-        if "prefect.resource.id" not in labels:
-            raise ValueError("Resources must include the prefect.resource.id label")
-        if not labels["prefect.resource.id"]:
-            raise ValueError("The prefect.resource.id label must be non-empty")
-
-        return values
-
-    @property
-    def id(self) -> str:
-        return self["prefect.resource.id"]
-
-
-class RelatedResource(Resource):
-    """A Resource with a specific role in an Event"""
-
-    @root_validator(pre=True)
-    def requires_resource_role(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        labels = cast(Dict[str, str], labels)
-
-        if "prefect.resource.role" not in labels:
-            raise ValueError(
-                "Related Resources must include the prefect.resource.role label"
-            )
-        if not labels["prefect.resource.role"]:
-            raise ValueError("The prefect.resource.role label must be non-empty")
-
-        return values
-
-    @property
-    def role(self) -> str:
-        return self["prefect.resource.role"]
-
-
-class Event(PrefectBaseModel):
-    """The client-side view of an event that has happened to a Resource"""
-
-    occurred: DateTimeTZ = Field(
-        default_factory=pendulum.now,
-        description="When the event happened from the sender's perspective",
-    )
-    event: str = Field(
-        description="The name of the event that happened",
-    )
-    resource: Resource = Field(
-        description="The primary Resource this event concerns",
-    )
-    related: List[RelatedResource] = Field(
-        default_factory=list,
-        description="A list of additional Resources involved in this event",
-    )
-    payload: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="An open-ended set of data describing what happened",
-    )
-    id: UUID = Field(
-        default_factory=uuid4,
-        description="The client-provided identifier of this event",
-    )
-    follows: Optional[UUID] = Field(
-        None,
-        description=(
-            "The ID of an event that is known to have occurred prior to this "
-            "one. If set, this may be used to establish a more precise "
-            "ordering of causally-related events when they occur close enough "
-            "together in time that the system may receive them out-of-order."
-        ),
-    )
-
-    @property
-    def involved_resources(self) -> Iterable[Resource]:
-        return [self.resource] + list(self.related)
-
-    @validator("related")
-    def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
-        if len(value) > MAXIMUM_RELATED_RESOURCES:
-            raise ValueError(
-                "The maximum number of related resources "
-                f"is {MAXIMUM_RELATED_RESOURCES}"
-            )
-
-        return value
-
-
-class Trigger(PrefectBaseModel, abc.ABC):
+class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
     """
 
-    class Config:
-        extra = Extra.ignore
+    # Fields from Automation
+
+    name: Optional[str] = Field(
+        None, description="The name to give to the automation created for this trigger."
+    )
+    description: str = Field("", description="A longer description of this automation")
+    enabled: bool = Field(True, description="Whether this automation will be evaluated")
+
+    # Fields from Trigger
 
     type: str
 
+    # Fields from Deployment
 
-class ResourceTrigger(Trigger, abc.ABC):
+    parameters: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "The parameters to pass to the deployment, or None to use the "
+            "deployment's default parameters"
+        ),
+    )
+    job_variables: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Job variables to pass to the deployment, or None to use the "
+            "deployment's default job variables"
+        ),
+    )
+    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
+
+    def set_deployment_id(self, deployment_id: UUID):
+        self._deployment_id = deployment_id
+
+    def owner_resource(self) -> Optional[str]:
+        return f"prefect.deployment.{self._deployment_id}"
+
+    def actions(self) -> List[RunDeployment]:
+        if self.job_variables is not None and experiment_enabled(
+            "flow_run_infra_overrides"
+        ):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+        if not experiment_enabled("flow_run_infra_overrides"):
+            # nullify job_variables if the flag is disabled
+            self.job_variables = None
+
+        assert self._deployment_id
+        return [
+            RunDeployment(
+                parameters=self.parameters,
+                deployment_id=self._deployment_id,
+                job_variables=self.job_variables,
+            )
+        ]
+
+    def as_automation(self) -> Automation:
+        if not self.name:
+            raise ValueError("name is required")
+
+        return Automation(
+            name=self.name,
+            description=self.description,
+            enabled=self.enabled,
+            trigger=self.as_trigger(),
+            actions=self.actions(),
+            owner_resource=self.owner_resource(),
+        )
+
+    @abc.abstractmethod
+    def as_trigger(self) -> Trigger:
+        ...
+
+
+class DeploymentResourceTrigger(BaseDeploymentTrigger, abc.ABC):
     """
     Base class for triggers that may filter by the labels of resources.
     """
@@ -207,7 +170,7 @@ class ResourceTrigger(Trigger, abc.ABC):
     )
 
 
-class EventTrigger(ResourceTrigger):
+class DeploymentEventTrigger(DeploymentResourceTrigger):
     """
     A trigger that fires based on the presence or absence of events within a given
     period of time.
@@ -245,7 +208,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
     posture: Literal[Posture.Reactive, Posture.Proactive] = Field(  # type: ignore[valid-type]
-        ...,
+        Posture.Reactive,
         description=(
             "The posture of this trigger, either Reactive or Proactive.  Reactive "
             "triggers respond to the _presence_ of the expected events, while "
@@ -275,10 +238,7 @@ class EventTrigger(ResourceTrigger):
     def enforce_minimum_within(
         cls, value: timedelta, values, config, field: ModelField
     ):
-        minimum = field.field_info.extra["minimum"]
-        if value.total_seconds() < minimum:
-            raise ValueError("The minimum within is 0 seconds")
-        return value
+        return validate_trigger_within(value, field)
 
     @root_validator(skip_on_failure=True)
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
@@ -295,66 +255,20 @@ class EventTrigger(ResourceTrigger):
 
         return values
 
-
-class MetricTriggerOperator(Enum):
-    LT = "<"
-    LTE = "<="
-    GT = ">"
-    GTE = ">="
-
-
-class PrefectMetric(Enum):
-    lateness = "lateness"
-    duration = "duration"
-    successes = "successes"
-
-
-class MetricTriggerQuery(PrefectBaseModel):
-    """Defines a subset of the Trigger subclass, which is specific
-    to Metric automations, that specify the query configurations
-    and breaching conditions for the Automation"""
-
-    name: PrefectMetric = Field(
-        ...,
-        description="The name of the metric to query.",
-    )
-    threshold: float = Field(
-        ...,
-        description=(
-            "The threshold value against which we'll compare " "the query result."
-        ),
-    )
-    operator: MetricTriggerOperator = Field(
-        ...,
-        description=(
-            "The comparative operator (LT / LTE / GT / GTE) used to compare "
-            "the query result against the threshold value."
-        ),
-    )
-    range: timedelta = Field(
-        timedelta(seconds=300),  # defaults to 5 minutes
-        minimum=300.0,
-        exclusiveMinimum=False,
-        description=(
-            "The lookback duration (seconds) for a metric query. This duration is "
-            "used to determine the time range over which the query will be executed. "
-            "The minimum value is 300 seconds (5 minutes)."
-        ),
-    )
-    firing_for: timedelta = Field(
-        timedelta(seconds=300),  # defaults to 5 minutes
-        minimum=300.0,
-        exclusiveMinimum=False,
-        description=(
-            "The duration (seconds) for which the metric query must breach "
-            "or resolve continuously before the state is updated and the "
-            "automation is triggered. "
-            "The minimum value is 300 seconds (5 minutes)."
-        ),
-    )
+    def as_trigger(self) -> Trigger:
+        return EventTrigger(
+            match=self.match,
+            match_related=self.match_related,
+            after=self.after,
+            expect=self.expect,
+            for_each=self.for_each,
+            posture=self.posture,
+            threshold=self.threshold,
+            within=self.within,
+        )
 
 
-class MetricTrigger(ResourceTrigger):
+class DeploymentMetricTrigger(DeploymentResourceTrigger):
     """
     A trigger that fires based on the results of a metric query.
     """
@@ -371,50 +285,111 @@ class MetricTrigger(ResourceTrigger):
         description="The metric query to evaluate for this trigger. ",
     )
 
-
-TriggerTypes: TypeAlias = Union[EventTrigger, MetricTrigger]
-"""The union of all concrete trigger types that a user may actually create"""
-
-
-class Automation(PrefectBaseModel):
-    """Defines an action a user wants to take when a certain number of events
-    do or don't happen to the matching resources"""
-
-    class Config:
-        extra = Extra.ignore
-
-    name: str = Field(..., description="The name of this automation")
-    description: str = Field("", description="A longer description of this automation")
-
-    enabled: bool = Field(True, description="Whether this automation will be evaluated")
-
-    trigger: TriggerTypes = Field(
-        ...,
-        description=(
-            "The criteria for which events this Automation covers and how it will "
-            "respond to the presence or absence of those events"
-        ),
-    )
-
-    actions: List[ActionTypes] = Field(
-        ...,
-        description="The actions to perform when this Automation triggers",
-    )
-    owner_resource: Optional[str] = Field(
-        default=None, description="The owning resource of this automation"
-    )
+    def as_trigger(self) -> Trigger:
+        return MetricTrigger(
+            match=self.match,
+            match_related=self.match_related,
+            posture=self.posture,
+            metric=self.metric,
+            job_variables=self.job_variables,
+        )
 
 
-class ExistingAutomation(Automation):
-    id: UUID = Field(..., description="The ID of this automation")
+class DeploymentCompositeTrigger(BaseDeploymentTrigger, abc.ABC):
+    """
+    Requires some number of triggers to have fired within the given time period.
+    """
+
+    type: Literal["compound", "sequence"]
+    triggers: List["TriggerTypes"]
+    within: Optional[timedelta]
 
 
-class AutomationCreateFromTrigger(PrefectBaseModel):
+class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
+    """A composite trigger that requires some number of triggers to have
+    fired within the given time period"""
+
+    type: Literal["compound"] = "compound"
+    require: Union[int, Literal["any", "all"]]
+
+    @root_validator
+    def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        require = values.get("require")
+
+        if isinstance(require, int):
+            if require < 1:
+                raise ValueError("required must be at least 1")
+            if require > len(values["triggers"]):
+                raise ValueError(
+                    "required must be less than or equal to the number of triggers"
+                )
+
+        return values
+
+    def as_trigger(self) -> Trigger:
+        return CompoundTrigger(
+            require=self.require,
+            triggers=self.triggers,
+            within=self.within,
+            job_variables=self.job_variables,
+        )
+
+
+class DeploymentSequenceTrigger(DeploymentCompositeTrigger):
+    """A composite trigger that requires some number of triggers to have fired
+    within the given time period in a specific order"""
+
+    type: Literal["sequence"] = "sequence"
+
+    def as_trigger(self) -> Trigger:
+        return SequenceTrigger(
+            triggers=self.triggers,
+            within=self.within,
+            job_variables=self.job_variables,
+        )
+
+
+# Concrete deployment trigger types
+DeploymentTriggerTypes: TypeAlias = Union[
+    DeploymentEventTrigger,
+    DeploymentMetricTrigger,
+    DeploymentCompoundTrigger,
+    DeploymentSequenceTrigger,
+]
+
+
+# The deprecated all-in-one DeploymentTrigger
+
+
+@deprecated_class(
+    start_date="Mar 2024",
+    help=textwrap.dedent(
+        """
+    To associate a specific kind of trigger with a Deployment, use one of the more
+    specific deployment trigger types instead:
+
+    * DeploymentEventTrigger to associate an EventTrigger with a deployment
+    * DeploymentMetricTrigger to associate an MetricTrigger with a deployment
+    * DeploymentCompoundTrigger to associate an CompoundTrigger with a deployment
+    * DeploymentSequenceTrigger to associate an SequenceTrigger with a deployment
+
+    In other cases, use the Automation and Trigger class hierarchy directly.
+    """
+    ),
+)
+class DeploymentTrigger(PrefectBaseModel):
     name: Optional[str] = Field(
         None, description="The name to give to the automation created for this trigger."
     )
     description: str = Field("", description="A longer description of this automation")
     enabled: bool = Field(True, description="Whether this automation will be evaluated")
+    job_variables: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Job variables to pass to the run, or None to use the "
+            "deployment's default job variables"
+        ),
+    )
 
     # from ResourceTrigger
 
@@ -496,6 +471,15 @@ class AutomationCreateFromTrigger(PrefectBaseModel):
         description="The metric query to evaluate for this trigger. ",
     )
 
+    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
+    parameters: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "The parameters to pass to the deployment, or None to use the "
+            "deployment's default parameters"
+        ),
+    )
+
     def as_automation(self) -> Automation:
         assert self.name
 
@@ -528,23 +512,6 @@ class AutomationCreateFromTrigger(PrefectBaseModel):
             owner_resource=self.owner_resource(),
         )
 
-    def owner_resource(self) -> Optional[str]:
-        return None
-
-    def actions(self) -> List[ActionTypes]:
-        raise NotImplementedError
-
-
-class DeploymentTrigger(AutomationCreateFromTrigger):
-    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
-    parameters: Optional[Dict[str, Any]] = Field(
-        None,
-        description=(
-            "The parameters to pass to the deployment, or None to use the "
-            "deployment's default parameters"
-        ),
-    )
-
     def set_deployment_id(self, deployment_id: UUID):
         self._deployment_id = deployment_id
 
@@ -552,10 +519,31 @@ class DeploymentTrigger(AutomationCreateFromTrigger):
         return f"prefect.deployment.{self._deployment_id}"
 
     def actions(self) -> List[RunDeployment]:
+        if self.job_variables is not None and experiment_enabled(
+            "flow_run_infra_overrides"
+        ):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+        if not experiment_enabled("flow_run_infra_overrides"):
+            # nullify job_variables if the flag is disabled
+            self.job_variables = None
+
         assert self._deployment_id
         return [
             RunDeployment(
                 parameters=self.parameters,
                 deployment_id=self._deployment_id,
+                job_variables=self.job_variables,
             )
         ]

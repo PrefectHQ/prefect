@@ -1,4 +1,3 @@
-import datetime
 import io
 import json
 import os
@@ -39,7 +38,7 @@ from prefect.deployments.base import (
     initialize_project,
 )
 from prefect.deployments.steps.core import StepExecutionError
-from prefect.events.schemas import DeploymentTrigger, Posture
+from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import (
@@ -5801,11 +5800,12 @@ class TestDeploymentTrigger:
                     "prefect.resource.name": "seed",
                     "prefect.resource.role": "flow",
                 },
+                "job_variables": {"foo": "bar"},
             }
 
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
             assert triggers == [
-                DeploymentTrigger(
+                DeploymentEventTrigger(
                     **{
                         "name": "Trigger McTriggerson",
                         "description": "",
@@ -5820,9 +5820,8 @@ class TestDeploymentTrigger:
                         "for_each": set(),
                         "posture": Posture.Reactive,
                         "threshold": 1,
-                        "within": datetime.timedelta(0),
-                        "parameters": None,
-                        "metric": None,
+                        "within": timedelta(0),
+                        "job_variables": {"foo": "bar"},
                     }
                 )
             ]
@@ -5841,6 +5840,20 @@ class TestDeploymentTrigger:
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
             assert triggers[0].name == "my_deployment__automation_1"
 
+        async def test_deployment_triggers_without_job_variables(self):
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+                "match_related": {
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
+                },
+            }
+
+            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+            assert triggers[0].job_variables is None
+
         async def test_create_deployment_triggers(self):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
@@ -5853,6 +5866,7 @@ class TestDeploymentTrigger:
                     "prefect.resource.name": "seed",
                     "prefect.resource.role": "flow",
                 },
+                "job_variables": {"nested": {"foo": "bar"}},
             }
 
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
@@ -5912,6 +5926,7 @@ class TestDeploymentTrigger:
                                 "prefect.resource.name": "seed",
                                 "prefect.resource.role": "flow",
                             },
+                            "job_variables": {"foo": 123},
                         }
                     ],
                 }
@@ -5994,6 +6009,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             expected_triggers = _initialize_deployment_triggers(
@@ -6030,6 +6046,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             with open("triggers.json", "w") as f:
@@ -6069,6 +6086,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             with open("triggers.yaml", "w") as f:
@@ -6147,6 +6165,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             trigger_spec_2 = {

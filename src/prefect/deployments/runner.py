@@ -44,6 +44,7 @@ from rich.table import Table
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_automation_names
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
@@ -68,7 +69,7 @@ from prefect.deployments.schedules import (
     create_minimal_deployment_schedule,
     normalize_to_minimal_deployment_schedules,
 )
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
@@ -175,7 +176,7 @@ class RunnerDeployment(BaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    triggers: List[DeploymentTrigger] = Field(
+    triggers: List[DeploymentTriggerTypes] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -229,13 +230,9 @@ class RunnerDeployment(BaseModel):
         return self._entrypoint_type
 
     @validator("triggers", allow_reuse=True)
-    def validate_automation_names(cls, field_value, values, field, config):
+    def validate_automation_names(cls, field_value, values):
         """Ensure that each trigger has a name for its automation if none is provided."""
-        for i, trigger in enumerate(field_value, start=1):
-            if trigger.name is None:
-                trigger.name = f"{values['name']}__automation_{i}"
-
-        return field_value
+        return validate_automation_names(field_value, values)
 
     @root_validator(pre=True)
     def reconcile_paused(cls, values):
@@ -467,7 +464,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -603,7 +600,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -701,7 +698,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,

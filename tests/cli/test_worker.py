@@ -67,6 +67,7 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
     with respx.mock(
         assert_all_mocked=False, base_url=PREFECT_API_URL.value()
     ) as respx_mock:
+        respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
         respx_mock.route(path__startswith="/work_pools/").pass_through()
         respx_mock.route(path__startswith="/flow_runs/").pass_through()
         respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
@@ -232,7 +233,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=30,
         limit=None,
         heartbeat_interval_seconds=30,
@@ -260,7 +261,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=100,
         limit=None,
         heartbeat_interval_seconds=30,
@@ -289,7 +290,7 @@ def test_start_worker_with_limit(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=10,
         limit=5,
         heartbeat_interval_seconds=30,

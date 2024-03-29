@@ -41,8 +41,9 @@ def test_app_exposes_ui_settings():
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
-        "enhanced_deployment_parameters",
         "work_queue_status",
+        "artifacts_on_flow_run_graph",
+        "states_on_flow_run_graph",
     }
 
 
@@ -62,9 +63,10 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "events_client",
         "workspace_dashboard",
         "deployment_status",
-        "enhanced_deployment_parameters",
         "enhanced_cancellation",
         "work_queue_status",
+        "artifacts_on_flow_run_graph",
+        "states_on_flow_run_graph",
     }
 
 

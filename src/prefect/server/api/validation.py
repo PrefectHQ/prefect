@@ -3,8 +3,8 @@ from typing import Union
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server import models, schemas
-from prefect.utilities.validation import validate_values_conform_to_schema
+import prefect.server.schemas as schemas
+from prefect._internal.schemas.validators import validate_values_conform_to_schema
 
 
 def _get_base_config_defaults(base_config: dict):
