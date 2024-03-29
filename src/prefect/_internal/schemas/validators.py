@@ -705,7 +705,7 @@ def check_volume_format(volumes: List[str]) -> List[str]:
 
     return volumes
 
-  
+
 ### SETTINGS SCHEMA VALIDATORS ###
 
 
@@ -732,4 +732,3 @@ def validate_yaml(value: Union[str, dict]) -> dict:
     if isinstance(value, str):
         return yaml.safe_load(value)
     return value
-
