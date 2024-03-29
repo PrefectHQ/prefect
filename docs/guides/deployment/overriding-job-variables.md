@@ -21,7 +21,7 @@ While exactly _which_ job variables are available to be overridden depends on th
 ## Background
 First of all, what are _"job variables"_?
 
-Job variables are infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure. Job variables can we overrides on a per-deployment or per-flow run basis, allowing you to dynamically change infrastructure from the work pools defaults depending on your needs.
+Job variables are infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure. Job variables can be overridden a per-deployment or per-flow run basis, allowing you to dynamically change infrastructure from the work pools defaults depending on your needs.
 
 <hr>
 
