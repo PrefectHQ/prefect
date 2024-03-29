@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import jsonschema
 import pendulum
+import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
@@ -201,6 +202,14 @@ def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchem
     if value is None:
         return ParameterSchema()
     return value
+
+
+def return_none_schedule(v: Optional[Union[str, dict]]) -> Optional[Union[str, dict]]:
+    from prefect.client.schemas.schedules import NoSchedule
+
+    if isinstance(v, NoSchedule):
+        return None
+    return v
 
 
 ### SCHEDULE SCHEMA VALIDATORS ###
@@ -695,3 +704,32 @@ def check_volume_format(volumes: List[str]) -> List[str]:
             )
 
     return volumes
+
+  
+### SETTINGS SCHEMA VALIDATORS ###
+
+
+def validate_settings(value: dict) -> dict:
+    from prefect.settings import SETTING_VARIABLES, Setting
+
+    if value is None:
+        return value
+
+    # Cast string setting names to variables
+    validated = {}
+    for setting, val in value.items():
+        if isinstance(setting, str) and setting in SETTING_VARIABLES:
+            validated[SETTING_VARIABLES[setting]] = val
+        elif isinstance(setting, Setting):
+            validated[setting] = val
+        else:
+            raise ValueError(f"Unknown setting {setting!r}.")
+
+    return validated
+
+
+def validate_yaml(value: Union[str, dict]) -> dict:
+    if isinstance(value, str):
+        return yaml.safe_load(value)
+    return value
+
