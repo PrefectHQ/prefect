@@ -1,23 +1,22 @@
 import abc
 from contextlib import asynccontextmanager
-from datetime import timedelta
+import importlib
 from typing import (
     Any,
+    AsyncContextManager,
     AsyncGenerator,
     Awaitable,
     Callable,
     Dict,
     List,
-    Mapping,
-    MutableMapping,
     Optional,
     Protocol,
+    Type,
     TypeVar,
     Union,
+    runtime_checkable,
 )
 from typing_extensions import Self
-
-from cachetools import TTLCache
 
 from prefect.settings import PREFECT_MESSAGING_CACHE, PREFECT_MESSAGING_BROKER
 from prefect.logging import get_logger
@@ -68,26 +67,6 @@ class Publisher(abc.ABC):
 MessageHandler = Callable[[Message], Awaitable[None]]
 
 
-@asynccontextmanager
-async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
-    """
-    Creates an ephemeral subscription to the given source, removing it when the context
-    exits.
-    """
-    if PREFECT_MESSAGING_BROKER.value() == "memory":
-        from . import memory
-
-        subscription = memory.ephemeral_subscription(topic)
-
-    else:
-        raise ValueError(
-            f"Unknown message broker configured: {PREFECT_MESSAGING_BROKER.value()}"
-        )
-
-    async with subscription as info:
-        yield info
-
-
 class StopConsumer(Exception):
     """
     Exception to raise to stop a consumer.
@@ -109,18 +88,31 @@ class Consumer(abc.ABC):
         ...
 
 
+@runtime_checkable
+class CacheModule(Protocol):
+    Cache: Type[Cache]
+
+
 def create_cache() -> Cache:
     """
     Creates a new cache with the applications default settings.
     Returns:
         a new Cache instance
     """
-    if PREFECT_MESSAGING_CACHE.value() == "memory":
-        from . import memory
+    module = importlib.import_module(PREFECT_MESSAGING_CACHE.value())
+    assert isinstance(module, CacheModule)
+    return module.Cache()
 
-        return memory.MemoryCache()
-    else:
-        raise ValueError(f"Unknown cache configured: {PREFECT_MESSAGING_CACHE.value()}")
+
+@runtime_checkable
+class BrokerModule(Protocol):
+    Publisher: Type[Publisher]
+    Consumer: Type[Consumer]
+    ephemeral_subscription: Callable[[str], AsyncGenerator[Dict[str, Any], None]]
+
+    # Used for testing: a context manager that breaks the topic in a way that raises
+    # a ValueError("oops") when attempting to publish a message.
+    break_topic: Callable[[], AsyncContextManager[None]]
 
 
 def create_publisher(
@@ -135,14 +127,21 @@ def create_publisher(
     """
     cache = cache or create_cache()
 
-    if PREFECT_MESSAGING_BROKER.value() == "memory":
-        from . import memory
+    module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
+    assert isinstance(module, BrokerModule)
+    return module.Publisher(topic, cache, deduplicate_by=deduplicate_by)
 
-        return memory.MemoryPublisher(topic, cache, deduplicate_by=deduplicate_by)
-    else:
-        raise ValueError(
-            f"Unknown message broker configured: {PREFECT_MESSAGING_BROKER.value()}"
-        )
+
+@asynccontextmanager
+async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
+    """
+    Creates an ephemeral subscription to the given source, removing it when the context
+    exits.
+    """
+    module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
+    assert isinstance(module, BrokerModule)
+    async with module.ephemeral_subscription(topic) as consumer_create_kwargs:
+        yield consumer_create_kwargs
 
 
 def create_consumer(topic: str, **kwargs) -> Consumer:
@@ -153,11 +152,6 @@ def create_consumer(topic: str, **kwargs) -> Consumer:
     Returns:
         a new Consumer instance
     """
-    if PREFECT_MESSAGING_BROKER.value() == "memory":
-        from . import memory
-
-        return memory.MemoryConsumer(topic, **kwargs)
-    else:
-        raise ValueError(
-            f"Unknown message broker configured: {PREFECT_MESSAGING_BROKER.value()}"
-        )
+    module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
+    assert isinstance(module, BrokerModule)
+    return module.Consumer(topic, **kwargs)

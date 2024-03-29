@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import asynccontextmanager
+import importlib
 from typing import (
     AsyncContextManager,
     AsyncGenerator,
@@ -8,13 +8,12 @@ from typing import (
     List,
     Optional,
 )
-from unittest import mock
-from unittest.mock import AsyncMock
 
 import anyio
 import pytest
 
 from prefect.server.utilities.messaging import (
+    BrokerModule,
     Cache,
     Consumer,
     Message,
@@ -33,49 +32,62 @@ from prefect.settings import (
 
 
 @pytest.fixture
-def busted_broker():
-    with temporary_settings(updates={PREFECT_MESSAGING_BROKER: "whodis"}):
-        yield
-
-
-@pytest.fixture
-def busted_cache():
+def busted_cache_module():
     with temporary_settings(updates={PREFECT_MESSAGING_CACHE: "whodis"}):
         yield
 
 
-def test_unknown_broker_raises_for_creating_publisher(busted_broker):
-    with pytest.raises(ValueError, match="Unknown message broker configured: whodis"):
+@pytest.fixture
+def busted_broker_module():
+    with temporary_settings(updates={PREFECT_MESSAGING_BROKER: "whodis"}):
+        yield
+
+
+def test_unknown_broker_raises_for_creating_publisher(busted_broker_module):
+    with pytest.raises(ImportError, match="whodis"):
         create_publisher("my-topic")
 
 
-def test_unknown_broker_raises_for_creating_consumer(busted_broker):
-    with pytest.raises(ValueError, match="Unknown message broker configured: whodis"):
+def test_unknown_broker_raises_for_creating_consumer(busted_broker_module):
+    with pytest.raises(ImportError, match="whodis"):
         create_consumer("my-topic")
 
 
-async def test_unknown_broker_raises_for_ephemeral_subscription(busted_broker):
-    with pytest.raises(ValueError, match="Unknown message broker configured: whodis"):
+async def test_unknown_broker_raises_for_ephemeral_subscription(busted_broker_module):
+    with pytest.raises(ImportError, match="whodis"):
         context = ephemeral_subscription("my-topic")
         await context.__aenter__()
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc):
-    if "broker_name" in metafunc.fixturenames:
-        metafunc.parametrize("broker_name", ["memory"])
+    if "broker_module_name" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "broker_module_name",
+            [
+                "prefect.server.utilities.messaging.memory",
+            ],
+        )
+
     if "cache_name" in metafunc.fixturenames:
-        metafunc.parametrize("cache_name", ["memory"])
+        metafunc.parametrize(
+            "cache_name",
+            [
+                "prefect.server.utilities.messaging.memory",
+            ],
+        )
 
 
-def test_unknown_cache_raises_for_creating_publisher(broker_name: str, busted_cache):
-    with pytest.raises(ValueError, match="Unknown cache configured: whodis"):
+def test_unknown_cache_raises_for_creating_publisher(
+    broker_module_name: str, busted_cache_module
+):
+    with pytest.raises(ImportError, match="whodis"):
         create_publisher("my-topic")
 
 
 @pytest.fixture
-def broker(broker_name: str) -> Generator[str, None, None]:
-    with temporary_settings(updates={PREFECT_MESSAGING_BROKER: broker_name}):
-        yield broker_name
+def broker(broker_module_name: str) -> Generator[str, None, None]:
+    with temporary_settings(updates={PREFECT_MESSAGING_BROKER: broker_module_name}):
+        yield broker_module_name
 
 
 @pytest.fixture
@@ -85,7 +97,10 @@ def configured_cache(cache_name: str) -> Generator[str, None, None]:
 
 
 @pytest.fixture
-async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
+async def cache(
+    event_loop: asyncio.AbstractEventLoop,
+    configured_cache: str,
+) -> AsyncGenerator[Cache, None]:
     cache = create_cache()
     await cache.clear_recently_seen_messages()
     yield cache
@@ -93,12 +108,20 @@ async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
 
 
 @pytest.fixture
-def publisher(broker: str, cache: Cache) -> Publisher:
+def publisher(
+    event_loop: asyncio.AbstractEventLoop,
+    broker: str,
+    cache: Cache,
+) -> Publisher:
     return create_publisher("my-topic", cache=Cache)
 
 
 @pytest.fixture
-def consumer(broker: str, clear_topics: None) -> Consumer:
+def consumer(
+    event_loop: asyncio.AbstractEventLoop,
+    broker: str,
+    clear_topics: None,
+) -> Consumer:
     return create_consumer("my-topic")
 
 
@@ -265,39 +288,20 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_different_batc
 
 
 @pytest.fixture
-def break_topic() -> Callable[[], AsyncContextManager[AsyncMock]]:
-    @asynccontextmanager
-    async def break_topic(broker_name: str):
-        publishing_mock = AsyncMock(side_effect=ValueError("oops"))
-
-        if broker_name == "memory":
-            with mock.patch(
-                "prefect.server.utilities.messaging.memory.Topic.publish",
-                publishing_mock,
-            ):
-                yield publishing_mock
-        else:
-            raise NotImplementedError("Implement broken publishing for this broker")
-
-    return break_topic
-
-
-async def test_break_topic_fixture_raises_for_unknown_broker(
-    break_topic: Callable[[], AsyncContextManager[AsyncMock]],
-):
-    with pytest.raises(NotImplementedError, match="Implement broken publishing"):
-        context = break_topic("whodis?")
-        await context.__aenter__()
+def break_topic(
+    broker_module_name: str,
+) -> Callable[[], AsyncContextManager[None]]:
+    module: BrokerModule = importlib.import_module(broker_module_name)
+    return module.break_topic
 
 
 async def test_broken_topic_reraises(
-    broker_name: str,
     publisher: Publisher,
     consumer: Consumer,
-    break_topic: Callable[[], AsyncContextManager[AsyncMock]],
+    break_topic: Callable[[], AsyncContextManager[None]],
 ) -> None:
     with pytest.raises(ValueError, match="oops"):
-        async with break_topic(broker_name):
+        async with break_topic():
             async with publisher as p:
                 await p.publish_data(b"hello, world", {"howdy": "partner"})
 
@@ -306,13 +310,12 @@ async def test_broken_topic_reraises(
 
 
 async def test_publisher_will_forget_duplicate_messages_on_error(
-    broker_name: str,
     deduplicating_publisher: Publisher,
     consumer: Consumer,
-    break_topic: Callable[[], AsyncContextManager[AsyncMock]],
+    break_topic: Callable[[], AsyncContextManager[None]],
 ):
     with pytest.raises(ValueError, match="oops"):
-        async with break_topic(broker_name):
+        async with break_topic():
             async with deduplicating_publisher as p:
                 await p.publish_data(
                     b"hello, world", {"my-message-id": "A", "howdy": "partner"}
@@ -383,13 +386,12 @@ async def test_publisher_does_not_interfere_with_duplicate_messages_without_id(
 
 
 async def test_publisher_does_not_interfere_with_duplicate_messages_without_id_on_error(
-    broker_name: str,
     deduplicating_publisher: Publisher,
     consumer: Consumer,
-    break_topic: Callable[[], AsyncContextManager[AsyncMock]],
+    break_topic: Callable[[], AsyncContextManager[None]],
 ):
     with pytest.raises(ValueError, match="oops"):
-        async with break_topic(broker_name):
+        async with break_topic():
             async with deduplicating_publisher as p:
                 await p.publish_data(b"hello, world", {"howdy": "partner"})
 

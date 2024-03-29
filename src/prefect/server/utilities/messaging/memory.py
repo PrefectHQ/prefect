@@ -17,14 +17,10 @@ from cachetools import TTLCache
 from typing_extensions import Self
 
 from prefect.logging import get_logger
-from prefect.server.utilities.messaging import (
-    Cache,
-    Consumer,
-    Message,
-    MessageHandler,
-    Publisher,
-    StopConsumer,
-)
+from prefect.server.utilities.messaging import Cache as _Cache
+from prefect.server.utilities.messaging import Consumer as _Consumer
+from prefect.server.utilities.messaging import Message, MessageHandler, StopConsumer
+from prefect.server.utilities.messaging import Publisher as _Publisher
 
 logger = get_logger(__name__)
 
@@ -100,10 +96,23 @@ class Topic:
             await subscription.deliver(message)
 
 
+@asynccontextmanager
+async def break_topic():
+    from unittest import mock
+
+    publishing_mock = mock.AsyncMock(side_effect=ValueError("oops"))
+
+    with mock.patch(
+        "prefect.server.utilities.messaging.memory.Topic.publish",
+        publishing_mock,
+    ):
+        yield
+
+
 M = TypeVar("M", bound=Message)
 
 
-class MemoryCache(Cache):
+class Cache(_Cache):
     _recently_seen_messages: MutableMapping[str, bool] = TTLCache(
         maxsize=1000,
         ttl=timedelta(minutes=5).total_seconds(),
@@ -146,7 +155,7 @@ class MemoryCache(Cache):
             self._recently_seen_messages.pop(m.attributes[attribute], None)
 
 
-class MemoryPublisher(Publisher):
+class Publisher(_Publisher):
     def __init__(self, topic: str, cache: Cache, deduplicate_by: Optional[str] = None):
         self.topic = Topic.by_name(topic)
         self.deduplicate_by = deduplicate_by
@@ -174,7 +183,7 @@ class MemoryPublisher(Publisher):
             raise
 
 
-class MemoryConsumer(Consumer):
+class Consumer(_Consumer):
     def __init__(self, topic: str, subscription: Optional[Subscription] = None):
         self.topic = Topic.by_name(topic)
         if not subscription:

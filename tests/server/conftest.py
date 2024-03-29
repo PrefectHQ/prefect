@@ -14,7 +14,10 @@ from prefect.settings import (
 @pytest.fixture(autouse=True)
 def events_configuration():
     with temporary_settings(
-        {PREFECT_MESSAGING_CACHE: "memory", PREFECT_MESSAGING_BROKER: "memory"}
+        {
+            PREFECT_MESSAGING_CACHE: "prefect.server.utilities.messaging.memory",
+            PREFECT_MESSAGING_BROKER: "prefect.server.utilities.messaging.memory",
+        }
     ):
         yield
 

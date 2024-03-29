@@ -1631,14 +1631,20 @@ when attempting to serve the UI from the default directory (for example when run
 
 # Messaging system settings
 
-PREFECT_MESSAGING_BROKER = Setting(str, default="memory")
+PREFECT_MESSAGING_BROKER = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
 """
-Which message broker implementation to use for the messaging system.
+Which message broker implementation to use for the messaging system, should point to a
+module that exports a Publisher and Consumer class.
 """
 
-PREFECT_MESSAGING_CACHE = Setting(str, default="memory")
+PREFECT_MESSAGING_CACHE = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
 """
-Which cache implementation to use for the events system.
+Which cache implementation to use for the events system.  Should point to a module that
+exports a Cache class.
 """
 
 
