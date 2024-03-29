@@ -43,6 +43,7 @@ This section of the documentation contains how-to guides for common workflows an
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
 | [Managed Execution](/guides/managed-execution/) | Let prefect run your code. |
+| [Shell Commands](/guides/cli-shell/) | Shell commands as Prefect flows |
 
 ## Work Pools
 
