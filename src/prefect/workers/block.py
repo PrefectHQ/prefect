@@ -5,9 +5,9 @@ import anyio
 import anyio.abc
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_block_is_infrastructure
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import BlockDocument
-from prefect.infrastructure.base import Infrastructure
 from prefect.utilities.collections import get_from_dict
 from prefect.workers.base import BaseWorker, BaseWorkerResult
 
@@ -33,12 +33,8 @@ class BlockWorkerJobConfiguration(BaseModel):
     )
 
     @validator("block")
-    def _validate_block_is_infrastructure(cls, v):
-        print("v: ", v)
-        if not isinstance(v, Infrastructure):
-            raise TypeError("Provided block is not a valid infrastructure block.")
-
-        return v
+    def _validate_infrastructure_block(cls, v):
+        return validate_block_is_infrastructure(v)
 
     _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
