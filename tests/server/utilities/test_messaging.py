@@ -97,10 +97,7 @@ def configured_cache(cache_name: str) -> Generator[str, None, None]:
 
 
 @pytest.fixture
-async def cache(
-    event_loop: asyncio.AbstractEventLoop,
-    configured_cache: str,
-) -> AsyncGenerator[Cache, None]:
+async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
     cache = create_cache()
     await cache.clear_recently_seen_messages()
     yield cache
@@ -108,20 +105,12 @@ async def cache(
 
 
 @pytest.fixture
-def publisher(
-    event_loop: asyncio.AbstractEventLoop,
-    broker: str,
-    cache: Cache,
-) -> Publisher:
+async def publisher(broker: str, cache: Cache) -> Publisher:
     return create_publisher("my-topic", cache=Cache)
 
 
 @pytest.fixture
-def consumer(
-    event_loop: asyncio.AbstractEventLoop,
-    broker: str,
-    clear_topics: None,
-) -> Consumer:
+async def consumer(broker: str, clear_topics: None) -> Consumer:
     return create_consumer("my-topic")
 
 
