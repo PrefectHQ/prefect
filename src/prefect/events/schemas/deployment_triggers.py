@@ -16,12 +16,10 @@ from datetime import timedelta
 from typing import (
     Any,
     Dict,
-    Iterable,
     List,
     Literal,
     Optional,
     Set,
-    Tuple,
     Union,
 )
 from uuid import UUID
@@ -63,29 +61,7 @@ from .automations import (
     TriggerTypes,
 )
 from .events import ResourceSpecification
-
-# These are defined by Prefect Cloud
-MAXIMUM_LABELS_PER_RESOURCE = 500
-MAXIMUM_RELATED_RESOURCES = 500
-
-
-class Labelled(PrefectBaseModel):
-    """An object defined by string labels and values"""
-
-    __root__: Dict[str, str]
-
-    def keys(self) -> Iterable[str]:
-        return self.__root__.keys()
-
-    def items(self) -> Iterable[Tuple[str, str]]:
-        return self.__root__.items()
-
-    def __getitem__(self, label: str) -> str:
-        return self.__root__[label]
-
-    def __setitem__(self, label: str, value: str) -> str:
-        self.__root__[label] = value
-        return value
+from .labelling import Labelled
 
 
 class Resource(Labelled):
