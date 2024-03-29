@@ -643,3 +643,31 @@ async def worker_heartbeat(
 
     result = await session.execute(insert_stmt)
     return result.rowcount > 0
+
+
+@inject_db
+async def delete_worker(
+    session: AsyncSession,
+    work_pool_id: UUID,
+    worker_name: str,
+    db: PrefectDBInterface,
+) -> bool:
+    """
+    Delete a work pool's worker.
+
+    Args:
+        session (AsyncSession): a database session
+        work_pool_id (UUID): a work pool ID
+        worker_name (str): a worker name
+
+    Returns:
+        bool: whether or not the Worker was deleted
+
+    """
+    result = await session.execute(
+        delete(db.Worker).where(
+            db.Worker.work_pool_id == work_pool_id, db.Worker.name == worker_name
+        )
+    )
+
+    return result.rowcount > 0

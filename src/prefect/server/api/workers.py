@@ -599,3 +599,31 @@ async def read_workers(
             offset=offset,
             db=db,
         )
+
+
+@router.delete(
+    "/{work_pool_name}/workers/{name}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_worker(
+    work_pool_name: str = Path(..., description="The work pool name"),
+    worker_name: str = Path(
+        ..., description="The work pool's worker name", alias="name"
+    ),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    """
+    Delete a work pool's worker
+    """
+
+    async with db.session_context(begin_transaction=True) as session:
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
+        )
+        deleted = await models.workers.delete_worker(
+            session=session, work_pool_id=work_pool_id, worker_name=worker_name
+        )
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Worker not found."
+            )
