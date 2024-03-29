@@ -61,17 +61,6 @@ from .automations import (
     TriggerTypes,
 )
 from .events import ResourceSpecification
-from .labelling import Labelled
-
-
-class Resource(Labelled):
-    """An observable business object of interest to the user"""
-
-    @root_validator(pre=True)
-    def enforce_maximum_labels(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
 
 
 class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
