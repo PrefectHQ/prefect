@@ -23,6 +23,27 @@ if USE_V2_MODELS:
         round_trip: bool = False,
         warnings: bool = True,
     ) -> typing.Dict[str, typing.Any]:
+        """
+        Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
+
+        Args:
+            mode: The mode in which `to_python` should run.
+                If mode is 'json', the output will only contain JSON serializable types.
+                If mode is 'python', the output may contain non-JSON-serializable Python objects.
+            include: A set of fields to include in the output.
+            exclude: A set of fields to exclude from the output.
+            context: Additional context to pass to the serializer.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+            round_trip: If True, dumped values should be valid as input for non-idempotent types such as Json[T].
+            warnings: Whether to log warnings when invalid fields are encountered.
+            serialize_as_any: Whether to serialize fields with duck-typing serialization behavior.
+
+        Returns:
+            A dictionary representation of the model.
+        """
         return model_instance.model_dump(
             mode=mode,
             include=include,
@@ -50,6 +71,27 @@ else:
         round_trip: bool = False,
         warnings: bool = True,
     ) -> "BaseModel":
+        """
+        Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
+
+        Args:
+            mode: The mode in which `to_python` should run.
+                If mode is 'json', the output will only contain JSON serializable types.
+                If mode is 'python', the output may contain non-JSON-serializable Python objects.
+            include: A set of fields to include in the output.
+            exclude: A set of fields to exclude from the output.
+            context: Additional context to pass to the serializer.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+            round_trip: If True, dumped values should be valid as input for non-idempotent types such as Json[T].
+            warnings: Whether to log warnings when invalid fields are encountered.
+            serialize_as_any: Whether to serialize fields with duck-typing serialization behavior.
+
+        Returns:
+            A dictionary representation of the model.
+        """
         return getattr(model_instance, "dict")(
             include=include,
             exclude=exclude,

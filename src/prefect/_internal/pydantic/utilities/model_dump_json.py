@@ -23,6 +23,23 @@ if USE_V2_MODELS:
         round_trip: bool = False,
         warnings: bool = True,
     ) -> str:
+        """
+        Generate a JSON representation of the model, optionally specifying which fields to include or exclude.
+
+        Args:
+            indent: If provided, the number of spaces to indent the JSON output.
+            include: A list of fields to include in the output.
+            exclude: A list of fields to exclude from the output.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+            round_trip: If True, dumped values should be valid as input for non-idempotent types such as Json[T].
+            warnings: Whether to log warnings when invalid fields are encountered.
+
+        Returns:
+            A JSON representation of the model.
+        """
         return model_instance.model_dump_json(
             indent=indent,
             include=include,
@@ -49,6 +66,23 @@ else:
         round_trip: bool = False,
         warnings: bool = True,
     ) -> "BaseModel":
+        """
+        Generate a JSON representation of the model, optionally specifying which fields to include or exclude.
+
+        Args:
+            indent: If provided, the number of spaces to indent the JSON output.
+            include: A list of fields to include in the output.
+            exclude: A list of fields to exclude from the output.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+            round_trip: If True, dumped values should be valid as input for non-idempotent types such as Json[T].
+            warnings: Whether to log warnings when invalid fields are encountered.
+
+        Returns:
+            A JSON representation of the model.
+        """
         return getattr(model_instance, "json")(
             include=include,
             exclude=exclude,
