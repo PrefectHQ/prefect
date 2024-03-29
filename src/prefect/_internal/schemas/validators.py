@@ -14,7 +14,7 @@ import sys
 import urllib.parse
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import jsonschema
 import pendulum
@@ -24,7 +24,10 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
+from prefect.software.conda import CondaEnvironment
+from prefect.software.python import PythonEnvironment
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
@@ -281,6 +284,44 @@ def reconcile_schedules(cls, values: dict) -> dict:
 
     for schedule in values.get("schedules", []):
         cls._validate_schedule(schedule.schedule)
+
+    return values
+
+
+# TODO: consolidate with above if possible
+def reconcile_schedules_runner(values: dict) -> dict:
+    """
+    Similar to above, we reconcile the `schedule` and `schedules` fields in a deployment.
+    """
+    from prefect.deployments.schedules import (
+        create_minimal_deployment_schedule,
+        normalize_to_minimal_deployment_schedules,
+    )
+
+    schedule = values.get("schedule")
+    schedules = values.get("schedules")
+
+    if schedules is None and schedule is not None:
+        values["schedules"] = [create_minimal_deployment_schedule(schedule)]
+    elif schedules is not None and len(schedules) > 0:
+        values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+
+    return values
+
+
+def reconcile_paused_deployment(values):
+    paused = values.get("paused")
+    is_schedule_active = values.get("is_schedule_active")
+
+    if paused is not None:
+        values["paused"] = paused
+        values["is_schedule_active"] = not paused
+    elif is_schedule_active is not None:
+        values["paused"] = not is_schedule_active
+        values["is_schedule_active"] = is_schedule_active
+    else:
+        values["paused"] = False
+        values["is_schedule_active"] = True
 
     return values
 
@@ -769,6 +810,32 @@ def check_volume_format(volumes: List[str]) -> List[str]:
             )
 
     return volumes
+
+
+def assign_default_base_image(values: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not values.get("base_image") and not values.get("dockerfile"):
+        values["base_image"] = get_prefect_image_name(
+            flavor=(
+                "conda"
+                if isinstance(values.get("python_environment"), CondaEnvironment)
+                else None
+            )
+        )
+    return values
+
+
+def base_image_xor_dockerfile(values: Mapping[str, Any]):
+    if values.get("base_image") and values.get("dockerfile"):
+        raise ValueError(
+            "Either `base_image` or `dockerfile` should be provided, but not both"
+        )
+    return values
+
+
+def set_default_python_environment(values: Mapping[str, Any]) -> Mapping[str, Any]:
+    if values.get("base_image") and not values.get("python_environment"):
+        values["python_environment"] = PythonEnvironment.from_environment()
+    return values
 
 
 ### SETTINGS SCHEMA VALIDATORS ###
