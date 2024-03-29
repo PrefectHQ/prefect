@@ -854,7 +854,7 @@ class TestDeleteWorker:
         work_pool_id = work_pool.id
         deleted_worker_name = "worker1"
         for i in range(2):
-            insert_stmt = (await db.insert(db.Worker)).values(
+            insert_stmt = (db.insert(db.Worker)).values(
                 name=f"worker{i}",
                 work_pool_id=work_pool_id,
                 last_heartbeat_time=pendulum.now(),
