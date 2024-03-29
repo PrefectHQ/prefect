@@ -10,6 +10,7 @@ from typing import Any, Mapping, Optional, Union
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_registry_url
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import AnyHttpUrl, root_validator, validator
@@ -100,10 +101,7 @@ class DockerPackager(Packager):
 
     @validator("registry_url", pre=True)
     def ensure_registry_url_is_prefixed(cls, value):
-        if isinstance(value, str):
-            if "://" not in value:
-                return "https://" + value
-        return value
+        validate_registry_url(value)
 
     async def package(self, flow: Flow) -> DockerPackageManifest:
         """

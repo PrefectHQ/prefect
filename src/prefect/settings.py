@@ -68,6 +68,7 @@ from urllib.parse import urlparse
 import toml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import (
@@ -1236,7 +1237,7 @@ Note this setting only applies when calling `prefect server start`; if hosting t
 API with another tool you will need to configure this there instead.
 """
 
-PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=True)
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
 """
 Controls the activation of CSRF protection for the Prefect server API.
 
@@ -1629,8 +1630,26 @@ The directory to serve static files from. This should be used when running into 
 when attempting to serve the UI from the default directory (for example when running in a Docker container)
 """
 
+# Messaging system settings
 
-# Events settings ------------------------------------------------------------------
+PREFECT_MESSAGING_BROKER = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which message broker implementation to use for the messaging system, should point to a
+module that exports a Publisher and Consumer class.
+"""
+
+PREFECT_MESSAGING_CACHE = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which cache implementation to use for the events system.  Should point to a module that
+exports a Cache class.
+"""
+
+
+# Events settings
 
 PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
 """
@@ -1947,20 +1966,7 @@ class Profile(BaseModel):
 
     @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
-        if value is None:
-            return value
-
-        # Cast string setting names to variables
-        validated = {}
-        for setting, val in value.items():
-            if isinstance(setting, str) and setting in SETTING_VARIABLES:
-                validated[SETTING_VARIABLES[setting]] = val
-            elif isinstance(setting, Setting):
-                validated[setting] = val
-            else:
-                raise ValueError(f"Unknown setting {setting!r}.")
-
-        return validated
+        return validate_settings(value)
 
     def validate_settings(self) -> None:
         """

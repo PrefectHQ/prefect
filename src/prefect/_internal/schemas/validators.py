@@ -1,18 +1,31 @@
+"""
+This module contains a collection of functions that are used to validate the
+values of fields in Pydantic models. These functions are used as validators in
+Pydantic models to ensure that the values of fields conform to the expected
+format.
+This will be subject to consolidation and refactoring over the next few months.
+"""
+
 import datetime
 import json
 import logging
 import re
+import sys
 import urllib.parse
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import jsonschema
 import pendulum
+import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import JsonPatch
@@ -27,9 +40,11 @@ if TYPE_CHECKING:
     from prefect.utilities.callables import ParameterSchema
 
     if HAS_PYDANTIC_V2:
-        from pydantic.v1.fields import ModelField
-    else:
-        from pydantic.fields import ModelField
+        if USE_PYDANTIC_V2:
+            # TODO: we need to account for rewriting the validator to not use ModelField
+            pass
+        if not USE_PYDANTIC_V2:
+            from pydantic.v1.fields import ModelField
 
 
 def raise_on_name_with_banned_characters(name: str) -> str:
@@ -189,6 +204,30 @@ def handle_openapi_schema(value: Optional["ParameterSchema"]) -> "ParameterSchem
     if value is None:
         return ParameterSchema()
     return value
+
+
+def validate_parameters_conform_to_schema(value: dict, values: dict) -> dict:
+    """Validate that the parameters conform to the parameter schema."""
+    if values.get("enforce_parameter_schema"):
+        validate_values_conform_to_schema(
+            value, values.get("parameter_openapi_schema"), ignore_required=True
+        )
+    return value
+
+
+def validate_parameter_openapi_schema(value: dict, values: dict) -> dict:
+    """Validate that the parameter_openapi_schema is a valid json schema."""
+    if values.get("enforce_parameter_schema"):
+        validate_schema(value)
+    return value
+
+
+def return_none_schedule(v: Optional[Union[str, dict]]) -> Optional[Union[str, dict]]:
+    from prefect.client.schemas.schedules import NoSchedule
+
+    if isinstance(v, NoSchedule):
+        return None
+    return v
 
 
 ### SCHEDULE SCHEMA VALIDATORS ###
@@ -558,6 +597,48 @@ def validate_picklelib(value: str) -> str:
     return value
 
 
+def validate_picklelib_version(values: dict) -> dict:
+    """
+    Infers a default value for `picklelib_version` if null or ensures it matches
+    the version retrieved from the `pickelib`.
+    """
+    picklelib = values.get("picklelib")
+    picklelib_version = values.get("picklelib_version")
+
+    if not picklelib:
+        raise ValueError("Unable to check version of unrecognized picklelib module")
+
+    pickler = from_qualified_name(picklelib)
+    pickler_version = getattr(pickler, "__version__", None)
+
+    if not picklelib_version:
+        values["picklelib_version"] = pickler_version
+    elif picklelib_version != pickler_version:
+        warnings.warn(
+            (
+                f"Mismatched {picklelib!r} versions. Found {pickler_version} in the"
+                f" environment but {picklelib_version} was requested. This may"
+                " cause the serializer to fail."
+            ),
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
+    return values
+
+
+def validate_picklelib_and_modules(values: dict) -> dict:
+    """
+    Prevents modules from being specified if picklelib is not cloudpickle
+    """
+    if values.get("picklelib") != "cloudpickle" and values.get("pickle_modules"):
+        raise ValueError(
+            "`pickle_modules` cannot be used without 'cloudpickle'. Got"
+            f" {values.get('picklelib')!r}."
+        )
+    return values
+
+
 def validate_dump_kwargs(value: dict) -> dict:
     # `default` is set by `object_encoder`. A user provided callable would make this
     # class unserializable anyway.
@@ -607,3 +688,167 @@ def validate_compressionlib(value: str) -> str:
         )
 
     return value
+
+
+# TODO: if we use this elsewhere we can change the error message to be more generic
+def list_length_50_or_less(v: Optional[List[float]]) -> Optional[List[float]]:
+    if isinstance(v, list) and (len(v) > 50):
+        raise ValueError("Can not configure more than 50 retry delays per task.")
+    return v
+
+
+# TODO: if we use this elsewhere we can change the error message to be more generic
+def validate_not_negative(v: Optional[float]) -> Optional[float]:
+    if v is not None and v < 0:
+        raise ValueError("`retry_jitter_factor` must be >= 0.")
+    return v
+
+
+def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
+    from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
+
+    if v is not None:
+        try:
+            v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
+        except KeyError as exc:
+            raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
+    return v
+
+
+def validate_default_queue_id_not_none(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        raise ValueError(
+            "`default_queue_id` is a required field. If you are "
+            "creating a new WorkPool and don't have a queue "
+            "ID yet, use the `actions.WorkPoolCreate` model instead."
+        )
+    return v
+
+
+def validate_max_metadata_length(
+    v: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    max_metadata_length = 500
+    if not isinstance(v, dict):
+        return v
+    for key in v.keys():
+        if len(str(v[key])) > max_metadata_length:
+            v[key] = str(v[key])[:max_metadata_length] + "..."
+    return v
+
+
+### DOCKER SCHEMA VALIDATORS ###
+
+
+def validate_registry_url(value: Optional[str]) -> Optional[str]:
+    if isinstance(value, str):
+        if "://" not in value:
+            return "https://" + value
+    return value
+
+
+def convert_labels_to_docker_format(labels: Dict[str, str]) -> Dict[str, str]:
+    labels = labels or {}
+    new_labels = {}
+    for name, value in labels.items():
+        if "/" in name:
+            namespace, key = name.split("/", maxsplit=1)
+            new_namespace = ".".join(reversed(namespace.split(".")))
+            new_labels[f"{new_namespace}.{key}"] = value
+        else:
+            new_labels[name] = value
+    return new_labels
+
+
+def check_volume_format(volumes: List[str]) -> List[str]:
+    for volume in volumes:
+        if ":" not in volume:
+            raise ValueError(
+                "Invalid volume specification. "
+                f"Expected format 'path:container_path', but got {volume!r}"
+            )
+
+    return volumes
+
+
+### SETTINGS SCHEMA VALIDATORS ###
+
+
+def validate_settings(value: dict) -> dict:
+    from prefect.settings import SETTING_VARIABLES, Setting
+
+    if value is None:
+        return value
+
+    # Cast string setting names to variables
+    validated = {}
+    for setting, val in value.items():
+        if isinstance(setting, str) and setting in SETTING_VARIABLES:
+            validated[SETTING_VARIABLES[setting]] = val
+        elif isinstance(setting, Setting):
+            validated[setting] = val
+        else:
+            raise ValueError(f"Unknown setting {setting!r}.")
+
+    return validated
+
+
+def validate_yaml(value: Union[str, dict]) -> dict:
+    if isinstance(value, str):
+        return yaml.safe_load(value)
+    return value
+
+
+### TASK RUN SCHEMA VALIDATORS ###
+
+
+def validate_cache_key_length(cache_key: Optional[str]) -> Optional[str]:
+    from prefect.settings import (
+        PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
+    )
+
+    if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
+        raise ValueError(
+            "Cache key exceeded maximum allowed length of"
+            f" {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
+        )
+    return cache_key
+
+
+### PYTHON ENVIRONMENT SCHEMA VALIDATORS ###
+
+
+def infer_python_version(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return f"{sys.version_info.major}.{sys.version_info.minor}"
+    return value
+
+
+def return_v_or_none(v: Optional[str]) -> Optional[str]:
+    """Make sure that empty strings are treated as None"""
+    if not v:
+        return None
+    return v
+
+
+### INFRASTRUCTURE BLOCK SCHEMA VALIDATORS ###
+
+
+def validate_block_is_infrastructure(v: "Block") -> "Block":
+    from prefect.infrastructure.base import Infrastructure
+
+    print("v: ", v)
+    if not isinstance(v, Infrastructure):
+        raise TypeError("Provided block is not a valid infrastructure block.")
+
+    return v
+
+
+### PROCESS JOB CONFIGURATION VALIDATORS ###
+
+
+def validate_command(v: str) -> Path:
+    """Make sure that the working directory is formatted for the current platform."""
+    if v:
+        return relative_path_to_current_platform(v)
+    return v
