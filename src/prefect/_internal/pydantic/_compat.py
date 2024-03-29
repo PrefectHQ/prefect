@@ -52,11 +52,11 @@ else:
 
 
 def model_copy(
-    model_instance: PydanticBaseModel,
+    model_instance: B,
     *,
     update: Optional[Dict[str, Any]] = None,
     deep: bool = False,
-) -> PydanticBaseModel:
+) -> B:
     """Usage docs: https://docs.pydantic.dev/2.7/concepts/serialization/#model_copy
 
     Returns a copy of the model.
@@ -382,7 +382,7 @@ else:
             update: Optional[Dict[str, Any]] = None,
             deep: bool = False,
         ) -> "Self":
-            return super().model_copy(update=update, deep=deep)
+            return model_copy(self, update=update, deep=deep)
 
         @classmethod
         def model_json_schema(
