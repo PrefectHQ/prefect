@@ -1,5 +1,4 @@
-import warnings
-from copy import copy, deepcopy
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
@@ -21,7 +20,9 @@ from prefect._internal.schemas.transformations import FieldFrom, copy_model_fiel
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
+    remove_old_deployment_fields,
     return_none_schedule,
+    validate_name_present_on_nonanonymous_blocks,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -106,36 +107,7 @@ class DeploymentCreate(ActionBaseModel):
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
-        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
-        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
-        # and work_queue_name. This validator removes old fields provided
-        # by older clients to avoid 422 errors.
-        values_copy = copy(values)
-        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
-        worker_pool_name = values_copy.pop("worker_pool_name", None)
-        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
-        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
-        if worker_pool_queue_id:
-            warnings.warn(
-                (
-                    "`worker_pool_queue_id` is no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
-            warnings.warn(
-                (
-                    "`worker_pool_name`, `worker_pool_queue_name`, and "
-                    "`work_pool_name` are"
-                    "no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        return values_copy
+        return remove_old_deployment_fields(values)
 
     name: str = FieldFrom(objects.Deployment)
     flow_id: UUID = FieldFrom(objects.Deployment)
@@ -203,36 +175,7 @@ class DeploymentUpdate(ActionBaseModel):
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
-        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
-        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
-        # and work_queue_name. This validator removes old fields provided
-        # by older clients to avoid 422 errors.
-        values_copy = copy(values)
-        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
-        worker_pool_name = values_copy.pop("worker_pool_name", None)
-        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
-        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
-        if worker_pool_queue_id:
-            warnings.warn(
-                (
-                    "`worker_pool_queue_id` is no longer supported for updating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
-            warnings.warn(
-                (
-                    "`worker_pool_name`, `worker_pool_queue_name`, and "
-                    "`work_pool_name` are"
-                    "no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        return values_copy
+        return remove_old_deployment_fields(values)
 
     @validator("schedule")
     def validate_none_schedule(cls, v):
@@ -456,10 +399,7 @@ class BlockDocumentCreate(ActionBaseModel):
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
-        # TODO: We should find an elegant way to reuse this logic from the origin model
-        if not values.get("is_anonymous") and not values.get("name"):
-            raise ValueError("Names must be provided for block documents.")
-        return values
+        return validate_name_present_on_nonanonymous_blocks(values)
 
 
 @copy_model_fields

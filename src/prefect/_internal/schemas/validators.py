@@ -13,6 +13,7 @@ import re
 import sys
 import urllib.parse
 import warnings
+from copy import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
 
@@ -24,8 +25,8 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
-from prefect.software.conda import CondaEnvironment
-from prefect.software.python import PythonEnvironment
+from prefect.server.schemas.actions import DeploymentScheduleCreate
+from prefect.server.schemas.states import StateType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -309,6 +310,51 @@ def reconcile_schedules_runner(values: dict) -> dict:
     return values
 
 
+def set_deployment_schedules(values: dict) -> dict:
+    if not values.get("schedules") and values.get("schedule"):
+        values["schedules"] = [
+            DeploymentScheduleCreate(
+                schedule=values["schedule"],
+                active=values["is_schedule_active"],
+            )
+        ]
+
+    return values
+
+
+def remove_old_deployment_fields(values: dict) -> dict:
+    # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
+    # worker_pool_queue_name. Those fields were later renamed to work_pool_name
+    # and work_queue_name. This validator removes old fields provided
+    # by older clients to avoid 422 errors.
+    values_copy = copy(values)
+    worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
+    worker_pool_name = values_copy.pop("worker_pool_name", None)
+    worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
+    work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
+    if worker_pool_queue_id:
+        warnings.warn(
+            (
+                "`worker_pool_queue_id` is no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead."
+            ),
+            UserWarning,
+        )
+    if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
+        warnings.warn(
+            (
+                "`worker_pool_name`, `worker_pool_queue_name`, and "
+                "`work_pool_name` are"
+                "no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead."
+            ),
+            UserWarning,
+        )
+    return values_copy
+
+
 def reconcile_paused_deployment(values):
     paused = values.get("paused")
     is_schedule_active = values.get("is_schedule_active")
@@ -553,6 +599,9 @@ def set_default_image(values: dict) -> dict:
     return values
 
 
+### STATE SCHEMA VALIDATORS ###
+
+
 def get_or_create_state_name(v: str, values: dict) -> str:
     """If a name is not provided, use the type"""
 
@@ -561,6 +610,21 @@ def get_or_create_state_name(v: str, values: dict) -> str:
     if v is None and values.get("type"):
         v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
     return v
+
+
+def set_default_scheduled_time(cls, values: dict) -> dict:
+    """
+    TODO: This should throw an error instead of setting a default but is out of
+            scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
+            into work refactoring state initialization
+    """
+    if values.get("type") == StateType.SCHEDULED:
+        state_details = values.setdefault(
+            "state_details", cls.__fields__["state_details"].get_default()
+        )
+        if not state_details.scheduled_time:
+            state_details.scheduled_time = pendulum.now("utc")
+    return values
 
 
 def get_or_create_run_name(name):
@@ -813,6 +877,8 @@ def check_volume_format(volumes: List[str]) -> List[str]:
 
 
 def assign_default_base_image(values: Mapping[str, Any]) -> Mapping[str, Any]:
+    from prefect.software.conda import CondaEnvironment
+
     if not values.get("base_image") and not values.get("dockerfile"):
         values["base_image"] = get_prefect_image_name(
             flavor=(
@@ -833,6 +899,8 @@ def base_image_xor_dockerfile(values: Mapping[str, Any]):
 
 
 def set_default_python_environment(values: Mapping[str, Any]) -> Mapping[str, Any]:
+    from prefect.software.python import PythonEnvironment
+
     if values.get("base_image") and not values.get("python_environment"):
         values["python_environment"] = PythonEnvironment.from_environment()
     return values
@@ -882,6 +950,23 @@ def validate_cache_key_length(cache_key: Optional[str]) -> Optional[str]:
     return cache_key
 
 
+def set_deprecated_fields(values: dict) -> dict:
+    """
+    If deprecated fields are provided, populate the corresponding new fields
+    to preserve orchestration behavior.
+    """
+    if not values.get("retries", None) and values.get("max_retries", 0) != 0:
+        values["retries"] = values["max_retries"]
+
+    if (
+        not values.get("retry_delay", None)
+        and values.get("retry_delay_seconds", 0) != 0
+    ):
+        values["retry_delay"] = values["retry_delay_seconds"]
+
+    return values
+
+
 ### PYTHON ENVIRONMENT SCHEMA VALIDATORS ###
 
 
@@ -909,6 +994,28 @@ def validate_block_is_infrastructure(v: "Block") -> "Block":
         raise TypeError("Provided block is not a valid infrastructure block.")
 
     return v
+
+
+### BLOCK SCHEMA VALIDATORS ###
+
+
+def validate_parent_and_ref_diff(values: dict) -> dict:
+    parent_id = values.get("parent_block_document_id")
+    ref_id = values.get("reference_block_document_id")
+    if parent_id and ref_id and parent_id == ref_id:
+        raise ValueError(
+            "`parent_block_document_id` and `reference_block_document_id` cannot be"
+            " the same"
+        )
+    return values
+
+
+def validate_name_present_on_nonanonymous_blocks(values: dict) -> dict:
+    # anonymous blocks may have no name prior to actually being
+    # stored in the database
+    if not values.get("is_anonymous") and not values.get("name"):
+        raise ValueError("Names must be provided for block documents.")
+    return values
 
 
 ### PROCESS JOB CONFIGURATION VALIDATORS ###
