@@ -93,43 +93,35 @@ jobs:
           path: ~/.cache/uv
           key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-      - name: Set VIRTUAL_ENV
-        # UV does not allow for installs into sys python directly yet.
-        # Need to set this temporarily as workaround.
-        # https://github.com/astral-sh/uv/issues/1526
-        run: |
-          VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
-          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
-
-      - name: Get image tag
-        id: get_image_tag
-        run: |
-          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-
-      - name: Build test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-            SKIP_UI_BUILD=true
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
-
-      - name: Test Docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
-
+#      - name: Get image tag
+#        id: get_image_tag
+#        run: |
+#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+#
+#      - name: Build test image
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          build-args: |
+#            PYTHON_VERSION=${{ matrix.python-version }}
+#            PREFECT_EXTRAS=[dev]
+#            SKIP_UI_BUILD=true
+#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+#          outputs: type=docker,dest=/tmp/image.tar
+#          cache-from: type=gha
+#          cache-to: type=gha,mode=max,ignore-error=true
+#
+#      - name: Test Docker image
+#        run: |
+#          docker load --input /tmp/image.tar
+#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+#
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade -e .[dev]
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -231,45 +223,53 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
 
-      - name: Get image tag
-        id: get_image_tag
-        run: |
-          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-
-      - name: Force install pydantic in docker images
-        run: |
-          sed -i 's/RUN prefect version/RUN pip install "pydantic<2"\nRUN prefect version/' Dockerfile
-
-      - name: Build test image
-        uses: docker/build-push-action@v5
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
         with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-            SKIP_UI_BUILD=true
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-      - name: Test Docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+#      - name: Get image tag
+#        id: get_image_tag
+#        run: |
+#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+#
+#      - name: Force install pydantic in docker images
+#        run: |
+#          sed -i 's/RUN prefect version/RUN pip install "pydantic<2"\nRUN prefect version/' Dockerfile
+#
+#      - name: Build test image
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          build-args: |
+#            PYTHON_VERSION=${{ matrix.python-version }}
+#            PREFECT_EXTRAS=[dev]
+#            SKIP_UI_BUILD=true
+#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+#          outputs: type=docker,dest=/tmp/image.tar
+#          cache-from: type=gha
+#          cache-to: type=gha,mode=max,ignore-error=true
+#
+#      - name: Test Docker image
+#        run: |
+#          docker load --input /tmp/image.tar
+#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Force install pydantic for unit tests
-        run: pip install "pydantic<2"
+        run: uv pip install "pydantic<2"
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -371,38 +371,46 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
 
-      - name: Get image tag
-        id: get_image_tag
-        run: |
-          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-
-      - name: Build test image
-        uses: docker/build-push-action@v5
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
         with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-            SKIP_UI_BUILD=true
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-      - name: Test Docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+#      - name: Get image tag
+#        id: get_image_tag
+#        run: |
+#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+#
+#      - name: Build test image
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          build-args: |
+#            PYTHON_VERSION=${{ matrix.python-version }}
+#            PREFECT_EXTRAS=[dev]
+#            SKIP_UI_BUILD=true
+#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+#          outputs: type=docker,dest=/tmp/image.tar
+#          cache-from: type=gha
+#          cache-to: type=gha,mode=max,ignore-error=true
+#
+#      - name: Test Docker image
+#        run: |
+#          docker load --input /tmp/image.tar
+#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Set PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS env var
         run: echo "PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS=1" >> $GITHUB_ENV
@@ -507,8 +515,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Get image tag
         id: get_image_tag
@@ -517,36 +533,36 @@ jobs:
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
-      - name: Force install sqlalchemy in docker images
-        run: |
-          sed -i 's/RUN prefect version/RUN pip install "sqlalchemy[asyncio]<2"\nRUN prefect version/' Dockerfile
-
-      - name: Build test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          # SKIP_UI_BUILD is set to true to avoid building the UI in these tests (not needed)
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-            SKIP_UI_BUILD=true
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
-
-      - name: Test Docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+#      - name: Force install sqlalchemy in docker images
+#        run: |
+#          sed -i 's/RUN prefect version/RUN pip install "sqlalchemy[asyncio]<2"\nRUN prefect version/' Dockerfile
+#
+#      - name: Build test image
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          # SKIP_UI_BUILD is set to true to avoid building the UI in these tests (not needed)
+#          build-args: |
+#            PYTHON_VERSION=${{ matrix.python-version }}
+#            PREFECT_EXTRAS=[dev]
+#            SKIP_UI_BUILD=true
+#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+#          outputs: type=docker,dest=/tmp/image.tar
+#          cache-from: type=gha
+#          cache-to: type=gha,mode=max,ignore-error=true
+#
+#      - name: Test Docker image
+#        run: |
+#          docker load --input /tmp/image.tar
+#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Force install sqlalchemy for unit tests
-        run: pip install "sqlalchemy[asyncio]<2"
+        run: uv pip install "sqlalchemy[asyncio]<2"
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -684,38 +700,46 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
 
-      - name: Get image tag
-        id: get_image_tag
-        run: |
-          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-
-      - name: Build test image
-        uses: docker/build-push-action@v5
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
         with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-            SKIP_UI_BUILD=true
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-      - name: Test Docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+#      - name: Get image tag
+#        id: get_image_tag
+#        run: |
+#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+#
+#      - name: Build test image
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          build-args: |
+#            PYTHON_VERSION=${{ matrix.python-version }}
+#            PREFECT_EXTRAS=[dev]
+#            SKIP_UI_BUILD=true
+#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+#          outputs: type=docker,dest=/tmp/image.tar
+#          cache-from: type=gha
+#          cache-to: type=gha,mode=max,ignore-error=true
+#
+#      - name: Test Docker image
+#        run: |
+#          docker load --input /tmp/image.tar
+#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Start database container
         run: >
