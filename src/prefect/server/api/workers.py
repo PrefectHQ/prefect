@@ -624,5 +624,6 @@ async def delete_worker(
             session=session, work_pool_id=work_pool_id, worker_name=worker_name
         )
         if not deleted:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Worker not found.")
-
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Worker not found."
+            )
