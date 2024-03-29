@@ -372,6 +372,7 @@ jobs:
           --dist loadscope
           --disable-docker-image-builds
           --exclude-service kubernetes
+          --exclude-service docker
           --durations 26
           --no-cov
 
