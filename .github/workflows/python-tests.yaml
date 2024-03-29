@@ -82,8 +82,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Get image tag
         id: get_image_tag
@@ -111,8 +119,8 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -214,8 +222,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Get image tag
         id: get_image_tag
@@ -247,11 +263,11 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Force install pydantic for unit tests
-        run: pip install "pydantic<2"
+        run: uv pip install "pydantic<2" --system
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -353,8 +369,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Get image tag
         id: get_image_tag
@@ -382,8 +406,8 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Set PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS env var
         run: echo "PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS=1" >> $GITHUB_ENV
@@ -488,8 +512,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Get image tag
         id: get_image_tag
@@ -521,11 +553,11 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Force install sqlalchemy for unit tests
-        run: pip install "sqlalchemy[asyncio]<2"
+        run: uv pip install "sqlalchemy[asyncio]<2" --system
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -663,8 +695,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Get image tag
         id: get_image_tag
@@ -692,8 +732,8 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Start database container
         run: >
