@@ -201,7 +201,7 @@ Custom runs allow you to pass in a dictionary of variables into your flow run in
 
 ### Using the CLI
 
-Similarly, runs kicked off via cli accept job variables with the `-jv --job-variable` flag.
+Similarly, runs kicked off via CLI accept job variables with the `-jv --job-variable` flag.
 
 ```bash
 prefect deployment run --id "fb8e3073-c449-474b-b993-851fe5e80e53" --job-variable MY_NEW_ENV_VAR=42 --job-variable HELLO=THERE
