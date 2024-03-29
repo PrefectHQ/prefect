@@ -35,9 +35,9 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, validator
 
+from prefect._internal.schemas.validators import validate_command
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
-from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -85,10 +85,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
     @validator("working_dir")
     def validate_command(cls, v):
-        """Make sure that the working directory is formatted for the current platform."""
-        if v:
-            return relative_path_to_current_platform(v)
-        return v
+        return validate_command(v)
 
     def prepare_for_flow_run(
         self,

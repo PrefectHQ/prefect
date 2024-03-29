@@ -1,8 +1,8 @@
-import sys
 from pathlib import Path
 from typing import List, Type
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import infer_python_version
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, validate_arguments, validator
@@ -23,10 +23,8 @@ class PythonEnvironment(BaseModel):
     pip_requirements: List[PipRequirement] = Field(default_factory=list)
 
     @validator("python_version", pre=True, always=True)
-    def infer_python_version(cls, value):
-        if value is None:
-            return f"{sys.version_info.major}.{sys.version_info.minor}"
-        return value
+    def validate_python_version(cls, value):
+        return infer_python_version(value)
 
     @classmethod
     def from_environment(cls: Type[Self], exclude_nested: bool = False) -> Self:

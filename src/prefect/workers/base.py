@@ -9,6 +9,7 @@ import anyio.abc
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import return_v_or_none
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
@@ -108,10 +109,7 @@ class BaseJobConfiguration(BaseModel):
 
     @validator("command")
     def _coerce_command(cls, v):
-        """Make sure that empty strings are treated as None"""
-        if not v:
-            return None
-        return v
+        return return_v_or_none(v)
 
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:

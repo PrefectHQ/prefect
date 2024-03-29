@@ -22,8 +22,8 @@ from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
-    validate_schema,
-    validate_values_conform_to_schema,
+    validate_parameter_openapi_schema,
+    validate_parameters_conform_to_schema,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
@@ -219,19 +219,11 @@ class DeploymentCreate(ActionBaseModel):
 
     @validator("parameters")
     def _validate_parameters_conform_to_schema(cls, value, values):
-        """Validate that the parameters conform to the parameter schema."""
-        if values.get("enforce_parameter_schema"):
-            validate_values_conform_to_schema(
-                value, values.get("parameter_openapi_schema"), ignore_required=True
-            )
-        return value
+        return validate_parameters_conform_to_schema(value, values)
 
     @validator("parameter_openapi_schema")
     def _validate_parameter_openapi_schema(cls, value, values):
-        """Validate that the parameter_openapi_schema is a valid json schema."""
-        if values.get("enforce_parameter_schema"):
-            validate_schema(value)
-        return value
+        return validate_parameter_openapi_schema(value, values)
 
 
 @experimental_field(
