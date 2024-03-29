@@ -71,12 +71,8 @@ MessageHandler = Callable[[Message], Awaitable[None]]
 @asynccontextmanager
 async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
     """
-    Creates an ephemeral subscription to the given source, removing it when the context exits.
-
-    Will create a subscription for PubSub. If the process crashes, the subscription will expire in 1 day (the
-    lowest value that Pub/Sub supports).
-
-    Will create a consumer group for Redis Streams.
+    Creates an ephemeral subscription to the given source, removing it when the context
+    exits.
     """
     if PREFECT_MESSAGING_BROKER.value() == "memory":
         from . import memory
