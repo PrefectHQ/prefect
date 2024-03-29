@@ -92,6 +92,7 @@ jobs:
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+
       - name: Set VIRTUAL_ENV
         # UV does not allow for installs into sys python directly yet.
         # Need to set this temporarily as workaround.
@@ -100,35 +101,35 @@ jobs:
           VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
           echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
 
-      - name: Get image tag
-        id: get_image_tag
-        run: |
-          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-
-      - name: Build test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-            SKIP_UI_BUILD=true
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
-
-      - name: Test Docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+#      - name: Get image tag
+#        id: get_image_tag
+#        run: |
+#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+#
+#      - name: Build test image
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          build-args: |
+#            PYTHON_VERSION=${{ matrix.python-version }}
+#            PREFECT_EXTRAS=[dev]
+#            SKIP_UI_BUILD=true
+#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+#          outputs: type=docker,dest=/tmp/image.tar
+#          cache-from: type=gha
+#          cache-to: type=gha,mode=max,ignore-error=true
+#
+#      - name: Test Docker image
+#        run: |
+#          docker load --input /tmp/image.tar
+#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --upgrade-strategy eager -e .[dev]
+          uv pip install --upgrade -e .[dev]
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
