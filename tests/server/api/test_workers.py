@@ -887,7 +887,7 @@ class TestDeleteWorker:
         await session.execute(insert_stmt)
         await session.commit()
 
-        response = await client.delete(f"/work_pools/${wp.name}/workers/does-not-exist")
+        response = await client.delete(f"/work_pools/{wp.name}/workers/does-not-exist")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
