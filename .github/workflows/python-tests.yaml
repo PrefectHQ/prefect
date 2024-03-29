@@ -93,30 +93,30 @@ jobs:
           path: ~/.cache/uv
           key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-#      - name: Get image tag
-#        id: get_image_tag
-#        run: |
-#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-#
-#      - name: Build test image
-#        uses: docker/build-push-action@v5
-#        with:
-#          context: .
-#          build-args: |
-#            PYTHON_VERSION=${{ matrix.python-version }}
-#            PREFECT_EXTRAS=[dev]
-#            SKIP_UI_BUILD=true
-#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-#          outputs: type=docker,dest=/tmp/image.tar
-#          cache-from: type=gha
-#          cache-to: type=gha,mode=max,ignore-error=true
-#
-#      - name: Test Docker image
-#        run: |
-#          docker load --input /tmp/image.tar
-#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+      - name: Get image tag
+        id: get_image_tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+
+      - name: Test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 #
       - name: Install packages
         run: |
@@ -234,34 +234,34 @@ jobs:
           path: ~/.cache/uv
           key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-#      - name: Get image tag
-#        id: get_image_tag
-#        run: |
-#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-#
-#      - name: Force install pydantic in docker images
-#        run: |
-#          sed -i 's/RUN prefect version/RUN pip install "pydantic<2"\nRUN prefect version/' Dockerfile
-#
-#      - name: Build test image
-#        uses: docker/build-push-action@v5
-#        with:
-#          context: .
-#          build-args: |
-#            PYTHON_VERSION=${{ matrix.python-version }}
-#            PREFECT_EXTRAS=[dev]
-#            SKIP_UI_BUILD=true
-#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-#          outputs: type=docker,dest=/tmp/image.tar
-#          cache-from: type=gha
-#          cache-to: type=gha,mode=max,ignore-error=true
-#
-#      - name: Test Docker image
-#        run: |
-#          docker load --input /tmp/image.tar
-#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+      - name: Get image tag
+        id: get_image_tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+
+      - name: Force install pydantic in docker images
+        run: |
+          sed -i 's/RUN prefect version/RUN pip install "pydantic<2"\nRUN prefect version/' Dockerfile
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+
+      - name: Test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
@@ -382,30 +382,30 @@ jobs:
           path: ~/.cache/uv
           key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-#      - name: Get image tag
-#        id: get_image_tag
-#        run: |
-#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-#
-#      - name: Build test image
-#        uses: docker/build-push-action@v5
-#        with:
-#          context: .
-#          build-args: |
-#            PYTHON_VERSION=${{ matrix.python-version }}
-#            PREFECT_EXTRAS=[dev]
-#            SKIP_UI_BUILD=true
-#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-#          outputs: type=docker,dest=/tmp/image.tar
-#          cache-from: type=gha
-#          cache-to: type=gha,mode=max,ignore-error=true
-#
-#      - name: Test Docker image
-#        run: |
-#          docker load --input /tmp/image.tar
-#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+      - name: Get image tag
+        id: get_image_tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+
+      - name: Test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
@@ -533,28 +533,28 @@ jobs:
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
-#      - name: Force install sqlalchemy in docker images
-#        run: |
-#          sed -i 's/RUN prefect version/RUN pip install "sqlalchemy[asyncio]<2"\nRUN prefect version/' Dockerfile
-#
-#      - name: Build test image
-#        uses: docker/build-push-action@v5
-#        with:
-#          context: .
-#          # SKIP_UI_BUILD is set to true to avoid building the UI in these tests (not needed)
-#          build-args: |
-#            PYTHON_VERSION=${{ matrix.python-version }}
-#            PREFECT_EXTRAS=[dev]
-#            SKIP_UI_BUILD=true
-#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-#          outputs: type=docker,dest=/tmp/image.tar
-#          cache-from: type=gha
-#          cache-to: type=gha,mode=max,ignore-error=true
-#
-#      - name: Test Docker image
-#        run: |
-#          docker load --input /tmp/image.tar
-#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+      - name: Force install sqlalchemy in docker images
+        run: |
+          sed -i 's/RUN prefect version/RUN pip install "sqlalchemy[asyncio]<2"\nRUN prefect version/' Dockerfile
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # SKIP_UI_BUILD is set to true to avoid building the UI in these tests (not needed)
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+
+      - name: Test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
@@ -711,30 +711,30 @@ jobs:
           path: ~/.cache/uv
           key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-#      - name: Get image tag
-#        id: get_image_tag
-#        run: |
-#          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-#          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
-#          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-#
-#      - name: Build test image
-#        uses: docker/build-push-action@v5
-#        with:
-#          context: .
-#          build-args: |
-#            PYTHON_VERSION=${{ matrix.python-version }}
-#            PREFECT_EXTRAS=[dev]
-#            SKIP_UI_BUILD=true
-#          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
-#          outputs: type=docker,dest=/tmp/image.tar
-#          cache-from: type=gha
-#          cache-to: type=gha,mode=max,ignore-error=true
-#
-#      - name: Test Docker image
-#        run: |
-#          docker load --input /tmp/image.tar
-#          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+      - name: Get image tag
+        id: get_image_tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+            SKIP_UI_BUILD=true
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+
+      - name: Test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: |
