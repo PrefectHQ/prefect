@@ -1,8 +1,17 @@
+"""
+This module contains a collection of functions that are used to validate the
+values of fields in Pydantic models. These functions are used as validators in
+Pydantic models to ensure that the values of fields conform to the expected
+format.
+This will be subject to consolidation and refactoring over the next few months.
+"""
+
 import datetime
 import json
 import logging
 import re
 import urllib.parse
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -10,6 +19,7 @@ import jsonschema
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
@@ -27,9 +37,11 @@ if TYPE_CHECKING:
     from prefect.utilities.callables import ParameterSchema
 
     if HAS_PYDANTIC_V2:
-        from pydantic.v1.fields import ModelField
-    else:
-        from pydantic.fields import ModelField
+        if USE_PYDANTIC_V2:
+            # TODO: we need to account for rewriting the validator to not use ModelField
+            pass
+        if not USE_PYDANTIC_V2:
+            from pydantic.v1.fields import ModelField
 
 
 def raise_on_name_with_banned_characters(name: str) -> str:
@@ -558,6 +570,48 @@ def validate_picklelib(value: str) -> str:
     return value
 
 
+def validate_picklelib_version(values: dict) -> dict:
+    """
+    Infers a default value for `picklelib_version` if null or ensures it matches
+    the version retrieved from the `pickelib`.
+    """
+    picklelib = values.get("picklelib")
+    picklelib_version = values.get("picklelib_version")
+
+    if not picklelib:
+        raise ValueError("Unable to check version of unrecognized picklelib module")
+
+    pickler = from_qualified_name(picklelib)
+    pickler_version = getattr(pickler, "__version__", None)
+
+    if not picklelib_version:
+        values["picklelib_version"] = pickler_version
+    elif picklelib_version != pickler_version:
+        warnings.warn(
+            (
+                f"Mismatched {picklelib!r} versions. Found {pickler_version} in the"
+                f" environment but {picklelib_version} was requested. This may"
+                " cause the serializer to fail."
+            ),
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
+    return values
+
+
+def validate_picklelib_and_modules(values: dict) -> dict:
+    """
+    Prevents modules from being specified if picklelib is not cloudpickle
+    """
+    if values.get("picklelib") != "cloudpickle" and values.get("pickle_modules"):
+        raise ValueError(
+            "`pickle_modules` cannot be used without 'cloudpickle'. Got"
+            f" {values.get('picklelib')!r}."
+        )
+    return values
+
+
 def validate_dump_kwargs(value: dict) -> dict:
     # `default` is set by `object_encoder`. A user provided callable would make this
     # class unserializable anyway.
@@ -607,3 +661,37 @@ def validate_compressionlib(value: str) -> str:
         )
 
     return value
+
+
+### DOCKER SCHEMA VALIDATORS ###
+
+
+def validate_registry_url(value: Optional[str]) -> Optional[str]:
+    if isinstance(value, str):
+        if "://" not in value:
+            return "https://" + value
+    return value
+
+
+def convert_labels_to_docker_format(labels: Dict[str, str]) -> Dict[str, str]:
+    labels = labels or {}
+    new_labels = {}
+    for name, value in labels.items():
+        if "/" in name:
+            namespace, key = name.split("/", maxsplit=1)
+            new_namespace = ".".join(reversed(namespace.split(".")))
+            new_labels[f"{new_namespace}.{key}"] = value
+        else:
+            new_labels[name] = value
+    return new_labels
+
+
+def check_volume_format(volumes: List[str]) -> List[str]:
+    for volume in volumes:
+        if ":" not in volume:
+            raise ValueError(
+                "Invalid volume specification. "
+                f"Expected format 'path:container_path', but got {volume!r}"
+            )
+
+    return volumes
