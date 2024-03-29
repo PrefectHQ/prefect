@@ -16,7 +16,19 @@ import anyio
 import pendulum
 import yaml
 
+from prefect._internal.compatibility.deprecated import (
+    deprecated_callable,
+    deprecated_class,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    handle_openapi_schema,
+    infrastructure_must_have_capabilities,
+    reconcile_schedules,
+    storage_must_have_capabilities,
+    validate_automation_names,
+    validate_deprecated_schedule_fields,
+)
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 
 if HAS_PYDANTIC_V2:
@@ -24,12 +36,10 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.objects import (
-    DEFAULT_AGENT_WORK_POOL_NAME,
     FlowRun,
     MinimalDeploymentSchedule,
 )
@@ -38,10 +48,9 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
-    normalize_to_minimal_deployment_schedules,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
@@ -75,6 +84,7 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
+    job_variables: Optional[dict] = None,
 ) -> FlowRun:
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -194,6 +204,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
+        job_variables=job_variables,
     )
 
     flow_run_id = flow_run.id
@@ -293,6 +304,7 @@ async def load_flow_from_flow_run(
     return flow
 
 
+@deprecated_callable(start_date="Mar 2024")
 def load_deployments_from_yaml(
     path: str,
 ) -> PrefectObjectRegistry:
@@ -316,13 +328,20 @@ def load_deployments_from_yaml(
     return registry
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use `flow.deploy` to deploy your flows instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
 )
 class Deployment(BaseModel):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `flow.deploy`, which offers enhanced functionality and better a better user experience.
+    For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+
     A Prefect Deployment definition, used for specifying and building deployments.
 
     Args:
@@ -565,7 +584,7 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
-    triggers: List[DeploymentTrigger] = Field(
+    triggers: List[DeploymentTriggerTypes] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -579,91 +598,28 @@ class Deployment(BaseModel):
     )
 
     @validator("infrastructure", pre=True)
-    def infrastructure_must_have_capabilities(cls, value):
-        if isinstance(value, dict):
-            if "_block_type_slug" in value:
-                # Replace private attribute with public for dispatch
-                value["block_type_slug"] = value.pop("_block_type_slug")
-            block = Block(**value)
-        elif value is None:
-            return value
-        else:
-            block = value
-
-        if "run-infrastructure" not in block.get_block_capabilities():
-            raise ValueError(
-                "Infrastructure block must have 'run-infrastructure' capabilities."
-            )
-        return block
+    def validate_infrastructure_capabilities(cls, value):
+        return infrastructure_must_have_capabilities(value)
 
     @validator("storage", pre=True)
-    def storage_must_have_capabilities(cls, value):
-        if isinstance(value, dict):
-            block_type = Block.get_block_class_from_key(value.pop("_block_type_slug"))
-            block = block_type(**value)
-        elif value is None:
-            return value
-        else:
-            block = value
-
-        capabilities = block.get_block_capabilities()
-        if "get-directory" not in capabilities:
-            raise ValueError(
-                "Remote Storage block must have 'get-directory' capabilities."
-            )
-        return block
+    def validate_storage(cls, value):
+        return storage_must_have_capabilities(value)
 
     @validator("parameter_openapi_schema", pre=True)
-    def handle_openapi_schema(cls, value):
-        """
-        This method ensures setting a value of `None` is handled gracefully.
-        """
-        if value is None:
-            return ParameterSchema()
-        return value
+    def validate_parameter_openapi_schema(cls, value):
+        return handle_openapi_schema(value)
 
     @validator("triggers")
-    def validate_automation_names(cls, field_value, values, field, config):
-        """Ensure that each trigger has a name for its automation if none is provided."""
-        for i, trigger in enumerate(field_value, start=1):
-            if trigger.name is None:
-                trigger.name = f"{values['name']}__automation_{i}"
-
-        return field_value
+    def validate_triggers(cls, field_value, values):
+        return validate_automation_names(field_value, values)
 
     @root_validator(pre=True)
-    def validate_deprecated_schedule_fields(cls, values):
-        if values.get("schedule") and not values.get("schedules"):
-            logger.warning(
-                "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
-                "available after Sep 2024. Define schedules in the `schedules` list instead."
-            )
-        elif values.get("is_schedule_active") and not values.get("schedules"):
-            logger.warning(
-                "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
-                "not be available after Sep 2024. Use the `active` flag within a schedule in "
-                "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
-                "all schedules."
-            )
-        return values
-
-    @validator("schedule")
-    def validate_schedule(cls, value):
-        if value:
-            cls._validate_schedule(value)
-        return value
+    def validate_schedule(cls, values):
+        return validate_deprecated_schedule_fields(values, logger)
 
     @root_validator(pre=True)
-    def validate_schedules(cls, values):
-        if "schedules" in values:
-            values["schedules"] = normalize_to_minimal_deployment_schedules(
-                values["schedules"]
-            )
-
-            for schedule in values["schedules"]:
-                cls._validate_schedule(schedule.schedule)
-
-        return values
+    def validate_backwards_compatibility_for_schedule(cls, values):
+        return reconcile_schedules(cls, values)
 
     @classmethod
     @sync_compatible
@@ -982,11 +938,17 @@ class Deployment(BaseModel):
 
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
-        deployment = cls(
-            name=name,
-            schedules=schedules,
+
+        deployment_args = {
+            "name": name,
+            "flow_name": flow.name,
             **kwargs,
-        )
+        }
+
+        if schedules is not None:
+            deployment_args["schedules"] = schedules
+
+        deployment = cls(**deployment_args)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
             ## first see if an entrypoint can be determined

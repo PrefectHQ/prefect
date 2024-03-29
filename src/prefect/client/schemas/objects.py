@@ -27,8 +27,15 @@ from typing_extensions import Literal
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect._internal.schemas.validators import (
+    get_or_create_run_name,
+    get_or_create_state_name,
+    list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
+    validate_default_queue_id_not_none,
+    validate_max_metadata_length,
+    validate_message_template_variables,
+    validate_not_negative,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
@@ -242,13 +249,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
-        """If a name is not provided, use the type"""
-
-        # if `type` is not in `values` it means the `type` didn't pass its own
-        # validation check and an error will be raised after this function is called
-        if v is None and values.get("type"):
-            v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
-        return v
+        return get_or_create_state_name(v, values)
 
     @root_validator
     def default_scheduled_start_time(cls, values):
@@ -526,6 +527,9 @@ class FlowRun(ObjectBaseModel):
         description="The state of the flow run.",
         example=State(type=StateType.COMPLETED),
     )
+    job_variables: Optional[dict] = Field(
+        default=None, description="Job variables for the flow run."
+    )
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -543,7 +547,7 @@ class FlowRun(ObjectBaseModel):
 
     @validator("name", pre=True)
     def set_default_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
     # These are server-side optimizations and should not be present on client models
     # TODO: Deprecate these fields
@@ -603,15 +607,11 @@ class TaskRunPolicy(PrefectBaseModel):
 
     @validator("retry_delay")
     def validate_configured_retry_delays(cls, v):
-        if isinstance(v, list) and (len(v) > 50):
-            raise ValueError("Can not configure more than 50 retry delays per task.")
-        return v
+        return list_length_50_or_less(v)
 
     @validator("retry_jitter_factor")
     def validate_jitter_factor(cls, v):
-        if v is not None and v < 0:
-            raise ValueError("`retry_jitter_factor` must be >= 0.")
-        return v
+        return validate_not_negative(v)
 
 
 class TaskRunInput(PrefectBaseModel):
@@ -751,7 +751,7 @@ class TaskRun(ObjectBaseModel):
 
     @validator("name", pre=True)
     def set_default_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
 
 class Workspace(PrefectBaseModel):
@@ -828,8 +828,7 @@ class BlockType(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockSchema(ObjectBaseModel):
@@ -887,9 +886,7 @@ class BlockDocument(ObjectBaseModel):
     def validate_name_characters(cls, v):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
-        if v is not None:
-            raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
@@ -914,8 +911,7 @@ class Flow(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class FlowRunnerSettings(PrefectBaseModel):
@@ -1076,8 +1072,7 @@ class Deployment(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class ConcurrencyLimit(ObjectBaseModel):
@@ -1264,8 +1259,7 @@ class WorkQueue(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1362,12 +1356,7 @@ class FlowRunNotificationPolicy(ObjectBaseModel):
 
     @validator("message_template")
     def validate_message_template_variables(cls, v):
-        if v is not None:
-            try:
-                v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
-            except KeyError as exc:
-                raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
-        return v
+        return validate_message_template_variables(v)
 
 
 class Agent(ObjectBaseModel):
@@ -1428,28 +1417,11 @@ class WorkPool(ObjectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):
-        """
-        Default queue ID is required because all pools must have a default queue
-        ID, but it represents a circular foreign key relationship to a
-        WorkQueue (which can't be created until the work pool exists).
-        Therefore, while this field can *technically* be null, it shouldn't be.
-        This should only be an issue when creating new pools, as reading
-        existing ones will always have this field populated. This custom error
-        message will help users understand that they should use the
-        `actions.WorkPoolCreate` model in that case.
-        """
-        if v is None:
-            raise ValueError(
-                "`default_queue_id` is a required field. If you are "
-                "creating a new WorkPool and don't have a queue "
-                "ID yet, use the `actions.WorkPoolCreate` model instead."
-            )
-        return v
+        return validate_default_queue_id_not_none(v)
 
 
 class Worker(ObjectBaseModel):
@@ -1516,13 +1488,7 @@ class Artifact(ObjectBaseModel):
 
     @validator("metadata_")
     def validate_metadata_length(cls, v):
-        max_metadata_length = 500
-        if not isinstance(v, dict):
-            return v
-        for key in v.keys():
-            if len(str(v[key])) > max_metadata_length:
-                v[key] = str(v[key])[:max_metadata_length] + "..."
-        return v
+        return validate_max_metadata_length(v)
 
 
 class ArtifactCollection(ObjectBaseModel):
@@ -1622,10 +1588,23 @@ class GlobalConcurrencyLimit(ObjectBaseModel):
         default=0,
         description="Number of tasks currently using a concurrency slot.",
     )
-    slot_decay_per_second: Optional[int] = Field(
-        default=0,
+    slot_decay_per_second: Optional[float] = Field(
+        default=0.0,
         description=(
             "Controls the rate at which slots are released when the concurrency limit"
             " is used as a rate limit."
         ),
+    )
+
+
+class CsrfToken(ObjectBaseModel):
+    token: str = Field(
+        default=...,
+        description="The CSRF token",
+    )
+    client: str = Field(
+        default=..., description="The client id associated with the CSRF token"
+    )
+    expiration: DateTimeTZ = Field(
+        default=..., description="The expiration time of the CSRF token"
     )

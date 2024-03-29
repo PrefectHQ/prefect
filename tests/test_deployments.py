@@ -1,6 +1,7 @@
 import datetime
 import json
 import re
+from contextlib import nullcontext
 from unittest import mock
 from uuid import uuid4
 
@@ -11,6 +12,8 @@ import respx
 import yaml
 from httpx import Response
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
@@ -18,8 +21,10 @@ from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
 from prefect.deployments.deployments import load_flow_from_flow_run
 
 if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
     from pydantic.v1.error_wrappers import ValidationError
 else:
+    import pydantic
     from pydantic.error_wrappers import ValidationError
 
 import prefect.server.models as models
@@ -30,14 +35,27 @@ from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
 from prefect.server.schemas import states
 from prefect.server.schemas.core import TaskRunResult
-from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_API_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
+    temporary_settings,
+)
 from prefect.utilities.slugify import slugify
+
+
+@pytest.fixture
+def enable_infra_overrides():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -56,6 +74,19 @@ async def ensure_default_agent_pool_exists(session):
             ),
         )
         await session.commit()
+
+
+def test_deployment_emits_deprecation_warning():
+    with pytest.warns(
+        PrefectDeprecationWarning,
+        match=(
+            "prefect.deployments.deployments.Deployment has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use `flow.deploy` to deploy your flows instead."
+            " Refer to the upgrade guide for more information"
+        ),
+    ):
+        Deployment(name="foo")
 
 
 class TestDeploymentBasicInterface:
@@ -125,11 +156,29 @@ class TestDeploymentBasicInterface:
         deployment = Deployment(
             name="TEST",
             flow_name="fn",
-            triggers=[DeploymentTrigger(), DeploymentTrigger(name="run-it")],
+            triggers=[
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {}),
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {"name": "run-it"}),
+            ],
         )
 
         assert deployment.triggers[0].name == "TEST__automation_1"
         assert deployment.triggers[1].name == "run-it"
+
+    def test_triggers_have_job_variables(self):
+        deployment = Deployment(
+            name="TEST",
+            flow_name="fn",
+            triggers=[
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {}),
+                pydantic.parse_obj_as(
+                    DeploymentTriggerTypes, {"job_variables": {"foo": "bar"}}
+                ),
+            ],
+        )
+
+        assert deployment.triggers[0].job_variables is None
+        assert deployment.triggers[1].job_variables == {"foo": "bar"}
 
     def test_enforce_parameter_schema_defaults_to_none(self):
         """
@@ -532,6 +581,46 @@ class TestDeploymentBuild:
             isinstance(s, MinimalDeploymentSchedule) for s in deployment.schedules
         )
 
+    async def test_build_from_flow_legacy_schedule_supported(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="legacy_schedule_supported",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+    async def test_build_from_flow_clear_schedules_via_legacy_schedule(
+        self, flow_function, prefect_client
+    ):
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=CronSchedule(cron="2 1 * * *", timezone="America/Chicago"),
+        )
+
+        deployment_id = await deployment.apply()
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule.cron == "2 1 * * *"
+
+        deployment = await Deployment.build_from_flow(
+            name="clear_schedules_via_legacy_schedule",
+            flow=flow_function,
+            schedule=None,
+        )
+
+        deployment_id_2 = await deployment.apply()
+        assert deployment_id == deployment_id_2
+
+        refreshed = await prefect_client.read_deployment(deployment_id)
+        assert refreshed.schedule is None
+
 
 class TestYAML:
     def test_deployment_yaml_roundtrip(self, tmp_path):
@@ -834,7 +923,9 @@ class TestDeploymentApply:
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
 
-        trigger = DeploymentTrigger()
+        trigger = pydantic.parse_obj_as(
+            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
+        )
 
         deployment = Deployment(
             name="TEST",
@@ -872,6 +963,74 @@ class TestDeploymentApply:
                 assert json.loads(
                     create_route.calls[0].request.content
                 ) == trigger.as_automation().dict(json_compatible=True)
+
+    @pytest.mark.parametrize("enable_flag", [True, False])
+    async def test_trigger_job_vars_value_if_enable_infra_overrides_flag_is_toggled(
+        self, patch_import, tmp_path, enable_flag: bool
+    ):
+        infrastructure = Process()
+        await infrastructure._save(is_anonymous=True)
+
+        trigger = pydantic.parse_obj_as(
+            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
+        )
+
+        deployment = Deployment(
+            name="TEST",
+            flow_name="fn",
+            triggers=[trigger],
+            infrastructure=infrastructure,
+        )
+
+        created_deployment_id = str(uuid4())
+
+        updates = {
+            PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{uuid4()}/workspaces/{uuid4()}",
+            PREFECT_CLOUD_API_URL: "https://api.prefect.cloud/api/",
+        }
+        if enable_flag:
+            updates[PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES] = True
+
+        with temporary_settings(updates=updates):
+            with respx.mock(base_url=PREFECT_API_URL.value()) as router:
+                router.post("/flows/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+                router.post("/deployments/").mock(
+                    return_value=httpx.Response(201, json={"id": created_deployment_id})
+                )
+                delete_route = router.delete(
+                    f"/automations/owned-by/prefect.deployment.{created_deployment_id}"
+                ).mock(return_value=httpx.Response(204))
+                create_route = router.post("/automations/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+
+                if enable_flag:
+                    warning_catcher = pytest.warns(
+                        ExperimentalFeature,
+                        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+                    )
+                else:
+                    warning_catcher = nullcontext()
+
+                with warning_catcher:
+                    await deployment.apply()
+
+            assert delete_route.called
+            assert create_route.called
+
+            if enable_flag:
+                expected_job_vars = {"foo": 123}
+            else:
+                expected_job_vars = None
+
+            assert (
+                json.loads(create_route.calls[0].request.content)["actions"][0][
+                    "job_variables"
+                ]
+                == expected_job_vars
+            )
 
     async def test_deployment_apply_with_dict_parameter(
         self, flow_function_dict_parameter, prefect_client
@@ -944,6 +1103,7 @@ class TestRunDeployment:
                 ),
             ]
 
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
@@ -991,6 +1151,7 @@ class TestRunDeployment:
                 ),
             ]
 
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
@@ -1057,6 +1218,50 @@ class TestRunDeployment:
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
 
+    async def test_run_deployment_emits_warning(
+        self,
+        test_deployment,
+        prefect_client,
+        enable_infra_overrides,
+    ):
+        # This can be removed once the flow run infra overrides is no longer an experiment
+        _, deployment_id = test_deployment
+
+        with pytest.warns(
+            ExperimentalFeature,
+            match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+        ):
+            await run_deployment(
+                deployment_id,
+                timeout=0,
+                job_variables={"foo": "bar"},
+                client=prefect_client,
+            )
+
+    async def test_run_deployment_with_job_vars_creates_run_with_job_vars(
+        self,
+        test_deployment,
+        prefect_client,
+        enable_infra_overrides,
+    ):
+        # This can be removed once the flow run infra overrides is no longer an experiment
+        _, deployment_id = test_deployment
+
+        job_vars = {"foo": "bar"}
+        with pytest.warns(
+            ExperimentalFeature,
+            match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+        ):
+            flow_run = await run_deployment(
+                deployment_id,
+                timeout=0,
+                job_variables=job_vars,
+                client=prefect_client,
+            )
+        assert flow_run.job_variables == job_vars
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.job_variables == job_vars
+
     def test_returns_flow_run_on_timeout(
         self,
         test_deployment,
@@ -1072,6 +1277,7 @@ class TestRunDeployment:
         with respx.mock(
             base_url=PREFECT_API_URL.value(), assert_all_mocked=True
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
@@ -1105,6 +1311,7 @@ class TestRunDeployment:
             assert_all_mocked=True,
             assert_all_called=False,
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
@@ -1149,6 +1356,7 @@ class TestRunDeployment:
             assert_all_mocked=True,
             assert_all_called=False,
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(

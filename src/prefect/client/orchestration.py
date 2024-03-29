@@ -15,11 +15,21 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+import certifi
 import httpcore
 import httpx
 import pendulum
 
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -118,15 +128,17 @@ from prefect.client.schemas.sorting import (
     TaskRunSort,
 )
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas import Automation, ExistingAutomation
+from prefect.events.schemas.automations import Automation, ExistingAutomation
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
+    PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
@@ -211,6 +223,11 @@ class PrefectClient:
 
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
+        else:
+            cert_file = PREFECT_API_SSL_CERT_FILE.value()
+            if not cert_file:
+                cert_file = certifi.where()
+            httpx_settings.setdefault("verify", cert_file)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
@@ -307,7 +324,15 @@ class PrefectClient:
 
         if not PREFECT_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
-        self._client = PrefectHttpxClient(**httpx_settings)
+
+        enable_csrf_support = (
+            self.server_type != ServerType.CLOUD
+            and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
+        )
+
+        self._client = PrefectHttpxClient(
+            **httpx_settings, enable_csrf_support=enable_csrf_support
+        )
         self._loop = None
 
         # See https://www.python-httpx.org/advanced/#custom-transports
@@ -506,6 +531,7 @@ class PrefectClient:
         idempotency_key: str = None,
         parent_task_run_id: UUID = None,
         work_queue_name: str = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -529,6 +555,7 @@ class PrefectClient:
             work_queue_name: An optional work queue name to add this run to. If not provided,
                 will default to the deployment's set work queue.  If one is provided that does not
                 exist, a new work queue will be created within the deployment's work pool.
+            job_variables: Optional variables that will be supplied to the flow run job.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -536,6 +563,21 @@ class PrefectClient:
         Returns:
             The flow run model
         """
+        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+
         parameters = parameters or {}
         context = context or {}
         state = state or prefect.states.Scheduled()
@@ -549,6 +591,7 @@ class PrefectClient:
             name=name,
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
+            job_variables=job_variables,
         )
 
         # done separately to avoid including this field in payloads sent to older API versions
@@ -634,6 +677,7 @@ class PrefectClient:
         tags: Optional[Iterable[str]] = None,
         empirical_policy: Optional[FlowRunPolicy] = None,
         infrastructure_pid: Optional[str] = None,
+        job_variables: Optional[dict] = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -654,6 +698,21 @@ class PrefectClient:
         Returns:
             an `httpx.Response` object from the PATCH request
         """
+        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+
         params = {}
         if flow_version is not None:
             params["flow_version"] = flow_version
@@ -667,6 +726,8 @@ class PrefectClient:
             params["empirical_policy"] = empirical_policy
         if infrastructure_pid:
             params["infrastructure_pid"] = infrastructure_pid
+        if job_variables is not None:
+            params["job_variables"] = job_variables
 
         flow_run_data = FlowRunUpdate(**params)
 

@@ -6,6 +6,7 @@ import datetime
 from typing import List
 from uuid import UUID
 
+import anyio
 import pendulum
 from prefect._vendor.fastapi import (
     Body,
@@ -16,6 +17,7 @@ from prefect._vendor.fastapi import (
     WebSocket,
     status,
 )
+from prefect._vendor.starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -271,23 +273,41 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
     try:
         subscription = await websocket.receive_json()
-        task_keys = subscription.get("keys", [])
-        if not task_keys:
-            return await websocket.close()
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-        return await websocket.close()
+        return
+
+    if subscription.get("type") != "subscribe":
+        return await websocket.close(
+            code=4001, reason="Protocol violation: expected 'subscribe' message"
+        )
+
+    task_keys = subscription.get("keys", [])
+    if not task_keys:
+        return await websocket.close(
+            code=4001, reason="Protocol violation: expected 'keys' in subscribe message"
+        )
 
     subscribed_queue = MultiQueue(task_keys)
 
     while True:
-        task_run = await subscribed_queue.get()
+        try:
+            with anyio.fail_after(5):
+                task_run = await subscribed_queue.get()
+        except TimeoutError:
+            continue
 
         try:
             await websocket.send_json(task_run.dict(json_compatible=True))
 
             acknowledgement = await websocket.receive_json()
-            if acknowledgement.get("type") != "ack":
-                return await websocket.close()
+            ack_type = acknowledgement.get("type")
+            if ack_type != "ack":
+                if ack_type == "quit":
+                    return await websocket.close()
+
+                raise WebSocketDisconnect(
+                    code=4001, reason="Protocol violation: expected 'ack' message"
+                )
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue

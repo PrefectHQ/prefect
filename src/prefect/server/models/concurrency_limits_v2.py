@@ -56,7 +56,7 @@ def denied_slots_after_decay(db: PrefectDBInterface):
         - sa.func.floor(
             sa.case(
                 (
-                    db.ConcurrencyLimitV2.slot_decay_per_second > 0,
+                    db.ConcurrencyLimitV2.slot_decay_per_second > 0.0,
                     db.ConcurrencyLimitV2.slot_decay_per_second,
                 ),
                 else_=(

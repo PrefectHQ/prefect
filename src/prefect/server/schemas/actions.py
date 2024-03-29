@@ -1,6 +1,7 @@
 """
 Reduced schemas for accepting API actions.
 """
+
 import json
 import warnings
 from copy import copy, deepcopy
@@ -18,6 +19,12 @@ else:
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_alphanumeric_underscores_only,
+    validate_parameter_openapi_schema,
+    validate_parameters_conform_to_schema,
+)
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
@@ -26,15 +33,7 @@ from prefect.server.utilities.schemas.transformations import (
     FieldFrom,
     copy_model_fields,
 )
-from prefect.server.utilities.schemas.validators import (
-    raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_alphanumeric_underscores_only,
-)
 from prefect.utilities.templating import find_placeholders
-from prefect.utilities.validation import (
-    validate_schema,
-    validate_values_conform_to_schema,
-)
 
 
 def validate_block_type_slug(value):
@@ -220,19 +219,11 @@ class DeploymentCreate(ActionBaseModel):
 
     @validator("parameters")
     def _validate_parameters_conform_to_schema(cls, value, values):
-        """Validate that the parameters conform to the parameter schema."""
-        if values.get("enforce_parameter_schema"):
-            validate_values_conform_to_schema(
-                value, values.get("parameter_openapi_schema"), ignore_required=True
-            )
-        return value
+        return validate_parameters_conform_to_schema(value, values)
 
     @validator("parameter_openapi_schema")
     def _validate_parameter_openapi_schema(cls, value, values):
-        """Validate that the parameter_openapi_schema is a valid json schema."""
-        if values.get("enforce_parameter_schema"):
-            validate_schema(value)
-        return value
+        return validate_parameter_openapi_schema(value, values)
 
 
 @experimental_field(
@@ -343,6 +334,7 @@ class FlowRunUpdate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
@@ -455,6 +447,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields

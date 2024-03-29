@@ -8,6 +8,7 @@ from unittest.mock import ANY, MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
+import certifi
 import httpcore
 import httpx
 import pendulum
@@ -28,6 +29,7 @@ import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
+from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
@@ -68,20 +70,31 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas import Automation, Posture, Trigger
+from prefect.events import Automation, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
+    PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+
+
+@pytest.fixture
+def enable_infra_overrides():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
+    ):
+        yield
 
 
 class TestGetClient:
@@ -986,18 +999,35 @@ async def test_create_flow_run_from_deployment_idempotency(prefect_client, deplo
 
 
 async def test_create_flow_run_from_deployment_with_options(prefect_client, deployment):
+    job_variables = {"foo": "bar"}
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment.id,
         name="test-run-name",
         tags={"foo", "bar"},
         state=Pending(message="test"),
         parameters={"foo": "bar"},
+        job_variables=job_variables,
     )
     assert flow_run.name == "test-run-name"
     assert set(flow_run.tags) == {"foo", "bar"}.union(deployment.tags)
     assert flow_run.state.type == StateType.PENDING
     assert flow_run.state.message == "test"
     assert flow_run.parameters == {"foo": "bar"}
+    assert flow_run.job_variables == job_variables
+
+
+async def test_create_flow_run_from_deployment_with_options_emits_warning(
+    prefect_client, deployment, enable_infra_overrides
+):
+    with pytest.warns(
+        ExperimentalFeature,
+        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+    ):
+        await prefect_client.create_flow_run_from_deployment(
+            deployment.id,
+            name="test-run-name",
+            job_variables={"foo": "bar"},
+        )
 
 
 async def test_update_flow_run(prefect_client):
@@ -1055,6 +1085,24 @@ async def test_update_flow_run_overrides_tags(prefect_client):
     )
     updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert updated_flow_run.tags == ["hello", "world"]
+
+
+async def test_update_flow_run_with_job_vars_emits_warning(
+    prefect_client, deployment, enable_infra_overrides
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        name="test-run-name",
+    )
+
+    with pytest.warns(
+        ExperimentalFeature,
+        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
+    ):
+        await prefect_client.update_flow_run(
+            flow_run.id,
+            job_variables={"foo": "bar"},
+        )
 
 
 async def test_create_then_read_task_run(prefect_client):
@@ -1307,6 +1355,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1318,9 +1367,11 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
     mock.assert_called_once_with(
         headers=ANY,
+        verify=ANY,
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1330,9 +1381,74 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
+        verify=ANY,
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
+        enable_csrf_support=ANY,
+    )
+
+
+async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
+    with temporary_settings(
+        updates={
+            PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False,
+            PREFECT_API_SSL_CERT_FILE: "my_cert.pem",
+        }
+    ):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify="my_cert.pem",
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+        enable_csrf_support=ANY,
+    )
+
+
+async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
+    os.environ["SSL_CERT_FILE"] = "my_cert.pem"
+
+    with temporary_settings(
+        updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
+        set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
+    ):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify="my_cert.pem",
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+        enable_csrf_support=ANY,
+    )
+
+
+async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
+    os.environ["SSL_CERT_FILE"] = ""
+
+    with temporary_settings(
+        updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
+        set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
+    ):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify=certifi.where(),
+        transport=ANY,
+        base_url=ANY,
+        timeout=ANY,
+        enable_csrf_support=ANY,
     )
 
 
@@ -1943,7 +2059,7 @@ class TestAutomations:
     def automation(self):
         return Automation(
             name="test-automation",
-            trigger=Trigger(
+            trigger=EventTrigger(
                 match={"flow_run_id": "123"},
                 posture=Posture.Reactive,
                 threshold=1,
@@ -2033,16 +2149,21 @@ async def test_prefect_client_follow_redirects():
 
 
 async def test_global_concurrency_limit_create(prefect_client):
-    response_uuid = await prefect_client.create_global_concurrency_limit(
-        GlobalConcurrencyLimitCreate(name="global-create-test", limit=42)
-    )
-    assert response_uuid == UUID(
-        (
-            await prefect_client.read_global_concurrency_limit_by_name(
-                name="global-create-test"
+    # Test for both `integer` and `float` slot_delay_per_second
+    for slot_decay_per_second in [1, 1.2]:
+        global_concurrency_limit_name = f"global-create-test-{slot_decay_per_second}"
+        response_uuid = await prefect_client.create_global_concurrency_limit(
+            GlobalConcurrencyLimitCreate(
+                name=global_concurrency_limit_name,
+                limit=42,
+                slot_decay_per_second=slot_decay_per_second,
             )
-        ).get("id")
-    )
+        )
+        concurrency_limit = await prefect_client.read_global_concurrency_limit_by_name(
+            name=global_concurrency_limit_name
+        )
+        assert UUID(concurrency_limit.get("id")) == response_uuid
+        assert concurrency_limit.get("slot_decay_per_second") == slot_decay_per_second
 
 
 async def test_global_concurrency_limit_delete(prefect_client):
@@ -2060,27 +2181,44 @@ async def test_global_concurrency_limit_delete(prefect_client):
         )
 
 
-async def test_global_concurrency_limit_update(prefect_client):
-    await prefect_client.create_global_concurrency_limit(
-        GlobalConcurrencyLimitCreate(name="global-update-test", limit=42)
-    )
-    await prefect_client.update_global_concurrency_limit(
-        name="global-update-test",
-        concurrency_limit=GlobalConcurrencyLimitUpdate(
-            limit=1, name="global-update-test-new"
-        ),
-    )
-    assert len(await prefect_client.read_global_concurrency_limits()) == 1
-    assert (
-        await prefect_client.read_global_concurrency_limit_by_name(
-            name="global-update-test-new"
+async def test_global_concurrency_limit_update_with_integer(prefect_client):
+    # Test for both `integer` and `float` slot_delay_per_second
+    for index, slot_decay_per_second in enumerate([1, 1.2]):
+        created_global_concurrency_limit_name = (
+            f"global-update-test-{slot_decay_per_second}"
         )
-    ).get("limit") == 1
-    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        updated_global_concurrency_limit_name = (
+            f"global-create-test-{slot_decay_per_second}-new"
+        )
+        await prefect_client.create_global_concurrency_limit(
+            GlobalConcurrencyLimitCreate(
+                name=created_global_concurrency_limit_name,
+                limit=42,
+                slot_decay_per_second=slot_decay_per_second,
+            )
+        )
         await prefect_client.update_global_concurrency_limit(
-            name="global-update-test",
-            concurrency_limit=GlobalConcurrencyLimitUpdate(limit=1),
+            name=created_global_concurrency_limit_name,
+            concurrency_limit=GlobalConcurrencyLimitUpdate(
+                limit=1, name=updated_global_concurrency_limit_name
+            ),
         )
+        assert len(await prefect_client.read_global_concurrency_limits()) == index + 1
+        assert (
+            await prefect_client.read_global_concurrency_limit_by_name(
+                name=updated_global_concurrency_limit_name
+            )
+        ).get("limit") == 1
+        assert (
+            await prefect_client.read_global_concurrency_limit_by_name(
+                name=updated_global_concurrency_limit_name
+            )
+        ).get("slot_decay_per_second") == slot_decay_per_second
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.update_global_concurrency_limit(
+                name=created_global_concurrency_limit_name,
+                concurrency_limit=GlobalConcurrencyLimitUpdate(limit=1),
+            )
 
 
 async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client):
@@ -2197,3 +2335,25 @@ class TestPrefectClientDeploymentSchedules:
             await prefect_client.delete_deployment_schedule(
                 deployment.id, nonexistent_schedule_id
             )
+
+
+class TestPrefectClientCsrfSupport:
+    def test_enabled_ephemeral(self, prefect_client: PrefectClient):
+        assert prefect_client.server_type == ServerType.EPHEMERAL
+        assert prefect_client._client.enable_csrf_support
+
+    async def test_enabled_server_type(self, hosted_api_server):
+        async with PrefectClient(hosted_api_server) as prefect_client:
+            assert prefect_client.server_type == ServerType.SERVER
+            assert prefect_client._client.enable_csrf_support
+
+    async def test_not_enabled_server_type_cloud(self):
+        async with PrefectClient(PREFECT_CLOUD_API_URL.value()) as prefect_client:
+            assert prefect_client.server_type == ServerType.CLOUD
+            assert not prefect_client._client.enable_csrf_support
+
+    async def test_disabled_setting_disabled(self, hosted_api_server):
+        with temporary_settings({PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False}):
+            async with PrefectClient(hosted_api_server) as prefect_client:
+                assert prefect_client.server_type == ServerType.SERVER
+                assert not prefect_client._client.enable_csrf_support
