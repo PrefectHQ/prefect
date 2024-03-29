@@ -51,6 +51,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Generic,
     Iterable,
     List,
@@ -67,6 +68,7 @@ from urllib.parse import urlparse
 import toml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import (
@@ -102,7 +104,10 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
-REMOVED_EXPERIMENTAL_FLAGS = {"PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI"}
+REMOVED_EXPERIMENTAL_FLAGS = {
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+}
 
 
 class Setting(Generic[T]):
@@ -592,6 +597,16 @@ PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
 This is recommended only during development, e.g. when using self-signed certificates.
 """
 
+PREFECT_API_SSL_CERT_FILE = Setting(
+    str,
+    default=os.environ.get("SSL_CERT_FILE"),
+)
+"""
+This configuration settings option specifies the path to an SSL certificate file.
+When set, it allows the application to use the specified certificate for secure communication.
+If left unset, the setting will default to the value provided by the `SSL_CERT_FILE` environment variable.
+"""
+
 PREFECT_API_URL = Setting(
     str,
     default=None,
@@ -655,6 +670,21 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
 429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
 may result in unexpected behavior.
+"""
+
+PREFECT_CLIENT_CSRF_SUPPORT_ENABLED = Setting(bool, default=True)
+"""
+Determines if CSRF token handling is active in the Prefect client for API
+requests.
+
+When enabled (`True`), the client automatically manages CSRF tokens by
+retrieving, storing, and including them in applicable state-changing requests
+(POST, PUT, PATCH, DELETE) to the API.
+
+Disabling this setting (`False`) means the client will not handle CSRF tokens,
+which might be suitable for environments where CSRF protection is disabled.
+
+Defaults to `True`, ensuring CSRF protection is enabled by default.
 """
 
 PREFECT_CLOUD_API_URL = Setting(
@@ -1149,7 +1179,7 @@ this often. Defaults to `5`.
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
-    default=timedelta(seconds=5),
+    default=timedelta(seconds=15),
 )
 """The late runs service will mark runs as late after they
 have exceeded their scheduled start time by this many seconds. Defaults
@@ -1205,6 +1235,33 @@ greater than the load balancer's idle timeout.
 
 Note this setting only applies when calling `prefect server start`; if hosting the
 API with another tool you will need to configure this there instead.
+"""
+
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
+"""
+Controls the activation of CSRF protection for the Prefect server API.
+
+When enabled (`True`), the server enforces CSRF validation checks on incoming
+state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
+token to be included in the request headers or body. This adds a layer of
+security by preventing unauthorized or malicious sites from making requests on
+behalf of authenticated users.
+
+It is recommended to enable this setting in production environments where the
+API is exposed to web clients to safeguard against CSRF attacks.
+
+Note: Enabling this setting requires corresponding support in the client for
+CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
+"""
+
+PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(timedelta, default=timedelta(hours=1))
+"""
+Specifies the duration for which a CSRF token remains valid after being issued
+by the server.
+
+The default expiration time is set to 1 hour, which offers a reasonable
+compromise. Adjust this setting based on your specific security requirements
+and usage patterns.
 """
 
 PREFECT_UI_ENABLED = Setting(
@@ -1292,12 +1349,12 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
 """
 Whether or not to enable artifacts on the flow run graph.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
 """
 Whether or not to enable flow run states on the flow run graph.
 """
@@ -1342,11 +1399,6 @@ PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 Whether or not to enable experimental enhanced flow run cancellation.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS = Setting(bool, default=True)
-"""
-Whether or not to enable enhanced deployment parameters.
-"""
-
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 """
 Whether or not to warn when experimental enhanced flow run cancellation is used.
@@ -1371,6 +1423,16 @@ PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
 """
 Whether or not to enable flow run input.
 """
+
+
+# Prefect Events feature flags
+
+PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
+"""
+Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
+will always emit events during flow and task runs regardless of this setting.
+"""
+
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
@@ -1566,6 +1628,37 @@ PREFECT_UI_STATIC_DIRECTORY = Setting(
 """
 The directory to serve static files from. This should be used when running into permissions issues
 when attempting to serve the UI from the default directory (for example when running in a Docker container)
+"""
+
+# Messaging system settings
+
+PREFECT_MESSAGING_BROKER = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which message broker implementation to use for the messaging system, should point to a
+module that exports a Publisher and Consumer class.
+"""
+
+PREFECT_MESSAGING_CACHE = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which cache implementation to use for the events system.  Should point to a module that
+exports a Cache class.
+"""
+
+
+# Events settings
+
+PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
+"""
+The maximum number of labels a resource may have.
+"""
+
+PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
+"""
+The maximum number of related resources an Event may have.
 """
 
 
@@ -1823,10 +1916,10 @@ def get_default_settings() -> Settings:
 
 @contextmanager
 def temporary_settings(
-    updates: Mapping[Setting, Any] = None,
-    set_defaults: Mapping[Setting, Any] = None,
-    restore_defaults: Iterable[Setting] = None,
-) -> Settings:
+    updates: Optional[Mapping[Setting[T], Any]] = None,
+    set_defaults: Optional[Mapping[Setting[T], Any]] = None,
+    restore_defaults: Optional[Iterable[Setting[T]]] = None,
+) -> Generator[Settings, None, None]:
     """
     Temporarily override the current settings by entering a new profile.
 
@@ -1873,20 +1966,7 @@ class Profile(BaseModel):
 
     @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
-        if value is None:
-            return value
-
-        # Cast string setting names to variables
-        validated = {}
-        for setting, val in value.items():
-            if isinstance(setting, str) and setting in SETTING_VARIABLES:
-                validated[SETTING_VARIABLES[setting]] = val
-            elif isinstance(setting, Setting):
-                validated[setting] = val
-            else:
-                raise ValueError(f"Unknown setting {setting!r}.")
-
-        return validated
+        return validate_settings(value)
 
     def validate_settings(self) -> None:
         """
@@ -2078,7 +2158,9 @@ class ProfilesCollection:
         )
 
 
-def _handle_removed_flags(profile_name: str, settings: dict) -> dict:
+def _handle_removed_flags(
+    profile_name: str, settings: Dict[str, Any]
+) -> Dict[str, Any]:
     to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
 
     for name in to_remove:
