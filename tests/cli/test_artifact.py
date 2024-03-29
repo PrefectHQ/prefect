@@ -208,7 +208,9 @@ def test_inspecting_artifact_with_limit(artifacts):
 def test_deleting_artifact_by_key_succeeds(artifacts):
     invoke_and_assert(
         ["artifact", "delete", str(artifacts[0].key)],
-        user_input="y",
+        prompts_and_responses=[
+            ("Are you sure you want to delete 2 artifact(s) with key 'voltaic'?", "y"),
+        ],
         expected_output_contains="Deleted 2 artifact(s) with key 'voltaic'.",
         expected_code=0,
     )
