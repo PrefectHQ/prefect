@@ -690,6 +690,53 @@ def validate_compressionlib(value: str) -> str:
     return value
 
 
+# TODO: if we use this elsewhere we can change the error message to be more generic
+def list_length_50_or_less(v: Optional[List[float]]) -> Optional[List[float]]:
+    if isinstance(v, list) and (len(v) > 50):
+        raise ValueError("Can not configure more than 50 retry delays per task.")
+    return v
+
+
+# TODO: if we use this elsewhere we can change the error message to be more generic
+def validate_not_negative(v: Optional[float]) -> Optional[float]:
+    if v is not None and v < 0:
+        raise ValueError("`retry_jitter_factor` must be >= 0.")
+    return v
+
+
+def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
+    from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
+
+    if v is not None:
+        try:
+            v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
+        except KeyError as exc:
+            raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
+    return v
+
+
+def validate_default_queue_id_not_none(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        raise ValueError(
+            "`default_queue_id` is a required field. If you are "
+            "creating a new WorkPool and don't have a queue "
+            "ID yet, use the `actions.WorkPoolCreate` model instead."
+        )
+    return v
+
+
+def validate_max_metadata_length(
+    v: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    max_metadata_length = 500
+    if not isinstance(v, dict):
+        return v
+    for key in v.keys():
+        if len(str(v[key])) > max_metadata_length:
+            v[key] = str(v[key])[:max_metadata_length] + "..."
+    return v
+
+
 ### DOCKER SCHEMA VALIDATORS ###
 
 
