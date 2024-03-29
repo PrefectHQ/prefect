@@ -26,11 +26,12 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 
 import httpx
 
 REPO_ORG = "PrefectHQ"
-REPO_NAME = [
+REPO_NAMES = [
     "prefect",
     "prefect-ui-library",
     "prefect-azure",
@@ -41,6 +42,66 @@ DEFAULT_TAG = "preview"
 
 TOKEN_REGEX = re.compile(r"\s*✓ Token:\s(.*)")
 ENTRY_REGEX = re.compile(r"^\* (.*) by @(.*) in (.*)$", re.MULTILINE)
+
+
+PREFECTIONISTS = {
+    "aaazzam",
+    "abrookins",
+    "aimeemcmanus",
+    "arhead7",
+    "biancaines",
+    "billpalombi",
+    "bunchesofdonald",
+    "chrisguidry",
+    "collincchoy",
+    "desertaxle",
+    "discdiver",
+    "dylanbhughes",
+    "EmilRex",
+    "gabcoyne",
+    "jakekaplan",
+    "jeanluciano",
+    "jimid27",
+    "jlowin",
+    "justin-prefect",
+    "kevingrismore",
+    "marvin-robot",
+    "masonmenges",
+    "neha-julka",
+    "parkedwards",
+    "pleek91",
+    "prefectcboyd",
+    "robfreedy",
+    "Sahiler",
+    "sarahbanana09",
+    "sarahmk125",
+    "seanpwlms",
+    "serinamarie",
+    "SMPrefect",
+    "taylor-curran",
+    "tess-dicker",
+    "thomas-te",
+    "WillRaphaelson",
+    "zangell44",
+    "zhen0",
+    "znicholasbrown",
+    "zzstoatzz",
+}
+
+
+def get_latest_repo_release_date(repo_org: str, repo_name: str) -> datetime:
+    """
+    Retrieve the latest release date for a repository.
+    """
+    response = httpx.get(
+        f"https://api.github.com/repos/{repo_org}/{repo_name}/releases/latest"
+    )
+    if response.status_code == 200:
+        release_date_str = response.json()["published_at"]
+        return datetime.fromisoformat(release_date_str.replace("Z", "+00:00"))
+    raise Exception(
+        f"Failed to retrieve latest {repo_name} release date: {response.json()}"
+    )
 
 
 def generate_release_notes(
@@ -54,8 +115,18 @@ def generate_release_notes(
     """
     Generate release notes using the GitHub API.
     """
+    latest_prefect_release_date = get_latest_repo_release_date(repo_org, "prefect")
 
     for repo_name in repo_names:
+        if latest_prefect_release_date:
+            latest_repo_release_date = get_latest_repo_release_date(repo_org, repo_name)
+
+            repo_has_release_since_latest_prefect_release = (
+                latest_repo_release_date <= latest_prefect_release_date
+            )
+            if not repo_has_release_since_latest_prefect_release:
+                continue
+
         request = {"tag_name": tag_name, "target_commitish": target_commit}
         if previous_tag:
             request["previous_tag_name"] = previous_tag
@@ -95,7 +166,8 @@ def generate_release_notes(
         # Generate a contributors section
         contributors = ""
         for contributor in sorted(set(user for _, user, _ in entries)):
-            contributors += f"\n- @{contributor}"
+            if contributor not in PREFECTIONISTS:
+                contributors += f"\n- @{contributor}"
 
         # Replace the heading of the existing contributors section; append contributors
         release_notes = release_notes.replace(
@@ -155,7 +227,7 @@ def get_github_token() -> str:
 if __name__ == "__main__":
     generate_release_notes(
         REPO_ORG,
-        REPO_NAME,
+        REPO_NAMES,
         tag_name=sys.argv[1] if len(sys.argv) > 1 else DEFAULT_TAG,
         target_commit=sys.argv[2] if len(sys.argv) > 2 else "main",
         previous_tag=sys.argv[3] if len(sys.argv) > 3 else None,
