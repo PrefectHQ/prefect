@@ -5,12 +5,13 @@ if typing.TYPE_CHECKING:
     # import of virtually everything is supported via `__getattr__` below,
     # but we need them here for type checking and IDE support
     from pydantic import Field, SecretField, validator, root_validator
-    from .main import BaseModel
+    from .main import BaseModel, PrefectBaseModel
 
 __all__ = ["BaseModel", "Field", "SecretField", "validator", "root_validator"]
 
 _dynamic_imports: "typing.Dict[str, tuple[str, str]]" = {
     "BaseModel": ("prefect.pydantic", ".main"),
+    "PrefectBaseModel": ("prefect.pydantic", ".main"),
 }
 
 
