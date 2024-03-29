@@ -82,8 +82,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+      - name: Set VIRTUAL_ENV
+        # UV does not allow for installs into sys python directly yet.
+        # Need to set this temporarily as workaround.
+        # https://github.com/astral-sh/uv/issues/1526
+        run: |
+          VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
 
       - name: Get image tag
         id: get_image_tag
@@ -112,8 +127,8 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
