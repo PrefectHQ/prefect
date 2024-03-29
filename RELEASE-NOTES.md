@@ -1,5 +1,11 @@
 # Prefect Release Notes
 
+## Release 2.16.8
+
+### Fixes
+- Disable CSRF protection by default - https://github.com/PrefectHQ/prefect/pull/12479
+- Fix issue causing UI not to be built when creating docker images - https://github.com/PrefectHQ/prefect/pull/12481
+
 ## Release 2.16.7
 
 ### Introducing `prefect shell` 💻 for observing CLI commands
