@@ -283,13 +283,14 @@ class Task(Generic[P, R]):
         if not hasattr(self.fn, "__qualname__"):
             self.task_key = to_qualified_name(type(self.fn))
         else:
-            if self.fn.__module__ == "__main__":
-                task_definition_path = inspect.getsourcefile(self.fn)
-                self.task_key = hash_objects(
-                    self.name, os.path.abspath(task_definition_path)
+            try:
+                task_origin_hash = hash_objects(
+                    self.name, os.path.abspath(inspect.getsourcefile(self.fn))
                 )
-            else:
-                self.task_key = to_qualified_name(self.fn)
+            except TypeError:
+                task_origin_hash = "unknown-source-file"
+
+            self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
@@ -390,8 +391,12 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
         refresh_cache: Optional[bool] = NotSet,
-        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_completion: Optional[
+            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
+        ] = None,
+        on_failure: Optional[
+            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
+        ] = None,
         retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):

@@ -12,6 +12,7 @@ import respx
 import yaml
 from httpx import Response
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -20,8 +21,10 @@ from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
 from prefect.deployments.deployments import load_flow_from_flow_run
 
 if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
     from pydantic.v1.error_wrappers import ValidationError
 else:
+    import pydantic
     from pydantic.error_wrappers import ValidationError
 
 import prefect.server.models as models
@@ -32,7 +35,7 @@ from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
@@ -71,6 +74,19 @@ async def ensure_default_agent_pool_exists(session):
             ),
         )
         await session.commit()
+
+
+def test_deployment_emits_deprecation_warning():
+    with pytest.warns(
+        PrefectDeprecationWarning,
+        match=(
+            "prefect.deployments.deployments.Deployment has been deprecated."
+            " It will not be available after Sep 2024."
+            " Use `flow.deploy` to deploy your flows instead."
+            " Refer to the upgrade guide for more information"
+        ),
+    ):
+        Deployment(name="foo")
 
 
 class TestDeploymentBasicInterface:
@@ -140,7 +156,10 @@ class TestDeploymentBasicInterface:
         deployment = Deployment(
             name="TEST",
             flow_name="fn",
-            triggers=[DeploymentTrigger(), DeploymentTrigger(name="run-it")],
+            triggers=[
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {}),
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {"name": "run-it"}),
+            ],
         )
 
         assert deployment.triggers[0].name == "TEST__automation_1"
@@ -151,8 +170,10 @@ class TestDeploymentBasicInterface:
             name="TEST",
             flow_name="fn",
             triggers=[
-                DeploymentTrigger(),
-                DeploymentTrigger(job_variables={"foo": "bar"}),
+                pydantic.parse_obj_as(DeploymentTriggerTypes, {}),
+                pydantic.parse_obj_as(
+                    DeploymentTriggerTypes, {"job_variables": {"foo": "bar"}}
+                ),
             ],
         )
 
@@ -902,7 +923,9 @@ class TestDeploymentApply:
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
 
-        trigger = DeploymentTrigger(job_variables={"foo": 123})
+        trigger = pydantic.parse_obj_as(
+            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
+        )
 
         deployment = Deployment(
             name="TEST",
@@ -948,7 +971,9 @@ class TestDeploymentApply:
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
 
-        trigger = DeploymentTrigger(job_variables={"foo": 123})
+        trigger = pydantic.parse_obj_as(
+            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
+        )
 
         deployment = Deployment(
             name="TEST",
@@ -1078,6 +1103,7 @@ class TestRunDeployment:
                 ),
             ]
 
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
@@ -1125,6 +1151,7 @@ class TestRunDeployment:
                 ),
             ]
 
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
@@ -1250,6 +1277,7 @@ class TestRunDeployment:
         with respx.mock(
             base_url=PREFECT_API_URL.value(), assert_all_mocked=True
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
@@ -1283,6 +1311,7 @@ class TestRunDeployment:
             assert_all_mocked=True,
             assert_all_called=False,
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
@@ -1327,6 +1356,7 @@ class TestRunDeployment:
             assert_all_mocked=True,
             assert_all_called=False,
         ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(

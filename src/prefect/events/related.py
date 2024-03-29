@@ -17,7 +17,7 @@ from uuid import UUID
 import pendulum
 from pendulum.datetime import DateTime
 
-from .schemas import RelatedResource
+from .schemas.events import RelatedResource
 
 if TYPE_CHECKING:
     from prefect._internal.schemas.bases import ObjectBaseModel
@@ -74,7 +74,7 @@ async def related_resources_from_run_context(
     if flow_run_id is None:
         return []
 
-    related_objects: list[ResourceCacheEntry] = []
+    related_objects: List[ResourceCacheEntry] = []
 
     async with get_client() as client:
 

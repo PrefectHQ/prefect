@@ -6,7 +6,6 @@ import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-import jsonschema
 import orjson
 import pendulum
 import sqlalchemy as sa
@@ -42,6 +41,7 @@ from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
+from prefect.utilities import schema_tools
 
 logger = get_logger("server.api")
 
@@ -364,6 +364,20 @@ async def resume_flow_run(
         if keyset:
             run_input = run_input or {}
 
+            try:
+                hydration_context = await schema_tools.HydrationContext.build(
+                    session=session, raise_on_error=True
+                )
+                run_input = schema_tools.hydrate(run_input, hydration_context) or {}
+            except schema_tools.HydrationError as exc:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason=f"Error hydrating run input: {exc}",
+                    ),
+                )
+
             schema_json = await models.flow_run_input.read_flow_run_input(
                 session=session, flow_run_id=flow_run.id, key=keyset["schema"]
             )
@@ -389,13 +403,21 @@ async def resume_flow_run(
                 )
 
             try:
-                jsonschema.validate(run_input, schema)
-            except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
+                schema_tools.validate(run_input, schema, raise_on_error=True)
+            except schema_tools.ValidationError as exc:
                 return OrchestrationResult(
                     state=state,
                     status=schemas.responses.SetStateStatus.REJECT,
                     details=schemas.responses.StateAbortDetails(
-                        reason=f"Run input validation failed: {exc.message}"
+                        reason=f"Reason: {exc}"
+                    ),
+                )
+            except schema_tools.CircularSchemaRefError:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Invalid schema: Unable to validate schema with circular references.",
                     ),
                 )
 

@@ -263,6 +263,12 @@ async def pause(
     """
     Pause a work queue.
     """
+
+    if not pool and not typer.confirm(
+        f"You have not specified a work pool. Are you sure you want to pause {name} work queue in `{DEFAULT_AGENT_WORK_POOL_NAME}`?"
+    ):
+        exit_with_error("Work queue pause aborted!")
+
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
         work_pool_name=pool,
@@ -417,7 +423,7 @@ async def ls(
                     str(queue.id),
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
@@ -458,7 +464,7 @@ async def ls(
                     str(queue.id),
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
@@ -493,7 +499,7 @@ async def ls(
                     f"{queue.priority}",
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]

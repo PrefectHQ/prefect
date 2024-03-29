@@ -15,7 +15,6 @@ cp -rf ./ $TMPDIR
 cd $TMPDIR/src/prefect
 
 # delete the files we don't need
-rm artifacts.py
 rm -rf cli/
 rm -rf deployments/recipes/
 rm -rf deployments/templates
