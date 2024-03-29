@@ -189,7 +189,7 @@ python demo_project/daily_flow.py
 ![Job variables in the UI](/img/guides/job-variables.png)
 
 
-## How to override job variables on a Flow Run
+## How to override job variables on a flow run
 
 When running flows, you can pass in job variables that override any values set on the work pool or deployment. Any interface that runs deployments can accept job variables.
 
