@@ -41,7 +41,7 @@ Rather than hardcoding these values into your work pool in the UI and making the
 
 Let's look at how to do that.
 
-## How to override job variables on a Deployment
+## How to override job variables on a deployment
 Say we have the following repo structure:
 ```
 » tree
