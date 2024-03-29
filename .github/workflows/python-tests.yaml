@@ -760,12 +760,11 @@ jobs:
   run-docker-tests:
     runs-on:
       group: oss-larger-runners
-    name: python:${{ matrix.python-version }}, ${{ matrix.database }}
+    name: docker, python:${{ matrix.python-version }}
     strategy:
       matrix:
         database:
           - "postgres:14"
-#          - "sqlite"
         python-version:
           - "3.8"
           - "3.9"
@@ -773,7 +772,7 @@ jobs:
           - "3.11"
           - "3.12"
 
-#      fail-fast: true
+      fail-fast: true
 
     timeout-minutes: 45
 
