@@ -97,7 +97,7 @@ They are still valid flows that will be monitored by the API and observable in t
 
     This is the heart of the Prefect hybrid model: there's a boundary between your proprietary assets, such as your flow code, and the Prefect backend (including [Prefect Cloud](/cloud/)). 
 
-### Scheduling and parametrization
+### Scheduling and parameterization
 
 One of the primary motivations for creating deployments of flows is to remotely _schedule_ and _trigger_ them.
 Just as flows can be called as functions with different input values, so can deployments be triggered or scheduled with different values through the use of parameters.
