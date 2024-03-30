@@ -63,9 +63,9 @@ As an account Admin you can create a [workspace](#workspaces) and invite other i
 
 Upgrading from a Prefect Cloud Free tier plan to a Pro or Custom tier plan enables additional functionality for adding workspaces, managing teams, and running higher volume workloads.
 
-Workspace Admins have the ability to use [single sign-on (SSO)](#single-sign-on-(sso)), set [role-based access controls (RBAC)](#roles-and-custom-permissions), view [Audit Logs](#audit-log), and configure [service accounts](#service-accounts).
+Workspace Admins for Pro tier plans have the ability to set [role-based access controls (RBAC)](#roles-and-custom-permissions), view [Audit Logs](#audit-log), and configure [service accounts](#service-accounts).
 
-Custom add [custom roles](/cloud/users/roles/), [object-level access control lists](/cloud/users/object-access-control-lists/), [teams](/cloud/users/teams/), and [Directory Sync/SCIM provisioning](/cloud/users/sso/#scim-provisioning) for SSO.
+Custom plans have [object-level access control lists](/cloud/users/object-access-control-lists/), [custom roles](/cloud/users/roles/), [teams](/cloud/users/teams/), and [single sign-on (SSO)](#single-sign-on-(sso) with [Directory Sync/SCIM provisioning](/cloud/users/sso/#scim-provisioning).
 
 !!! cloud-ad "Prefect Cloud plans for teams of every size"
     See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on Pro and Custom account tiers.

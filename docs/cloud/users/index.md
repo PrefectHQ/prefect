@@ -40,7 +40,7 @@ Custom roles are available on Custom tier accounts.
 
 ## Single sign-on (SSO) <span class="badge pro"></span> <span class="badge custom"></span>
 
-Pro and Custom plans offer [single sign-on (SSO)](/cloud/users/sso/) integration with your team’s identity provider. Custom tier accounts provide additional options with [directory sync and SCIM provisioning](/cloud/users/sso/#directory-sync).
+Custom tier plans offer [single sign-on (SSO)](/cloud/users/sso/) integration with your team’s identity provider, including options for [directory sync and SCIM provisioning](/cloud/users/sso/#directory-sync).
 
 ## Audit log <span class="badge pro"></span> <span class="badge custom"></span>
 
