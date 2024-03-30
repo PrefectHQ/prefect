@@ -99,7 +99,7 @@ Prefect Cloud allows you to see your [events](/cloud/events/). Events provide in
 Prefect Cloud [automations](/concepts/automations/) provide additional notification capabilities beyond those in a self-hosted open-source Prefect server.
 Automations also enable you to create event-driven workflows, toggle resources such as schedules and work pools, and declare incidents.
 
-## Incidents <span class="badge pro"></span> <span class="badge custom"></span> <span class="badge beta"/>
+## Incidents <span class="badge pro"></span> <span class="badge custom"></span>
 
 Prefect Cloud's [incidents](/cloud/incidents/) help teams identify, rectify, and document issues in mission-critical workflows.
 Incidents are formal declarations of disruptions to a workspace.
