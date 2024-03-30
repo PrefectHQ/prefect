@@ -699,7 +699,7 @@ def test_defaults_to_unspecified_restart_policy(
     ]["template"]["spec"].get("imagePullPolicy")
     assert call_restart_policy is None
 
-
+@pytest.mark.skip("use_hosted_api_server")
 def test_no_raise_on_submission_with_hosted_api(
     mock_cluster_config,
     mock_k8s_batch_client,

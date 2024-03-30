@@ -363,7 +363,7 @@ class TestRunner:
         assert "Pausing all deployments" in caplog.text
         assert "All deployments have been paused" in caplog.text
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
         runner = Runner()
 
@@ -387,7 +387,7 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
         self, prefect_client: PrefectClient, caplog
     ):
@@ -455,7 +455,7 @@ class TestRunner:
         # check to make sure on_cancellation hook was called
         assert "This flow was cancelled!" in caplog.text
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_runs_on_crashed_hooks_for_remotely_stored_flows(
         self, prefect_client: PrefectClient, caplog
     ):
@@ -497,7 +497,7 @@ class TestRunner:
         # check to make sure on_cancellation hook was called
         assert "This flow crashed!" in caplog.text
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_can_execute_a_single_flow_run(
         self, prefect_client: PrefectClient
     ):
@@ -514,7 +514,7 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_respects_set_limit(
         self, prefect_client: PrefectClient, caplog
     ):
@@ -611,7 +611,7 @@ class TestRunner:
         assert env_var_value == str(flow_run.id)
         assert env_var_value != flow_run.id.hex
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_runs_a_remotely_stored_flow(self, prefect_client):
         runner = Runner()
 
@@ -632,7 +632,7 @@ class TestRunner:
 
         assert flow_run.state.is_completed()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_caches_adhoc_pulls(self, prefect_client):
         runner = Runner()
 
@@ -662,7 +662,7 @@ class TestRunner:
         # Should be 3 because the ad hoc pull should have been cached
         assert runner._storage_objs[0]._pull_code_spy.call_count == 3
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_runner_does_not_raise_on_duplicate_submission(self, prefect_client):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/11093

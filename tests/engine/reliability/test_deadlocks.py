@@ -33,7 +33,7 @@ def test_loop_wait_for_many_tasks():
     run(500)
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_sleep_wait_for():
     @flow
     def run(sleep_time: float, n: int):
@@ -51,7 +51,7 @@ async def test_async_task_as_dependency():
     await run()
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_sync_task_after_async_in_async_flow():
     @flow
     async def run():

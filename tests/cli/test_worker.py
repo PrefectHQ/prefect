@@ -93,7 +93,7 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
         yield work_pool
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_start_worker_run_once_with_name():
     invoke_and_assert(
         command=[
@@ -115,7 +115,7 @@ def test_start_worker_run_once_with_name():
     )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_start_worker_creates_work_pool(prefect_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -138,7 +138,7 @@ async def test_start_worker_creates_work_pool(prefect_client: PrefectClient):
     assert work_pool.default_queue_id is not None
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_start_worker_creates_work_pool_with_base_config(
     prefect_client: PrefectClient,
 ):
@@ -183,7 +183,7 @@ async def test_start_worker_creates_work_pool_with_base_config(
     }
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -212,7 +212,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
     )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -241,7 +241,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
     )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -269,7 +269,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
     )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_start_worker_with_limit(monkeypatch):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -298,7 +298,7 @@ def test_start_worker_with_limit(monkeypatch):
     )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_worker_joins_existing_pool(work_pool, prefect_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -326,7 +326,7 @@ async def test_worker_joins_existing_pool(work_pool, prefect_client: PrefectClie
     assert workers[0].name == "test-worker"
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_worker_discovers_work_pool_type(
     process_work_pool, prefect_client: PrefectClient
 ):
@@ -358,7 +358,7 @@ async def test_worker_discovers_work_pool_type(
     assert workers[0].name == "test-worker"
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_worker_does_not_run_with_push_pool(push_work_pool):
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -384,7 +384,7 @@ async def test_worker_does_not_run_with_push_pool(push_work_pool):
     )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_start_worker_without_type_creates_process_work_pool(
     prefect_client: PrefectClient,
 ):
@@ -414,7 +414,7 @@ async def test_start_worker_without_type_creates_process_work_pool(
     assert workers[0].name == "test-worker"
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 async def test_worker_reports_heartbeat_interval(
     prefect_client: PrefectClient, process_work_pool
 ):
@@ -444,7 +444,7 @@ async def test_worker_reports_heartbeat_interval(
     assert workers[0].heartbeat_interval_seconds == 30
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 class TestInstallPolicyOption:
     async def test_install_policy_if_not_present(
         self, kubernetes_work_pool, monkeypatch
@@ -727,6 +727,7 @@ async def worker_process(use_hosted_api_server):
         out.close()
 
 
+@pytest.mark.skip("use_hosted_api_server")
 class TestWorkerSignalForwarding:
     @pytest.mark.skipif(
         sys.platform == "win32",

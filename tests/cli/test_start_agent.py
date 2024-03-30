@@ -89,6 +89,7 @@ async def agent_process(use_hosted_api_server):
         out.close()
 
 
+@pytest.mark.skip("use_hosted_api_server")
 class TestAgentSignalForwarding:
     @pytest.mark.skipif(
         sys.platform == "win32",

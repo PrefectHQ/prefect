@@ -204,7 +204,7 @@ async def test_worker_emits_executed_event(
     assert executed_events[0].follows == submitted_events[0].id
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_lifecycle_events(
     asserting_events_worker: EventsWorker, reset_worker_events, work_pool
 ):

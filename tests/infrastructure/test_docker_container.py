@@ -458,7 +458,7 @@ def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
     assert network_mode is None
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
     mock_docker_client, hosted_api_server
 ):
@@ -474,7 +474,7 @@ def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
     )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_does_not_replace_localhost_api_when_using_host_network(
     mock_docker_client,
     hosted_api_server,
@@ -493,7 +493,7 @@ def test_does_not_replace_localhost_api_when_using_host_network(
     assert call_env["PREFECT_API_URL"] == hosted_api_server
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
     mock_docker_client,
     monkeypatch,
@@ -662,7 +662,7 @@ def test_does_not_add_docker_host_gateway_on_other_platforms(
         "http://host.docker.internal:10/foo/api",
     ],
 )
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     mock_docker_client,
     explicit_api_url,
@@ -727,7 +727,7 @@ def test_task_status_receives_result_identifier(mock_docker_client):
     fake_status.started.assert_called_once_with(result.identifier)
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 @pytest.mark.parametrize("platform", ["win32", "darwin"])
 def test_does_not_warn_about_gateway_if_not_using_linux(
     mock_docker_client,

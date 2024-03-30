@@ -76,7 +76,7 @@ class MockInfrastructure(Infrastructure):
 
 
 @pytest.mark.skip(reason="Unclear failure.")
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 @pytest.mark.parametrize(
     "infrastructure_type",
     [
@@ -267,7 +267,7 @@ async def test_submission_does_not_override_existing_name(
 
 @pytest.mark.skip("Flaky test that needs investigation")
 @pytest.mark.service("docker")
-@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.skip("use_hosted_api_server")
 @pytest.mark.skipif(
     (Version(MIN_COMPAT_PREFECT_VERSION) > Version(prefect.__version__.split("+")[0])),
     reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",

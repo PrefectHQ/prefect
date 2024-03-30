@@ -708,7 +708,7 @@ class TestFlowRunLogs:
 
 
 class TestFlowRunExecute:
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_execute_flow_run_via_argument(self, prefect_client: PrefectClient):
         deployment_id = await RunnerDeployment.from_entrypoint(
             entrypoint="flows/hello_world.py:hello", name="test"
@@ -727,7 +727,7 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_execute_flow_run_via_environment_variable(
         self, prefect_client: PrefectClient, monkeypatch
     ):

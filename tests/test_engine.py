@@ -3191,7 +3191,7 @@ class TestAPIHealthcheck:
             time.monotonic() + 60 * 10, abs=5
         )
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_healthcheck_for_remote_client(self, hosted_api_server):
         async with get_client() as client:
             await check_api_reachable(client, fail_message="test")

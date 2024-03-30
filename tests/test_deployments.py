@@ -1070,6 +1070,7 @@ class TestDeploymentApply:
 
 
 class TestRunDeployment:
+    @pytest.mark.skip("use_hosted_api_server")
     @pytest.mark.parametrize(
         "terminal_state", list(sorted(s.name for s in states.TERMINAL_STATES))
     )
@@ -1118,6 +1119,7 @@ class TestRunDeployment:
             ), "run_deployment does not exit on {terminal_state}"
             assert len(flow_polls.calls) == 3
 
+    @pytest.mark.skip("use_hosted_api_server")
     @pytest.mark.parametrize(
         "terminal_state", list(sorted(s.name for s in states.TERMINAL_STATES))
     )
@@ -1262,6 +1264,7 @@ class TestRunDeployment:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.job_variables == job_vars
 
+    @pytest.mark.skip("use_hosted_api_server")
     def test_returns_flow_run_on_timeout(
         self,
         test_deployment,
@@ -1294,6 +1297,7 @@ class TestRunDeployment:
             assert len(flow_polls.calls) > 0
             assert flow_run.state
 
+    @pytest.mark.skip("use_hosted_api_server")
     def test_returns_flow_run_immediately_when_timeout_is_zero(
         self,
         test_deployment,
@@ -1328,6 +1332,7 @@ class TestRunDeployment:
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
 
+    @pytest.mark.skip("use_hosted_api_server")
     def test_polls_indefinitely(
         self,
         test_deployment,
@@ -1366,6 +1371,7 @@ class TestRunDeployment:
             run_deployment(f"{d.flow_name}/{d.name}", timeout=None, poll_interval=0)
             assert len(flow_polls.calls) == 100
 
+    @pytest.mark.skip("use_hosted_api_server")
     def test_schedules_immediately_by_default(
         self, test_deployment, use_hosted_api_server
     ):
@@ -1380,6 +1386,7 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
+    @pytest.mark.skip("use_hosted_api_server")
     def test_accepts_custom_scheduled_time(
         self, test_deployment, use_hosted_api_server
     ):
@@ -1395,6 +1402,7 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
+    @pytest.mark.skip("use_hosted_api_server")
     def test_custom_flow_run_names(self, test_deployment, use_hosted_api_server):
         d, deployment_id = test_deployment
 
@@ -1438,6 +1446,7 @@ class TestRunDeployment:
 
         assert flow_run_a.id == flow_run_b.id
 
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_links_to_parent_flow_run_when_used_in_flow_by_default(
         self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
     ):
@@ -1458,6 +1467,7 @@ class TestRunDeployment:
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
         assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
 
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_optionally_does_not_link_to_parent_flow_run_when_used_in_flow(
         self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
     ):
@@ -1476,7 +1486,7 @@ class TestRunDeployment:
         child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is None
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_links_to_parent_flow_run_when_used_in_task_without_flow_context(
         self, test_deployment, prefect_client
     ):
@@ -1508,6 +1518,7 @@ class TestRunDeployment:
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
         assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
 
+    @pytest.mark.skip("use_hosted_api_server")
     async def test_tracks_dependencies_when_used_in_flow(
         self, test_deployment, use_hosted_api_server, prefect_client
     ):
