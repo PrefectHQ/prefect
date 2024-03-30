@@ -38,6 +38,8 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
     waiters = _WAITERS_BY_THREAD.get(thread)
 
     if waiters:
+        # start from beginning of the deque to avoid assigning outer callbacks to
+        # inner waiters (see https://github.com/PrefectHQ/prefect/issues/12036)
         idx = 0
         while idx < len(waiters):
             try:
