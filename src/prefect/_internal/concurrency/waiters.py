@@ -38,13 +38,13 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
     waiters = _WAITERS_BY_THREAD.get(thread)
 
     if waiters:
-        idx = -1
-        while abs(idx) <= len(waiters):
+        idx = 0
+        while idx < len(waiters):
             try:
                 waiter = waiters[idx]
                 if not waiter.call_is_done():
                     return waiter
-                idx = idx - 1
+                idx = idx + 1
             # It is possible that items are being added or removed
             # from the deque, so the index we're using may not always
             # be valid.
