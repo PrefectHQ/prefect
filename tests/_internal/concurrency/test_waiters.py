@@ -51,7 +51,8 @@ async def test_get_waiter_with_call_done():
 
     waiter.call_is_done = call_is_done
 
-    waiter_for_thread = get_waiter_for_thread(threading.current_thread())
+    waiter_for_thread = get_waiter_for_thread(threading.current_thread(), False)
+
     assert waiter_for_thread is None
 
 

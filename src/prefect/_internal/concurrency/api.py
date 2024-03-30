@@ -6,6 +6,7 @@ import abc
 import asyncio
 import concurrent.futures
 import contextlib
+import inspect
 import threading
 from typing import (
     Awaitable,
@@ -110,27 +111,6 @@ class _base(abc.ABC):
         __call: Union[Callable[[], T], Call[T]],
         thread: threading.Thread,
         timeout: Optional[float] = None,
-    ) -> Call[T]:
-        """
-        Schedule a call for execution in the thread that is waiting for the current
-        call.
-
-        Returns the submitted call.
-        """
-        call = _cast_to_call(__call)
-        waiter = get_waiter_for_thread(thread)
-        if waiter is None:
-            raise RuntimeError(f"No waiter found for thread {thread}.")
-
-        call.set_timeout(timeout)
-        waiter.submit(call)
-        return call
-
-    @staticmethod
-    def call_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]],
-        thread: threading.Thread,
-        timeout: Optional[float] = None,
     ) -> T:
         """
         Run a call in the thread that is waiting for the current call.
@@ -197,13 +177,21 @@ class from_async(_base):
         return call.result()
 
     @staticmethod
-    def call_in_waiting_thread(
+    def call_soon_in_waiting_thread(
         __call: Union[Callable[[], T], Call[T]],
         thread: threading.Thread,
         timeout: Optional[float] = None,
     ) -> Awaitable[T]:
-        call = _base.call_soon_in_waiting_thread(__call, thread, timeout=timeout)
-        return call.aresult()
+        call = _cast_to_call(__call)
+        waiter = get_waiter_for_thread(
+            thread, is_async=inspect.iscoroutinefunction(call.fn)
+        )
+        if waiter is None:
+            raise RuntimeError(f"No waiter found for thread {thread}.")
+
+        call.set_timeout(timeout)
+        waiter.submit(call)
+        return call
 
     @staticmethod
     def call_in_new_thread(
@@ -258,13 +246,21 @@ class from_sync(_base):
         return call.result()
 
     @staticmethod
-    def call_in_waiting_thread(
+    def call_soon_in_waiting_thread(
         __call: Union[Callable[[], T], Call[T]],
         thread: threading.Thread,
         timeout: Optional[float] = None,
     ) -> T:
-        call = _base.call_soon_in_waiting_thread(__call, thread, timeout=timeout)
-        return call.result()
+        call = _cast_to_call(__call)
+        waiter = get_waiter_for_thread(
+            thread, is_async=inspect.iscoroutinefunction(call.fn)
+        )
+        if waiter is None:
+            raise RuntimeError(f"No waiter found for thread {thread}.")
+
+        call.set_timeout(timeout)
+        waiter.submit(call)
+        return call
 
     @staticmethod
     def call_in_new_thread(

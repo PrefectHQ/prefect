@@ -7,11 +7,11 @@ import abc
 import asyncio
 import contextlib
 import inspect
+import itertools
 import queue
 import threading
 import weakref
-from collections import deque
-from typing import Awaitable, Generic, List, Optional, TypeVar, Union
+from typing import Awaitable, Dict, Generic, List, Optional, TypeVar, Union
 
 import anyio
 
@@ -23,35 +23,33 @@ from prefect._internal.concurrency.primitives import Event
 T = TypeVar("T")
 
 
-# Waiters are stored in a stack for each thread
-_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
+# Waiters are stored in a dictionary for each thread, with their unique identifiers as keys
+_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, Dict[int, Waiter]]" = (
     weakref.WeakKeyDictionary()
 )
 
+_waiter_counter = itertools.count()
 
-def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
+
+def get_waiter_for_thread(
+    thread: threading.Thread, is_async: bool
+) -> Optional["Waiter"]:
     """
     Get the current waiter for a thread.
 
     Returns `None` if one does not exist.
     """
-    waiters = _WAITERS_BY_THREAD.get(thread)
 
-    if waiters:
-        # start from beginning of the deque to avoid assigning outer callbacks to
-        # inner waiters (see https://github.com/PrefectHQ/prefect/issues/12036)
-        idx = 0
-        while idx < len(waiters):
-            try:
-                waiter = waiters[idx]
-                if not waiter.call_is_done():
-                    return waiter
-                idx = idx + 1
-            # It is possible that items are being added or removed
-            # from the deque, so the index we're using may not always
-            # be valid.
-            except IndexError:
-                break
+    # avoid assigning outer callbacks to inner waiters
+    # see https://github.com/PrefectHQ/prefect/issues/12036
+    if waiters := _WAITERS_BY_THREAD.get(thread):
+        if active_waiters := [w for w in waiters.values() if not w.call_is_done()]:
+            if is_async:
+                # For async calls, retrieve the waiter with the lowest identifier among the active waiters
+                return min(active_waiters, key=lambda w: w._waiter_id)
+            else:
+                # For sync calls, retrieve the waiter with the highest identifier (most recently created)
+                return max(waiters.values(), key=lambda w: w._waiter_id)
 
     return None
 
@@ -61,9 +59,9 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     Add a waiter for a thread.
     """
     if thread not in _WAITERS_BY_THREAD:
-        _WAITERS_BY_THREAD[thread] = deque()
+        _WAITERS_BY_THREAD[thread] = {}
 
-    _WAITERS_BY_THREAD[thread].append(waiter)
+    _WAITERS_BY_THREAD[thread][waiter._waiter_id] = waiter
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):
@@ -82,6 +80,7 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         self._owner_thread = threading.current_thread()
 
         # Set the waiter for the current thread
+        self._waiter_id = next(_waiter_counter)
         add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
 
@@ -174,7 +173,8 @@ class SyncWaiter(Waiter[T]):
             # Wait for the future to be done
             self._done_event.wait()
 
-        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
+        if self._owner_thread in _WAITERS_BY_THREAD:
+            _WAITERS_BY_THREAD[self._owner_thread].pop(self._waiter_id)
         return self._call
 
 
@@ -288,5 +288,6 @@ class AsyncWaiter(Waiter[T]):
             # Wait for the future to be done
             await self._done_event.wait()
 
-        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
+        if self._owner_thread in _WAITERS_BY_THREAD:
+            _WAITERS_BY_THREAD[self._owner_thread].pop(self._waiter_id)
         return self._call
