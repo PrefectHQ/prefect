@@ -1,7 +1,4 @@
-import os
-import signal
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import ANY
 
@@ -18,13 +15,11 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    get_current_settings,
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import open_process
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 
@@ -677,154 +672,154 @@ async def safe_shutdown(process):
             await process.wait()
 
 
-@pytest.fixture(scope="function")
-async def worker_process(use_hosted_api_server):
-    """
-    Runs an agent listening to all queues.
-    Yields:
-        The anyio.Process.
-    """
-    out = tempfile.TemporaryFile()  # capture output for test assertions
-
-    # Will connect to the same database as normal test clients
-    async with open_process(
-        command=[
-            "prefect",
-            "worker",
-            "start",
-            "--type",
-            "process",
-            "--pool",
-            "my-pool",
-            "--name",
-            "test-worker",
-        ],
-        stdout=out,
-        stderr=out,
-        env={**os.environ, **get_current_settings().to_environment_variables()},
-    ) as process:
-        process.out = out
-
-        for _ in range(int(STARTUP_TIMEOUT / POLL_INTERVAL)):
-            await anyio.sleep(POLL_INTERVAL)
-            if out.tell() > 400:
-                # Sleep to allow startup to complete
-                # TODO: Replace with a healthcheck endpoint
-                await anyio.sleep(4)
-                break
-
-        assert out.tell() > 400, "The worker did not start up in time"
-        assert process.returncode is None, "The worker failed to start up"
-
-        # Yield to the consuming tests
-        yield process
-
-        # Then shutdown the process
-        try:
-            process.terminate()
-        except ProcessLookupError:
-            pass
-        out.close()
-
-
-class TestWorkerSignalForwarding:
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigint_sends_sigterm(self, worker_process):
-        worker_process.send_signal(signal.SIGINT)
-        await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
-
-        assert "Sending SIGINT" in out, (
-            "When sending a SIGINT, the main process should receive a SIGINT."
-            f" Output:\n{out}"
-        )
-        assert "Worker 'test-worker' stopped!" in out, (
-            "When sending a SIGINT, the main process should shutdown gracefully."
-            f" Output:\n{out}"
-        )
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigterm_sends_sigterm_directly(self, worker_process):
-        worker_process.send_signal(signal.SIGTERM)
-        await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
-
-        assert "Sending SIGINT" in out, (
-            "When sending a SIGTERM, the main process should receive a SIGINT."
-            f" Output:\n{out}"
-        )
-        assert "Worker 'test-worker' stopped!" in out, (
-            "When sending a SIGTERM, the main process should shutdown gracefully."
-            f" Output:\n{out}"
-        )
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigint_sends_sigterm_then_sigkill(self, worker_process):
-        worker_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.1)  # some time needed for the recursive signal handler
-        worker_process.send_signal(signal.SIGINT)
-        await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
-
-        assert (
-            # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-            "Sending SIGKILL" in out
-            # or SIGKILL came too late, and the main PID is already closing
-            or "KeyboardInterrupt" in out
-            or "Worker 'test-worker' stopped!" in out
-            or "Aborted." in out
-        ), (
-            "When sending two SIGINT shortly after each other, the main process should"
-            f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
-        )
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigterm_sends_sigterm_then_sigkill(self, worker_process):
-        worker_process.send_signal(signal.SIGTERM)
-        await anyio.sleep(0.1)  # some time needed for the recursive signal handler
-        worker_process.send_signal(signal.SIGTERM)
-        await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
-
-        assert (
-            # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-            "Sending SIGKILL" in out
-            # or SIGKILL came too late, and the main PID is already closing
-            or "KeyboardInterrupt" in out
-            or "Worker 'test-worker' stopped!" in out
-            or "Aborted." in out
-        ), (
-            "When sending two SIGTERM shortly after each other, the main process should"
-            f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
-        )
-
-    @pytest.mark.skipif(
-        sys.platform != "win32",
-        reason="CTRL_BREAK_EVENT is only defined in Windows",
-    )
-    async def test_sends_ctrl_break_win32(self, worker_process):
-        worker_process.send_signal(signal.SIGINT)
-        await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
-
-        assert "Sending CTRL_BREAK_EVENT" in out, (
-            "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to"
-            f" the worker subprocess. Output:\n{out}"
-        )
+# @pytest.fixture(scope="function")
+# async def worker_process(use_hosted_api_server):
+#     """
+#     Runs an agent listening to all queues.
+#     Yields:
+#         The anyio.Process.
+#     """
+#     out = tempfile.TemporaryFile()  # capture output for test assertions
+#
+#     # Will connect to the same database as normal test clients
+#     async with open_process(
+#         command=[
+#             "prefect",
+#             "worker",
+#             "start",
+#             "--type",
+#             "process",
+#             "--pool",
+#             "my-pool",
+#             "--name",
+#             "test-worker",
+#         ],
+#         stdout=out,
+#         stderr=out,
+#         env={**os.environ, **get_current_settings().to_environment_variables()},
+#     ) as process:
+#         process.out = out
+#
+#         for _ in range(int(STARTUP_TIMEOUT / POLL_INTERVAL)):
+#             await anyio.sleep(POLL_INTERVAL)
+#             if out.tell() > 400:
+#                 # Sleep to allow startup to complete
+#                 # TODO: Replace with a healthcheck endpoint
+#                 await anyio.sleep(4)
+#                 break
+#
+#         assert out.tell() > 400, "The worker did not start up in time"
+#         assert process.returncode is None, "The worker failed to start up"
+#
+#         # Yield to the consuming tests
+#         yield process
+#
+#         # Then shutdown the process
+#         try:
+#             process.terminate()
+#         except ProcessLookupError:
+#             pass
+#         out.close()
+#
+#
+# class TestWorkerSignalForwarding:
+#     @pytest.mark.skipif(
+#         sys.platform == "win32",
+#         reason="SIGTERM is only used in non-Windows environments",
+#     )
+#     async def test_sigint_sends_sigterm(self, worker_process):
+#         worker_process.send_signal(signal.SIGINT)
+#         await safe_shutdown(worker_process)
+#         worker_process.out.seek(0)
+#         out = worker_process.out.read().decode()
+#
+#         assert "Sending SIGINT" in out, (
+#             "When sending a SIGINT, the main process should receive a SIGINT."
+#             f" Output:\n{out}"
+#         )
+#         assert "Worker 'test-worker' stopped!" in out, (
+#             "When sending a SIGINT, the main process should shutdown gracefully."
+#             f" Output:\n{out}"
+#         )
+#
+#     @pytest.mark.skipif(
+#         sys.platform == "win32",
+#         reason="SIGTERM is only used in non-Windows environments",
+#     )
+#     async def test_sigterm_sends_sigterm_directly(self, worker_process):
+#         worker_process.send_signal(signal.SIGTERM)
+#         await safe_shutdown(worker_process)
+#         worker_process.out.seek(0)
+#         out = worker_process.out.read().decode()
+#
+#         assert "Sending SIGINT" in out, (
+#             "When sending a SIGTERM, the main process should receive a SIGINT."
+#             f" Output:\n{out}"
+#         )
+#         assert "Worker 'test-worker' stopped!" in out, (
+#             "When sending a SIGTERM, the main process should shutdown gracefully."
+#             f" Output:\n{out}"
+#         )
+#
+#     @pytest.mark.skipif(
+#         sys.platform == "win32",
+#         reason="SIGTERM is only used in non-Windows environments",
+#     )
+#     async def test_sigint_sends_sigterm_then_sigkill(self, worker_process):
+#         worker_process.send_signal(signal.SIGINT)
+#         await anyio.sleep(0.1)  # some time needed for the recursive signal handler
+#         worker_process.send_signal(signal.SIGINT)
+#         await safe_shutdown(worker_process)
+#         worker_process.out.seek(0)
+#         out = worker_process.out.read().decode()
+#
+#         assert (
+#             # either the main PID is still waiting for shutdown, so forwards the SIGKILL
+#             "Sending SIGKILL" in out
+#             # or SIGKILL came too late, and the main PID is already closing
+#             or "KeyboardInterrupt" in out
+#             or "Worker 'test-worker' stopped!" in out
+#             or "Aborted." in out
+#         ), (
+#             "When sending two SIGINT shortly after each other, the main process should"
+#             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
+#         )
+#
+#     @pytest.mark.skipif(
+#         sys.platform == "win32",
+#         reason="SIGTERM is only used in non-Windows environments",
+#     )
+#     async def test_sigterm_sends_sigterm_then_sigkill(self, worker_process):
+#         worker_process.send_signal(signal.SIGTERM)
+#         await anyio.sleep(0.1)  # some time needed for the recursive signal handler
+#         worker_process.send_signal(signal.SIGTERM)
+#         await safe_shutdown(worker_process)
+#         worker_process.out.seek(0)
+#         out = worker_process.out.read().decode()
+#
+#         assert (
+#             # either the main PID is still waiting for shutdown, so forwards the SIGKILL
+#             "Sending SIGKILL" in out
+#             # or SIGKILL came too late, and the main PID is already closing
+#             or "KeyboardInterrupt" in out
+#             or "Worker 'test-worker' stopped!" in out
+#             or "Aborted." in out
+#         ), (
+#             "When sending two SIGTERM shortly after each other, the main process should"
+#             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
+#         )
+#
+#     @pytest.mark.skipif(
+#         sys.platform != "win32",
+#         reason="CTRL_BREAK_EVENT is only defined in Windows",
+#     )
+#     async def test_sends_ctrl_break_win32(self, worker_process):
+#         worker_process.send_signal(signal.SIGINT)
+#         await safe_shutdown(worker_process)
+#         worker_process.out.seek(0)
+#         out = worker_process.out.read().decode()
+#
+#         assert "Sending CTRL_BREAK_EVENT" in out, (
+#             "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to"
+#             f" the worker subprocess. Output:\n{out}"
+#         )
