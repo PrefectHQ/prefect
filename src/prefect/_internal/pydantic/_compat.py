@@ -24,6 +24,7 @@ if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
 
 else:
     # In this case, we're working with a Pydantic v1 model, so we need to add Pydantic v2 functionality
+    # TODO: Find a smarter way of attaching these methods so that they don't need to be redefined
     class BaseModel(PydanticBaseModel):
         def model_dump(
             self: "BaseModel",
