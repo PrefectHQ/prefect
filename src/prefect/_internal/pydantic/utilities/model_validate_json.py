@@ -16,6 +16,20 @@ if USE_V2_MODELS:
         strict: typing.Optional[bool] = False,
         context: typing.Optional[typing.Dict[str, typing.Any]] = None,
     ) -> T:
+        """
+        Validate the given JSON data against the Pydantic model.
+
+        Args:
+            json_data: The JSON data to validate.
+            strict: Whether to enforce types strictly.
+            context: Extra variables to pass to the validator.
+
+        Returns:
+            The validated Pydantic model.
+
+        Raises:
+            ValueError: If `json_data` is not a JSON string.
+        """
         return model.model_validate_json(
             json_data,
             strict=strict,
@@ -31,6 +45,20 @@ else:
         strict: typing.Optional[bool] = False,
         context: typing.Optional[typing.Dict[str, typing.Any]] = None,
     ) -> T:
+        """
+        Validate the given JSON data against the Pydantic model.
+
+        Args:
+            json_data: The JSON data to validate.
+            strict: Whether to enforce types strictly.
+            context: Extra variables to pass to the validator.
+
+        Returns:
+            The validated Pydantic model.
+
+        Raises:
+            ValueError: If `json_data` is not a JSON string.
+        """
         return getattr(model, "parse_raw")(
             json_data,
             strict=strict,

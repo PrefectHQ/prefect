@@ -11,6 +11,20 @@ else:
     from pydantic import parse_obj_as  # type: ignore[no-redef]
 
     class TypeAdapter(typing.Generic[T]):
+        """
+        Type adapters provide a flexible way to perform validation and serialization based on a Python type.
+
+        A `TypeAdapter` instance exposes some of the functionality from `BaseModel` instance methods
+        for types that do not have such methods (such as dataclasses, primitive types, and more).
+
+        **Note:** `TypeAdapter` instances are not types, and cannot be used as type annotations for fields.
+
+        Attributes:
+            core_schema: The core schema for the type.
+            validator (SchemaValidator): The schema validator for the type.
+            serializer: The schema serializer for the type.
+        """
+
         def __init__(self, type_: typing.Union[T, typing.Type[T]]) -> None:
             self.type_ = type_
 

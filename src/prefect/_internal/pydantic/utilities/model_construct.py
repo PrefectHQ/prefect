@@ -14,6 +14,18 @@ if USE_V2_MODELS:
         _fields_set: typing.Optional[typing.Set[str]] = None,
         **values: typing.Any,
     ) -> T:
+        """Creates a new instance of the `model_instance` class with validated data.
+
+        Creates a new model setting `__dict__` and `__pydantic_fields_set__` from trusted or pre-validated data.
+        Default values are respected, but no other validation is performed.
+
+        Args:
+            _fields_set: The set of field names accepted for the Model instance.
+            values: Trusted or pre-validated data dictionary.
+
+        Returns:
+            A new instance of the `model_instance` class with validated data.
+        """
         return model_instance.model_construct(_fields_set=_fields_set, **values)
 
 else:
@@ -23,6 +35,19 @@ else:
         _fields_set: typing.Optional[typing.Set[str]] = None,
         **values: typing.Any,
     ) -> T:
+        """
+        Creates a new instance of the `model_instance` class with validated data.
+
+        Creates a new model setting `__dict__` and `__pydantic_fields_set__` from trusted or pre-validated data.
+        Default values are respected, but no other validation is performed.
+
+        Args:
+            _fields_set: The set of field names accepted for the Model instance.
+            values: Trusted or pre-validated data dictionary.
+
+        Returns:
+            A new instance of the `model_instance` class with validated data.
+        """
         return getattr(model_instance, "construct")(**values)
 
 

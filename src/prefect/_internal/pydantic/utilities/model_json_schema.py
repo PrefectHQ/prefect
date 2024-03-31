@@ -20,6 +20,19 @@ if USE_V2_MODELS:
         schema_generator: typing.Any = None,
         mode: JsonSchemaMode = "validation",
     ) -> typing.Dict[str, typing.Any]:
+        """
+        Generates a JSON schema for a model class.
+
+        Args:
+            by_alias: Whether to use attribute aliases or not.
+            ref_template: The reference template.
+            schema_generator: To override the logic used to generate the JSON schema, as a subclass of
+                `GenerateJsonSchema` with your desired modifications
+            mode: The mode in which to generate the schema.
+
+        Returns:
+            The JSON schema for the given model class.
+        """
         return model.model_json_schema(
             by_alias=by_alias,
             ref_template=ref_template,
@@ -37,6 +50,19 @@ else:
         schema_generator: typing.Any = None,
         mode: "JsonSchemaMode" = "validation",
     ) -> typing.Dict[str, typing.Any]:
+        """
+        Generates a JSON schema for a model class.
+
+        Args:
+            by_alias: Whether to use attribute aliases or not.
+            ref_template: The reference template.
+            schema_generator: To override the logic used to generate the JSON schema, as a subclass of
+                `GenerateJsonSchema` with your desired modifications
+            mode: The mode in which to generate the schema.
+
+        Returns:
+            The JSON schema for the given model class.
+        """
         return getattr(model, "schema")(
             by_alias=by_alias,
             ref_template=ref_template,
