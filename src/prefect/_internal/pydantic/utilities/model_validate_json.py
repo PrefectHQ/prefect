@@ -59,11 +59,7 @@ else:
         Raises:
             ValueError: If `json_data` is not a JSON string.
         """
-        return getattr(model, "parse_raw")(
-            json_data,
-            strict=strict,
-            context=context,
-        )
+        return getattr(model, "parse_raw")(json_data)
 
 
 __all__ = ["model_validate_json"]
