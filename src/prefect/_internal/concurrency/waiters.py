@@ -10,8 +10,8 @@ import inspect
 import itertools
 import queue
 import threading
-import weakref
-from typing import Awaitable, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Awaitable, Generic, List, Optional, TypeVar, Union
+from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import anyio
 
@@ -24,9 +24,7 @@ T = TypeVar("T")
 
 
 # Waiters are stored in a dictionary for each thread, with their unique identifiers as keys
-_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, Dict[int, Waiter]]" = (
-    weakref.WeakKeyDictionary()
-)
+_WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, WeakValueDictionary[int, Waiter]]" = WeakKeyDictionary()
 
 _waiter_counter = itertools.count()
 
@@ -59,7 +57,7 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     Add a waiter for a thread.
     """
     if thread not in _WAITERS_BY_THREAD:
-        _WAITERS_BY_THREAD[thread] = {}
+        _WAITERS_BY_THREAD[thread] = WeakValueDictionary()
 
     _WAITERS_BY_THREAD[thread][waiter._waiter_id] = waiter
 
