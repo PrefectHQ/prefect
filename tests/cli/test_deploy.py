@@ -277,7 +277,7 @@ class TestProjectDeploySingleDeploymentYAML:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar"
+                " 1.0.0 -v env=prod -jv kind=single -t foo-bar"
             ),
             expected_code=0,
             # check for deprecation message
@@ -301,7 +301,7 @@ class TestProjectDeploySingleDeploymentYAML:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.infra_overrides == {"env": "prod", "kind": "single"}
 
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir, prefect_client
@@ -4749,37 +4749,18 @@ class TestSaveUserInputs:
     def test_save_user_inputs_with_interval_schedule(self):
         invoke_and_assert(
             command="deploy flows/hello.py:my_flow",
-            user_input=(
-                # Accept default deployment name
-                readchar.key.ENTER
-                +
-                # accept schedule
-                readchar.key.ENTER
-                +
-                # select interval schedule
-                readchar.key.ENTER
-                +
-                # enter interval schedule
-                "3600"
-                + readchar.key.ENTER
-                # accept schedule being active
-                + readchar.key.ENTER
-                # decline adding another schedule
-                + readchar.key.ENTER
-                +
-                # accept create work pool
-                readchar.key.ENTER
-                +
-                # choose process work pool
-                readchar.key.ENTER
-                +
-                # enter work pool name
-                "inflatable"
-                + readchar.key.ENTER
-                # accept save user inputs
-                + "y"
-                + readchar.key.ENTER
-            ),
+            prompts_and_responses=[
+                ("? Deployment name (default)", ""),
+                ("Would you like to configure schedules for this deployment?", ""),
+                ("What type of schedule would you like to use?", "", "Interval"),
+                ("Seconds between scheduled runs", "3600"),
+                ("Would you like to activate this schedule?", "y"),
+                ("Would you like to add another schedule?", "n"),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
+                ("Would you like to save configuration", "y"),
+            ],
             expected_code=0,
             expected_output_contains=[
                 (
@@ -4807,36 +4788,19 @@ class TestSaveUserInputs:
     def test_save_user_inputs_with_cron_schedule(self):
         invoke_and_assert(
             command="deploy flows/hello.py:my_flow",
-            user_input=(
-                # Accept default deployment name
-                readchar.key.ENTER
-                +
-                # accept schedule
-                readchar.key.ENTER
-                +
-                # select cron schedule
-                readchar.key.DOWN
-                + readchar.key.ENTER
-                # enter cron schedule
-                + "* * * * *"
-                + readchar.key.ENTER
-                # accept default timezone
-                + readchar.key.ENTER
-                # accept schedule being active
-                + readchar.key.ENTER
-                # decline adding another schedule
-                + readchar.key.ENTER
-                # accept create work pool
-                + readchar.key.ENTER
-                # choose process work pool
-                + readchar.key.ENTER
-                # enter work pool name
-                + "inflatable"
-                + readchar.key.ENTER
-                # accept save user inputs
-                + "y"
-                + readchar.key.ENTER
-            ),
+            prompts_and_responses=[
+                ("? Deployment name (default)", ""),
+                ("Would you like to configure schedules for this deployment?", ""),
+                ("What type of schedule would you like to use?", "↓", "Cron"),
+                ("Cron string (0 0 * * *)", "* * * * *"),
+                ("Timezone (UTC)", ""),
+                ("Would you like to activate this schedule?", "y"),
+                ("Would you like to add another schedule?", "n"),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
+                ("Would you like to save configuration", "y"),
+            ],
             expected_code=0,
             expected_output_contains=[
                 (
@@ -4867,40 +4831,19 @@ class TestSaveUserInputs:
         # Set up initial deployment deployment
         invoke_and_assert(
             command="deploy flows/hello.py:my_flow",
-            user_input=(
-                # enter deployment name
-                "existing-deployment"
-                + readchar.key.ENTER
-                # accept create schedule
-                + "y"
-                + readchar.key.ENTER
-                # select cron schedule
-                + readchar.key.DOWN
-                + readchar.key.ENTER
-                # enter cron schedule
-                + "* * * * *"
-                # accept schedule being active
-                + readchar.key.ENTER
-                # decline adding another schedule
-                + readchar.key.ENTER
-                # accept default timezone
-                + readchar.key.ENTER
-                # accept schedule being active
-                + readchar.key.ENTER
-                +
-                # accept create work pool
-                readchar.key.ENTER
-                +
-                # choose process work pool
-                readchar.key.ENTER
-                +
-                # enter work pool name
-                "inflatable"
-                + readchar.key.ENTER
-                # accept save user inputs
-                + "y"
-                + readchar.key.ENTER
-            ),
+            prompts_and_responses=[
+                ("? Deployment name (default)", "existing-deployment"),
+                ("Would you like to configure schedules for this deployment?", ""),
+                ("What type of schedule would you like to use?", "↓", "Cron"),
+                ("Cron string (0 0 * * *)", "* * * * *"),
+                ("Timezone (UTC)", ""),
+                ("Would you like to activate this schedule?", "y"),
+                ("Would you like to add another schedule?", "n"),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
+                ("Would you like to save configuration", "y"),
+            ],
             expected_code=0,
             expected_output_contains=[
                 (
@@ -4929,18 +4872,10 @@ class TestSaveUserInputs:
 
         invoke_and_assert(
             command="deploy -n existing-deployment --cron '* * * * *'",
-            user_input=(
-                # decline remote storage
-                "n"
-                + readchar.key.ENTER
-                # accept create work pool
-                + readchar.key.ENTER
-                # choose process work pool
-                + readchar.key.ENTER
-                # enter work pool name
-                + "inflatable"
-                + readchar.key.ENTER
-            ),
+            prompts_and_responses=[
+                ("Would you like to save configuration", "y"),
+                ("Would you like to overwrite that entry?", "y"),
+            ],
             expected_code=0,
             expected_output_does_not_contain=[
                 (
@@ -5800,6 +5735,7 @@ class TestDeploymentTrigger:
                     "prefect.resource.name": "seed",
                     "prefect.resource.role": "flow",
                 },
+                "job_variables": {"foo": "bar"},
             }
 
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
@@ -5820,6 +5756,7 @@ class TestDeploymentTrigger:
                         "posture": Posture.Reactive,
                         "threshold": 1,
                         "within": timedelta(0),
+                        "job_variables": {"foo": "bar"},
                     }
                 )
             ]
@@ -5838,6 +5775,20 @@ class TestDeploymentTrigger:
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
             assert triggers[0].name == "my_deployment__automation_1"
 
+        async def test_deployment_triggers_without_job_variables(self):
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+                "match_related": {
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
+                },
+            }
+
+            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+            assert triggers[0].job_variables is None
+
         async def test_create_deployment_triggers(self):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
@@ -5850,6 +5801,7 @@ class TestDeploymentTrigger:
                     "prefect.resource.name": "seed",
                     "prefect.resource.role": "flow",
                 },
+                "job_variables": {"nested": {"foo": "bar"}},
             }
 
             triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
@@ -5909,6 +5861,7 @@ class TestDeploymentTrigger:
                                 "prefect.resource.name": "seed",
                                 "prefect.resource.role": "flow",
                             },
+                            "job_variables": {"foo": 123},
                         }
                     ],
                 }
@@ -5991,6 +5944,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             expected_triggers = _initialize_deployment_triggers(
@@ -6027,6 +5981,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             with open("triggers.json", "w") as f:
@@ -6066,6 +6021,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             with open("triggers.yaml", "w") as f:
@@ -6144,6 +6100,7 @@ class TestDeploymentTrigger:
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
             }
 
             trigger_spec_2 = {
