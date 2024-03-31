@@ -65,7 +65,7 @@ else:
         exclude_none: bool = False,
         round_trip: bool = False,
         warnings: bool = True,
-    ) -> "BaseModel":
+    ) -> str:
         """
         Generate a JSON representation of the model, optionally specifying which fields to include or exclude.
 
