@@ -6,7 +6,7 @@ from .utilities.model_dump_json import model_dump_json
 from .utilities.model_json_schema import model_json_schema
 from .utilities.model_validate import model_validate
 from .utilities.model_validate_json import model_validate_json
-from .utilities.type_adapter import TypeAdapter as TypeAdapter
+from .utilities.type_adapter import TypeAdapter, validate_python
 
 __all__ = [
     "model_construct",
@@ -17,6 +17,7 @@ __all__ = [
     "model_validate",
     "model_validate_json",
     "TypeAdapter",
+    "validate_python",
     "BaseModel",
 ]
 
