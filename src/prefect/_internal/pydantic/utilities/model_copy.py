@@ -31,11 +31,11 @@ if USE_V2_MODELS:
 else:
 
     def model_copy(
-        model_instance: "BaseModel",
+        model_instance: T,
         *,
         update: typing.Optional[typing.Dict[str, typing.Any]] = None,
         deep: bool = False,
-    ) -> "BaseModel":
+    ) -> T:
         """
         Returns a copy of the model.
 
