@@ -29,25 +29,38 @@ _WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, WeakValueDictionary[int
 _waiter_counter = itertools.count()
 
 
-def get_waiter_for_thread(
-    thread: threading.Thread, is_async: bool
+def get_waiter(
+    thread: threading.Thread, parent_call: Optional[Call] = None
 ) -> Optional["Waiter"]:
     """
-    Get the current waiter for a thread.
+    Get the current waiter for a thread and an optional parent call.
+
+    To avoid assigning outer callbacks to inner waiters in the case of nested calls,
+    the parent call is used to determine which waiter to return. If a parent call is
+    not provided, we return the earliest waiter created for the thread if the call is
+    asynchronous, and the latest waiter created if the call is synchronous.
+
+    see https://github.com/PrefectHQ/prefect/issues/12036
 
     Returns `None` if one does not exist.
     """
+    is_async = inspect.iscoroutinefunction(parent_call.fn) if parent_call else False
 
-    # avoid assigning outer callbacks to inner waiters
-    # see https://github.com/PrefectHQ/prefect/issues/12036
     if waiters := _WAITERS_BY_THREAD.get(thread):
         if active_waiters := [w for w in waiters.values() if not w.call_is_done()]:
-            if is_async:
-                # For async calls, retrieve the waiter with the lowest identifier among the active waiters
-                return min(active_waiters, key=lambda w: w._waiter_id)
+            if parent_call and (
+                matching_waiter := next(
+                    w for w in active_waiters if w._call == parent_call
+                )
+            ):
+                return matching_waiter
             else:
-                # For sync calls, retrieve the waiter with the highest identifier (most recently created)
-                return max(waiters.values(), key=lambda w: w._waiter_id)
+                if is_async:
+                    # For async calls, get the waiter with the lowest identifier among the active waiters
+                    return min(active_waiters, key=lambda w: w._waiter_id)
+                else:
+                    # For sync calls, get the waiter with the highest identifier (most recently created)
+                    return max(waiters.values(), key=lambda w: w._waiter_id)
 
     return None
 

@@ -6,7 +6,6 @@ import abc
 import asyncio
 import concurrent.futures
 import contextlib
-import inspect
 import threading
 from typing import (
     Awaitable,
@@ -20,6 +19,7 @@ from typing import (
 
 from typing_extensions import ParamSpec
 
+from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import (
     WorkerThread,
     get_global_loop,
@@ -29,7 +29,7 @@ from prefect._internal.concurrency.waiters import (
     AsyncWaiter,
     Call,
     SyncWaiter,
-    get_waiter_for_thread,
+    get_waiter,
 )
 
 P = ParamSpec("P")
@@ -183,9 +183,8 @@ class from_async(_base):
         timeout: Optional[float] = None,
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
-        waiter = get_waiter_for_thread(
-            thread, is_async=inspect.iscoroutinefunction(call.fn)
-        )
+        parent_call = get_current_call()
+        waiter = get_waiter(thread, parent_call)
         if waiter is None:
             raise RuntimeError(f"No waiter found for thread {thread}.")
 
@@ -252,9 +251,7 @@ class from_sync(_base):
         timeout: Optional[float] = None,
     ) -> T:
         call = _cast_to_call(__call)
-        waiter = get_waiter_for_thread(
-            thread, is_async=inspect.iscoroutinefunction(call.fn)
-        )
+        waiter = get_waiter(thread)
         if waiter is None:
             raise RuntimeError(f"No waiter found for thread {thread}.")
 
