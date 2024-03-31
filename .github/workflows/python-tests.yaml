@@ -555,6 +555,7 @@ jobs:
 
   run-tests-for-datadog:
     name: DataDog CI Visibility
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on:
       group: oss-larger-runners
     strategy:
