@@ -68,4 +68,4 @@ def validate_python(
     return TypeAdapter(type_).validate_python(__object)
 
 
-__all__ = ["TypeAdapter"]
+__all__ = ["TypeAdapter", "validate_python"]
