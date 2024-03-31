@@ -31,6 +31,15 @@ _WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, Dict[int, Waite
 _waiter_counter = itertools.count()
 
 
+def get_waiter_for_call(thread, call, is_async):
+    if waiters := _WAITERS_BY_THREAD.get(thread):
+        if active_waiters := [w for w in waiters.values() if not w.call_is_done()]:
+            if waiters_matching_call := [w for w in active_waiters if w._call == call]:
+                return waiters_matching_call[0]
+            else:
+                return get_waiter_for_thread(thread, is_async)
+
+
 def get_waiter_for_thread(
     thread: threading.Thread, is_async: bool
 ) -> Optional["Waiter"]:
