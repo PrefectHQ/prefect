@@ -70,7 +70,7 @@ else:
         exclude_none: bool = False,
         round_trip: bool = False,
         warnings: bool = True,
-    ) -> "BaseModel":
+    ) -> typing.Dict[str, typing.Any]:
         """
         Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
 
