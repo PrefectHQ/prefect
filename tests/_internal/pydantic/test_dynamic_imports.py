@@ -1,6 +1,6 @@
 import pytest
 
-from prefect._internal.pydantic.flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
+from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 
 HAS_PYDANTIC_V1 = not HAS_PYDANTIC_V2
 
