@@ -10,11 +10,11 @@ T = typing.TypeVar("T", bound="BaseModel")
 if USE_V2_MODELS:
 
     def model_construct(  # type: ignore[no-redef]
-        model_instance: typing.Type[T],
+        model: typing.Type[T],
         _fields_set: typing.Optional[typing.Set[str]] = None,
         **values: typing.Any,
     ) -> T:
-        """Creates a new instance of the `model_instance` class with validated data.
+        """Creates a new instance of the `model` class with validated data.
 
         Creates a new model setting `__dict__` and `__pydantic_fields_set__` from trusted or pre-validated data.
         Default values are respected, but no other validation is performed.
@@ -24,19 +24,19 @@ if USE_V2_MODELS:
             values: Trusted or pre-validated data dictionary.
 
         Returns:
-            A new instance of the `model_instance` class with validated data.
+            A new instance of the `model` class with validated data.
         """
-        return model_instance.model_construct(_fields_set=_fields_set, **values)
+        return model.model_construct(_fields_set=_fields_set, **values)
 
 else:
 
     def model_construct(
-        model_instance: typing.Type[T],
+        model: typing.Type[T],
         _fields_set: typing.Optional[typing.Set[str]] = None,
         **values: typing.Any,
     ) -> T:
         """
-        Creates a new instance of the `model_instance` class with validated data.
+        Creates a new instance of the `model` class with validated data.
 
         Creates a new model setting `__dict__` and `__pydantic_fields_set__` from trusted or pre-validated data.
         Default values are respected, but no other validation is performed.
@@ -46,9 +46,9 @@ else:
             values: Trusted or pre-validated data dictionary.
 
         Returns:
-            A new instance of the `model_instance` class with validated data.
+            A new instance of the `model` class with validated data.
         """
-        return getattr(model_instance, "construct")(**values)
+        return getattr(model, "construct")(**values)
 
 
 __all__ = ["model_construct"]
