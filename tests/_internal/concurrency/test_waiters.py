@@ -10,7 +10,7 @@ from prefect._internal.concurrency.threads import WorkerThread
 from prefect._internal.concurrency.waiters import (
     AsyncWaiter,
     SyncWaiter,
-    get_waiter_for_thread,
+    get_waiter,
 )
 
 
@@ -51,7 +51,7 @@ async def test_get_waiter_with_call_done():
 
     waiter.call_is_done = call_is_done
 
-    waiter_for_thread = get_waiter_for_thread(threading.current_thread(), False)
+    waiter_for_thread = get_waiter(threading.current_thread())
 
     assert waiter_for_thread is None
 

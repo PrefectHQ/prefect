@@ -50,7 +50,7 @@ def get_waiter(
         if active_waiters := [w for w in waiters.values() if not w.call_is_done()]:
             if parent_call and (
                 matching_waiter := next(
-                    w for w in active_waiters if w._call == parent_call
+                    (w for w in active_waiters if w._call == parent_call), None
                 )
             ):
                 return matching_waiter
