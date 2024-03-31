@@ -7,11 +7,11 @@ import abc
 import asyncio
 import contextlib
 import inspect
-import itertools
 import queue
 import threading
+from collections import deque
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
-from weakref import WeakKeyDictionary, WeakValueDictionary
+from weakref import WeakKeyDictionary
 
 import anyio
 
@@ -23,13 +23,13 @@ from prefect._internal.concurrency.primitives import Event
 T = TypeVar("T")
 
 
-# Waiters are stored in a dictionary for each thread, with their unique identifiers as keys
-_WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, WeakValueDictionary[int, Waiter]]" = WeakKeyDictionary()
+# Waiters are stored in a stack for each thread
+_WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
+    WeakKeyDictionary()
+)
 
-_waiter_counter = itertools.count()
 
-
-def get_waiter(
+def get_waiter_for_thread(
     thread: threading.Thread, parent_call: Optional[Call] = None
 ) -> Optional["Waiter"]:
     """
@@ -37,17 +37,15 @@ def get_waiter(
 
     To avoid assigning outer callbacks to inner waiters in the case of nested calls,
     the parent call is used to determine which waiter to return. If a parent call is
-    not provided, we return the earliest waiter created for the thread if the call is
-    asynchronous, and the latest waiter created if the call is synchronous.
+    not provided, we return the most recently created waiter (last in the stack).
 
     see https://github.com/PrefectHQ/prefect/issues/12036
 
     Returns `None` if one does not exist.
     """
-    is_async = inspect.iscoroutinefunction(parent_call.fn) if parent_call else False
 
     if waiters := _WAITERS_BY_THREAD.get(thread):
-        if active_waiters := [w for w in waiters.values() if not w.call_is_done()]:
+        if active_waiters := [w for w in waiters if not w.call_is_done()]:
             if parent_call and (
                 matching_waiter := next(
                     (w for w in active_waiters if w._call == parent_call), None
@@ -55,14 +53,9 @@ def get_waiter(
             ):
                 return matching_waiter
             else:
-                if is_async:
-                    # For async calls, get the waiter with the lowest identifier among the active waiters
-                    return min(active_waiters, key=lambda w: w._waiter_id)
-                else:
-                    # For sync calls, get the waiter with the highest identifier (most recently created)
-                    return max(waiters.values(), key=lambda w: w._waiter_id)
+                return active_waiters[-1]  # return the most recent waiter
 
-    return None
+    return None  # no waiter found
 
 
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
@@ -70,9 +63,9 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     Add a waiter for a thread.
     """
     if thread not in _WAITERS_BY_THREAD:
-        _WAITERS_BY_THREAD[thread] = WeakValueDictionary()
+        _WAITERS_BY_THREAD[thread] = deque()
 
-    _WAITERS_BY_THREAD[thread][waiter._waiter_id] = waiter
+    _WAITERS_BY_THREAD[thread].append(waiter)
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):
@@ -91,7 +84,6 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         self._owner_thread = threading.current_thread()
 
         # Set the waiter for the current thread
-        self._waiter_id = next(_waiter_counter)
         add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
 
@@ -184,8 +176,7 @@ class SyncWaiter(Waiter[T]):
             # Wait for the future to be done
             self._done_event.wait()
 
-        if self._owner_thread in _WAITERS_BY_THREAD:
-            _WAITERS_BY_THREAD[self._owner_thread].pop(self._waiter_id)
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
 
 
@@ -299,6 +290,5 @@ class AsyncWaiter(Waiter[T]):
             # Wait for the future to be done
             await self._done_event.wait()
 
-        if self._owner_thread in _WAITERS_BY_THREAD:
-            _WAITERS_BY_THREAD[self._owner_thread].pop(self._waiter_id)
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call

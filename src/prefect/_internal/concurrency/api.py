@@ -29,7 +29,7 @@ from prefect._internal.concurrency.waiters import (
     AsyncWaiter,
     Call,
     SyncWaiter,
-    get_waiter,
+    get_waiter_for_thread,
 )
 
 P = ParamSpec("P")
@@ -184,7 +184,7 @@ class from_async(_base):
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
         parent_call = get_current_call()
-        waiter = get_waiter(thread, parent_call)
+        waiter = get_waiter_for_thread(thread, parent_call)
         if waiter is None:
             raise RuntimeError(f"No waiter found for thread {thread}.")
 
@@ -251,7 +251,7 @@ class from_sync(_base):
         timeout: Optional[float] = None,
     ) -> T:
         call = _cast_to_call(__call)
-        waiter = get_waiter(thread)
+        waiter = get_waiter_for_thread(thread)
         if waiter is None:
             raise RuntimeError(f"No waiter found for thread {thread}.")
 
