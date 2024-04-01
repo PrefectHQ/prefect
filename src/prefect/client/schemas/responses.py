@@ -169,8 +169,7 @@ class DeploymentResponse(objects.Deployment):
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     class Config:
-        extra = "ignore"
-
+        extra = "ignore"#2024/4/1
     id: UUID
     name: str
     limit: int
