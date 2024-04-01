@@ -23,7 +23,7 @@
     "vue-router": "4.3.0"
   },
   "devDependencies": {
-    "@prefecthq/eslint-config": "1.0.31",
+    "@prefecthq/eslint-config": "1.0.32",
     "@types/lodash.merge": "^4.6.9",
     "@vitejs/plugin-vue": "5.0.4",
     "autoprefixer": "10.4.19",
