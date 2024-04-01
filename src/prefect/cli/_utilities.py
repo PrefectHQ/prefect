@@ -1,11 +1,11 @@
 """
 Utilities for Prefect CLI commands
 """
+
 import functools
 import traceback
 
 import typer
-import typer.core
 from click.exceptions import ClickException
 
 from prefect.exceptions import MissingProfileError
