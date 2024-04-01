@@ -580,7 +580,7 @@ code is executing in a unit test context. Defaults to `False`.
 """
 PREFECT_UNIT_TEST_LOOP_DEBUG = Setting(
     bool,
-    default=False,
+    default=True,
 )
 """
 If `True` turns on debug mode for the unit testing event loop.
