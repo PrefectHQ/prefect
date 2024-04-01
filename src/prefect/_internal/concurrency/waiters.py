@@ -46,19 +46,15 @@ def get_waiter_for_thread(
 
     waiters: "Optional[deque[Waiter]]" = _WAITERS_BY_THREAD.get(thread)
 
-    if waiters:
-        if (
-            (active_waiters := [w for w in waiters if not w.call_is_done()])
-            and parent_call
-            and (
-                matching_waiter := next(
-                    (w for w in active_waiters if w._call == parent_call), None
-                )
+    if waiters and (active_waiters := [w for w in waiters if not w.call_is_done()]):
+        if parent_call and (
+            matching_waiter := next(
+                (w for w in active_waiters if w._call == parent_call), None
             )
         ):  # if exists an active waiter responsible for the parent call, return it
             return matching_waiter
         else:  # otherwise, return the most recently created waiter
-            return active_waiters[-1] if active_waiters else None
+            return active_waiters[-1]
 
 
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
