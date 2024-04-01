@@ -364,7 +364,6 @@ class TaskRunUpdate(ActionBaseModel):
     name: Optional[str] = Field(None)
 
 
-@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run."""
 
@@ -373,23 +372,28 @@ class FlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: str = FieldFrom(objects.FlowRun)
-    flow_id: UUID = FieldFrom(objects.FlowRun)
-    deployment_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    flow_version: Optional[str] = FieldFrom(objects.FlowRun)
-    parameters: dict = FieldFrom(objects.FlowRun)
-    context: dict = FieldFrom(objects.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
-    tags: List[str] = FieldFrom(objects.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
+    name: Optional[str] = Field(default=None, description="The name of the flow run.")
+    flow_id: UUID = Field(default=..., description="The id of the flow being run.")
+    deployment_id: Optional[UUID] = Field(None)
+    flow_version: Optional[str] = Field(None)
+    parameters: dict = Field(
+        default_factory=dict, description="The parameters for the flow run."
+    )
+    context: dict = Field(
+        default_factory=dict, description="The context for the flow run."
+    )
+    parent_task_run_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: objects.FlowRunPolicy = Field(
+        default_factory=objects.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    idempotency_key: Optional[str] = Field(None)
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
 
 
-@copy_model_fields
 class DeploymentFlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run from a deployment."""
 
@@ -398,16 +402,22 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: Optional[str] = FieldFrom(objects.FlowRun)
-    parameters: dict = FieldFrom(objects.FlowRun)
-    context: dict = FieldFrom(objects.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
-    tags: List[str] = FieldFrom(objects.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    work_queue_name: Optional[str] = FieldFrom(objects.FlowRun)
-    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
+    name: Optional[str] = Field(default=None, description="The name of the flow run.")
+    parameters: dict = Field(
+        default_factory=dict, description="The parameters for the flow run."
+    )
+    context: dict = Field(
+        default_factory=dict, description="The context for the flow run."
+    )
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: objects.FlowRunPolicy = Field(
+        default_factory=objects.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    idempotency_key: Optional[str] = Field(None)
+    parent_task_run_id: Optional[UUID] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
+    job_variables: Optional[dict] = Field(None)
 
 
 @copy_model_fields
