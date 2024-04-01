@@ -400,6 +400,8 @@ class TestInfraOverrides:
         deleted = await models.workers.delete_work_pool(session, pool.id)
         assert deleted
 
+        await session.commit()
+
         # create a flow run
         response = await client.post(
             f"/deployments/{deployment.id}/create_flow_run",
@@ -669,6 +671,8 @@ class TestInfraOverridesUpdates:
         # delete the deployment's work queue + work pool
         deleted = await models.workers.delete_work_pool(session, pool.id)
         assert deleted
+
+        await session.commit()
 
         # attempt to update the flow run
         flow_run_id = response.json()["id"]
