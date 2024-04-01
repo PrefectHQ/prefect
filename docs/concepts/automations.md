@@ -50,12 +50,12 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 Triggers specify the conditions under which your action should be performed. The Prefect UI includes templates for many common conditions, such as:
 
 - Flow run state change
-    - Note - Flow Run Tags currently are only evaluated with `OR` criteria
+  - Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work pool status
 - Work queue status
 - Deployment status
 - Metric thresholds, such as average duration, lateness, or completion percentage
-- Incident declarations (available on Pro and Enterprise plans)
+- Incident declarations (available on Pro and Custom plans)
 - Custom event triggers
 
 !!! note "Automations API"
@@ -66,7 +66,6 @@ Importantly, triggers can be configured not only in reaction to events, but also
 ![Configuring a trigger for an automation in Prefect Cloud.](/img/ui/automations-trigger.png)
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be taken on the flow itself, such as canceling or restarting it. Or the action could take the form of a notification so someone can take manual remediation steps. Or you could set both actions to to take place when the trigger occurs.
-
 
 ### Actions
 
@@ -82,7 +81,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Send a [notification](#automation-notifications)
 - Call a webhook
 - Suspend a flow run
-- Declare an incident (available on Pro and Enterprise plans)
+- Declare an incident (available on Pro and Custom plans)
 - Change the state of a flow run
 
 ![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
@@ -292,6 +291,7 @@ The following trigger will fire if a `prefect.flow-run.Completed` event is not s
   "within": 60
 }
 ```
+
 However, without `for_each`, a `prefect.flow-run.Completed` event from a _different_ flow run than the one that started this trigger with its `prefect.flow-run.Running` event could satisfy the condition. Adding a `for_each` of `prefect.resource.id` will cause this trigger to be evaluated separately for each flow run id associated with these events.
 
 ```json
@@ -315,7 +315,6 @@ However, without `for_each`, a `prefect.flow-run.Completed` event from a _differ
 }
 ```
 
-
 ### Metric triggers
 
 Metric triggers (`{"type": "metric"}`) fire when the value of a metric in your workspace crosses a threshold you've defined.  For example, you can trigger an automation when the success rate of flows in your workspace drops below 95% over the course of an hour.
@@ -324,9 +323,9 @@ Prefect's metrics are all derived by examining your workspace's events, and if a
 
 Prefect defines three metrics today:
 
-* **Successes** (`{"name": "successes"}`), defined as the number of flow runs that went `Pending` and then the latest state we saw was not a failure (`Failed` or `Crashed`).  This metric accounts for retries if the ultimate state was successful.
-* **Duration** (`{"name": "duration"}`), defined as the _length of time_ that a flow remains in a `Running` state before transitioning to a terminal state such as `Completed`, `Failed`, or `Crashed`.  Because this time is derived in terms of flow run state change events, it may be greater than the runtime of your function.
-* **Lateness** (`{"name": "lateness"}`), defined as the _length of time_ that a `Scheduled` flow remains in a `Late` state before transitioning to a `Running` and/or `Crashed` state.  Only flow runs that the system marks `Late` are included.
+- **Successes** (`{"name": "successes"}`), defined as the number of flow runs that went `Pending` and then the latest state we saw was not a failure (`Failed` or `Crashed`).  This metric accounts for retries if the ultimate state was successful.
+- **Duration** (`{"name": "duration"}`), defined as the _length of time_ that a flow remains in a `Running` state before transitioning to a terminal state such as `Completed`, `Failed`, or `Crashed`.  Because this time is derived in terms of flow run state change events, it may be greater than the runtime of your function.
+- **Lateness** (`{"name": "lateness"}`), defined as the _length of time_ that a `Scheduled` flow remains in a `Late` state before transitioning to a `Running` and/or `Crashed` state.  Only flow runs that the system marks `Late` are included.
 
 The schema of a metric trigger is as follows:
 
@@ -553,7 +552,6 @@ Sequence triggers are defined as:
 | **within**   | time, in seconds        | How close in time the child triggers must fire for this trigger to fire |
 | **triggers** | array of other triggers |                                                                         |
 
-
 ## Create an automation via deployment triggers
 
 To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
@@ -578,6 +576,7 @@ deployments:
 At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](/concepts/events/#event-grammar), which will pass the templatable `event` as a parameter to the deployment's flow run.
 
 ### Pass triggers to `prefect deploy`
+
 You can pass one or more `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
 
 ```bash
@@ -615,8 +614,8 @@ triggers:
     parameters:
       param_1: "{{ event }}"
 ```
-Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
+Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
 !!! warning "Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`"
     While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will

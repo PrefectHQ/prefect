@@ -18,7 +18,7 @@ Microsoft Azure Container Instances (ACI) provides a convenient and simple servi
 To follow this quickstart, you'll need the following:
 
 - A [Prefect Cloud account](/ui/cloud-quickstart/)
-- A Prefect Cloud [API key](/ui/cloud-api-keys/) (Prefect Cloud Pro and Enterprise tier accounts can use a [service account](/ui/service-accounts/) API key)
+- A Prefect Cloud [API key](/ui/cloud-api-keys/) (Prefect Cloud Pro and Custom tier accounts can use a [service account](/ui/service-accounts/) API key)
 - A [Microsoft Azure account](https://portal.azure.com/)
 - Azure CLI [installed](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticated](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli)
 
@@ -73,7 +73,7 @@ You can also build custom images and push them to a public container registry so
 
 `--secure-environment-variables` sets environment variables that are only visible from inside the container. They do not show up when viewing the container’s metadata. You'll populate these environment variables with a few pieces of information to [configure the execution environment](/ui/cloud-local-environment/#manually-configure-prefect-api-settings) of the container instance so it can communicate with your Prefect Cloud workspace:
 
-- A Prefect Cloud [`PREFECT_API_KEY`]/concepts/settings/#prefect_api_key) value specifying the API key used to authenticate with your Prefect Cloud workspace. (Pro and Enterprise tier accounts can use a [service account](/ui/service-accounts/) API key.)
+- A Prefect Cloud [`PREFECT_API_KEY`]/concepts/settings/#prefect_api_key) value specifying the API key used to authenticate with your Prefect Cloud workspace. (Pro and Custom tier accounts can use a [service account](/ui/service-accounts/) API key.)
 - The [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) value specifying the API endpoint of your Prefect Cloud workspace.
 
 `--command-line` lets you override the container’s normal entry point and run a command instead. The script above uses this section to install the `adlfs` pip package so it can read flow code from Azure Blob Storage, along with `s3fs`, `pandas`, and `requests`. It then runs the Prefect agent, in this case using the default work pool and a `test` work queue. If you want to use a different work pool or queue, make sure to change these values appropriately.

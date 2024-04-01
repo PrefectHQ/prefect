@@ -71,9 +71,9 @@ On this page you can edit workspace details or delete the workspace.
 !!! warning "Deleting a workspace"
     Deleting a workspace deletes all deployments, flow run history, work pools, and notifications configured in workspace.
 
-## Workspace access <span class="badge pro"></span> <span class="badge enterprise"></span>
+## Workspace access <span class="badge pro"></span> <span class="badge custom"></span>
 
-Within a Prefect Cloud Pro or Enterprise tier account, Workspace Owners can invite other people to be members and provision [service accounts](/ui/service-accounts/) to a workspace.
+Within a Prefect Cloud Pro or Custom tier account, Workspace Owners can invite other people to be members and provision [service accounts](/ui/service-accounts/) to a workspace.
 In addition to giving the user access to the workspace, a Workspace Owner assigns a [workspace role](/ui/roles/) to the user.
 The role specifies the scope of permissions for the user within the workspace.
 

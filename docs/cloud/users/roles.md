@@ -14,13 +14,13 @@ search:
   boost: 2
 ---
 
-# User and Service Account Roles <span class="badge cloud"></span> <span class="badge pro"> </span><span class="badge enterprise"></span>
+# User and Service Account Roles <span class="badge cloud"></span> <span class="badge pro"> </span><span class="badge custom"></span>
 
-Prefect Cloud's [Pro and Enterprise tiers](https://www.prefect.io/pricing) allow you to set team member access to the appropriate level within specific workspaces.
+Prefect Cloud's [Pro and Custom tiers](https://www.prefect.io/pricing) allow you to set team member access to the appropriate level within specific workspaces.
 
 Role-based access controls (RBAC) enable you to assign users granular permissions to perform certain activities.
 
-To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, Enterprise account Admins can create custom roles for users.
+To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, Custom account Admins can create custom roles for users.
 
 ## Built-in roles
 

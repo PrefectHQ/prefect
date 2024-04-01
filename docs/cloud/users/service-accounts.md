@@ -9,7 +9,7 @@ search:
   boost: 2
 ---
 
-# Service Accounts <span class="badge cloud"></span>  <span class="badge pro"> </span> <span class="badge enterprise"></span>
+# Service Accounts <span class="badge cloud"></span>  <span class="badge pro"> </span> <span class="badge custom"></span>
 
 Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account.
 Service accounts are typically used to configure API access for running workers or executing deployment flow runs on remote infrastructure.
