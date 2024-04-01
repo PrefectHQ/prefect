@@ -130,7 +130,7 @@ Linux is a popular operating system for running Prefect. You can use [Prefect Cl
 
 For development, you can use [SQLite](/concepts/database/#configuring_a_sqlite_database) 2.24 or newer as your database. Note that certain Linux versions of SQLite can be problematic. Compatible versions include Ubuntu 22.04 LTS and Ubuntu 20.04 LTS.
 
-Alternatively, you can [install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel) or use the `conda` virtual environment manager and configure a compatible SQLite version.
+Alternatively, you can [install SQLite on Red Hat Custom Linux (RHEL)](#install-sqlite-on-rhel) or use the `conda` virtual environment manager and configure a compatible SQLite version.
 
 ## Using a self-signed SSL certificate
 
@@ -153,7 +153,7 @@ Prefect supports communicating via proxies through environment variables. Simply
 
 You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database).
 
-By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation. Most systems will already have SQLite installed, because it is typically bundled as a part of Python. 
+By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation. Most systems will already have SQLite installed, because it is typically bundled as a part of Python.
 
 The Prefect CLI command `prefect version` prints environment details to your console, including the server database. For example:
 
@@ -173,7 +173,7 @@ Server type:         cloud
 
 ### Install SQLite on RHEL
 
-The following steps are needed to install an appropriate version of SQLite on Red Hat Enterprise Linux (RHEL). Note that some RHEL instances have no C compiler, so you may need to check for and install `gcc` first:
+The following steps are needed to install an appropriate version of SQLite on Red Hat Custom Linux (RHEL). Note that some RHEL instances have no C compiler, so you may need to check for and install `gcc` first:
 
 <div class="terminal">
 ```bash

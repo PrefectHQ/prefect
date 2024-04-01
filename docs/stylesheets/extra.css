@@ -225,9 +225,9 @@ to force column width */
     content: "Pro";
 }
 
-.enterprise::before {
+.custom::before {
     background-color: #115AF4;
-    content: "Enterprise";
+    content: "Custom";
 }
 
 .deprecated::before {
