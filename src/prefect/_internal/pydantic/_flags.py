@@ -11,5 +11,7 @@ USE_PYDANTIC_V2 = os.environ.get(
     "PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS", False
 ) in {"1", "true", "True"}
 
+USE_V2_MODELS = HAS_PYDANTIC_V2 and USE_PYDANTIC_V2
+
 # Set to True if Pydantic v2 is present but not enabled, indicating deprecation warnings may occur.
 EXPECT_DEPRECATION_WARNINGS = HAS_PYDANTIC_V2 and not USE_PYDANTIC_V2
