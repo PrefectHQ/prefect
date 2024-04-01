@@ -41,21 +41,24 @@ def get_waiter_for_thread(
 
     see https://github.com/PrefectHQ/prefect/issues/12036
 
-    Returns `None` if one does not exist.
+    Returns `None` if no active waiter is found for the thread.
     """
 
-    if waiters := _WAITERS_BY_THREAD.get(thread):
-        if active_waiters := [w for w in waiters if not w.call_is_done()]:
-            if parent_call and (
+    waiters: "Optional[deque[Waiter]]" = _WAITERS_BY_THREAD.get(thread)
+
+    if waiters:
+        if (
+            (active_waiters := [w for w in waiters if not w.call_is_done()])
+            and parent_call
+            and (
                 matching_waiter := next(
                     (w for w in active_waiters if w._call == parent_call), None
                 )
-            ):
-                return matching_waiter
-            else:
-                return active_waiters[-1]  # return the most recent waiter
-
-    return None  # no waiter found
+            )
+        ):  # if exists an active waiter responsible for the parent call, return it
+            return matching_waiter
+        else:  # otherwise, return the most recently created waiter
+            return active_waiters[-1] if active_waiters else None
 
 
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
