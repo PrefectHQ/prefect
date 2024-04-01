@@ -92,6 +92,7 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
         # Retain "optional" from the model field
         new_field.required = field.required
         new_field.allow_none = field.allow_none
+        new_field.alias = field.alias
 
         model_class.__fields__[name] = new_field
 
