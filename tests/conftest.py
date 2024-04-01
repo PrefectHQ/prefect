@@ -24,7 +24,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Generator, Optional
+from typing import AsyncGenerator, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
@@ -63,6 +63,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_UNIT_TEST_LOOP_DEBUG,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
@@ -229,7 +230,10 @@ def event_loop(request):
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
-    loop.set_debug(True)
+
+    if PREFECT_UNIT_TEST_LOOP_DEBUG.value():
+        loop.set_debug(True)
+
     loop.slow_callback_duration = 0.25
 
     try:
@@ -374,7 +378,7 @@ def safety_check_settings():
 @pytest.fixture(scope="session", autouse=True)
 async def generate_test_database_connection_url(
     worker_id: str,
-) -> Generator[Optional[str], None, None]:
+) -> AsyncGenerator[Optional[str], None]:
     """Prepares an alternative test database URL, if necessary, for the current
     connection URL.
 
