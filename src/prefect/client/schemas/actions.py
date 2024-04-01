@@ -1,7 +1,7 @@
 import warnings
 from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jsonschema
 
@@ -420,32 +420,43 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     job_variables: Optional[dict] = Field(None)
 
 
-@copy_model_fields
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
-    name: str = FieldFrom(objects.SavedSearch)
-    filters: List[objects.SavedSearchFilter] = FieldFrom(objects.SavedSearch)
+    name: str = Field(default=..., description="The name of the saved search.")
+    filters: List[objects.SavedSearchFilter] = Field(
+        default_factory=list, description="The filter set for the saved search."
+    )
 
 
-@copy_model_fields
 class ConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a concurrency limit."""
 
-    tag: str = FieldFrom(objects.ConcurrencyLimit)
-    concurrency_limit: int = FieldFrom(objects.ConcurrencyLimit)
+    tag: str = Field(
+        default=..., description="A tag the concurrency limit is applied to."
+    )
+    concurrency_limit: int = Field(default=..., description="The concurrency limit.")
 
 
-@copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
-    name: str = FieldFrom(objects.BlockType)
-    slug: str = FieldFrom(objects.BlockType)
-    logo_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    documentation_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    description: Optional[str] = FieldFrom(objects.BlockType)
-    code_example: Optional[str] = FieldFrom(objects.BlockType)
+    name: str = Field(default=..., description="A block type's name")
+    slug: str = Field(default=..., description="A block type's slug")
+    logo_url: Optional[objects.HttpUrl] = Field(
+        default=None, description="Web URL for the block type's logo"
+    )
+    documentation_url: Optional[objects.HttpUrl] = Field(
+        default=None, description="Web URL for the block type's documentation"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="A short blurb about the corresponding block's intended use",
+    )
+    code_example: Optional[str] = Field(
+        default=None,
+        description="A code snippet demonstrating use of the corresponding block",
+    )
 
     # validators
     _validate_slug_format = validator("slug", allow_reuse=True)(
@@ -453,39 +464,56 @@ class BlockTypeCreate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    documentation_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    description: Optional[str] = FieldFrom(objects.BlockType)
-    code_example: Optional[str] = FieldFrom(objects.BlockType)
+    logo_url: Optional[objects.HttpUrl] = Field(None)
+    documentation_url: Optional[objects.HttpUrl] = Field(None)
+    description: Optional[str] = Field(None)
+    code_example: Optional[str] = Field(None)
 
     @classmethod
     def updatable_fields(cls) -> set:
         return get_class_fields_only(cls)
 
 
-@copy_model_fields
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = FieldFrom(objects.BlockSchema)
-    block_type_id: Optional[UUID] = FieldFrom(objects.BlockSchema)
-    capabilities: List[str] = FieldFrom(objects.BlockSchema)
-    version: str = FieldFrom(objects.BlockSchema)
+    fields: dict = Field(
+        default_factory=dict, description="The block schema's field schema"
+    )
+    block_type_id: Optional[UUID] = Field(None)
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
+    )
+    version: str = Field(
+        default=objects.DEFAULT_BLOCK_SCHEMA_VERSION,
+        description="Human readable identifier for the block schema",
+    )
 
 
-@copy_model_fields
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[str] = FieldFrom(objects.BlockDocument)
-    data: dict = FieldFrom(objects.BlockDocument)
-    block_schema_id: UUID = FieldFrom(objects.BlockDocument)
-    block_type_id: UUID = FieldFrom(objects.BlockDocument)
-    is_anonymous: bool = FieldFrom(objects.BlockDocument)
+    name: Optional[str] = Field(
+        default=None, description="The name of the block document"
+    )
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    block_schema_id: UUID = Field(
+        default=..., description="The block schema ID for the block document"
+    )
+    block_type_id: UUID = Field(
+        default=..., description="The block type ID for the block document"
+    )
+    is_anonymous: bool = Field(
+        default=False,
+        description=(
+            "Whether the block is anonymous (anonymous blocks are usually created by"
+            " Prefect automatically)"
+        ),
+    )
 
     _validate_name_format = validator("name", allow_reuse=True)(
         validate_block_document_name
@@ -499,25 +527,32 @@ class BlockDocumentCreate(ActionBaseModel):
         return values
 
 
-@copy_model_fields
 class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block document."""
 
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = FieldFrom(objects.BlockDocument)
-    merge_existing_data: bool = True
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    merge_existing_data: bool = Field(
+        default=True,
+        description="Whether to merge the existing data with the new data or replace it",
+    )
 
 
-@copy_model_fields
 class BlockDocumentReferenceCreate(ActionBaseModel):
     """Data used to create block document reference."""
 
-    id: UUID = FieldFrom(objects.BlockDocumentReference)
-    parent_block_document_id: UUID = FieldFrom(objects.BlockDocumentReference)
-    reference_block_document_id: UUID = FieldFrom(objects.BlockDocumentReference)
-    name: str = FieldFrom(objects.BlockDocumentReference)
+    id: UUID = Field(default_factory=uuid4)
+    parent_block_document_id: UUID = Field(
+        default=..., description="ID of block document the reference is nested within"
+    )
+    reference_block_document_id: UUID = Field(
+        default=..., description="ID of the nested block document"
+    )
+    name: str = Field(
+        default=..., description="The name that the reference is nested under"
+    )
 
 
 @copy_model_fields
