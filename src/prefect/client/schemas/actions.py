@@ -68,34 +68,31 @@ class StateCreate(ActionBaseModel):
     )
 
 
-class FlowCreate(ActionBaseModel, objects.FlowMixin):
+@copy_model_fields
+class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
-    ...
+    name: str = FieldFrom(objects.Flow)
+    tags: List[str] = FieldFrom(objects.Flow)
 
 
-class FlowUpdate(ActionBaseModel, objects.FlowMixin):
+@copy_model_fields
+class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    ...
+    tags: List[str] = FieldFrom(objects.Flow)
 
 
-class DeploymentScheduleCreate(ActionBaseModel, objects.MinimalDeploymentSchedule):
-    """Data used by the Prefect REST API to create a deployment schedule."""
+@copy_model_fields
+class DeploymentScheduleCreate(ActionBaseModel):
+    active: bool = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
 
-    ...
 
-
-class DeploymentScheduleUpdate(ActionBaseModel, objects.MinimalDeploymentSchedule):
-    """Data used by the Prefect REST API to update a deployment schedule."""
-
-    deployment_id: Optional[UUID] = Field(
-        description="The ID of the deployment to associate with the schedule."
-    )
-
-    schedule: Optional[SCHEDULE_TYPES] = Field(
-        description="The schedule for the deployment.",
-    )
+@copy_model_fields
+class DeploymentScheduleUpdate(ActionBaseModel):
+    active: bool = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
 
 
 @experimental_field(
@@ -200,7 +197,6 @@ class DeploymentCreate(ActionBaseModel):
     group="work_pools",
     when=lambda x: x is not None,
 )
-@copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
@@ -241,27 +237,27 @@ class DeploymentUpdate(ActionBaseModel):
     def validate_none_schedule(cls, v):
         return return_none_schedule(v)
 
-    version: Optional[str] = FieldFrom(objects.Deployment)
-    schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
-    description: Optional[str] = FieldFrom(objects.Deployment)
-    is_schedule_active: bool = FieldFrom(objects.Deployment)
+    version: Optional[str] = Field(None)
+    schedule: Optional[SCHEDULE_TYPES] = Field(None)
+    description: Optional[str] = Field(None)
+    is_schedule_active: bool = Field(None)
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = FieldFrom(objects.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
+    tags: List[str] = Field(default_factory=list)
+    work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    path: Optional[str] = FieldFrom(objects.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
-    entrypoint: Optional[str] = FieldFrom(objects.Deployment)
-    manifest_path: Optional[str] = FieldFrom(objects.Deployment)
-    storage_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
+    path: Optional[str] = Field(None)
+    infra_overrides: Optional[Dict[str, Any]] = Field(None)
+    entrypoint: Optional[str] = Field(None)
+    manifest_path: Optional[str] = Field(None)
+    storage_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(
@@ -290,17 +286,18 @@ class DeploymentUpdate(ActionBaseModel):
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
-@copy_model_fields
 class FlowRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run."""
 
-    name: Optional[str] = FieldFrom(objects.FlowRun)
-    flow_version: Optional[str] = FieldFrom(objects.FlowRun)
-    parameters: dict = FieldFrom(objects.FlowRun)
-    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
-    tags: List[str] = FieldFrom(objects.FlowRun)
-    infrastructure_pid: Optional[str] = FieldFrom(objects.FlowRun)
-    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
+    name: Optional[str] = Field(None)
+    flow_version: Optional[str] = Field(None)
+    parameters: Optional[Dict[str, Any]] = Field(None)
+    empirical_policy: objects.FlowRunPolicy = Field(
+        default_factory=objects.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    infrastructure_pid: Optional[str] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(None)
 
 
 @copy_model_fields
