@@ -52,7 +52,27 @@ async def test_get_waiter_with_call_done():
     waiter.call_is_done = call_is_done
 
     waiter_for_thread = get_waiter_for_thread(threading.current_thread())
+
     assert waiter_for_thread is None
+
+
+@pytest.mark.parametrize("waiter_cls", [AsyncWaiter, SyncWaiter])
+def test_get_waiter_for_thread_with_parent_call(waiter_cls):
+    parent_call = Call.new(identity, 1)
+    child_call = Call.new(identity, 2)
+
+    parent_waiter = waiter_cls(parent_call)
+    child_waiter = waiter_cls(child_call)
+
+    parent_waiter.submit(child_call)
+
+    # Assert that get_waiter_for_thread returns the parent waiter when the parent call is provided
+    assert (
+        get_waiter_for_thread(threading.current_thread(), parent_call) == parent_waiter
+    )
+
+    # Assert that get_waiter_for_thread returns the child waiter (most recently created) when no parent call is provided
+    assert get_waiter_for_thread(threading.current_thread()) == child_waiter
 
 
 @pytest.mark.parametrize("cls", [AsyncWaiter, SyncWaiter])
