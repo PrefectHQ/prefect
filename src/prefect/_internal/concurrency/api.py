@@ -107,19 +107,6 @@ class _base(abc.ABC):
         return call
 
     @staticmethod
-    def call_soon_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]],
-        thread: threading.Thread,
-        timeout: Optional[float] = None,
-    ) -> T:
-        """
-        Run a call in the thread that is waiting for the current call.
-
-        Returns the result of the call.
-        """
-        raise NotImplementedError()
-
-    @staticmethod
     def call_in_new_thread(
         __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
     ) -> T:
