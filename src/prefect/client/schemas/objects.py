@@ -531,6 +531,16 @@ class FlowRun(ObjectBaseModel):
         default=None, description="Job variables for the flow run."
     )
 
+    # These are server-side optimizations and should not be present on client models
+    # TODO: Deprecate these fields
+
+    state_type: Optional[StateType] = Field(
+        default=None, description="The type of the current flow run state."
+    )
+    state_name: Optional[str] = Field(
+        default=None, description="The name of the current flow run state."
+    )
+
     def __eq__(self, other: Any) -> bool:
         """
         Check for "equality" to another flow run schema
@@ -548,16 +558,6 @@ class FlowRun(ObjectBaseModel):
     @validator("name", pre=True)
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
-
-    # These are server-side optimizations and should not be present on client models
-    # TODO: Deprecate these fields
-
-    state_type: Optional[StateType] = Field(
-        default=None, description="The type of the current flow run state."
-    )
-    state_name: Optional[str] = Field(
-        default=None, description="The name of the current flow run state."
-    )
 
 
 class TaskRunPolicy(PrefectBaseModel):
