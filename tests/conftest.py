@@ -63,6 +63,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_UNIT_TEST_LOOP_DEBUG,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
@@ -229,7 +230,10 @@ def event_loop(request):
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
-    loop.set_debug(True)
+
+    if PREFECT_UNIT_TEST_LOOP_DEBUG.value():
+        loop.set_debug(True)
+
     loop.slow_callback_duration = 0.25
 
     try:

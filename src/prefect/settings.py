@@ -578,6 +578,14 @@ PREFECT_UNIT_TEST_MODE = Setting(
 This variable only exists to facilitate unit testing. If `True`,
 code is executing in a unit test context. Defaults to `False`.
 """
+PREFECT_UNIT_TEST_LOOP_DEBUG = Setting(
+    bool,
+    default=False,
+)
+"""
+If `True` turns on debug mode for the unit testing event loop.
+Defaults to `False`.
+"""
 
 PREFECT_TEST_SETTING = Setting(
     Any,
