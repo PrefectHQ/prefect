@@ -1,5 +1,6 @@
 import abc
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 import importlib
 from typing import (
     Any,
@@ -62,6 +63,43 @@ class Publisher(abc.ABC):
     @abc.abstractmethod
     async def publish_data(self, data: bytes, attributes: Dict[str, str]):
         ...
+
+
+@dataclass
+class CapturedMessage:
+    data: bytes
+    attributes: Dict[str, str]
+
+
+class CapturingPublisher(Publisher):
+    messages: List[CapturedMessage] = []
+    deduplicate_by: Optional[str]
+
+    def __init__(
+        self,
+        topic: str,
+        cache: Optional[Cache] = None,
+        deduplicate_by: Optional[str] = None,
+    ) -> None:
+        self.topic = topic
+        self.cache = cache or create_cache()
+        self.deduplicate_by = deduplicate_by
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        pass
+
+    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+        to_publish = [CapturedMessage(data, attributes)]
+
+        if self.deduplicate_by:
+            to_publish = await self.cache.without_duplicates(
+                self.deduplicate_by, to_publish
+            )
+
+        self.messages.extend(to_publish)
 
 
 MessageHandler = Callable[[Message], Awaitable[None]]
