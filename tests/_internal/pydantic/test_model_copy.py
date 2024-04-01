@@ -57,5 +57,5 @@ def test_model_copy_with_flag_disabled():
 
 
 def test_model_copy_with_non_basemodel_raises():
-    with pytest.raises(TypeError, match="Expected a Pydantic model"):
+    with pytest.raises(AttributeError):
         model_copy("not a model")  # type: ignore

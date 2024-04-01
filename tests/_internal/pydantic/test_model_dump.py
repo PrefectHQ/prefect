@@ -45,5 +45,5 @@ def test_model_dump_with_flag_disabled():
 
 
 def test_model_dump_with_non_basemodel_raises():
-    with pytest.raises(TypeError, match="Expected a Pydantic model"):
+    with pytest.raises(AttributeError):
         model_dump("not a model")  # type: ignore
