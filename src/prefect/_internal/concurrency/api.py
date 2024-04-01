@@ -181,7 +181,7 @@ class from_async(_base):
         __call: Union[Callable[[], T], Call[T]],
         thread: threading.Thread,
         timeout: Optional[float] = None,
-    ) -> Awaitable[T]:
+    ) -> Call[T]:
         call = _cast_to_call(__call)
         parent_call = get_current_call()
         waiter = get_waiter_for_thread(thread, parent_call)
@@ -249,7 +249,7 @@ class from_sync(_base):
         __call: Union[Callable[[], T], Call[T]],
         thread: threading.Thread,
         timeout: Optional[float] = None,
-    ) -> T:
+    ) -> Call[T]:
         call = _cast_to_call(__call)
         waiter = get_waiter_for_thread(thread)
         if waiter is None:
