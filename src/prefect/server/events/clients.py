@@ -38,7 +38,7 @@ class EventsClient(abc.ABC):
 
 
 class NullEventsClient(EventsClient):
-    """An implementation of the Prefect Events client that does nothing"""
+    """A no-op implementation of the Prefect Events client for testing"""
 
     async def emit(self, event: Event) -> None:
         pass
