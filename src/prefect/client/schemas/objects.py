@@ -406,7 +406,7 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
-class FlowRun(ObjectBaseModel):
+class FlowRunMixin(PrefectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2),
         description=(
@@ -549,6 +549,8 @@ class FlowRun(ObjectBaseModel):
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
 
+
+class FlowRun(ObjectBaseModel, FlowRunMixin):
     # These are server-side optimizations and should not be present on client models
     # TODO: Deprecate these fields
 
