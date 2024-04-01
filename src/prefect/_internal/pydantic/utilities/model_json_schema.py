@@ -14,7 +14,7 @@ T = typing.TypeVar("T", bound="BaseModel")
 
 
 def model_json_schema(
-    model: typing.Type["BaseModel"],
+    model: typing.Type[T],
     by_alias: bool = True,
     ref_template: str = DEFAULT_REF_TEMPLATE,
     schema_generator: typing.Any = None,
@@ -37,8 +37,10 @@ def model_json_schema(
         return model.model_json_schema(
             by_alias=by_alias,
             ref_template=ref_template,
-            schema_generator=schema_generator,
             mode=mode,
+            # We've changed the type of schema_generator of 'schema_generator' to 'typing.Any',
+            # which is will throw an error if its None. So, we've to pass it only if its not None.
+            **{"schema_generator": schema_generator} if schema_generator else {},
         )
     else:
         return getattr(model, "schema")(
@@ -73,7 +75,6 @@ class ModelJsonSchemaMixin(BaseModel):
             cls,
             by_alias=by_alias,
             ref_template=ref_template,
-            schema_generator=schema_generator,
             mode=mode,
         )
 
