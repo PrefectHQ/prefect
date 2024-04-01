@@ -68,31 +68,45 @@ class StateCreate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
-    name: str = FieldFrom(objects.Flow)
-    tags: List[str] = FieldFrom(objects.Flow)
+    name: str = Field(
+        default=..., description="The name of the flow", example="my-flow"
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
 
 
-@copy_model_fields
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = FieldFrom(objects.Flow)
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
 
 
-@copy_model_fields
 class DeploymentScheduleCreate(ActionBaseModel):
-    active: bool = FieldFrom(objects.DeploymentSchedule)
-    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
 
 
-@copy_model_fields
 class DeploymentScheduleUpdate(ActionBaseModel):
-    active: bool = FieldFrom(objects.DeploymentSchedule)
-    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+    schedule: Optional[SCHEDULE_TYPES] = Field(
+        default=None, description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
 
 
 @experimental_field(
@@ -100,7 +114,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     group="work_pools",
     when=lambda x: x is not None,
 )
-@copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -137,10 +150,10 @@ class DeploymentCreate(ActionBaseModel):
             )
         return values_copy
 
-    name: str = FieldFrom(objects.Deployment)
-    flow_id: UUID = FieldFrom(objects.Deployment)
-    is_schedule_active: Optional[bool] = FieldFrom(objects.Deployment)
-    paused: Optional[bool] = FieldFrom(objects.Deployment)
+    name: str = Field(..., description="The name of the deployment.")
+    flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
+    is_schedule_active: Optional[bool] = Field(None)
+    paused: Optional[bool] = Field(None)
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
@@ -151,26 +164,29 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
-    tags: List[str] = FieldFrom(objects.Deployment)
-    pull_steps: Optional[List[dict]] = FieldFrom(objects.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(None)
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
+    tags: List[str] = Field(default_factory=list)
+    pull_steps: Optional[List[dict]] = Field(None)
 
-    manifest_path: Optional[str] = FieldFrom(objects.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
+    manifest_path: Optional[str] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    storage_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
-    schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
-    description: Optional[str] = FieldFrom(objects.Deployment)
-    path: Optional[str] = FieldFrom(objects.Deployment)
-    version: Optional[str] = FieldFrom(objects.Deployment)
-    entrypoint: Optional[str] = FieldFrom(objects.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
+    storage_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    schedule: Optional[SCHEDULE_TYPES] = Field(None)
+    description: Optional[str] = Field(None)
+    path: Optional[str] = Field(None)
+    version: Optional[str] = Field(None)
+    entrypoint: Optional[str] = Field(None)
+    infra_overrides: Optional[Dict[str, Any]] = Field(None)
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -300,7 +316,6 @@ class FlowRunUpdate(ActionBaseModel):
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
 
-@copy_model_fields
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
@@ -309,15 +324,28 @@ class TaskRunCreate(ActionBaseModel):
         default=None, description="The state of the task run to create"
     )
 
-    name: str = FieldFrom(objects.TaskRun)
-    flow_run_id: Optional[UUID] = FieldFrom(objects.TaskRun)
-    task_key: str = FieldFrom(objects.TaskRun)
-    dynamic_key: str = FieldFrom(objects.TaskRun)
-    cache_key: Optional[str] = FieldFrom(objects.TaskRun)
-    cache_expiration: Optional[objects.DateTimeTZ] = FieldFrom(objects.TaskRun)
-    task_version: Optional[str] = FieldFrom(objects.TaskRun)
-    empirical_policy: objects.TaskRunPolicy = FieldFrom(objects.TaskRun)
-    tags: List[str] = FieldFrom(objects.TaskRun)
+    name: Optional[str] = Field(
+        default=None,
+        description="The name of the task run",
+    )
+    flow_run_id: Optional[UUID] = Field(None)
+    task_key: str = Field(
+        default=..., description="A unique identifier for the task being run."
+    )
+    dynamic_key: str = Field(
+        default=...,
+        description=(
+            "A dynamic key used to differentiate between multiple runs of the same task"
+            " within the same flow run."
+        ),
+    )
+    cache_key: Optional[str] = Field(None)
+    cache_expiration: Optional[objects.DateTimeTZ] = Field(None)
+    task_version: Optional[str] = Field(None)
+    empirical_policy: objects.TaskRunPolicy = Field(
+        default_factory=objects.TaskRunPolicy,
+    )
+    tags: List[str] = Field(default_factory=list)
     task_inputs: Dict[
         str,
         List[
@@ -327,14 +355,13 @@ class TaskRunCreate(ActionBaseModel):
                 objects.Constant,
             ]
         ],
-    ] = FieldFrom(objects.TaskRun)
+    ] = Field(default_factory=dict)
 
 
-@copy_model_fields
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: str = FieldFrom(objects.TaskRun)
+    name: Optional[str] = Field(None)
 
 
 @copy_model_fields
