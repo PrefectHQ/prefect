@@ -63,8 +63,8 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
-    PREFECT_UNIT_TEST_MODE,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
 
