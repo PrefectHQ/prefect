@@ -8,9 +8,9 @@ import jsonschema
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
+    from pydantic.v1 import Field, conint, root_validator, validator
 else:
-    from pydantic import Field, root_validator, validator
+    from pydantic import Field, conint, root_validator, validator
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.compatibility.experimental import experimental_field
@@ -22,9 +22,11 @@ from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     return_none_schedule,
+    validate_message_template_variables,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
@@ -555,48 +557,62 @@ class BlockDocumentReferenceCreate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class LogCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a log."""
 
-    name: str = FieldFrom(objects.Log)
-    level: int = FieldFrom(objects.Log)
-    message: str = FieldFrom(objects.Log)
-    timestamp: objects.DateTimeTZ = FieldFrom(objects.Log)
-    flow_run_id: Optional[UUID] = FieldFrom(objects.Log)
-    task_run_id: Optional[UUID] = FieldFrom(objects.Log)
+    name: str = Field(default=..., description="The logger name.")
+    level: int = Field(default=..., description="The log level.")
+    message: str = Field(default=..., description="The log message.")
+    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    flow_run_id: Optional[UUID] = Field(None)
+    task_run_id: Optional[UUID] = Field(None)
 
 
-@copy_model_fields
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = FieldFrom(objects.WorkPool)
-    description: Optional[str] = FieldFrom(objects.WorkPool)
-    type: str = Field(description="The work pool type.", default="prefect-agent")
-    base_job_template: Dict[str, Any] = FieldFrom(objects.WorkPool)
-    is_paused: bool = FieldFrom(objects.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(objects.WorkPool)
+    name: str = Field(
+        description="The name of the work pool.",
+    )
+    description: Optional[str] = Field(None)
+    type: str = Field(
+        description="The work pool type.", default="prefect-agent"
+    )  # TODO: change default
+    base_job_template: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="The base job template for the work pool.",
+    )
+    is_paused: bool = Field(
+        default=False,
+        description="Whether the work pool is paused.",
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        default=None, description="A concurrency limit for the work pool."
+    )
 
 
-@copy_model_fields
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
-    description: Optional[str] = FieldFrom(objects.WorkPool)
-    is_paused: Optional[bool] = FieldFrom(objects.WorkPool)
-    base_job_template: Optional[Dict[str, Any]] = FieldFrom(objects.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(objects.WorkPool)
+    description: Optional[str] = Field(None)
+    is_paused: Optional[bool] = Field(None)
+    base_job_template: Optional[Dict[str, Any]] = Field(None)
+    concurrency_limit: Optional[int] = Field(None)
 
 
-@copy_model_fields
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work queue."""
 
-    name: str = FieldFrom(objects.WorkQueue)
-    description: Optional[str] = FieldFrom(objects.WorkQueue)
-    is_paused: bool = FieldFrom(objects.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(objects.WorkQueue)
+    name: str = Field(default=..., description="The name of the work queue.")
+    description: Optional[str] = Field(None)
+    is_paused: bool = Field(
+        default=False,
+        description="Whether the work queue is paused.",
+    )
+    concurrency_limit: Optional[int] = Field(
+        default=None,
+        description="A concurrency limit for the work queue.",
+    )
     priority: Optional[int] = Field(
         default=None,
         description=(
@@ -613,16 +629,17 @@ class WorkQueueCreate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work queue."""
 
-    name: str = FieldFrom(objects.WorkQueue)
-    description: Optional[str] = FieldFrom(objects.WorkQueue)
-    is_paused: bool = FieldFrom(objects.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(objects.WorkQueue)
-    priority: Optional[int] = FieldFrom(objects.WorkQueue)
-    last_polled: Optional[DateTimeTZ] = FieldFrom(objects.WorkQueue)
+    name: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    is_paused: bool = Field(
+        default=False, description="Whether or not the work queue is paused."
+    )
+    concurrency_limit: Optional[int] = Field(None)
+    priority: Optional[int] = Field(None)
+    last_polled: Optional[DateTimeTZ] = Field(None)
 
     # DEPRECATED
 
@@ -633,67 +650,96 @@ class WorkQueueUpdate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class FlowRunNotificationPolicyCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run notification policy."""
 
-    is_active: bool = FieldFrom(objects.FlowRunNotificationPolicy)
-    state_names: List[str] = FieldFrom(objects.FlowRunNotificationPolicy)
-    tags: List[str] = FieldFrom(objects.FlowRunNotificationPolicy)
-    block_document_id: UUID = FieldFrom(objects.FlowRunNotificationPolicy)
-    message_template: Optional[str] = FieldFrom(objects.FlowRunNotificationPolicy)
+    is_active: bool = Field(
+        default=True, description="Whether the policy is currently active"
+    )
+    state_names: List[str] = Field(
+        default=..., description="The flow run states that trigger notifications"
+    )
+    tags: List[str] = Field(
+        default=...,
+        description="The flow run tags that trigger notifications (set [] to disable)",
+    )
+    block_document_id: UUID = Field(
+        default=..., description="The block document ID used for sending notifications"
+    )
+    message_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "A templatable notification message. Use {braces} to add variables."
+            " Valid variables include:"
+            f" {listrepr(sorted(objects.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
+        ),
+        example=(
+            "Flow run {flow_run_name} with id {flow_run_id} entered state"
+            " {flow_run_state_name}."
+        ),
+    )
+
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        return validate_message_template_variables(v)
 
 
-@copy_model_fields
 class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
-    is_active: Optional[bool] = FieldFrom(objects.FlowRunNotificationPolicy)
-    state_names: Optional[List[str]] = FieldFrom(objects.FlowRunNotificationPolicy)
-    tags: Optional[List[str]] = FieldFrom(objects.FlowRunNotificationPolicy)
-    block_document_id: Optional[UUID] = FieldFrom(objects.FlowRunNotificationPolicy)
-    message_template: Optional[str] = FieldFrom(objects.FlowRunNotificationPolicy)
+    is_active: Optional[bool] = Field(None)
+    state_names: Optional[List[str]] = Field(None)
+    tags: Optional[List[str]] = Field(None)
+    block_document_id: Optional[UUID] = Field(None)
+    message_template: Optional[str] = Field(None)
 
 
-@copy_model_fields
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = FieldFrom(objects.Artifact)
-    type: Optional[str] = FieldFrom(objects.Artifact)
-    description: Optional[str] = FieldFrom(objects.Artifact)
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(objects.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(objects.Artifact)
-    flow_run_id: Optional[UUID] = FieldFrom(objects.Artifact)
-    task_run_id: Optional[UUID] = FieldFrom(objects.Artifact)
+    key: Optional[str] = Field(None)
+    type: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
+    metadata_: Optional[Dict[str, str]] = Field(None)
+    flow_run_id: Optional[UUID] = Field(None)
+    task_run_id: Optional[UUID] = Field(None)
 
     _validate_artifact_format = validator("key", allow_reuse=True)(
         validate_artifact_key
     )
 
 
-@copy_model_fields
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(objects.Artifact)
-    description: Optional[str] = FieldFrom(objects.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(objects.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
+    description: Optional[str] = Field(None)
+    metadata_: Optional[Dict[str, str]] = Field(None)
 
 
 @copy_model_fields
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
-    name: str = FieldFrom(objects.Variable)
-    value: str = FieldFrom(objects.Variable)
-    tags: Optional[List[str]] = FieldFrom(objects.Variable)
+    name: str = Field(
+        default=...,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: str = Field(
+        default=...,
+        description="The value of the variable",
+        example="my-value",
+        max_length=objects.MAX_VARIABLE_VALUE_LENGTH,
+    )
+    tags: Optional[List[str]] = Field(default=None)
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
 
 
-@copy_model_fields
 class VariableUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a Variable."""
 
@@ -715,23 +761,38 @@ class VariableUpdate(ActionBaseModel):
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
 
 
-@copy_model_fields
 class GlobalConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a global concurrency limit."""
 
-    name: str = FieldFrom(objects.GlobalConcurrencyLimit)
-    limit: int = FieldFrom(objects.GlobalConcurrencyLimit)
-    active: Optional[bool] = FieldFrom(objects.GlobalConcurrencyLimit)
-    active_slots: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
-    slot_decay_per_second: Optional[float] = FieldFrom(objects.GlobalConcurrencyLimit)
+    name: str = Field(description="The name of the global concurrency limit.")
+    limit: int = Field(
+        description=(
+            "The maximum number of slots that can be occupied on this concurrency"
+            " limit."
+        )
+    )
+    active: Optional[bool] = Field(
+        default=True,
+        description="Whether or not the concurrency limit is in an active state.",
+    )
+    active_slots: Optional[int] = Field(
+        default=0,
+        description="Number of tasks currently using a concurrency slot.",
+    )
+    slot_decay_per_second: Optional[float] = Field(
+        default=0.0,
+        description=(
+            "Controls the rate at which slots are released when the concurrency limit"
+            " is used as a rate limit."
+        ),
+    )
 
 
-@copy_model_fields
 class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a global concurrency limit."""
 
-    name: Optional[str] = FieldFrom(objects.GlobalConcurrencyLimit)
-    limit: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
-    active: Optional[bool] = FieldFrom(objects.GlobalConcurrencyLimit)
-    active_slots: Optional[int] = FieldFrom(objects.GlobalConcurrencyLimit)
-    slot_decay_per_second: Optional[float] = FieldFrom(objects.GlobalConcurrencyLimit)
+    name: Optional[str] = Field(None)
+    limit: Optional[int] = Field(None)
+    active: Optional[bool] = Field(None)
+    active_slots: Optional[int] = Field(None)
+    slot_decay_per_second: Optional[float] = Field(None)
