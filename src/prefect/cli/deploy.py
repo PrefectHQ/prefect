@@ -1,4 +1,5 @@
 """Module containing implementation for deploying projects."""
+
 import json
 import os
 import re
@@ -17,7 +18,6 @@ else:
     import pydantic
 
 import typer
-import typer.core
 import yaml
 from rich.console import Console
 from rich.panel import Panel
