@@ -12,6 +12,7 @@ from sqlalchemy.orm import (
     as_declarative,
     declarative_mixin,
     declared_attr,
+    synonym,
 )
 from sqlalchemy.sql.functions import coalesce
 
@@ -866,6 +867,10 @@ class ORMDeployment:
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)
     entrypoint = sa.Column(sa.String, nullable=True)
+
+    @declared_attr
+    def job_variables(self):
+        return synonym("infra_overrides")
 
     @declared_attr
     def flow_id(cls):
