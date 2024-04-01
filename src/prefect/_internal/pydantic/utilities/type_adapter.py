@@ -5,10 +5,10 @@ from prefect._internal.pydantic._flags import USE_V2_MODELS
 T = typing.TypeVar("T")
 
 if USE_V2_MODELS:
-    from pydantic import TypeAdapter  # type: ignore[no-redef]
+    from pydantic import TypeAdapter  # type: ignore
 
 else:
-    from pydantic import parse_obj_as  # type: ignore[no-redef]
+    from pydantic import parse_obj_as  # type: ignore
 
     class TypeAdapter(typing.Generic[T]):
         """
