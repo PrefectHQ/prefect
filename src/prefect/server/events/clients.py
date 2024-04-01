@@ -1,9 +1,9 @@
 import abc
 from textwrap import dedent
 from types import TracebackType
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from prefect.logging import get_logger
 from prefect.server.events import messaging
@@ -14,6 +14,8 @@ from prefect.server.events.schemas.events import (
 )
 
 logger = get_logger(__name__)
+
+LabelValue: TypeAlias = Union[str, List[str]]
 
 
 class EventsClient(abc.ABC):
@@ -103,8 +105,8 @@ class AssertingEventsClient(EventsClient):
     def assert_emitted_event_with(
         cls,
         event: Optional[str] = None,
-        resource: Optional[Dict[str, List[str]]] = None,
-        related: Optional[List[Dict[str, List[str]]]] = None,
+        resource: Optional[Dict[str, LabelValue]] = None,
+        related: Optional[List[Dict[str, LabelValue]]] = None,
         payload: Optional[Dict[str, Any]] = None,
     ):
         """Assert that an event was emitted containing the given properties."""
@@ -175,8 +177,8 @@ class AssertingEventsClient(EventsClient):
     def assert_no_emitted_event_with(
         cls,
         event: Optional[str] = None,
-        resource: Optional[Dict[str, List[str]]] = None,
-        related: Optional[List[Dict[str, List[str]]]] = None,
+        resource: Optional[Dict[str, LabelValue]] = None,
+        related: Optional[List[Dict[str, LabelValue]]] = None,
         payload: Optional[Dict[str, Any]] = None,
     ):
         try:

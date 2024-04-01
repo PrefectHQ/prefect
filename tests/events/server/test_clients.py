@@ -175,6 +175,14 @@ async def test_asserting_event(all_events_emitted: AssertingEventsClient):
 
 async def test_asserting_resource(all_events_emitted: AssertingEventsClient):
     AssertingEventsClient.assert_emitted_event_with(
+        resource={"wonder-type": "amazement"}
+    )
+    with pytest.raises(AssertionError):
+        AssertingEventsClient.assert_no_emitted_event_with(
+            resource={"wonder-type": "amazement"}
+        )
+
+    AssertingEventsClient.assert_emitted_event_with(
         resource={"wonder-type": ["amazement", "astonishment"]}
     )
     with pytest.raises(AssertionError):
@@ -192,6 +200,14 @@ async def test_asserting_resource(all_events_emitted: AssertingEventsClient):
 
 
 async def test_asserting_related(all_events_emitted: AssertingEventsClient):
+    AssertingEventsClient.assert_emitted_event_with(
+        related=[{"prefect.resource.role": "sparkle"}]
+    )
+    with pytest.raises(AssertionError):
+        AssertingEventsClient.assert_no_emitted_event_with(
+            related=[{"prefect.resource.role": "sparkle"}]
+        )
+
     AssertingEventsClient.assert_emitted_event_with(
         related=[{"prefect.resource.role": ["sparkle", "luster"]}]
     )
