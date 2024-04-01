@@ -363,7 +363,7 @@ class Deployment(BaseModel):
         infrastructure: An optional infrastructure block used to configure
             infrastructure for runs; if not provided, will default to running this
             deployment in Agent subprocesses
-        infra_overrides: A dictionary of dot delimited infrastructure overrides that
+        job_variables: A dictionary of dot delimited infrastructure overrides that
             will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
             `namespace='prefect'`
         storage: An optional remote storage block used to store and retrieve this
@@ -405,7 +405,7 @@ class Deployment(BaseModel):
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
-        ...     infra_overrides=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
+        ...     job_variables=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
         >>> )
         >>> deployment.apply()
 
@@ -429,7 +429,7 @@ class Deployment(BaseModel):
             "schedule",
             "schedules",
             "is_schedule_active",
-            "infra_overrides",
+            "job_variables",
         ]
 
         # if infrastructure is baked as a pre-saved block, then
@@ -558,7 +558,7 @@ class Deployment(BaseModel):
         ),
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
@@ -869,7 +869,7 @@ class Deployment(BaseModel):
                 manifest_path=self.manifest_path,  # allows for backwards YAML compat
                 path=self.path,
                 entrypoint=self.entrypoint,
-                infra_overrides=self.infra_overrides,
+                job_variables=self.job_variables,
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),

@@ -196,11 +196,11 @@ class DeploymentCreate(ActionBaseModel):
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
-        and infra_overrides conforms to the specified schema.
+        and job_variables conforms to the specified schema.
         """
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -215,7 +215,7 @@ class DeploymentCreate(ActionBaseModel):
                     if "default" in v and k in required:
                         required.remove(k)
 
-            jsonschema.validate(self.infra_overrides, variables_schema)
+            jsonschema.validate(self.job_variables, variables_schema)
 
     @validator("parameters")
     def _validate_parameters_conform_to_schema(cls, value, values):
@@ -291,7 +291,7 @@ class DeploymentUpdate(ActionBaseModel):
         example="my-work-pool",
     )
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
+    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
@@ -305,7 +305,7 @@ class DeploymentUpdate(ActionBaseModel):
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
-        and infra_overrides conforms to the specified schema.
+        and job_variables conforms to the specified schema.
         """
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -321,7 +321,7 @@ class DeploymentUpdate(ActionBaseModel):
                         required.remove(k)
 
         if variables_schema is not None:
-            jsonschema.validate(self.infra_overrides, variables_schema)
+            jsonschema.validate(self.job_variables, variables_schema)
 
 
 @copy_model_fields

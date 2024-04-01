@@ -85,7 +85,7 @@ class TestDeploymentCreate:
         # This should fail because my-field is required but has no default
         deployment_create = DeploymentCreate(
             name="test-deployment",
-            infra_overrides={},
+            job_variables={},
         )
 
         base_job_template = {
@@ -138,7 +138,7 @@ class TestDeploymentCreate:
             }
         }
         deployment_create = DeploymentUpdate(
-            infra_overrides={"my_field": "my_value"},
+            job_variables={"my_field": "my_value"},
         )
         deployment_create.check_valid_configuration(base_job_template)
 
@@ -184,7 +184,7 @@ class TestDeploymentUpdate:
     def test_check_valid_configuration_removes_required_if_defaults_exist(self):
         # This should fail because my-field is required but has no default
         deployment_update = DeploymentUpdate(
-            infra_overrides={},
+            job_variables={},
         )
 
         base_job_template = {
@@ -237,7 +237,7 @@ class TestDeploymentUpdate:
             }
         }
         deployment_update = DeploymentUpdate(
-            infra_overrides={"my_field": "my_value"},
+            job_variables={"my_field": "my_value"},
         )
         deployment_update.check_valid_configuration(base_job_template)
 

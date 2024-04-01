@@ -1588,7 +1588,7 @@ class PrefectClient:
         path: str = None,
         entrypoint: str = None,
         infrastructure_document_id: UUID = None,
-        infra_overrides: Dict[str, Any] = None,
+        job_variables: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
@@ -1629,7 +1629,7 @@ class PrefectClient:
             entrypoint=entrypoint,
             manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides=infra_overrides or {},
+            job_variables=job_variables or {},
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             paused=paused,
@@ -1706,7 +1706,7 @@ class PrefectClient:
             parameters=deployment.parameters,
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
-            infra_overrides=deployment.infra_overrides,
+            job_variables=deployment.job_variables,
             enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 

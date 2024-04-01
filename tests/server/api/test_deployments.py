@@ -76,7 +76,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
@@ -89,7 +89,7 @@ class TestCreateDeployment:
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
         )
-        assert response.json()["infra_overrides"] == {"cpu": 24}
+        assert response.json()["job_variables"] == {"cpu": 24}
         deployment_id = response.json()["id"]
         assert response.json()["status"] == "NOT_READY"
 
@@ -580,7 +580,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
             work_queue_name=work_queue_1.name,
         ).dict(json_compatible=True)
@@ -593,7 +593,7 @@ class TestCreateDeployment:
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
         )
-        assert response.json()["infra_overrides"] == {"cpu": 24}
+        assert response.json()["job_variables"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
         assert response.json()["work_queue_name"] == work_queue_1.name
         deployment_id = response.json()["id"]
@@ -629,7 +629,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
@@ -641,7 +641,7 @@ class TestCreateDeployment:
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
         )
-        assert response.json()["infra_overrides"] == {"cpu": 24}
+        assert response.json()["job_variables"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
         assert response.json()["work_queue_name"] == default_queue.name
         deployment_id = response.json()["id"]
@@ -674,7 +674,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
             work_queue_name="new-queue",
         ).dict(json_compatible=True)
@@ -763,7 +763,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides=overrides,
+            job_variables=overrides,
             work_pool_name=work_pool.name,
         ).dict(json_compatible=True)
 
@@ -853,7 +853,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides=overrides,
+            job_variables=overrides,
             work_pool_name=work_pool.name,
         ).dict(json_compatible=True)
 
@@ -877,7 +877,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
             work_queue_name="new-work-pool-queue",
         ).dict(json_compatible=True)
@@ -916,7 +916,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name="imaginary-work-pool",
             work_queue_name="default",
         ).dict(json_compatible=True)
