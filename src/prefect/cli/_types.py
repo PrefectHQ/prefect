@@ -1,12 +1,12 @@
 """
 Custom Prefect CLI types
 """
+
 import functools
 import sys
 from typing import List, Optional
 
 import typer
-import typer.core
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
