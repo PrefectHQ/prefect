@@ -57,7 +57,7 @@ async def create_deployment(
             flow_id=flow.id,
             paused=False,
             work_queue_id=work_pool.default_queue_id,
-            infra_overrides=job_variables,
+            job_variables=job_variables,
         ),
     )
     await session.commit()
