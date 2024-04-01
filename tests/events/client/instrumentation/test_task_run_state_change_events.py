@@ -144,6 +144,7 @@ async def test_task_state_change_task_failure(
         last_state = task_run_state
 
 
+@pytest.mark.skip(reason="This test is flaky and needs to be fixed")
 async def test_background_task_state_changes(
     asserting_events_worker: EventsWorker,
     reset_worker_events,

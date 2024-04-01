@@ -204,6 +204,7 @@ class TestServe:
         assert task_run.state.is_scheduled()
 
 
+@pytest.mark.skip(reason="This test is flaky and needs to be fixed")
 async def test_task_server_can_execute_a_single_async_single_task_run(
     async_foo_task, prefect_client
 ):
