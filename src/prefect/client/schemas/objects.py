@@ -897,8 +897,8 @@ class BlockDocument(ObjectBaseModel):
         return values
 
 
-class FlowMixin(PrefectBaseModel):
-    """Base model for a Flow"""
+class Flow(ObjectBaseModel):
+    """An ORM representation of flow data."""
 
     name: str = Field(
         default=..., description="The name of the flow", example="my-flow"
@@ -914,12 +914,6 @@ class FlowMixin(PrefectBaseModel):
         return raise_on_name_with_banned_characters(v)
 
 
-class Flow(ObjectBaseModel, FlowMixin):
-    """An ORM representation of flow data."""
-
-    ...
-
-
 class MinimalDeploymentSchedule(PrefectBaseModel):
     schedule: SCHEDULE_TYPES = Field(
         default=..., description="The schedule for the deployment."
@@ -929,10 +923,16 @@ class MinimalDeploymentSchedule(PrefectBaseModel):
     )
 
 
-class DeploymentSchedule(ObjectBaseModel, MinimalDeploymentSchedule):
+class DeploymentSchedule(ObjectBaseModel):
     deployment_id: Optional[UUID] = Field(
         default=None,
         description="The deployment id associated with this schedule.",
+    )
+    schedule: SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
     )
 
 
