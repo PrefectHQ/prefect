@@ -68,31 +68,34 @@ class StateCreate(ActionBaseModel):
     )
 
 
-@copy_model_fields
-class FlowCreate(ActionBaseModel):
+class FlowCreate(ActionBaseModel, objects.FlowMixin):
     """Data used by the Prefect REST API to create a flow."""
 
-    name: str = FieldFrom(objects.Flow)
-    tags: List[str] = FieldFrom(objects.Flow)
+    ...
 
 
-@copy_model_fields
-class FlowUpdate(ActionBaseModel):
+class FlowUpdate(ActionBaseModel, objects.FlowMixin):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = FieldFrom(objects.Flow)
+    ...
 
 
-@copy_model_fields
-class DeploymentScheduleCreate(ActionBaseModel):
-    active: bool = FieldFrom(objects.DeploymentSchedule)
-    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+class DeploymentScheduleCreate(ActionBaseModel, objects.MinimalDeploymentSchedule):
+    """Data used by the Prefect REST API to create a deployment schedule."""
+
+    ...
 
 
-@copy_model_fields
-class DeploymentScheduleUpdate(ActionBaseModel):
-    active: bool = FieldFrom(objects.DeploymentSchedule)
-    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+class DeploymentScheduleUpdate(ActionBaseModel, objects.MinimalDeploymentSchedule):
+    """Data used by the Prefect REST API to update a deployment schedule."""
+
+    deployment_id: Optional[UUID] = Field(
+        description="The ID of the deployment to associate with the schedule."
+    )
+
+    schedule: Optional[SCHEDULE_TYPES] = Field(
+        description="The schedule for the deployment.",
+    )
 
 
 @experimental_field(
