@@ -406,7 +406,7 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
-class FlowRunMixin(PrefectBaseModel):
+class FlowRun(ObjectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2),
         description=(
@@ -531,6 +531,16 @@ class FlowRunMixin(PrefectBaseModel):
         default=None, description="Job variables for the flow run."
     )
 
+    # These are server-side optimizations and should not be present on client models
+    # TODO: Deprecate these fields
+
+    state_type: Optional[StateType] = Field(
+        default=None, description="The type of the current flow run state."
+    )
+    state_name: Optional[str] = Field(
+        default=None, description="The name of the current flow run state."
+    )
+
     def __eq__(self, other: Any) -> bool:
         """
         Check for "equality" to another flow run schema
@@ -548,18 +558,6 @@ class FlowRunMixin(PrefectBaseModel):
     @validator("name", pre=True)
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
-
-
-class FlowRun(ObjectBaseModel, FlowRunMixin):
-    # These are server-side optimizations and should not be present on client models
-    # TODO: Deprecate these fields
-
-    state_type: Optional[StateType] = Field(
-        default=None, description="The type of the current flow run state."
-    )
-    state_name: Optional[str] = Field(
-        default=None, description="The name of the current flow run state."
-    )
 
 
 class TaskRunPolicy(PrefectBaseModel):
