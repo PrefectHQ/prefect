@@ -11,6 +11,7 @@ from . import (
     csrf_token,
     dependencies,
     deployments,
+    events,
     flow_run_notification_policies,
     flow_run_states,
     flow_runs,

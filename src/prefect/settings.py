@@ -1661,6 +1661,11 @@ PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
 The maximum number of related resources an Event may have.
 """
 
+PREFECT_EVENTS_MAXIMUM_SIZE_BYTES = Setting(int, default=1_500_000)
+"""
+The maximum size of an Event when serialized to JSON
+"""
+
 
 # Deprecated settings ------------------------------------------------------------------
 
