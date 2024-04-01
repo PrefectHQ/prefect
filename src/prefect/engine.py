@@ -857,7 +857,9 @@ async def orchestrate_flow_run(
                     )
                 ):
                     from_async.call_soon_in_waiting_thread(
-                        flow_call, thread=user_thread, timeout=flow.timeout_seconds
+                        flow_call,
+                        thread=user_thread,
+                        timeout=flow.timeout_seconds,
                     )
                 else:
                     from_async.call_soon_in_new_thread(

@@ -24,7 +24,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Generator, Optional
+from typing import AsyncGenerator, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
@@ -374,7 +374,7 @@ def safety_check_settings():
 @pytest.fixture(scope="session", autouse=True)
 async def generate_test_database_connection_url(
     worker_id: str,
-) -> Generator[Optional[str], None, None]:
+) -> AsyncGenerator[Optional[str], None]:
     """Prepares an alternative test database URL, if necessary, for the current
     connection URL.
 
