@@ -232,7 +232,7 @@ def event_loop(request):
 
     # if PREFECT_UNIT_TEST_LOOP_DEBUG.value():
     #     loop.set_debug(True)
-    loop.set_debug(False)
+    loop.set_debug(True)
 
     loop.slow_callback_duration = 0.25
 
