@@ -22,8 +22,8 @@ from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_underscores_only,
     remove_old_deployment_fields,
     return_none_schedule,
-    validate_name_present_on_nonanonymous_blocks,
     validate_message_template_variables,
+    validate_name_present_on_nonanonymous_blocks,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
