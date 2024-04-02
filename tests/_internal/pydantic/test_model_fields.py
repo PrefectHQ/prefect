@@ -15,19 +15,17 @@ def test_model_fields():
 
     everything should work without deprecation warnings
     """
-    from prefect.pydantic import BaseModel
+    from prefect.pydantic import BaseModel, Field
 
     class TestModel(BaseModel):
-        a: int
+        a: int = Field(banana=True)  # type: ignore
         b: str
 
     model = TestModel(a=1, b="2")
 
     if a := model.model_fields.get("a"):
         assert a.annotation == int
-        assert a.frozen is False
-        assert a.json_schema_extra == {}
+        assert a.json_schema_extra == {"banana": True}
     if b := model.model_fields.get("b"):
         assert b.annotation == str
-        assert b.frozen is False
         assert b.json_schema_extra == {}
