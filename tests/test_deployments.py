@@ -962,7 +962,7 @@ class TestDeploymentApply:
                 assert create_route.called
                 assert json.loads(
                     create_route.calls[0].request.content
-                ) == trigger.as_automation().dict(json_compatible=True)
+                ) == trigger.as_automation().model_dump(mode="json")
 
     @pytest.mark.parametrize("enable_flag", [True, False])
     async def test_trigger_job_vars_value_if_enable_infra_overrides_flag_is_toggled(
