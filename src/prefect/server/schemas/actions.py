@@ -17,7 +17,6 @@ else:
     from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
@@ -112,11 +111,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
@@ -191,11 +185,6 @@ class DeploymentCreate(ActionBaseModel):
         return validate_parameter_openapi_schema(value, values)
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
