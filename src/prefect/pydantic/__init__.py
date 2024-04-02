@@ -4,13 +4,14 @@ from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 if typing.TYPE_CHECKING:
     # import of virtually everything is supported via `__getattr__` below,
     # but we need them here for type checking and IDE support
-    from pydantic import Field, validator, root_validator
-    from .main import BaseModel, PrefectBaseModel
+    from pydantic import validator, root_validator
+    from .main import BaseModel, PrefectBaseModel, FieldInfo, Field
 
 __all__ = [
     "BaseModel",
     "PrefectBaseModel",
     "Field",
+    "FieldInfo",
     "validator",
     "root_validator",
 ]
@@ -18,6 +19,8 @@ __all__ = [
 _dynamic_imports: "typing.Dict[str, typing.Tuple[str, str]]" = {
     "BaseModel": ("prefect.pydantic", ".main"),
     "PrefectBaseModel": ("prefect.pydantic", ".main"),
+    "Field": ("prefect.pydantic", ".main"),
+    "FieldInfo": ("prefect.pydantic", ".main"),
 }
 
 

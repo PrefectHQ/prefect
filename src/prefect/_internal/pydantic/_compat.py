@@ -1,9 +1,11 @@
 from ._base_model import BaseModel as PydanticBaseModel
+from ._base_model import Field, FieldInfo
 from ._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 from .utilities.model_construct import ModelConstructMixin, model_construct
 from .utilities.model_copy import ModelCopyMixin, model_copy
 from .utilities.model_dump import ModelDumpMixin, model_dump
 from .utilities.model_dump_json import ModelDumpJsonMixin, model_dump_json
+from .utilities.model_fields import ModelFieldMixin
 from .utilities.model_json_schema import ModelJsonSchemaMixin, model_json_schema
 from .utilities.model_validate import ModelValidateMixin, model_validate
 from .utilities.model_validate_json import ModelValidateJsonMixin, model_validate_json
@@ -17,6 +19,7 @@ if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
 else:
     # In this case, we're working with a Pydantic v1 model, so we need to add Pydantic v2 functionality
     # TODO: Find a smarter way of attaching these methods so that they don't need to be redefined
+
     class BaseModel(
         ModelConstructMixin,
         ModelCopyMixin,
@@ -25,6 +28,7 @@ else:
         ModelJsonSchemaMixin,
         ModelValidateMixin,
         ModelValidateJsonMixin,
+        ModelFieldMixin,
         PydanticBaseModel,
     ):
         pass
@@ -41,4 +45,6 @@ __all__ = [
     "TypeAdapter",
     "validate_python",
     "BaseModel",
+    "Field",
+    "FieldInfo",
 ]
