@@ -1,5 +1,6 @@
 import typing
 
+from pydantic_core import from_json
 from typing_extensions import Self
 
 from prefect._internal.pydantic._base_model import BaseModel
@@ -58,6 +59,18 @@ def model_dump(  # type: ignore[no-redef]
             warnings=warnings,
         )
     else:
+        if mode == "json":
+            return from_json(
+                model_instance.json(
+                    include=include,
+                    exclude=exclude,
+                    by_alias=by_alias,
+                    exclude_unset=exclude_unset,
+                    exclude_defaults=exclude_defaults,
+                    exclude_none=exclude_none,
+                )
+            )
+
         return getattr(model_instance, "dict")(
             include=include,
             exclude=exclude,
