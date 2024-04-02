@@ -3,19 +3,13 @@ from uuid import UUID
 
 import pendulum
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.pydantic import BaseModel, Field
 
 from .schemas.events import Event, Resource, ResourceSpecification
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
 
-
-class EventDataFilter(PrefectBaseModel, extra="forbid"):
+class EventDataFilter(BaseModel, extra="forbid"):
     """A base class for filtering event data."""
 
     def get_filters(self) -> List["EventDataFilter"]:

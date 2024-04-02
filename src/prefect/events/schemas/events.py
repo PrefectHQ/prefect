@@ -15,21 +15,14 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import Field, root_validator, validator
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.logging import get_logger
+from prefect.pydantic import BaseModel, Field, root_validator, validator
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
 
 from .labelling import Labelled
 
@@ -102,7 +95,7 @@ class RelatedResource(Resource):
         return self["prefect.resource.role"]
 
 
-class Event(PrefectBaseModel):
+class Event(BaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
     occurred: DateTimeTZ = Field(
@@ -203,7 +196,7 @@ def matches(expected: str, value: Optional[str]) -> bool:
     return value == expected
 
 
-class ResourceSpecification(PrefectBaseModel):
+class ResourceSpecification(BaseModel):
     """A specification that may match zero, one, or many resources, used to target or
     select a set of resources in a query or automation.  A resource must match at least
     one value of all of the provided labels"""

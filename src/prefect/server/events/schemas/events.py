@@ -16,16 +16,10 @@ from uuid import UUID
 
 import pendulum
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
-
 from prefect.logging import get_logger
+from prefect.pydantic import BaseModel, Field, root_validator, validator
 from prefect.server.events.schemas.labelling import Labelled
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
@@ -100,7 +94,7 @@ class RelatedResource(Resource):
         return self["prefect.resource.role"]
 
 
-class Event(PrefectBaseModel):
+class Event(BaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
     occurred: DateTimeTZ = Field(
@@ -205,7 +199,7 @@ def matches(expected: str, value: Optional[str]) -> bool:
     return value == expected
 
 
-class ResourceSpecification(PrefectBaseModel):
+class ResourceSpecification(BaseModel):
     """A specification that may match zero, one, or many resources, used to target or
     select a set of resources in a query or automation.  A resource must match at least
     one value of all of the provided labels"""

@@ -1,6 +1,6 @@
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
-from prefect.server.utilities.schemas import PrefectBaseModel
+from prefect.pydantic import BaseModel
 
 
 class LabelDiver:
@@ -71,7 +71,7 @@ class LabelDiver:
             raise AttributeError
 
 
-class Labelled(PrefectBaseModel, extra="ignore"):
+class Labelled(BaseModel, extra="ignore"):
     """An object defined by string labels and values"""
 
     __root__: Dict[str, str]

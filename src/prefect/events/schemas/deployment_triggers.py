@@ -27,24 +27,21 @@ from uuid import UUID
 from typing_extensions import TypeAlias
 
 from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_trigger_within
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-    from pydantic.v1.fields import ModelField
-else:
-    from pydantic import Field, PrivateAttr, root_validator, validator
-    from pydantic.fields import ModelField
-
 from prefect._internal.compatibility.experimental import (
     EXPERIMENTAL_WARNING,
     PREFECT_EXPERIMENTAL_WARN,
     ExperimentalFeature,
     experiment_enabled,
 )
-from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect._internal.schemas.validators import validate_trigger_within
 from prefect.events.actions import RunDeployment
+from prefect.pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    root_validator,
+    validator,
+)
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
 )
@@ -63,7 +60,7 @@ from .automations import (
 from .events import ResourceSpecification
 
 
-class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
+class BaseDeploymentTrigger(BaseModel, abc.ABC, extra="ignore"):
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
@@ -235,9 +232,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
     )
 
     @validator("within")
-    def enforce_minimum_within(
-        cls, value: timedelta, values, config, field: ModelField
-    ):
+    def enforce_minimum_within(cls, value: timedelta, values, config, field):
         return validate_trigger_within(value, field)
 
     @root_validator(skip_on_failure=True)
@@ -377,7 +372,7 @@ DeploymentTriggerTypes: TypeAlias = Union[
     """
     ),
 )
-class DeploymentTrigger(PrefectBaseModel):
+class DeploymentTrigger(BaseModel):
     name: Optional[str] = Field(
         None, description="The name to give to the automation created for this trigger."
     )

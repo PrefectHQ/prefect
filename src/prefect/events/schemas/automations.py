@@ -1,31 +1,14 @@
 import abc
 from datetime import timedelta
 from enum import Enum
-from typing import (
-    Any,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Set,
-    Union,
-)
+from typing import Any, Dict, List, Literal, Optional, Set, Union
 from uuid import UUID
 
 from typing_extensions import TypeAlias
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import validate_trigger_within
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-    from pydantic.v1.fields import ModelField
-else:
-    from pydantic import Field, root_validator, validator
-    from pydantic.fields import ModelField
-
-from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import ActionTypes
+from prefect.pydantic import BaseModel, Field, root_validator, validator
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -37,7 +20,7 @@ class Posture(AutoEnum):
     Metric = "Metric"
 
 
-class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
+class Trigger(BaseModel, abc.ABC, extra="ignore"):
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
@@ -128,9 +111,7 @@ class EventTrigger(ResourceTrigger):
     )
 
     @validator("within")
-    def enforce_minimum_within(
-        cls, value: timedelta, values, config, field: ModelField
-    ):
+    def enforce_minimum_within(cls, value: timedelta, values, config, field):
         return validate_trigger_within(value, field)
 
     @root_validator(skip_on_failure=True)
@@ -162,7 +143,7 @@ class PrefectMetric(Enum):
     successes = "successes"
 
 
-class MetricTriggerQuery(PrefectBaseModel):
+class MetricTriggerQuery(BaseModel):
     """Defines a subset of the Trigger subclass, which is specific
     to Metric automations, that specify the query configurations
     and breaching conditions for the Automation"""
@@ -273,7 +254,7 @@ CompoundTrigger.update_forward_refs()
 SequenceTrigger.update_forward_refs()
 
 
-class Automation(PrefectBaseModel, extra="ignore"):
+class Automation(BaseModel, extra="ignore"):
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 

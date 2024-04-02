@@ -1,19 +1,12 @@
 from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from typing_extensions import Literal
 
-from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.pydantic import BaseModel, Field
 
 
-class Action(PrefectBaseModel):
+class Action(BaseModel):
     """An Action that may be performed when an Automation is triggered"""
 
     type: str

@@ -353,7 +353,7 @@ class PrefectCloudEventSubscriber:
         logger.debug("  filtering events since %s...", self._filter.occurred.since)
         filter_message = {
             "type": "filter",
-            "filter": self._filter.dict(json_compatible=True),
+            "filter": self._filter.model_dump(mode="json"),
         }
         await self._websocket.send(orjson.dumps(filter_message).decode())
 

@@ -4,7 +4,7 @@ from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 if typing.TYPE_CHECKING:
     # import of virtually everything is supported via `__getattr__` below,
     # but we need them here for type checking and IDE support
-    from pydantic import validator, root_validator
+    from pydantic import PrivateAttr, validator, root_validator
     from .main import BaseModel, PrefectBaseModel, FieldInfo, Field
 
 __all__ = [
@@ -12,6 +12,7 @@ __all__ = [
     "PrefectBaseModel",
     "Field",
     "FieldInfo",
+    "PrivateAttr",
     "validator",
     "root_validator",
 ]
