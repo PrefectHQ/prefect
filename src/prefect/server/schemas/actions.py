@@ -226,7 +226,10 @@ class DeploymentCreate(ActionBaseModel):
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
-    infra_overrides: Optional[Dict[str, Any]] = Field(None)
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides for the flow's infrastructure configuration.",
+    )
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
