@@ -935,6 +935,7 @@ class TestDeploymentApply:
         )
 
         created_deployment_id = str(uuid4())
+        trigger.set_deployment_id(created_deployment_id)
 
         with temporary_settings(
             updates={
