@@ -1,6 +1,6 @@
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
-from prefect.pydantic import BaseModel
+from prefect.pydantic import HAS_PYDANTIC_V2, USE_PYDANTIC_V2, BaseModel
 
 
 class LabelDiver:
@@ -71,36 +71,79 @@ class LabelDiver:
             raise AttributeError
 
 
-class Labelled(BaseModel, extra="ignore"):
-    """An object defined by string labels and values"""
+if not HAS_PYDANTIC_V2 or not USE_PYDANTIC_V2:
 
-    __root__: Dict[str, str]
+    class Labelled(BaseModel, extra="ignore"):
+        """An object defined by string labels and values"""
 
-    def keys(self) -> Iterable[str]:
-        return self.__root__.keys()
+        __root__: Dict[str, str]
 
-    def items(self) -> Iterable[Tuple[str, str]]:
-        return self.__root__.items()
+        def keys(self) -> Iterable[str]:
+            return self.__root__.keys()
 
-    def __getitem__(self, label: str) -> str:
-        return self.__root__[label]
+        def items(self) -> Iterable[Tuple[str, str]]:
+            return self.__root__.items()
 
-    def __setitem__(self, label: str, value: str) -> str:
-        self.__root__[label] = value
-        return value
+        def __getitem__(self, label: str) -> str:
+            return self.__root__[label]
 
-    def __contains__(self, key: str) -> bool:
-        return key in self.__root__
+        def __setitem__(self, label: str, value: str) -> str:
+            self.__root__[label] = value
+            return value
 
-    def get(self, label: str, default: Optional[str] = None) -> Optional[str]:
-        return self.__root__.get(label, default)
+        def __contains__(self, key: str) -> bool:
+            return key in self.__root__
 
-    def as_label_value_array(self) -> List[Dict[str, str]]:
-        return [{"label": label, "value": value} for label, value in self.items()]
+        def get(self, label: str, default: Optional[str] = None) -> Optional[str]:
+            return self.__root__.get(label, default)
 
-    @property
-    def labels(self) -> LabelDiver:
-        return LabelDiver(self.__root__)
+        def as_label_value_array(self) -> List[Dict[str, str]]:
+            return [{"label": label, "value": value} for label, value in self.items()]
 
-    def has_all_labels(self, labels: Dict[str, str]) -> bool:
-        return all(self.__root__.get(label) == value for label, value in labels.items())
+        @property
+        def labels(self) -> LabelDiver:
+            return LabelDiver(self.__root__)
+
+        def has_all_labels(self, labels: Dict[str, str]) -> bool:
+            return all(
+                self.__root__.get(label) == value for label, value in labels.items()
+            )
+else:
+    from pydantic import RootModel
+
+    class Labelled(RootModel):
+        """An object defined by string labels and values"""
+
+        root: Dict[str, str]
+
+        def __init__(self, __root__: Dict[str, str]):
+            super().__init__(root=__root__)
+
+        def keys(self) -> Iterable[str]:
+            return self.root.keys()
+
+        def items(self) -> Iterable[Tuple[str, str]]:
+            return self.root.items()
+
+        def __getitem__(self, label: str) -> str:
+            return self.root[label]
+
+        def __setitem__(self, label: str, value: str) -> str:
+            self.root[label] = value
+            return value
+
+        def __contains__(self, key: str) -> bool:
+            return key in self.root
+
+        def get(self, label: str, default: Optional[str] = None) -> Optional[str]:
+            return self.root.get(label, default)
+
+        def as_label_value_array(self) -> List[Dict[str, str]]:
+            return [{"label": label, "value": value} for label, value in self.items()]
+
+        @property
+        def labels(self) -> LabelDiver:
+            return LabelDiver(self.root)
+
+        def has_all_labels(self, labels: Dict[str, str]) -> bool:
+            return all(self.root.get(label) == value for label, value in labels.items())

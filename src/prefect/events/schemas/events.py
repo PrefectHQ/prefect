@@ -15,10 +15,18 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
+from typing_extensions import Self
 
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.logging import get_logger
-from prefect.pydantic import BaseModel, Field, root_validator, validator
+from prefect.pydantic import (
+    HAS_PYDANTIC_V2,
+    USE_PYDANTIC_V2,
+    BaseModel,
+    Field,
+    root_validator,
+    validator,
+)
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
@@ -196,12 +204,33 @@ def matches(expected: str, value: Optional[str]) -> bool:
     return value == expected
 
 
-class ResourceSpecification(BaseModel):
+if not HAS_PYDANTIC_V2 or not USE_PYDANTIC_V2:
+
+    class _ResourceSpecificationBase(BaseModel):
+        __root__: Dict[str, Union[str, List[str]]]
+
+        @property
+        def _root(self) -> Dict[str, Union[str, List[str]]]:
+            return self.__root__
+
+else:
+    from pydantic import RootModel
+
+    class _ResourceSpecificationBase(RootModel[Dict[str, Union[str, List[str]]]]):
+        root: Dict[str, Union[str, List[str]]]
+
+        @property
+        def _root(self) -> Dict[str, Union[str, List[str]]]:
+            return self.root
+
+        def __init__(self, __root__: Dict[str, Union[str, List[str]]]):
+            super().__init__(root=__root__)
+
+
+class ResourceSpecification(_ResourceSpecificationBase):
     """A specification that may match zero, one, or many resources, used to target or
     select a set of resources in a query or automation.  A resource must match at least
     one value of all of the provided labels"""
-
-    __root__: Dict[str, Union[str, List[str]]]
 
     def matches_every_resource(self) -> bool:
         return len(self) == 0
@@ -210,8 +239,8 @@ class ResourceSpecification(BaseModel):
         if self.matches_every_resource():
             return True
 
-        if len(self.__root__) == 1:
-            if resource_id := self.__root__.get("prefect.resource.id"):
+        if len(self._root) == 1:
+            if resource_id := self._root.get("prefect.resource.id"):
                 values = [resource_id] if isinstance(resource_id, str) else resource_id
                 return any(value == f"{prefix}.*" for value in values)
 
@@ -237,14 +266,14 @@ class ResourceSpecification(BaseModel):
     def items(self) -> Iterable[Tuple[str, List[str]]]:
         return [
             (label, [value] if isinstance(value, str) else value)
-            for label, value in self.__root__.items()
+            for label, value in self._root.items()
         ]
 
     def __contains__(self, key: str) -> bool:
-        return self.__root__.__contains__(key)
+        return self._root.__contains__(key)
 
     def __getitem__(self, key: str) -> List[str]:
-        value = self.__root__[key]
+        value = self._root[key]
         if not value:
             return []
         if not isinstance(value, list):
@@ -254,7 +283,7 @@ class ResourceSpecification(BaseModel):
     def pop(
         self, key: str, default: Optional[Union[str, List[str]]] = None
     ) -> Optional[List[str]]:
-        value = self.__root__.pop(key, default)
+        value = self._root.pop(key, default)
         if not value:
             return []
         if not isinstance(value, list):
@@ -264,7 +293,7 @@ class ResourceSpecification(BaseModel):
     def get(
         self, key: str, default: Optional[Union[str, List[str]]] = None
     ) -> Optional[List[str]]:
-        value = self.__root__.get(key, default)
+        value = self._root.get(key, default)
         if not value:
             return []
         if not isinstance(value, list):
@@ -272,7 +301,7 @@ class ResourceSpecification(BaseModel):
         return value
 
     def __len__(self) -> int:
-        return len(self.__root__)
+        return len(self._root)
 
-    def deepcopy(self) -> "ResourceSpecification":
-        return ResourceSpecification(__root__=copy.deepcopy(self.__root__))
+    def deepcopy(self) -> Self:
+        return ResourceSpecification(__root__=copy.deepcopy(self._root))
