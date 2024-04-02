@@ -441,10 +441,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
-
-      - name: Force install sqlalchemy for unit tests
-        run: uv pip install "sqlalchemy[asyncio]<2" --system
+          uv pip install --upgrade --system -e .[dev] 'sqlalchemy[asyncio]<2'
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -621,7 +618,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+          uv pip install --upgrade --system -e .[dev] 'pydantic>=2,<3'
 
       - name: Start database container
         run: >
@@ -742,7 +739,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+          uv pip install --upgrade --system -e .[dev] 'pydantic>=2,<3'
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
