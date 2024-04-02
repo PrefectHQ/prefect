@@ -19,6 +19,8 @@ from ._compat import (
     TypeAdapter,
     validate_python,
     BaseModel,
+    Field,
+    FieldInfo,
 )
 
 from ._types import IncEx
@@ -35,4 +37,6 @@ __all__ = [
     "validate_python",
     "BaseModel",
     "HAS_PYDANTIC_V2",
+    "Field",
+    "FieldInfo",
 ]
