@@ -10,7 +10,6 @@ from typing import (
     Sequence,
     Tuple,
     Union,
-    cast,
 )
 from uuid import UUID, uuid4
 
@@ -20,9 +19,13 @@ from pydantic import Field, root_validator, validator
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
+from prefect._internal.schemas.validators import (
+    enforce_resource_label_limit,
+    validate_related_resource_id_present,
+    validate_related_resource_role_present,
+)
 from prefect.logging import get_logger
 from prefect.settings import (
-    PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
 
@@ -41,32 +44,11 @@ class Resource(Labelled):
 
     @root_validator(pre=True)
     def enforce_maximum_labels(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        if len(labels) > PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value():
-            raise ValueError(
-                "The maximum number of labels per resource "
-                f"is {PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value()}"
-            )
-
-        return values
+        return enforce_resource_label_limit(values)
 
     @root_validator(pre=True)
     def requires_resource_id(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        labels = cast(Dict[str, str], labels)
-
-        if "prefect.resource.id" not in labels:
-            raise ValueError("Resources must include the prefect.resource.id label")
-        if not labels["prefect.resource.id"]:
-            raise ValueError("The prefect.resource.id label must be non-empty")
-
-        return values
+        return validate_related_resource_id_present(values)
 
     @property
     def id(self) -> str:
@@ -82,20 +64,7 @@ class RelatedResource(Resource):
 
     @root_validator(pre=True)
     def requires_resource_role(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        labels = cast(Dict[str, str], labels)
-
-        if "prefect.resource.role" not in labels:
-            raise ValueError(
-                "Related Resources must include the prefect.resource.role label"
-            )
-        if not labels["prefect.resource.role"]:
-            raise ValueError("The prefect.resource.role label must be non-empty")
-
-        return values
+        return validate_related_resource_role_present(values)
 
     @property
     def role(self) -> str:
