@@ -20,8 +20,10 @@ else:
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.validators import (
+    get_or_create_run_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
+    raise_on_name_with_banned_characters,
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
 )
@@ -91,6 +93,10 @@ class FlowCreate(ActionBaseModel):
         example=["tag-1", "tag-2"],
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
+
 
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
@@ -100,6 +106,10 @@ class FlowUpdate(ActionBaseModel):
         description="A list of flow tags",
         example=["tag-1", "tag-2"],
     )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
 class DeploymentScheduleCreate(ActionBaseModel):
@@ -468,6 +478,10 @@ class FlowRunCreate(ActionBaseModel):
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
 @copy_model_fields
