@@ -239,6 +239,9 @@ class DeploymentUpdate(ActionBaseModel):
         ),
     )
 
+    class Config:
+        allow_population_by_field_name = True
+
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
         and job_variables conforms to the specified schema.
