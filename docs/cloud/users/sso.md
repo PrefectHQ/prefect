@@ -15,10 +15,10 @@ search:
   boost: 2
 ---
 
-# Single Sign-on (SSO) <span class="badge cloud"></span>  <span class="badge pro"> </span> <span class="badge enterprise"></span>
+# Single Sign-on (SSO) <span class="badge cloud"></span> </span> <span class="badge custom"></span>
 
-Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider.
-SSO integration can bet set up with any identity provider that supports:
+Prefect Cloud's [Custom plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider.
+SSO integration can be set up with any identity provider that supports:
 
 - OIDC
 - SAML 2.0
@@ -56,7 +56,7 @@ When a user is unassigned from the Prefect Cloud application in your identity pr
 
 ## SCIM Provisioning
 
-Enterprise accounts have access to SCIM for user provisioning.
+Custom accounts have access to SCIM for user provisioning.
 The SSO tab provides access to enable SCIM provisioning.
 
 ![Cloud UI with SSO & SCIM provisioned](/img/ui/sso-scim-enabled.png)
