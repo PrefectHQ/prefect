@@ -377,7 +377,7 @@ jobs:
         if: ${{ failure() }}
         id: create_failure_flag
         run: |
-          sanitized_name="pydantic-v2-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
+          sanitized_name="pydantic-v2-internals-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
           sanitized_name="${sanitized_name//:/-}"
           echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
           echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
