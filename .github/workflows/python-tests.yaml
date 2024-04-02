@@ -93,6 +93,7 @@ jobs:
         run: |
           python -m pip install -U uv
           uv pip install --upgrade --system -e .[dev]
+          uv pip install 'pydantic>=2,<3' --system
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -277,10 +278,10 @@ jobs:
           && docker container logs postgres
           || echo "Ignoring bad exit code"
 
-  run-pydantic-v2-tests:
+  run-pydantic-v2-internals-tests:
     runs-on:
       group: oss-larger-runners
-    name: pydantic v2, python:${{ matrix.python-version }}
+    name: pydantic v2 internals, python:${{ matrix.python-version }}
     strategy:
       matrix:
         database:
@@ -329,6 +330,7 @@ jobs:
         run: |
           python -m pip install -U uv
           uv pip install --upgrade --system -e .[dev]
+          uv pip install 'pydantic>=2,<3' --system
 
       - name: Set PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS env var
         run: echo "PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS=1" >> $GITHUB_ENV
@@ -380,7 +382,7 @@ jobs:
         if: ${{ failure() }}
         id: create_failure_flag
         run: |
-          sanitized_name="pydantic-v1-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
+          sanitized_name="pydantic-v2-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
           sanitized_name="${sanitized_name//:/-}"
           echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
           echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
