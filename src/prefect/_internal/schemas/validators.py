@@ -711,13 +711,14 @@ def set_default_scheduled_time_client(cls, values: dict) -> dict:
     """
     Set the default scheduled time for a scheduled state if not provided.
     """
+    from prefect.client.schemas.objects import StateType
 
-    if values.get("type") == "Scheduled":
+    if values.get("type") == StateType.SCHEDULED:
         state_details = values.setdefault(
             "state_details", cls.__fields__["state_details"].get_default()
         )
-        if not state_details.get("scheduled_time"):
-            state_details["scheduled_time"] = pendulum.now("utc")
+        if not state_details.scheduled_time:
+            state_details.scheduled_time = pendulum.now("utc")
     return values
 
 
