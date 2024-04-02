@@ -1,4 +1,5 @@
 import typing
+import warnings as python_warnings
 
 from pydantic_core import from_json
 from typing_extensions import Self
@@ -60,16 +61,18 @@ def model_dump(  # type: ignore[no-redef]
         )
     else:
         if mode == "json":
-            return from_json(
-                model_instance.json(
-                    include=include,
-                    exclude=exclude,
-                    by_alias=by_alias,
-                    exclude_unset=exclude_unset,
-                    exclude_defaults=exclude_defaults,
-                    exclude_none=exclude_none,
+            with python_warnings.catch_warnings():
+                python_warnings.simplefilter("ignore")
+                return from_json(
+                    model_instance.json(
+                        include=include,
+                        exclude=exclude,
+                        by_alias=by_alias,
+                        exclude_unset=exclude_unset,
+                        exclude_defaults=exclude_defaults,
+                        exclude_none=exclude_none,
+                    )
                 )
-            )
 
         return getattr(model_instance, "dict")(
             include=include,
