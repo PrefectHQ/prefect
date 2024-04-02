@@ -12,7 +12,6 @@ else:
     from pydantic import Field, conint, root_validator, validator
 
 import prefect.client.schemas.objects as objects
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
@@ -111,11 +110,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -181,11 +175,6 @@ class DeploymentCreate(ActionBaseModel):
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 

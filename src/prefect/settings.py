@@ -1684,7 +1684,7 @@ Whether or not to start the event debug logger service in the server application
 
 # Collect all defined settings ---------------------------------------------------------
 
-SETTING_VARIABLES = {
+SETTING_VARIABLES: Dict[str, Any] = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
 
