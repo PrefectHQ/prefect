@@ -952,7 +952,7 @@ def validate_cache_key_length(cache_key: Optional[str]) -> Optional[str]:
     return cache_key
 
 
-def set_deprecated_fields(values: dict) -> dict:
+def set_run_policy_deprecated_fields(values: dict) -> dict:
     """
     If deprecated fields are provided, populate the corresponding new fields
     to preserve orchestration behavior.

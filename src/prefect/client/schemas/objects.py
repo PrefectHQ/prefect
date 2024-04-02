@@ -32,7 +32,7 @@ from prefect._internal.schemas.validators import (
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
-    set_deprecated_fields,
+    set_run_policy_deprecated_fields,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
     validate_message_template_variables,
@@ -395,7 +395,7 @@ class FlowRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        return set_deprecated_fields(values)
+        return set_run_policy_deprecated_fields(values)
 
 
 class FlowRun(ObjectBaseModel):
@@ -582,7 +582,7 @@ class TaskRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        return set_deprecated_fields(values)
+        return set_run_policy_deprecated_fields(values)
 
     @validator("retry_delay")
     def validate_configured_retry_delays(cls, v):
