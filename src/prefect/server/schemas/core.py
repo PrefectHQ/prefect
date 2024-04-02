@@ -537,7 +537,6 @@ class Deployment(ORMBaseModel):
     )
     job_variables: Dict[str, Any] = Field(
         alias="infra_overrides",
-        allow_population_by_field_name=True,
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
@@ -616,6 +615,9 @@ class Deployment(ORMBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+
+    class Config:
+        allow_population_by_field_name = True
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):

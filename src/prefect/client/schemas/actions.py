@@ -190,6 +190,9 @@ class DeploymentCreate(ActionBaseModel):
     entrypoint: Optional[str] = Field(None)
     infra_overrides: Optional[Dict[str, Any]] = Field(None, alias="job_variables")
 
+    class Config:
+        allow_population_by_field_name = True
+
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
         and job_variables conforms to the specified schema.
@@ -271,7 +274,7 @@ class DeploymentUpdate(ActionBaseModel):
         example="my-work-pool",
     )
     path: Optional[str] = Field(None)
-    infra_overrides: Optional[Dict[str, Any]] = Field(None, alias="job_variables")
+    job_variables: Optional[Dict[str, Any]] = Field(None, alias="infra_overrides")
     entrypoint: Optional[str] = Field(None)
     manifest_path: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
@@ -282,6 +285,9 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+
+    class Config:
+        allow_population_by_field_name = True
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults

@@ -426,6 +426,9 @@ class DeploymentResponse(ORMBaseModel):
         ),
     )
 
+    class Config:
+        allow_population_by_field_name = True
+
     @classmethod
     def from_orm(
         cls, orm_deployment: "prefect.server.database.orm_models.ORMDeployment"

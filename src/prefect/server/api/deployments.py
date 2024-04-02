@@ -117,12 +117,7 @@ async def create_deployment(
             )
             deployment_dict["work_queue_id"] = work_queue.id
 
-        # Pydantic won't let us initialize with `job_variables` even if `infra_overrides`
-        # isn't present, so I'm unsure what the use of `alias` is.
-        deployment_dict["infra_overrides"] = deployment_dict.pop("job_variables")
-        print("before: ", deployment_dict)
         deployment = schemas.core.Deployment(**deployment_dict)
-        print("after: ", deployment.dict())
         # check to see if relevant blocks exist, allowing us throw a useful error message
         # for debugging
         if deployment.infrastructure_document_id is not None:
