@@ -1,7 +1,7 @@
 import warnings
 from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jsonschema
 
@@ -68,31 +68,45 @@ class StateCreate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
-    name: str = FieldFrom(objects.Flow)
-    tags: List[str] = FieldFrom(objects.Flow)
+    name: str = Field(
+        default=..., description="The name of the flow", example="my-flow"
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
 
 
-@copy_model_fields
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = FieldFrom(objects.Flow)
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
 
 
-@copy_model_fields
 class DeploymentScheduleCreate(ActionBaseModel):
-    active: bool = FieldFrom(objects.DeploymentSchedule)
-    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+    schedule: SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
 
 
-@copy_model_fields
 class DeploymentScheduleUpdate(ActionBaseModel):
-    active: bool = FieldFrom(objects.DeploymentSchedule)
-    schedule: SCHEDULE_TYPES = FieldFrom(objects.DeploymentSchedule)
+    schedule: Optional[SCHEDULE_TYPES] = Field(
+        default=None, description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
 
 
 @experimental_field(
@@ -100,7 +114,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     group="work_pools",
     when=lambda x: x is not None,
 )
-@copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -137,10 +150,10 @@ class DeploymentCreate(ActionBaseModel):
             )
         return values_copy
 
-    name: str = FieldFrom(objects.Deployment)
-    flow_id: UUID = FieldFrom(objects.Deployment)
-    is_schedule_active: Optional[bool] = FieldFrom(objects.Deployment)
-    paused: Optional[bool] = FieldFrom(objects.Deployment)
+    name: str = Field(..., description="The name of the deployment.")
+    flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
+    is_schedule_active: Optional[bool] = Field(None)
+    paused: Optional[bool] = Field(None)
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
@@ -151,26 +164,29 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
-    tags: List[str] = FieldFrom(objects.Deployment)
-    pull_steps: Optional[List[dict]] = FieldFrom(objects.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(None)
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
+    tags: List[str] = Field(default_factory=list)
+    pull_steps: Optional[List[dict]] = Field(None)
 
-    manifest_path: Optional[str] = FieldFrom(objects.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
+    manifest_path: Optional[str] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    storage_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
-    schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
-    description: Optional[str] = FieldFrom(objects.Deployment)
-    path: Optional[str] = FieldFrom(objects.Deployment)
-    version: Optional[str] = FieldFrom(objects.Deployment)
-    entrypoint: Optional[str] = FieldFrom(objects.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
+    storage_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    schedule: Optional[SCHEDULE_TYPES] = Field(None)
+    description: Optional[str] = Field(None)
+    path: Optional[str] = Field(None)
+    version: Optional[str] = Field(None)
+    entrypoint: Optional[str] = Field(None)
+    infra_overrides: Optional[Dict[str, Any]] = Field(None)
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -300,7 +316,6 @@ class FlowRunUpdate(ActionBaseModel):
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
 
-@copy_model_fields
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
@@ -309,15 +324,28 @@ class TaskRunCreate(ActionBaseModel):
         default=None, description="The state of the task run to create"
     )
 
-    name: str = FieldFrom(objects.TaskRun)
-    flow_run_id: Optional[UUID] = FieldFrom(objects.TaskRun)
-    task_key: str = FieldFrom(objects.TaskRun)
-    dynamic_key: str = FieldFrom(objects.TaskRun)
-    cache_key: Optional[str] = FieldFrom(objects.TaskRun)
-    cache_expiration: Optional[objects.DateTimeTZ] = FieldFrom(objects.TaskRun)
-    task_version: Optional[str] = FieldFrom(objects.TaskRun)
-    empirical_policy: objects.TaskRunPolicy = FieldFrom(objects.TaskRun)
-    tags: List[str] = FieldFrom(objects.TaskRun)
+    name: Optional[str] = Field(
+        default=None,
+        description="The name of the task run",
+    )
+    flow_run_id: Optional[UUID] = Field(None)
+    task_key: str = Field(
+        default=..., description="A unique identifier for the task being run."
+    )
+    dynamic_key: str = Field(
+        default=...,
+        description=(
+            "A dynamic key used to differentiate between multiple runs of the same task"
+            " within the same flow run."
+        ),
+    )
+    cache_key: Optional[str] = Field(None)
+    cache_expiration: Optional[objects.DateTimeTZ] = Field(None)
+    task_version: Optional[str] = Field(None)
+    empirical_policy: objects.TaskRunPolicy = Field(
+        default_factory=objects.TaskRunPolicy,
+    )
+    tags: List[str] = Field(default_factory=list)
     task_inputs: Dict[
         str,
         List[
@@ -327,17 +355,15 @@ class TaskRunCreate(ActionBaseModel):
                 objects.Constant,
             ]
         ],
-    ] = FieldFrom(objects.TaskRun)
+    ] = Field(default_factory=dict)
 
 
-@copy_model_fields
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: str = FieldFrom(objects.TaskRun)
+    name: Optional[str] = Field(None)
 
 
-@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run."""
 
@@ -346,23 +372,28 @@ class FlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: str = FieldFrom(objects.FlowRun)
-    flow_id: UUID = FieldFrom(objects.FlowRun)
-    deployment_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    flow_version: Optional[str] = FieldFrom(objects.FlowRun)
-    parameters: dict = FieldFrom(objects.FlowRun)
-    context: dict = FieldFrom(objects.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
-    tags: List[str] = FieldFrom(objects.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
+    name: Optional[str] = Field(default=None, description="The name of the flow run.")
+    flow_id: UUID = Field(default=..., description="The id of the flow being run.")
+    deployment_id: Optional[UUID] = Field(None)
+    flow_version: Optional[str] = Field(None)
+    parameters: dict = Field(
+        default_factory=dict, description="The parameters for the flow run."
+    )
+    context: dict = Field(
+        default_factory=dict, description="The context for the flow run."
+    )
+    parent_task_run_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: objects.FlowRunPolicy = Field(
+        default_factory=objects.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    idempotency_key: Optional[str] = Field(None)
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
 
 
-@copy_model_fields
 class DeploymentFlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run from a deployment."""
 
@@ -371,44 +402,61 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: Optional[str] = FieldFrom(objects.FlowRun)
-    parameters: dict = FieldFrom(objects.FlowRun)
-    context: dict = FieldFrom(objects.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
-    tags: List[str] = FieldFrom(objects.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    work_queue_name: Optional[str] = FieldFrom(objects.FlowRun)
-    job_variables: Optional[dict] = FieldFrom(objects.FlowRun)
+    name: Optional[str] = Field(default=None, description="The name of the flow run.")
+    parameters: dict = Field(
+        default_factory=dict, description="The parameters for the flow run."
+    )
+    context: dict = Field(
+        default_factory=dict, description="The context for the flow run."
+    )
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: objects.FlowRunPolicy = Field(
+        default_factory=objects.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    idempotency_key: Optional[str] = Field(None)
+    parent_task_run_id: Optional[UUID] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
+    job_variables: Optional[dict] = Field(None)
 
 
-@copy_model_fields
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
-    name: str = FieldFrom(objects.SavedSearch)
-    filters: List[objects.SavedSearchFilter] = FieldFrom(objects.SavedSearch)
+    name: str = Field(default=..., description="The name of the saved search.")
+    filters: List[objects.SavedSearchFilter] = Field(
+        default_factory=list, description="The filter set for the saved search."
+    )
 
 
-@copy_model_fields
 class ConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a concurrency limit."""
 
-    tag: str = FieldFrom(objects.ConcurrencyLimit)
-    concurrency_limit: int = FieldFrom(objects.ConcurrencyLimit)
+    tag: str = Field(
+        default=..., description="A tag the concurrency limit is applied to."
+    )
+    concurrency_limit: int = Field(default=..., description="The concurrency limit.")
 
 
-@copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
-    name: str = FieldFrom(objects.BlockType)
-    slug: str = FieldFrom(objects.BlockType)
-    logo_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    documentation_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    description: Optional[str] = FieldFrom(objects.BlockType)
-    code_example: Optional[str] = FieldFrom(objects.BlockType)
+    name: str = Field(default=..., description="A block type's name")
+    slug: str = Field(default=..., description="A block type's slug")
+    logo_url: Optional[objects.HttpUrl] = Field(
+        default=None, description="Web URL for the block type's logo"
+    )
+    documentation_url: Optional[objects.HttpUrl] = Field(
+        default=None, description="Web URL for the block type's documentation"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="A short blurb about the corresponding block's intended use",
+    )
+    code_example: Optional[str] = Field(
+        default=None,
+        description="A code snippet demonstrating use of the corresponding block",
+    )
 
     # validators
     _validate_slug_format = validator("slug", allow_reuse=True)(
@@ -416,39 +464,56 @@ class BlockTypeCreate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    documentation_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
-    description: Optional[str] = FieldFrom(objects.BlockType)
-    code_example: Optional[str] = FieldFrom(objects.BlockType)
+    logo_url: Optional[objects.HttpUrl] = Field(None)
+    documentation_url: Optional[objects.HttpUrl] = Field(None)
+    description: Optional[str] = Field(None)
+    code_example: Optional[str] = Field(None)
 
     @classmethod
     def updatable_fields(cls) -> set:
         return get_class_fields_only(cls)
 
 
-@copy_model_fields
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = FieldFrom(objects.BlockSchema)
-    block_type_id: Optional[UUID] = FieldFrom(objects.BlockSchema)
-    capabilities: List[str] = FieldFrom(objects.BlockSchema)
-    version: str = FieldFrom(objects.BlockSchema)
+    fields: dict = Field(
+        default_factory=dict, description="The block schema's field schema"
+    )
+    block_type_id: Optional[UUID] = Field(None)
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
+    )
+    version: str = Field(
+        default=objects.DEFAULT_BLOCK_SCHEMA_VERSION,
+        description="Human readable identifier for the block schema",
+    )
 
 
-@copy_model_fields
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[str] = FieldFrom(objects.BlockDocument)
-    data: dict = FieldFrom(objects.BlockDocument)
-    block_schema_id: UUID = FieldFrom(objects.BlockDocument)
-    block_type_id: UUID = FieldFrom(objects.BlockDocument)
-    is_anonymous: bool = FieldFrom(objects.BlockDocument)
+    name: Optional[str] = Field(
+        default=None, description="The name of the block document"
+    )
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    block_schema_id: UUID = Field(
+        default=..., description="The block schema ID for the block document"
+    )
+    block_type_id: UUID = Field(
+        default=..., description="The block type ID for the block document"
+    )
+    is_anonymous: bool = Field(
+        default=False,
+        description=(
+            "Whether the block is anonymous (anonymous blocks are usually created by"
+            " Prefect automatically)"
+        ),
+    )
 
     _validate_name_format = validator("name", allow_reuse=True)(
         validate_block_document_name
@@ -462,25 +527,32 @@ class BlockDocumentCreate(ActionBaseModel):
         return values
 
 
-@copy_model_fields
 class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block document."""
 
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = FieldFrom(objects.BlockDocument)
-    merge_existing_data: bool = True
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    merge_existing_data: bool = Field(
+        default=True,
+        description="Whether to merge the existing data with the new data or replace it",
+    )
 
 
-@copy_model_fields
 class BlockDocumentReferenceCreate(ActionBaseModel):
     """Data used to create block document reference."""
 
-    id: UUID = FieldFrom(objects.BlockDocumentReference)
-    parent_block_document_id: UUID = FieldFrom(objects.BlockDocumentReference)
-    reference_block_document_id: UUID = FieldFrom(objects.BlockDocumentReference)
-    name: str = FieldFrom(objects.BlockDocumentReference)
+    id: UUID = Field(default_factory=uuid4)
+    parent_block_document_id: UUID = Field(
+        default=..., description="ID of block document the reference is nested within"
+    )
+    reference_block_document_id: UUID = Field(
+        default=..., description="ID of the nested block document"
+    )
+    name: str = Field(
+        default=..., description="The name that the reference is nested under"
+    )
 
 
 @copy_model_fields
