@@ -345,8 +345,8 @@ class DeploymentResponse(ORMBaseModel):
     schedules: List[schemas.core.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    job_variables: Dict[str, Any] = Field(
-        alias="infra_overrides",
+    infra_overrides: Dict[str, Any] = Field(
+        alias="job_variables",
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )

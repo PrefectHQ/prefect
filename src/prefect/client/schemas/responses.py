@@ -327,7 +327,8 @@ class DeploymentResponse(ObjectBaseModel):
     schedules: List[objects.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
+        alias="infra_overrides",
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
@@ -415,9 +416,8 @@ class DeploymentResponse(ObjectBaseModel):
         description="Current status of the deployment.",
     )
 
-    @property
-    def job_variables(self) -> dict:
-        return self.infra_overrides
+    class Config:
+        allow_population_by_field_name = True
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
