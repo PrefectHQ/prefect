@@ -68,6 +68,7 @@ from prefect.client.schemas.actions import (
     LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
+    VariableCreate,
     WorkPoolCreate,
     WorkPoolUpdate,
     WorkQueueCreate,
@@ -2926,6 +2927,22 @@ class PrefectClient:
             else:
                 raise
 
+    async def create_variable(self, variable: VariableCreate) -> Variable:
+        """
+        Creates an variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the new variable.
+        Returns:
+            Information about the newly created variable.
+        """
+
+        response = await self._client.post(
+            "/variables/",
+            json=variable[0].dict(json_compatible=True, exclude_unset=True),
+        )
+        return pydantic.parse_obj_as(Variable, response.json())
+
     async def read_variable_by_name(self, name: str) -> Optional[Variable]:
         """Reads a variable by name. Returns None if no variable is found."""
         try:
@@ -2950,6 +2967,7 @@ class PrefectClient:
     async def read_variables(self, limit: int = None) -> List[Variable]:
         """Reads all variables."""
         response = await self._client.post("/variables/filter", json={"limit": limit})
+        print("we here!")
         return pydantic.parse_obj_as(List[Variable], response.json())
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
