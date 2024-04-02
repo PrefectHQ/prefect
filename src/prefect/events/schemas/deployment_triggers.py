@@ -28,7 +28,11 @@ from typing_extensions import TypeAlias
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_trigger_within
+from prefect._internal.schemas.validators import (
+    validate_proactive_trigger_within,
+    validate_trigger_require,
+    validate_trigger_within,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -242,18 +246,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
 
     @root_validator(skip_on_failure=True)
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
-        posture: Optional[Posture] = values.get("posture")
-        within: Optional[timedelta] = values.get("within")
-
-        if posture == Posture.Proactive:
-            if not within or within == timedelta(0):
-                values["within"] = timedelta(seconds=10.0)
-            elif within < timedelta(seconds=10.0):
-                raise ValueError(
-                    "The minimum within for Proactive triggers is 10 seconds"
-                )
-
-        return values
+        return validate_proactive_trigger_within(values)
 
     def as_trigger(self) -> Trigger:
         return EventTrigger(
@@ -314,17 +307,7 @@ class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
 
     @root_validator
     def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        require = values.get("require")
-
-        if isinstance(require, int):
-            if require < 1:
-                raise ValueError("required must be at least 1")
-            if require > len(values["triggers"]):
-                raise ValueError(
-                    "required must be less than or equal to the number of triggers"
-                )
-
-        return values
+        return validate_trigger_require(values)
 
     def as_trigger(self) -> Trigger:
         return CompoundTrigger(

@@ -40,7 +40,6 @@ dependent on the value of other settings or perform other dynamic effects.
 
 """
 
-import logging
 import os
 import string
 import warnings
@@ -68,7 +67,11 @@ from urllib.parse import urlparse
 import toml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_settings
+from prefect._internal.schemas.validators import (
+    add_root_validators,
+    validate_log_level,
+    validate_settings,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import (
@@ -1743,10 +1746,7 @@ class Settings(SettingsFieldsMixin):
 
     @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
     def check_valid_log_level(cls, value):
-        if isinstance(value, str):
-            value = value.upper()
-        logging._checkLevel(value)
-        return value
+        return validate_log_level(value)
 
     @root_validator
     def post_root_validators(cls, values):
@@ -1756,11 +1756,7 @@ class Settings(SettingsFieldsMixin):
         # TODO: We could probably register these dynamically but this is the simpler
         #       approach for now. We can explore more interesting validation features
         #       in the future.
-        values = max_log_size_smaller_than_batch_size(values)
-        values = warn_on_database_password_value_without_usage(values)
-        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
-            values = warn_on_misconfigured_api_url(values)
-        return values
+        return add_root_validators(values)
 
     def copy_with_update(
         self,

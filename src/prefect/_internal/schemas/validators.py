@@ -14,6 +14,7 @@ import sys
 import urllib.parse
 import warnings
 from copy import copy
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union, cast
 
@@ -30,7 +31,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
-from prefect.utilities.names import generate_slug
+from prefect.utilities.names import OBFUSCATED_PREFIX, generate_slug
 from prefect.utilities.pydantic import JsonPatch
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -495,6 +496,35 @@ def validate_trigger_within(
     if value.total_seconds() < minimum:
         raise ValueError("The minimum `within` is 0 seconds")
     return value
+
+
+def validate_proactive_trigger_within(values: Dict[str, Any]) -> Dict[str, Any]:
+    from prefect.events.schemas.automations import Posture
+
+    posture: Optional[Posture] = values.get("posture")
+    within: Optional[timedelta] = values.get("within")
+
+    if posture == Posture.Proactive:
+        if not within or within == timedelta(0):
+            values["within"] = timedelta(seconds=10.0)
+        elif within < timedelta(seconds=10.0):
+            raise ValueError("The minimum within for Proactive triggers is 10 seconds")
+
+    return values
+
+
+def validate_trigger_require(values: Dict[str, Any]) -> Dict[str, Any]:
+    require = values.get("require")
+
+    if isinstance(require, int):
+        if require < 1:
+            raise ValueError("required must be at least 1")
+        if require > len(values["triggers"]):
+            raise ValueError(
+                "required must be less than or equal to the number of triggers"
+            )
+
+    return values
 
 
 def validate_automation_names(
@@ -981,6 +1011,96 @@ def validate_yaml(value: Union[str, dict]) -> dict:
     if isinstance(value, str):
         return yaml.safe_load(value)
     return value
+
+
+def validate_log_level(value):
+    if isinstance(value, str):
+        value = value.upper()
+    logging._checkLevel(value)
+    return value
+
+
+def max_log_size_smaller_than_batch_size(values):
+    """
+    Validator for settings asserting the batch size and match log size are compatible
+    """
+    if (
+        values["PREFECT_LOGGING_TO_API_BATCH_SIZE"]
+        < values["PREFECT_LOGGING_TO_API_MAX_LOG_SIZE"]
+    ):
+        raise ValueError(
+            "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than"
+            " `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
+        )
+    return values
+
+
+def warn_on_database_password_value_without_usage(values):
+    """
+    Validator for settings warning if the database password is set but not used.
+    """
+    value = values["PREFECT_API_DATABASE_PASSWORD"]
+    if (
+        value
+        and not value.startswith(OBFUSCATED_PREFIX)
+        and (
+            "PREFECT_API_DATABASE_PASSWORD"
+            not in values["PREFECT_API_DATABASE_CONNECTION_URL"]
+        )
+    ):
+        warnings.warn(
+            "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
+            "PREFECT_API_DATABASE_CONNECTION_URL. "
+            "The provided password will be ignored."
+        )
+    return values
+
+
+def warn_on_misconfigured_api_url(values):
+    """
+    Validator for settings warning if the API URL is misconfigured.
+    """
+    api_url = values["PREFECT_API_URL"]
+    if api_url is not None:
+        misconfigured_mappings = {
+            "app.prefect.cloud": (
+                "`PREFECT_API_URL` points to `app.prefect.cloud`. Did you"
+                " mean `api.prefect.cloud`?"
+            ),
+            "account/": (
+                "`PREFECT_API_URL` uses `/account/` but should use `/accounts/`."
+            ),
+            "workspace/": (
+                "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
+            ),
+        }
+        warnings_list = []
+
+        for misconfig, warning in misconfigured_mappings.items():
+            if misconfig in api_url:
+                warnings_list.append(warning)
+
+        parsed_url = urllib.parse.urlparse(api_url)
+        if parsed_url.path and not parsed_url.path.startswith("/api"):
+            warnings_list.append(
+                "`PREFECT_API_URL` should have `/api` after the base URL."
+            )
+
+        if warnings_list:
+            example = 'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+            warnings_list.append(example)
+
+            warnings.warn("\n".join(warnings_list), stacklevel=2)
+
+    return values
+
+
+def add_root_validators(values):
+    values = max_log_size_smaller_than_batch_size(values)
+    values = warn_on_database_password_value_without_usage(values)
+    if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+        values = warn_on_misconfigured_api_url(values)
+    return values
 
 
 ### TASK RUN SCHEMA VALIDATORS ###
