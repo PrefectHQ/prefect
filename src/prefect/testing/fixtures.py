@@ -302,7 +302,7 @@ async def events_server(
                 json.dumps(
                     {
                         "type": "event",
-                        "event": event.dict(json_compatible=True),
+                        "event": event.model_dump(mode="json"),
                     }
                 )
             )
