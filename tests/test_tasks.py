@@ -4065,3 +4065,47 @@ class TestNestedTasks:
 
         assert await inner_state1.result() == 4
         assert await inner_state2.result() == 4
+
+    def test_nested_task_with_retries(self):
+        count = 0
+
+        @task(retries=1)
+        def inner_task():
+            nonlocal count
+            count += 1
+            raise Exception("oops")
+
+        @task
+        def outer_task():
+            state = inner_task(return_state=True)
+            return state.name
+
+        @flow
+        def my_flow():
+            return outer_task()
+
+        result = my_flow()
+        assert result == "Failed"
+        assert count == 2
+
+    def test_nested_task_with_retries_on_inner_and_outer_task(self):
+        count = 0
+
+        @task(retries=1)
+        def inner_task():
+            nonlocal count
+            count += 1
+            raise Exception("oops")
+
+        @task(retries=1)
+        def outer_task():
+            inner_task()
+
+        @flow
+        def my_flow():
+            state = outer_task(return_state=True)
+            return state.name
+
+        result = my_flow()
+        assert result == "Failed"
+        assert count == 4
