@@ -335,7 +335,7 @@ def remove_old_deployment_fields(values: dict) -> dict:
     if worker_pool_queue_id:
         warnings.warn(
             (
-                "`worker_pool_queue_id` is no longer supported for creating "
+                "`worker_pool_queue_id` is no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
@@ -346,7 +346,7 @@ def remove_old_deployment_fields(values: dict) -> dict:
             (
                 "`worker_pool_name`, `worker_pool_queue_name`, and "
                 "`work_pool_name` are"
-                "no longer supported for creating "
+                "no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
