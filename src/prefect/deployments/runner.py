@@ -44,7 +44,11 @@ from rich.table import Table
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_automation_names
+from prefect._internal.schemas.validators import (
+    reconcile_paused_deployment,
+    reconcile_schedules_runner,
+    validate_automation_names,
+)
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
@@ -67,7 +71,6 @@ from prefect.client.schemas.schedules import (
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
     create_minimal_deployment_schedule,
-    normalize_to_minimal_deployment_schedules,
 )
 from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
@@ -236,32 +239,11 @@ class RunnerDeployment(BaseModel):
 
     @root_validator(pre=True)
     def reconcile_paused(cls, values):
-        paused = values.get("paused")
-        is_schedule_active = values.get("is_schedule_active")
-
-        if paused is not None:
-            values["paused"] = paused
-            values["is_schedule_active"] = not paused
-        elif is_schedule_active is not None:
-            values["paused"] = not is_schedule_active
-            values["is_schedule_active"] = is_schedule_active
-        else:
-            values["paused"] = False
-            values["is_schedule_active"] = True
-
-        return values
+        return reconcile_paused_deployment(values)
 
     @root_validator(pre=True)
     def reconcile_schedules(cls, values):
-        schedule = values.get("schedule")
-        schedules = values.get("schedules")
-
-        if schedules is None and schedule is not None:
-            values["schedules"] = [create_minimal_deployment_schedule(schedule)]
-        elif schedules is not None and len(schedules) > 0:
-            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
-
-        return values
+        return reconcile_schedules_runner(values)
 
     @sync_compatible
     async def apply(
