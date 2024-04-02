@@ -26,7 +26,6 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
-from prefect.settings import PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -573,6 +572,8 @@ def validate_related_resource_id_present(values: Dict[str, Any]):
 
 
 def enforce_resource_label_limit(values: Dict[str, Any]) -> Dict[str, Any]:
+    from prefect.settings import PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE
+
     labels = values.get("__root__")
     if not isinstance(labels, dict):
         return values
@@ -689,7 +690,7 @@ def get_or_create_state_name(v: str, values: dict) -> str:
     return v
 
 
-def set_default_scheduled_time(cls, values: dict) -> dict:
+def set_default_scheduled_time_server(cls, values: dict) -> dict:
     """
     TODO: This should throw an error instead of setting a default but is out of
             scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
@@ -703,6 +704,20 @@ def set_default_scheduled_time(cls, values: dict) -> dict:
         )
         if not state_details.scheduled_time:
             state_details.scheduled_time = pendulum.now("utc")
+    return values
+
+
+def set_default_scheduled_time_client(cls, values: dict) -> dict:
+    """
+    Set the default scheduled time for a scheduled state if not provided.
+    """
+
+    if values.get("type") == "Scheduled":
+        state_details = values.setdefault(
+            "state_details", cls.__fields__["state_details"].get_default()
+        )
+        if not state_details.get("scheduled_time"):
+            state_details["scheduled_time"] = pendulum.now("utc")
     return values
 
 

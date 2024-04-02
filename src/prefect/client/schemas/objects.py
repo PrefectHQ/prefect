@@ -32,7 +32,7 @@ from prefect._internal.schemas.validators import (
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
-    set_default_scheduled_time,
+    set_default_scheduled_time_client,
     set_run_policy_deprecated_fields,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
@@ -262,7 +262,7 @@ class State(ObjectBaseModel, Generic[R]):
               scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
               into work refactoring state initialization
         """
-        return set_default_scheduled_time(cls, values)
+        return set_default_scheduled_time_client(cls, values)
 
     def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED

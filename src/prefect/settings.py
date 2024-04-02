@@ -62,7 +62,6 @@ from typing import (
     TypeVar,
     Union,
 )
-from urllib.parse import urlparse
 
 import toml
 
@@ -99,7 +98,7 @@ from typing_extensions import Literal
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import MissingProfileError
-from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
+from prefect.utilities.names import obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
@@ -349,42 +348,6 @@ def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings",
     return templater
 
 
-def max_log_size_smaller_than_batch_size(values):
-    """
-    Validator for settings asserting the batch size and match log size are compatible
-    """
-    if (
-        values["PREFECT_LOGGING_TO_API_BATCH_SIZE"]
-        < values["PREFECT_LOGGING_TO_API_MAX_LOG_SIZE"]
-    ):
-        raise ValueError(
-            "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than"
-            " `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
-        )
-    return values
-
-
-def warn_on_database_password_value_without_usage(values):
-    """
-    Validator for settings warning if the database password is set but not used.
-    """
-    value = values["PREFECT_API_DATABASE_PASSWORD"]
-    if (
-        value
-        and not value.startswith(OBFUSCATED_PREFIX)
-        and (
-            "PREFECT_API_DATABASE_PASSWORD"
-            not in values["PREFECT_API_DATABASE_CONNECTION_URL"]
-        )
-    ):
-        warnings.warn(
-            "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
-            "PREFECT_API_DATABASE_CONNECTION_URL. "
-            "The provided password will be ignored."
-        )
-    return values
-
-
 def check_for_deprecated_cloud_url(settings, value):
     deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
     if deprecated_value is not None:
@@ -398,45 +361,6 @@ def check_for_deprecated_cloud_url(settings, value):
             DeprecationWarning,
         )
     return deprecated_value or value
-
-
-def warn_on_misconfigured_api_url(values):
-    """
-    Validator for settings warning if the API URL is misconfigured.
-    """
-    api_url = values["PREFECT_API_URL"]
-    if api_url is not None:
-        misconfigured_mappings = {
-            "app.prefect.cloud": (
-                "`PREFECT_API_URL` points to `app.prefect.cloud`. Did you"
-                " mean `api.prefect.cloud`?"
-            ),
-            "account/": (
-                "`PREFECT_API_URL` uses `/account/` but should use `/accounts/`."
-            ),
-            "workspace/": (
-                "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
-            ),
-        }
-        warnings_list = []
-
-        for misconfig, warning in misconfigured_mappings.items():
-            if misconfig in api_url:
-                warnings_list.append(warning)
-
-        parsed_url = urlparse(api_url)
-        if parsed_url.path and not parsed_url.path.startswith("/api"):
-            warnings_list.append(
-                "`PREFECT_API_URL` should have `/api` after the base URL."
-            )
-
-        if warnings_list:
-            example = 'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
-            warnings_list.append(example)
-
-            warnings.warn("\n".join(warnings_list), stacklevel=2)
-
-    return values
 
 
 def default_database_connection_url(settings, value):

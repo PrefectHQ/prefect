@@ -18,7 +18,7 @@ else:
 
 from prefect._internal.schemas.validators import (
     get_or_create_state_name,
-    set_default_scheduled_time,
+    set_default_scheduled_time_server,
 )
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
@@ -167,7 +167,7 @@ class State(StateBaseModel, Generic[R]):
 
     @root_validator
     def default_scheduled_start_time(cls, values):
-        return set_default_scheduled_time(cls, values)
+        return set_default_scheduled_time_server(cls, values)
 
     def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED
