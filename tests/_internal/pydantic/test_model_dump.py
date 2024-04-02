@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from pydantic import BaseModel
 
@@ -47,3 +49,13 @@ def test_model_dump_with_flag_disabled():
 def test_model_dump_with_non_basemodel_raises():
     with pytest.raises(AttributeError):
         model_dump("not a model")  # type: ignore
+
+
+def test_model_dump_with_json_mode():
+    class TestModel(BaseModel):
+        a: int
+        time: datetime
+
+    model = TestModel(a=1, time=datetime.now())
+
+    assert model_dump(model, mode="json") == {"a": 1, "time": model.time.isoformat()}
