@@ -16,7 +16,6 @@ from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
-from prefect._internal.schemas.transformations import FieldFrom, copy_model_fields
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
@@ -658,7 +657,6 @@ class ArtifactUpdate(ActionBaseModel):
     metadata_: Optional[Dict[str, str]] = Field(None)
 
 
-@copy_model_fields
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
@@ -695,7 +693,7 @@ class VariableUpdate(ActionBaseModel):
         example="my-value",
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    tags: Optional[List[str]] = FieldFrom(objects.Variable)
+    tags: Optional[List[str]] = Field(default=None)
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
