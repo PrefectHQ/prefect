@@ -10,7 +10,12 @@ from typing import Any, Mapping, Optional, Union
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_registry_url
+from prefect._internal.schemas.validators import (
+    assign_default_base_image,
+    base_image_xor_dockerfile,
+    set_default_python_environment,
+    validate_registry_url,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import AnyHttpUrl, root_validator, validator
@@ -26,7 +31,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import (
     ImageBuilder,
     build_image,
-    get_prefect_image_name,
     push_image,
     to_run_command,
 )
@@ -75,29 +79,15 @@ class DockerPackager(Packager):
 
     @root_validator
     def set_default_base_image(cls, values):
-        if not values.get("base_image") and not values.get("dockerfile"):
-            values["base_image"] = get_prefect_image_name(
-                flavor=(
-                    "conda"
-                    if isinstance(values.get("python_environment"), CondaEnvironment)
-                    else None
-                )
-            )
-        return values
+        return assign_default_base_image(values)
 
     @root_validator
     def base_image_and_dockerfile_exclusive(cls, values: Mapping[str, Any]):
-        if values.get("base_image") and values.get("dockerfile"):
-            raise ValueError(
-                "Either `base_image` or `dockerfile` should be provided, but not both"
-            )
-        return values
+        return base_image_xor_dockerfile(values)
 
     @root_validator
     def default_python_environment(cls, values: Mapping[str, Any]):
-        if values.get("base_image") and not values.get("python_environment"):
-            values["python_environment"] = PythonEnvironment.from_environment()
-        return values
+        return set_default_python_environment(values)
 
     @validator("registry_url", pre=True)
     def ensure_registry_url_is_prefixed(cls, value):
