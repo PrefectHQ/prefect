@@ -18,7 +18,6 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, SecretStr, validator
 
-from prefect._internal.pydantic.utilities.field_decorator import my_field_validator
 from prefect._internal.schemas.validators import (
     stringify_path,
     validate_basepath,
@@ -100,7 +99,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         default=None, description="Default local path for this block to write to."
     )
 
-    @my_field_validator("basepath", pre=True)
+    @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
         return stringify_path(value)
 
@@ -930,7 +929,7 @@ class GitHub(ReadableDeploymentStorage):
         ),
     )
 
-    @my_field_validator("access_token")
+    @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
         return validate_github_access_token(v, values)
 

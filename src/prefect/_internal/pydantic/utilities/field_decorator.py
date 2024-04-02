@@ -2,7 +2,7 @@
 Conditional decorator for fields depending on Pydantic version.
 """
 
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Union
 
 from typing_extensions import TypeAlias
 
@@ -15,8 +15,11 @@ def my_field_validator(
     field: str,
     /,
     *fields: str,
-    mode: FieldValidatorModes = "after",
-    check_fields: bool | None = None,
+    mode: FieldValidatorModes = "after",  # v2 only
+    check_fields: Union[bool, None] = None,
+    pre=False,  # v1 only
+    always=False,  # v1 only
+    allow_reuse=False,  # v1 only
 ) -> Callable[[Any], Any]:
     """Usage docs: https://docs.pydantic.dev/2.7/concepts/validators/#field-validators
     Returns a decorator that conditionally applies Pydantic's `field_validator` or `validator`,
@@ -83,7 +86,6 @@ def my_field_validator(
 
     def decorator(validate_func):
         if USE_V2_MODELS:
-            breakpoint()
             from pydantic import field_validator
 
             def wrapper(cls, v, info):
@@ -94,9 +96,16 @@ def my_field_validator(
                 field, *fields, mode=mode, check_fields=check_fields
             )(wrapper)
         else:
-            breakpoint()
             from pydantic.v1 import validator
 
-            return validator(field, *fields)(validate_func)
+            # the following are the arguments that we currently use in our Pydantic v1 validator
+            return validator(
+                field,
+                *fields,
+                pre=pre,
+                always=always,
+                check_fields=check_fields if check_fields is not None else True,
+                allow_reuse=allow_reuse,
+            )(validate_func)
 
     return decorator
