@@ -615,8 +615,6 @@ jobs:
             PREFECT_EXTRAS=[dev]
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Test Docker image
         run: |
@@ -738,8 +736,6 @@ jobs:
             PREFECT_EXTRAS=[dev]
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Test Docker image
         run: |

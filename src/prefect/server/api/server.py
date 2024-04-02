@@ -35,6 +35,7 @@ from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
+from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.server import method_paths_from_routes
@@ -84,6 +85,7 @@ API_ROUTERS = (
     api.collections.router,
     api.variables.router,
     api.csrf_token.router,
+    api.events.router,
     api.ui.flow_runs.router,
     api.ui.schemas.router,
     api.ui.task_runs.router,
@@ -568,6 +570,12 @@ def create_app(
 
         if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
+
+        if (
+            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
+            and prefect.settings.PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED.value()
+        ):
+            service_instances.append(EventLogger())
 
         loop = asyncio.get_running_loop()
 
