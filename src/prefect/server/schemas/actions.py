@@ -219,8 +219,8 @@ class DeploymentCreate(ActionBaseModel):
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.Deployment
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        None, description="The schedule for the deployment."
     )
     description: Optional[str] = Field(None)
     path: Optional[str] = Field(None)
