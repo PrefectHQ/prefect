@@ -23,11 +23,14 @@ from prefect._internal.schemas.validators import (
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
+    set_run_policy_deprecated_fields,
     validate_cache_key_length,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
     validate_message_template_variables,
+    validate_name_present_on_nonanonymous_blocks,
     validate_not_negative,
+    validate_parent_and_ref_diff,
 )
 from prefect.server.schemas import schedules, states
 from prefect.server.utilities.schemas.bases import (
@@ -109,18 +112,7 @@ class FlowRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        """
-        If deprecated fields are provided, populate the corresponding new fields
-        to preserve orchestration behavior.
-        """
-        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
-            values["retries"] = values["max_retries"]
-        if (
-            not values.get("retry_delay", None)
-            and values.get("retry_delay_seconds", 0) != 0
-        ):
-            values["retry_delay"] = values["retry_delay_seconds"]
-        return values
+        return set_run_policy_deprecated_fields(values)
 
 
 class CreatedBy(BaseModel):
@@ -326,20 +318,7 @@ class TaskRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        """
-        If deprecated fields are provided, populate the corresponding new fields
-        to preserve orchestration behavior.
-        """
-        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
-            values["retries"] = values["max_retries"]
-
-        if (
-            not values.get("retry_delay", None)
-            and values.get("retry_delay_seconds", 0) != 0
-        ):
-            values["retry_delay"] = values["retry_delay_seconds"]
-
-        return values
+        return set_run_policy_deprecated_fields(values)
 
     @validator("retry_delay")
     def validate_configured_retry_delays(cls, v):
@@ -765,11 +744,7 @@ class BlockDocument(ORMBaseModel):
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
-        # anonymous blocks may have no name prior to actually being
-        # stored in the database
-        if not values.get("is_anonymous") and not values.get("name"):
-            raise ValueError("Names must be provided for block documents.")
-        return values
+        return validate_name_present_on_nonanonymous_blocks(values)
 
     @classmethod
     async def from_orm_model(
@@ -841,14 +816,7 @@ class BlockDocumentReference(ORMBaseModel):
 
     @root_validator
     def validate_parent_and_ref_are_different(cls, values):
-        parent_id = values.get("parent_block_document_id")
-        ref_id = values.get("reference_block_document_id")
-        if parent_id and ref_id and parent_id == ref_id:
-            raise ValueError(
-                "`parent_block_document_id` and `reference_block_document_id` cannot be"
-                " the same"
-            )
-        return values
+        return validate_parent_and_ref_diff(values)
 
 
 class Configuration(ORMBaseModel):

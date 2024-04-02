@@ -44,7 +44,7 @@ class TestDeploymentCreate:
         with pytest.warns(
             UserWarning,
             match=(
-                "`worker_pool_queue_id` is no longer supported for creating "
+                "`worker_pool_queue_id` is no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
@@ -73,7 +73,7 @@ class TestDeploymentCreate:
             match=(
                 "`worker_pool_name`, `worker_pool_queue_name`, and "
                 "`work_pool_name` are"
-                "no longer supported for creating "
+                "no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
@@ -153,7 +153,7 @@ class TestDeploymentUpdate:
         with pytest.warns(
             UserWarning,
             match=(
-                "`worker_pool_queue_id` is no longer supported for updating "
+                "`worker_pool_queue_id` is no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
@@ -176,7 +176,7 @@ class TestDeploymentUpdate:
             match=(
                 "`worker_pool_name`, `worker_pool_queue_name`, and "
                 "`work_pool_name` are"
-                "no longer supported for creating "
+                "no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
