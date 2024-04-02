@@ -1,10 +1,10 @@
 import pytest
 
-from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
+from prefect._internal.pydantic._flags import USE_V2_MODELS
 
 
 @pytest.mark.skipif(
-    USE_V2_MODELS and HAS_PYDANTIC_V2,
+    USE_V2_MODELS,
     reason="We only need to backport functionality when using Pydantic v1",
 )
 def test_model_fields():
