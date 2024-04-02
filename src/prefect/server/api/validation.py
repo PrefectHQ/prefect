@@ -66,6 +66,11 @@ async def validate_job_variables_for_flow_run(
     the actor does not have permissions to access that block. Therefore, this is only safe
     to use within the context of an API request
     """
+    if deployment.work_queue is None or deployment.work_queue.work_pool is None:
+        # if we aren't able to access a deployment's work pool, we don't have a
+        # base job template to validate job variables against
+        return
+
     base_vars = _get_base_config_defaults(
         deployment.work_queue.work_pool.base_job_template
     )
