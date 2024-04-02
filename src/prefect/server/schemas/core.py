@@ -537,6 +537,7 @@ class Deployment(ORMBaseModel):
     )
     job_variables: Dict[str, Any] = Field(
         alias="infra_overrides",
+        allow_population_by_field_name=True,
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
