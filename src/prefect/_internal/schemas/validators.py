@@ -15,7 +15,7 @@ import urllib.parse
 import warnings
 from copy import copy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union, cast
 
 import jsonschema
 import pendulum
@@ -25,6 +25,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
+from prefect.settings import PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -507,6 +508,52 @@ def validate_automation_names(
             trigger.name = f"{values['name']}__automation_{i}"
 
     return field_value
+
+
+def validate_related_resource_role_present(values: Dict[str, Any]):
+    labels = values.get("__root__")
+    if not isinstance(labels, dict):
+        return values
+
+    labels = cast(Dict[str, str], labels)
+
+    if "prefect.resource.role" not in labels:
+        raise ValueError(
+            "Related Resources must include the prefect.resource.role label"
+        )
+    if not labels["prefect.resource.role"]:
+        raise ValueError("The prefect.resource.role label must be non-empty")
+
+    return values
+
+
+def validate_related_resource_id_present(values: Dict[str, Any]):
+    labels = values.get("__root__")
+    if not isinstance(labels, dict):
+        return values
+
+    labels = cast(Dict[str, str], labels)
+
+    if "prefect.resource.id" not in labels:
+        raise ValueError("Resources must include the prefect.resource.id label")
+    if not labels["prefect.resource.id"]:
+        raise ValueError("The prefect.resource.id label must be non-empty")
+
+    return values
+
+
+def enforce_resource_label_limit(values: Dict[str, Any]) -> Dict[str, Any]:
+    labels = values.get("__root__")
+    if not isinstance(labels, dict):
+        return values
+
+    if len(labels) > PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value():
+        raise ValueError(
+            "The maximum number of labels per resource "
+            f"is {PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value()}"
+        )
+
+    return values
 
 
 ### INFRASTRUCTURE SCHEMA VALIDATORS ###
