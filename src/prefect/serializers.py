@@ -12,7 +12,6 @@ bytes to an object respectively.
 """
 import abc
 import base64
-import warnings
 from typing import Any, Generic, Optional, TypeVar
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -22,6 +21,7 @@ from prefect._internal.schemas.validators import (
     validate_dump_kwargs,
     validate_load_kwargs,
     validate_picklelib,
+    validate_picklelib_version,
 )
 
 if HAS_PYDANTIC_V2:
@@ -112,33 +112,7 @@ class PickleSerializer(Serializer):
 
     @pydantic.root_validator
     def check_picklelib_version(cls, values):
-        """
-        Infers a default value for `picklelib_version` if null or ensures it matches
-        the version retrieved from the `pickelib`.
-        """
-        picklelib = values.get("picklelib")
-        picklelib_version = values.get("picklelib_version")
-
-        if not picklelib:
-            raise ValueError("Unable to check version of unrecognized picklelib module")
-
-        pickler = from_qualified_name(picklelib)
-        pickler_version = getattr(pickler, "__version__", None)
-
-        if not picklelib_version:
-            values["picklelib_version"] = pickler_version
-        elif picklelib_version != pickler_version:
-            warnings.warn(
-                (
-                    f"Mismatched {picklelib!r} versions. Found {pickler_version} in the"
-                    f" environment but {picklelib_version} was requested. This may"
-                    " cause the serializer to fail."
-                ),
-                RuntimeWarning,
-                stacklevel=3,
-            )
-
-        return values
+        return validate_picklelib_version(values)
 
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)
