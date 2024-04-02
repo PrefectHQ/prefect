@@ -79,34 +79,44 @@ class ActionBaseModel(PrefectBaseModel):
         return super()._iter(*args, **kwargs, exclude=exclude)
 
 
-@copy_model_fields
 class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
-    name: str = FieldFrom(schemas.core.Flow)
-    tags: List[str] = FieldFrom(schemas.core.Flow)
-
-
-@copy_model_fields
-class FlowUpdate(ActionBaseModel):
-    """Data used by the Prefect REST API to update a flow."""
-
-    tags: List[str] = FieldFrom(schemas.core.Flow)
-
-
-@copy_model_fields
-class DeploymentScheduleCreate(ActionBaseModel):
-    active: bool = FieldFrom(schemas.core.DeploymentSchedule)
-    schedule: schemas.schedules.SCHEDULE_TYPES = FieldFrom(
-        schemas.core.DeploymentSchedule
+    name: str = Field(
+        default=..., description="The name of the flow", example="my-flow"
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
     )
 
 
-@copy_model_fields
+class FlowUpdate(ActionBaseModel):
+    """Data used by the Prefect REST API to update a flow."""
+
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
+
+
+class DeploymentScheduleCreate(ActionBaseModel):
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+    schedule: schemas.schedules.SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+
+
 class DeploymentScheduleUpdate(ActionBaseModel):
-    active: Optional[bool] = FieldFrom(schemas.core.DeploymentSchedule)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.DeploymentSchedule
+    active: Optional[bool] = Field(
+        default=None, description="Whether or not the schedule is active."
+    )
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        default=None, description="The schedule for the deployment."
     )
 
 
@@ -115,7 +125,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     group="work_pools",
     when=lambda x: x is not None,
 )
-@copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -164,39 +173,60 @@ class DeploymentCreate(ActionBaseModel):
             )
         return values_copy
 
-    name: str = FieldFrom(schemas.core.Deployment)
-    flow_id: UUID = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
-    paused: bool = FieldFrom(schemas.core.Deployment)
+    name: str = Field(
+        default=..., description="The name of the deployment.", example="my-deployment"
+    )
+    flow_id: UUID = Field(
+        default=..., description="The ID of the flow associated with the deployment."
+    )
+    is_schedule_active: bool = Field(
+        default=True, description="Whether the schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
-    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
-        schemas.core.Deployment
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
     )
-    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
-    tags: List[str] = FieldFrom(schemas.core.Deployment)
-    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The parameter schema of the flow, including defaults.",
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of deployment tags.",
+        example=["tag-1", "tag-2"],
+    )
+    pull_steps: Optional[List[dict]] = Field(None)
 
-    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    manifest_path: Optional[str] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    storage_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
         schemas.core.Deployment
     )
-    description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
+    description: Optional[str] = Field(None)
+    path: Optional[str] = Field(None)
+    version: Optional[str] = Field(None)
+    entrypoint: Optional[str] = Field(None)
+    infra_overrides: Optional[Dict[str, Any]] = Field(None)
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -268,13 +298,17 @@ class DeploymentUpdate(ActionBaseModel):
             )
         return values_copy
 
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.Deployment
+    version: Optional[str] = Field(None)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        None, description="The schedule for the deployment."
     )
-    description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    paused: bool = FieldFrom(schemas.core.Deployment)
+    description: Optional[str] = Field(None)
+    is_schedule_active: bool = Field(
+        default=True, description="Whether the schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
@@ -283,19 +317,23 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = FieldFrom(schemas.core.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of deployment tags.",
+        example=["tag-1", "tag-2"],
+    )
+    work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
-    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    path: Optional[str] = Field(None)
+    infra_overrides: Optional[Dict[str, Any]] = Field(None)
+    entrypoint: Optional[str] = Field(None)
+    manifest_path: Optional[str] = Field(None)
+    storage_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(
