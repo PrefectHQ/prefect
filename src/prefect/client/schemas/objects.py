@@ -914,40 +914,7 @@ class Flow(ObjectBaseModel):
         return raise_on_name_with_banned_characters(v)
 
 
-class FlowRunnerSettings(PrefectBaseModel):
-    """
-    An API schema for passing details about the flow runner.
-
-    This schema is agnostic to the types and configuration provided by clients
-    """
-
-    type: Optional[str] = Field(
-        default=None,
-        description=(
-            "The type of the flow runner which can be used by the client for"
-            " dispatching."
-        ),
-    )
-    config: Optional[dict] = Field(
-        default=None, description="The configuration for the given flow runner type."
-    )
-
-    # The following is required for composite compatibility in the ORM
-
-    def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
-        # Pydantic does not support positional arguments so they must be converted to
-        # keyword arguments
-        super().__init__(type=type, config=config, **kwargs)
-
-    def __composite_values__(self):
-        return self.type, self.config
-
-
-class DeploymentSchedule(ObjectBaseModel):
-    deployment_id: Optional[UUID] = Field(
-        default=None,
-        description="The deployment id associated with this schedule.",
-    )
+class MinimalDeploymentSchedule(PrefectBaseModel):
     schedule: SCHEDULE_TYPES = Field(
         default=..., description="The schedule for the deployment."
     )
@@ -956,7 +923,11 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
-class MinimalDeploymentSchedule(PrefectBaseModel):
+class DeploymentSchedule(ObjectBaseModel):
+    deployment_id: Optional[UUID] = Field(
+        default=None,
+        description="The deployment id associated with this schedule.",
+    )
     schedule: SCHEDULE_TYPES = Field(
         default=..., description="The schedule for the deployment."
     )
