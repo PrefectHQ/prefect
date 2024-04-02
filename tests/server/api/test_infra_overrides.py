@@ -381,6 +381,36 @@ class TestInfraOverrides:
         # verify validation passed since the job templates's default was used
         assert response.status_code == 201
 
+    @pytest.mark.parametrize("job_variables", [{}, None, {"x": "y"}])
+    async def test_creating_flow_run_with_missing_work_queue(
+        self,
+        session,
+        client,
+        job_variables,
+        enable_infra_overrides,
+    ):
+        """
+        This test simulates a scenario where the deployment being run is a Runner's deployment
+        """
+
+        # create a pool with a pool schema that has a default value
+        _, pool, deployment = await create_objects_for_pool(session)
+
+        # delete the deployment's work queue + work pool
+        deleted = await models.workers.delete_work_pool(session, pool.id)
+        assert deleted
+
+        await session.commit()
+
+        # create a flow run
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run",
+            json={"job_variables": job_variables},
+        )
+
+        # verify we were able to successfully create the run
+        assert response.status_code == 201
+
     async def test_base_job_template_default_references_to_blocks(
         self,
         session,
@@ -621,6 +651,37 @@ class TestInfraOverridesUpdates:
         # verify the update failed
         assert response.status_code == 404
         assert response.json()["detail"] == "Flow run not found"
+
+    @pytest.mark.parametrize("job_variables", [{}, None, {"x": "y"}])
+    async def test_updating_flow_run_with_missing_work_queue(
+        self,
+        session,
+        client,
+        job_variables,
+        enable_infra_overrides,
+    ):
+        # create a pool with a pool schema that has a default value
+        _, pool, deployment = await create_objects_for_pool(session)
+
+        # create a flow run
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run", json={}
+        )
+
+        # delete the deployment's work queue + work pool
+        deleted = await models.workers.delete_work_pool(session, pool.id)
+        assert deleted
+
+        await session.commit()
+
+        # attempt to update the flow run
+        flow_run_id = response.json()["id"]
+        response = await client.patch(
+            f"/flow_runs/{flow_run_id}", json={"job_variables": job_variables}
+        )
+
+        # verify we were able to successfully create the run
+        assert response.status_code == 204
 
     async def test_base_job_template_default_references_to_blocks(
         self,
