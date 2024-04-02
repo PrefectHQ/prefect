@@ -181,7 +181,9 @@ class TestDeploymentUpdate:
                 "`work_queue_name` instead."
             ),
         ):
-            deployment_update = DeploymentCreate(flow_id=uuid4(), **kwargs)
+            deployment_update = DeploymentCreate(
+                name="test-deployment", flow_id=uuid4(), **kwargs
+            )
 
         for key in kwargs.keys():
             assert getattr(deployment_update, key, 0) == 0
