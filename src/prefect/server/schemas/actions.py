@@ -435,10 +435,6 @@ class TaskRunUpdate(ActionBaseModel):
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
-    @validator("cache_key")
-    def validate_cache_key(cls, cache_key):
-        return validate_cache_key_length(cache_key)
-
 
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run."""
