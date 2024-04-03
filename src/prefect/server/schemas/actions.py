@@ -5,7 +5,7 @@ Reduced schemas for accepting API actions.
 import json
 from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jsonschema
 
@@ -698,9 +698,11 @@ class BlockDocumentUpdate(ActionBaseModel):
 class BlockDocumentReferenceCreate(ActionBaseModel):
     """Data used to create block document reference."""
 
-    id: UUID = Field(default=..., description="The block document reference ID")
-    parent_block_document: Optional[schemas.core.BlockDocument] = Field(
-        default=None, description="The block document the reference is nested within"
+    id: UUID = Field(
+        default_factory=uuid4, description="The block document reference ID"
+    )
+    parent_block_document_id: UUID = Field(
+        default=..., description="ID of the parent block document"
     )
     reference_block_document_id: UUID = Field(
         default=..., description="ID of the nested block document"
