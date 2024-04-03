@@ -76,7 +76,7 @@ class ContextModel(BaseModel):
     _token: Token = PrivateAttr(None)
 
     class Config:
-        allow_mutation = False
+        # allow_mutation = False
         arbitrary_types_allowed = True
         extra = "forbid"
 
