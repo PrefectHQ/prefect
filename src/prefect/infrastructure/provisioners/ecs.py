@@ -397,6 +397,7 @@ class AuthenticationResource:
                         "ecs:RegisterTaskDefinition",
                         "ecs:RunTask",
                         "ecs:StopTask",
+                        "ecs:TagResource",
                         "logs:CreateLogStream",
                         "logs:PutLogEvents",
                         "logs:DescribeLogGroups",
