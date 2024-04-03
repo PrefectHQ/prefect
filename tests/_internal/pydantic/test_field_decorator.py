@@ -30,7 +30,7 @@ class TestFieldValidator:
 
     @pytest.mark.skipif(
         USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is disabled and v1 is installed",
+        reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
     )
     def test_cross_field_validation_in_v1_using_values(self):
         """
@@ -65,7 +65,7 @@ class TestFieldValidator:
 
     @pytest.mark.skipif(
         not USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is disabled and v2 is installed",
+        reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
     )
     def test_cross_field_validation_in_v2_using_info(self):
         """
@@ -100,7 +100,10 @@ class TestFieldValidator:
         model = TestModel3(field3="special", field4="allowed")
         assert model.field4 == "allowed"
 
-    @pytest.mark.skipif(USE_V2_MODELS, reason="Test only valid for V1 models")
+    @pytest.mark.skipif(
+        USE_V2_MODELS,
+        reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
+    )
     def test_cross_field_dependency_in_v1(self):
         """
         Validates that `field_validator` properly enables cross-field dependencies in Pydantic V1 models,
