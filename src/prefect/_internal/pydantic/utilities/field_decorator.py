@@ -4,14 +4,14 @@ Conditional decorator for fields depending on Pydantic version.
 
 import functools
 from inspect import signature
-from typing import Any, Callable, Literal, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, Literal, Optional, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
-from prefect._internal.pydantic._flags import USE_V2_MODELS
+from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
 
 FieldValidatorModes: TypeAlias = Literal["before", "after", "wrap", "plain"]
-T = TypeVar("T", bound=Callable)
+T = TypeVar("T", bound=Callable[..., Any])
 
 
 def field_validator(
@@ -94,37 +94,39 @@ def field_validator(
             return field_validator(
                 field, *fields, mode=mode, check_fields=check_fields
             )(validate_func)
+        elif HAS_PYDANTIC_V2:
+            from pydantic.v1 import BaseModel, validator  # type: ignore
         else:
-            from pydantic import validator
+            from pydantic import BaseModel, validator
 
-            # Extract the parameters of the validate_func function
-            # e.g. if validate_func has a signature of (cls, v, values, config), we want to
-            # filter the kwargs to include only those expected by validate_func, which may
-            # look like (cls, v) or (cls, v, values) etc.
-            validate_func_params = signature(validate_func).parameters
+        # Extract the parameters of the validate_func function
+        # e.g. if validate_func has a signature of (cls, v, values, config), we want to
+        # filter the kwargs to include only those expected by validate_func, which may
+        # look like (cls, v) or (cls, v, values) etc.
+        validate_func_params = signature(validate_func).parameters
 
-            @functools.wraps(validate_func)
-            def wrapper(
-                cls,
-                v,
-                **kwargs,
-            ):
-                filtered_kwargs = {
-                    k: v for k, v in kwargs.items() if k in validate_func_params
-                }
-
-                return validate_func(cls, v, **filtered_kwargs)
-
-            # In Pydantic V1, `allow_reuse` is by default False, while in Pydantic V2, it is by default True.
-            # We default to False in Pydantic V1 to maintain backward compatibility
-            # e.g. One uses @validator("a", pre=True, allow_reuse=True) in Pydantic V1
-            validator_kwargs = {
-                "pre": pre,
-                "always": always,
-                "check_fields": check_fields if check_fields is not None else True,
-                "allow_reuse": allow_reuse if allow_reuse is not None else False,
+        @functools.wraps(validate_func)
+        def wrapper(
+            cls: "BaseModel",
+            v: Any,
+            **kwargs: Any,
+        ) -> Any:
+            filtered_kwargs: Dict[str, Any] = {
+                k: v for k, v in kwargs.items() if k in validate_func_params
             }
 
-            return validator(field, *fields, **validator_kwargs)(wrapper)
+            return validate_func(cls, v, **filtered_kwargs)
+
+        # In Pydantic V1, `allow_reuse` is by default False, while in Pydantic V2, it is by default True.
+        # We default to False in Pydantic V1 to maintain backward compatibility
+        # e.g. One uses @validator("a", pre=True, allow_reuse=True) in Pydantic V1
+        validator_kwargs: Dict[str, Any] = {
+            "pre": pre,
+            "always": always,
+            "check_fields": check_fields if check_fields is not None else True,
+            "allow_reuse": allow_reuse if allow_reuse is not None else False,
+        }
+
+        return validator(field, *fields, **validator_kwargs)(wrapper)
 
     return decorator
