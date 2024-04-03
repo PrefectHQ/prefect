@@ -1198,7 +1198,4 @@ def show_timeouts():
     print("I will execute")
     time.sleep(5)
     print("I will not execute")
-
-if __name__ == "__main__":
-    show_timeouts()
 ```
