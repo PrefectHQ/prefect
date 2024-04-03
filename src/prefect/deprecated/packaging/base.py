@@ -7,8 +7,13 @@ import abc
 from typing import Generic, Type, TypeVar
 
 from prefect._internal.compatibility.deprecated import deprecated_class
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.flows import Flow
-from prefect.pydantic import BaseModel
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.pydantic import add_type_dispatch
