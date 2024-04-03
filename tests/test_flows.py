@@ -3792,6 +3792,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
         )
 
         console_output = capsys.readouterr().out
@@ -3840,6 +3841,7 @@ class TestFlowDeploy:
             build=True,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
         )
 
     async def test_deploy_non_existent_work_pool(
