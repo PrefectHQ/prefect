@@ -48,17 +48,17 @@ class ExperimentalWarning(Warning):
     """
 
 
-class ExperimentalError(Exception):
-    """
-    An exception related to experimental code.
-    """
-
-
 class ExperimentalFeature(ExperimentalWarning):
     """
     A warning displayed on use of an experimental feature.
 
     These can be globally disabled by the PREFECT_EXPIRIMENTAL_WARN setting.
+    """
+
+
+class ExperimentalError(Exception):
+    """
+    An exception related to experimental code.
     """
 
 

@@ -3,8 +3,7 @@ Reduced schemas for accepting API actions.
 """
 
 import json
-import warnings
-from copy import copy, deepcopy
+from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
@@ -18,10 +17,14 @@ else:
     from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.validators import (
+    get_or_create_run_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
+    raise_on_name_with_banned_characters,
+    remove_old_deployment_fields,
+    set_deployment_schedules,
+    validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
 )
@@ -79,124 +82,124 @@ class ActionBaseModel(PrefectBaseModel):
         return super()._iter(*args, **kwargs, exclude=exclude)
 
 
-@copy_model_fields
 class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
-    name: str = FieldFrom(schemas.core.Flow)
-    tags: List[str] = FieldFrom(schemas.core.Flow)
+    name: str = Field(
+        default=..., description="The name of the flow", example="my-flow"
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
-@copy_model_fields
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = FieldFrom(schemas.core.Flow)
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
-@copy_model_fields
 class DeploymentScheduleCreate(ActionBaseModel):
-    active: bool = FieldFrom(schemas.core.DeploymentSchedule)
-    schedule: schemas.schedules.SCHEDULE_TYPES = FieldFrom(
-        schemas.core.DeploymentSchedule
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+    schedule: schemas.schedules.SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
     )
 
 
-@copy_model_fields
 class DeploymentScheduleUpdate(ActionBaseModel):
-    active: Optional[bool] = FieldFrom(schemas.core.DeploymentSchedule)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.DeploymentSchedule
+    active: Optional[bool] = Field(
+        default=None, description="Whether or not the schedule is active."
+    )
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        default=None, description="The schedule for the deployment."
     )
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
     @root_validator
     def populate_schedules(cls, values):
-        if not values.get("schedules") and values.get("schedule"):
-            values["schedules"] = [
-                DeploymentScheduleCreate(
-                    schedule=values["schedule"],
-                    active=values["is_schedule_active"],
-                )
-            ]
-
-        return values
+        return set_deployment_schedules(values)
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
-        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
-        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
-        # and work_queue_name. This validator removes old fields provided
-        # by older clients to avoid 422 errors.
-        values_copy = copy(values)
-        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
-        worker_pool_name = values_copy.pop("worker_pool_name", None)
-        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
-        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
-        if worker_pool_queue_id:
-            warnings.warn(
-                (
-                    "`worker_pool_queue_id` is no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
-            warnings.warn(
-                (
-                    "`worker_pool_name`, `worker_pool_queue_name`, and "
-                    "`work_pool_name` are"
-                    "no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        return values_copy
+        return remove_old_deployment_fields(values)
 
-    name: str = FieldFrom(schemas.core.Deployment)
-    flow_id: UUID = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
-    paused: bool = FieldFrom(schemas.core.Deployment)
+    name: str = Field(
+        default=..., description="The name of the deployment.", example="my-deployment"
+    )
+    flow_id: UUID = Field(
+        default=..., description="The ID of the flow associated with the deployment."
+    )
+    is_schedule_active: bool = Field(
+        default=True, description="Whether the schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
-    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
-        schemas.core.Deployment
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
     )
-    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
-    tags: List[str] = FieldFrom(schemas.core.Deployment)
-    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The parameter schema of the flow, including defaults.",
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of deployment tags.",
+        example=["tag-1", "tag-2"],
+    )
+    pull_steps: Optional[List[dict]] = Field(None)
 
-    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    manifest_path: Optional[str] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.Deployment
+    storage_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        None, description="The schedule for the deployment."
     )
-    description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
+    description: Optional[str] = Field(None)
+    path: Optional[str] = Field(None)
+    version: Optional[str] = Field(None)
+    entrypoint: Optional[str] = Field(None)
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides for the flow's infrastructure configuration.",
+    )
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -226,55 +229,25 @@ class DeploymentCreate(ActionBaseModel):
         return validate_parameter_openapi_schema(value, values)
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
-        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
-        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
-        # and work_queue_name. This validator removes old fields provided
-        # by older clients to avoid 422 errors.
-        values_copy = copy(values)
-        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
-        worker_pool_name = values_copy.pop("worker_pool_name", None)
-        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
-        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
-        if worker_pool_queue_id:
-            warnings.warn(
-                (
-                    "`worker_pool_queue_id` is no longer supported for updating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
-            warnings.warn(
-                (
-                    "`worker_pool_name`, `worker_pool_queue_name`, and "
-                    "`work_pool_name` are"
-                    "no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        return values_copy
+        return remove_old_deployment_fields(values)
 
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.Deployment
+    version: Optional[str] = Field(None)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        None, description="The schedule for the deployment."
     )
-    description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    paused: bool = FieldFrom(schemas.core.Deployment)
+    description: Optional[str] = Field(None)
+    is_schedule_active: bool = Field(
+        default=True, description="Whether the schedule is active."
+    )
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
@@ -283,19 +256,23 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = FieldFrom(schemas.core.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of deployment tags.",
+        example=["tag-1", "tag-2"],
+    )
+    work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
-    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    path: Optional[str] = Field(None)
+    infra_overrides: Optional[Dict[str, Any]] = Field(None)
+    entrypoint: Optional[str] = Field(None)
+    manifest_path: Optional[str] = Field(None)
+    storage_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(
@@ -428,6 +405,10 @@ class FlowRunCreate(ActionBaseModel):
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
 
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
+
 
 @copy_model_fields
 class DeploymentFlowRunCreate(ActionBaseModel):
@@ -551,10 +532,7 @@ class BlockDocumentCreate(ActionBaseModel):
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
-        # TODO: We should find an elegant way to reuse this logic from the origin model
-        if not values.get("is_anonymous") and not values.get("name"):
-            raise ValueError("Names must be provided for block documents.")
-        return values
+        return validate_name_present_on_nonanonymous_blocks(values)
 
 
 @copy_model_fields
