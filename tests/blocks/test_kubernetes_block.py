@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import Dict
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -49,6 +50,11 @@ def config_file(tmp_path) -> Path:
     config_file.write_text(CONFIG_CONTENT)
 
     return config_file
+
+
+async def test_raises_deprecation_warning():
+    with pytest.warns(PrefectDeprecationWarning):
+        KubernetesClusterConfig(config=CONFIG_CONTENT, context_name="docker-desktop")
 
 
 async def test_instantiation_from_file(config_file):
