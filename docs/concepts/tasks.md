@@ -57,28 +57,6 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
     To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
 
-!!! warning "Calling a task's function from another task"
-
-    Prefect does not allow triggering task runs from other tasks. If you want to call your task's function directly, you can use `task.fn()`. 
-
-    ```python hl_lines="9"
-    from prefect import flow, task
-
-    @task
-    def my_first_task(msg):
-        print(f"Hello, {msg}")
-
-    @task
-    def my_second_task(msg):
-        my_first_task.fn(msg)
-
-    @flow
-    def my_flow():
-        my_second_task("Trillian")
-
-    ```
-
-    Note that in the example above you are only calling the task's function without actually generating a task run. Prefect won't track task execution in your Prefect backend if you call the task function this way. You also won't be able to use features such as retries with this function call.
 
 ## Task arguments
 
