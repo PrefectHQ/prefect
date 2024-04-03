@@ -99,7 +99,8 @@ def field_validator(
 
             # Extract the parameters of the validate_func function
             # e.g. if validate_func has a signature of (cls, v, values, config), we want to
-            # filter the kwargs to include only those expected by validate_func
+            # filter the kwargs to include only those expected by validate_func, which may
+            # look like (cls, v) or (cls, v, values) etc.
             validate_func_params = signature(validate_func).parameters
 
             @functools.wraps(validate_func)
@@ -114,9 +115,9 @@ def field_validator(
 
                 return validate_func(cls, v, **filtered_kwargs)
 
-            # In Pydantic V1, `allow_reuse` is by default False, while in Pydantic V2, it is True
+            # In Pydantic V1, `allow_reuse` is by default False, while in Pydantic V2, it is by default True.
             # We default to False in Pydantic V1 to maintain backward compatibility
-            # e.g. @validator("a", pre=True, allow_reuse=True) in Pydantic V1
+            # e.g. One uses @validator("a", pre=True, allow_reuse=True) in Pydantic V1
             validator_kwargs = {
                 "pre": pre,
                 "always": always,
