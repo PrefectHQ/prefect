@@ -1,8 +1,12 @@
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
+from typing_extensions import Annotated
 
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.field_decorator import field_validator
+
+if USE_V2_MODELS:
+    from pydantic import ValidationInfo
 
 
 class TestFieldValidator:
@@ -132,3 +136,76 @@ class TestFieldValidator:
 
         model = TestModel3(field3="special", field4="allowed")
         assert model.field4 == "allowed"
+
+    @pytest.mark.skipif(
+        not USE_V2_MODELS,
+        reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
+    )
+    def test_multiple_field_validation_in_v2_with_default_values(self):
+        """
+        Example taken from: https://docs.pydantic.dev/latest/concepts/validators/#validation-of-default-values
+
+        """
+
+        class Model(BaseModel):
+            x: str = "abc"
+            y: Annotated[str, Field(validate_default=True)] = "xyz"
+
+            @field_validator("x", "y")
+            @classmethod
+            def double(cls, v: str) -> str:
+                return v * 2
+
+        assert Model().model_dump() == {"x": "abc", "y": "xyzxyz"}
+        assert Model(x="foo").model_dump() == {"x": "foofoo", "y": "xyzxyz"}
+        assert Model(x="foo", y="bar").model_dump() == {"x": "foofoo", "y": "barbar"}
+        assert Model(y="bar").model_dump() == {"x": "abc", "y": "barbar"}
+
+    @pytest.mark.skipif(
+        not USE_V2_MODELS,
+        reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
+    )
+    def test_multiple_field_validation_in_v2(self):
+        """
+        https://docs.pydantic.dev/latest/concepts/validators/#field-validators
+        """
+
+        class UserModel(BaseModel):
+            name: str
+            id: int
+
+            @field_validator("name")
+            @classmethod
+            def name_must_contain_space(cls, v: str) -> str:
+                if " " not in v:
+                    raise ValueError("must contain a space")
+                return v.title()
+
+            # you can select multiple fields, or use '*' to select all fields
+            @field_validator("id", "name")
+            @classmethod
+            def check_alphanumeric(cls, v: str, info: "ValidationInfo") -> str:
+                if isinstance(v, str):
+                    # info.field_name is the name of the field being validated
+                    is_alphanumeric = v.replace(" ", "").isalnum()
+                    assert is_alphanumeric, f"{info.field_name} must be alphanumeric"
+                return v
+
+        assert UserModel(name="John Doe", id=1).model_dump() == {
+            "name": "John Doe",
+            "id": 1,
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            UserModel(name="samuel", id=1)
+        assert "must contain a space" in str(exc_info.value)
+
+        with pytest.raises(ValidationError) as exc_info:
+            UserModel(name="John Doe!", id=1)
+
+        assert "name must be alphanumeric" in str(exc_info.value)
+
+        with pytest.raises(ValidationError) as exc_info:
+            UserModel(name="John Doe!", id=1)
+
+        assert "name must be alphanumeric" in str(exc_info.value)
