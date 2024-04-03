@@ -38,9 +38,6 @@ from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
-from prefect.server.utilities.schemas.transformations import (
-    FieldFrom,
-)
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
@@ -789,10 +786,10 @@ class WorkPoolCreate(ActionBaseModel):
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
-    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
-    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
-    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
+    description: Optional[str] = Field(None)
+    is_paused: Optional[bool] = Field(None)
+    base_job_template: Optional[Dict[str, Any]] = Field(None)
+    concurrency_limit: Optional[int] = Field(None)
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
