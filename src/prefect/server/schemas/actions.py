@@ -309,7 +309,7 @@ class FlowRunUpdate(ActionBaseModel):
 
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: dict = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
     empirical_policy: schemas.core.FlowRunPolicy = Field(
         default_factory=schemas.core.FlowRunPolicy
     )
@@ -456,10 +456,10 @@ class FlowRunCreate(ActionBaseModel):
     flow_version: Optional[str] = Field(
         default=None, description="The version of the flow being run."
     )
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict,
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict,
         description="The context of the flow run.",
     )
@@ -516,8 +516,8 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         ),
         example="my-flow-run",
     )
-    parameters: dict = Field(default_factory=dict)
-    context: dict = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    context: Dict[str, Any] = Field(default_factory=dict)
     infrastructure_document_id: Optional[UUID] = Field(None)
     empirical_policy: schemas.core.FlowRunPolicy = Field(
         default_factory=schemas.core.FlowRunPolicy,
@@ -639,7 +639,7 @@ class BlockTypeUpdate(ActionBaseModel):
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
@@ -663,7 +663,9 @@ class BlockDocumentCreate(ActionBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
 
     block_type_id: UUID = Field(default=..., description="A block type ID")
@@ -691,7 +693,9 @@ class BlockDocumentUpdate(ActionBaseModel):
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     merge_existing_data: bool = True
 
 
