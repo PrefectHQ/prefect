@@ -20,9 +20,9 @@ from prefect.server.models import concurrency_limits, flow_runs
 from prefect.server.orchestration.core_policy import (
     AddUnknownResult,
     BypassCancellingScheduledFlowRuns,
+    BypassCancellingSuspendedFlowRuns,
     CacheInsertion,
     CacheRetrieval,
-    CopyPauseRescheduleToCancelling,
     CopyScheduledTime,
     EnforceCancellingToCancelledTransition,
     EnsureOnlyScheduledFlowsMarkedLate,
@@ -3199,15 +3199,17 @@ class TestPreventDuplicateTransitions:
         assert ctx.response_status == SetStateStatus.REJECT
 
 
-class TestCopyPauseRescheduleToCancelling:
-    async def test_pause_reschedule_copied_from_scheduled_to_cancelling(
+class TestBypassCancellingSuspendedFlowRuns:
+    async def test_rejects_cancelling_suspended_flow_and_sets_to_cancelled(
         self,
         session,
         initialize_orchestration,
     ):
-        initial_state_type = states.StateType.PAUSED
-        proposed_state_type = states.StateType.CANCELLING
-        intended_transition = (initial_state_type, proposed_state_type)
+        """Suspended flows should skip the cancelling state and be set immediately to cancelled
+        because they don't have infra to shut down.
+        """
+
+        intended_transition = (states.StateType.PAUSED, states.StateType.CANCELLING)
 
         ctx = await initialize_orchestration(
             session,
@@ -3216,14 +3218,14 @@ class TestCopyPauseRescheduleToCancelling:
             initial_details={"pause_reschedule": True},
         )
 
-        async with CopyPauseRescheduleToCancelling(ctx, *intended_transition) as ctx:
+        async with BypassCancellingSuspendedFlowRuns(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.validated_state_type == proposed_state_type
-        assert ctx.validated_state.state_details.pause_reschedule is True
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
 
     @pytest.mark.parametrize(
-        "proposed_state_type",
+        "initial_state_type",
         [
             states.StateType.COMPLETED,
             states.StateType.FAILED,
@@ -3232,14 +3234,16 @@ class TestCopyPauseRescheduleToCancelling:
             states.StateType.RUNNING,
         ],
     )
-    async def test_pause_reschedule_not_copied_for_other_transitions(
+    async def test_allows_transitions_to_running_or_terminal_states(
         self,
         session,
         initialize_orchestration,
-        proposed_state_type,
+        initial_state_type,
     ):
-        initial_state_type = states.StateType.PAUSED
-        intended_transition = (initial_state_type, proposed_state_type)
+        """All other transitions should be left alone by this policy."""
+
+        intended_transition = (initial_state_type, states.StateType.CANCELLING)
+
         ctx = await initialize_orchestration(
             session,
             "flow",
@@ -3247,8 +3251,8 @@ class TestCopyPauseRescheduleToCancelling:
             initial_details={"pause_reschedule": True},
         )
 
-        scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
-        async with scheduling_rule as ctx:
+        async with BypassCancellingSuspendedFlowRuns(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert await scheduling_rule.invalid()
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.CANCELLING

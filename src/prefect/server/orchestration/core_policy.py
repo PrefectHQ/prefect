@@ -58,7 +58,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
-            CopyPauseRescheduleToCancelling,
+            BypassCancellingSuspendedFlowRuns,
         ]
 
 
@@ -109,7 +109,7 @@ class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             AddUnknownResult,  # mark forced completions with an unknown result
-            CopyPauseRescheduleToCancelling,  # cancel suspended runs from the UI
+            BypassCancellingSuspendedFlowRuns,  # cancel suspended runs from the UI
         ]
 
 
@@ -1077,14 +1077,13 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
             )
 
 
-class CopyPauseRescheduleToCancelling(BaseOrchestrationRule):
+class BypassCancellingSuspendedFlowRuns(BaseOrchestrationRule):
     """
-    When using enhanced cancellation, a Runner is responsible for
-    handling the transition from `Cancelling` to `Cancelled`. In
-    the case of a `Suspended` flow run, the runner is no longer available
-    to handle the transition. This rule allows a worker to handle the
-    transition by including state details that the `Cancelling` state
-    was preceded by a `Suspended` state.
+    When using enhanced cancellation, a Runner is responsible for handling the
+    transition from `Cancelling` to `Cancelled`. In the case of a `Suspended`
+    or `Paused` and rescheduled flow run, the runner is no longer available to
+    handle the transition. If there is not infrastructure to clean up, we can
+    transition directly to `Cancelled`.
     """
 
     FROM_STATES = {StateType.PAUSED}
@@ -1097,4 +1096,7 @@ class CopyPauseRescheduleToCancelling(BaseOrchestrationRule):
         context: FlowOrchestrationContext,
     ) -> None:
         if initial_state.state_details.pause_reschedule:
-            proposed_state.state_details.pause_reschedule = True
+            await self.reject_transition(
+                state=states.Cancelled(),
+                reason="Suspended flow run has no infrastructure to terminate.",
+            )

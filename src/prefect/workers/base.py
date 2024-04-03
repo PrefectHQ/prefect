@@ -646,10 +646,7 @@ class BaseWorker(abc.ABC):
             )
             return
         else:
-            if (
-                configuration.is_using_a_runner
-                and not flow_run.state.state_details.pause_reschedule
-            ):
+            if configuration.is_using_a_runner:
                 self._logger.info(
                     f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
                     " using enhanced cancellation. A dedicated runner will handle"

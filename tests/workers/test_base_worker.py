@@ -1906,51 +1906,6 @@ class TestCancellation:
         assert "Skipping cancellation because flow run" in caplog.text
         assert "is using enhanced cancellation" in caplog.text
 
-    @pytest.mark.parametrize(
-        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
-    )
-    async def test_worker_cancel_run_proceeds_with_runner_from_suspended(
-        self,
-        prefect_client: PrefectClient,
-        worker_deployment_wq1,
-        caplog,
-        cancelling_constructor,
-        enable_enhanced_cancellation,
-        work_pool,
-    ):
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1.id,
-            state=cancelling_constructor(state_details={"pause_reschedule": True}),
-        )
-
-        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test")
-
-        async with WorkerTestImpl(
-            work_pool_name=work_pool.name, prefetch_seconds=10
-        ) as worker:
-            await worker.sync_with_backend()
-            worker.kill_infrastructure = AsyncMock()
-            worker.kill_infrastructure.side_effect = InfrastructureNotFound("Test!")
-            await worker.check_for_cancelled_flow_runs()
-            # Perform a second call to check that another cancellation attempt is not made
-            await worker.check_for_cancelled_flow_runs()
-            configuration = await worker._get_configuration(flow_run)
-
-        # Only awaited once
-        worker.kill_infrastructure.assert_awaited_once_with(
-            infrastructure_pid="test", configuration=configuration
-        )
-
-        # State name updated to prevent further attempts
-        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
-        assert post_flow_run.state.name == "Cancelled"
-
-        # Exception message is included with note on worker action
-        assert "Test! Marking flow run as cancelled." in caplog.text
-
-        # No need for state message update
-        assert post_flow_run.state.message is None
-
 
 async def test_get_flow_run_logger(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
