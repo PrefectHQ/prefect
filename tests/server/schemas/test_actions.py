@@ -50,7 +50,11 @@ class TestDeploymentCreate:
             ),
         ):
             deployment_create = DeploymentCreate(
-                **dict(name="test-deployment", worker_pool_queue_id=uuid4())
+                **dict(
+                    name="test-deployment",
+                    flow_id=uuid4(),
+                    worker_pool_queue_id=uuid4(),
+                )
             )
 
         assert getattr(deployment_create, "worker_pool_queue_id", 0) == 0
@@ -75,7 +79,7 @@ class TestDeploymentCreate:
             ),
         ):
             deployment_create = DeploymentCreate(
-                **dict(name="test-deployment", **kwargs)
+                **dict(name="test-deployment", flow_id=uuid4(), **kwargs)
             )
 
         for key in kwargs.keys():
@@ -85,6 +89,7 @@ class TestDeploymentCreate:
         # This should fail because my-field is required but has no default
         deployment_create = DeploymentCreate(
             name="test-deployment",
+            flow_id=uuid4(),
             job_variables={},
         )
 
@@ -176,7 +181,9 @@ class TestDeploymentUpdate:
                 "`work_queue_name` instead."
             ),
         ):
-            deployment_update = DeploymentCreate(**kwargs)
+            deployment_update = DeploymentCreate(
+                name="test-deployment", flow_id=uuid4(), **kwargs
+            )
 
         for key in kwargs.keys():
             assert getattr(deployment_update, key, 0) == 0
