@@ -167,7 +167,7 @@ class FlowRun(ORMBaseModel):
         description="The version of the flow executed in this flow run.",
         example="1.0",
     )
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -177,7 +177,7 @@ class FlowRun(ORMBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},
@@ -667,7 +667,7 @@ class BlockSchema(ORMBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
@@ -713,7 +713,9 @@ class BlockDocument(ORMBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
         default=None, description="The associated block schema"
@@ -823,7 +825,7 @@ class Configuration(ORMBaseModel):
     """An ORM representation of account info."""
 
     key: str = Field(default=..., description="Account info key")
-    value: dict = Field(default=..., description="Account info")
+    value: Dict[str, Any] = Field(default=..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):
