@@ -808,13 +808,15 @@ async def orchestrate_flow_run(
         flow_run = await client.read_flow_run(flow_run.id)
         try:
             with FlowRunContext(
-                **partial_flow_run_context.dict()
-                | {
-                    "flow_run": flow_run,
-                    "flow": flow,
-                    "client": client,
-                    "parameters": parameters,
-                },
+                **{
+                    **partial_flow_run_context.dict(),
+                    **{
+                        "flow_run": flow_run,
+                        "flow": flow,
+                        "client": client,
+                        "parameters": parameters,
+                    },
+                }
             ) as flow_run_context:
                 # update flow run name
                 if not run_name_set and flow.flow_run_name:

@@ -70,9 +70,11 @@ class OrionPackager(Packager):
         )._save(is_anonymous=True)
 
         return OrionPackageManifest(
-            **self.base_manifest(flow).dict()
-            | {
-                "serializer": self.serializer,
-                "block_document_id": block_document_id,
+            **{
+                **self.base_manifest(flow).dict(),
+                **{
+                    "serializer": self.serializer,
+                    "block_document_id": block_document_id,
+                },
             }
         )

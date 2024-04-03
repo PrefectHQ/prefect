@@ -106,10 +106,12 @@ class DockerPackager(Packager):
             )
 
         return DockerPackageManifest(
-            **self.base_manifest(flow).dict()
-            | {
-                "image": image_reference,
-                "image_flow_location": self.image_flow_location,
+            **{
+                **self.base_manifest(flow).dict(),
+                **{
+                    "image": image_reference,
+                    "image_flow_location": self.image_flow_location,
+                },
             }
         )
 

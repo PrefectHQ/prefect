@@ -81,10 +81,12 @@ class FilePackager(Packager):
         )
 
         return FilePackageManifest(
-            **self.base_manifest(flow).dict()
-            | {
-                "serializer": self.serializer,
-                "filesystem_id": filesystem_id,
-                "key": key,
+            **{
+                **self.base_manifest(flow).dict(),
+                **{
+                    "serializer": self.serializer,
+                    "filesystem_id": filesystem_id,
+                    "key": key,
+                },
             }
         )
