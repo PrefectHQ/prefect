@@ -19,11 +19,14 @@ else:
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
+    set_default_scheduled_time,
     set_deployment_schedules,
+    validate_cache_key_length,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
@@ -36,6 +39,7 @@ from prefect.server.utilities.schemas.transformations import (
     FieldFrom,
     copy_model_fields,
 )
+from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
 
 
@@ -131,7 +135,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -229,7 +232,6 @@ class DeploymentCreate(ActionBaseModel):
         return validate_parameter_openapi_schema(value, values)
 
 
-@copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
@@ -301,28 +303,43 @@ class DeploymentUpdate(ActionBaseModel):
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
-@copy_model_fields
 class FlowRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run."""
 
-    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
+    name: Optional[str] = Field(None)
+    flow_version: Optional[str] = Field(None)
+    parameters: dict = Field(default_factory=dict)
+    empirical_policy: schemas.core.FlowRunPolicy = Field(
+        default_factory=schemas.core.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    infrastructure_pid: Optional[str] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(None)
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class StateCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a new state."""
 
-    type: schemas.states.StateType = FieldFrom(schemas.states.State)
-    name: Optional[str] = FieldFrom(schemas.states.State)
-    message: Optional[str] = FieldFrom(schemas.states.State)
-    data: Optional[Any] = FieldFrom(schemas.states.State)
-    state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
+    type: schemas.states.StateType = Field(
+        default=..., description="The type of the state to create"
+    )
+    name: Optional[str] = Field(
+        default=None, description="The name of the state to create"
+    )
+    message: Optional[str] = Field(
+        default=None, description="The message of the state to create"
+    )
+    data: Optional[Any] = Field(
+        default=None, description="The data of the state to create"
+    )
+    state_details: schemas.states.StateDetails = Field(
+        default_factory=schemas.states.StateDetails,
+        description="The details of the state to create",
+    )
 
     # DEPRECATED
 
@@ -333,8 +350,15 @@ class StateCreate(ActionBaseModel):
     )
     id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
 
+    @validator("name", always=True)
+    def default_name_from_type(cls, v, *, values, **kwargs):
+        return get_or_create_state_name(v, values)
 
-@copy_model_fields
+    @root_validator
+    def default_scheduled_start_time(cls, values):
+        return set_default_scheduled_time(cls, values)
+
+
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
@@ -343,15 +367,42 @@ class TaskRunCreate(ActionBaseModel):
         default=None, description="The state of the task run to create"
     )
 
-    name: str = FieldFrom(schemas.core.TaskRun)
-    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.TaskRun)
-    task_key: str = FieldFrom(schemas.core.TaskRun)
-    dynamic_key: str = FieldFrom(schemas.core.TaskRun)
-    cache_key: Optional[str] = FieldFrom(schemas.core.TaskRun)
-    cache_expiration: Optional[DateTimeTZ] = FieldFrom(schemas.core.TaskRun)
-    task_version: Optional[str] = FieldFrom(schemas.core.TaskRun)
-    empirical_policy: schemas.core.TaskRunPolicy = FieldFrom(schemas.core.TaskRun)
-    tags: List[str] = FieldFrom(schemas.core.TaskRun)
+    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
+    )
+    task_key: str = Field(
+        default=..., description="A unique identifier for the task being run."
+    )
+    dynamic_key: str = Field(
+        default=...,
+        description=(
+            "A dynamic key used to differentiate between multiple runs of the same task"
+            " within the same flow run."
+        ),
+    )
+    cache_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "An optional cache key. If a COMPLETED state associated with this cache key"
+            " is found, the cached COMPLETED state will be used instead of executing"
+            " the task run."
+        ),
+    )
+    cache_expiration: Optional[DateTimeTZ] = Field(
+        default=None, description="Specifies when the cached state should expire."
+    )
+    task_version: Optional[str] = Field(
+        default=None, description="The version of the task being run."
+    )
+    empirical_policy: schemas.core.TaskRunPolicy = Field(
+        default_factory=schemas.core.TaskRunPolicy,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags for the task run.",
+        example=["tag-1", "tag-2"],
+    )
     task_inputs: Dict[
         str,
         List[
@@ -361,17 +412,30 @@ class TaskRunCreate(ActionBaseModel):
                 schemas.core.Constant,
             ]
         ],
-    ] = FieldFrom(schemas.core.TaskRun)
+    ] = Field(
+        default_factory=dict,
+        description="The inputs to the task run.",
+    )
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
+
+    @validator("cache_key")
+    def validate_cache_key(cls, cache_key):
+        return validate_cache_key_length(cache_key)
 
 
-@copy_model_fields
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: str = FieldFrom(schemas.core.TaskRun)
+    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run."""
 
@@ -380,16 +444,42 @@ class FlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: str = FieldFrom(schemas.core.FlowRun)
-    flow_id: UUID = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    context: dict = FieldFrom(schemas.core.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    name: str = Field(
+        default_factory=lambda: generate_slug(2),
+        description=(
+            "The name of the flow run. Defaults to a random slug if not specified."
+        ),
+        example="my-flow-run",
+    )
+    flow_id: UUID = Field(default=..., description="The id of the flow being run.")
+    flow_version: Optional[str] = Field(
+        default=None, description="The version of the flow being run."
+    )
+    parameters: dict = Field(
+        default_factory=dict,
+    )
+    context: dict = Field(
+        default_factory=dict,
+        description="The context of the flow run.",
+    )
+    parent_task_run_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: schemas.core.FlowRunPolicy = Field(
+        default_factory=schemas.core.FlowRunPolicy,
+        description="The empirical policy for the flow run.",
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags for the flow run.",
+        example=["tag-1", "tag-2"],
+    )
+    idempotency_key: Optional[str] = Field(
+        None,
+        description=(
+            "An optional idempotency key. If a flow run with the same idempotency key"
+            " has already been created, the existing flow run will be returned."
+        ),
+    )
 
     # DEPRECATED
 
@@ -410,7 +500,6 @@ class FlowRunCreate(ActionBaseModel):
         return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class DeploymentFlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run from a deployment."""
 
@@ -419,16 +508,39 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    context: dict = FieldFrom(schemas.core.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
+    name: str = Field(
+        default_factory=lambda: generate_slug(2),
+        description=(
+            "The name of the flow run. Defaults to a random slug if not specified."
+        ),
+        example="my-flow-run",
+    )
+    parameters: dict = Field(default_factory=dict)
+    context: dict = Field(default_factory=dict)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: schemas.core.FlowRunPolicy = Field(
+        default_factory=schemas.core.FlowRunPolicy,
+        description="The empirical policy for the flow run.",
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags for the flow run.",
+        example=["tag-1", "tag-2"],
+    )
+    idempotency_key: Optional[str] = Field(
+        None,
+        description=(
+            "An optional idempotency key. If a flow run with the same idempotency key"
+            " has already been created, the existing flow run will be returned."
+        ),
+    )
+    parent_task_run_id: Optional[UUID] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(None)
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
 @copy_model_fields
