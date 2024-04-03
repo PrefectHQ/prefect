@@ -225,7 +225,7 @@ class ParameterSchema(pydantic.BaseModel):
     type: Literal["object"] = "object"
     properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
     required: List[str] = None
-    definitions: Dict[str, Any] = None
+    definitions: Optional[Dict[str, Any]] = None
 
     def dict(self, *args, **kwargs):
         """Exclude `None` fields by default to comply with
