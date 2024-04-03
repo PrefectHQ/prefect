@@ -1080,7 +1080,7 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
 class BypassCancellingSuspendedFlowRuns(BaseOrchestrationRule):
     """
     In the case of a `Suspended` or `Paused` and rescheduled flow run, the flow run is
-    exited in infrastrucure is torn down. If there is not infrastructure to clean up,
+    exited and infrastrucure is torn down. If there is not infrastructure to clean up,
     we can transition directly to `Cancelled`.
     """
 
