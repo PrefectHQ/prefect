@@ -275,6 +275,26 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.FlowRunInput
 
     @property
+    def Automation(self):
+        """An automation model"""
+        return self.orm.Automation
+
+    @property
+    def AutomationBucket(self):
+        """An automation bucket model"""
+        return self.orm.AutomationBucket
+
+    @property
+    def AutomationRelatedResource(self):
+        """An automation related resource model"""
+        return self.orm.AutomationRelatedResource
+
+    @property
+    def CompositeTriggerChildFiring(self):
+        """A model capturing a composite trigger's child firing"""
+        return self.orm.CompositeTriggerChildFiring
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns

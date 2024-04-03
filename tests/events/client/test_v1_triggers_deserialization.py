@@ -39,11 +39,11 @@ class V1Trigger(PrefectBaseModel):
     """A copy of the original events.automations.Trigger class for reference."""
 
     match: ResourceSpecification = Field(  # pragma: no branch
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for resources which this Automation will match.",
     )
     match_related: ResourceSpecification = Field(  # pragma: no branch
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for related resources which this Automation will match.",
     )
 

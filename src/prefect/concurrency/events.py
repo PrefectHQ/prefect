@@ -20,8 +20,8 @@ def _emit_concurrency_event(
     }
 
     related = [
-        RelatedResource(
-            __root__={
+        RelatedResource.parse_obj(
+            {
                 "prefect.resource.id": f"prefect.concurrency-limit.{limit.id}",
                 "prefect.resource.role": "concurrency-limit",
             }
