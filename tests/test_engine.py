@@ -89,7 +89,6 @@ from prefect.task_runners import (
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
-from prefect.utilities.pydantic import PartialModel
 
 
 @pytest.fixture
@@ -2175,8 +2174,7 @@ class TestBeginTaskRun:
 class TestOrchestrateFlowRun:
     @pytest.fixture
     def partial_flow_run_context(self, result_factory, local_filesystem):
-        return PartialModel(
-            FlowRunContext,
+        return FlowRunContext.construct(
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
             result_factory=result_factory,
