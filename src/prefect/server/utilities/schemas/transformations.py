@@ -1,6 +1,7 @@
 """
 Utilities for creating and working with Prefect REST API schemas.
 """
+
 import copy
 from dataclasses import dataclass
 from typing import Any, Optional, Type, TypeVar

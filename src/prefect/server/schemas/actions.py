@@ -12,9 +12,9 @@ import jsonschema
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, root_validator, validator
+    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
 else:
-    from pydantic import Field, HttpUrl, root_validator, validator
+    from pydantic import Field, HttpUrl, conint, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
@@ -27,6 +27,8 @@ from prefect._internal.schemas.validators import (
     set_default_scheduled_time,
     set_deployment_schedules,
     validate_cache_key_length,
+    validate_max_metadata_length,
+    validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
@@ -38,8 +40,8 @@ from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
 from prefect.server.utilities.schemas.transformations import (
     FieldFrom,
-    copy_model_fields,
 )
+from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
 
@@ -758,23 +760,32 @@ def validate_base_job_template(v):
     return v
 
 
-@copy_model_fields
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = FieldFrom(schemas.core.WorkPool)
-    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
+    name: str = Field(..., description="The name of the work pool.")
+    description: Optional[str] = Field(None, description="The work pool description.")
     type: str = Field(description="The work pool type.", default="prefect-agent")
-    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkPool)
-    is_paused: bool = FieldFrom(schemas.core.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
+    base_job_template: Dict[str, Any] = Field(
+        default_factory=dict, description="The work pool's base job template."
+    )
+    is_paused: bool = Field(
+        default=False,
+        description="Pausing the work pool stops the delivery of all work.",
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        default=None, description="A concurrency limit for the work pool."
+    )
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
-@copy_model_fields
+
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
@@ -787,17 +798,26 @@ class WorkPoolUpdate(ActionBaseModel):
         validate_base_job_template
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
-@copy_model_fields
+
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work queue."""
 
-    name: str = FieldFrom(schemas.core.WorkQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = Field(
-        default=None,
+    name: str = Field(default=..., description="The name of the work queue.")
+    description: Optional[str] = Field(
+        default="", description="An optional description for the work queue."
+    )
+    is_paused: bool = Field(
+        default=False, description="Whether or not the work queue is paused."
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        None, description="The work queue's concurrency limit."
+    )
+    priority: Optional[conint(ge=1)] = Field(
+        None,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
         ),
@@ -811,17 +831,22 @@ class WorkQueueCreate(ActionBaseModel):
         deprecated=True,
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
-@copy_model_fields
+
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work queue."""
 
-    name: str = FieldFrom(schemas.core.WorkQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
+    name: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    is_paused: bool = Field(
+        default=False, description="Whether or not the work queue is paused."
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(None)
+    priority: Optional[conint(ge=1)] = Field(None)
+    last_polled: Optional[DateTimeTZ] = Field(None)
 
     # DEPRECATED
 
@@ -832,69 +857,153 @@ class WorkQueueUpdate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class FlowRunNotificationPolicyCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run notification policy."""
 
-    is_active: bool = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    state_names: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    tags: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    block_document_id: UUID = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+    is_active: bool = Field(
+        default=True, description="Whether the policy is currently active"
+    )
+    state_names: List[str] = Field(
+        default=..., description="The flow run states that trigger notifications"
+    )
+    tags: List[str] = Field(
+        default=...,
+        description="The flow run tags that trigger notifications (set [] to disable)",
+    )
+    block_document_id: UUID = Field(
+        default=..., description="The block document ID used for sending notifications"
+    )
+    message_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "A templatable notification message. Use {braces} to add variables."
+            " Valid variables include:"
+            f" {listrepr(sorted(schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
+        ),
+        example=(
+            "Flow run {flow_run_name} with id {flow_run_id} entered state"
+            " {flow_run_state_name}."
+        ),
+    )
+
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        return validate_message_template_variables(v)
 
 
-@copy_model_fields
 class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
-    is_active: Optional[bool] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    state_names: Optional[List[str]] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    tags: Optional[List[str]] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    block_document_id: Optional[UUID] = FieldFrom(
-        schemas.core.FlowRunNotificationPolicy
-    )
-    message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+    is_active: Optional[bool] = Field(None)
+    state_names: Optional[List[str]] = Field(None)
+    tags: Optional[List[str]] = Field(None)
+    block_document_id: Optional[UUID] = Field(None)
+    message_template: Optional[str] = Field(None)
+
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        return validate_message_template_variables(v)
 
 
-@copy_model_fields
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = FieldFrom(schemas.core.Artifact)
-    type: Optional[str] = FieldFrom(schemas.core.Artifact)
-    description: Optional[str] = FieldFrom(schemas.core.Artifact)
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
-    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
-    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+    key: Optional[str] = Field(
+        default=None, description="An optional unique reference key for this artifact."
+    )
+    type: Optional[str] = Field(
+        default=None,
+        description=(
+            "An identifier that describes the shape of the data field. e.g. 'result',"
+            " 'table', 'markdown'"
+        ),
+    )
+    description: Optional[str] = Field(
+        default=None, description="A markdown-enabled description of the artifact."
+    )
+    data: Optional[Union[Dict[str, Any], Any]] = Field(
+        default=None,
+        description=(
+            "Data associated with the artifact, e.g. a result.; structure depends on"
+            " the artifact type."
+        ),
+    )
+    metadata_: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "User-defined artifact metadata. Content must be string key and value"
+            " pairs."
+        ),
+    )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run associated with the artifact."
+    )
+    task_run_id: Optional[UUID] = Field(
+        default=None, description="The task run associated with the artifact."
+    )
+
+    @classmethod
+    def from_result(cls, data: Any):
+        artifact_info = dict()
+        if isinstance(data, dict):
+            artifact_key = data.pop("artifact_key", None)
+            if artifact_key:
+                artifact_info["key"] = artifact_key
+
+            artifact_type = data.pop("artifact_type", None)
+            if artifact_type:
+                artifact_info["type"] = artifact_type
+
+            description = data.pop("artifact_description", None)
+            if description:
+                artifact_info["description"] = description
+
+        return cls(data=data, **artifact_info)
+
+    _validate_metadata_length = validator("metadata_")(validate_max_metadata_length)
 
     _validate_artifact_format = validator("key", allow_reuse=True)(
         validate_artifact_key
     )
 
 
-@copy_model_fields
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
-    description: Optional[str] = FieldFrom(schemas.core.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
+    description: Optional[str] = Field(None)
+    metadata_: Optional[Dict[str, str]] = Field(None)
+
+    _validate_metadata_length = validator("metadata_", allow_reuse=True)(
+        validate_max_metadata_length
+    )
 
 
-@copy_model_fields
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
-    name: str = FieldFrom(schemas.core.Variable)
-    value: str = FieldFrom(schemas.core.Variable)
-    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+    name: str = Field(
+        default=...,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: str = Field(
+        default=...,
+        description="The value of the variable",
+        example="my-value",
+        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
+    )
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
 
 
-@copy_model_fields
 class VariableUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a Variable."""
 
@@ -910,7 +1019,11 @@ class VariableUpdate(ActionBaseModel):
         example="my-value",
         max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
-    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+    tags: Optional[List[str]] = Field(
+        default=None,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
+    )
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
