@@ -32,6 +32,39 @@ class TestFieldValidator:
         USE_V2_MODELS,
         reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
     )
+    def test_cross_field_dependency_in_v1(self):
+        """
+        Validates that `field_validator` properly enables cross-field dependencies in Pydantic V1 models,
+        allowing `fieldd`'s validation to depend on `fieldc`'s value. Specifically tests that `fieldd` must
+        be 'allowed' when `fieldc` is 'special'.
+        """
+
+        class TestModel4(BaseModel):
+            fieldc: str
+            fieldd: str
+
+            @field_validator("fieldd")
+            def fieldd_depends_on_fieldc(cls, v, values):
+                if (
+                    "fieldc" in values
+                    and values["fieldc"] == "special"
+                    and v != "allowed"
+                ):
+                    raise ValueError(
+                        "fieldd must be 'allowed' when fieldc is 'special'"
+                    )
+                return v
+
+        with pytest.raises(ValidationError):
+            TestModel4(fieldc="special", fieldd="not_allowed")
+
+        model = TestModel4(fieldc="special", fieldd="allowed")
+        assert model.fieldd == "allowed"
+
+    @pytest.mark.skipif(
+        USE_V2_MODELS,
+        reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
+    )
     def test_cross_field_validation_in_v1_using_values(self):
         """
         Verifies cross-field validation in Pydantic V1 by using the `values` dictionary
@@ -99,36 +132,3 @@ class TestFieldValidator:
 
         model = TestModel3(field3="special", field4="allowed")
         assert model.field4 == "allowed"
-
-    @pytest.mark.skipif(
-        USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
-    )
-    def test_cross_field_dependency_in_v1(self):
-        """
-        Validates that `field_validator` properly enables cross-field dependencies in Pydantic V1 models,
-        allowing `fieldd`'s validation to depend on `fieldc`'s value. Specifically tests that `fieldd` must
-        be 'allowed' when `fieldc` is 'special'.
-        """
-
-        class TestModel4(BaseModel):
-            fieldc: str
-            fieldd: str
-
-            @field_validator("fieldd")
-            def fieldd_depends_on_fieldc(cls, v, values):
-                if (
-                    "fieldc" in values
-                    and values["fieldc"] == "special"
-                    and v != "allowed"
-                ):
-                    raise ValueError(
-                        "fieldd must be 'allowed' when fieldc is 'special'"
-                    )
-                return v
-
-        with pytest.raises(ValidationError):
-            TestModel4(fieldc="special", fieldd="not_allowed")
-
-        model = TestModel4(fieldc="special", fieldd="allowed")
-        assert model.fieldd == "allowed"
