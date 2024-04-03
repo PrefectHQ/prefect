@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 
 For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
+
 import os
 import sys
 import warnings
@@ -33,9 +34,9 @@ import pendulum
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr
+    from pydantic.v1 import Field, PrivateAttr
 else:
-    from pydantic import BaseModel, Field, PrivateAttr
+    from pydantic import Field, PrivateAttr
 
 import prefect.logging
 import prefect.logging.configuration
@@ -46,6 +47,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
+from prefect.pydantic import BaseModel
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
