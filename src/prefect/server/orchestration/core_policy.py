@@ -1079,11 +1079,9 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
 
 class BypassCancellingSuspendedFlowRuns(BaseOrchestrationRule):
     """
-    When using enhanced cancellation, a Runner is responsible for handling the
-    transition from `Cancelling` to `Cancelled`. In the case of a `Suspended`
-    or `Paused` and rescheduled flow run, the runner is no longer available to
-    handle the transition. If there is not infrastructure to clean up, we can
-    transition directly to `Cancelled`.
+    In the case of a `Suspended` or `Paused` and rescheduled flow run, the flow run is
+    exited in infrastrucure is torn down. If there is not infrastructure to clean up,
+    we can transition directly to `Cancelled`.
     """
 
     FROM_STATES = {StateType.PAUSED}
