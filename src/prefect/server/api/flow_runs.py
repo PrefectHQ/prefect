@@ -3,7 +3,7 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import orjson
@@ -53,7 +53,7 @@ async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -333,7 +333,7 @@ async def resume_flow_run(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -540,7 +540,7 @@ async def set_flow_run_state(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),

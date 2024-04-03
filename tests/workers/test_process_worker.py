@@ -3,6 +3,7 @@ import socket
 import sys
 import uuid
 from pathlib import Path
+from typing import Any, Dict, Optional
 from unittest.mock import call
 from uuid import UUID
 
@@ -116,12 +117,12 @@ def mock_open_process(monkeypatch):
         yield anyio.open_process
 
 
-def patch_client(monkeypatch, overrides: dict = None):
+def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
     """Patches client to return a mock deployment and mock flow with the specified overrides"""
 
     class MockDeployment(BaseModel):
         id: UUID = uuid.uuid4()
-        infra_overrides: dict = overrides or {}
+        infra_overrides: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
         updated: pendulum.DateTime = pendulum.now("utc")
 

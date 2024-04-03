@@ -199,7 +199,13 @@ class State(StateBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
+    def copy(
+        self,
+        *,
+        update: Optional[Dict[str, Any]] = None,
+        reset_fields: bool = False,
+        **kwargs,
+    ):
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
