@@ -25,7 +25,7 @@ def event1() -> Event:
     return Event(
         occurred=pendulum.now("UTC"),
         event="was.radical",
-        resource=Resource(__root__={"prefect.resource.id": "my.resources"}),
+        resource=Resource.parse_obj({"prefect.resource.id": "my.resources"}),
         payload={"hello": "world"},
         id=uuid4(),
     )
@@ -36,7 +36,7 @@ def event2() -> Event:
     return Event(
         occurred=pendulum.now("UTC"),
         event="was.super.awesome",
-        resource=Resource(__root__={"prefect.resource.id": "my.resources"}),
+        resource=Resource.parse_obj({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},
         id=uuid4(),
     )

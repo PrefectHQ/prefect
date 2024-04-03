@@ -2,7 +2,7 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Hashable, List, Tuple, Union
+from typing import Dict, Hashable, List, Tuple, Union, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -13,10 +13,18 @@ from sqlalchemy.orm import (
     declarative_mixin,
     declared_attr,
 )
+from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.functions import coalesce
 
 import prefect
 import prefect.server.schemas as schemas
+from prefect.server.events.actions import ActionTypes
+from prefect.server.events.schemas.automations import (
+    AutomationSort,
+    Firing,
+    TriggerTypes,
+)
+from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.database import (
     JSON,
     UUID,
@@ -1390,6 +1398,140 @@ class ORMCsrfToken:
     expiration = sa.Column(Timestamp(), nullable=False)
 
 
+@declarative_mixin
+class ORMAutomation:
+    name = sa.Column(sa.String, nullable=False)
+    description = sa.Column(sa.String, nullable=False, default="")
+
+    enabled = sa.Column(sa.Boolean, nullable=False, server_default="1", default=True)
+
+    trigger = sa.Column(Pydantic(TriggerTypes), nullable=False)
+
+    actions = sa.Column(Pydantic(List[ActionTypes]), nullable=False)
+    actions_on_trigger = sa.Column(
+        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+    )
+    actions_on_resolve = sa.Column(
+        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+    )
+
+    @declared_attr
+    def related_resources(cls):
+        return sa.orm.relationship(
+            "AutomationRelatedResource", back_populates="automation", lazy="raise"
+        )
+
+    @classmethod
+    def sort_expression(cls, value: AutomationSort) -> ColumnElement:
+        """Return an expression used to sort Automations"""
+        sort_mapping = {
+            AutomationSort.CREATED_DESC: cls.created.desc(),
+            AutomationSort.UPDATED_DESC: cls.updated.desc(),
+            AutomationSort.NAME_ASC: cast(sa.Column, cls.name).asc(),
+            AutomationSort.NAME_DESC: cast(sa.Column, cls.name).desc(),
+        }
+        return sort_mapping[value]
+
+
+@declarative_mixin
+class ORMAutomationBucket:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_automation_bucket__automation_id__bucketing_key",
+                "automation_id",
+                "bucketing_key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_automation_bucket__automation_id__end",
+                "automation_id",
+                "end",
+            ),
+        )
+
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
+
+    trigger_id = sa.Column(UUID, nullable=True)
+
+    bucketing_key = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    last_event = sa.Column(Pydantic(ReceivedEvent), nullable=True)
+
+    start = sa.Column(Timestamp(), nullable=False)
+    end = sa.Column(Timestamp(), nullable=False)
+
+    count = sa.Column(sa.Integer, nullable=False)
+
+    last_operation = sa.Column(sa.String, nullable=True)
+
+    triggered_at = sa.Column(Timestamp(), nullable=False)
+
+
+@declarative_mixin
+class ORMAutomationRelatedResource:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_automation_related_resource__automation_id__resource_id",
+                "automation_id",
+                "resource_id",
+                unique=True,
+            ),
+        )
+
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
+
+    resource_id = sa.Column(sa.String, index=True)
+    automation_owned_by_resource = sa.Column(
+        sa.Boolean, nullable=False, default=False, server_default="0"
+    )
+
+    @declared_attr
+    def automation(cls):
+        return sa.orm.relationship(
+            "Automation", back_populates="related_resources", lazy="raise"
+        )
+
+
+@declarative_mixin
+class ORMCompositeTriggerChildFiring:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_composite_trigger_child_firing__a_id__pt_id__ct__id",
+                "automation_id",
+                "parent_trigger_id",
+                "child_trigger_id",
+                unique=True,
+            ),
+        )
+
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
+
+    parent_trigger_id = sa.Column(UUID(), nullable=False)
+
+    child_trigger_id = sa.Column(UUID(), nullable=False)
+    child_firing_id = sa.Column(UUID(), nullable=False)
+    child_fired_at = sa.Column(Timestamp())
+    child_firing = sa.Column(Pydantic(Firing), nullable=False)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1452,6 +1594,10 @@ class BaseORMConfiguration(ABC):
         variable_mixin=ORMVariable,
         csrf_token_mixin=ORMCsrfToken,
         flow_run_input_mixin=ORMFlowRunInput,
+        automation_mixin=ORMAutomation,
+        automation_bucket_mixin=ORMAutomationBucket,
+        automation_related_resource_mixin=ORMAutomationRelatedResource,
+        composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1508,6 +1654,10 @@ class BaseORMConfiguration(ABC):
             variable_mixin=variable_mixin,
             flow_run_input_mixin=flow_run_input_mixin,
             csrf_token_mixin=csrf_token_mixin,
+            automation_mixin=automation_mixin,
+            automation_bucket_mixin=automation_bucket_mixin,
+            automation_related_resource_mixin=automation_related_resource_mixin,
+            composite_trigger_child_firing_mixin=composite_trigger_child_firing_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1560,6 +1710,10 @@ class BaseORMConfiguration(ABC):
         variable_mixin=ORMVariable,
         csrf_token_mixin=ORMCsrfToken,
         flow_run_input_mixin=ORMFlowRunInput,
+        automation_mixin=ORMAutomation,
+        automation_bucket_mixin=ORMAutomationBucket,
+        automation_related_resource_mixin=ORMAutomationRelatedResource,
+        composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1653,6 +1807,20 @@ class BaseORMConfiguration(ABC):
         class FlowRunInput(flow_run_input_mixin, self.Base):
             pass
 
+        class Automation(automation_mixin, self.Base):
+            pass
+
+        class AutomationBucket(automation_bucket_mixin, self.Base):
+            pass
+
+        class AutomationRelatedResource(automation_related_resource_mixin, self.Base):
+            pass
+
+        class CompositeTriggerChildFiring(
+            composite_trigger_child_firing_mixin, self.Base
+        ):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1682,6 +1850,10 @@ class BaseORMConfiguration(ABC):
         self.Variable = Variable
         self.FlowRunInput = FlowRunInput
         self.CsrfToken = CsrfToken
+        self.Automation = Automation
+        self.AutomationBucket = AutomationBucket
+        self.AutomationRelatedResource = AutomationRelatedResource
+        self.CompositeTriggerChildFiring = CompositeTriggerChildFiring
 
     @property
     @abstractmethod

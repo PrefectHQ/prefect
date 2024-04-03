@@ -284,4 +284,4 @@ class ResourceSpecification(PrefectBaseModel):
         return len(self.__root__)
 
     def deepcopy(self) -> "ResourceSpecification":
-        return ResourceSpecification(__root__=copy.deepcopy(self.__root__))
+        return ResourceSpecification.parse_obj(copy.deepcopy(self.__root__))

@@ -116,10 +116,10 @@ class AssertingEventsClient(EventsClient):
             event for client in cls.all for event in reversed(client.events)
         ]
 
-        resource_spec = ResourceSpecification(__root__=resource) if resource else None
+        resource_spec = ResourceSpecification.parse_obj(resource) if resource else None
         related_specs = (
             [
-                ResourceSpecification(__root__=related_resource)
+                ResourceSpecification.parse_obj(related_resource)
                 for related_resource in related
             ]
             if related
@@ -215,3 +215,7 @@ class PrefectServerEventsClient(EventsClient):
         received_event = event.receive()
         await self._publisher.publish_event(event)
         return received_event
+
+
+class PrefectServerEventsAPIClient:
+    pass

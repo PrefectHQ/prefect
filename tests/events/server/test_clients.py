@@ -7,13 +7,12 @@ import pendulum
 import pytest
 from pendulum.datetime import DateTime
 
-from prefect.events.schemas.events import RelatedResource
 from prefect.server.events.clients import (
     AssertingEventsClient,
     NullEventsClient,
     PrefectServerEventsClient,
 )
-from prefect.server.events.schemas.events import Event, ReceivedEvent
+from prefect.server.events.schemas.events import Event, ReceivedEvent, RelatedResource
 from prefect.server.utilities.messaging import CapturingPublisher
 
 
@@ -94,15 +93,15 @@ def example_event_3(start_of_test: pendulum.DateTime) -> Event:
             "wonder-type": "amazement",
         },
         related=[
-            RelatedResource(
-                __root__={
+            RelatedResource.parse_obj(
+                {
                     "prefect.resource.id": "something-valuable",
                     "prefect.resource.role": "shiny",
                     "name": "gold",
                 }
             ),
-            RelatedResource(
-                __root__={
+            RelatedResource.parse_obj(
+                {
                     "prefect.resource.id": "something-glittery",
                     "prefect.resource.role": "sparkle",
                     "name": "diamond",
