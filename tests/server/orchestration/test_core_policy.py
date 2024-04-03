@@ -22,6 +22,7 @@ from prefect.server.orchestration.core_policy import (
     BypassCancellingScheduledFlowRuns,
     CacheInsertion,
     CacheRetrieval,
+    CopyPauseRescheduleToCancelling,
     CopyScheduledTime,
     EnforceCancellingToCancelledTransition,
     EnsureOnlyScheduledFlowsMarkedLate,
@@ -3196,3 +3197,58 @@ class TestPreventDuplicateTransitions:
 
         # states have the same transition id so the transition should be rejected
         assert ctx.response_status == SetStateStatus.REJECT
+
+
+class TestCopyPauseRescheduleToCancelling:
+    async def test_pause_reschedule_copied_from_scheduled_to_cancelling(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.CANCELLING
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_details={"pause_reschedule": True},
+        )
+
+        async with CopyPauseRescheduleToCancelling(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type == proposed_state_type
+        assert ctx.validated_state.state_details.pause_reschedule is True
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.COMPLETED,
+            states.StateType.FAILED,
+            states.StateType.CANCELLED,
+            states.StateType.CRASHED,
+            states.StateType.RUNNING,
+        ],
+    )
+    async def test_pause_reschedule_not_copied_for_other_transitions(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_details={"pause_reschedule": True},
+        )
+
+        scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
+        async with scheduling_rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert await scheduling_rule.invalid()
