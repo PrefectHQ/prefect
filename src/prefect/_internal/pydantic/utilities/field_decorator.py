@@ -14,7 +14,7 @@ FieldValidatorModes: TypeAlias = Literal["before", "after", "wrap", "plain"]
 T = TypeVar("T", bound=Callable)
 
 
-def my_field_validator(
+def field_validator(
     field: str,
     /,
     *fields: str,
@@ -117,7 +117,6 @@ def my_field_validator(
             # In Pydantic V1, `allow_reuse` is by default False, while in Pydantic V2, it is True
             # We default to False in Pydantic V1 to maintain backward compatibility
             # e.g. @validator("a", pre=True, allow_reuse=True) in Pydantic V1
-
             validator_kwargs = {
                 "pre": pre,
                 "always": always,

@@ -1,9 +1,8 @@
 import pytest
 from pydantic import BaseModel, ValidationError
 
-# Assuming you have a way to force USE_V2_MODELS to True for testing
 from prefect._internal.pydantic._flags import USE_V2_MODELS
-from prefect._internal.pydantic.utilities.field_decorator import my_field_validator
+from prefect._internal.pydantic.utilities.field_decorator import field_validator
 
 
 class TestFieldValidator:
@@ -17,7 +16,7 @@ class TestFieldValidator:
             a: int
             b: str
 
-            @my_field_validator("b", mode="after", allow_reuse=True)
+            @field_validator("b", mode="after", allow_reuse=True)
             def check_b(cls, v):
                 if "a" in v:
                     raise ValueError("'a' not allowed in b")
@@ -48,7 +47,7 @@ class TestFieldValidator:
             field1: int
             field2: str
 
-            @my_field_validator("field2", pre=True)
+            @field_validator("field2", pre=True)
             def validate_field2(cls, v, values):
                 if values["field1"] > 10 and "special" not in v:
                     raise ValueError("field2 must contain 'special' when field1 > 10")
@@ -83,7 +82,7 @@ class TestFieldValidator:
             field3: str
             field4: str
 
-            @my_field_validator("field4")
+            @field_validator("field4")
             def field4_depends_on_field3_info(cls, v, info):
                 if (
                     "field3" in info.data
@@ -113,7 +112,7 @@ class TestFieldValidator:
             fieldc: str
             fieldd: str
 
-            @my_field_validator("fieldd")
+            @field_validator("fieldd")
             def fieldd_depends_on_fieldc(cls, v, values):
                 if (
                     "fieldc" in values
