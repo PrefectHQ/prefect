@@ -12,9 +12,9 @@ import jsonschema
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
+    from pydantic.v1 import Field, HttpUrl, root_validator, validator
 else:
-    from pydantic import Field, root_validator, validator
+    from pydantic import Field, HttpUrl, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
@@ -30,6 +30,7 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
+    validate_parent_and_ref_diff,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
@@ -543,100 +544,137 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
-    name: str = FieldFrom(schemas.core.SavedSearch)
-    filters: List[schemas.core.SavedSearchFilter] = FieldFrom(schemas.core.SavedSearch)
+    name: str = Field(default=..., description="The name of the saved search.")
+    filters: List[schemas.core.SavedSearchFilter] = Field(
+        default_factory=list, description="The filter set for the saved search."
+    )
 
 
-@copy_model_fields
 class ConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a concurrency limit."""
 
-    tag: str = FieldFrom(schemas.core.ConcurrencyLimit)
-    concurrency_limit: int = FieldFrom(schemas.core.ConcurrencyLimit)
+    tag: str = Field(
+        default=..., description="A tag the concurrency limit is applied to."
+    )
+    concurrency_limit: int = Field(default=..., description="The concurrency limit.")
 
 
-@copy_model_fields
 class ConcurrencyLimitV2Create(ActionBaseModel):
     """Data used by the Prefect REST API to create a v2 concurrency limit."""
 
-    active: bool = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    name: str = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    limit: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    active_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    denied_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    slot_decay_per_second: float = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active: bool = Field(
+        default=True, description="Whether the concurrency limit is active."
+    )
+    name: str = Field(default=..., description="The name of the concurrency limit.")
+    limit: int = Field(default=..., description="The concurrency limit.")
+    active_slots: int = Field(default=0, description="The number of active slots.")
+    denied_slots: int = Field(default=0, description="The number of denied slots.")
+    slot_decay_per_second: float = Field(
+        default=0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
-@copy_model_fields
 class ConcurrencyLimitV2Update(ActionBaseModel):
     """Data used by the Prefect REST API to update a v2 concurrency limit."""
 
-    active: Optional[bool] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    name: Optional[str] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    limit: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    active_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    denied_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    slot_decay_per_second: Optional[float] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active: Optional[bool] = Field(None)
+    name: Optional[str] = Field(None)
+    limit: Optional[int] = Field(None)
+    active_slots: Optional[int] = Field(None)
+    denied_slots: Optional[int] = Field(None)
+    slot_decay_per_second: Optional[float] = Field(None)
 
 
-@copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
-    name: str = FieldFrom(schemas.core.BlockType)
-    slug: str = FieldFrom(schemas.core.BlockType)
-    logo_url: Optional[schemas.core.HttpUrl] = FieldFrom(schemas.core.BlockType)
-    documentation_url: Optional[schemas.core.HttpUrl] = FieldFrom(
-        schemas.core.BlockType
+    name: str = Field(default=..., description="A block type's name")
+    slug: str = Field(default=..., description="A block type's slug")
+    logo_url: Optional[HttpUrl] = Field(
+        default=None, description="Web URL for the block type's logo"
     )
-    description: Optional[str] = FieldFrom(schemas.core.BlockType)
-    code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+    documentation_url: Optional[HttpUrl] = Field(
+        default=None, description="Web URL for the block type's documentation"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="A short blurb about the corresponding block's intended use",
+    )
+    code_example: Optional[str] = Field(
+        default=None,
+        description="A code snippet demonstrating use of the corresponding block",
+    )
 
     # validators
     _validate_slug_format = validator("slug", allow_reuse=True)(
         validate_block_type_slug
     )
 
+    _validate_name_characters = validator("name", check_fields=False)(
+        raise_on_name_with_banned_characters
+    )
 
-@copy_model_fields
+
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[schemas.core.HttpUrl] = FieldFrom(schemas.core.BlockType)
-    documentation_url: Optional[schemas.core.HttpUrl] = FieldFrom(
-        schemas.core.BlockType
-    )
-    description: Optional[str] = FieldFrom(schemas.core.BlockType)
-    code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+    logo_url: Optional[schemas.core.HttpUrl] = Field(None)
+    documentation_url: Optional[schemas.core.HttpUrl] = Field(None)
+    description: Optional[str] = Field(None)
+    code_example: Optional[str] = Field(None)
 
     @classmethod
     def updatable_fields(cls) -> set:
         return get_class_fields_only(cls)
 
 
-@copy_model_fields
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = FieldFrom(schemas.core.BlockSchema)
-    block_type_id: Optional[UUID] = FieldFrom(schemas.core.BlockSchema)
-    capabilities: List[str] = FieldFrom(schemas.core.BlockSchema)
-    version: str = FieldFrom(schemas.core.BlockSchema)
+    fields: dict = Field(
+        default_factory=dict, description="The block schema's field schema"
+    )
+    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
+
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
+    )
+    version: str = Field(
+        default=schemas.core.DEFAULT_BLOCK_SCHEMA_VERSION,
+        description="Human readable identifier for the block schema",
+    )
 
 
-@copy_model_fields
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[str] = FieldFrom(schemas.core.BlockDocument)
-    data: dict = FieldFrom(schemas.core.BlockDocument)
-    block_schema_id: UUID = FieldFrom(schemas.core.BlockDocument)
-    block_type_id: UUID = FieldFrom(schemas.core.BlockDocument)
-    is_anonymous: bool = FieldFrom(schemas.core.BlockDocument)
+    name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The block document's name. Not required for anonymous block documents."
+        ),
+    )
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    block_schema_id: UUID = Field(default=..., description="A block schema ID")
+
+    block_type_id: UUID = Field(default=..., description="A block type ID")
+
+    is_anonymous: bool = Field(
+        default=False,
+        description=(
+            "Whether the block is anonymous (anonymous blocks are usually created by"
+            " Prefect automatically)"
+        ),
+    )
 
     _validate_name_format = validator("name", allow_reuse=True)(
         validate_block_document_name
@@ -647,37 +685,44 @@ class BlockDocumentCreate(ActionBaseModel):
         return validate_name_present_on_nonanonymous_blocks(values)
 
 
-@copy_model_fields
 class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block document."""
 
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = FieldFrom(schemas.core.BlockDocument)
+    data: dict = Field(default_factory=dict, description="The block document's data")
     merge_existing_data: bool = True
 
 
-@copy_model_fields
 class BlockDocumentReferenceCreate(ActionBaseModel):
     """Data used to create block document reference."""
 
-    id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    parent_block_document_id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    reference_block_document_id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    name: str = FieldFrom(schemas.core.BlockDocumentReference)
+    id: UUID = Field(default=..., description="The block document reference ID")
+    parent_block_document: Optional[schemas.core.BlockDocument] = Field(
+        default=None, description="The block document the reference is nested within"
+    )
+    reference_block_document_id: UUID = Field(
+        default=..., description="ID of the nested block document"
+    )
+    name: str = Field(
+        default=..., description="The name that the reference is nested under"
+    )
+
+    @root_validator
+    def validate_parent_and_ref_are_different(cls, values):
+        return validate_parent_and_ref_diff(values)
 
 
-@copy_model_fields
 class LogCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a log."""
 
-    name: str = FieldFrom(schemas.core.Log)
-    level: int = FieldFrom(schemas.core.Log)
-    message: str = FieldFrom(schemas.core.Log)
-    timestamp: DateTimeTZ = FieldFrom(schemas.core.Log)
-    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
-    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
+    name: str = Field(default=..., description="The logger name.")
+    level: int = Field(default=..., description="The log level.")
+    message: str = Field(default=..., description="The log message.")
+    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    flow_run_id: Optional[UUID] = Field(None)
+    task_run_id: Optional[UUID] = Field(None)
 
 
 def validate_base_job_template(v):
