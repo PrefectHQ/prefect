@@ -5,7 +5,6 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.dml import ReturningInsert
 
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
@@ -19,12 +18,16 @@ async def upsert_child_firing(
     session: AsyncSession,
     firing: Firing,
 ):
+    automation_id = firing.trigger.automation.id
+    parent_trigger_id = firing.trigger.parent.id
+    child_trigger_id = firing.trigger.id
+
     upsert = (
         postgresql.insert(db.CompositeTriggerChildFiring)
         .values(
-            automation_id=firing.trigger.automation.id,
-            parent_trigger_id=firing.trigger.parent.id,
-            child_trigger_id=firing.trigger.id,
+            automation_id=automation_id,
+            parent_trigger_id=parent_trigger_id,
+            child_trigger_id=child_trigger_id,
             child_firing_id=firing.id,
             child_fired_at=firing.triggered,
             child_firing=firing.dict(),
@@ -42,28 +45,19 @@ async def upsert_child_firing(
                 updated=pendulum.now("UTC"),
             ),
         )
-        .returning(*db.CompositeTriggerChildFiring.all_columns())
     )
 
-    return await _composite_trigger_child_firing_from_upsert(session, upsert)
+    await session.execute(upsert)
 
-
-@db_injector
-async def _composite_trigger_child_firing_from_upsert(
-    db: PrefectDBInterface, session: AsyncSession, upsert: ReturningInsert
-) -> ORMCompositeTriggerChildFiring:
-    result = await session.execute(upsert)
-    row = result.mappings().first()
-    assert row
-    return db.CompositeTriggerChildFiring(
-        id=row["id"],
-        automation_id=row["automation_id"],
-        parent_trigger_id=row["parent_trigger_id"],
-        child_trigger_id=row["child_trigger_id"],
-        child_firing_id=row["child_firing_id"],
-        child_fired_at=row["child_fired_at"],
-        child_firing=row["child_firing"],
+    result = await session.execute(
+        sa.select(db.CompositeTriggerChildFiring).filter(
+            db.CompositeTriggerChildFiring.automation_id == automation_id,
+            db.CompositeTriggerChildFiring.parent_trigger_id == parent_trigger_id,
+            db.CompositeTriggerChildFiring.child_trigger_id == child_trigger_id,
+        )
     )
+
+    return result.scalars().one()
 
 
 @db_injector

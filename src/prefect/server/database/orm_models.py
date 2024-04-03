@@ -13,6 +13,7 @@ from sqlalchemy.orm import (
     declarative_mixin,
     declared_attr,
 )
+from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.functions import coalesce
 
 import prefect
@@ -93,16 +94,6 @@ class ORMBase:
         onupdate=now(),
         server_onupdate=FetchedValue(),
     )
-
-    @classmethod
-    def all_columns(cls) -> List[sa.Column]:
-        """
-        Return a list of all columns defined on the model.
-        """
-        # SQLAlchemy 2.0+ will raise a `NotImplementedError` if you use
-        # `cls.__table__.columns` directly in a statement like `returning(...)` so
-        # we provide a wrapper that retrieves the attribute for each column instead
-        return [getattr(cls, column.name) for column in cls.__table__.columns]
 
 
 @declarative_mixin
@@ -1431,7 +1422,7 @@ class ORMAutomation:
         )
 
     @classmethod
-    def sort_expression(cls, value: AutomationSort) -> sa.ColumnElement:
+    def sort_expression(cls, value: AutomationSort) -> ColumnElement:
         """Return an expression used to sort Automations"""
         sort_mapping = {
             AutomationSort.CREATED_DESC: cls.created.desc(),
@@ -1460,10 +1451,11 @@ class ORMAutomationBucket:
             ),
         )
 
-    automation_id = sa.Column(
-        sa.ForeignKey("automation.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
 
     trigger_id = sa.Column(UUID, nullable=True)
 
@@ -1494,10 +1486,12 @@ class ORMAutomationRelatedResource:
             ),
         )
 
-    automation_id = sa.Column(
-        sa.ForeignKey("automation.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
+
     resource_id = sa.Column(sa.String, index=True)
     automation_owned_by_resource = sa.Column(
         sa.Boolean, nullable=False, default=False, server_default="0"
@@ -1524,10 +1518,11 @@ class ORMCompositeTriggerChildFiring:
             ),
         )
 
-    automation_id = sa.Column(
-        sa.ForeignKey("automation.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
 
     parent_trigger_id = sa.Column(UUID(), nullable=False)
 
