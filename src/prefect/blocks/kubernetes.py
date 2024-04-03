@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Dict, Type
 
 import yaml
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -23,6 +24,10 @@ else:
     kubernetes = lazy_import("kubernetes")
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the KubernetesClusterConfig block from prefect-kubernetes instead.",
+)
 class KubernetesClusterConfig(Block):
     """
     Stores configuration for interaction with Kubernetes clusters.
