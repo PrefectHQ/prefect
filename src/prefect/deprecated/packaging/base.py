@@ -4,20 +4,14 @@ This module is deprecated as of March 2024 and will not be available after Septe
 """
 
 import abc
-from typing import Generic, TypeVar
+from typing import Generic, Type, TypeVar
 
 from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
-
 from prefect.flows import Flow
+from prefect.pydantic import BaseModel
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.pydantic import PartialModel, add_type_dispatch
+from prefect.utilities.pydantic import add_type_dispatch
 
 D = TypeVar("D")
 
@@ -81,10 +75,9 @@ class Packager(BaseModel, abc.ABC):
 
     type: str
 
-    def base_manifest(self, flow: Flow) -> PartialModel[PackageManifest]:
-        manifest_cls = lookup_type(PackageManifest, self.type)
-        return PartialModel(
-            manifest_cls,
+    def base_manifest(self, flow: Flow) -> PackageManifest:
+        manifest_cls: Type[BaseModel] = lookup_type(PackageManifest, self.type)
+        return manifest_cls.construct(
             type=self.type,
             flow_name=flow.name,
             flow_parameter_schema=parameter_schema(flow.fn),
