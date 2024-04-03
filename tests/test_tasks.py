@@ -3794,3 +3794,318 @@ class TestTaskHooksOnFailure:
             @task(retry_condition_fn="not a callable")
             def my_task():
                 ...
+
+
+class TestNestedTasks:
+    def test_nested_task(self):
+        @task
+        def inner_task():
+            return 42
+
+        @task
+        def outer_task():
+            return inner_task()
+
+        @flow
+        def my_flow():
+            return outer_task()
+
+        result = my_flow()
+        assert result == 42
+
+    async def test_nested_async_task(self):
+        @task
+        async def inner_task():
+            return 42
+
+        @task
+        async def outer_task():
+            return await inner_task()
+
+        @flow
+        async def my_flow():
+            return await outer_task()
+
+        result = await my_flow()
+        assert result == 42
+
+    def test_nested_submitted_task(self):
+        @task
+        def inner_task():
+            return 42
+
+        @task
+        def outer_task():
+            future = inner_task.submit()
+            return future.result()
+
+        @flow
+        def my_flow():
+            return outer_task()
+
+        result = my_flow()
+        assert result == 42
+
+    async def test_nested_submitted_async_task(self):
+        @task
+        async def inner_task():
+            return 42
+
+        @task
+        async def outer_task():
+            future = await inner_task.submit()
+            return await future.result()
+
+        @flow
+        async def my_flow():
+            return await outer_task()
+
+        result = await my_flow()
+        assert result == 42
+
+    def test_nested_submitted_task_that_also_is_submitted(self):
+        @task
+        def inner_task():
+            return 42
+
+        @task
+        def outer_task():
+            future = inner_task.submit()
+            return future.result()
+
+        @flow
+        def my_flow():
+            future = outer_task.submit()
+            return future.result()
+
+        result = my_flow()
+        assert result == 42
+
+    async def test_nested_submitted_async_task_that_also_is_submitted(self):
+        @task
+        async def inner_task():
+            return 42
+
+        @task
+        async def outer_task():
+            future = await inner_task.submit()
+            return await future.result()
+
+        @flow
+        async def my_flow():
+            future = await outer_task.submit()
+            return await future.result()
+
+        result = await my_flow()
+        assert result == 42
+
+    def test_nested_map(self):
+        @task
+        def inner_task(x):
+            return x * 2
+
+        @task
+        def outer_task(x):
+            futures = inner_task.map(x)
+            return sum(future.result() for future in futures)
+
+        @flow
+        def my_flow():
+            result = outer_task([1, 2, 3])
+            return result
+
+        assert my_flow() == 12
+
+    async def test_nested_async_map(self):
+        @task
+        async def inner_task(x):
+            return x * 2
+
+        @task
+        async def outer_task(x):
+            futures = await inner_task.map(x)
+            return sum([await future.result() for future in futures])
+
+        @flow
+        async def my_flow():
+            result = await outer_task([1, 2, 3])
+            return result
+
+        assert await my_flow() == 12
+
+    def test_nested_wait_for(self):
+        @task
+        def inner_task(x):
+            return x * 2
+
+        @task
+        def outer_task(x, y):
+            future = inner_task.submit(x)
+            return future.result() + y
+
+        @flow
+        def my_flow():
+            f1 = inner_task.submit(2)
+            f2 = outer_task.submit(3, 4, wait_for=[f1])
+            return f2.result()
+
+        assert my_flow() == 10
+
+    async def test_nested_async_wait_for(self):
+        @task
+        async def inner_task(x):
+            return x * 2
+
+        @task
+        async def outer_task(x, y):
+            future = await inner_task.submit(x)
+            return await future.result() + y
+
+        @flow
+        async def my_flow():
+            f1 = await inner_task.submit(2)
+            f2 = await outer_task.submit(3, 4, wait_for=[f1])
+            return await f2.result()
+
+        assert await my_flow() == 10
+
+    def test_nested_cache_key_fn(self):
+        def inner_task(x):
+            return x * 2
+
+        @task(cache_key_fn=task_input_hash)
+        def outer_task(x):
+            return inner_task(x)
+
+        @flow
+        def my_flow():
+            state1 = outer_task(2, return_state=True)
+            state2 = outer_task(2, return_state=True)
+
+            return state1, state2
+
+        state1, state2 = my_flow()
+
+        assert state1.name == "Completed"
+        assert state2.name == "Cached"
+
+        assert state1.result() == 4
+        assert state2.result() == 4
+
+    async def test_nested_async_cache_key_fn(self):
+        @task
+        async def inner_task(x):
+            return x * 2
+
+        @task(cache_key_fn=task_input_hash)
+        async def outer_task(x):
+            return await inner_task(x)
+
+        @flow
+        async def my_flow():
+            state1 = await outer_task(2, return_state=True)
+            state2 = await outer_task(2, return_state=True)
+
+            return state1, state2
+
+        state1, state2 = await my_flow()
+
+        assert state1.name == "Completed"
+        assert state2.name == "Cached"
+
+        assert await state1.result() == 4
+        assert await state2.result() == 4
+
+    def test_nested_cache_key_fn_inner_task_cached(self):
+        @task(cache_key_fn=task_input_hash)
+        def inner_task(x):
+            return x * 2
+
+        @task
+        def outer_task(x):
+            state1 = inner_task(x, return_state=True)
+            state2 = inner_task(x, return_state=True)
+            return state1, state2
+
+        @flow
+        def my_flow():
+            state = outer_task(2, return_state=True)
+            return state
+
+        state = my_flow()
+        assert state.name == "Completed"
+        inner_state1, inner_state2 = state.result()
+        assert inner_state1.name == "Completed"
+        assert inner_state2.name == "Cached"
+
+        assert inner_state1.result() == 4
+        assert inner_state2.result() == 4
+
+    async def test_nested_async_cache_key_fn_inner_task_cached(self):
+        @task(cache_key_fn=task_input_hash)
+        async def inner_task(x):
+            return x * 2
+
+        @task
+        async def outer_task(x):
+            state1 = await inner_task(x, return_state=True)
+            state2 = await inner_task(x, return_state=True)
+            return state1, state2
+
+        @flow
+        async def my_flow():
+            state = await outer_task(2, return_state=True)
+            return state
+
+        state = await my_flow()
+        assert state.name == "Completed"
+        inner_state1, inner_state2 = await state.result()
+        assert inner_state1.name == "Completed"
+        assert inner_state2.name == "Cached"
+
+        assert await inner_state1.result() == 4
+        assert await inner_state2.result() == 4
+
+    def test_nested_task_with_retries(self):
+        count = 0
+
+        @task(retries=1)
+        def inner_task():
+            nonlocal count
+            count += 1
+            raise Exception("oops")
+
+        @task
+        def outer_task():
+            state = inner_task(return_state=True)
+            return state.name
+
+        @flow
+        def my_flow():
+            return outer_task()
+
+        result = my_flow()
+        assert result == "Failed"
+        assert count == 2
+
+    def test_nested_task_with_retries_on_inner_and_outer_task(self):
+        count = 0
+
+        @task(retries=1)
+        def inner_task():
+            nonlocal count
+            count += 1
+            raise Exception("oops")
+
+        @task(retries=1)
+        def outer_task():
+            inner_task()
+
+        @flow
+        def my_flow():
+            state = outer_task(return_state=True)
+            return state.name
+
+        result = my_flow()
+        assert result == "Failed"
+        assert count == 4
