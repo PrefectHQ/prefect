@@ -1397,12 +1397,6 @@ def enter_task_run_engine(
             client=get_client(),
         )
 
-    if TaskRunContext.get():
-        raise RuntimeError(
-            "Tasks cannot be run from within tasks. Did you mean to call this "
-            "task in a flow?"
-        )
-
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
