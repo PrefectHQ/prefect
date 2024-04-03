@@ -188,6 +188,7 @@ nav:
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
                 - Managed Execution: guides/managed-execution.md
+                - Shell Commands: guides/cli-shell.md
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md

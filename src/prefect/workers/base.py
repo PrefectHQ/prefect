@@ -9,6 +9,7 @@ import anyio.abc
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import return_v_or_none
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
@@ -108,10 +109,7 @@ class BaseJobConfiguration(BaseModel):
 
     @validator("command")
     def _coerce_command(cls, v):
-        """Make sure that empty strings are treated as None"""
-        if not v:
-            return None
-        return v
+        return return_v_or_none(v)
 
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
@@ -632,6 +630,22 @@ class BaseWorker(abc.ABC):
 
         try:
             configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": (
+                        "This flow run is missing infrastructure configuration information"
+                        " and cancellation cannot be guaranteed."
+                    )
+                },
+            )
+            return
+        else:
             if configuration.is_using_a_runner:
                 self._logger.info(
                     f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
@@ -639,11 +653,6 @@ class BaseWorker(abc.ABC):
                     " cancellation."
                 )
                 return
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
 
         if not flow_run.infrastructure_pid:
             run_logger.error(

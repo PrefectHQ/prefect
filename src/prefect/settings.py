@@ -68,6 +68,7 @@ from urllib.parse import urlparse
 import toml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import (
@@ -576,6 +577,14 @@ PREFECT_UNIT_TEST_MODE = Setting(
 """
 This variable only exists to facilitate unit testing. If `True`,
 code is executing in a unit test context. Defaults to `False`.
+"""
+PREFECT_UNIT_TEST_LOOP_DEBUG = Setting(
+    bool,
+    default=True,
+)
+"""
+If `True` turns on debug mode for the unit testing event loop.
+Defaults to `False`.
 """
 
 PREFECT_TEST_SETTING = Setting(
@@ -1178,7 +1187,7 @@ this often. Defaults to `5`.
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
-    default=timedelta(seconds=5),
+    default=timedelta(seconds=15),
 )
 """The late runs service will mark runs as late after they
 have exceeded their scheduled start time by this many seconds. Defaults
@@ -1236,7 +1245,7 @@ Note this setting only applies when calling `prefect server start`; if hosting t
 API with another tool you will need to configure this there instead.
 """
 
-PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=True)
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
 """
 Controls the activation of CSRF protection for the Prefect server API.
 
@@ -1586,10 +1595,6 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS = Setting(bool, default=False)
-"""
-Whether or not to enable internal experimental Pydantic v2 behavior.
-"""
 
 # Defaults -----------------------------------------------------------------------------
 
@@ -1633,8 +1638,26 @@ The directory to serve static files from. This should be used when running into 
 when attempting to serve the UI from the default directory (for example when running in a Docker container)
 """
 
+# Messaging system settings
 
-# Events settings ------------------------------------------------------------------
+PREFECT_MESSAGING_BROKER = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which message broker implementation to use for the messaging system, should point to a
+module that exports a Publisher and Consumer class.
+"""
+
+PREFECT_MESSAGING_CACHE = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which cache implementation to use for the events system.  Should point to a module that
+exports a Cache class.
+"""
+
+
+# Events settings
 
 PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
 """
@@ -1646,13 +1669,22 @@ PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
 The maximum number of related resources an Event may have.
 """
 
+PREFECT_EVENTS_MAXIMUM_SIZE_BYTES = Setting(int, default=1_500_000)
+"""
+The maximum size of an Event when serialized to JSON
+"""
+
+PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the event debug logger service in the server application.
+"""
 
 # Deprecated settings ------------------------------------------------------------------
 
 
 # Collect all defined settings ---------------------------------------------------------
 
-SETTING_VARIABLES = {
+SETTING_VARIABLES: Dict[str, Any] = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
 
@@ -1951,20 +1983,7 @@ class Profile(BaseModel):
 
     @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
-        if value is None:
-            return value
-
-        # Cast string setting names to variables
-        validated = {}
-        for setting, val in value.items():
-            if isinstance(setting, str) and setting in SETTING_VARIABLES:
-                validated[SETTING_VARIABLES[setting]] = val
-            elif isinstance(setting, Setting):
-                validated[setting] = val
-            else:
-                raise ValueError(f"Unknown setting {setting!r}.")
-
-        return validated
+        return validate_settings(value)
 
     def validate_settings(self) -> None:
         """

@@ -1329,12 +1329,12 @@ class TestPrepareForFlowRun:
         return FlowRun(name="my-flow-run-name", flow_id=uuid.uuid4())
 
     @pytest.fixture
-    def deployment(self):
-        return DeploymentResponse(name="my-deployment-name")
-
-    @pytest.fixture
     def flow(self):
         return Flow(name="my-flow-name")
+
+    @pytest.fixture
+    def deployment(self, flow):
+        return DeploymentResponse(name="my-deployment-name", flow_id=flow.id)
 
     def test_prepare_for_flow_run_without_deployment_and_flow(
         self, job_config, flow_run
@@ -1643,18 +1643,22 @@ class TestCancellation:
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
+    @pytest.mark.parametrize("infrastructure_pid", [None, "", "test"])
     async def test_worker_cancel_run_handles_missing_deployment(
         self,
         prefect_client: PrefectClient,
         worker_deployment_wq1,
         cancelling_constructor,
         work_pool,
+        infrastructure_pid: str,
     ):
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
-
+        await prefect_client.update_flow_run(
+            flow_run.id, infrastructure_pid=infrastructure_pid
+        )
         await prefect_client.delete_deployment(worker_deployment_wq1.id)
 
         async with WorkerTestImpl(

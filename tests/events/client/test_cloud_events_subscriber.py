@@ -86,13 +86,12 @@ async def test_subscriber_specifying_negative_reconnects_gets_error(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     with pytest.raises(ValueError, match="non-negative"):
-        async with PrefectCloudEventSubscriber(
+        PrefectCloudEventSubscriber(
             events_api_url,
             "my-token",
             filter,
             reconnection_attempts=-1,
-        ):
-            pass
+        )
 
     assert recorder.connections == 0
 
@@ -110,14 +109,13 @@ async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     with pytest.raises(Exception, match="Unable to authenticate"):
-        async with PrefectCloudEventSubscriber(
+        subscriber = PrefectCloudEventSubscriber(
             events_api_url,
             "bogus",
             filter,
             reconnection_attempts=0,
-        ) as subscriber:
-            async for event in subscriber:
-                recorder.events.append(event)
+        )
+        await subscriber.__aenter__()
 
     assert recorder.connections == 1
     assert recorder.path == "/accounts/A/workspaces/W/events/out"
@@ -139,14 +137,13 @@ async def test_subscriber_raises_on_invalid_auth_with_hard_denial(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     with pytest.raises(Exception, match="Unable to authenticate"):
-        async with PrefectCloudEventSubscriber(
+        subscriber = PrefectCloudEventSubscriber(
             events_api_url,
             "bogus",
             filter,
             reconnection_attempts=0,
-        ) as subscriber:
-            async for event in subscriber:
-                recorder.events.append(event)
+        )
+        await subscriber.__aenter__()
 
     assert recorder.connections == 1
     assert recorder.path == "/accounts/A/workspaces/W/events/out"
