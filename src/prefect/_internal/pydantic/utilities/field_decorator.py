@@ -68,7 +68,7 @@ def field_validator(
         '''
     ```
 
-        For more in depth examples, see [Field Validators](../concepts/validators.md#field-validators).
+        For more in depth examples, see https://docs.pydantic.dev/latest/concepts/validators/#field-validators
 
     Args:
         field: The first field the `field_validator` should be called on; this is separate

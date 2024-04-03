@@ -8,7 +8,7 @@ from prefect._internal.pydantic.utilities.field_decorator import field_validator
 class TestFieldValidator:
     def test_basic_field_validation_behavior(self):
         """
-        Ensures the `my_field_validator` correctly applies validation logic to a specified field
+        Ensures the `field_validator` correctly applies validation logic to a specified field
         and raises a `ValidationError` when the validation condition is not met.
         """
 
@@ -70,8 +70,8 @@ class TestFieldValidator:
     def test_cross_field_validation_in_v2_using_info(self):
         """
         Tests the ability to perform cross-field validation in Pydantic V2 using the `info` parameter.
-        Ensures `field2` is correctly validated based on `field1`'s value, with `field2` required to be 'allowed'
-        if `field1` is 'special'.
+        Ensures `field4` is correctly validated based on `field3`'s value, with `field4` required to be 'allowed'
+        if `field3` is 'special'.
 
         !!! note
             This test is only valid for Pydantic V2 models.
@@ -103,7 +103,7 @@ class TestFieldValidator:
     @pytest.mark.skipif(USE_V2_MODELS, reason="Test only valid for V1 models")
     def test_cross_field_dependency_in_v1(self):
         """
-        Validates that `my_field_validator` properly enables cross-field dependencies in Pydantic V1 models,
+        Validates that `field_validator` properly enables cross-field dependencies in Pydantic V1 models,
         allowing `fieldd`'s validation to depend on `fieldc`'s value. Specifically tests that `fieldd` must
         be 'allowed' when `fieldc` is 'special'.
         """
