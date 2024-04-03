@@ -180,7 +180,6 @@ def enter_flow_run_engine_from_flow_call(
         wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
-        user_thread=threading.current_thread(),
     )
 
     # WARNING: You must define any context managers here to pass to our concurrency
@@ -212,7 +211,6 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
 
     state = retrieve_flow_then_begin_flow_run(
         flow_run_id,
-        user_thread=threading.current_thread(),
         contexts=[capture_sigterm()],
     )
 
@@ -227,7 +225,6 @@ async def create_then_begin_flow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
-    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flow calls
@@ -279,7 +276,6 @@ async def create_then_begin_flow_run(
             flow_run=flow_run,
             parameters=parameters,
             client=client,
-            user_thread=user_thread,
         )
 
     if return_type == "state":
@@ -294,7 +290,6 @@ async def create_then_begin_flow_run(
 async def retrieve_flow_then_begin_flow_run(
     flow_run_id: UUID,
     client: PrefectClient,
-    user_thread: threading.Thread,
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -367,7 +362,6 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run=flow_run,
         parameters=parameters,
         client=client,
-        user_thread=user_thread,
     )
 
 
@@ -376,7 +370,6 @@ async def begin_flow_run(
     flow_run: FlowRun,
     parameters: Dict[str, Any],
     client: PrefectClient,
-    user_thread: threading.Thread,
 ) -> State:
     """
     Begins execution of a flow run; blocks until completion of the flow run
@@ -444,7 +437,6 @@ async def begin_flow_run(
             partial_flow_run_context=flow_run_context,
             # Orchestration needs to be interruptible if it has a timeout
             interruptible=flow.timeout_seconds is not None,
-            user_thread=user_thread,
         )
 
     if terminal_or_paused_state.is_paused():
@@ -481,7 +473,6 @@ async def create_and_begin_subflow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
-    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -612,7 +603,6 @@ async def create_and_begin_subflow_run(
                         result_factory=result_factory,
                         log_prints=log_prints,
                     ),
-                    user_thread=user_thread,
                 )
 
     # Display the full state (including the result) if debugging
@@ -641,7 +631,6 @@ async def orchestrate_flow_run(
     interruptible: bool,
     client: PrefectClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
-    user_thread: threading.Thread,
 ) -> State:
     """
     Executes a flow run.
