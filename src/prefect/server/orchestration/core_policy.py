@@ -58,6 +58,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
+            EnbableEnhancedCancellationFromSuspended,
         ]
 
 
@@ -108,6 +109,7 @@ class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             AddUnknownResult,  # mark forced completions with an unknown result
+            EnbableEnhancedCancellationFromSuspended,  # cancel suspended runs from the UI
         ]
 
 
@@ -1073,3 +1075,26 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
                 state=None,
                 reason="This run has already made this state transition.",
             )
+
+
+class EnbableEnhancedCancellationFromSuspended(BaseOrchestrationRule):
+    """
+    When using enhanced cancellation, a Runner is responsible for
+    handling the transition from `Cancelling` to `Cancelled`. In
+    the case of a `Suspended` flow run, the runner is no longer available
+    to handle the transition. This rule allows a worker to handle the
+    transition by including state details that the `Cancelling` state
+    was preceded by a `Suspended` state.
+    """
+
+    FROM_STATES = {StateType.PAUSED}
+    TO_STATES = {StateType.CANCELLING}
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: FlowOrchestrationContext,
+    ) -> None:
+        if self.context.initial_state.state_details.pause_reschedule:
+            self.context.proposed_state.state_details.pause_reschedule = True
