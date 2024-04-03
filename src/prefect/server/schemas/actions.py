@@ -789,7 +789,7 @@ class WorkPoolUpdate(ActionBaseModel):
     description: Optional[str] = Field(None)
     is_paused: Optional[bool] = Field(None)
     base_job_template: Optional[Dict[str, Any]] = Field(None)
-    concurrency_limit: Optional[int] = Field(None)
+    concurrency_limit: Optional[conint(ge=0)] = Field(None)
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
