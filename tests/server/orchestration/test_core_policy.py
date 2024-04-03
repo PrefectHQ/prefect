@@ -3240,7 +3240,9 @@ class TestBypassCancellingSuspendedFlowRuns:
         initialize_orchestration,
         initial_state_type,
     ):
-        """All other transitions should be left alone by this policy."""
+        """
+        Transitions to running or terminal states should be left alone by this policy.
+        """
 
         intended_transition = (initial_state_type, states.StateType.CANCELLING)
 
