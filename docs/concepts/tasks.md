@@ -371,7 +371,7 @@ def hello_task(name_input):
     print("Saying hello")
     return "hello " + name_input
 
-@flow
+@flow(log_prints=True)
 def hello_flow(name_input):
     hello_task(name_input)
 ```
@@ -471,16 +471,15 @@ Task timeouts are used to prevent unintentional long-running tasks. When the dur
 
 Timeout durations are specified using the `timeout_seconds` keyword argument.
 
-```python
-from prefect import task, get_run_logger
+```python hl_lines="4"
+from prefect import task
 import time
 
-@task(timeout_seconds=1)
+@task(timeout_seconds=1, log_prints=True)
 def show_timeouts():
-    logger = get_run_logger()
-    logger.info("I will execute")
+    print("I will execute")
     time.sleep(5)
-    logger.info("I will not execute")
+    print("I will not execute")
 ```
 
 ## Task results
