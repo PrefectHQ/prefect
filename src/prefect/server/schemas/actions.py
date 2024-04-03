@@ -19,10 +19,12 @@ else:
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
+    set_default_scheduled_time,
     set_deployment_schedules,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
@@ -131,7 +133,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -229,7 +230,6 @@ class DeploymentCreate(ActionBaseModel):
         return validate_parameter_openapi_schema(value, values)
 
 
-@copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
@@ -301,28 +301,43 @@ class DeploymentUpdate(ActionBaseModel):
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
-@copy_model_fields
 class FlowRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run."""
 
-    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
+    name: Optional[str] = Field(None)
+    flow_version: Optional[str] = Field(None)
+    parameters: dict = Field(default_factory=dict)
+    empirical_policy: schemas.core.FlowRunPolicy = Field(
+        default_factory=schemas.core.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    infrastructure_pid: Optional[str] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(None)
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class StateCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a new state."""
 
-    type: schemas.states.StateType = FieldFrom(schemas.states.State)
-    name: Optional[str] = FieldFrom(schemas.states.State)
-    message: Optional[str] = FieldFrom(schemas.states.State)
-    data: Optional[Any] = FieldFrom(schemas.states.State)
-    state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
+    type: schemas.states.StateType = Field(
+        default=..., description="The type of the state to create"
+    )
+    name: Optional[str] = Field(
+        default=None, description="The name of the state to create"
+    )
+    message: Optional[str] = Field(
+        default=None, description="The message of the state to create"
+    )
+    data: Optional[Any] = Field(
+        default=None, description="The data of the state to create"
+    )
+    state_details: schemas.states.StateDetails = Field(
+        default_factory=schemas.states.StateDetails,
+        description="The details of the state to create",
+    )
 
     # DEPRECATED
 
@@ -332,6 +347,14 @@ class StateCreate(ActionBaseModel):
         ignored=True,
     )
     id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
+
+    @validator("name", always=True)
+    def default_name_from_type(cls, v, *, values, **kwargs):
+        return get_or_create_state_name(v, values)
+
+    @root_validator
+    def default_scheduled_start_time(cls, values):
+        return set_default_scheduled_time(cls, values)
 
 
 @copy_model_fields
