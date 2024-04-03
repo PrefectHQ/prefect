@@ -1,6 +1,6 @@
 from collections import defaultdict, deque
 from copy import deepcopy
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import jsonschema
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
@@ -129,7 +129,7 @@ def prioritize_placeholder_errors(errors):
 
 
 def build_error_obj(errors: List[JSONSchemaValidationError]) -> Dict:
-    error_response: dict = {"errors": []}
+    error_response: Dict[str, Any] = {"errors": []}
 
     # If multiple errors are present for the same path and one of them
     # is a placeholder error, we want only want to use the placeholder error.

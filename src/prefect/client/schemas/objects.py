@@ -304,7 +304,13 @@ class State(ObjectBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
+    def copy(
+        self,
+        *,
+        update: Optional[Dict[str, Any]] = None,
+        reset_fields: bool = False,
+        **kwargs,
+    ):
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
@@ -424,7 +430,7 @@ class FlowRun(ObjectBaseModel):
         description="The version of the flow executed in this flow run.",
         example="1.0",
     )
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -434,7 +440,7 @@ class FlowRun(ObjectBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},
@@ -814,7 +820,7 @@ class BlockSchema(ObjectBaseModel):
     """A representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
@@ -840,7 +846,9 @@ class BlockDocument(ObjectBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
         default=None, description="The associated block schema"
@@ -1038,7 +1046,7 @@ class BlockSchema(ObjectBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
@@ -1103,7 +1111,7 @@ class Configuration(ObjectBaseModel):
     """An ORM representation of account info."""
 
     key: str = Field(default=..., description="Account info key")
-    value: dict = Field(default=..., description="Account info")
+    value: Dict[str, Any] = Field(default=..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):

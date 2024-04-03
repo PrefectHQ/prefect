@@ -10,9 +10,10 @@ the instance so the same settings can be used to load saved objects.
 All serializers must implement `dumps` and `loads` which convert objects to bytes and
 bytes to an object respectively.
 """
+
 import abc
 import base64
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Dict, Generic, Optional, TypeVar
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
@@ -152,8 +153,8 @@ class JSONSerializer(Serializer):
             "by our default `object_encoder`."
         ),
     )
-    dumps_kwargs: dict = pydantic.Field(default_factory=dict)
-    loads_kwargs: dict = pydantic.Field(default_factory=dict)
+    dumps_kwargs: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    loads_kwargs: Dict[str, Any] = pydantic.Field(default_factory=dict)
 
     @pydantic.validator("dumps_kwargs")
     def dumps_kwargs_cannot_contain_default(cls, value):

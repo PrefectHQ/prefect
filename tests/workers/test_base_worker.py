@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from unittest.mock import MagicMock, call
 
 import anyio
@@ -826,7 +826,9 @@ async def test_job_configuration_from_template_and_overrides_with_nested_variabl
     }
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        config: dict = Field(template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"})
+        config: Dict[str, Any] = Field(
+            template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"}
+        )
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={"var1": "woof!"}
@@ -850,7 +852,7 @@ async def test_job_configuration_from_template_and_overrides_with_hard_coded_pri
     }
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        config: dict = Field(template={"var1": 1, "var2": 1.1, "var3": True})
+        config: Dict[str, Any] = Field(template={"var1": 1, "var2": 1.1, "var3": True})
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={}

@@ -43,8 +43,8 @@ class Deployment:
     path: str = None
 
     # workflow scheduling and parametrization
-    parameters: dict = None
-    parameter_openapi_schema: dict = None
+    parameters: Optional[Dict[str, Any]] = None
+    parameter_openapi_schema: Optional[Dict[str, Any]] = None
     schedules: list[Schedule] = None
     paused: bool = False
     trigger: Trigger = None
@@ -57,8 +57,8 @@ class Deployment:
     # worker-specific fields
     work_pool_name: str = None
     work_queue_name: str = None
-    infra_overrides: dict = None
-    pull_steps: dict = None
+    infra_overrides: Optional[Dict[str, Any]] = None
+    pull_steps: Optional[Dict[str, Any]] = None
 ```
 
 All methods for creating Prefect deployments are interfaces for populating this schema. Let's look at each section in turn.

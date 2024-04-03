@@ -6,7 +6,7 @@ import string
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -21,7 +21,7 @@ from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 
 # Stores the configuration used to setup logging in this Python process
-PROCESS_LOGGING_CONFIG: dict = None
+PROCESS_LOGGING_CONFIG: Optional[Dict[str, Any]] = None
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
