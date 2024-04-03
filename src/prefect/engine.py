@@ -1,86 +1,3 @@
-"""
-Client-side execution and orchestration of flows and tasks.
-
-## Engine process overview
-
-### Flows
-
-- **The flow is called by the user or an existing flow run is executed in a new process.**
-
-    See `Flow.__call__` and `prefect.engine.__main__` (`python -m prefect.engine`)
-
-- **A synchronous function acts as an entrypoint to the engine.**
-    The engine executes on a dedicated "global loop" thread. For asynchronous flow calls,
-    we return a coroutine from the entrypoint so the user can enter the engine without
-    blocking their event loop.
-
-    See `enter_flow_run_engine_from_flow_call`, `enter_flow_run_engine_from_subprocess`
-
-- **The thread that calls the entrypoint waits until orchestration of the flow run completes.**
-    This thread is referred to as the "user" thread and is usually the "main" thread.
-    The thread is not blocked while waiting — it allows the engine to send work back to it.
-    This allows us to send calls back to the user thread from the global loop thread.
-
-    See `wait_for_call_in_loop_thread` and `call_soon_in_waiting_thread`
-
-- **The asynchronous engine branches depending on if the flow run exists already and if
-    there is a parent flow run in the current context.**
-
-    See `create_then_begin_flow_run`, `create_and_begin_subflow_run`, and `retrieve_flow_then_begin_flow_run`
-
-- **The asynchronous engine prepares for execution of the flow run.**
-    This includes starting the task runner, preparing context, etc.
-
-    See `begin_flow_run`
-
-- **The flow run is orchestrated through states, calling the user's function as necessary.**
-    Generally the user's function is sent for execution on the user thread.
-    If the flow function cannot be safely executed on the user thread, e.g. it is
-    a synchronous child in an asynchronous parent it will be scheduled on a worker
-    thread instead.
-
-    See `orchestrate_flow_run`, `call_soon_in_waiting_thread`, `call_soon_in_new_thread`
-
-### Tasks
-
-- **The task is called or submitted by the user.**
-    We require that this is always within a flow.
-
-    See `Task.__call__` and `Task.submit`
-
-- **A synchronous function acts as an entrypoint to the engine.**
-    Unlike flow calls, this _will not_ block until completion if `submit` was used.
-
-    See `enter_task_run_engine`
-
-- **A future is created for the task call.**
-    Creation of the task run and submission to the task runner is scheduled as a
-    background task so submission of many tasks can occur concurrently.
-
-    See `create_task_run_future` and `create_task_run_then_submit`
-
-- **The engine branches depending on if a future, state, or result is requested.**
-    If a future is requested, it is returned immediately to the user thread.
-    Otherwise, the engine will wait for the task run to complete and return the final
-    state or result.
-
-    See `get_task_call_return_value`
-
-- **An engine function is submitted to the task runner.**
-    The task runner will schedule this function for execution on a worker.
-    When executed, it will prepare for orchestration and wait for completion of the run.
-
-    See `create_task_run_then_submit` and `begin_task_run`
-
-- **The task run is orchestrated through states, calling the user's function as necessary.**
-    The user's function is always executed in a worker thread for isolation.
-
-    See `orchestrate_task_run`, `call_soon_in_new_thread`
-
-    _Ideally, for local and sequential task runners we would send the task run to the
-    user thread as we do for flows. See [#9855](https://github.com/PrefectHQ/prefect/pull/9855).
-"""
-
 import asyncio
 import contextlib
 import logging
@@ -110,7 +27,6 @@ from uuid import UUID, uuid4
 
 import anyio
 import pendulum
-from anyio import start_blocking_portal
 from typing_extensions import Literal
 
 import prefect
@@ -118,10 +34,7 @@ import prefect.context
 import prefect.plugins
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.compatibility.experimental import experimental_parameter
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
-from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -258,20 +171,16 @@ def enter_flow_run_engine_from_flow_call(
     if wait_for is not None and not is_subflow_run:
         raise ValueError("Only flows run as subflows can wait for dependencies.")
 
-    begin_run = create_call(
-        create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
+    func_to_call = (
+        create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run
+    )
+    begin_run = func_to_call(
         flow=flow,
         parameters=parameters,
         wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
         user_thread=threading.current_thread(),
-    )
-
-    # On completion of root flows, wait for the global thread to ensure that
-    # any work there is complete
-    done_callbacks = (
-        [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
     )
 
     # WARNING: You must define any context managers here to pass to our concurrency
@@ -282,25 +191,7 @@ def enter_flow_run_engine_from_flow_call(
     # it here.
     contexts = [capture_sigterm()]
 
-    if flow.isasync and (
-        not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
-    ):
-        # return a coro for the user to await if the flow is async
-        # unless it is an async subflow called in a sync flow
-        retval = from_async.wait_for_call_in_loop_thread(
-            begin_run,
-            done_callbacks=done_callbacks,
-            contexts=contexts,
-        )
-
-    else:
-        retval = from_sync.wait_for_call_in_loop_thread(
-            begin_run,
-            done_callbacks=done_callbacks,
-            contexts=contexts,
-        )
-
-    return retval
+    return begin_run
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -319,12 +210,9 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
 
     setup_logging()
 
-    state = from_sync.wait_for_call_in_loop_thread(
-        create_call(
-            retrieve_flow_then_begin_flow_run,
-            flow_run_id,
-            user_thread=threading.current_thread(),
-        ),
+    state = retrieve_flow_then_begin_flow_run(
+        flow_run_id,
+        user_thread=threading.current_thread(),
         contexts=[capture_sigterm()],
     )
 
@@ -519,11 +407,6 @@ async def begin_flow_run(
         # Create a task group for background tasks
         flow_run_context.background_tasks = await stack.enter_async_context(
             anyio.create_task_group()
-        )
-
-        # If the flow is async, we need to provide a portal so sync tasks can run
-        flow_run_context.sync_portal = (
-            stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
         task_runner = flow.task_runner.duplicate()
@@ -724,7 +607,6 @@ async def create_and_begin_subflow_run(
                     client=client,
                     partial_flow_run_context=PartialModel(
                         FlowRunContext,
-                        sync_portal=parent_flow_run_context.sync_portal,
                         task_runner=task_runner,
                         background_tasks=parent_flow_run_context.background_tasks,
                         result_factory=result_factory,
@@ -843,30 +725,9 @@ async def orchestrate_flow_run(
                         "Beginning execution...", extra={"state_message": True}
                     )
 
-                flow_call = create_call(flow.fn, *args, **kwargs)
+                flow_call = flow.fn(*args, **kwargs)
 
-                # This check for a parent call is needed for cases where the engine
-                # was entered directly during testing
-                parent_call = get_current_call()
-
-                if parent_call and (
-                    not parent_flow_run_context
-                    or (
-                        parent_flow_run_context
-                        and parent_flow_run_context.flow.isasync == flow.isasync
-                    )
-                ):
-                    from_async.call_soon_in_waiting_thread(
-                        flow_call,
-                        thread=user_thread,
-                        timeout=flow.timeout_seconds,
-                    )
-                else:
-                    from_async.call_soon_in_new_thread(
-                        flow_call, timeout=flow.timeout_seconds
-                    )
-
-                result = await flow_call.aresult()
+                result = await flow_call
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
@@ -1400,8 +1261,8 @@ def enter_task_run_engine(
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
-    begin_run = create_call(
-        begin_task_map if mapped else get_task_call_return_value,
+    func_to_call = begin_task_map if mapped else get_task_call_return_value
+    begin_run = func_to_call(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -1410,11 +1271,7 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    if task.isasync and flow_run_context.flow.isasync:
-        # return a coro for the user to await if an async task in an async flow
-        return from_async.wait_for_call_in_loop_thread(begin_run)
-    else:
-        return from_sync.wait_for_call_in_loop_thread(begin_run)
+    return begin_run
 
 
 async def begin_task_map(
@@ -2137,10 +1994,8 @@ async def orchestrate_task_run(
                         "Beginning execution...", extra={"state_message": True}
                     )
 
-                call = from_async.call_soon_in_new_thread(
-                    create_call(task.fn, *args, **kwargs), timeout=task.timeout_seconds
-                )
-                result = await call.aresult()
+                call = task.fn(*args, **kwargs)
+                result = await call
 
             except (CancelledError, asyncio.CancelledError) as exc:
                 if not call.timedout():
@@ -2467,7 +2322,8 @@ async def resolve_inputs(
             #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure)
+            and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
@@ -2773,9 +2629,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                 if is_async_fn(hook):
                     await hook(task=task, task_run=task_run, state=state)
                 else:
-                    await from_async.call_in_new_thread(
-                        create_call(hook, task=task, task_run=task_run, state=state)
-                    )
+                    hook(task=task, task_run=task_run, state=state)
             except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook_name!r}",
@@ -2807,13 +2661,10 @@ async def _check_task_failure_retriable(
             )
         else:
             return bool(
-                await from_async.call_in_new_thread(
-                    create_call(
-                        task.retry_condition_fn,
-                        task=task,
-                        task_run=task_run,
-                        state=state,
-                    )
+                await task.retry_condition_fn(
+                    task=task,
+                    task_run=task_run,
+                    state=state,
                 )
             )
     except Exception:
@@ -2866,9 +2717,7 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                 if is_async_fn(hook):
                     await hook(flow=flow, flow_run=flow_run, state=state)
                 else:
-                    await from_async.call_in_new_thread(
-                        create_call(hook, flow=flow, flow_run=flow_run, state=state)
-                    )
+                    hook(flow=flow, flow_run=flow_run, state=state)
             except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook_name!r}",
