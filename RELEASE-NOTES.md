@@ -35,13 +35,11 @@
 - Deprecate `KubernetesCusterConfig` block — https://github.com/PrefectHQ/prefect/pull/12571
 
 ### Documentation
-- add shell commands to guides index — https://github.com/PrefectHQ/prefect/pull/12494
-- Update cloud plan info — https://github.com/PrefectHQ/prefect/pull/12505
-- Integrates mkdocs material social plugin fix — https://github.com/PrefectHQ/prefect/pull/12519
-- Add timeout to concepts->flows — https://github.com/PrefectHQ/prefect/pull/12550
-- Remove social cards to avoid flakiness in doc builds — https://github.com/PrefectHQ/prefect/pull/12573
-- Remove outdated doc — https://github.com/PrefectHQ/prefect/pull/12580
-- fix typo in faq — https://github.com/PrefectHQ/prefect/pull/12584
+- Add `prefect shell` commands to guides index — https://github.com/PrefectHQ/prefect/pull/12494
+- Update Prefect Cloud plan information — https://github.com/PrefectHQ/prefect/pull/12505
+- Add timeout information to flows concept page — https://github.com/PrefectHQ/prefect/pull/12550
+- Remove outdated doc warning on calling tasks within tasks — https://github.com/PrefectHQ/prefect/pull/12580
+- Fix typo in FAQ — https://github.com/PrefectHQ/prefect/pull/12584
 
 ### Contributors
 * @hainenber
