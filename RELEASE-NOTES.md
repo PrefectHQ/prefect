@@ -25,7 +25,7 @@ See the following pull request for implementation details:
 - Expose `ignore_warnings` in `Flow.deploy` — https://github.com/PrefectHQ/prefect/pull/12569
 - Allow `prefect cloud login` re-authentication in non-interactive mode — https://github.com/PrefectHQ/prefect/pull/12575
 - Update ECS provisioner IAM policy to include `ecs:TagResource` permission — https://github.com/PrefectHQ/prefect/pull/12551
-- Correctly populate default parameters in the create flow run form https://github.com/PrefectHQ/prefect-ui-library/pull/2280
+- Correctly populate custom default parameters in the flow submission form in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/2280
 
 ### Experimental / In-Flight Features
 #### Flow Run Infrastructure Overrides
