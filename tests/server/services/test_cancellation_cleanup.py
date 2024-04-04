@@ -112,6 +112,7 @@ async def orphaned_subflow_run_from_deployment_maker(session, flow, deployment):
                     state=state_constructor(),
                     end_time=THE_PAST,
                     deployment_id=deployment.id,
+                    infrastructure_pid="my-pid-42",
                 ),
             )
 
