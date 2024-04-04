@@ -32,10 +32,13 @@ from prefect._internal.schemas.validators import (
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
+    set_run_policy_deprecated_fields,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
     validate_message_template_variables,
+    validate_name_present_on_nonanonymous_blocks,
     validate_not_negative,
+    validate_parent_and_ref_diff,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
@@ -301,7 +304,13 @@ class State(ObjectBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
+    def copy(
+        self,
+        *,
+        update: Optional[Dict[str, Any]] = None,
+        reset_fields: bool = False,
+        **kwargs,
+    ):
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
@@ -392,18 +401,7 @@ class FlowRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        """
-        If deprecated fields are provided, populate the corresponding new fields
-        to preserve orchestration behavior.
-        """
-        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
-            values["retries"] = values["max_retries"]
-        if (
-            not values.get("retry_delay", None)
-            and values.get("retry_delay_seconds", 0) != 0
-        ):
-            values["retry_delay"] = values["retry_delay_seconds"]
-        return values
+        return set_run_policy_deprecated_fields(values)
 
 
 class FlowRun(ObjectBaseModel):
@@ -432,7 +430,7 @@ class FlowRun(ObjectBaseModel):
         description="The version of the flow executed in this flow run.",
         example="1.0",
     )
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -442,7 +440,7 @@ class FlowRun(ObjectBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},
@@ -590,20 +588,7 @@ class TaskRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        """
-        If deprecated fields are provided, populate the corresponding new fields
-        to preserve orchestration behavior.
-        """
-        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
-            values["retries"] = values["max_retries"]
-
-        if (
-            not values.get("retry_delay", None)
-            and values.get("retry_delay_seconds", 0) != 0
-        ):
-            values["retry_delay"] = values["retry_delay_seconds"]
-
-        return values
+        return set_run_policy_deprecated_fields(values)
 
     @validator("retry_delay")
     def validate_configured_retry_delays(cls, v):
@@ -835,7 +820,7 @@ class BlockSchema(ObjectBaseModel):
     """A representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
@@ -861,7 +846,9 @@ class BlockDocument(ObjectBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
         default=None, description="The associated block schema"
@@ -890,11 +877,7 @@ class BlockDocument(ObjectBaseModel):
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
-        # anonymous blocks may have no name prior to actually being
-        # stored in the database
-        if not values.get("is_anonymous") and not values.get("name"):
-            raise ValueError("Names must be provided for block documents.")
-        return values
+        return validate_name_present_on_nonanonymous_blocks(values)
 
 
 class Flow(ObjectBaseModel):
@@ -1063,7 +1046,7 @@ class BlockSchema(ObjectBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
@@ -1121,21 +1104,14 @@ class BlockDocumentReference(ObjectBaseModel):
 
     @root_validator
     def validate_parent_and_ref_are_different(cls, values):
-        parent_id = values.get("parent_block_document_id")
-        ref_id = values.get("reference_block_document_id")
-        if parent_id and ref_id and parent_id == ref_id:
-            raise ValueError(
-                "`parent_block_document_id` and `reference_block_document_id` cannot be"
-                " the same"
-            )
-        return values
+        return validate_parent_and_ref_diff(values)
 
 
 class Configuration(ObjectBaseModel):
     """An ORM representation of account info."""
 
     key: str = Field(default=..., description="Account info key")
-    value: dict = Field(default=..., description="Account info")
+    value: Dict[str, Any] = Field(default=..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):

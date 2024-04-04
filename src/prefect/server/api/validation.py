@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Dict, Union
 
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +8,7 @@ from prefect.server import models, schemas
 
 
 def _get_base_config_defaults(base_config: dict):
-    template: dict = base_config.get("variables", {}).get("properties", {})
+    template: Dict[str, Any] = base_config.get("variables", {}).get("properties", {})
     defaults = dict()
     for variable_name, attrs in template.items():
         if "default" in attrs:
@@ -66,6 +66,11 @@ async def validate_job_variables_for_flow_run(
     the actor does not have permissions to access that block. Therefore, this is only safe
     to use within the context of an API request
     """
+    if deployment.work_queue is None or deployment.work_queue.work_pool is None:
+        # if we aren't able to access a deployment's work pool, we don't have a
+        # base job template to validate job variables against
+        return
+
     base_vars = _get_base_config_defaults(
         deployment.work_queue.work_pool.base_job_template
     )
