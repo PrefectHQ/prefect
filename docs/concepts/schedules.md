@@ -163,7 +163,7 @@ You can add schedules in the **Schedules** section on a **Deployment** page in t
 
 #### Locating the **Schedules** section
 
-The **Schedules** section appears in the sidebar on the right side of the page on wider displays. On narrow displays, it appears on the **Details** tab of the page.
+The **Schedules** section appears in the sidebar on the right side of the page on wider displays. On narrower displays, it appears on the **Details** tab of the page.
 
 #### Adding a schedule
 
