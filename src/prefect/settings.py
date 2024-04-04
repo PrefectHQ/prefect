@@ -705,7 +705,7 @@ When using an ephemeral server, this will be `None`.
 
 
 PREFECT_CLOUD_UI_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_cloud_ui_url,
 )
