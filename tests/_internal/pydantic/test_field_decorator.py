@@ -9,7 +9,11 @@ if USE_V2_MODELS:
     from pydantic import ValidationInfo
 
 
-class TestFieldValidator:
+@pytest.mark.skipif(
+    USE_V2_MODELS,
+    reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
+)
+class TestFieldValidatorV1:
     def test_basic_field_validation_behavior(self):
         """
         Ensures the `field_validator` correctly applies validation logic to a specified field
@@ -32,10 +36,6 @@ class TestFieldValidator:
         with pytest.raises(ValidationError):
             TestModel(a=1, b="a123")
 
-    @pytest.mark.skipif(
-        USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
-    )
     def test_cross_field_dependency_in_v1(self):
         """
         Validates that `field_validator` properly enables cross-field dependencies in Pydantic V1 models,
@@ -100,10 +100,12 @@ class TestFieldValidator:
             TestModel2(field1=15, field2="normal")
         assert "field2 must contain 'special' when field1 > 10" in str(exc_info.value)
 
-    @pytest.mark.skipif(
-        not USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
-    )
+
+@pytest.mark.skipif(
+    not USE_V2_MODELS,
+    reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
+)
+class TestFieldValidatorV2:
     def test_cross_field_validation_in_v2_using_info(self):
         """
         Tests the ability to perform cross-field validation in Pydantic V2 using the `info` parameter.
@@ -137,10 +139,6 @@ class TestFieldValidator:
         model = TestModel3(field3="special", field4="allowed")
         assert model.field4 == "allowed"
 
-    @pytest.mark.skipif(
-        not USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
-    )
     def test_multiple_field_validation_in_v2_with_default_values(self):
         """
         Example taken from: https://docs.pydantic.dev/latest/concepts/validators/#validation-of-default-values
@@ -161,10 +159,6 @@ class TestFieldValidator:
         assert Model(x="foo", y="bar").model_dump() == {"x": "foofoo", "y": "barbar"}
         assert Model(y="bar").model_dump() == {"x": "abc", "y": "barbar"}
 
-    @pytest.mark.skipif(
-        not USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
-    )
     def test_multiple_field_validation_in_v2(self):
         """
         https://docs.pydantic.dev/latest/concepts/validators/#field-validators
