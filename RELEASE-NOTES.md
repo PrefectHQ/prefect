@@ -2,8 +2,6 @@
 
 ## Release 2.16.9
 
-
-
 ### Experimental support for adding job variables to trigger definitions via CLI
 You can now supply a `job_variables` to their trigger definitions supplied via the CLI directly, loaded as a JSON file, loaded from a YAML file, and a prefect.yaml file. 
 
@@ -55,6 +53,11 @@ See the following PR for implementation details:
 - Introduces the server-side automations schema models — https://github.com/PrefectHQ/prefect/pull/12549
 - Adding the ORM classes and model modules for Automations and it's state tables — https://github.com/PrefectHQ/prefect/pull/12581
 - Add dynamic importing of Pydantic modules — https://github.com/PrefectHQ/prefect/pull/12498
+
+### Integrations - Prefect AWS
+- Fix `S3Bucket.copy_object` target path resolution — https://github.com/PrefectHQ/prefect-aws/pull/385
+- Add Python 3.12 support and remove 3.7 support — https://github.com/PrefectHQ/prefect-aws/pull/405
+- Change logging prefix to avoid unnecessary task definition registrations — https://github.com/PrefectHQ/prefect-aws/pull/400
 
 ### Deprecations
 - Deprecate `KubernetesCusterConfig` block — https://github.com/PrefectHQ/prefect/pull/12571
