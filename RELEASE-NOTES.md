@@ -54,6 +54,7 @@ See the following pull request for implementation details:
 
 ### Deprecations
 - Deprecate `KubernetesCusterConfig` block — https://github.com/PrefectHQ/prefect/pull/12571
+- Remove use of PartialModel  — <https://github.com/PrefectHQ/prefect/pull/12574>
 
 ### Documentation
 - Add `prefect shell` commands to guides index — https://github.com/PrefectHQ/prefect/pull/12494
@@ -3727,7 +3728,6 @@ Check out these pull requests for more details:
 
 - Rename `prefect.infrastructure.docker` to `prefect.infrastructure.container` - <https://github.com/PrefectHQ/prefect/pull/8788>
 - Rename `prefect.docker` to `prefect.utilities.dockerutils` - <https://github.com/PrefectHQ/prefect/pull/8788>
-- Remove use of PartialModel  — <https://github.com/PrefectHQ/prefect/pull/12574>
 
 ### Documentation
 
