@@ -279,8 +279,14 @@ async def _find_package_for_worker_type(worker_type: str) -> Optional[str]:
         for worker_type in worker_dict
         if worker_type != "prefect-agent"
     }
-
-    return worker_types_with_packages[worker_type]
+    try:
+        return worker_types_with_packages[worker_type]
+    except KeyError:
+        app.console.print(
+            f"Could not find a package for worker type {worker_type!r}.",
+            style="yellow",
+        )
+        return None
 
 
 async def _get_worker_class(

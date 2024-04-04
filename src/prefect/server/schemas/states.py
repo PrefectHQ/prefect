@@ -199,7 +199,13 @@ class State(StateBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
+    def copy(
+        self,
+        *,
+        update: Optional[Dict[str, Any]] = None,
+        reset_fields: bool = False,
+        **kwargs,
+    ):
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
@@ -409,6 +415,29 @@ def Paused(
     state_details.pause_key = pause_key
 
     return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
+
+
+def Suspended(
+    cls: Type[State] = State,
+    timeout_seconds: Optional[int] = None,
+    pause_expiration_time: Optional[datetime.datetime] = None,
+    pause_key: Optional[str] = None,
+    **kwargs,
+):
+    """Convenience function for creating `Suspended` states.
+
+    Returns:
+        State: a Suspended state
+    """
+    return Paused(
+        cls=cls,
+        name="Suspended",
+        reschedule=True,
+        timeout_seconds=timeout_seconds,
+        pause_expiration_time=pause_expiration_time,
+        pause_key=pause_key,
+        **kwargs,
+    )
 
 
 def AwaitingRetry(

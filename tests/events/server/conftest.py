@@ -1,13 +1,23 @@
 from datetime import timedelta
-from typing import Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
 import pendulum
+import pydantic
 import pytest
 from pendulum.datetime import DateTime
 from pendulum.tz.timezone import Timezone
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.events import actions
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
+from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events import ResourceSpecification, actions
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
@@ -29,6 +39,12 @@ def frozen_time(monkeypatch: pytest.MonkeyPatch) -> pendulum.DateTime:
 
     monkeypatch.setattr(pendulum, "now", frozen_time)
     return frozen
+
+
+@pytest.fixture
+def automations_session(session: AsyncSession) -> AsyncSession:
+    # pass through the nebula session
+    return session
 
 
 @pytest.fixture
@@ -79,6 +95,47 @@ def email_me_when_that_dang_spider_comes(
         triggering_event=daddy_long_legs_walked,
         action=arachnophobia.actions[0],
     )
+
+
+@pytest.fixture
+async def some_workspace_automations(
+    db: PrefectDBInterface, automations_session: AsyncSession
+) -> Sequence[Automation]:
+    uninteresting_kwargs: Dict[str, Any] = dict(
+        trigger=EventTrigger(
+            expect=("things.happened",),
+            match=ResourceSpecification.parse_obj(
+                {"prefect.resource.id": "some-resource"}
+            ),
+            match_related=ResourceSpecification.parse_obj({}),
+            posture=Posture.Reactive,
+            threshold=1,
+            within=timedelta(seconds=10),
+        ),
+        actions=[actions.DoNothing()],
+    )
+
+    automations = [
+        db.Automation(
+            id=uuid4(),
+            name="automation 1",
+            **uninteresting_kwargs,
+        ),
+        db.Automation(
+            id=uuid4(),
+            name="automation 2",
+            **uninteresting_kwargs,
+        ),
+        db.Automation(
+            id=uuid4(),
+            name="automation 3",
+            **uninteresting_kwargs,
+        ),
+    ]
+
+    automations_session.add_all(automations)
+    await automations_session.flush()
+    return pydantic.parse_obj_as(List[Automation], automations)
 
 
 def assert_message_represents_event(message: Message, event: ReceivedEvent):

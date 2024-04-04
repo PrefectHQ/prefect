@@ -209,7 +209,6 @@ from prefect.utilities.callables import (
     parameters_to_args_kwargs,
 )
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
-from prefect.utilities.pydantic import PartialModel
 from prefect.utilities.text import truncated_to
 
 R = TypeVar("R")
@@ -503,7 +502,7 @@ async def begin_flow_run(
     logger = flow_run_logger(flow_run, flow)
 
     log_prints = should_log_prints(flow)
-    flow_run_context = PartialModel(FlowRunContext, log_prints=log_prints)
+    flow_run_context = FlowRunContext.construct(log_prints=log_prints)
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
@@ -716,8 +715,7 @@ async def create_and_begin_subflow_run(
                     # interruptible as well
                     interruptible=parent_flow_run_context.timeout_scope is not None,
                     client=client,
-                    partial_flow_run_context=PartialModel(
-                        FlowRunContext,
+                    partial_flow_run_context=FlowRunContext.construct(
                         sync_portal=parent_flow_run_context.sync_portal,
                         task_runner=task_runner,
                         background_tasks=parent_flow_run_context.background_tasks,
@@ -752,7 +750,7 @@ async def orchestrate_flow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     interruptible: bool,
     client: PrefectClient,
-    partial_flow_run_context: PartialModel[FlowRunContext],
+    partial_flow_run_context: FlowRunContext,
     user_thread: threading.Thread,
 ) -> State:
     """
@@ -803,11 +801,16 @@ async def orchestrate_flow_run(
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
         try:
-            with partial_flow_run_context.finalize(
-                flow=flow,
-                flow_run=flow_run,
-                client=client,
-                parameters=parameters,
+            with FlowRunContext(
+                **{
+                    **partial_flow_run_context.dict(),
+                    **{
+                        "flow_run": flow_run,
+                        "flow": flow,
+                        "client": client,
+                        "parameters": parameters,
+                    },
+                }
             ) as flow_run_context:
                 # update flow run name
                 if not run_name_set and flow.flow_run_name:
@@ -1931,8 +1934,7 @@ async def orchestrate_task_run(
         flow_run = await client.read_flow_run(task_run.flow_run_id)
     logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
-    partial_task_run_context = PartialModel(
-        TaskRunContext,
+    partial_task_run_context = TaskRunContext.construct(
         task_run=task_run,
         task=task,
         client=client,
@@ -1972,16 +1974,19 @@ async def orchestrate_task_run(
 
     # Generate the cache key to attach to proposed states
     # The cache key uses a TaskRunContext that does not include a `timeout_context``
+
+    task_run_context = TaskRunContext(
+        **partial_task_run_context.dict(), parameters=resolved_parameters
+    )
+
     cache_key = (
         task.cache_key_fn(
-            partial_task_run_context.finalize(parameters=resolved_parameters),
+            task_run_context,
             resolved_parameters,
         )
         if task.cache_key_fn
         else None
     )
-
-    task_run_context = partial_task_run_context.finalize(parameters=resolved_parameters)
 
     # Ignore the cached results for a cache key, default = false
     # Setting on task level overrules the Prefect setting (env var)

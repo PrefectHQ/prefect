@@ -323,7 +323,10 @@ class TestTaskServerTaskResults:
         if persist_result:
             assert await updated_task_run.state.result() == 42
         else:
-            with pytest.raises(MissingResult, match="The result was not persisted"):
+            with pytest.raises(
+                MissingResult,
+                match="The result was not persisted|State data is missing",
+            ):
                 await updated_task_run.state.result()
 
     @pytest.mark.parametrize(
