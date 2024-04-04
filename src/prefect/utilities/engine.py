@@ -11,7 +11,6 @@ from typing import (
     Iterable,
     Optional,
     Set,
-    TypeVar,
     Union,
 )
 from uuid import UUID, uuid4
@@ -63,12 +62,6 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
-
-R = TypeVar("R")
-T = TypeVar("T")
-EngineReturnType = Literal["future", "state", "result"]
-
-NUM_CHARS_DYNAMIC_KEY = 8
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}

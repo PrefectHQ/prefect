@@ -27,7 +27,6 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
-    API_HEALTHCHECKS,
     begin_flow_run,
     begin_task_run,
     create_and_begin_subflow_run,
@@ -86,6 +85,7 @@ from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
 from prefect.utilities.engine import (
+    API_HEALTHCHECKS,
     check_api_reachable,
     collect_task_run_inputs,
     link_state_to_result,

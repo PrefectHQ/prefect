@@ -221,8 +221,6 @@ EngineReturnType = Literal["future", "state", "result"]
 
 NUM_CHARS_DYNAMIC_KEY = 8
 
-API_HEALTHCHECKS = {}
-UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
 
 
