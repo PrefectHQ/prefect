@@ -1024,7 +1024,7 @@ To use this setting, you must include it in your connection URL.
 """
 
 PREFECT_API_DATABASE_CONNECTION_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_database_connection_url,
     is_secret=True,
