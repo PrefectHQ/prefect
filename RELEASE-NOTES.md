@@ -2,30 +2,12 @@
 
 ## Release 2.16.9
 
-### Experimental support for adding job variables to trigger definitions via CLI
-You can now supply a `job_variables` to their trigger definitions supplied via the CLI directly, loaded as a JSON file, loaded from a YAML file, and a prefect.yaml file. 
+### `prefect deploy` with `-jv/--job-variable` option
 
-To enable adding job variables to your trigger definitions via CLI, set the `PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES` setting `True`.
+In a prior release, `prefect deployment run` added `-jv/--job-variable` for providing job variables. We want to be consistent in our CLI by adding a `prefect deploy` `-jv/--job-variable` option as well! We have deprecated the `-v/--variables` option.
 
-Example:
-```shell
-prefect deploy ./flows/hello_world.py:hello -n hello-deployment 
-  --trigger '{
-    "enabled": true,
-    "match": {
-      "prefect.resource.id": "prefect.flow-run.*"
-    }, 
-   "job_variables": {
-      "one": 1
-   }
-}'
-```
-
-See the following PR for implementation details:
-- https://github.com/PrefectHQ/prefect/pull/12276
-
-### TBD
-- feat(cli): update `prefect deploy` to support `-jv/--job-variable` option — https://github.com/PrefectHQ/prefect/pull/12410
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12410
 
 ### Enhancements
 - Remove nested task constraint that prevented tasks called from other tasks — https://github.com/PrefectHQ/prefect/pull/12548
@@ -42,6 +24,7 @@ See the following PR for implementation details:
 - Update ECS provisioner IAM policy to include `ecs:TagResource` permission — https://github.com/PrefectHQ/prefect/pull/12551
 
 ### Experimental / In-Flight Features
+- Support for adding job variables to trigger definitions via CLI - https://github.com/PrefectHQ/prefect/pull/12276
 - Fix: Pydantic dynamic imports — https://github.com/PrefectHQ/prefect/pull/12503
 - Pydantic Compat Refactor — https://github.com/PrefectHQ/prefect/pull/12522
 - support `mode="json"` when flag is off — https://github.com/PrefectHQ/prefect/pull/12540
