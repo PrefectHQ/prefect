@@ -26,17 +26,24 @@ See the following pull request for implementation details:
 - Update ECS provisioner IAM policy to include `ecs:TagResource` permission — https://github.com/PrefectHQ/prefect/pull/12551
 
 ### Experimental / In-Flight Features
-- Support for adding job variables to trigger definitions via CLI - https://github.com/PrefectHQ/prefect/pull/12276
-- Fix: Pydantic dynamic imports — https://github.com/PrefectHQ/prefect/pull/12503
-- Pydantic Compat Refactor — https://github.com/PrefectHQ/prefect/pull/12522
-- support `mode="json"` when flag is off — https://github.com/PrefectHQ/prefect/pull/12540
-- Message Publisher and Consumer abstractions, with in-memory implementation — https://github.com/PrefectHQ/prefect/pull/12485
-- Backporting `POST /api/events` and the `/api/events/in` Websocket — https://github.com/PrefectHQ/prefect/pull/12499
-- Adding a diagnostic service which consumes events and prints a summary of them — https://github.com/PrefectHQ/prefect/pull/12501
-- Internal events client, for publishing events from other server-side areas — https://github.com/PrefectHQ/prefect/pull/12520
-- Introducing an internal orchestration API client for use in events — https://github.com/PrefectHQ/prefect/pull/12534
-- Introduces the server-side automations schema models — https://github.com/PrefectHQ/prefect/pull/12549
-- Adding the ORM classes and model modules for Automations and it's state tables — https://github.com/PrefectHQ/prefect/pull/12581
+#### Flow Run Infrastructure Overrides
+- Add support for adding job variables to trigger definitions via CLI - https://github.com/PrefectHQ/prefect/pull/12276
+
+#### Pydantic V2 Compatibility
+- Add dynamic importing of Pydantic modules
+    - https://github.com/PrefectHQ/prefect/pull/12498
+    - https://github.com/PrefectHQ/prefect/pull/12503
+- Refactor Pydantic V2 compatibility layer into submodules — https://github.com/PrefectHQ/prefect/pull/12522
+- Enable support for `mode="json"` in `model_dump` function by default — https://github.com/PrefectHQ/prefect/pull/12540
+
+#### Events and Automations
+- Add message publisher and consumer abstractions, with in-memory implementation — https://github.com/PrefectHQ/prefect/pull/12485
+- Add events HTTP and websocket endpoints — https://github.com/PrefectHQ/prefect/pull/12499
+- Add a diagnostic service which consumes events and prints a summary of them — https://github.com/PrefectHQ/prefect/pull/12501
+- Add internal events client for publishing events from other server-side areas — https://github.com/PrefectHQ/prefect/pull/12520
+- Add an internal orchestration API client for use in events — https://github.com/PrefectHQ/prefect/pull/12534
+- Add server-side automations schema models — https://github.com/PrefectHQ/prefect/pull/12549
+- Add ORM classes and model modules for automations and its state tables — https://github.com/PrefectHQ/prefect/pull/12581
 
 ### Integrations - Prefect AWS
 - Fix `S3Bucket.copy_object` target path resolution — https://github.com/PrefectHQ/prefect-aws/pull/385
