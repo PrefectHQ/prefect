@@ -89,7 +89,6 @@ from prefect.task_runners import (
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
-from prefect.utilities.pydantic import PartialModel
 
 
 @pytest.fixture
@@ -126,8 +125,6 @@ def parameterized_flow():
 
 @pytest.fixture
 async def get_flow_run_context(prefect_client, result_factory, local_filesystem):
-    partial_ctx = PartialModel(FlowRunContext)
-
     @flow
     def foo():
         pass
@@ -137,8 +134,8 @@ async def get_flow_run_context(prefect_client, result_factory, local_filesystem)
 
     async def _get_flow_run_context():
         async with anyio.create_task_group() as tg:
-            partial_ctx.background_tasks = tg
-            return partial_ctx.finalize(
+            return FlowRunContext(
+                background_tasks=tg,
                 flow=foo,
                 flow_run=flow_run,
                 client=prefect_client,
@@ -2177,8 +2174,7 @@ class TestBeginTaskRun:
 class TestOrchestrateFlowRun:
     @pytest.fixture
     def partial_flow_run_context(self, result_factory, local_filesystem):
-        return PartialModel(
-            FlowRunContext,
+        return FlowRunContext.construct(
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
             result_factory=result_factory,
