@@ -144,7 +144,7 @@ if __name__ == "__main__":
     serve(slow_deploy, fast_deploy)
 ```
 
-A few observations are in order:
+A few observations:
 
 - the `flow.to_deployment` interface exposes the *exact same* options as `flow.serve`; this method produces a deployment object
 - the deployments are only registered with the API once `serve(...)` is called

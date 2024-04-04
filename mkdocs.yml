@@ -253,8 +253,6 @@ nav:
                 - "prefect.client":
                       - "base": api-ref/prefect/client/base.md
                       - "cloud": api-ref/prefect/client/cloud.md
-                      - "collections": api-ref/prefect/client/collections.md
-                      - "constants": api-ref/prefect/client/constants.md
                       - "orchestration": api-ref/prefect/client/orchestration.md
                       - "schemas": api-ref/prefect/client/schemas.md
                       - "utilities": api-ref/prefect/client/utilities.md
