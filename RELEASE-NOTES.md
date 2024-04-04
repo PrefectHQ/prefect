@@ -2,11 +2,36 @@
 
 ## Release 2.16.9
 
-### Enhancements
-- feat(server): add REST API to delete work pool's worker — https://github.com/PrefectHQ/prefect/pull/12330
-- Add `job_variables` support to triggers — https://github.com/PrefectHQ/prefect/pull/12276
+
+
+### Experimental support for adding job variables to trigger definitions via CLI
+You can now supply a `job_variables` to their trigger definitions supplied via the CLI directly, loaded as a JSON file, loaded from a YAML file, and a prefect.yaml file. 
+
+To enable adding job variables to your trigger definitions via CLI, set the `PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES` setting `True`.
+
+Example:
+```shell
+prefect deploy ./flows/hello_world.py:hello -n hello-deployment 
+  --trigger '{
+    "enabled": true,
+    "match": {
+      "prefect.resource.id": "prefect.flow-run.*"
+    }, 
+   "job_variables": {
+      "one": 1
+   }
+}'
+```
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12276
+
+### TBD
 - feat(cli): update `prefect deploy` to support `-jv/--job-variable` option — https://github.com/PrefectHQ/prefect/pull/12410
-- Remove nested task constraint — https://github.com/PrefectHQ/prefect/pull/12548
+
+### Enhancements
+- Remove nested task constraint that prevented tasks called from other tasks — https://github.com/PrefectHQ/prefect/pull/12548
+- Allow for deletion of work pool workers via API — https://github.com/PrefectHQ/prefect/pull/12330
 
 ### Fixes
 - Raise lower bound on `typer` dependency — https://github.com/PrefectHQ/prefect/pull/12512
