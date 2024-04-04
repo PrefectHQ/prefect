@@ -4,7 +4,7 @@
 
 ### `prefect deploy` with `-jv/--job-variable` option
 
-In a prior release, `prefect deployment run` added `-jv/--job-variable` for providing job variables. We want to be consistent in our CLI by adding a `prefect deploy` `-jv/--job-variable` option as well! We have deprecated the `-v/--variables` option.
+In a prior release, we added a `-jv/--job-variable` for providing job variables when running a deployment using `prefect deployment run`. We want to be consistent in our CLI by allowing you to use this option while creating deployments during `prefect deploy`! Thus, we have added a `-jv/--job-variable` option to `prefect deploy` to replace the `-v/--variables` option, which we have now deprecated.
 
 See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12410
