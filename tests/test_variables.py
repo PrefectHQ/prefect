@@ -2,9 +2,6 @@ import pytest
 
 from prefect import flow, variables
 
-# from prefect.server.models.variables import create_variable
-# from prefect.server.schemas.actions import VariableCreate
-
 
 @pytest.fixture
 async def variable():
