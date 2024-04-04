@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Dict, Union
 
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +8,7 @@ from prefect.server import models, schemas
 
 
 def _get_base_config_defaults(base_config: dict):
-    template: dict = base_config.get("variables", {}).get("properties", {})
+    template: Dict[str, Any] = base_config.get("variables", {}).get("properties", {})
     defaults = dict()
     for variable_name, attrs in template.items():
         if "default" in attrs:

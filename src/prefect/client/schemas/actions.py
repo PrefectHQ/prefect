@@ -12,7 +12,6 @@ else:
     from pydantic import Field, conint, root_validator, validator
 
 import prefect.client.schemas.objects as objects
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
@@ -111,11 +110,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -184,11 +178,6 @@ class DeploymentCreate(ActionBaseModel):
             jsonschema.validate(self.job_variables, variables_schema)
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
@@ -326,10 +315,10 @@ class FlowRunCreate(ActionBaseModel):
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     deployment_id: Optional[UUID] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
     parent_task_run_id: Optional[UUID] = Field(None)
@@ -353,10 +342,10 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     )
 
     name: Optional[str] = Field(default=None, description="The name of the flow run.")
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
     infrastructure_document_id: Optional[UUID] = Field(None)
@@ -430,7 +419,7 @@ class BlockTypeUpdate(ActionBaseModel):
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(None)
@@ -450,7 +439,9 @@ class BlockDocumentCreate(ActionBaseModel):
     name: Optional[str] = Field(
         default=None, description="The name of the block document"
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     block_schema_id: UUID = Field(
         default=..., description="The block schema ID for the block document"
     )
@@ -480,7 +471,9 @@ class BlockDocumentUpdate(ActionBaseModel):
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     merge_existing_data: bool = Field(
         default=True,
         description="Whether to merge the existing data with the new data or replace it",

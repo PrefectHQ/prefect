@@ -63,7 +63,7 @@ class CloudClient:
         self,
         host: str,
         api_key: str,
-        httpx_settings: dict = None,
+        httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings or dict()
         httpx_settings.setdefault("headers", dict())

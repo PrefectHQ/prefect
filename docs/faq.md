@@ -113,6 +113,6 @@ SQLite generally works well for getting started and exploring Prefect. We have t
 
 No. Flows written with the Prefect 1 client must be rewritten with the Prefect 2 client. For most flows, this should take just a few minutes. See our [migration guide](/migration-guide/) and our [Upgrade to Prefect 2](https://www.prefect.io/guide/blog/upgrade-to-prefect-2/) post for more information.
 
-### Can a use Prefect 1 and Prefect 2 at the same time on my local machine?
+### Can I use Prefect 1 and Prefect 2 at the same time on my local machine?
 
 Yes. Just use different virtual environments.
