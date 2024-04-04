@@ -5,10 +5,25 @@ from prefect import flow, variables
 
 @pytest.fixture
 async def variable():
-    model = variables.Variable.set(
+    model = await variables.Variable.set(
         name="my_variable", value="my-value", tags=["123", "456"]
     )
     return model
+
+
+# def test_variable_with_same_name_and_not_overwrite_errors(variable):
+#     with pytest.raises(ValueError, match="You are attempting to save variables with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."):
+#         test_overwrite_false = variables.Variable.set(name=variable.name, value="new_value", overwrite=False)
+
+
+async def test_variable_with_same_name_and_overwrite(variable):
+    new_value = "new_value"
+    new_tags = ["my", "new", "tags"]
+    overwritten_variable = await variables.Variable.set(
+        name=variable.name, value=new_value, tags=new_tags, overwrite=True
+    )
+    assert overwritten_variable.value == new_value
+    assert overwritten_variable.tags == new_tags
 
 
 def test_get(variable):

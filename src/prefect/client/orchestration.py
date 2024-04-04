@@ -69,6 +69,7 @@ from prefect.client.schemas.actions import (
     TaskRunCreate,
     TaskRunUpdate,
     VariableCreate,
+    VariableUpdate,
     WorkPoolCreate,
     WorkPoolUpdate,
     WorkQueueCreate,
@@ -2936,12 +2937,25 @@ class PrefectClient:
         Returns:
             Information about the newly created variable.
         """
-        print(variable.dict)
         response = await self._client.post(
             "/variables/",
             json=variable.dict(json_compatible=True, exclude_unset=True),
         )
         return Variable(**response.json())
+
+    async def update_variable(self, variable: VariableUpdate) -> None:
+        """
+        Updates a variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the new variable.
+        Returns:
+            Information about the newly created variable.
+        """
+        await self._client.patch(
+            f"/variables/name/{variable.name}",
+            json=variable.dict(json_compatible=True, exclude_unset=True),
+        )
 
     async def read_variable_by_name(self, name: str) -> Optional[Variable]:
         """Reads a variable by name. Returns None if no variable is found."""
