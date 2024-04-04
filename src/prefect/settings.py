@@ -59,7 +59,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -95,7 +94,7 @@ class Setting(Generic[T]):
 
     def __init__(
         self,
-        type: Type[T],
+        type: T,
         *,
         deprecated: bool = False,
         deprecated_start_date: Optional[str] = None,
@@ -584,7 +583,7 @@ This is recommended only during development, e.g. when using self-signed certifi
 """
 
 PREFECT_API_SSL_CERT_FILE = Setting(
-    str,
+    Optional[str],
     default=os.environ.get("SSL_CERT_FILE"),
 )
 """
@@ -594,7 +593,7 @@ If left unset, the setting will default to the value provided by the `SSL_CERT_F
 """
 
 PREFECT_API_URL = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -613,7 +612,7 @@ we would like to silence this warning so we will set it to `FALSE`.
 """
 
 PREFECT_API_KEY = Setting(
-    str,
+    Optional[str],
     default=None,
     is_secret=True,
 )
@@ -682,7 +681,7 @@ PREFECT_CLOUD_API_URL = Setting(
 
 
 PREFECT_CLOUD_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     deprecated=True,
     deprecated_start_date="Dec 2022",
@@ -920,7 +919,7 @@ The following options are available:
 """
 
 PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
-    int,
+    Optional[int],
     default=None,
 )
 """
@@ -928,7 +927,7 @@ Controls connection pool size when using a PostgreSQL database with the Prefect 
 """
 
 PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
-    int,
+    Optional[int],
     default=None,
 )
 """
@@ -1014,7 +1013,7 @@ registered.
 """
 
 PREFECT_API_DATABASE_PASSWORD = Setting(
-    str,
+    Optional[str],
     default=None,
     is_secret=True,
 )
@@ -1257,7 +1256,7 @@ PREFECT_UI_ENABLED = Setting(
 """Whether or not to serve the Prefect UI."""
 
 PREFECT_UI_API_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_ui_api_url,
 )
@@ -1577,18 +1576,18 @@ Whether or not to enable experimental work queue status in-place of work queue h
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """The `block-type/block-document` slug of a block to use as the default result storage."""
 
-PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
+PREFECT_DEFAULT_WORK_POOL_NAME = Setting(Optional[str], default=None)
 """
 The default work pool to deploy to.
 """
 
 PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -1608,7 +1607,7 @@ Defaults to the root path.
 """
 
 PREFECT_UI_STATIC_DIRECTORY = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
