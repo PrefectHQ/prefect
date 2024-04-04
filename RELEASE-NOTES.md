@@ -1,5 +1,76 @@
 # Prefect Release Notes
 
+## Release 2.16.9
+
+### `prefect deploy` with `-jv/--job-variable` option
+
+In a prior release, we added a `-jv/--job-variable` option for providing job variables when running a deployment using `prefect deployment run`. We want to be consistent in our CLI by allowing you to use this option while creating deployments during `prefect deploy`! Thus, we have added a `-jv/--job-variable` option to `prefect deploy` to replace the `-v/--variables` option, which we have now deprecated.
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12410
+
+### Enhancements
+- Remove nested task constraint that prevented tasks called from other tasks — https://github.com/PrefectHQ/prefect/pull/12548
+- Stop creating artifacts for unpersisted results - https://github.com/PrefectHQ/prefect/pull/12454
+- Allow for deletion of work pool workers via API — https://github.com/PrefectHQ/prefect/pull/12330
+- Raise more informative error on `prefect worker start -t bad-type` - https://github.com/PrefectHQ/prefect/pull/12586
+- Add tooltip and increase width to support better displaying long Prefect variable names in the UI https://github.com/PrefectHQ/prefect-ui-library/pull/2275
+
+### Fixes
+- Raise lower bound on `typer` dependency — https://github.com/PrefectHQ/prefect/pull/12512
+- Skip flow run cancellation if no associated deployment — https://github.com/PrefectHQ/prefect/pull/12001
+- Handle referenced blocks in base templates during `job_variable` validation — https://github.com/PrefectHQ/prefect/pull/12329
+- Select correct `AsyncWaiter` for successively awaited flow and task calls — https://github.com/PrefectHQ/prefect/pull/12510
+- Handle flow run creation for runner-managed deployments — https://github.com/PrefectHQ/prefect/pull/12319
+- Expose `ignore_warnings` in `Flow.deploy` — https://github.com/PrefectHQ/prefect/pull/12569
+- Allow `prefect cloud login` re-authentication in non-interactive mode — https://github.com/PrefectHQ/prefect/pull/12575
+- Update ECS provisioner IAM policy to include `ecs:TagResource` permission — https://github.com/PrefectHQ/prefect/pull/12551
+- Correctly populate custom default parameters in the flow submission form in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/2280
+
+### Experimental / In-Flight Features
+#### Flow Run Infrastructure Overrides
+- Add support for adding job variables to trigger definitions via CLI - https://github.com/PrefectHQ/prefect/pull/12276
+
+#### Pydantic V2 Compatibility
+- Add dynamic importing of Pydantic modules
+    - https://github.com/PrefectHQ/prefect/pull/12498
+    - https://github.com/PrefectHQ/prefect/pull/12503
+- Refactor Pydantic V2 compatibility layer into submodules — https://github.com/PrefectHQ/prefect/pull/12522
+- Enable support for `mode="json"` in `model_dump` function by default — https://github.com/PrefectHQ/prefect/pull/12540
+
+#### Events and Automations
+- Add message publisher and consumer abstractions, with in-memory implementation — https://github.com/PrefectHQ/prefect/pull/12485
+- Add events HTTP and websocket endpoints — https://github.com/PrefectHQ/prefect/pull/12499
+- Add a diagnostic service which consumes events and prints a summary of them — https://github.com/PrefectHQ/prefect/pull/12501
+- Add internal events client for publishing events from other server-side areas — https://github.com/PrefectHQ/prefect/pull/12520
+- Add an internal orchestration API client for use in events — https://github.com/PrefectHQ/prefect/pull/12534
+- Add server-side automations schema models — https://github.com/PrefectHQ/prefect/pull/12549
+- Add ORM classes and model modules for automations and its state tables — https://github.com/PrefectHQ/prefect/pull/12581
+
+### Integrations - Prefect AWS
+- Fix `S3Bucket.copy_object` target path resolution — https://github.com/PrefectHQ/prefect-aws/pull/385
+- Add Python 3.12 support and remove 3.7 support — https://github.com/PrefectHQ/prefect-aws/pull/405
+- Change logging prefix to avoid unnecessary task definition registrations — https://github.com/PrefectHQ/prefect-aws/pull/400
+
+### Deprecations
+- Deprecate `KubernetesCusterConfig` block — https://github.com/PrefectHQ/prefect/pull/12571
+- Remove use of PartialModel  — <https://github.com/PrefectHQ/prefect/pull/12574>
+
+### Documentation
+- Add `prefect shell` commands to guides index — https://github.com/PrefectHQ/prefect/pull/12494
+- Update Prefect Cloud plan information — https://github.com/PrefectHQ/prefect/pull/12505
+- Add timeout information to flows concept page — https://github.com/PrefectHQ/prefect/pull/12550
+- Remove outdated doc warning on calling tasks within tasks — https://github.com/PrefectHQ/prefect/pull/12580
+- Remove broken link from FAQ page - https://github.com/PrefectHQ/prefect/pull/12590
+- Fix typo in FAQ page — https://github.com/PrefectHQ/prefect/pull/12584
+
+### Contributors
+* @hainenber
+* @jwijffels made their first contribution in https://github.com/PrefectHQ/prefect/pull/12575
+* @ShaoyiZhang made their first contribution in https://github.com/PrefectHQ/prefect/pull/12584
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.8...2.16.9
+
 ## Release 2.16.8
 
 ### Fixes
