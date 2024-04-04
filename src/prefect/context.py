@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 
 For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
+
 import os
 import sys
 import warnings
@@ -75,7 +76,7 @@ class ContextModel(BaseModel):
     _token: Token = PrivateAttr(None)
 
     class Config:
-        allow_mutation = False
+        # allow_mutation = False
         arbitrary_types_allowed = True
         extra = "forbid"
 
