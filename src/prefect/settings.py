@@ -66,37 +66,13 @@ from typing import (
 from urllib.parse import urlparse
 
 import toml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_settings
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-else:
-    from pydantic import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
 from prefect.pydantic import BaseModel, Field, create_model, root_validator, validator
+from prefect.pydantic.fields import FieldInfo
 from prefect.pydantic_settings import BaseSettings
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -132,7 +108,7 @@ class Setting(Generic[T]):
         is_secret: bool = False,
         **kwargs: Any,
     ) -> None:
-        self.field: fields.FieldInfo = Field(**kwargs)
+        self.field: FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self._name = None
