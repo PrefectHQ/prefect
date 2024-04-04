@@ -14,7 +14,7 @@ See the following pull request for implementation details:
 - Stop creating artifacts for unpersisted results - https://github.com/PrefectHQ/prefect/pull/12454
 - Allow for deletion of work pool workers via API — https://github.com/PrefectHQ/prefect/pull/12330
 - Raise nicer error on `prefect worker start -t bad-type` - https://github.com/PrefectHQ/prefect/pull/12586
-- Add tooltip to variable names in the ui and increase width given for displaying variable names https://github.com/PrefectHQ/prefect-ui-library/pull/2275
+- Add tooltip and increase width to support better displaying long Prefect variable names in the UI https://github.com/PrefectHQ/prefect-ui-library/pull/2275
 
 ### Fixes
 - Raise lower bound on `typer` dependency — https://github.com/PrefectHQ/prefect/pull/12512
