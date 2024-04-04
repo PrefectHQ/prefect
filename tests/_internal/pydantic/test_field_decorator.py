@@ -65,10 +65,6 @@ class TestFieldValidatorV1:
         model = TestModel4(fieldc="special", fieldd="allowed")
         assert model.fieldd == "allowed"
 
-    @pytest.mark.skipif(
-        USE_V2_MODELS,
-        reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
-    )
     def test_cross_field_validation_in_v1_using_values(self):
         """
         Verifies cross-field validation in Pydantic V1 by using the `values` dictionary
