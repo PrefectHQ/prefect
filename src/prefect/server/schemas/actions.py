@@ -275,7 +275,9 @@ class DeploymentUpdate(ActionBaseModel):
     )
     path: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(
-        default=None, alias="infra_overrides"
+        default=None,
+        alias="infra_overrides",
+        description="Overrides for the flow's infrastructure configuration.",
     )
     entrypoint: Optional[str] = Field(None)
     manifest_path: Optional[str] = Field(None)
