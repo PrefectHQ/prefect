@@ -1,7 +1,7 @@
 """add_deployment_version_to_flow_run
 
 Revision ID: bd6efa529f03
-Revises: 7a653837d9ba
+Revises: aeea5ee6f070
 Create Date: 2024-04-03 09:44:18.666688
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "bd6efa529f03"
-down_revision = "7a653837d9ba"
+down_revision = "aeea5ee6f070"
 branch_labels = None
 depends_on = None
 
