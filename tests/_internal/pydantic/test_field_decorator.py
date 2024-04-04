@@ -199,3 +199,86 @@ class TestFieldValidatorV2:
             UserModel(name="John Doe!", id=1)
 
         assert "name must be alphanumeric" in str(exc_info.value)
+
+    def test_nested_model_validation(self):
+        class ChildModel(BaseModel):
+            child_field: int
+
+            @field_validator("child_field")
+            def child_field_must_be_even(cls, v):
+                if v % 2 != 0:
+                    raise ValueError("child_field must be even")
+                return v
+
+        class ParentModel(BaseModel):
+            nested: ChildModel
+
+        valid_child = ChildModel(child_field=2)
+        ParentModel(nested=valid_child)
+
+        with pytest.raises(ValidationError) as exc_info:
+            ChildModel(child_field=3)
+        assert "child_field must be even" in str(exc_info.value)
+
+    def test_dynamic_default_validation(self):
+        def default_name():
+            return "Default Name"
+
+        class DynamicDefaultModel(BaseModel):
+            name: str = Field(default_factory=default_name)
+
+            @field_validator("name")
+            def name_must_include_space(cls, v):
+                if " " not in v:
+                    raise ValueError("name must include a space")
+                return v
+
+        model = DynamicDefaultModel()
+        assert model.name == "Default Name"
+
+        DynamicDefaultModel(name="Valid Name")
+
+        with pytest.raises(ValidationError) as exc_info:
+            DynamicDefaultModel(name="InvalidName")
+        assert "name must include a space" in str(exc_info.value)
+
+    def test_field_validator_with_before_mode(self):
+        class Model(BaseModel):
+            a: str
+
+            @field_validator("a", mode="before")
+            @classmethod
+            def ensure_foobar(cls, v: str) -> str:
+                if "foobar" not in v:
+                    raise ValueError('"foobar" not found in a')
+                return v
+
+        assert Model(a="this is foobar good").model_dump() == {
+            "a": "this is foobar good"
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            Model(a="snap")
+        assert '"foobar" not found in a' in str(exc_info.value)
+
+    def test_alias_field_validation(self):
+        class AliasModel(BaseModel):
+            real_name: str = Field(..., alias="alias_name")
+
+            @field_validator("real_name")
+            def real_name_must_be_capitalized(cls, v):
+                if not v.istitle():
+                    raise ValueError("real_name must be capitalized")
+                return v
+
+        AliasModel(alias_name="Valid Name")
+
+        AliasModel(alias_name="Another Valid Name")
+
+        with pytest.raises(ValidationError) as exc_info:
+            AliasModel(alias_name="invalid")
+        assert "real_name must be capitalized" in str(exc_info.value)
+
+        with pytest.raises(ValidationError) as exc_info:
+            AliasModel(alias_name="also invalid")
+        assert "real_name must be capitalized" in str(exc_info.value)
