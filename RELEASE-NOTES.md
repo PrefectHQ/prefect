@@ -11,7 +11,9 @@ See the following pull request for implementation details:
 
 ### Enhancements
 - Remove nested task constraint that prevented tasks called from other tasks — https://github.com/PrefectHQ/prefect/pull/12548
+- Stop creating artifacts for unpersisted results - https://github.com/PrefectHQ/prefect/pull/12454
 - Allow for deletion of work pool workers via API — https://github.com/PrefectHQ/prefect/pull/12330
+- Raise nicer error on `prefect worker start -t bad-type` - https://github.com/PrefectHQ/prefect/pull/12586
 
 ### Fixes
 - Raise lower bound on `typer` dependency — https://github.com/PrefectHQ/prefect/pull/12512
@@ -35,7 +37,6 @@ See the following pull request for implementation details:
 - Introducing an internal orchestration API client for use in events — https://github.com/PrefectHQ/prefect/pull/12534
 - Introduces the server-side automations schema models — https://github.com/PrefectHQ/prefect/pull/12549
 - Adding the ORM classes and model modules for Automations and it's state tables — https://github.com/PrefectHQ/prefect/pull/12581
-- Add dynamic importing of Pydantic modules — https://github.com/PrefectHQ/prefect/pull/12498
 
 ### Integrations - Prefect AWS
 - Fix `S3Bucket.copy_object` target path resolution — https://github.com/PrefectHQ/prefect-aws/pull/385
@@ -50,7 +51,8 @@ See the following pull request for implementation details:
 - Update Prefect Cloud plan information — https://github.com/PrefectHQ/prefect/pull/12505
 - Add timeout information to flows concept page — https://github.com/PrefectHQ/prefect/pull/12550
 - Remove outdated doc warning on calling tasks within tasks — https://github.com/PrefectHQ/prefect/pull/12580
-- Fix typo in FAQ — https://github.com/PrefectHQ/prefect/pull/12584
+- Remove broken link from FAQ page - https://github.com/PrefectHQ/prefect/pull/12590
+- Fix typo in FAQ page — https://github.com/PrefectHQ/prefect/pull/12584
 
 ### Contributors
 * @hainenber
