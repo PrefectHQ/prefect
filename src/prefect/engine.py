@@ -365,6 +365,39 @@ async def retrieve_flow_then_begin_flow_run(
     )
 
 
+@asynccontextmanager
+async def record_task_state_changes_and_upload(client: PrefectClient):
+    import glob
+    import json
+    from tempfile import TemporaryDirectory
+
+    from prefect.utilities.collections import batched_iterable
+
+    with TemporaryDirectory() as tmp_dir:
+        yield tmp_dir
+        task_runs = []
+        task_run_states = []
+        for file_name in glob.glob("*.json", root_dir=tmp_dir):
+            with open(f"{tmp_dir}/{file_name}", "r") as f:
+                data = json.load(f)
+            if "task-run-state" in file_name:
+                task_run_states.append(State(**data))
+            else:
+                task_runs.append(TaskRun(**data))
+
+        for task_run_batch in batched_iterable(task_runs, 1_000):
+            print(f"Uploading {len(task_run_batch)} task runs ...")
+            await client.bulk_upload_task_runs(task_runs=task_run_batch)
+        print("All task runs uploaded")
+
+        for task_run_state_batch in batched_iterable(task_run_states, 1_000):
+            print(f"Uploading {len(task_run_state_batch)} task run states ...")
+            await client.bulk_upload_task_run_states(
+                task_run_states=task_run_state_batch
+            )
+        print("All task run states uploaded")
+
+
 async def begin_flow_run(
     flow: Flow,
     flow_run: FlowRun,
@@ -419,6 +452,10 @@ async def begin_flow_run(
 
         flow_run_context.task_runner = await stack.enter_async_context(
             task_runner.start()
+        )
+
+        flow_run_context.task_run_file_directory = await stack.enter_async_context(
+            record_task_state_changes_and_upload(client=client)
         )
 
         flow_run_context.result_factory = await ResultFactory.from_flow(
@@ -1456,6 +1493,8 @@ async def create_task_run_future(
     # Default to the flow run's task runner
     task_runner = task_runner or flow_run_context.task_runner
 
+    print(f"Using task runner: {task_runner}")
+
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
     task_run_name = (
@@ -1514,7 +1553,7 @@ async def create_task_run_then_submit(
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> None:
     task_run = (
-        await create_task_run(
+        await create_client_orchestrated_task_run(
             task=task,
             name=task_run_name,
             flow_run_context=flow_run_context,
@@ -1543,6 +1582,46 @@ async def create_task_run_then_submit(
     future._submitted.set()
 
 
+async def create_client_orchestrated_task_run(
+    task: Task,
+    name: str,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    dynamic_key: str,
+    wait_for: Optional[Iterable[PrefectFuture]],
+    extra_task_inputs: Dict[str, Set[TaskRunInput]],
+) -> TaskRun:
+    """
+    Create client orchestrated task run.
+    """
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    if wait_for:
+        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+
+    # Join extra task inputs
+    for k, extras in extra_task_inputs.items():
+        task_inputs[k] = task_inputs[k].union(extras)
+
+    logger = get_run_logger(flow_run_context)
+
+    task_run = await flow_run_context.create_task_run(
+        task=task,
+        name=name,
+        flow_run_id=flow_run_context.flow_run.id if flow_run_context.flow_run else None,
+        dynamic_key=dynamic_key,
+        state=Pending(),
+        extra_tags=TagsContext.get().current_tags,
+        task_inputs=task_inputs,
+    )
+
+    if flow_run_context.flow_run:
+        logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
+    else:
+        engine_logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
+
+    return task_run
+
+
 async def create_task_run(
     task: Task,
     name: str,
@@ -1562,7 +1641,7 @@ async def create_task_run(
 
     logger = get_run_logger(flow_run_context)
 
-    task_run = await flow_run_context.client.create_task_run(
+    task_run = await flow_run_context.create_task_run(
         task=task,
         name=name,
         flow_run_id=flow_run_context.flow_run.id if flow_run_context.flow_run else None,
@@ -1954,7 +2033,7 @@ async def orchestrate_task_run(
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
         # Retrieve the latest metadata for the task run context
-        task_run = await client.read_task_run(task_run.id)
+        task_run = await flow_run_context.read_task_run(task_run.id)
 
         with task_run_context.copy(
             update={"task_run": task_run, "start_time": pendulum.now("UTC")}
@@ -1966,7 +2045,7 @@ async def orchestrate_task_run(
                     task_run_name = _resolve_custom_task_run_name(
                         task=task, parameters=resolved_parameters
                     )
-                    await client.set_task_run_name(
+                    await flow_run_context.set_task_run_name(
                         task_run_id=task_run.id, name=task_run_name
                     )
                     logger.extra["task_run_name"] = task_run_name
@@ -2105,7 +2184,8 @@ async def wait_for_task_runs_and_report_crashes(
             logger.debug("Crash details:", exc_info=exception)
 
             # Update the state of the task run
-            result = await client.set_task_run_state(
+            flow_run_context = FlowRunContext.get()
+            result = await flow_run_context.set_task_run_state(
                 task_run_id=future.task_run.id, state=state, force=True
             )
             if result.status == SetStateStatus.ACCEPT:
@@ -2218,7 +2298,8 @@ async def report_task_run_crashes(task_run: TaskRun, client: PrefectClient):
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
             logger.debug("Crash details:", exc_info=exc)
-            await client.set_task_run_state(
+            flow_run_context = FlowRunContext.get()
+            await flow_run_context.set_task_run_state(
                 state=state,
                 task_run_id=task_run.id,
                 force=True,
@@ -2345,6 +2426,17 @@ async def resolve_inputs(
     return resolved_parameters
 
 
+async def propose_task_run_state(
+    state: State,
+    force: bool = False,
+    task_run_id: UUID = None,
+) -> State:
+    """
+    Propose a task run state and orchestrate client-side.
+    """
+    # TODO
+
+
 async def propose_state(
     client: PrefectClient,
     state: State,
@@ -2412,7 +2504,10 @@ async def propose_state(
 
     # Attempt to set the state
     if task_run_id:
-        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+        flow_run_context = FlowRunContext.get()
+        set_state = partial(
+            flow_run_context.set_task_run_state, task_run_id, state, force=force
+        )
         response = await set_state_and_handle_waits(set_state)
     elif flow_run_id:
         set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)

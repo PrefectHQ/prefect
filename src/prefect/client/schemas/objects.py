@@ -148,6 +148,9 @@ class State(ObjectBaseModel, Generic[R]):
         default=None,
     )
 
+    # These properties are present in the database but not our schemas
+    task_run_id: Optional[UUID] = Field(default=None)
+
     @overload
     def result(self: "State[R]", raise_on_failure: bool = True) -> R:
         ...
