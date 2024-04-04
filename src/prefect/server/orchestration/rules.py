@@ -280,7 +280,9 @@ class FlowOrchestrationContext(OrchestrationContext):
             state_payload = self.proposed_state.dict(shallow=True)
             state_data = state_payload.pop("data", None)
 
-            if state_data is not None:
+            if state_data is not None and not (
+                isinstance(state_data, dict) and state_data.get("type") == "unpersisted"
+            ):
                 state_result_artifact = core.Artifact.from_result(state_data)
                 state_result_artifact.flow_run_id = self.run.id
                 await artifacts.create_artifact(self.session, state_result_artifact)
@@ -432,7 +434,9 @@ class TaskOrchestrationContext(OrchestrationContext):
             state_payload = self.proposed_state.dict(shallow=True)
             state_data = state_payload.pop("data", None)
 
-            if state_data is not None:
+            if state_data is not None and not (
+                isinstance(state_data, dict) and state_data.get("type") == "unpersisted"
+            ):
                 state_result_artifact = core.Artifact.from_result(state_data)
                 state_result_artifact.task_run_id = self.run.id
 
