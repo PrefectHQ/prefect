@@ -14,7 +14,7 @@ async def variable():
 def test_variable_with_same_name_and_not_overwrite_errors(variable):
     with pytest.raises(
         ValueError,
-        match="You are attempting to save variables with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`.",
+        match="You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`.",
     ):
         variables.Variable.set(name=variable.name, value="new_value", overwrite=False)
 

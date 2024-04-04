@@ -52,7 +52,7 @@ class Variable(VariableRequest):
         if variable:
             if not overwrite:
                 raise ValueError(
-                    "You are attempting to save variables with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."
+                    "You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."
                 )
             else:
                 await cls._update_variable_by_name(name, value, tags)
