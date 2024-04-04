@@ -1,6 +1,7 @@
 """
 Routes for admin-level interactions with the Prefect REST API.
 """
+
 from prefect._vendor.fastapi import Body, Depends, Response, status
 
 import prefect
@@ -13,13 +14,13 @@ router = PrefectRouter(prefix="/admin", tags=["Admin"])
 
 
 @router.get("/settings")
-async def read_settings() -> prefect.settings.Settings:
+async def read_settings() -> dict:
     """
     Get the current Prefect REST API settings.
 
     Secret setting values will be obfuscated.
     """
-    return prefect.settings.get_current_settings().with_obfuscated_secrets()
+    return prefect.settings.get_current_settings().with_obfuscated_secrets().dict()
 
 
 @router.get("/version")
