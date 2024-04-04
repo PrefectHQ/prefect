@@ -1004,7 +1004,7 @@ class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
 class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
     """Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
     if the flow run has no associated infrastructure process ID. Also Rejects transitions from
-    Paused to Cancelling if the Paused state's details indicatesthe flow run has been suspended,
+    Paused to Cancelling if the Paused state's details indicates the flow run has been suspended,
     exiting the flow and tearing down infra.
 
     The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
