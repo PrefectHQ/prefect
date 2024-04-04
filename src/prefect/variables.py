@@ -15,40 +15,27 @@ class Variable(VariableRequest):
 
     @classmethod
     @sync_compatible
-    async def get_or_create(
-        cls,
-        name: str,
-        value: Optional[str] = None,
-        default: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-    ) -> Optional[str]:
-        """
-        docstring tho
-        """
-        variable = await cls.get(name=name)
-        if variable:
-            print("shit existed")
-            return variable
-        else:
-            print("it aint existed")
-            variable = await cls.set(name, value, tags)
-            print("we created it!")
-            return variable if variable else default
-
-    @classmethod
-    @sync_compatible
     async def set(
         cls,
         name: str,
         value: Optional[str] = None,
         default: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        overwrite: Optional[bool] = False,
     ) -> Optional[str]:
         """
         docstring tho
         """
-        variable = await cls._set_variable_by_name(name, value, tags)
-        return variable.value if variable else default
+        variable = await cls._get_variable_by_name(name)
+        if variable:
+            if not overwrite:
+                raise ValueError(
+                    "You are attempting to save values with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."
+                )
+        else:
+            await cls._set_variable_by_name(name, value, tags)
+
+        return variable if variable else default
 
     @classmethod
     @sync_compatible
@@ -60,19 +47,19 @@ class Variable(VariableRequest):
 
             @flow
             def my_flow():
-                var = variables.get("my_var")
+                var = variables.Variable.get("my_var")
         ```
         or
         ```
-            from prefect import variables
+            from prefect.variables import Variable
 
             @flow
             async def my_flow():
-                var = await variables.get("my_var")
+                var = await Variable.get("my_var")
         ```
         """
         variable = await cls._get_variable_by_name(name=name)
-        return variable.value if variable else default
+        return variable if variable else default
 
     @classmethod
     @sync_compatible
@@ -94,6 +81,30 @@ class Variable(VariableRequest):
         client: Optional[PrefectClient] = None,
     ):
         client, _ = get_or_create_client(client)
-        var = (VariableRequest(name=name, value=value, tags=tags),)
+        var = VariableRequest(name=name, value=value, tags=tags)
         variable = await client.create_variable(variable=var)
         return variable
+
+
+@sync_compatible
+async def get(name: str, default: Optional[str] = None) -> Optional[str]:
+    """
+    Get a variable by name. If doesn't exist return the default.
+    ```
+        from prefect import variables
+
+        @flow
+        def my_flow():
+            var = variables.get("my_var")
+    ```
+    or
+    ```
+        from prefect import variables
+
+        @flow
+        async def my_flow():
+            var = await variables.get("my_var")
+    ```
+    """
+    variable = await Variable.get(name)
+    return variable.value if variable else default

@@ -2936,18 +2936,18 @@ class PrefectClient:
         Returns:
             Information about the newly created variable.
         """
-
+        print(variable.dict)
         response = await self._client.post(
             "/variables/",
-            json=variable[0].dict(json_compatible=True, exclude_unset=True),
+            json=variable.dict(json_compatible=True, exclude_unset=True),
         )
-        return pydantic.parse_obj_as(Variable, response.json())
+        return Variable(**response.json())
 
     async def read_variable_by_name(self, name: str) -> Optional[Variable]:
         """Reads a variable by name. Returns None if no variable is found."""
         try:
             response = await self._client.get(f"/variables/name/{name}")
-            return pydantic.parse_obj_as(Variable, response.json())
+            return Variable(**response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 return None
@@ -2967,7 +2967,6 @@ class PrefectClient:
     async def read_variables(self, limit: int = None) -> List[Variable]:
         """Reads all variables."""
         response = await self._client.post("/variables/filter", json={"limit": limit})
-        print("we here!")
         return pydantic.parse_obj_as(List[Variable], response.json())
 
     async def read_worker_metadata(self) -> Dict[str, Any]:

@@ -1,21 +1,16 @@
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect import flow, variables
-from prefect.server.models.variables import create_variable
-from prefect.server.schemas.actions import VariableCreate
+
+# from prefect.server.models.variables import create_variable
+# from prefect.server.schemas.actions import VariableCreate
 
 
 @pytest.fixture
-async def variable(
-    session: AsyncSession,
-):
-    model = await create_variable(
-        session,
-        VariableCreate(name="my_variable", value="my-value", tags=["123", "456"]),
+async def variable():
+    model = variables.Variable.set(
+        name="my_variable", value="my-value", tags=["123", "456"]
     )
-    await session.commit()
-
     return model
 
 
