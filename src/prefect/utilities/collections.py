@@ -1,6 +1,7 @@
 """
 Utilities for extensions of and operations on Python collections.
 """
+
 import io
 import itertools
 from collections import OrderedDict, defaultdict
@@ -158,7 +159,7 @@ def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
     return [obj]
 
 
-def listrepr(objs: Iterable, sep=" ") -> str:
+def listrepr(objs: Iterable[Any], sep: str = " ") -> str:
     return sep.join(repr(obj) for obj in objs)
 
 

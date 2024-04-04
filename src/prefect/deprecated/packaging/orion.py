@@ -31,7 +31,7 @@ class OrionPackageManifest(PackageManifest):
     This class is deprecated as of version March 2024 and will not be available after September 2024.
     """
 
-    type: Literal["orion"] = "orion"
+    type: str = "orion"
     serializer: Serializer
     block_document_id: UUID
 
@@ -69,7 +69,12 @@ class OrionPackager(Packager):
             value={"flow": self.serializer.dumps(flow)}
         )._save(is_anonymous=True)
 
-        return self.base_manifest(flow).finalize(
-            serializer=self.serializer,
-            block_document_id=block_document_id,
+        return OrionPackageManifest(
+            **{
+                **self.base_manifest(flow).dict(),
+                **{
+                    "serializer": self.serializer,
+                    "block_document_id": block_document_id,
+                },
+            }
         )

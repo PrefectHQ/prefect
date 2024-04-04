@@ -34,7 +34,7 @@ class FilePackageManifest(PackageManifest):
     This class is deprecated as of version March 2024 and will not be available after September 2024.
     """
 
-    type: Literal["file"] = "file"
+    type: str = "file"
     serializer: Serializer
     key: str
     filesystem_id: UUID
@@ -80,8 +80,13 @@ class FilePackager(Packager):
             or await self.filesystem._save(is_anonymous=True)
         )
 
-        return self.base_manifest(flow).finalize(
-            serializer=self.serializer,
-            filesystem_id=filesystem_id,
-            key=key,
+        return FilePackageManifest(
+            **{
+                **self.base_manifest(flow).dict(),
+                **{
+                    "serializer": self.serializer,
+                    "filesystem_id": filesystem_id,
+                    "key": key,
+                },
+            }
         )
