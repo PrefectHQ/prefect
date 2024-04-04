@@ -280,8 +280,7 @@ async def resolve_inputs(
             #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure)
-            and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
