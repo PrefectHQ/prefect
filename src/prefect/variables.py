@@ -10,7 +10,13 @@ from prefect.utilities.asyncutils import sync_compatible
 
 class Variable(VariableRequest):
     """
-    docstring
+    Variables are named, mutable string values, much like environment variables. Variables are scoped to a Prefect server instance or a single workspace in Prefect Cloud.
+    https://docs.prefect.io/latest/concepts/variables/
+
+    Arguments:
+        name: A string identifying the variable.
+        value: A string that is the value of the variable.
+        tags: A list of strings to associate with the variable.
     """
 
     @classmethod
