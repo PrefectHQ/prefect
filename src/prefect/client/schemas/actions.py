@@ -5,11 +5,12 @@ from uuid import UUID, uuid4
 import jsonschema
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._types import NaturalInteger
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, conint, root_validator, validator
+    from pydantic.v1 import Field, root_validator, validator
 else:
-    from pydantic import Field, conint, root_validator, validator
+    from pydantic import Field, root_validator, validator
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
@@ -518,7 +519,7 @@ class WorkPoolCreate(ActionBaseModel):
         default=False,
         description="Whether the work pool is paused.",
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NaturalInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
 

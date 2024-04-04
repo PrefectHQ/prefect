@@ -10,11 +10,12 @@ from uuid import UUID, uuid4
 import jsonschema
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._types import NaturalInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
+    from pydantic.v1 import Field, HttpUrl, root_validator, validator
 else:
-    from pydantic import Field, HttpUrl, conint, root_validator, validator
+    from pydantic import Field, HttpUrl, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
@@ -774,7 +775,7 @@ class WorkPoolCreate(ActionBaseModel):
         default=False,
         description="Pausing the work pool stops the delivery of all work.",
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NaturalInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
 
@@ -793,7 +794,7 @@ class WorkPoolUpdate(ActionBaseModel):
     description: Optional[str] = Field(None)
     is_paused: Optional[bool] = Field(None)
     base_job_template: Optional[Dict[str, Any]] = Field(None)
-    concurrency_limit: Optional[conint(ge=0)] = Field(None)
+    concurrency_limit: Optional[NaturalInteger] = Field(None)
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
@@ -814,10 +815,10 @@ class WorkQueueCreate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NaturalInteger] = Field(
         None, description="The work queue's concurrency limit."
     )
-    priority: Optional[conint(ge=1)] = Field(
+    priority: Optional[PositiveInteger] = Field(
         None,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -845,8 +846,8 @@ class WorkQueueUpdate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(None)
-    priority: Optional[conint(ge=1)] = Field(None)
+    concurrency_limit: Optional[NaturalInteger] = Field(None)
+    priority: Optional[PositiveInteger] = Field(None)
     last_polled: Optional[DateTimeTZ] = Field(None)
 
     # DEPRECATED

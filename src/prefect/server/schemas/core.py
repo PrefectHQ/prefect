@@ -9,11 +9,12 @@ from uuid import UUID
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._types import NaturalInteger
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, HttpUrl, conint, root_validator, validator
+    from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
 else:
-    from pydantic import BaseModel, Field, HttpUrl, conint, root_validator, validator
+    from pydantic import BaseModel, Field, HttpUrl, root_validator, validator
 
 from typing_extensions import Literal
 
@@ -892,10 +893,10 @@ class WorkQueue(ORMBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NaturalInteger] = Field(
         default=None, description="An optional concurrency limit for the work queue."
     )
-    priority: conint(ge=1) = Field(
+    priority: NaturalInteger = Field(
         default=1,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -1051,7 +1052,7 @@ class WorkPool(ORMBaseModel):
         default=False,
         description="Pausing the work pool stops the delivery of all work.",
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NaturalInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
     # this required field has a default of None so that the custom validator
