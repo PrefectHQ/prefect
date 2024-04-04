@@ -364,6 +364,7 @@ jobs:
       - name: Run tests
         run: >
           pytest tests
+          -W ignore::DeprecationWarning
           --numprocesses auto
           --maxprocesses 6
           --dist loadscope
