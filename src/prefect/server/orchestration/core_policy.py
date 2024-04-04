@@ -50,7 +50,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             PreventDuplicateTransitions,
             HandleFlowTerminalStateTransitions,
             EnforceCancellingToCancelledTransition,
-            BypassCancellingScheduledFlowRuns,
+            BypassCancellingFlowRunsWithNoInfra,
             PreventPendingTransitions,
             EnsureOnlyScheduledFlowsMarkedLate,
             HandlePausingFlows,
@@ -58,7 +58,6 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
-            BypassCancellingSuspendedFlowRuns,
         ]
 
 
@@ -109,7 +108,7 @@ class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             AddUnknownResult,  # mark forced completions with an unknown result
-            BypassCancellingSuspendedFlowRuns,  # cancel suspended runs from the UI
+            BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
         ]
 
 
@@ -1002,16 +1001,18 @@ class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
         return
 
 
-class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
+class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
     """Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
-    if the flow run has no associated infrastructure process ID.
+    if the flow run has no associated infrastructure process ID. Also Rejects transitions from
+    Paused to Cancelling if the Paused state's details indicatesthe flow run has been suspended,
+    exiting the flow and tearing down infra.
 
     The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
     to clean up, we can transition directly to `Cancelled`. Runs that are `AwaitingRetry` are
     a `Scheduled` state that may have associated infrastructure.
     """
 
-    FROM_STATES = {StateType.SCHEDULED}
+    FROM_STATES = {StateType.SCHEDULED, StateType.PAUSED}
     TO_STATES = {StateType.CANCELLING}
 
     async def before_transition(
@@ -1020,10 +1021,21 @@ class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        if not context.run.infrastructure_pid:
+        if (
+            initial_state.type == states.StateType.SCHEDULED
+            and not context.run.infrastructure_pid
+        ):
             await self.reject_transition(
                 state=states.Cancelled(),
                 reason="Scheduled flow run has no infrastructure to terminate.",
+            )
+        elif (
+            initial_state.type == states.StateType.PAUSED
+            and initial_state.state_details.pause_reschedule
+        ):
+            await self.reject_transition(
+                state=states.Cancelled(),
+                reason="Suspended flow run has no infrastructure to terminate.",
             )
 
 
@@ -1074,27 +1086,4 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
                 # state=None will return the initial (current) state
                 state=None,
                 reason="This run has already made this state transition.",
-            )
-
-
-class BypassCancellingSuspendedFlowRuns(BaseOrchestrationRule):
-    """
-    In the case of a `Suspended` or `Paused` and rescheduled flow run, the flow run is
-    exited and infrastrucure is torn down. If there is not infrastructure to clean up,
-    we can transition directly to `Cancelled`.
-    """
-
-    FROM_STATES = {StateType.PAUSED}
-    TO_STATES = {StateType.CANCELLING}
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: FlowOrchestrationContext,
-    ) -> None:
-        if initial_state.state_details.pause_reschedule:
-            await self.reject_transition(
-                state=states.Cancelled(),
-                reason="Suspended flow run has no infrastructure to terminate.",
             )
