@@ -54,11 +54,11 @@ class ResourceTrigger(Trigger, abc.ABC):
     type: str
 
     match: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for resources which this trigger will match.",
     )
     match_related: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for related resources which this trigger will match.",
     )
 
@@ -294,6 +294,17 @@ class Automation(PrefectBaseModel, extra="ignore"):
         ...,
         description="The actions to perform when this Automation triggers",
     )
+
+    actions_on_trigger: List[ActionTypes] = Field(
+        default_factory=list,
+        description="The actions to perform when an Automation goes into a triggered state",
+    )
+
+    actions_on_resolve: List[ActionTypes] = Field(
+        default_factory=list,
+        description="The actions to perform when an Automation goes into a resolving state",
+    )
+
     owner_resource: Optional[str] = Field(
         default=None, description="The owning resource of this automation"
     )

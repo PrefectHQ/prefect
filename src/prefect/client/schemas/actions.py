@@ -1,5 +1,4 @@
-import warnings
-from copy import copy, deepcopy
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
@@ -13,15 +12,16 @@ else:
     from pydantic import Field, conint, root_validator, validator
 
 import prefect.client.schemas.objects as objects
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
+    remove_old_deployment_fields,
     return_none_schedule,
     validate_message_template_variables,
+    validate_name_present_on_nonanonymous_blocks,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -110,46 +110,12 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
-        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
-        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
-        # and work_queue_name. This validator removes old fields provided
-        # by older clients to avoid 422 errors.
-        values_copy = copy(values)
-        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
-        worker_pool_name = values_copy.pop("worker_pool_name", None)
-        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
-        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
-        if worker_pool_queue_id:
-            warnings.warn(
-                (
-                    "`worker_pool_queue_id` is no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
-            warnings.warn(
-                (
-                    "`worker_pool_name`, `worker_pool_queue_name`, and "
-                    "`work_pool_name` are"
-                    "no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        return values_copy
+        return remove_old_deployment_fields(values)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
@@ -209,46 +175,12 @@ class DeploymentCreate(ActionBaseModel):
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
-        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
-        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
-        # and work_queue_name. This validator removes old fields provided
-        # by older clients to avoid 422 errors.
-        values_copy = copy(values)
-        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
-        worker_pool_name = values_copy.pop("worker_pool_name", None)
-        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
-        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
-        if worker_pool_queue_id:
-            warnings.warn(
-                (
-                    "`worker_pool_queue_id` is no longer supported for updating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
-            warnings.warn(
-                (
-                    "`worker_pool_name`, `worker_pool_queue_name`, and "
-                    "`work_pool_name` are"
-                    "no longer supported for creating "
-                    "deployments. Please use `work_pool_name` and "
-                    "`work_queue_name` instead."
-                ),
-                UserWarning,
-            )
-        return values_copy
+        return remove_old_deployment_fields(values)
 
     @validator("schedule")
     def validate_none_schedule(cls, v):
@@ -377,10 +309,10 @@ class FlowRunCreate(ActionBaseModel):
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     deployment_id: Optional[UUID] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
     parent_task_run_id: Optional[UUID] = Field(None)
@@ -404,10 +336,10 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     )
 
     name: Optional[str] = Field(default=None, description="The name of the flow run.")
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
     infrastructure_document_id: Optional[UUID] = Field(None)
@@ -481,7 +413,7 @@ class BlockTypeUpdate(ActionBaseModel):
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(None)
@@ -501,7 +433,9 @@ class BlockDocumentCreate(ActionBaseModel):
     name: Optional[str] = Field(
         default=None, description="The name of the block document"
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     block_schema_id: UUID = Field(
         default=..., description="The block schema ID for the block document"
     )
@@ -522,10 +456,7 @@ class BlockDocumentCreate(ActionBaseModel):
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
-        # TODO: We should find an elegant way to reuse this logic from the origin model
-        if not values.get("is_anonymous") and not values.get("name"):
-            raise ValueError("Names must be provided for block documents.")
-        return values
+        return validate_name_present_on_nonanonymous_blocks(values)
 
 
 class BlockDocumentUpdate(ActionBaseModel):
@@ -534,7 +465,9 @@ class BlockDocumentUpdate(ActionBaseModel):
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     merge_existing_data: bool = Field(
         default=True,
         description="Whether to merge the existing data with the new data or replace it",

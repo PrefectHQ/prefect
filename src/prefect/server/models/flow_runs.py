@@ -6,7 +6,7 @@ Intended for internal use by the Prefect REST API.
 import contextlib
 import datetime
 from itertools import chain
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import pendulum
@@ -439,7 +439,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
-    orchestration_parameters: dict = None,
+    orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.
