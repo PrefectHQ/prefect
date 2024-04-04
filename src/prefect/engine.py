@@ -1508,11 +1508,7 @@ async def create_task_run_future(
         name=task_run_name,
         key=uuid4(),
         task_runner=task_runner,
-        asynchronous=(
-            task.isasync and flow_run_context.flow.isasync
-            if flow_run_context and flow_run_context.flow
-            else task.isasync
-        ),
+        asynchronous=True,
     )
 
     # Create and submit the task run in the background
