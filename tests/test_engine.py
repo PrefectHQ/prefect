@@ -30,15 +30,11 @@ from prefect.engine import (
     API_HEALTHCHECKS,
     begin_flow_run,
     begin_task_run,
-    check_api_reachable,
-    collect_task_run_inputs,
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
-    link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
-    propose_state,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
     suspend_flow_run,
@@ -89,6 +85,12 @@ from prefect.task_runners import (
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
+from prefect.utilities.engine import (
+    check_api_reachable,
+    collect_task_run_inputs,
+    link_state_to_result,
+    propose_state,
+)
 
 
 @pytest.fixture
