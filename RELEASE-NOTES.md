@@ -1,5 +1,89 @@
 # Prefect Release Notes
 
+## Release 2.16.9
+
+### Exciting New Features 🎉
+
+
+### Enhancements
+- feat(server): add REST API to delete work pool's worker — https://github.com/PrefectHQ/prefect/pull/12330
+- Add `job_variables` support to triggers — https://github.com/PrefectHQ/prefect/pull/12276
+- Remove nested task constraint — https://github.com/PrefectHQ/prefect/pull/12548
+
+### Fixes
+- fix: skip cancellation if no config found — https://github.com/PrefectHQ/prefect/pull/12001
+- Handle referenced blocks in base templates during `job_variable` validation — https://github.com/PrefectHQ/prefect/pull/12329
+- select correct `AsyncWaiter` for successively awaited flow/task calls — https://github.com/PrefectHQ/prefect/pull/12510
+- Handle flow-runs without queues — https://github.com/PrefectHQ/prefect/pull/12319
+
+### Deprecations
+- Deprecate `KubernetesCusterConfig` block — https://github.com/PrefectHQ/prefect/pull/12571
+
+### Documentation
+- add shell commands to guides index — https://github.com/PrefectHQ/prefect/pull/12494
+- Update cloud plan info — https://github.com/PrefectHQ/prefect/pull/12505
+- Integrates mkdocs material social plugin fix — https://github.com/PrefectHQ/prefect/pull/12519
+- Add timeout to concepts->flows — https://github.com/PrefectHQ/prefect/pull/12550
+- Remove social cards to avoid flakiness in doc builds — https://github.com/PrefectHQ/prefect/pull/12573
+- Remove outdated doc — https://github.com/PrefectHQ/prefect/pull/12580
+- fix typo in faq — https://github.com/PrefectHQ/prefect/pull/12584
+
+### Experimental / In-Flight Features
+- Message Publisher and Consumer abstractions, with in-memory implementation — https://github.com/PrefectHQ/prefect/pull/12485
+- Backporting `POST /api/events` and the `/api/events/in` Websocket — https://github.com/PrefectHQ/prefect/pull/12499
+- Adding a diagnostic service which consumes events and prints a summary of them — https://github.com/PrefectHQ/prefect/pull/12501
+- Internal events client, for publishing events from other server-side areas — https://github.com/PrefectHQ/prefect/pull/12520
+- Introducing an internal orchestration API client for use in events — https://github.com/PrefectHQ/prefect/pull/12534
+- Introduces the server-side automations schema models — https://github.com/PrefectHQ/prefect/pull/12549
+- Adding the ORM classes and model modules for Automations and it's state tables — https://github.com/PrefectHQ/prefect/pull/12581
+
+### Uncategorized
+- Add dynamic importing of Pydantic modules — https://github.com/PrefectHQ/prefect/pull/12498
+- feat(cli): update `prefect deploy` to support `-jv/--job-variable` option — https://github.com/PrefectHQ/prefect/pull/12410
+- Fix: Pydantic dynamic imports — https://github.com/PrefectHQ/prefect/pull/12503
+- fix another breaking `typer` change — https://github.com/PrefectHQ/prefect/pull/12512
+- remove `copy_model_fields` from client response schemas — https://github.com/PrefectHQ/prefect/pull/12521
+- Pydantic Compat Refactor — https://github.com/PrefectHQ/prefect/pull/12522
+- start removing `copy_model_fields` from `actions` schemas — https://github.com/PrefectHQ/prefect/pull/12525
+- revert mixin strategy and copy schemas to remove `copy_model_fields` — https://github.com/PrefectHQ/prefect/pull/12529
+- loop debug back on — https://github.com/PrefectHQ/prefect/pull/12533
+- support `mode="json"` when flag is off — https://github.com/PrefectHQ/prefect/pull/12540
+- remove straggler decorated client schema — https://github.com/PrefectHQ/prefect/pull/12542
+- Add model_fields to Pydantic Compat — https://github.com/PrefectHQ/prefect/pull/12538
+- Update pinned mkdocs material insiders version — https://github.com/PrefectHQ/prefect/pull/12543
+- only run datadog tests on merge to `main`, not every PR — https://github.com/PrefectHQ/prefect/pull/12514
+- Making sure that we explicitly install pydantic v2 in CI where we intend to — https://github.com/PrefectHQ/prefect/pull/12554
+- start removing `copy_model_fields` from server `actions` schemas — https://github.com/PrefectHQ/prefect/pull/12544
+- Remove uses of @experimental_field  — https://github.com/PrefectHQ/prefect/pull/12555
+- Add myself as a CODEOWNER for the events subsystem while it's being ported — https://github.com/PrefectHQ/prefect/pull/12557
+- expose `ignore_warnings` in `Flow.deploy` — https://github.com/PrefectHQ/prefect/pull/12569
+- remove `copy_model_fields` from second chunk of server schemas — https://github.com/PrefectHQ/prefect/pull/12572
+- Remove copy model fields pt9 — https://github.com/PrefectHQ/prefect/pull/12577
+- Allow to authenticate even if authenticated already in non-interactive mode — https://github.com/PrefectHQ/prefect/pull/12575
+- Remove copy model fields: the grand finale — https://github.com/PrefectHQ/prefect/pull/12578
+- Replace all raw dict type hints with dict[str, Any] or, appropriately Optional[dict[str, Any]] — https://github.com/PrefectHQ/prefect/pull/12579
+- Update ECS provisioner IAM policy to include `ecs:TagResource` permission — https://github.com/PrefectHQ/prefect/pull/12551
+
+## New Contributors
+* @jwijffels made their first contribution in https://github.com/PrefectHQ/prefect/pull/12575
+* @ShaoyiZhang made their first contribution in https://github.com/PrefectHQ/prefect/pull/12584
+### Contributors
+- @ShaoyiZhang
+- @aaazzam
+- @chrisguidry
+- @desertaxle
+- @discdiver
+- @hainenber
+- @jakekaplan
+- @jlowin
+- @jwijffels
+- @seanpwlms
+- @serinamarie
+- @urimandujano
+- @zzstoatzz
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.8...preview
+
 ## Release 2.16.8
 
 ### Fixes
