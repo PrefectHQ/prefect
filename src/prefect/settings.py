@@ -1726,7 +1726,7 @@ class Settings(SettingsFieldsMixin):
         logging._checkLevel(value)
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def post_root_validators(cls, values):
         """
         Add root validation functions for settings here.
