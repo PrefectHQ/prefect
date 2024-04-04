@@ -9,13 +9,13 @@
 - Remove nested task constraint — https://github.com/PrefectHQ/prefect/pull/12548
 
 ### Fixes
-- fix: skip cancellation if no config found — https://github.com/PrefectHQ/prefect/pull/12001
+- Raise lower bound on `typer` dependency — https://github.com/PrefectHQ/prefect/pull/12512
+- Skip flow run cancellation if no associated deployment — https://github.com/PrefectHQ/prefect/pull/12001
 - Handle referenced blocks in base templates during `job_variable` validation — https://github.com/PrefectHQ/prefect/pull/12329
-- fix another breaking `typer` change — https://github.com/PrefectHQ/prefect/pull/12512
-- select correct `AsyncWaiter` for successively awaited flow/task calls — https://github.com/PrefectHQ/prefect/pull/12510
-- Handle flow-runs without queues — https://github.com/PrefectHQ/prefect/pull/12319
-- expose `ignore_warnings` in `Flow.deploy` — https://github.com/PrefectHQ/prefect/pull/12569
-- Allow to authenticate even if authenticated already in non-interactive mode — https://github.com/PrefectHQ/prefect/pull/12575
+- Select correct `AsyncWaiter` for successively awaited flow and task calls — https://github.com/PrefectHQ/prefect/pull/12510
+- Handle flow run creation for runner-managed deployments — https://github.com/PrefectHQ/prefect/pull/12319
+- Expose `ignore_warnings` in `Flow.deploy` — https://github.com/PrefectHQ/prefect/pull/12569
+- Allow `prefect cloud login` re-authentication in non-interactive mode — https://github.com/PrefectHQ/prefect/pull/12575
 - Update ECS provisioner IAM policy to include `ecs:TagResource` permission — https://github.com/PrefectHQ/prefect/pull/12551
 
 ### Experimental / In-Flight Features
