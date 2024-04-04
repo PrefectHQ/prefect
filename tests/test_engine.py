@@ -3295,7 +3295,10 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
     "prefect.utilities.collections.visit_collection",
     wraps=prefect.utilities.collections.visit_collection,
 )
-@patch("prefect.engine.visit_collection", wraps=prefect.engine.visit_collection)
+@patch(
+    "prefect.utilities.engine.visit_collection",
+    wraps=prefect.utilities.engine.visit_collection,
+)
 async def test_collect_task_run_inputs_respects_quote(
     mock_outer_visit_collection, mock_recursive_visit_collection
 ):
