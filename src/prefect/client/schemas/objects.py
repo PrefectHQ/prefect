@@ -16,7 +16,7 @@ import orjson
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._types import NaturalInteger, PositiveInteger
+from prefect._internal.pydantic._types import NonNegativeInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, HttpUrl, root_validator, validator
@@ -1179,7 +1179,7 @@ class WorkQueue(ObjectBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[NaturalInteger] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="An optional concurrency limit for the work queue."
     )
     priority: PositiveInteger = Field(
@@ -1342,7 +1342,7 @@ class WorkPool(ObjectBaseModel):
         default=False,
         description="Pausing the work pool stops the delivery of all work.",
     )
-    concurrency_limit: Optional[NaturalInteger] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
     status: Optional[WorkPoolStatus] = Field(

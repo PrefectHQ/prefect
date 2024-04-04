@@ -9,5 +9,5 @@ IncEx: TypeAlias = "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], No
 DEFAULT_REF_TEMPLATE = "#/$defs/{model}"
 JsonSchemaMode = Literal["validation", "serialization"]
 
-NaturalInteger = Annotated[int, Field(ge=0)]
+NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(ge=1)]

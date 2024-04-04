@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 import jsonschema
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._types import NaturalInteger, PositiveInteger
+from prefect._internal.pydantic._types import NonNegativeInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, HttpUrl, root_validator, validator
@@ -775,7 +775,7 @@ class WorkPoolCreate(ActionBaseModel):
         default=False,
         description="Pausing the work pool stops the delivery of all work.",
     )
-    concurrency_limit: Optional[NaturalInteger] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
 
@@ -794,7 +794,7 @@ class WorkPoolUpdate(ActionBaseModel):
     description: Optional[str] = Field(None)
     is_paused: Optional[bool] = Field(None)
     base_job_template: Optional[Dict[str, Any]] = Field(None)
-    concurrency_limit: Optional[NaturalInteger] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
@@ -815,7 +815,7 @@ class WorkQueueCreate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[NaturalInteger] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         None, description="The work queue's concurrency limit."
     )
     priority: Optional[PositiveInteger] = Field(
@@ -846,7 +846,7 @@ class WorkQueueUpdate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[NaturalInteger] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
     priority: Optional[PositiveInteger] = Field(None)
     last_polled: Optional[DateTimeTZ] = Field(None)
 
