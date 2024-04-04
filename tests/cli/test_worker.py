@@ -359,6 +359,29 @@ async def test_worker_discovers_work_pool_type(
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_start_fails_informatively_with_bad_type(
+    process_work_pool, prefect_client: PrefectClient
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "-p",
+            process_work_pool.name,
+            "-t",
+            "not-a-real-type",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Could not find a package for worker type",
+            "Unable to start worker. Please ensure you have the necessary"
+            " dependencies installed to run your desired worker type.",
+        ],
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
 async def test_worker_does_not_run_with_push_pool(push_work_pool):
     await run_sync_in_worker_thread(
         invoke_and_assert,
