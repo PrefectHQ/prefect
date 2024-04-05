@@ -119,7 +119,7 @@ class TaskVizTracker:
         We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
         because they are singletons.
         """
-        from prefect.engine import UNTRACKABLE_TYPES
+        from prefect.utilities.engine import UNTRACKABLE_TYPES
 
         if (type(viz_return_value) in UNTRACKABLE_TYPES) or (
             isinstance(viz_return_value, int) and (-5 <= viz_return_value <= 256)
