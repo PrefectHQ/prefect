@@ -8,6 +8,9 @@ from prefect._internal.pydantic.utilities.field_decorator import field_validator
 if USE_V2_MODELS:
     from pydantic import ValidationInfo
 
+else:
+    from pydantic import ConfigError
+
 
 @pytest.mark.skipif(
     USE_V2_MODELS,
@@ -95,6 +98,219 @@ class TestFieldValidatorV1:
         with pytest.raises(ValidationError) as exc_info:
             TestModel2(field1=15, field2="normal")
         assert "field2 must contain 'special' when field1 > 10" in str(exc_info.value)
+
+    def test_validation_of_default_values(self):
+        """
+        Ensures that the `field_validator` applies validation to fields with default values.
+        """
+
+        class TestModel(BaseModel):
+            a: str = "default"
+
+            @field_validator("a", pre=True, allow_reuse=True)
+            def check_a(cls, v):
+                if not v.isalpha():
+                    raise ValueError(
+                        "Default value must only contain alphabetic characters"
+                    )
+                return v
+
+        model = TestModel()
+        assert model.a == "default"
+
+        with pytest.raises(ValidationError):
+            TestModel(a="123")
+
+    def test_handling_of_optional_fields(self):
+        """
+        Tests that the `field_validator` correctly handles optional fields, applying validation
+        only when a value is provided.
+        """
+
+        from typing import Optional
+
+        class TestModel(BaseModel):
+            a: Optional[str] = None
+
+            @field_validator("a", pre=True)
+            def check_a(cls, v):
+                if v is not None and len(v) < 3:
+                    raise ValueError("Field 'a' must be at least 3 characters long")
+                return v
+
+        # Test that the validator does not raise an error for a missing optional field
+        model = TestModel()
+        assert model.a is None
+
+        # Test that providing a valid optional value passes
+        model = TestModel(a="valid")
+        assert model.a == "valid"
+
+        # Test that an invalid value raises a ValidationError
+        with pytest.raises(ValidationError):
+            TestModel(a="no")
+
+    def test_reuse_of_validators_across_different_fields(self):
+        """
+        Tests that validators can be reused across different fields within the same model.
+        """
+
+        class TestModel(BaseModel):
+            a: str
+            b: str
+
+            @field_validator("a", "b", allow_reuse=True)
+            def check_length(cls, v):
+                if len(v) < 5:
+                    raise ValueError(
+                        "Fields 'a' and 'b' must be at least 5 characters long"
+                    )
+                return v
+
+        # Test that both fields pass validation
+        model = TestModel(a="valid", b="check")
+        assert model.a == "valid" and model.b == "check"
+
+        # Test that an invalid 'a' value raises a ValidationError
+        with pytest.raises(ValidationError):
+            TestModel(a="no", b="check")
+
+        # Test that an invalid 'b' value also raises a ValidationError
+        with pytest.raises(ValidationError):
+            TestModel(a="valid", b="no")
+
+    def test_check_fields_default_behavior(self):
+        """
+        Validate that the `check_fields` parameter is set to `True` by default in Pydantic V1 models
+        to ensure that unless specified otherwise, the fields being validated are checked for existence.
+        """
+
+        with pytest.raises(ConfigError) as exc_info:
+
+            class TestModel(BaseModel):
+                existing_field: int
+
+                @field_validator("non_existent_field")
+                def dummy_validator(cls, value):
+                    return value
+
+        assert "Validators defined with incorrect fields: dummy_validator" in str(
+            exc_info.value
+        )
+
+    def test_validator_not_reusable_across_models_by_default(self):
+        """
+        Validate `allow_reuse` parameter set to False by default in V1 models, ensuring that
+        a validator function cannot be reused across different models unless explicitly allowed.
+        """
+
+        def normalize(small_name: str) -> str:
+            return " ".join((word.capitalize()) for word in small_name.split(" "))
+
+        class Producer(BaseModel):
+            name: str
+
+            _normalize_name = field_validator(
+                "name",
+            )(normalize)
+
+        with pytest.raises(ConfigError) as exc_info:
+
+            class Consumer(BaseModel):
+                name: str
+
+                _normalize_name = field_validator(
+                    "name",
+                )(normalize)
+
+        assert "duplicate validator function" in str(exc_info.value)
+
+    def test_pre_parameter_defaults_to_false(self):
+        """
+        Tests the `pre` parameter to ensure post-validation logic is applied by default in V1.
+        """
+
+        class TestModel(BaseModel):
+            a: int
+
+            @field_validator("a")
+            def ensure_positive(cls, v):
+                if v <= 0:
+                    raise ValueError("Field 'a' must be positive")
+                return v
+
+        # Test that a positive value passes post-validation
+        TestModel(a="1")  # type: ignore
+
+        # Test that a non-positive value raises a ValidationError at post-validation stage
+        with pytest.raises(ValidationError) as exc_info:
+            TestModel(a="-1")  # type: ignore
+        assert "Field 'a' must be positive" in str(exc_info.value)
+
+    def test_pre_parameter_set_to_true(self):
+        """
+        Tests the `pre` parameter to ensure pre-validation logic is applied in V1.
+        """
+
+        class TestModel(BaseModel):
+            a: int
+
+            @field_validator("a", pre=True)
+            def ensure_positive(cls, v):
+                if v <= 0:
+                    raise ValueError("Field 'a' must be positive")
+                return v
+
+        # Test that a positive value passes pre-validation
+        TestModel(a=1)
+
+        # Test that a non-positive value raises a ValidationError at pre-validation stage
+        with pytest.raises(ValidationError) as exc_info:
+            TestModel(a=-1)
+        assert "Field 'a' must be positive" in str(exc_info.value)
+
+    def test_always_parameter_in_v1_defaults_to_false(self):
+        class TestModel(BaseModel):
+            a: int = -1
+
+            @field_validator("a")
+            def ensure_positive(cls, v):
+                # This logic should not be invoked if 'a' is not explicitly set
+                # because always is set to False by default
+                if v <= 0:
+                    raise ValueError("Field 'a' must be positive")
+                return v
+
+        # The validator should not be called, and no error should be raised
+        model = TestModel()
+        assert model.a == -1, "Default value for 'a' should be untouched"
+
+        # The validator should be called, and an error should be raised
+        with pytest.raises(ValidationError) as exc_info:
+            TestModel(a=-1)
+        assert "Field 'a' must be positive" in str(exc_info.value)
+
+    def test_always_parameter_in_v1_set_to_true(self):
+        class TestModel(BaseModel):
+            a: int = -1  # Default value
+
+            @field_validator("a", always=True)
+            def ensure_positive(cls, v):
+                # This logic should not be invoked even when 'a' is not explicitly set
+                if v <= 0:
+                    raise ValueError("Field 'a' must be positive")
+                return v
+
+        # The validator should be called, and an error should be raised
+        with pytest.raises(ValidationError) as exc_info:
+            TestModel()
+        assert "Field 'a' must be positive" in str(exc_info.value)
+
+        with pytest.raises(ValidationError) as exc_info:
+            TestModel(a=-2)
+        assert "Field 'a' must be positive" in str(exc_info.value)
+
+        TestModel(a=1)
 
 
 @pytest.mark.skipif(
