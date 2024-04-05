@@ -323,7 +323,7 @@ class TestFieldValidatorV1:
 
 
 @pytest.mark.skipif(
-    not HAS_PYDANTIC_V2,
+    not USE_V2_MODELS,
     reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
 )
 class TestFieldValidatorV2:
