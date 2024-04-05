@@ -27,6 +27,8 @@ from httpx import HTTPStatusError, Request, Response
 from prefect._vendor.starlette import status
 from typing_extensions import Self
 
+import prefect
+from prefect.client import constants
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
@@ -198,6 +200,11 @@ class PrefectHttpxClient(httpx.AsyncClient):
         self.csrf_client_id: uuid.UUID = uuid.uuid4()
 
         super().__init__(*args, **kwargs)
+
+        user_agent = (
+            f"prefect/{prefect.__version__} (API {constants.SERVER_API_VERSION})"
+        )
+        self.headers["User-Agent"] = user_agent
 
     async def _send_with_retry(
         self,
