@@ -1,7 +1,7 @@
 from ._base_model import BaseModel as PydanticBaseModel
 from ._base_model import Field, FieldInfo
 from ._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
-from .utilities.field_decorator import field_validator
+from .utilities.field_validator import field_validator
 from .utilities.model_construct import ModelConstructMixin, model_construct
 from .utilities.model_copy import ModelCopyMixin, model_copy
 from .utilities.model_dump import ModelDumpMixin, model_dump
