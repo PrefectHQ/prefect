@@ -3,7 +3,7 @@ Routes for interacting with task run objects.
 """
 
 import datetime
-from typing import List
+from typing import Any, Dict, List
 from uuid import UUID
 
 import anyio
@@ -45,7 +45,7 @@ async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> schemas.core.TaskRun:
@@ -233,7 +233,7 @@ async def set_task_run_state(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> OrchestrationResult:

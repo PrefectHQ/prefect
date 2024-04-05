@@ -5,37 +5,41 @@ Reduced schemas for accepting API actions.
 import json
 from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jsonschema
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
+    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
 else:
-    from pydantic import Field, root_validator, validator
+    from pydantic import Field, HttpUrl, conint, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
+    set_default_scheduled_time,
     set_deployment_schedules,
+    validate_cache_key_length,
+    validate_max_metadata_length,
+    validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
+    validate_parent_and_ref_diff,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
-from prefect.server.utilities.schemas.transformations import (
-    FieldFrom,
-    copy_model_fields,
-)
+from prefect.utilities.collections import listrepr
+from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
 
 
@@ -131,7 +135,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
@@ -229,7 +232,6 @@ class DeploymentCreate(ActionBaseModel):
         return validate_parameter_openapi_schema(value, values)
 
 
-@copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
@@ -301,28 +303,43 @@ class DeploymentUpdate(ActionBaseModel):
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
-@copy_model_fields
 class FlowRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run."""
 
-    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
+    name: Optional[str] = Field(None)
+    flow_version: Optional[str] = Field(None)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    empirical_policy: schemas.core.FlowRunPolicy = Field(
+        default_factory=schemas.core.FlowRunPolicy
+    )
+    tags: List[str] = Field(default_factory=list)
+    infrastructure_pid: Optional[str] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(None)
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class StateCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a new state."""
 
-    type: schemas.states.StateType = FieldFrom(schemas.states.State)
-    name: Optional[str] = FieldFrom(schemas.states.State)
-    message: Optional[str] = FieldFrom(schemas.states.State)
-    data: Optional[Any] = FieldFrom(schemas.states.State)
-    state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
+    type: schemas.states.StateType = Field(
+        default=..., description="The type of the state to create"
+    )
+    name: Optional[str] = Field(
+        default=None, description="The name of the state to create"
+    )
+    message: Optional[str] = Field(
+        default=None, description="The message of the state to create"
+    )
+    data: Optional[Any] = Field(
+        default=None, description="The data of the state to create"
+    )
+    state_details: schemas.states.StateDetails = Field(
+        default_factory=schemas.states.StateDetails,
+        description="The details of the state to create",
+    )
 
     # DEPRECATED
 
@@ -333,8 +350,15 @@ class StateCreate(ActionBaseModel):
     )
     id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
 
+    @validator("name", always=True)
+    def default_name_from_type(cls, v, *, values, **kwargs):
+        return get_or_create_state_name(v, values)
 
-@copy_model_fields
+    @root_validator
+    def default_scheduled_start_time(cls, values):
+        return set_default_scheduled_time(cls, values)
+
+
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
@@ -343,15 +367,42 @@ class TaskRunCreate(ActionBaseModel):
         default=None, description="The state of the task run to create"
     )
 
-    name: str = FieldFrom(schemas.core.TaskRun)
-    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.TaskRun)
-    task_key: str = FieldFrom(schemas.core.TaskRun)
-    dynamic_key: str = FieldFrom(schemas.core.TaskRun)
-    cache_key: Optional[str] = FieldFrom(schemas.core.TaskRun)
-    cache_expiration: Optional[DateTimeTZ] = FieldFrom(schemas.core.TaskRun)
-    task_version: Optional[str] = FieldFrom(schemas.core.TaskRun)
-    empirical_policy: schemas.core.TaskRunPolicy = FieldFrom(schemas.core.TaskRun)
-    tags: List[str] = FieldFrom(schemas.core.TaskRun)
+    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
+    )
+    task_key: str = Field(
+        default=..., description="A unique identifier for the task being run."
+    )
+    dynamic_key: str = Field(
+        default=...,
+        description=(
+            "A dynamic key used to differentiate between multiple runs of the same task"
+            " within the same flow run."
+        ),
+    )
+    cache_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "An optional cache key. If a COMPLETED state associated with this cache key"
+            " is found, the cached COMPLETED state will be used instead of executing"
+            " the task run."
+        ),
+    )
+    cache_expiration: Optional[DateTimeTZ] = Field(
+        default=None, description="Specifies when the cached state should expire."
+    )
+    task_version: Optional[str] = Field(
+        default=None, description="The version of the task being run."
+    )
+    empirical_policy: schemas.core.TaskRunPolicy = Field(
+        default_factory=schemas.core.TaskRunPolicy,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags for the task run.",
+        example=["tag-1", "tag-2"],
+    )
     task_inputs: Dict[
         str,
         List[
@@ -361,17 +412,30 @@ class TaskRunCreate(ActionBaseModel):
                 schemas.core.Constant,
             ]
         ],
-    ] = FieldFrom(schemas.core.TaskRun)
+    ] = Field(
+        default_factory=dict,
+        description="The inputs to the task run.",
+    )
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
+
+    @validator("cache_key")
+    def validate_cache_key(cls, cache_key):
+        return validate_cache_key_length(cache_key)
 
 
-@copy_model_fields
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: str = FieldFrom(schemas.core.TaskRun)
+    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run."""
 
@@ -380,16 +444,42 @@ class FlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: str = FieldFrom(schemas.core.FlowRun)
-    flow_id: UUID = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    context: dict = FieldFrom(schemas.core.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    name: str = Field(
+        default_factory=lambda: generate_slug(2),
+        description=(
+            "The name of the flow run. Defaults to a random slug if not specified."
+        ),
+        example="my-flow-run",
+    )
+    flow_id: UUID = Field(default=..., description="The id of the flow being run.")
+    flow_version: Optional[str] = Field(
+        default=None, description="The version of the flow being run."
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+    )
+    context: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="The context of the flow run.",
+    )
+    parent_task_run_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: schemas.core.FlowRunPolicy = Field(
+        default_factory=schemas.core.FlowRunPolicy,
+        description="The empirical policy for the flow run.",
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags for the flow run.",
+        example=["tag-1", "tag-2"],
+    )
+    idempotency_key: Optional[str] = Field(
+        None,
+        description=(
+            "An optional idempotency key. If a flow run with the same idempotency key"
+            " has already been created, the existing flow run will be returned."
+        ),
+    )
 
     # DEPRECATED
 
@@ -410,7 +500,6 @@ class FlowRunCreate(ActionBaseModel):
         return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class DeploymentFlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run from a deployment."""
 
@@ -419,112 +508,174 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    context: dict = FieldFrom(schemas.core.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    job_variables: Optional[Dict[str, Any]] = FieldFrom(schemas.core.FlowRun)
+    name: str = Field(
+        default_factory=lambda: generate_slug(2),
+        description=(
+            "The name of the flow run. Defaults to a random slug if not specified."
+        ),
+        example="my-flow-run",
+    )
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    context: Dict[str, Any] = Field(default_factory=dict)
+    infrastructure_document_id: Optional[UUID] = Field(None)
+    empirical_policy: schemas.core.FlowRunPolicy = Field(
+        default_factory=schemas.core.FlowRunPolicy,
+        description="The empirical policy for the flow run.",
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags for the flow run.",
+        example=["tag-1", "tag-2"],
+    )
+    idempotency_key: Optional[str] = Field(
+        None,
+        description=(
+            "An optional idempotency key. If a flow run with the same idempotency key"
+            " has already been created, the existing flow run will be returned."
+        ),
+    )
+    parent_task_run_id: Optional[UUID] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(None)
+
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return get_or_create_run_name(name)
 
 
-@copy_model_fields
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
-    name: str = FieldFrom(schemas.core.SavedSearch)
-    filters: List[schemas.core.SavedSearchFilter] = FieldFrom(schemas.core.SavedSearch)
+    name: str = Field(default=..., description="The name of the saved search.")
+    filters: List[schemas.core.SavedSearchFilter] = Field(
+        default_factory=list, description="The filter set for the saved search."
+    )
 
 
-@copy_model_fields
 class ConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a concurrency limit."""
 
-    tag: str = FieldFrom(schemas.core.ConcurrencyLimit)
-    concurrency_limit: int = FieldFrom(schemas.core.ConcurrencyLimit)
+    tag: str = Field(
+        default=..., description="A tag the concurrency limit is applied to."
+    )
+    concurrency_limit: int = Field(default=..., description="The concurrency limit.")
 
 
-@copy_model_fields
 class ConcurrencyLimitV2Create(ActionBaseModel):
     """Data used by the Prefect REST API to create a v2 concurrency limit."""
 
-    active: bool = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    name: str = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    limit: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    active_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    denied_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    slot_decay_per_second: float = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active: bool = Field(
+        default=True, description="Whether the concurrency limit is active."
+    )
+    name: str = Field(default=..., description="The name of the concurrency limit.")
+    limit: int = Field(default=..., description="The concurrency limit.")
+    active_slots: int = Field(default=0, description="The number of active slots.")
+    denied_slots: int = Field(default=0, description="The number of denied slots.")
+    slot_decay_per_second: float = Field(
+        default=0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
-@copy_model_fields
 class ConcurrencyLimitV2Update(ActionBaseModel):
     """Data used by the Prefect REST API to update a v2 concurrency limit."""
 
-    active: Optional[bool] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    name: Optional[str] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    limit: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    active_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    denied_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
-    slot_decay_per_second: Optional[float] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active: Optional[bool] = Field(None)
+    name: Optional[str] = Field(None)
+    limit: Optional[int] = Field(None)
+    active_slots: Optional[int] = Field(None)
+    denied_slots: Optional[int] = Field(None)
+    slot_decay_per_second: Optional[float] = Field(None)
 
 
-@copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
-    name: str = FieldFrom(schemas.core.BlockType)
-    slug: str = FieldFrom(schemas.core.BlockType)
-    logo_url: Optional[schemas.core.HttpUrl] = FieldFrom(schemas.core.BlockType)
-    documentation_url: Optional[schemas.core.HttpUrl] = FieldFrom(
-        schemas.core.BlockType
+    name: str = Field(default=..., description="A block type's name")
+    slug: str = Field(default=..., description="A block type's slug")
+    logo_url: Optional[HttpUrl] = Field(
+        default=None, description="Web URL for the block type's logo"
     )
-    description: Optional[str] = FieldFrom(schemas.core.BlockType)
-    code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+    documentation_url: Optional[HttpUrl] = Field(
+        default=None, description="Web URL for the block type's documentation"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="A short blurb about the corresponding block's intended use",
+    )
+    code_example: Optional[str] = Field(
+        default=None,
+        description="A code snippet demonstrating use of the corresponding block",
+    )
 
     # validators
     _validate_slug_format = validator("slug", allow_reuse=True)(
         validate_block_type_slug
     )
 
+    _validate_name_characters = validator("name", check_fields=False)(
+        raise_on_name_with_banned_characters
+    )
 
-@copy_model_fields
+
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[schemas.core.HttpUrl] = FieldFrom(schemas.core.BlockType)
-    documentation_url: Optional[schemas.core.HttpUrl] = FieldFrom(
-        schemas.core.BlockType
-    )
-    description: Optional[str] = FieldFrom(schemas.core.BlockType)
-    code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+    logo_url: Optional[schemas.core.HttpUrl] = Field(None)
+    documentation_url: Optional[schemas.core.HttpUrl] = Field(None)
+    description: Optional[str] = Field(None)
+    code_example: Optional[str] = Field(None)
 
     @classmethod
     def updatable_fields(cls) -> set:
         return get_class_fields_only(cls)
 
 
-@copy_model_fields
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = FieldFrom(schemas.core.BlockSchema)
-    block_type_id: Optional[UUID] = FieldFrom(schemas.core.BlockSchema)
-    capabilities: List[str] = FieldFrom(schemas.core.BlockSchema)
-    version: str = FieldFrom(schemas.core.BlockSchema)
+    fields: Dict[str, Any] = Field(
+        default_factory=dict, description="The block schema's field schema"
+    )
+    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
+
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
+    )
+    version: str = Field(
+        default=schemas.core.DEFAULT_BLOCK_SCHEMA_VERSION,
+        description="Human readable identifier for the block schema",
+    )
 
 
-@copy_model_fields
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[str] = FieldFrom(schemas.core.BlockDocument)
-    data: dict = FieldFrom(schemas.core.BlockDocument)
-    block_schema_id: UUID = FieldFrom(schemas.core.BlockDocument)
-    block_type_id: UUID = FieldFrom(schemas.core.BlockDocument)
-    is_anonymous: bool = FieldFrom(schemas.core.BlockDocument)
+    name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The block document's name. Not required for anonymous block documents."
+        ),
+    )
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
+    block_schema_id: UUID = Field(default=..., description="A block schema ID")
+
+    block_type_id: UUID = Field(default=..., description="A block type ID")
+
+    is_anonymous: bool = Field(
+        default=False,
+        description=(
+            "Whether the block is anonymous (anonymous blocks are usually created by"
+            " Prefect automatically)"
+        ),
+    )
 
     _validate_name_format = validator("name", allow_reuse=True)(
         validate_block_document_name
@@ -535,37 +686,48 @@ class BlockDocumentCreate(ActionBaseModel):
         return validate_name_present_on_nonanonymous_blocks(values)
 
 
-@copy_model_fields
 class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block document."""
 
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = FieldFrom(schemas.core.BlockDocument)
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     merge_existing_data: bool = True
 
 
-@copy_model_fields
 class BlockDocumentReferenceCreate(ActionBaseModel):
     """Data used to create block document reference."""
 
-    id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    parent_block_document_id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    reference_block_document_id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    name: str = FieldFrom(schemas.core.BlockDocumentReference)
+    id: UUID = Field(
+        default_factory=uuid4, description="The block document reference ID"
+    )
+    parent_block_document_id: UUID = Field(
+        default=..., description="ID of the parent block document"
+    )
+    reference_block_document_id: UUID = Field(
+        default=..., description="ID of the nested block document"
+    )
+    name: str = Field(
+        default=..., description="The name that the reference is nested under"
+    )
+
+    @root_validator
+    def validate_parent_and_ref_are_different(cls, values):
+        return validate_parent_and_ref_diff(values)
 
 
-@copy_model_fields
 class LogCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a log."""
 
-    name: str = FieldFrom(schemas.core.Log)
-    level: int = FieldFrom(schemas.core.Log)
-    message: str = FieldFrom(schemas.core.Log)
-    timestamp: DateTimeTZ = FieldFrom(schemas.core.Log)
-    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
-    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
+    name: str = Field(default=..., description="The logger name.")
+    level: int = Field(default=..., description="The log level.")
+    message: str = Field(default=..., description="The log message.")
+    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    flow_run_id: Optional[UUID] = Field(None)
+    task_run_id: Optional[UUID] = Field(None)
 
 
 def validate_base_job_template(v):
@@ -599,46 +761,64 @@ def validate_base_job_template(v):
     return v
 
 
-@copy_model_fields
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = FieldFrom(schemas.core.WorkPool)
-    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
+    name: str = Field(..., description="The name of the work pool.")
+    description: Optional[str] = Field(None, description="The work pool description.")
     type: str = Field(description="The work pool type.", default="prefect-agent")
-    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkPool)
-    is_paused: bool = FieldFrom(schemas.core.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
+    base_job_template: Dict[str, Any] = Field(
+        default_factory=dict, description="The work pool's base job template."
+    )
+    is_paused: bool = Field(
+        default=False,
+        description="Pausing the work pool stops the delivery of all work.",
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        default=None, description="A concurrency limit for the work pool."
+    )
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
-@copy_model_fields
+
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
-    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
-    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
-    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
+    description: Optional[str] = Field(None)
+    is_paused: Optional[bool] = Field(None)
+    base_job_template: Optional[Dict[str, Any]] = Field(None)
+    concurrency_limit: Optional[conint(ge=0)] = Field(None)
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
-@copy_model_fields
+
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work queue."""
 
-    name: str = FieldFrom(schemas.core.WorkQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = Field(
-        default=None,
+    name: str = Field(default=..., description="The name of the work queue.")
+    description: Optional[str] = Field(
+        default="", description="An optional description for the work queue."
+    )
+    is_paused: bool = Field(
+        default=False, description="Whether or not the work queue is paused."
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        None, description="The work queue's concurrency limit."
+    )
+    priority: Optional[conint(ge=1)] = Field(
+        None,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
         ),
@@ -652,17 +832,22 @@ class WorkQueueCreate(ActionBaseModel):
         deprecated=True,
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
-@copy_model_fields
+
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work queue."""
 
-    name: str = FieldFrom(schemas.core.WorkQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
+    name: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    is_paused: bool = Field(
+        default=False, description="Whether or not the work queue is paused."
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(None)
+    priority: Optional[conint(ge=1)] = Field(None)
+    last_polled: Optional[DateTimeTZ] = Field(None)
 
     # DEPRECATED
 
@@ -673,69 +858,153 @@ class WorkQueueUpdate(ActionBaseModel):
     )
 
 
-@copy_model_fields
 class FlowRunNotificationPolicyCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run notification policy."""
 
-    is_active: bool = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    state_names: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    tags: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    block_document_id: UUID = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+    is_active: bool = Field(
+        default=True, description="Whether the policy is currently active"
+    )
+    state_names: List[str] = Field(
+        default=..., description="The flow run states that trigger notifications"
+    )
+    tags: List[str] = Field(
+        default=...,
+        description="The flow run tags that trigger notifications (set [] to disable)",
+    )
+    block_document_id: UUID = Field(
+        default=..., description="The block document ID used for sending notifications"
+    )
+    message_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "A templatable notification message. Use {braces} to add variables."
+            " Valid variables include:"
+            f" {listrepr(sorted(schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
+        ),
+        example=(
+            "Flow run {flow_run_name} with id {flow_run_id} entered state"
+            " {flow_run_state_name}."
+        ),
+    )
+
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        return validate_message_template_variables(v)
 
 
-@copy_model_fields
 class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
-    is_active: Optional[bool] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    state_names: Optional[List[str]] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    tags: Optional[List[str]] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    block_document_id: Optional[UUID] = FieldFrom(
-        schemas.core.FlowRunNotificationPolicy
-    )
-    message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+    is_active: Optional[bool] = Field(None)
+    state_names: Optional[List[str]] = Field(None)
+    tags: Optional[List[str]] = Field(None)
+    block_document_id: Optional[UUID] = Field(None)
+    message_template: Optional[str] = Field(None)
+
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        return validate_message_template_variables(v)
 
 
-@copy_model_fields
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = FieldFrom(schemas.core.Artifact)
-    type: Optional[str] = FieldFrom(schemas.core.Artifact)
-    description: Optional[str] = FieldFrom(schemas.core.Artifact)
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
-    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
-    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+    key: Optional[str] = Field(
+        default=None, description="An optional unique reference key for this artifact."
+    )
+    type: Optional[str] = Field(
+        default=None,
+        description=(
+            "An identifier that describes the shape of the data field. e.g. 'result',"
+            " 'table', 'markdown'"
+        ),
+    )
+    description: Optional[str] = Field(
+        default=None, description="A markdown-enabled description of the artifact."
+    )
+    data: Optional[Union[Dict[str, Any], Any]] = Field(
+        default=None,
+        description=(
+            "Data associated with the artifact, e.g. a result.; structure depends on"
+            " the artifact type."
+        ),
+    )
+    metadata_: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "User-defined artifact metadata. Content must be string key and value"
+            " pairs."
+        ),
+    )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run associated with the artifact."
+    )
+    task_run_id: Optional[UUID] = Field(
+        default=None, description="The task run associated with the artifact."
+    )
+
+    @classmethod
+    def from_result(cls, data: Any):
+        artifact_info = dict()
+        if isinstance(data, dict):
+            artifact_key = data.pop("artifact_key", None)
+            if artifact_key:
+                artifact_info["key"] = artifact_key
+
+            artifact_type = data.pop("artifact_type", None)
+            if artifact_type:
+                artifact_info["type"] = artifact_type
+
+            description = data.pop("artifact_description", None)
+            if description:
+                artifact_info["description"] = description
+
+        return cls(data=data, **artifact_info)
+
+    _validate_metadata_length = validator("metadata_")(validate_max_metadata_length)
 
     _validate_artifact_format = validator("key", allow_reuse=True)(
         validate_artifact_key
     )
 
 
-@copy_model_fields
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
-    description: Optional[str] = FieldFrom(schemas.core.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
+    description: Optional[str] = Field(None)
+    metadata_: Optional[Dict[str, str]] = Field(None)
+
+    _validate_metadata_length = validator("metadata_", allow_reuse=True)(
+        validate_max_metadata_length
+    )
 
 
-@copy_model_fields
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
-    name: str = FieldFrom(schemas.core.Variable)
-    value: str = FieldFrom(schemas.core.Variable)
-    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+    name: str = Field(
+        default=...,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: str = Field(
+        default=...,
+        description="The value of the variable",
+        example="my-value",
+        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
+    )
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
 
 
-@copy_model_fields
 class VariableUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a Variable."""
 
@@ -751,7 +1020,11 @@ class VariableUpdate(ActionBaseModel):
         example="my-value",
         max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
-    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+    tags: Optional[List[str]] = Field(
+        default=None,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
+    )
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
