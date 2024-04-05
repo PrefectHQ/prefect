@@ -125,7 +125,7 @@ def generate_release_notes(
             latest_repo_release_date = get_latest_repo_release_date(repo_org, repo_name)
 
             repo_has_release_since_latest_prefect_release = (
-                latest_repo_release_date >= latest_prefect_release_date
+                latest_repo_release_date <= latest_prefect_release_date
             )
             if not repo_has_release_since_latest_prefect_release:
                 continue
@@ -179,7 +179,7 @@ def generate_release_notes(
                 lambda match: f"- {match.group(1)} — {match.group(3)}",
                 release_notes,
             )
-            print(release_notes + "\n")
+            prefect_release_notes = release_notes
 
         else:
             # Drop the first line of the release notes ("## What's Changed")
@@ -199,8 +199,19 @@ def generate_release_notes(
             integrations_section.append(release_notes)
 
     if integrations_section != [""]:
+        breakpoint()
+        parts = prefect_release_notes.split("### Contributors")
+        # ensure that Integrations section is before Contributors
         # Print all accumulated non-Prefect changes under "Integrations"
-        print("### Integrations" + "\n\n" + "\n\n".join(integrations_section))
+        integrations_heading = (
+            "### Integrations" + "\n\n" + "\n\n".join(integrations_section)
+        )
+
+        prefect_release_notes = (
+            parts[0] + integrations_heading + "\n### Contributors" + parts[1]
+        )
+
+    print(prefect_release_notes)
 
 
 def get_github_token() -> str:
