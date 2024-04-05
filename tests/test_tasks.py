@@ -16,7 +16,6 @@ from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
-from prefect.engine import get_state_for_result
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -38,6 +37,7 @@ from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
+from prefect.utilities.engine import get_state_for_result
 
 
 def comparable_inputs(d):
