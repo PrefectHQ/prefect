@@ -68,7 +68,7 @@ class DockerPackager(Packager):
     registry, given by `registry_url`.
     """
 
-    type: Literal["docker"] = "docker"
+    type: str = "docker"
 
     base_image: Optional[str] = None
     python_environment: Optional[Union[PythonEnvironment, CondaEnvironment]] = None
@@ -105,8 +105,14 @@ class DockerPackager(Packager):
                 push_image, image_reference, self.registry_url, image_name
             )
 
-        return self.base_manifest(flow).finalize(
-            image=image_reference, image_flow_location=self.image_flow_location
+        return DockerPackageManifest(
+            **{
+                **self.base_manifest(flow).dict(),
+                **{
+                    "image": image_reference,
+                    "image_flow_location": self.image_flow_location,
+                },
+            }
         )
 
     async def _build_image(self, flow: Flow) -> str:

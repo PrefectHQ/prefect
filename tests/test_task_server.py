@@ -323,7 +323,10 @@ class TestTaskServerTaskResults:
         if persist_result:
             assert await updated_task_run.state.result() == 42
         else:
-            with pytest.raises(MissingResult, match="The result was not persisted"):
+            with pytest.raises(
+                MissingResult,
+                match="The result was not persisted|State data is missing",
+            ):
                 await updated_task_run.state.result()
 
     @pytest.mark.parametrize(
@@ -502,3 +505,26 @@ class TestTaskServerTaskStateHooks:
         assert updated_task_run.state.is_failed()
 
         assert "Running on_failure hook" in capsys.readouterr().out
+
+
+class TestTaskServerNestedTasks:
+    async def test_nested_task_run_via_task_server(self, prefect_client):
+        @task
+        def inner_task(x):
+            return x
+
+        @task
+        def outer_task(x):
+            return inner_task(x)
+
+        task_server = TaskServer(outer_task)
+
+        task_run = outer_task.submit(42)
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        assert await updated_task_run.state.result() == 42

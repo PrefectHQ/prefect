@@ -27,18 +27,13 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
-    API_HEALTHCHECKS,
     begin_flow_run,
     begin_task_run,
-    check_api_reachable,
-    collect_task_run_inputs,
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
-    link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
-    propose_state,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
     suspend_flow_run,
@@ -89,7 +84,13 @@ from prefect.task_runners import (
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
-from prefect.utilities.pydantic import PartialModel
+from prefect.utilities.engine import (
+    API_HEALTHCHECKS,
+    check_api_reachable,
+    collect_task_run_inputs,
+    link_state_to_result,
+    propose_state,
+)
 
 
 @pytest.fixture
@@ -126,8 +127,6 @@ def parameterized_flow():
 
 @pytest.fixture
 async def get_flow_run_context(prefect_client, result_factory, local_filesystem):
-    partial_ctx = PartialModel(FlowRunContext)
-
     @flow
     def foo():
         pass
@@ -137,8 +136,8 @@ async def get_flow_run_context(prefect_client, result_factory, local_filesystem)
 
     async def _get_flow_run_context():
         async with anyio.create_task_group() as tg:
-            partial_ctx.background_tasks = tg
-            return partial_ctx.finalize(
+            return FlowRunContext(
+                background_tasks=tg,
                 flow=foo,
                 flow_run=flow_run,
                 client=prefect_client,
@@ -2177,8 +2176,7 @@ class TestBeginTaskRun:
 class TestOrchestrateFlowRun:
     @pytest.fixture
     def partial_flow_run_context(self, result_factory, local_filesystem):
-        return PartialModel(
-            FlowRunContext,
+        return FlowRunContext.construct(
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
             result_factory=result_factory,
@@ -3297,7 +3295,10 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
     "prefect.utilities.collections.visit_collection",
     wraps=prefect.utilities.collections.visit_collection,
 )
-@patch("prefect.engine.visit_collection", wraps=prefect.engine.visit_collection)
+@patch(
+    "prefect.utilities.engine.visit_collection",
+    wraps=prefect.utilities.engine.visit_collection,
+)
 async def test_collect_task_run_inputs_respects_quote(
     mock_outer_visit_collection, mock_recursive_visit_collection
 ):
