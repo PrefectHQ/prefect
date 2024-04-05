@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator, List, Tuple
+from typing import Any, AsyncGenerator, Dict, List, Tuple
 from unittest import mock
 
 import httpx
@@ -8,6 +8,9 @@ import pytest
 from httpx import AsyncClient, Request, Response
 from prefect._vendor.starlette import status
 
+import prefect
+import prefect.client
+import prefect.client.constants
 from prefect.client.base import PrefectHttpxClient, PrefectResponse
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
@@ -507,7 +510,6 @@ class TestPrefectHttpxClient:
             )
         assert isinstance(response, PrefectResponse)
 
-    #
     async def test_prefect_httpx_client_raises_prefect_http_status_error(
         self, monkeypatch
     ):
@@ -534,10 +536,11 @@ class TestPrefectHttpxClient:
 @asynccontextmanager
 async def mocked_client(
     responses: List[Response],
+    **client_kwargs: Dict[str, Any],
 ) -> AsyncGenerator[Tuple[PrefectHttpxClient, mock.AsyncMock], None]:
     with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
         send.side_effect = responses
-        client = PrefectHttpxClient(enable_csrf_support=True)
+        client = PrefectHttpxClient(**client_kwargs)
         async with client:
             try:
                 yield client, send
@@ -545,9 +548,17 @@ async def mocked_client(
                 pass
 
 
+@asynccontextmanager
+async def mocked_csrf_client(
+    responses: List[Response],
+) -> AsyncGenerator[Tuple[PrefectHttpxClient, mock.AsyncMock], None]:
+    async with mocked_client(responses, enable_csrf_support=True) as (client, send):
+        yield client, send
+
+
 class TestCsrfSupport:
     async def test_no_csrf_headers_not_change_request(self):
-        async with mocked_client(responses=[RESPONSE_200]) as (client, send):
+        async with mocked_csrf_client(responses=[RESPONSE_200]) as (client, send):
             await client.get(url="fake.url/fake/route")
 
         request = send.call_args[0][1]
@@ -558,7 +569,7 @@ class TestCsrfSupport:
 
     @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
     async def test_csrf_headers_on_change_request(self, method: str):
-        async with mocked_client(responses=[RESPONSE_CSRF, RESPONSE_200]) as (
+        async with mocked_csrf_client(responses=[RESPONSE_CSRF, RESPONSE_200]) as (
             client,
             send,
         ):
@@ -583,7 +594,7 @@ class TestCsrfSupport:
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
     async def test_refreshes_token_on_csrf_403(self):
-        async with mocked_client(
+        async with mocked_csrf_client(
             responses=[
                 RESPONSE_CSRF,
                 RESPONSE_INVALID_TOKEN,
@@ -629,7 +640,7 @@ class TestCsrfSupport:
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
     async def test_does_not_refresh_csrf_token_not_expired(self):
-        async with mocked_client(responses=[RESPONSE_200]) as (
+        async with mocked_csrf_client(responses=[RESPONSE_200]) as (
             client,
             send,
         ):
@@ -646,7 +657,7 @@ class TestCsrfSupport:
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
     async def test_does_refresh_csrf_token_when_expired(self):
-        async with mocked_client(responses=[RESPONSE_CSRF, RESPONSE_200]) as (
+        async with mocked_csrf_client(responses=[RESPONSE_CSRF, RESPONSE_200]) as (
             client,
             send,
         ):
@@ -672,7 +683,7 @@ class TestCsrfSupport:
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
     async def test_raises_exception_bad_csrf_token_response(self):
-        async with mocked_client(responses=[RESPONSE_400]) as (
+        async with mocked_csrf_client(responses=[RESPONSE_400]) as (
             client,
             _,
         ):
@@ -680,7 +691,7 @@ class TestCsrfSupport:
                 await client.post(url="fake.url/fake/route")
 
     async def test_disables_csrf_support_404_token_endpoint(self):
-        async with mocked_client(responses=[RESPONSE_404, RESPONSE_200]) as (
+        async with mocked_csrf_client(responses=[RESPONSE_404, RESPONSE_200]) as (
             client,
             send,
         ):
@@ -689,10 +700,39 @@ class TestCsrfSupport:
             assert client.enable_csrf_support is False
 
     async def test_disables_csrf_support_422_csrf_disabled(self):
-        async with mocked_client(responses=[RESPONSE_CSRF_DISABLED, RESPONSE_200]) as (
+        async with mocked_csrf_client(
+            responses=[RESPONSE_CSRF_DISABLED, RESPONSE_200]
+        ) as (
             client,
             send,
         ):
             assert client.enable_csrf_support is True
             await client.post(url="fake.url/fake/route")
             assert client.enable_csrf_support is False
+
+
+class TestUserAgent:
+    @pytest.fixture
+    def prefect_version(self, monkeypatch: pytest.MonkeyPatch) -> str:
+        v = "42.43.44"
+        monkeypatch.setattr(prefect, "__version__", v)
+        return v
+
+    @pytest.fixture
+    def prefect_api_version(self, monkeypatch: pytest.MonkeyPatch) -> str:
+        v = "45.46.47"
+        monkeypatch.setattr(prefect.client.constants, "SERVER_API_VERSION", v)
+        return v
+
+    async def test_passes_informative_user_agent(
+        self,
+        prefect_version: str,
+        prefect_api_version: str,
+    ):
+        async with mocked_client(responses=[RESPONSE_200]) as (client, send):
+            await client.get(url="fake.url/fake/route")
+
+        request = send.call_args[0][1]
+        assert isinstance(request, httpx.Request)
+
+        assert request.headers["User-Agent"] == "prefect/42.43.44 (API 45.46.47)"
