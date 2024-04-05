@@ -125,7 +125,7 @@ def generate_release_notes(
             latest_repo_release_date = get_latest_repo_release_date(repo_org, repo_name)
 
             repo_has_release_since_latest_prefect_release = (
-                latest_repo_release_date <= latest_prefect_release_date
+                latest_repo_release_date >= latest_prefect_release_date
             )
             if not repo_has_release_since_latest_prefect_release:
                 continue
@@ -157,7 +157,7 @@ def generate_release_notes(
             release_notes = "\n".join(release_notes.splitlines()[1:])
             # Add newlines before all categories
             release_notes = release_notes.replace("\n###", "\n\n###")
-            # Update what's new to release name
+            # Update 'what's new' to 'release tag'
             release_notes = release_notes.replace(
                 "## What's Changed", f"## Release {tag_name}"
             )
@@ -199,7 +199,6 @@ def generate_release_notes(
             integrations_section.append(release_notes)
 
     if integrations_section != [""]:
-        breakpoint()
         parts = prefect_release_notes.split("### Contributors")
         # ensure that Integrations section is before Contributors
         # Print all accumulated non-Prefect changes under "Integrations"
