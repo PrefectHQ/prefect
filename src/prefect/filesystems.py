@@ -11,13 +11,19 @@ import anyio
 import fsspec
 
 from prefect._internal.compatibility.deprecated import deprecated_class
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, SecretStr, validator
+else:
+    from pydantic import Field, SecretStr, validator
+
 from prefect._internal.schemas.validators import (
     stringify_path,
     validate_basepath,
     validate_github_access_token,
 )
 from prefect.blocks.core import Block
-from prefect.pydantic import Field, SecretStr, field_validator
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
@@ -93,7 +99,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         default=None, description="Default local path for this block to write to."
     )
 
-    @field_validator("basepath", pre=True)
+    @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
         return stringify_path(value)
 
@@ -274,7 +280,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     # Cache for the configured fsspec file system used for access
     _filesystem: fsspec.AbstractFileSystem = None
 
-    @field_validator("basepath")
+    @validator("basepath")
     def check_basepath(cls, value):
         return validate_basepath(value)
 
@@ -923,7 +929,7 @@ class GitHub(ReadableDeploymentStorage):
         ),
     )
 
-    @field_validator("access_token")
+    @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
         return validate_github_access_token(v, values)
 
