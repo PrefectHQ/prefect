@@ -7,8 +7,9 @@ T = TypeVar("T", bound=Callable[..., Any])
 
 
 def model_validator(
+    func: T,
     *,
-    mode: Literal["wrap", "before", "after"],
+    mode: Literal["wrap", "before", "after"],  # v2 only
     pre: bool = False,
     skip_on_failure: bool = False,
 ) -> Any:
@@ -55,28 +56,38 @@ def model_validator(
     Returns:
         A decorator that can be used to decorate a function to be used as a model validator.
     """
+    if func is None:
+        # The decorator was called with arguments, e.g. @model_validator(mode='after')
+        def decorator_with_args(validate_func: T) -> T:
+            return model_validator(
+                validate_func, mode=mode, pre=pre, skip_on_failure=skip_on_failure
+            )
 
-    def decorator(validate_func: T) -> T:
-        if USE_V2_MODELS:
-            from pydantic import model_validator as _model_validator
+        return decorator_with_args
 
-            return _model_validator(mode=mode)(validate_func)  # type: ignore
+    else:
 
-        elif HAS_PYDANTIC_V2:
-            from pydantic.v1 import BaseModel, root_validator
+        def decorator(validate_func: T) -> T:
+            if USE_V2_MODELS:
+                from pydantic import model_validator as _model_validator
 
-        else:
-            # use the v1 root_validator imported regular not from .v1
-            from pydantic import BaseModel, root_validator
+                return _model_validator(mode=mode)(validate_func)  # type: ignore
 
-        @functools.wraps(validate_func)
-        def wrapper(
-            cls: "BaseModel",
-            v: Any,
-        ) -> Any:
-            return validate_func(cls, v)
+            elif HAS_PYDANTIC_V2:
+                from pydantic.v1 import BaseModel, root_validator
 
-        # these are the arguments that we currently use in V1 and pass to the root_validator
-        return root_validator(pre=pre, skip_on_failure=skip_on_failure)(wrapper)  # type: ignore
+            else:
+                # use the v1 root_validator imported regular not from .v1
+                from pydantic import BaseModel, root_validator
+
+            @functools.wraps(validate_func)
+            def wrapper(
+                cls: "BaseModel",
+                v: Any,
+            ) -> Any:
+                return validate_func(cls, v)
+
+            # these are the arguments that we currently use in V1 and pass to the root_validator
+            return root_validator(pre=pre, skip_on_failure=skip_on_failure)(wrapper)  # type: ignore
 
     return decorator

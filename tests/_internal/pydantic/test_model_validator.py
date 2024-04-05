@@ -1,7 +1,9 @@
 import pytest
+from pydantic import BaseModel, ValidationError
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
+from prefect._internal.pydantic.utilities.model_validator import model_validator
 
 if USE_V2_MODELS:
     pass
@@ -17,16 +19,43 @@ class TestModelValidatorV1:
     def test_basic_model_validation_behavior(self):
         pass
 
-    def test_pre_default(self):
+    def test_pre_default_is_false(self):
         """
         Ensure that the `pre` argument defaults to False
         """
+
+        class TestModel(BaseModel):
+            a: int
+
+            @model_validator
+            def test_method(cls, values):
+                if values.get("a") < 0:
+                    raise ValueError("a must be greater than 0")
+                return values
+
+        assert TestModel(a="1")
+
+        with pytest.raises(ValidationError):
+            TestModel(a="-1")
 
     def test_pre_set_to_true(self):
         """
         Test that the `pre` argument can be set to True
         """
-        pass
+
+        class TestModel(BaseModel):
+            a: int
+
+            @model_validator
+            def test_method(cls, values):
+                if values.get("a") < 0:
+                    raise ValueError("a must be greater than 0")
+                return values
+
+        assert TestModel(a="1")
+
+        with pytest.raises(ValidationError):
+            TestModel(a="-1")
 
     def test_pre_set_to_false(self):
         """
