@@ -7,9 +7,8 @@ from prefect._internal.pydantic.utilities.field_decorator import field_validator
 
 if USE_V2_MODELS:
     from pydantic import ValidationInfo
-
 else:
-    from pydantic.v1.errors import ConfigError
+    from pydantic.errors import ConfigError
 
 
 @pytest.mark.skipif(
