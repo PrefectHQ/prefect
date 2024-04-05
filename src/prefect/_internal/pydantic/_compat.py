@@ -1,5 +1,6 @@
 from ._base_model import BaseModel as PydanticBaseModel
 from ._base_model import Field, FieldInfo, PrivateAttr
+from ._base_settings import BaseSettings as PydanticBaseSettings
 from ._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 from .utilities.field_validator import field_validator
 from .utilities.model_construct import ModelConstructMixin, model_construct
@@ -17,6 +18,9 @@ if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
     class BaseModel(PydanticBaseModel):  # type: ignore
         pass
 
+    class BaseSettings(PydanticBaseSettings):  # type: ignore
+        pass
+
 else:
     # In this case, we're working with a Pydantic v1 model, so we need to add Pydantic v2 functionality
     # TODO: Find a smarter way of attaching these methods so that they don't need to be redefined
@@ -31,6 +35,19 @@ else:
         ModelValidateJsonMixin,
         ModelFieldMixin,
         PydanticBaseModel,
+    ):
+        pass
+
+    class BaseSettings(
+        ModelConstructMixin,
+        ModelCopyMixin,
+        ModelDumpMixin,
+        ModelDumpJsonMixin,
+        ModelJsonSchemaMixin,
+        ModelValidateMixin,
+        ModelValidateJsonMixin,
+        ModelFieldMixin,
+        PydanticBaseSettings,
     ):
         pass
 
