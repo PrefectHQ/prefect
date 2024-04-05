@@ -59,24 +59,27 @@ You can access any variable via the Python SDK via the `Variable.get()` method. 
 ```python
 from prefect import variables
 
+# setting the variable
+variable = variables.Variable.set(name="the_answer", value="42")
+
 # getting from a synchronous context
 answer = variables.Variable.get('the_answer')
-print(answer)
+print(answer.value)
 # 42
 
 # getting from an asynchronous context
 answer = await variables.Variable.get('the_answer')
-print(answer)
+print(answer.value)
 # 42
 
 # getting without a default value
 answer = variables.Variable.get('not_the_answer')
-print(answer)
+print(answer.value)
 # None
 
 # getting with a default value
 answer = variables.Variable.get('not_the_answer', default='42')
-print(answer)
+print(answer.value)
 # 42
 ```
 
