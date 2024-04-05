@@ -127,6 +127,6 @@ def field_validator(
             "allow_reuse": allow_reuse if allow_reuse is not None else False,
         }
 
-        return validator(field, *fields, **validator_kwargs)(wrapper)
+        return validator(field, *fields, **validator_kwargs)(wrapper)  # type: ignore
 
     return decorator
