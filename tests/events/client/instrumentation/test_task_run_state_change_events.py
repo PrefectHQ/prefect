@@ -173,7 +173,6 @@ async def test_background_task_state_changes(
     assert [e.event for e in events] == [
         "prefect.task-run.Scheduled",
         "prefect.task-run.Pending",
-        # "prefect.block.local-file-system.save.called",
         "prefect.task-run.Running",
         "prefect.task-run.Completed",
     ]
