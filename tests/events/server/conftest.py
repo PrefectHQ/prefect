@@ -131,6 +131,11 @@ async def some_workspace_automations(
             name="automation 3",
             **uninteresting_kwargs,
         ),
+        db.Automation(
+            id=uuid4(),
+            name="automation 4",
+            **uninteresting_kwargs,
+        ),
     ]
 
     automations_session.add_all(automations)
