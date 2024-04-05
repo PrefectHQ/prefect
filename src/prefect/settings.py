@@ -1846,7 +1846,7 @@ class Settings(SettingsFieldsMixin):
         }
 
         # Cast to strings and drop null values
-        def json_serial(obj: Any) -> str:
+        def serialize(obj: Any) -> str:
             """JSON serializer for objects not serializable by default json code"""
 
             if isinstance(obj, (timedelta)):
@@ -1856,9 +1856,7 @@ class Settings(SettingsFieldsMixin):
             return str(obj)
 
         return {
-            key: json.dumps(value, default=json_serial)
-            for key, value in env.items()
-            if value is not None
+            key: serialize(value) for key, value in env.items() if value is not None
         }
 
     class Config:
