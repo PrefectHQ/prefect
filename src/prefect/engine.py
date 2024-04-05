@@ -247,12 +247,6 @@ def enter_flow_run_engine_from_flow_call(
         )
         return None
 
-    if TaskRunContext.get():
-        raise RuntimeError(
-            "Flows cannot be run from within tasks. Did you mean to call this "
-            "flow in a flow?"
-        )
-
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None
 
