@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas.actions import VariableCreate as VariableRequest
 from prefect.client.schemas.actions import VariableUpdate as VariableUpdateRequest
 from prefect.client.utilities import get_or_create_client
@@ -91,6 +92,7 @@ class Variable(VariableRequest):
         return variable if variable else default
 
 
+@deprecated_callable(start_date="Apr 2024")
 @sync_compatible
 async def get(name: str, default: Optional[str] = None) -> Optional[str]:
     """
