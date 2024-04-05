@@ -40,6 +40,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 """
 
+import json
 import logging
 import os
 import string
@@ -65,6 +66,7 @@ from typing import (
 from urllib.parse import urlparse
 
 import toml
+from pydantic_core import SchemaSerializer
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -1667,6 +1669,7 @@ SETTING_VARIABLES: Dict[str, Any] = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
 
+
 # Populate names in settings objects from assignments above
 # Uses `__` to avoid setting these as global variables which can lead to sneaky bugs
 
@@ -1843,7 +1846,20 @@ class Settings(SettingsFieldsMixin):
         }
 
         # Cast to strings and drop null values
-        return {key: str(value) for key, value in env.items() if value is not None}
+        def json_serial(obj: Any) -> str:
+            """JSON serializer for objects not serializable by default json code"""
+
+            if isinstance(obj, (timedelta)):
+                return json.loads(
+                    SchemaSerializer(schema={"type": "timedelta"}).to_json(obj)
+                )
+            return str(obj)
+
+        return {
+            key: json.dumps(value, default=json_serial)
+            for key, value in env.items()
+            if value is not None
+        }
 
     class Config:
         frozen = True
