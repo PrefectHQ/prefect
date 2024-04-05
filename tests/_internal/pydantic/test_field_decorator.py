@@ -239,10 +239,8 @@ class TestFieldValidatorV1:
                     raise ValueError("Field 'a' must be positive")
                 return v
 
-        # Test that a positive value passes post-validation
         TestModel(a="1")  # type: ignore
 
-        # Test that a non-positive value raises a ValidationError at post-validation stage
         with pytest.raises(ValidationError) as exc_info:
             TestModel(a="-1")  # type: ignore
         assert "Field 'a' must be positive" in str(exc_info.value)
@@ -270,6 +268,10 @@ class TestFieldValidatorV1:
         assert "Field 'a' must be positive" in str(exc_info.value)
 
     def test_always_parameter_in_v1_defaults_to_false(self):
+        """
+        Test that the `always` parameter in Pydantic V1 models defaults to `False`,
+        """
+
         class TestModel(BaseModel):
             a: int = -1
 
@@ -291,17 +293,24 @@ class TestFieldValidatorV1:
         assert "Field 'a' must be positive" in str(exc_info.value)
 
     def test_always_parameter_in_v1_set_to_true(self):
+        """
+        Test that the `always` parameter in Pydantic V1 models can be set to `True`
+        to ensure that the validator is always called, even when the field is not explicitly set.
+
+        !!! note
+            This test is only valid for Pydantic V1 models.
+            In Pydantic V2, the `always` parameter is not available, and validation is always performed.
+        """
+
         class TestModel(BaseModel):
-            a: int = -1  # Default value
+            a: int = -1
 
             @field_validator("a", always=True)
             def ensure_positive(cls, v):
-                # This logic should not be invoked even when 'a' is not explicitly set
                 if v <= 0:
                     raise ValueError("Field 'a' must be positive")
                 return v
 
-        # The validator should be called, and an error should be raised
         with pytest.raises(ValidationError) as exc_info:
             TestModel()
         assert "Field 'a' must be positive" in str(exc_info.value)
@@ -351,28 +360,11 @@ class TestFieldValidatorV2:
         model = TestModel3(field3="special", field4="allowed")
         assert model.field4 == "allowed"
 
-    def test_multiple_field_validation_in_v2_with_default_values(self):
-        """
-        Example taken from: https://docs.pydantic.dev/latest/concepts/validators/#validation-of-default-values
-
-        """
-
-        class Model(BaseModel):
-            x: str = "abc"
-            y: Annotated[str, Field(validate_default=True)] = "xyz"
-
-            @field_validator("x", "y")
-            @classmethod
-            def double(cls, v: str) -> str:
-                return v * 2
-
-        assert Model().model_dump() == {"x": "abc", "y": "xyzxyz"}
-        assert Model(x="foo").model_dump() == {"x": "foofoo", "y": "xyzxyz"}
-        assert Model(x="foo", y="bar").model_dump() == {"x": "foofoo", "y": "barbar"}
-        assert Model(y="bar").model_dump() == {"x": "abc", "y": "barbar"}
-
     def test_multiple_field_validation_in_v2(self):
         """
+        Tests that multiple fields can be validated using a single validator in Pydantic V2.
+
+        Example taken from:
         https://docs.pydantic.dev/latest/concepts/validators/#field-validators
         """
 
@@ -387,12 +379,10 @@ class TestFieldValidatorV2:
                     raise ValueError("must contain a space")
                 return v.title()
 
-            # you can select multiple fields, or use '*' to select all fields
             @field_validator("id", "name")
             @classmethod
             def check_alphanumeric(cls, v: str, info: "ValidationInfo") -> str:
                 if isinstance(v, str):
-                    # info.field_name is the name of the field being validated
                     is_alphanumeric = v.replace(" ", "").isalnum()
                     assert is_alphanumeric, f"{info.field_name} must be alphanumeric"
                 return v
@@ -416,7 +406,32 @@ class TestFieldValidatorV2:
 
         assert "name must be alphanumeric" in str(exc_info.value)
 
+    def test_multiple_field_validation_in_v2_with_default_values(self):
+        """
+        Test that multiple fields can be validated using a single validator in Pydantic V2.
+        Example taken from: https://docs.pydantic.dev/latest/concepts/validators/#validation-of-default-values
+
+        """
+
+        class Model(BaseModel):
+            x: str = "abc"
+            y: Annotated[str, Field(validate_default=True)] = "xyz"
+
+            @field_validator("x", "y")
+            @classmethod
+            def double(cls, v: str) -> str:
+                return v * 2
+
+        assert Model().model_dump() == {"x": "abc", "y": "xyzxyz"}
+        assert Model(x="foo").model_dump() == {"x": "foofoo", "y": "xyzxyz"}
+        assert Model(x="foo", y="bar").model_dump() == {"x": "foofoo", "y": "barbar"}
+        assert Model(y="bar").model_dump() == {"x": "abc", "y": "barbar"}
+
     def test_nested_model_validation(self):
+        """
+        Test that field validation can be applied to nested models.
+        """
+
         class ChildModel(BaseModel):
             child_field: int
 
@@ -437,6 +452,10 @@ class TestFieldValidatorV2:
         assert "child_field must be even" in str(exc_info.value)
 
     def test_dynamic_default_validation(self):
+        """
+        Test that field validation can be applied to fields with default_factory.
+        """
+
         def default_name():
             return "Default Name"
 
@@ -459,6 +478,10 @@ class TestFieldValidatorV2:
         assert "name must include a space" in str(exc_info.value)
 
     def test_field_validator_with_before_mode(self):
+        """
+        Tests that field validation can be applied before the default validation logic.
+        """
+
         class Model(BaseModel):
             a: str
 
@@ -478,6 +501,10 @@ class TestFieldValidatorV2:
         assert '"foobar" not found in a' in str(exc_info.value)
 
     def test_alias_field_validation(self):
+        """
+        Tests that field validation can be applied to fields with aliases.
+        """
+
         class AliasModel(BaseModel):
             real_name: str = Field(..., alias="alias_name")
 
