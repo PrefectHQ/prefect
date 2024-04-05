@@ -42,6 +42,7 @@ async def test_reading_automations_by_workspace_by_name(
         "automation 1",
         "automation 2",
         "automation 3",
+        "automation 4",
     ]
 
     existing = await automations.read_automations_for_workspace(
@@ -49,6 +50,7 @@ async def test_reading_automations_by_workspace_by_name(
         sort=AutomationSort.NAME_DESC,
     )
     assert [automation.name for automation in existing] == [
+        "automation 4",
         "automation 3",
         "automation 2",
         "automation 1",
@@ -89,7 +91,7 @@ async def test_reading_automations_by_workspace_by_times(
         session=automations_session,
         sort=AutomationSort.CREATED_DESC,
     )
-    assert len(existing) == 3
+    assert len(existing) == 4
     returned = [automation.created for automation in existing]
     assert returned == sorted(returned, reverse=True)
 
@@ -97,7 +99,7 @@ async def test_reading_automations_by_workspace_by_times(
         session=automations_session,
         sort=AutomationSort.UPDATED_DESC,
     )
-    assert len(existing) == 3
+    assert len(existing) == 4
     returned = [automation.updated for automation in existing]
     assert returned == sorted(returned, reverse=True)
 
@@ -118,7 +120,7 @@ async def test_counting_automations_by_workspace(
     count = await automations.count_automations_for_workspace(
         session=automations_session,
     )
-    assert count == 3
+    assert count == 4
 
 
 async def test_creating_automation(automations_session: AsyncSession):
