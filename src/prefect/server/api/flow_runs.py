@@ -3,10 +3,9 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-import jsonschema
 import orjson
 import pendulum
 import sqlalchemy as sa
@@ -25,7 +24,6 @@ from sqlalchemy.exc import IntegrityError
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_flow_run
@@ -55,7 +53,7 @@ async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -128,7 +126,7 @@ async def update_flow_run(
                         detail="A deployment for the flow run could not be found",
                     )
 
-                validate_job_variables_for_flow_run(flow_run, deployment)
+                await validate_job_variables_for_flow_run(flow_run, deployment, session)
 
         result = await models.flow_runs.update_flow_run(
             session=session, flow_run=flow_run, flow_run_id=flow_run_id
@@ -335,7 +333,7 @@ async def resume_flow_run(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -366,20 +364,19 @@ async def resume_flow_run(
         if keyset:
             run_input = run_input or {}
 
-            if experiment_enabled("enhanced_deployment_parameters"):
-                try:
-                    hydration_context = await schema_tools.HydrationContext.build(
-                        session=session, raise_on_error=True
-                    )
-                    run_input = schema_tools.hydrate(run_input, hydration_context) or {}
-                except schema_tools.HydrationError as exc:
-                    return OrchestrationResult(
-                        state=state,
-                        status=schemas.responses.SetStateStatus.REJECT,
-                        details=schemas.responses.StateAbortDetails(
-                            reason=f"Error hydrating run input: {exc}",
-                        ),
-                    )
+            try:
+                hydration_context = await schema_tools.HydrationContext.build(
+                    session=session, raise_on_error=True
+                )
+                run_input = schema_tools.hydrate(run_input, hydration_context) or {}
+            except schema_tools.HydrationError as exc:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason=f"Error hydrating run input: {exc}",
+                    ),
+                )
 
             schema_json = await models.flow_run_input.read_flow_run_input(
                 session=session, flow_run_id=flow_run.id, key=keyset["schema"]
@@ -405,36 +402,24 @@ async def resume_flow_run(
                     ),
                 )
 
-            if experiment_enabled("enhanced_deployment_parameters"):
-                try:
-                    schema_tools.validate(run_input, schema, raise_on_error=True)
-                except schema_tools.ValidationError as exc:
-                    return OrchestrationResult(
-                        state=state,
-                        status=schemas.responses.SetStateStatus.REJECT,
-                        details=schemas.responses.StateAbortDetails(
-                            reason=f"Reason: {exc}"
-                        ),
-                    )
-                except schema_tools.CircularSchemaRefError:
-                    return OrchestrationResult(
-                        state=state,
-                        status=schemas.responses.SetStateStatus.REJECT,
-                        details=schemas.responses.StateAbortDetails(
-                            reason="Invalid schema: Unable to validate schema with circular references.",
-                        ),
-                    )
-            else:
-                try:
-                    jsonschema.validate(run_input, schema)
-                except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
-                    return OrchestrationResult(
-                        state=state,
-                        status=schemas.responses.SetStateStatus.REJECT,
-                        details=schemas.responses.StateAbortDetails(
-                            reason=f"Run input validation failed: {exc.message}"
-                        ),
-                    )
+            try:
+                schema_tools.validate(run_input, schema, raise_on_error=True)
+            except schema_tools.ValidationError as exc:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason=f"Reason: {exc}"
+                    ),
+                )
+            except schema_tools.CircularSchemaRefError:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Invalid schema: Unable to validate schema with circular references.",
+                    ),
+                )
 
         if state.state_details.pause_reschedule:
             orchestration_result = await models.flow_runs.set_flow_run_state(
@@ -555,7 +540,7 @@ async def set_flow_run_state(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),

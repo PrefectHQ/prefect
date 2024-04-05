@@ -28,6 +28,7 @@ This section of the documentation contains how-to guides for common workflows an
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [Terraform Provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) | Use the Terraform Provider for Prefect Cloud for infrastructure as code. |
 | [CI/CD](/guides/ci-cd/) | Use CI/CD with Prefect. |
+| [Specifying Upstream Dependencies](/guides/specifying-upstream-dependencies) | Run tasks in a desired order. |
 | [Prefect Recipes](/recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 ## Execution
@@ -42,6 +43,7 @@ This section of the documentation contains how-to guides for common workflows an
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
 | [Managed Execution](/guides/managed-execution/) | Let prefect run your code. |
+| [Shell Commands](/guides/cli-shell/) | Shell commands as Prefect flows |
 
 ## Work Pools
 

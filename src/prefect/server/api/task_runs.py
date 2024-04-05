@@ -3,9 +3,10 @@ Routes for interacting with task run objects.
 """
 
 import datetime
-from typing import List
+from typing import Any, Dict, List
 from uuid import UUID
 
+import anyio
 import pendulum
 from prefect._vendor.fastapi import (
     Body,
@@ -44,7 +45,7 @@ async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> schemas.core.TaskRun:
@@ -232,7 +233,7 @@ async def set_task_run_state(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> OrchestrationResult:
@@ -289,7 +290,11 @@ async def scheduled_task_subscription(websocket: WebSocket):
     subscribed_queue = MultiQueue(task_keys)
 
     while True:
-        task_run = await subscribed_queue.get()
+        try:
+            with anyio.fail_after(5):
+                task_run = await subscribed_queue.get()
+        except TimeoutError:
+            continue
 
         try:
             await websocket.send_json(task_run.dict(json_compatible=True))

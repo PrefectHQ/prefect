@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import anyio
 import fsspec
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -17,8 +18,12 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, SecretStr, validator
 
+from prefect._internal.schemas.validators import (
+    stringify_path,
+    validate_basepath,
+    validate_github_access_token,
+)
 from prefect.blocks.core import Block
-from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
@@ -96,9 +101,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
-        if isinstance(value, Path):
-            return str(value)
-        return value
+        return stringify_path(value)
 
     def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
@@ -279,23 +282,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @validator("basepath")
     def check_basepath(cls, value):
-        scheme, netloc, _, _, _ = urllib.parse.urlsplit(value)
-
-        if not scheme:
-            raise ValueError(f"Base path must start with a scheme. Got {value!r}.")
-
-        if not netloc:
-            raise ValueError(
-                f"Base path must include a location after the scheme. Got {value!r}."
-            )
-
-        if scheme == "file":
-            raise ValueError(
-                "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for"
-                " local file access."
-            )
-
-        return value
+        return validate_basepath(value)
 
     def _resolve_path(self, path: str) -> str:
         base_scheme, base_netloc, base_urlpath, _, _ = urllib.parse.urlsplit(
@@ -435,8 +422,17 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         return self._filesystem
 
 
+@deprecated_class(
+    start_date="Mar 2024", help="Use the `S3Bucket` block from prefect-aws instead."
+)
 class S3(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `S3Bucket` from the `prefect-aws` package, which offers enhanced functionality
+    and better a better user experience.
+
     Store data as a file on AWS S3.
 
     Example:
@@ -526,8 +522,16 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024", help="Use the `GcsBucket` block from prefect-gcp instead."
+)
 class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `GcsBucket` from the `prefect-gcp` package, which offers enhanced functionality
+    and better a better user experience.
     Store data as a file on Google Cloud Storage.
 
     Example:
@@ -619,8 +623,18 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `AzureBlobStorageContainer` block from prefect-azure instead.",
+)
 class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `AzureBlobStorageContainer` from the `prefect-azure` package, which
+    offers enhanced functionality and better a better user experience.
+
     Store data as a file on Azure Datalake and Azure Blob Storage.
 
     Example:
@@ -869,9 +883,19 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `GitHubRepository` block from prefect-github instead.",
+)
 class GitHub(ReadableDeploymentStorage):
     """
-    Interact with files stored on GitHub repositories.
+        DEPRECATION WARNING:
+
+        This class is deprecated as of March 2024 and will not be available after September 2024.
+        It has been replaced by `GitHubRepository` from the `prefect-github` package, which offers
+        enhanced functionality and better a better user experience.
+    q
+        Interact with files stored on GitHub repositories.
     """
 
     _block_type_name = "GitHub"
@@ -907,22 +931,7 @@ class GitHub(ReadableDeploymentStorage):
 
     @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
-        """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs.
-
-        Note: validates `access_token` specifically so that it only fires when
-        private repositories are used.
-        """
-        if v is not None:
-            if urllib.parse.urlparse(values["repository"]).scheme != "https":
-                raise InvalidRepositoryURLError(
-                    "Crendentials can only be used with GitHub repositories "
-                    "using the 'HTTPS' format. You must either remove the "
-                    "credential if you wish to use the 'SSH' format and are not "
-                    "using a private repository, or you must change the repository "
-                    "URL to the 'HTTPS' format. "
-                )
-
-        return v
+        return validate_github_access_token(v, values)
 
     def _create_repo_url(self) -> str:
         """Format the URL provided to the `git clone` command.

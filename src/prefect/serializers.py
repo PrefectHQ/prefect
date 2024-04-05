@@ -10,12 +10,20 @@ the instance so the same settings can be used to load saved objects.
 All serializers must implement `dumps` and `loads` which convert objects to bytes and
 bytes to an object respectively.
 """
+
 import abc
 import base64
-import warnings
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Dict, Generic, Optional, TypeVar
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    cast_type_names_to_serializers,
+    validate_compressionlib,
+    validate_dump_kwargs,
+    validate_load_kwargs,
+    validate_picklelib,
+    validate_picklelib_version,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -101,57 +109,11 @@ class PickleSerializer(Serializer):
 
     @pydantic.validator("picklelib")
     def check_picklelib(cls, value):
-        """
-        Check that the given pickle library is importable and has dumps/loads methods.
-        """
-        try:
-            pickler = from_qualified_name(value)
-        except (ImportError, AttributeError) as exc:
-            raise ValueError(
-                f"Failed to import requested pickle library: {value!r}."
-            ) from exc
-
-        if not callable(getattr(pickler, "dumps", None)):
-            raise ValueError(
-                f"Pickle library at {value!r} does not have a 'dumps' method."
-            )
-
-        if not callable(getattr(pickler, "loads", None)):
-            raise ValueError(
-                f"Pickle library at {value!r} does not have a 'loads' method."
-            )
-
-        return value
+        return validate_picklelib(value)
 
     @pydantic.root_validator
     def check_picklelib_version(cls, values):
-        """
-        Infers a default value for `picklelib_version` if null or ensures it matches
-        the version retrieved from the `pickelib`.
-        """
-        picklelib = values.get("picklelib")
-        picklelib_version = values.get("picklelib_version")
-
-        if not picklelib:
-            raise ValueError("Unable to check version of unrecognized picklelib module")
-
-        pickler = from_qualified_name(picklelib)
-        pickler_version = getattr(pickler, "__version__", None)
-
-        if not picklelib_version:
-            values["picklelib_version"] = pickler_version
-        elif picklelib_version != pickler_version:
-            warnings.warn(
-                (
-                    f"Mismatched {picklelib!r} versions. Found {pickler_version} in the"
-                    f" environment but {picklelib_version} was requested. This may"
-                    " cause the serializer to fail."
-                ),
-                RuntimeWarning,
-                stacklevel=3,
-            )
-
-        return values
+        return validate_picklelib_version(values)
 
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)
@@ -191,28 +153,16 @@ class JSONSerializer(Serializer):
             "by our default `object_encoder`."
         ),
     )
-    dumps_kwargs: dict = pydantic.Field(default_factory=dict)
-    loads_kwargs: dict = pydantic.Field(default_factory=dict)
+    dumps_kwargs: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    loads_kwargs: Dict[str, Any] = pydantic.Field(default_factory=dict)
 
     @pydantic.validator("dumps_kwargs")
     def dumps_kwargs_cannot_contain_default(cls, value):
-        # `default` is set by `object_encoder`. A user provided callable would make this
-        # class unserializable anyway.
-        if "default" in value:
-            raise ValueError(
-                "`default` cannot be provided. Use `object_encoder` instead."
-            )
-        return value
+        return validate_dump_kwargs(value)
 
     @pydantic.validator("loads_kwargs")
     def loads_kwargs_cannot_contain_object_hook(cls, value):
-        # `object_hook` is set by `object_decoder`. A user provided callable would make
-        # this class unserializable anyway.
-        if "object_hook" in value:
-            raise ValueError(
-                "`object_hook` cannot be provided. Use `object_decoder` instead."
-            )
-        return value
+        return validate_load_kwargs(value)
 
     def dumps(self, data: Any) -> bytes:
         json = from_qualified_name(self.jsonlib)
@@ -251,35 +201,12 @@ class CompressedSerializer(Serializer):
     compressionlib: str = "lzma"
 
     @pydantic.validator("serializer", pre=True)
-    def cast_type_names_to_serializers(cls, value):
-        if isinstance(value, str):
-            return Serializer(type=value)
-        return value
+    def validate_serializer(cls, value):
+        return cast_type_names_to_serializers(value)
 
     @pydantic.validator("compressionlib")
     def check_compressionlib(cls, value):
-        """
-        Check that the given pickle library is importable and has compress/decompress
-        methods.
-        """
-        try:
-            compressor = from_qualified_name(value)
-        except (ImportError, AttributeError) as exc:
-            raise ValueError(
-                f"Failed to import requested compression library: {value!r}."
-            ) from exc
-
-        if not callable(getattr(compressor, "compress", None)):
-            raise ValueError(
-                f"Compression library at {value!r} does not have a 'compress' method."
-            )
-
-        if not callable(getattr(compressor, "decompress", None)):
-            raise ValueError(
-                f"Compression library at {value!r} does not have a 'decompress' method."
-            )
-
-        return value
+        return validate_compressionlib(value)
 
     def dumps(self, obj: Any) -> bytes:
         blob = self.serializer.dumps(obj)

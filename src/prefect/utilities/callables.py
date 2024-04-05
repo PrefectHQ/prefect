@@ -1,6 +1,7 @@
 """
 Utilities for working with Python callables.
 """
+
 import inspect
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
@@ -8,13 +9,13 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import cloudpickle
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic.v1_schema import has_v1_type_as_param
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 
     from prefect._internal.pydantic.v2_schema import (
         create_v2_schema,
-        has_v2_type_as_param,
         process_v2_params,
     )
 else:
@@ -224,7 +225,7 @@ class ParameterSchema(pydantic.BaseModel):
     type: Literal["object"] = "object"
     properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
     required: List[str] = None
-    definitions: Dict[str, Any] = None
+    definitions: Optional[Dict[str, Any]] = None
 
     def dict(self, *args, **kwargs):
         """Exclude `None` fields by default to comply with
@@ -312,8 +313,9 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         ParameterSchema: the argument schema
     """
     try:
-        signature = inspect.signature(fn, eval_str=True)
+        signature = inspect.signature(fn, eval_str=True)  # novm
     except (NameError, TypeError):
+        # `eval_str` is not available in Python < 3.10
         signature = inspect.signature(fn)
 
     model_fields = {}
@@ -323,7 +325,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     class ModelConfig:
         arbitrary_types_allowed = True
 
-    if HAS_PYDANTIC_V2 and has_v2_type_as_param(signature):
+    if HAS_PYDANTIC_V2 and not has_v1_type_as_param(signature):
         create_schema = create_v2_schema
         process_params = process_v2_params
     else:

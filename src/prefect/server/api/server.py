@@ -10,7 +10,7 @@ import sqlite3
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
-from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
 import anyio
 import asyncpg
@@ -35,6 +35,7 @@ from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
+from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.server import method_paths_from_routes
@@ -83,6 +84,8 @@ API_ROUTERS = (
     api.block_capabilities.router,
     api.collections.router,
     api.variables.router,
+    api.csrf_token.router,
+    api.events.router,
     api.ui.flow_runs.router,
     api.ui.schemas.router,
     api.ui.task_runs.router,
@@ -256,7 +259,7 @@ def create_api_app(
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
     version_check_path: str = "/version",
-    fast_api_app_kwargs: dict = None,
+    fast_api_app_kwargs: Optional[Dict[str, Any]] = None,
     router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """
@@ -337,6 +340,7 @@ def create_api_app(
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
+    cache_key = f"{prefect.__version__}:{base_url}"
     stripped_base_url = base_url.rstrip("/")
     static_dir = (
         prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
@@ -362,7 +366,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         if os.path.exists(static_dir):
             try:
                 with open(reference_file_path, "r") as f:
-                    return f.read() == base_url
+                    return f.read() == cache_key
             except FileNotFoundError:
                 return False
         else:
@@ -383,7 +387,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # This is used to determine if the static files need to be copied again
         # when the server is restarted
         with open(os.path.join(static_dir, reference_file_name), "w") as f:
-            f.write(base_url)
+            f.write(cache_key)
 
     ui_app.add_middleware(GZipMiddleware)
 
@@ -457,7 +461,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                         )
                     return
         except Exception as exc:
-            logger.warn(
+            logger.warning(
                 ""
                 f"Unable to read memo_store.toml from {PREFECT_MEMO_STORE_PATH} during "
                 f"block auto-registration: {exc!r}.\n"
@@ -475,7 +479,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                     toml.dumps({"block_auto_registration": current_blocks_loading_hash})
                 )
             except Exception as exc:
-                logger.warn(
+                logger.warning(
                     "Unable to write to memo_store.toml at"
                     f" {PREFECT_MEMO_STORE_PATH} after block auto-registration:"
                     f" {exc!r}.\n Subsequent server start ups will perform block"
@@ -567,6 +571,12 @@ def create_app(
         if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
+        if (
+            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
+            and prefect.settings.PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED.value()
+        ):
+            service_instances.append(EventLogger())
+
         loop = asyncio.get_running_loop()
 
         app.state.services = {
@@ -646,6 +656,9 @@ def create_app(
         == "sqlite"
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
+
+    if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
+        app.add_middleware(api.middleware.CsrfMiddleware)
 
     api_app.mount(
         "/static",

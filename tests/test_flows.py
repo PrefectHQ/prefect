@@ -39,7 +39,7 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.context import PrefectObjectRegistry
 from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
@@ -1391,7 +1391,7 @@ class TestFlowParameterTypes:
         else:
 
             @flow
-            def type_container_input_flow(arg1: list[str]) -> str:
+            def type_container_input_flow(arg1: List[str]) -> str:
                 print(arg1)
                 return ",".join(arg1)
 
@@ -3399,9 +3399,10 @@ class TestFlowToDeployment:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.triggers == [
-            DeploymentTrigger(
+            DeploymentEventTrigger(
                 name="Happiness",
                 enabled=True,
+                posture=Posture.Reactive,
                 match={"prefect.resource.id": "prefect.flow-run.*"},
                 expect=["prefect.flow-run.Completed"],
                 match_related={
@@ -3791,6 +3792,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
         )
 
         console_output = capsys.readouterr().out
@@ -3839,6 +3841,7 @@ class TestFlowDeploy:
             build=True,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
         )
 
     async def test_deploy_non_existent_work_pool(

@@ -10,6 +10,7 @@ import prefect.cli.artifact
 import prefect.cli.block
 import prefect.cli.cloud
 import prefect.cli.cloud.webhook
+import prefect.cli.shell
 import prefect.cli.concurrency_limit
 import prefect.cli.config
 import prefect.cli.deploy
@@ -25,3 +26,4 @@ import prefect.cli.variable
 import prefect.cli.work_pool
 import prefect.cli.work_queue
 import prefect.cli.worker
+import prefect.cli.task_run

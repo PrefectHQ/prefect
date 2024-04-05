@@ -4,6 +4,7 @@ build system for managing flows and deployments.
 
 To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
 """
+
 import ast
 import asyncio
 import json
@@ -13,7 +14,7 @@ import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 import anyio
 import yaml
@@ -74,7 +75,7 @@ def set_prefect_hidden_dir(path: str = None) -> bool:
 
 
 def create_default_prefect_yaml(
-    path: str, name: str = None, contents: dict = None
+    path: str, name: str = None, contents: Optional[Dict[str, Any]] = None
 ) -> bool:
     """
     Creates default `prefect.yaml` file in the provided path if one does not already exist;
@@ -221,7 +222,7 @@ def _get_git_branch() -> Optional[str]:
 
 
 def initialize_project(
-    name: str = None, recipe: str = None, inputs: dict = None
+    name: str = None, recipe: str = None, inputs: Optional[Dict[str, Any]] = None
 ) -> List[str]:
     """
     Initializes a basic project structure with base files.  If no name is provided, the name

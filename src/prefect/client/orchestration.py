@@ -15,6 +15,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+import certifi
 import httpcore
 import httpx
 import pendulum
@@ -127,15 +128,17 @@ from prefect.client.schemas.sorting import (
     TaskRunSort,
 )
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas import Automation, ExistingAutomation
+from prefect.events.schemas.automations import Automation, ExistingAutomation
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
+    PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
@@ -213,13 +216,18 @@ class PrefectClient:
         *,
         api_key: str = None,
         api_version: str = None,
-        httpx_settings: dict = None,
+        httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
 
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
+        else:
+            cert_file = PREFECT_API_SSL_CERT_FILE.value()
+            if not cert_file:
+                cert_file = certifi.where()
+            httpx_settings.setdefault("verify", cert_file)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
@@ -316,7 +324,15 @@ class PrefectClient:
 
         if not PREFECT_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
-        self._client = PrefectHttpxClient(**httpx_settings)
+
+        enable_csrf_support = (
+            self.server_type != ServerType.CLOUD
+            and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
+        )
+
+        self._client = PrefectHttpxClient(
+            **httpx_settings, enable_csrf_support=enable_csrf_support
+        )
         self._loop = None
 
         # See https://www.python-httpx.org/advanced/#custom-transports
@@ -507,8 +523,8 @@ class PrefectClient:
         self,
         deployment_id: UUID,
         *,
-        parameters: Dict[str, Any] = None,
-        context: dict = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
         state: prefect.states.State = None,
         name: str = None,
         tags: Iterable[str] = None,
@@ -592,8 +608,8 @@ class PrefectClient:
         self,
         flow: "FlowObject",
         name: str = None,
-        parameters: Dict[str, Any] = None,
-        context: dict = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: "prefect.states.State" = None,
@@ -1562,7 +1578,7 @@ class PrefectClient:
         version: str = None,
         schedule: SCHEDULE_TYPES = None,
         schedules: List[DeploymentScheduleCreate] = None,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         description: str = None,
         work_queue_name: str = None,
         work_pool_name: str = None,
@@ -1572,8 +1588,8 @@ class PrefectClient:
         path: str = None,
         entrypoint: str = None,
         infrastructure_document_id: UUID = None,
-        infra_overrides: Dict[str, Any] = None,
-        parameter_openapi_schema: dict = None,
+        infra_overrides: Optional[Dict[str, Any]] = None,
+        parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,

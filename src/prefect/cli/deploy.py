@@ -1,4 +1,5 @@
 """Module containing implementation for deploying projects."""
+
 import json
 import os
 import re
@@ -9,8 +10,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import typer
-import typer.core
 import yaml
 from rich.console import Console
 from rich.panel import Panel
@@ -54,7 +61,7 @@ from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
@@ -140,6 +147,12 @@ async def deploy(
         None,
         "-v",
         "--variable",
+        help=("DEPRECATED: Please use --jv/--job-variable for similar functionality "),
+    ),
+    job_variables: List[str] = typer.Option(
+        None,
+        "-jv",
+        "--job-variable",
         help=(
             "One or more job variable overrides for the work pool provided in the"
             " format of key=value string or a JSON object"
@@ -247,6 +260,25 @@ async def deploy(
             style="yellow",
         )
 
+    if variables is not None:
+        app.console.print(
+            generate_deprecation_message(
+                name="The `--variable` flag",
+                start_date="Mar 2024",
+                help=(
+                    "Please use the `--job-variable foo=bar` argument instead: `prefect"
+                    " deploy --job-variable`."
+                ),
+            ),
+            style="yellow",
+        )
+
+    if variables is None:
+        variables = list()
+    if job_variables is None:
+        job_variables = list()
+    job_variables.extend(variables)
+
     options = {
         "entrypoint": entrypoint,
         "flow_name": flow_name,
@@ -255,7 +287,7 @@ async def deploy(
         "tags": tags,
         "work_pool_name": work_pool_name,
         "work_queue_name": work_queue_name,
-        "variables": variables,
+        "variables": job_variables,
         "cron": cron,
         "interval": interval,
         "anchor_date": interval_anchor,
@@ -271,7 +303,7 @@ async def deploy(
             prefect_file=prefect_file, ci=ci
         )
         parsed_names = []
-        for name in names:
+        for name in names or []:
             if "*" in name:
                 parsed_names.extend(_parse_name_from_pattern(deploy_configs, name))
             else:
@@ -1593,17 +1625,17 @@ def _check_if_identical_deployment_in_prefect_file(
 
 def _initialize_deployment_triggers(
     deployment_name: str, triggers_spec: List[Dict[str, Any]]
-) -> List[DeploymentTrigger]:
+) -> List[DeploymentTriggerTypes]:
     triggers = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
-        triggers.append(DeploymentTrigger(**spec))
+        triggers.append(pydantic.parse_obj_as(DeploymentTriggerTypes, spec))
 
     return triggers
 
 
 async def _create_deployment_triggers(
-    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTrigger]
+    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTriggerTypes]
 ):
     if client.server_type == ServerType.CLOUD:
         # The triggers defined in the deployment spec are, essentially,
@@ -1679,7 +1711,7 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
         app.console.print(
             generate_deprecation_message(
                 "Defining a schedule via the `schedule` key in the deployment",
-                start_date="Mar 2023",
+                start_date="Mar 2024",
                 help=(
                     "Please use `schedules` instead by renaming the "
                     "`schedule` key to `schedules` and providing a list of "

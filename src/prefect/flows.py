@@ -75,7 +75,7 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
     MissingFlowError,
     ObjectNotFound,
@@ -618,7 +618,7 @@ class Flow(Generic[P, R]):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -748,7 +748,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List["FlexibleScheduleList"]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -962,7 +962,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List[MinimalDeploymentSchedule]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[DeploymentTriggerTypes]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -970,6 +970,7 @@ class Flow(Generic[P, R]):
         enforce_parameter_schema: bool = False,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
+        ignore_warnings: bool = False,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
@@ -1024,6 +1025,7 @@ class Flow(Generic[P, R]):
                 entrypoint, ensure that the module will be importable in the execution environment.
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
+            ignore_warnings: Whether or not to ignore warnings about the work pool type.
 
         Returns:
             The ID of the created/updated deployment.
@@ -1100,6 +1102,7 @@ class Flow(Generic[P, R]):
             build=build,
             push=push,
             print_next_steps_message=False,
+            ignore_warnings=ignore_warnings,
         )
 
         if print_next_steps:
@@ -1345,8 +1348,12 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_completion: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
+    on_failure: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
     on_cancellation: Optional[
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
@@ -1373,8 +1380,12 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_completion: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
+    on_failure: Optional[
+        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+    ] = None,
     on_cancellation: Optional[
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,

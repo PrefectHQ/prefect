@@ -12,6 +12,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
 )
+from prefect.states import Running
 from prefect.task_server import TaskServer, serve
 from prefect.tasks import task_input_hash
 
@@ -140,6 +141,36 @@ async def test_task_server_client_id_is_set():
         task_server._client = MagicMock(api_url="http://localhost:4200")
 
         assert task_server._client_id == "foo-42"
+
+
+async def test_task_server_handles_aborted_task_run_submission(
+    foo_task, prefect_client, caplog
+):
+    task_server = TaskServer(foo_task)
+
+    task_run = foo_task.submit(42)
+
+    await prefect_client.set_task_run_state(task_run.id, Running(), force=True)
+
+    await task_server.execute_task_run(task_run)
+
+    assert "in a RUNNING state and cannot transition to a PENDING state." in caplog.text
+
+
+async def test_task_server_handles_deleted_task_run_submission(
+    foo_task, prefect_client, caplog
+):
+    task_server = TaskServer(foo_task)
+
+    task_run = foo_task.submit(42)
+
+    await prefect_client.delete_task_run(task_run.id)
+
+    await task_server.execute_task_run(task_run)
+
+    assert (
+        f"Task run {task_run.id!r} not found. It may have been deleted." in caplog.text
+    )
 
 
 @pytest.mark.usefixtures("mock_task_server_start")
@@ -292,7 +323,10 @@ class TestTaskServerTaskResults:
         if persist_result:
             assert await updated_task_run.state.result() == 42
         else:
-            with pytest.raises(MissingResult, match="The result was not persisted"):
+            with pytest.raises(
+                MissingResult,
+                match="The result was not persisted|State data is missing",
+            ):
                 await updated_task_run.state.result()
 
     @pytest.mark.parametrize(
@@ -471,3 +505,26 @@ class TestTaskServerTaskStateHooks:
         assert updated_task_run.state.is_failed()
 
         assert "Running on_failure hook" in capsys.readouterr().out
+
+
+class TestTaskServerNestedTasks:
+    async def test_nested_task_run_via_task_server(self, prefect_client):
+        @task
+        def inner_task(x):
+            return x
+
+        @task
+        def outer_task(x):
+            return inner_task(x)
+
+        task_server = TaskServer(outer_task)
+
+        task_run = outer_task.submit(42)
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        assert await updated_task_run.state.result() == 42
