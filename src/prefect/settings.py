@@ -1126,7 +1126,7 @@ this many scheduled runs, depending on the value of
 
 PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
     timedelta,
-    default=timedelta(days=100),
+    default=timedelta(days=100).total_seconds(),
 )
 """The scheduler will create new runs up to this far in the
 future. Note that this setting will take precedence over
@@ -1137,7 +1137,7 @@ scheduled. Defaults to 100 days (`8640000` seconds).
 
 PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
     timedelta,
-    default=timedelta(hours=1),
+    default=timedelta(hours=1).total_seconds(),
 )
 """The scheduler will create new runs at least this far in the
 future. Note that this setting will take precedence over `scheduler_min_runs`:
@@ -1166,7 +1166,7 @@ this often. Defaults to `5`.
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
-    default=timedelta(seconds=15),
+    default=timedelta(seconds=15).total_seconds(),
 )
 """The late runs service will mark runs as late after they
 have exceeded their scheduled start time by this many seconds. Defaults
@@ -1523,7 +1523,7 @@ The maximum number of retries to queue for submission.
 
 PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
     timedelta,
-    default=timedelta(seconds=30),
+    default=timedelta(seconds=30).total_seconds(),
 )
 """
 How long before a PENDING task are made available to another task server.  In practice,
