@@ -1970,9 +1970,9 @@ class Profile(BaseModel):
     A user profile containing settings.
     """
 
-    name: str
-    settings: Dict[Setting, Any] = Field(default_factory=dict)
-    source: Optional[Path]
+    name: Optional[str] = None
+    settings: Dict[Setting[object], Any] = Field(default_factory=dict)
+    source: Optional[Path] = None
 
     @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
