@@ -4,7 +4,7 @@ from typing_extensions import Annotated
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
-from prefect._internal.pydantic.utilities.field_decorator import field_validator
+from prefect._internal.pydantic.utilities.field_validator import field_validator
 
 if USE_V2_MODELS:
     from pydantic import ValidationInfo
