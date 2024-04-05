@@ -15,7 +15,7 @@ class Variable(VariableRequest):
     Arguments:
         name: A string identifying the variable.
         value: A string that is the value of the variable.
-        tags: A list of strings to associate with the variable.
+        tags: An optional list of strings to associate with the variable.
     """
 
     @classmethod
@@ -48,20 +48,17 @@ class Variable(VariableRequest):
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
         var_dict = {"name": name, "value": value}
-        if tags is not None:
-            var_dict["tags"] = tags
+        var_dict["tags"] = tags or []
         if variable:
             if not overwrite:
                 raise ValueError(
                     "You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."
                 )
-            else:
-                var = VariableUpdateRequest(**var_dict)
-                await client.update_variable(variable=var)
-                variable = await client.read_variable_by_name(name)
-                return variable
-        else:
             var = VariableUpdateRequest(**var_dict)
+            await client.update_variable(variable=var)
+            variable = await client.read_variable_by_name(name)
+        else:
+            var = VariableRequest(**var_dict)
             variable = await client.create_variable(variable=var)
 
         return variable if variable else None

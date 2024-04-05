@@ -2948,9 +2948,9 @@ class PrefectClient:
         Updates a variable with the provided configuration.
 
         Args:
-            variable: Desired configuration for the new variable.
+            variable: Desired configuration for the updated variable.
         Returns:
-            Information about the newly created variable.
+            Information about the updated variable.
         """
         await self._client.patch(
             f"/variables/name/{variable.name}",
