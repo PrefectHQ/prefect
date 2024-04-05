@@ -203,11 +203,11 @@ def generate_release_notes(
         # ensure that Integrations section is before Contributors
         # Print all accumulated non-Prefect changes under "Integrations"
         integrations_heading = (
-            "### Integrations" + "\n\n" + "\n\n".join(integrations_section)
+            "### Integrations" + "\n" + "\n\n".join(integrations_section)
         )
 
         prefect_release_notes = (
-            parts[0] + integrations_heading + "\n### Contributors" + parts[1]
+            parts[0] + integrations_heading + "\n\n### Contributors" + parts[1]
         )
 
     print(prefect_release_notes)
