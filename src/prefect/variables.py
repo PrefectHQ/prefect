@@ -46,25 +46,28 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
+        var_dict = {"name": name, "value": value}
+        if tags is not None:
+            var_dict["tags"] = tags
         if variable:
             if not overwrite:
                 raise ValueError(
                     "You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."
                 )
             else:
-                var = VariableUpdateRequest(name=name, value=value, tags=tags)
+                var = VariableUpdateRequest(**var_dict)
                 await client.update_variable(variable=var)
                 variable = await client.read_variable_by_name(name)
                 return variable
         else:
-            var = VariableRequest(name=name, value=value, tags=tags)
+            var = VariableUpdateRequest(**var_dict)
             variable = await client.create_variable(variable=var)
 
         return variable if variable else None
 
     @classmethod
     @sync_compatible
-    async def get(cls, name: str) -> Optional[str]:
+    async def get(cls, name: str, default: Optional[str] = None) -> Optional[str]:
         """
         Get a variable by name. If doesn't exist return the default.
         ```
@@ -85,7 +88,7 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        return variable if variable else None
+        return variable if variable else default
 
 
 @sync_compatible
