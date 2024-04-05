@@ -101,7 +101,7 @@ def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
 
 def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     """
-    Extend a Pydantic model to add a 'type' field that is used a discriminator field
+    Extend a Pydantic model to add a 'type' field that is used as a discriminator field
     to dynamically determine the subtype that when deserializing models.
 
     This allows automatic resolution to subtypes of the decorated model.

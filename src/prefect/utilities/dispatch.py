@@ -19,6 +19,7 @@ key = get_dispatch_key(Foo)  # 'foo'
 lookup_type(Base, key) # Foo
 ```
 """
+
 import abc
 import inspect
 import warnings
