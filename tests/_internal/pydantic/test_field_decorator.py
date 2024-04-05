@@ -9,7 +9,7 @@ if USE_V2_MODELS:
     from pydantic import ValidationInfo
 
 else:
-    from pydantic import ConfigError
+    from pydantic.v1.errors import ConfigError
 
 
 @pytest.mark.skipif(
