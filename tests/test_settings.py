@@ -3,17 +3,11 @@ import os
 import textwrap
 from pathlib import Path
 
-from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2 and not USE_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 import pytest
 
 import prefect.context
 import prefect.settings
+from prefect.pydantic import ValidationError
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -260,7 +254,7 @@ class TestSettingsClass:
         ],
     )
     def test_settings_validates_log_levels(self, log_level_setting):
-        with pytest.raises(pydantic.ValidationError, match="Unknown level"):
+        with pytest.raises(ValidationError, match="Unknown level"):
             Settings(**{log_level_setting.name: "FOOBAR"})
 
     @pytest.mark.parametrize(
@@ -737,7 +731,7 @@ class TestProfile:
 
     def test_validate_settings(self):
         profile = Profile(name="test", settings={PREFECT_SERVER_API_PORT: "foo"})
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(ValidationError):
             profile.validate_settings()
 
     def test_validate_settings_ignores_environment_variables(self, monkeypatch):
@@ -747,7 +741,7 @@ class TestProfile:
         """
         monkeypatch.setenv("PREFECT_SERVER_API_PORT", "1234")
         profile = Profile(name="test", settings={PREFECT_SERVER_API_PORT: "foo"})
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(ValidationError):
             profile.validate_settings()
 
 
