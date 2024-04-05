@@ -2,12 +2,13 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 from typing_extensions import Annotated
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.field_decorator import field_validator
 
 if USE_V2_MODELS:
     from pydantic import ValidationInfo
-else:
+elif not HAS_PYDANTIC_V2:
     from pydantic.errors import ConfigError
 
 
