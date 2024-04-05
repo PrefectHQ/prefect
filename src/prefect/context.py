@@ -19,6 +19,7 @@ from typing import (
     Any,
     ContextManager,
     Dict,
+    Generator,
     List,
     Optional,
     Set,
@@ -395,7 +396,7 @@ def get_settings_context() -> SettingsContext:
 
 
 @contextmanager
-def tags(*new_tags: str) -> Set[str]:
+def tags(*new_tags: str) -> Generator[Set[str], None, None]:
     """
     Context manager to add tags to flow and task run calls.
 

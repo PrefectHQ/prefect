@@ -4,14 +4,7 @@ Manifests are portable descriptions of one or more workflows within a given dire
 They are the foundational building blocks for defining Flow Deployments.
 """
 
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field
-else:
-    from pydantic import BaseModel, Field
-
+from prefect.pydantic import BaseModel, Field
 from prefect.utilities.callables import ParameterSchema
 
 

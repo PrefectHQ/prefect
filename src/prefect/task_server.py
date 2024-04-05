@@ -53,8 +53,8 @@ def should_try_to_read_parameters(task: Task, task_run: TaskRun) -> bool:
 
 
 class TaskServer:
-    """This class is responsible for serving tasks that may be executed autonomously by a
-    task runner in the engine.
+    """This class is responsible for serving tasks that may be executed in the background
+    by a task runner via the traditional engine machinery.
 
     When `start()` is called, the task server will open a websocket connection to a
     server-side queue of scheduled task runs. When a scheduled task run is found, the
