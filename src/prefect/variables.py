@@ -1,8 +1,5 @@
 from typing import List, Optional
 
-from typing_extensions import Self
-
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import VariableCreate as VariableRequest
 from prefect.client.schemas.actions import VariableUpdate as VariableUpdateRequest
 from prefect.client.utilities import get_or_create_client
@@ -25,10 +22,9 @@ class Variable(VariableRequest):
     async def set(
         cls,
         name: str,
-        value: Optional[str] = None,
-        default: Optional[str] = None,
-        tags: Optional[List[str]] = [],
-        overwrite: Optional[bool] = False,
+        value: str,
+        tags: Optional[List[str]] = None,
+        overwrite: bool = False,
     ) -> Optional[str]:
         """
         Sets a new variable. If one exists with the same name, user must pass `overwrite=True`
@@ -48,24 +44,27 @@ class Variable(VariableRequest):
                 var = await Variable.set(name="my_var",value="test_value", tags=["hi", "there"], overwrite=True)
         ```
         """
-        variable = await cls._get_variable_by_name(name)
+        client, _ = get_or_create_client()
+        variable = await client.read_variable_by_name(name)
         if variable:
             if not overwrite:
                 raise ValueError(
                     "You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."
                 )
             else:
-                await cls._update_variable_by_name(name, value, tags)
-                variable = await cls._get_variable_by_name(name)
+                var = VariableUpdateRequest(name=name, value=value, tags=tags)
+                await client.update_variable(variable=var)
+                variable = await client.read_variable_by_name(name)
                 return variable
         else:
-            variable = await cls._set_variable_by_name(name, value, tags)
+            var = VariableRequest(name=name, value=value, tags=tags)
+            variable = await client.create_variable(variable=var)
 
-        return variable if variable else default
+        return variable if variable else None
 
     @classmethod
     @sync_compatible
-    async def get(cls, name: str, default: Optional[str] = None) -> Optional[str]:
+    async def get(cls, name: str) -> Optional[str]:
         """
         Get a variable by name. If doesn't exist return the default.
         ```
@@ -84,45 +83,9 @@ class Variable(VariableRequest):
                 var = await Variable.get("my_var")
         ```
         """
-        variable = await cls._get_variable_by_name(name=name)
-        return variable if variable else default
-
-    @classmethod
-    @sync_compatible
-    async def _get_variable_by_name(
-        cls,
-        name: str,
-        client: Optional[PrefectClient] = None,
-    ):
-        client, _ = get_or_create_client(client)
+        client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        return variable
-
-    @classmethod
-    async def _set_variable_by_name(
-        self: Self,
-        name: str,
-        value: str,
-        tags: Optional[List[str]],
-        client: Optional[PrefectClient] = None,
-    ):
-        client, _ = get_or_create_client(client)
-        var = VariableRequest(name=name, value=value, tags=tags)
-        variable = await client.create_variable(variable=var)
-        return variable
-
-    @classmethod
-    async def _update_variable_by_name(
-        self: Self,
-        name: str,
-        value: str,
-        tags: Optional[List[str]],
-        client: Optional[PrefectClient] = None,
-    ):
-        client, _ = get_or_create_client(client)
-        var = VariableUpdateRequest(name=name, value=value, tags=tags)
-        variable = await client.update_variable(variable=var)
-        return variable
+        return variable if variable else None
 
 
 @sync_compatible
