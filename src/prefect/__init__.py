@@ -107,24 +107,6 @@ from prefect._internal.compatibility.deprecated import (
 )
 
 register_renamed_module(
-    "prefect.client.orchestration",
-    "prefect.client.orchestration",
-    start_date="Feb 2023",
-)
-register_renamed_module(
-    "prefect.docker",
-    "prefect.utilities.dockerutils",
-    start_date="Mar 2023",
-)
-register_renamed_module(
-    "prefect.infrastructure.docker",
-    "prefect.infrastructure.container",
-    start_date="Mar 2023",
-)
-register_renamed_module(
-    "prefect.projects", "prefect.deployments", start_date="Jun 2023"
-)
-register_renamed_module(
     "prefect.packaging", "prefect.deprecated.packaging", start_date="Mar 2024"
 )
 inject_renamed_module_alias_finder()
