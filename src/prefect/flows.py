@@ -590,13 +590,13 @@ class Flow(Generic[P, R]):
     @sync_compatible
     @deprecated_parameter(
         "schedule",
-        start_date="Mar 2023",
+        start_date="Mar 2024",
         when=lambda p: p is not None,
         help="Use `schedules` instead.",
     )
     @deprecated_parameter(
         "is_schedule_active",
-        start_date="Mar 2023",
+        start_date="Mar 2024",
         when=lambda p: p is not None,
         help="Use `paused` instead.",
     )
