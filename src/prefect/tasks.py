@@ -567,7 +567,8 @@ class Task(Generic[P, R]):
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
         """
-        from prefect.engine import enter_task_run_engine
+        from prefect.engine import enter_task_run_engine as sync_run
+        from prefect.async_engine import enter_task_run_engine as async_run
         from prefect.task_engine import submit_autonomous_task_run_to_engine
         from prefect.task_runners import SequentialTaskRunner
 
@@ -597,7 +598,8 @@ class Task(Generic[P, R]):
                 client=get_client(),
             )
 
-        return enter_task_run_engine(
+        run_func = async_run if self.isasync else sync_run
+        return run_func(
             self,
             parameters=parameters,
             wait_for=wait_for,
