@@ -1211,7 +1211,8 @@ class Flow(Generic[P, R]):
             >>> with tags("db", "blue"):
             >>>     my_flow("foo")
         """
-        from prefect.engine import enter_flow_run_engine_from_flow_call
+        from prefect.async_engine import enter_flow_run_engine_from_flow_call as async_entry
+        from prefect.engine import enter_flow_run_engine_from_flow_call as sync_entry
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -1224,7 +1225,8 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        return enter_flow_run_engine_from_flow_call(
+        run_func = async_entry if self.isasync else sync_entry
+        return run_func(
             self,
             parameters,
             wait_for=wait_for,

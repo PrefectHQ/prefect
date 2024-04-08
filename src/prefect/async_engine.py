@@ -727,8 +727,7 @@ async def orchestrate_flow_run(
                     )
 
                 # TODO: this is where timeout enforcement on flow calls might stop working
-                flow_call = create_call(flow.fn, *args, **kwargs)
-                result = await flow_call.aresult()
+                result = await flow.fn(*args, **kwargs)
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
