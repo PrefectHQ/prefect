@@ -5,10 +5,10 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.model_validator import model_validator
 
-if USE_V2_MODELS:
-    pass
-elif not HAS_PYDANTIC_V2:
-    pass
+# if USE_V2_MODELS:
+#     from pydantic import ValidationInfo
+# elif not HAS_PYDANTIC_V2:
+#     from pydantic.errors import ConfigError
 
 
 @pytest.mark.skipif(
