@@ -76,3 +76,13 @@ def test_schema_extra():
         model_config = ConfigDict(json_schema_extra=pop_age)
 
     assert "age" not in User.model_json_schema()["properties"]
+
+
+def test_validate_all():
+    class User(BaseModel):
+        name: str
+        age: int = Field(default="banana")
+        model_config = ConfigDict(validate_default=True)
+
+    with pytest.raises(ValidationError):
+        User(name="John")
