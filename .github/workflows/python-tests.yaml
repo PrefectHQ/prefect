@@ -91,7 +91,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U uv
+          python -m pip install -U 'uv==0.1.29'
           uv pip install --upgrade --system -e .[dev] 'pydantic>=2.4,<3'
 
       - name: Start database container
@@ -204,7 +204,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U uv
+          python -m pip install -U 'uv==0.1.29'
           uv pip install --upgrade --system -e .[dev] 'pydantic<2'
 
       - name: Start database container
@@ -324,7 +324,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U uv
+          python -m pip install -U 'uv==0.1.29'
           uv pip install --upgrade --system -e .[dev] 'pydantic>=2.4,<3'
 
       - name: Set PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS env var
@@ -440,7 +440,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U uv
+          python -m pip install -U 'uv==0.1.29'
           uv pip install --upgrade --system -e .[dev] 'sqlalchemy[asyncio]<2'
 
       - name: Start database container
@@ -617,7 +617,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U uv
+          python -m pip install -U 'uv==0.1.29'
           uv pip install --upgrade --system -e .[dev] 'pydantic>=2.4,<3'
 
       - name: Start database container
@@ -738,7 +738,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install -U uv
+          python -m pip install -U 'uv==0.1.29'
           uv pip install --upgrade --system -e .[dev] 'pydantic>=2.4,<3'
 
       - name: Start database container
