@@ -5,11 +5,6 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.model_validator import model_validator
 
-# if USE_V2_MODELS:
-#     from pydantic import ValidationInfo
-# elif not HAS_PYDANTIC_V2:
-#     from pydantic.errors import ConfigError
-
 
 @pytest.mark.skipif(
     HAS_PYDANTIC_V2,
@@ -234,29 +229,18 @@ class TestModelValidatorV2:
 
         print(UserModel(username="scolvin", password1="zxcvbn", password2="zxcvbn"))
         # > username='scolvin' password1='zxcvbn' password2='zxcvbn'
-        try:
+        with pytest.raises(ValidationError) as e:
             UserModel(username="scolvin", password1="zxcvbn", password2="zxcvbn2")
-        except ValidationError as e:
-            print(e)
-            """
-            1 validation error for UserModel
-            Value error, passwords do not match [type=value_error, input_value={'username': 'scolvin', '... 'password2': 'zxcvbn2'}, input_type=dict]
-            """
+        assert "passwords do not match" in str(e)
 
-        try:
+        with pytest.raises(ValidationError) as e:
             UserModel(
                 username="scolvin",
                 password1="zxcvbn",
                 password2="zxcvbn",
                 card_number="1234",  # type: ignore
             )
-        except ValidationError as e:
-            print(e)
-            """
-            1 validation error for UserModel
-            Assertion failed, card_number should not be included
-            assert 'card_number' not in {'card_number': '1234', 'password1': 'zxcvbn', 'password2': 'zxcvbn', 'username': 'scolvin'} [type=assertion_error, input_value={'username': 'scolvin', '..., 'card_number': '1234'}, input_type=dict]
-            """
+        assert "card_number should not be included" in str(e)
 
     def test_mode_param_wrap_succeeds(self):
         """
