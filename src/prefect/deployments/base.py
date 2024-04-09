@@ -18,20 +18,13 @@ from typing import Any, Dict, List, Optional, cast
 
 import anyio
 import yaml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
-
 from ruamel.yaml import YAML
 
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging import get_logger
+from prefect.pydantic import BaseModel
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import LazySemaphore, run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
@@ -424,7 +417,7 @@ def _format_deployment_for_saving_to_prefect_file(
                 schedule_config = _interval_schedule_to_dict(
                     deployment_schedule.schedule
                 )
-            elif isinstance(deployment_schedule.schedule, BaseModel):
+            else:  # all valid schedule types are subclasses of BaseModel
                 schedule_config = deployment_schedule.schedule.dict()
 
             schedule_config["active"] = deployment_schedule.active
