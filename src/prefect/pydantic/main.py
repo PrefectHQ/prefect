@@ -13,12 +13,16 @@ from prefect._internal.pydantic._compat import (
 
 
 class PrefectBaseModel(BaseModel):
-    def _reset_fields(self) -> typing.Set[str]:
+    model_config = ConfigDict()
+    __prefect_exclude__: typing.ClassVar[typing.Set[str]] = set()
+
+    def reset(self: "typing.Self") -> "typing.Self":
         """
-        A set of field names that are reset when the PrefectBaseModel is copied.
-        These fields are also disregarded for equality comparisons.
+        Resets the fields of the model to their default values.
         """
-        return set()
+        return self.model_construct().model_copy(
+            deep=True, update=self.model_dump(exclude=self.__prefect_exclude__)
+        )
 
 
 __all__ = [
