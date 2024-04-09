@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import prefect.results
-from prefect import task
+from prefect import flow, task
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import MissingResult
@@ -520,6 +520,27 @@ class TestTaskServerNestedTasks:
         task_server = TaskServer(outer_task)
 
         task_run = outer_task.submit(42)
+
+        await task_server.execute_task_run(task_run)
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+
+        assert updated_task_run.state.is_completed()
+
+        assert await updated_task_run.state.result() == 42
+
+    async def test_nested_flow_run_via_task_server(self, prefect_client):
+        @flow
+        def inner_flow(x):
+            return x
+
+        @task
+        def background_task(x):
+            return inner_flow(x)
+
+        task_server = TaskServer(background_task)
+
+        task_run = background_task.submit(42)
 
         await task_server.execute_task_run(task_run)
 
