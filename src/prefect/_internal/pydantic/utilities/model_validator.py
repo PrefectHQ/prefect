@@ -15,53 +15,34 @@ def model_validator(
 ) -> Any:
     """Usage docs: https://docs.pydantic.dev/2.6/concepts/validators/#model-validators
 
-    Decorate model methods for validation purposes.
+    A decorator designed for Pydantic model methods to facilitate additional validations.
+    It can be applied to instance methods, class methods, or static methods of a class,
+    wrapping around the designated function to inject validation logic.
 
-    Example usage:
-    ```py
-    from typing_extensions import Self
+    The `model_validator` does not differentiate between the types of methods it decorates
+    (instance, class, or static methods). It generically wraps the given function,
+    allowing the class's mechanism to determine how the method is treated
+    (e.g., passing `self` for instance methods or `cls` for class methods).
 
-    from pydantic import BaseModel, ValidationError, model_validator
-
-    class Square(BaseModel):
-        width: float
-        height: float
-
-        @model_validator(mode='after')
-        def verify_square(self) -> Self:
-            if self.width != self.height:
-                raise ValueError('width and height do not match')
-            return self
-
-    s = Square(width=1, height=1)
-    print(repr(s))
-    #> Square(width=1.0, height=1.0)
-
-    try:
-        Square(width=1, height=2)
-    except ValidationError as e:
-        print(e)
-        '''
-        1 validation error for Square
-          Value error, width and height do not match [type=value_error, input_value={'width': 1, 'height': 2}, input_type=dict]
-        '''
-    ```
-
-    For more in depth examples, see [Model Validators](../concepts/validators.md#model-validators).
+    The actual handling of method types (instance, class, or static) is governed by the class
+    definition itself, using Python's standard `@classmethod` and `@staticmethod` decorators
+    where appropriate. This decorator simply intercepts the method call, allowing for custom
+    validation logic before, after, or wrapping the original method call, depending on the
+    `mode` parameter.
 
     Args:
-        mode: A required string literal that specifies the validation mode.
-            It can be one of the following: 'wrap', 'before', or 'after'.
-            'wrap' is only available in Pydantic v2.
-
-        pre: A boolean that specifies whether the validator should be called before the standard validators.
-            Defaults to False.
-
-        skip_on_failure: A boolean that specifies whether the validator should be skipped if it fails.
-            Defaults to False.
+        _func: The function to be decorated. If None, the decorator is applied with parameters.
+        mode: Specifies when the validation should occur. 'before' or 'after' are for v1 compatibility,
+              'wrap' introduces v2 behavior where the validation wraps the original call.
+        pre: (v1 only) If True, the validator is called before Pydantic's own validators.
+        skip_on_failure: (v1 only) If True, skips validation if an earlier validation failed.
 
     Returns:
-        A decorator that can be used to decorate a function to be used as a model validator.
+        The decorated function with added validation logic.
+
+    Note:
+        - The behavior of the decorator changes depending on the version of Pydantic being used.
+        - The specific logic for validation should be defined within the decorated function.
     """
 
     def decorator(validate_func: T) -> T:
