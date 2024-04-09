@@ -67,8 +67,8 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install uv
+          uv install -e .[dev]
 
       - name: Run tests
         run: |
