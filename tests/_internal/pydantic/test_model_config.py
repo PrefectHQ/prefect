@@ -43,3 +43,12 @@ def test_max_anystr_length():
 
     with pytest.raises(ValidationError):
         User(name="John")
+
+
+def test_min_anystr_length():
+    class User(BaseModel):
+        name: str
+        model_config = ConfigDict(str_min_length=3)
+
+    with pytest.raises(ValidationError):
+        User(name="J")
