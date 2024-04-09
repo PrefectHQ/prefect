@@ -24,3 +24,11 @@ def test_anystr_strip_whitespace():
         model_config = ConfigDict(str_strip_whitespace=True)
 
     assert User(name="  John  ").name == "John"
+
+
+def test_anystr_upper():
+    class User(BaseModel):
+        name: str
+        model_config = ConfigDict(str_to_upper=True)
+
+    assert User(name="john").name == "JOHN"
