@@ -38,7 +38,7 @@ def _convert_v2_config_to_v1_config(
 
 
 class ConfigMeta(PydanticModelMetaclass):  # type: ignore
-    def __new__(
+    def __new__(  # type: ignore
         cls,
         name: str,
         bases: typing.Any,
