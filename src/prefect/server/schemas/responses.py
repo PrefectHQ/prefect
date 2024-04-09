@@ -183,6 +183,11 @@ class FlowRunResponse(ORMBaseModel):
             "The id of the deployment associated with this flow run, if available."
         ),
     )
+    deployment_version: Optional[str] = Field(
+        default=None,
+        description="The version of the deployment associated with this flow run.",
+        example="1.0",
+    )
     work_queue_id: Optional[UUID] = Field(
         default=None, description="The id of the run's work pool queue."
     )
@@ -194,7 +199,7 @@ class FlowRunResponse(ORMBaseModel):
         description="The version of the flow executed in this flow run.",
         example="1.0",
     )
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -204,7 +209,7 @@ class FlowRunResponse(ORMBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},

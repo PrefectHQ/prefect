@@ -10,7 +10,7 @@ import sqlite3
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
-from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
 import anyio
 import asyncpg
@@ -86,6 +86,8 @@ API_ROUTERS = (
     api.variables.router,
     api.csrf_token.router,
     api.events.router,
+    api.automations.router,
+    api.templates.router,
     api.ui.flow_runs.router,
     api.ui.schemas.router,
     api.ui.task_runs.router,
@@ -259,7 +261,7 @@ def create_api_app(
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
     version_check_path: str = "/version",
-    fast_api_app_kwargs: dict = None,
+    fast_api_app_kwargs: Optional[Dict[str, Any]] = None,
     router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """

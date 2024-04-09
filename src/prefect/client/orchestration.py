@@ -68,6 +68,8 @@ from prefect.client.schemas.actions import (
     LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
+    VariableCreate,
+    VariableUpdate,
     WorkPoolCreate,
     WorkPoolUpdate,
     WorkQueueCreate,
@@ -216,7 +218,7 @@ class PrefectClient:
         *,
         api_key: str = None,
         api_version: str = None,
-        httpx_settings: dict = None,
+        httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
@@ -523,8 +525,8 @@ class PrefectClient:
         self,
         deployment_id: UUID,
         *,
-        parameters: Dict[str, Any] = None,
-        context: dict = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
         state: prefect.states.State = None,
         name: str = None,
         tags: Iterable[str] = None,
@@ -608,8 +610,8 @@ class PrefectClient:
         self,
         flow: "FlowObject",
         name: str = None,
-        parameters: Dict[str, Any] = None,
-        context: dict = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: "prefect.states.State" = None,
@@ -1578,7 +1580,7 @@ class PrefectClient:
         version: str = None,
         schedule: SCHEDULE_TYPES = None,
         schedules: List[DeploymentScheduleCreate] = None,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         description: str = None,
         work_queue_name: str = None,
         work_pool_name: str = None,
@@ -1588,8 +1590,8 @@ class PrefectClient:
         path: str = None,
         entrypoint: str = None,
         infrastructure_document_id: UUID = None,
-        infra_overrides: Dict[str, Any] = None,
-        parameter_openapi_schema: dict = None,
+        infra_overrides: Optional[Dict[str, Any]] = None,
+        parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
@@ -2926,11 +2928,40 @@ class PrefectClient:
             else:
                 raise
 
+    async def create_variable(self, variable: VariableCreate) -> Variable:
+        """
+        Creates an variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the new variable.
+        Returns:
+            Information about the newly created variable.
+        """
+        response = await self._client.post(
+            "/variables/",
+            json=variable.dict(json_compatible=True, exclude_unset=True),
+        )
+        return Variable(**response.json())
+
+    async def update_variable(self, variable: VariableUpdate) -> None:
+        """
+        Updates a variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the updated variable.
+        Returns:
+            Information about the updated variable.
+        """
+        await self._client.patch(
+            f"/variables/name/{variable.name}",
+            json=variable.dict(json_compatible=True, exclude_unset=True),
+        )
+
     async def read_variable_by_name(self, name: str) -> Optional[Variable]:
         """Reads a variable by name. Returns None if no variable is found."""
         try:
             response = await self._client.get(f"/variables/name/{name}")
-            return pydantic.parse_obj_as(Variable, response.json())
+            return Variable(**response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 return None

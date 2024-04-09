@@ -12,10 +12,17 @@ class Action(BaseModel):
     type: str
 
 
+class DoNothing(Action):
+    """Do nothing, which may be helpful for testing automations"""
+
+    type: Literal["do-nothing"] = "do-nothing"
+
+
 class RunDeployment(Action):
     """Run the given deployment with the given parameters"""
 
     type: Literal["run-deployment"] = "run-deployment"
+
     source: Literal["selected"] = "selected"
     parameters: Optional[Dict[str, Any]] = Field(
         None,
@@ -38,6 +45,7 @@ class SendNotification(Action):
     """Send a notification with the given parameters"""
 
     type: Literal["send-notification"] = "send-notification"
+
     block_document_id: UUID = Field(
         ..., description="The identifier of the notification block"
     )
@@ -45,4 +53,4 @@ class SendNotification(Action):
     subject: Optional[str] = Field(None, description="Notification subject")
 
 
-ActionTypes = Union[RunDeployment, SendNotification]
+ActionTypes = Union[DoNothing, RunDeployment, SendNotification]

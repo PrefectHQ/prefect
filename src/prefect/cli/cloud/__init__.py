@@ -365,9 +365,16 @@ async def login(
 
     if current_profile_is_logged_in:
         app.console.print("It looks like you're already authenticated on this profile.")
-        should_reauth = typer.confirm(
-            "? Would you like to reauthenticate?", default=False
-        )
+        if is_interactive():
+            app.console.print(
+                "It looks like you're already authenticated on this profile."
+            )
+            should_reauth = typer.confirm(
+                "? Would you like to reauthenticate?", default=False
+            )
+        else:
+            should_reauth = True
+
         if not should_reauth:
             app.console.print("Using the existing authentication on this profile.")
             key = PREFECT_API_KEY.value()

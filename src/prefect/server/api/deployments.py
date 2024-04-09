@@ -672,6 +672,7 @@ async def create_flow_run_from_deployment(
             ),
             flow_id=deployment.flow_id,
             deployment_id=deployment.id,
+            deployment_version=deployment.version,
             parameters=parameters,
             tags=set(deployment.tags).union(flow_run.tags),
             infrastructure_document_id=(

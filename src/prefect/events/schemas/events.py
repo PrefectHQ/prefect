@@ -15,7 +15,6 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
-from typing_extensions import Self
 
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.logging import get_logger
@@ -303,5 +302,5 @@ class ResourceSpecification(_ResourceSpecificationBase):
     def __len__(self) -> int:
         return len(self._root)
 
-    def deepcopy(self) -> Self:
-        return ResourceSpecification(__root__=copy.deepcopy(self._root))
+    def deepcopy(self) -> "ResourceSpecification":
+        return ResourceSpecification.parse_obj(copy.deepcopy(self.__root__))

@@ -17,7 +17,7 @@ class EventDataFilter(BaseModel, extra="forbid"):
             filter
             for filter in [
                 getattr(self, name)
-                for name, field in self.__fields__.items()
+                for name, field in self.model_fields.items()
                 if issubclass(field.type_, EventDataFilter)
             ]
             if filter
