@@ -52,3 +52,13 @@ def test_min_anystr_length():
 
     with pytest.raises(ValidationError):
         User(name="J")
+
+
+def test_orm_mode():
+    class User(BaseModel):
+        name: str
+        age: int
+        model_config = ConfigDict(from_attributes=True)
+
+    assert User.model_validate(User(name="John", age=42)).name == "John"
+    assert User.model_validate(User(name="John", age=42)).age == 42
