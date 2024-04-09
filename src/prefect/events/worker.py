@@ -4,7 +4,6 @@ from typing import Any, Optional, Tuple, Type
 
 from typing_extensions import Self
 
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect._internal.concurrency.services import QueueService
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
 from prefect.utilities.context import temporary_context
@@ -16,11 +15,7 @@ from .schemas.events import Event
 
 def emit_events_to_cloud() -> bool:
     api = PREFECT_API_URL.value()
-    return (
-        experiment_enabled("events_client")
-        and api
-        and api.startswith(PREFECT_CLOUD_API_URL.value())
-    )
+    return api and api.startswith(PREFECT_CLOUD_API_URL.value())
 
 
 class EventsWorker(QueueService[Event]):
