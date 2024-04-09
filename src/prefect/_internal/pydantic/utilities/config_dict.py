@@ -1,5 +1,7 @@
 import typing
 
+from prefect._internal.pydantic._base_model import ConfigDict
+
 T = typing.TypeVar("T")
 
 CONFIG_V1_V2_KEYS: typing.Dict[str, str] = {
@@ -17,3 +19,13 @@ CONFIG_V1_V2_KEYS: typing.Dict[str, str] = {
 
 
 CONFIG_V2_V1_KEYS: typing.Dict[str, str] = {v: k for k, v in CONFIG_V1_V2_KEYS.items()}
+
+
+def _convert_v2_config_to_v1_config(
+    config_dict: ConfigDict | typing.Dict[str, typing.Any],
+) -> type:
+    deprecated_renamed_keys = CONFIG_V2_V1_KEYS.keys() & config_dict.keys()
+    output: typing.Dict[str, typing.Any] = {}
+    for k in sorted(deprecated_renamed_keys):
+        output[CONFIG_V2_V1_KEYS[k]] = config_dict.get(k)
+    return type("Config", (), output)
