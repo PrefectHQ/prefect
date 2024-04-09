@@ -16,3 +16,11 @@ def test_anystr_lower():
         model_config = ConfigDict(str_to_lower=True)
 
     assert User(name="John").name == "john"
+
+
+def test_anystr_strip_whitespace():
+    class User(BaseModel):
+        name: str
+        model_config = ConfigDict(str_strip_whitespace=True)
+
+    assert User(name="  John  ").name == "John"
