@@ -1,5 +1,5 @@
 from ._base_model import BaseModel as PydanticBaseModel
-from ._base_model import Field, FieldInfo, PrivateAttr, SecretStr
+from ._base_model import ConfigDict, Field, FieldInfo, PrivateAttr, SecretStr
 from ._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 from .utilities.config_dict import ConfigMixin
 from .utilities.field_validator import field_validator
@@ -52,4 +52,5 @@ __all__ = [
     "field_validator",
     "PrivateAttr",
     "SecretStr",
+    "ConfigDict",
 ]
