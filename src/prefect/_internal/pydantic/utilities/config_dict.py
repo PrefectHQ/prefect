@@ -1,6 +1,12 @@
 import typing
 
 from prefect._internal.pydantic._base_model import ConfigDict
+from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1.main import ModelMetaclass as PydanticModelMetaclass
+else:
+    from pydantic.main import ModelMetaclass as PydanticModelMetaclass
 
 T = typing.TypeVar("T")
 
@@ -29,3 +35,16 @@ def _convert_v2_config_to_v1_config(
     for k in sorted(deprecated_renamed_keys):
         output[CONFIG_V2_V1_KEYS[k]] = config_dict.get(k)
     return type("Config", (), output)
+
+
+class ConfigMeta(PydanticModelMetaclass):  # type: ignore
+    def __new__(
+        cls,
+        name: str,
+        bases: typing.Any,
+        namespace: typing.Dict[str, typing.Any],
+        **kwargs: typing.Any,
+    ):  # type: ignore
+        if model_config := namespace.get("model_config"):
+            namespace["Config"] = _convert_v2_config_to_v1_config(model_config)
+        return super().__new__(cls, name, bases, namespace, **kwargs)  # type: ignore
