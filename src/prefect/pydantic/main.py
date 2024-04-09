@@ -7,6 +7,7 @@ from prefect._internal.pydantic._compat import (
     FieldInfo,
     PrivateAttr,
     SecretStr,
+    ValidationError,
     field_validator,
 )
 
@@ -29,4 +30,5 @@ __all__ = [
     "SecretStr",
     "field_validator",
     "ConfigDict",
+    "ValidationError",
 ]
