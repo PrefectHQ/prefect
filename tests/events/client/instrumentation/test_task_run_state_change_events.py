@@ -3,6 +3,7 @@ import pytest
 from prefect import flow, task
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
+from prefect.filesystems import LocalFileSystem
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
@@ -150,7 +151,10 @@ async def test_background_task_state_changes(
     prefect_client,
     enable_task_scheduling,
 ):
-    @task
+    storage = LocalFileSystem(basepath="/tmp/prefect")
+    storage.save("test")
+
+    @task(result_storage=storage)
     def foo():
         pass
 
@@ -164,14 +168,11 @@ async def test_background_task_state_changes(
 
     events = sorted(asserting_events_worker._client.events, key=lambda e: e.occurred)
 
-    assert len(events) == 5  # 4 state changes + 1 block save
-
-    assert len(task_run_states) == 4
+    assert len(task_run_states) == len(events) == 4
 
     assert [e.event for e in events] == [
         "prefect.task-run.Scheduled",
         "prefect.task-run.Pending",
-        "prefect.block.local-file-system.save.called",
         "prefect.task-run.Running",
         "prefect.task-run.Completed",
     ]

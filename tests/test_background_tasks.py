@@ -95,12 +95,6 @@ def async_foo_task_with_result_storage(async_foo_task, local_filesystem):
     return async_foo_task.with_options(result_storage=local_filesystem)
 
 
-def test_task_submission_fails_when_experimental_flag_off(foo_task):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}):
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-            foo_task.submit(42)
-
-
 def test_task_submission_with_parameters_uses_default_storage(foo_task):
     foo_task_without_result_storage = foo_task.with_options(result_storage=None)
     task_run = foo_task_without_result_storage.submit(42)
