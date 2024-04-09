@@ -455,6 +455,47 @@ async def deployment(
 
 
 @pytest.fixture
+async def deployment_with_version(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name=f"my-deployment-{uuid.uuid4()}",
+            tags=["test"],
+            flow_id=flow.id,
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name=work_queue_1.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+            version="1.0",
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
 async def deployment_2(
     session,
     flow,
