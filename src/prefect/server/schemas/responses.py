@@ -183,6 +183,11 @@ class FlowRunResponse(ORMBaseModel):
             "The id of the deployment associated with this flow run, if available."
         ),
     )
+    deployment_version: Optional[str] = Field(
+        default=None,
+        description="The version of the deployment associated with this flow run.",
+        example="1.0",
+    )
     work_queue_id: Optional[UUID] = Field(
         default=None, description="The id of the run's work pool queue."
     )
