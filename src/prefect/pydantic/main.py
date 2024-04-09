@@ -2,10 +2,12 @@ import typing
 
 from prefect._internal.pydantic._compat import (
     BaseModel,
+    ConfigDict,
     Field,
     FieldInfo,
     PrivateAttr,
     SecretStr,
+    ValidationError,
     field_validator,
 )
 
@@ -27,4 +29,6 @@ __all__ = [
     "PrivateAttr",
     "SecretStr",
     "field_validator",
+    "ConfigDict",
+    "ValidationError",
 ]
