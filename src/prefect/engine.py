@@ -1381,7 +1381,7 @@ def enter_task_run_engine(
     if not flow_run_context:
         if return_type == "future" or mapped:
             raise RuntimeError(
-                " If you meant to submit an background task, you need to set"
+                " If you meant to submit a background task, you need to set"
                 " `prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=true`"
                 " and use `your_task.submit()` instead of `your_task()`."
             )
