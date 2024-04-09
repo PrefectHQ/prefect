@@ -343,7 +343,8 @@ async def deploy(
                 prefect_file=prefect_file,
             )
     except ValueError as exc:
-        exit_with_error(str(exc))
+        raise exc
+        # exit_with_error(str(exc))
 
 
 @inject_client
