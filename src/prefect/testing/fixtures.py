@@ -316,6 +316,11 @@ async def events_server(
 
 @pytest.fixture
 def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
+    return f"http://localhost:{unused_tcp_port}"
+
+
+@pytest.fixture
+def events_cloud_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
     return f"http://localhost:{unused_tcp_port}/accounts/A/workspaces/W"
 
 

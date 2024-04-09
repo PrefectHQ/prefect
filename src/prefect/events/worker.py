@@ -5,10 +5,20 @@ from typing import Any, Optional, Tuple, Type
 from typing_extensions import Self
 
 from prefect._internal.concurrency.services import QueueService
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_EVENTS,
+)
 from prefect.utilities.context import temporary_context
 
-from .clients import EventsClient, NullEventsClient, PrefectCloudEventsClient
+from .clients import (
+    EventsClient,
+    NullEventsClient,
+    PrefectCloudEventsClient,
+    PrefectEventsClient,
+)
 from .related import related_resources_from_run_context
 from .schemas.events import Event
 
@@ -16,6 +26,11 @@ from .schemas.events import Event
 def emit_events_to_cloud() -> bool:
     api = PREFECT_API_URL.value()
     return api and api.startswith(PREFECT_CLOUD_API_URL.value())
+
+
+def emit_events_to_running_server() -> bool:
+    api = PREFECT_API_URL.value()
+    return api and PREFECT_EXPERIMENTAL_EVENTS
 
 
 class EventsWorker(QueueService[Event]):
@@ -62,6 +77,8 @@ class EventsWorker(QueueService[Event]):
                     "api_url": PREFECT_API_URL.value(),
                     "api_key": PREFECT_API_KEY.value(),
                 }
+            elif emit_events_to_running_server():
+                client_type = PrefectEventsClient
 
             else:
                 client_type = NullEventsClient
