@@ -5,8 +5,10 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+    from pydantic.v1.main import ModelMetaclass
 else:
     import pydantic
+    from pydantic.main import ModelMetaclass
 
 from jsonpatch import JsonPatch as JsonPatchBase
 from typing_extensions import Self
@@ -102,46 +104,41 @@ def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
 def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     """
     Extend a Pydantic model to add a 'type' field that is used as a discriminator field
-    to dynamically determine the subtype that when deserializing models.
+    to dynamically determine the subtype that when deserializing models. This allows automatic
+    resolution to subtypes of the decorated model.
 
-    This allows automatic resolution to subtypes of the decorated model.
+    If a type field already exists, it should be a string literal field that has a constant
+    value for each subclass. The default value of this field will be used as the dispatch key.
 
-    If a type field already exists, it should be a string literal field that has a
-    constant value for each subclass. The default value of this field will be used as
-    the dispatch key.
+    If a type field does not exist, one will be added. In this case, the value of the field
+    will be set to the value of the `__dispatch_key__`.
 
-    If a type field does not exist, one will be added. In this case, the value of the
-    field will be set to the value of the `__dispatch_key__`. The base class should
-    define a `__dispatch_key__` class method that is used to determine the unique key
-    for each subclass. Alternatively, each subclass can define the `__dispatch_key__`
-    as a string literal.
+    The base class should define a `__dispatch_key__` class method that is used to determine
+    the unique key for each subclass. Alternatively, each subclass can define the
+    `__dispatch_key__` as a string literal.
 
-    The base class must not define a 'type' field. If it is not desirable to add a field
-    to the model and the dispatch key can be tracked separately, the lower level
-    utilities in `prefect.utilities.dispatch` should be used directly.
+    The base class must not define a 'type' field. If it is not desirable to add a field to
+    the model and the dispatch key can be tracked separately, the lower level utilities in
+    `prefect.utilities.dispatch` should be used directly.
     """
     defines_dispatch_key = hasattr(
         model_cls, "__dispatch_key__"
     ) or "__dispatch_key__" in getattr(model_cls, "__annotations__", {})
-
     defines_type_field = "type" in model_cls.__fields__
 
     if not defines_dispatch_key and not defines_type_field:
         raise ValueError(
-            f"Model class {model_cls.__name__!r} does not define a `__dispatch_key__` "
-            "or a type field. One of these is required for dispatch."
+            f"Model class {model_cls.__name__!r} does not define a `__dispatch_key__`. "
+            "This is required for dispatch."
         )
-
     elif defines_dispatch_key and not defines_type_field:
-        # Add a type field to store the value of the dispatch key
-        model_cls.__fields__["type"] = pydantic.fields.ModelField(
-            name="type",
-            type_=str,
-            required=True,
-            class_validators=None,
-            model_config=model_cls.__config__,
+        # Create a new model class with the added 'type' field using ModelMetaclass
+        new_model_cls = ModelMetaclass(
+            model_cls.__name__,
+            (model_cls,),
+            {"__annotations__": {"type": str}},
         )
-
+        model_cls = new_model_cls
     elif not defines_dispatch_key and defines_type_field:
         field_type_annotation = model_cls.__fields__["type"].type_
         if field_type_annotation != str:
@@ -156,7 +153,6 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
             return cls.__fields__["type"].default
 
         model_cls.__dispatch_key__ = dispatch_key_from_type_field
-
     else:
         raise ValueError(
             f"Model class {model_cls.__name__!r} defines a `__dispatch_key__` "
@@ -189,7 +185,6 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     model_cls.__new__ = __new__
 
     register_base_type(model_cls)
-
     return model_cls
 
 
