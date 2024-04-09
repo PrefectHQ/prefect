@@ -9,7 +9,7 @@ from uuid import UUID
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._types import NonNegativeInteger, PositiveInteger
+from prefect._internal.pydantic._types import NonNegativeInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
@@ -32,6 +32,7 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_not_negative,
     validate_parent_and_ref_diff,
+    validate_work_queue_priority,
 )
 from prefect.server.schemas import schedules, states
 from prefect.server.utilities.schemas.bases import (
@@ -901,7 +902,7 @@ class WorkQueue(ORMBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="An optional concurrency limit for the work queue."
     )
-    priority: PositiveInteger = Field(
+    priority: int = Field(
         default=1,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -923,6 +924,10 @@ class WorkQueue(ORMBaseModel):
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
+
+    @validator("priority")
+    def validate_priority(cls, v):
+        return validate_work_queue_priority(v)
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
