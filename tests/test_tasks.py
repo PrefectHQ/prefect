@@ -16,7 +16,6 @@ from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
-from prefect.engine import get_state_for_result
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -38,6 +37,7 @@ from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
+from prefect.utilities.engine import get_state_for_result
 
 
 def comparable_inputs(d):
@@ -163,14 +163,6 @@ class TestTaskRunName:
 
 
 class TestTaskCall:
-    def test_task_called_outside_flow_raises(self):
-        @task
-        def foo():
-            pass
-
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-            foo()
-
     def test_sync_task_called_inside_sync_flow(self):
         @task
         def foo(x):
@@ -331,14 +323,6 @@ class TestTaskCall:
 
 
 class TestTaskRun:
-    def test_task_run_outside_flow_raises(self):
-        @task
-        def foo():
-            pass
-
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-            foo()
-
     def test_sync_task_run_inside_sync_flow(self):
         @task
         def foo(x):
@@ -430,14 +414,6 @@ class TestTaskRun:
 
 
 class TestTaskSubmit:
-    def test_task_submitted_outside_flow_raises(self):
-        @task
-        def foo():
-            pass
-
-        with pytest.raises(RuntimeError, match="Tasks cannot be run outside of a flow"):
-            foo()
-
     def test_sync_task_submitted_inside_sync_flow(self):
         @task
         def foo(x):

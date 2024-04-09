@@ -253,8 +253,6 @@ nav:
                 - "prefect.client":
                       - "base": api-ref/prefect/client/base.md
                       - "cloud": api-ref/prefect/client/cloud.md
-                      - "collections": api-ref/prefect/client/collections.md
-                      - "constants": api-ref/prefect/client/constants.md
                       - "orchestration": api-ref/prefect/client/orchestration.md
                       - "schemas": api-ref/prefect/client/schemas.md
                       - "utilities": api-ref/prefect/client/utilities.md
@@ -263,6 +261,7 @@ nav:
                       - "artifact": api-ref/prefect/cli/artifact.md
                       - "block": api-ref/prefect/cli/block.md
                       - "cloud": api-ref/prefect/cli/cloud.md
+                      - "cloud": api-ref/prefect/cli/cloud.webhook.md
                       - "concurrency_limit": api-ref/prefect/cli/concurrency_limit.md
                       - "config": api-ref/prefect/cli/config.md
                       - "deploy": api-ref/prefect/cli/deploy.md
@@ -275,6 +274,7 @@ nav:
                       - "project": api-ref/prefect/cli/project.md
                       - "root": api-ref/prefect/cli/root.md
                       - "server": api-ref/prefect/cli/server.md
+                      - "shell": api-ref/prefect/cli/shell.md
                       - "variable": api-ref/prefect/cli/variable.md
                       - "work_pool": api-ref/prefect/cli/work_pool.md
                       - "work_queue": api-ref/prefect/cli/work_queue.md

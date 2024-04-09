@@ -397,24 +397,6 @@ class TestGitCloneStep:
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    async def test_deprecated_git_clone_project(self, git_repository_mock):
-        with pytest.warns(DeprecationWarning):
-            output = await run_step(
-                {
-                    "prefect.projects.steps.git_clone_project": {
-                        "repository": "https://github.com/org/repo.git",
-                    }
-                }
-            )
-        assert output["directory"] == "repo"
-        git_repository_mock.assert_called_once_with(
-            url="https://github.com/org/repo.git",
-            credentials=None,
-            branch=None,
-            include_submodules=False,
-        )
-        git_repository_mock.return_value.pull_code.assert_awaited_once()
-
     async def test_git_clone_include_submodules(self, git_repository_mock):
         output = await run_step(
             {

@@ -2528,6 +2528,17 @@ class TestCreateFlowRunFromDeployment:
         )
         assert response.json()["work_queue_name"] == deployment.work_queue_name
         assert response.json()["state_type"] == schemas.states.StateType.SCHEDULED
+        assert response.json()["deployment_version"] is None
+
+    async def test_create_flow_run_from_deployment_with_deployment_version(
+        self, deployment_with_version, client
+    ):
+        # should use default parameters, tags, and flow runner
+        response = await client.post(
+            f"deployments/{deployment_with_version.id}/create_flow_run", json={}
+        )
+        assert response.status_code == 201
+        assert response.json()["deployment_version"] == "1.0"
 
     async def test_create_flow_run_from_deployment_uses_work_queue_name(
         self, deployment, client, session

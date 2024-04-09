@@ -501,6 +501,7 @@ class ORMFlowRun(ORMRun):
     deployment_id = sa.Column(UUID(), nullable=True)
     work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
+    deployment_version = sa.Column(sa.String, index=True)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = sa.Column(sa.String)
     context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)

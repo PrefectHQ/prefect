@@ -68,6 +68,8 @@ from prefect.client.schemas.actions import (
     LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
+    VariableCreate,
+    VariableUpdate,
     WorkPoolCreate,
     WorkPoolUpdate,
     WorkQueueCreate,
@@ -2926,11 +2928,40 @@ class PrefectClient:
             else:
                 raise
 
+    async def create_variable(self, variable: VariableCreate) -> Variable:
+        """
+        Creates an variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the new variable.
+        Returns:
+            Information about the newly created variable.
+        """
+        response = await self._client.post(
+            "/variables/",
+            json=variable.dict(json_compatible=True, exclude_unset=True),
+        )
+        return Variable(**response.json())
+
+    async def update_variable(self, variable: VariableUpdate) -> None:
+        """
+        Updates a variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the updated variable.
+        Returns:
+            Information about the updated variable.
+        """
+        await self._client.patch(
+            f"/variables/name/{variable.name}",
+            json=variable.dict(json_compatible=True, exclude_unset=True),
+        )
+
     async def read_variable_by_name(self, name: str) -> Optional[Variable]:
         """Reads a variable by name. Returns None if no variable is found."""
         try:
             response = await self._client.get(f"/variables/name/{name}")
-            return pydantic.parse_obj_as(Variable, response.json())
+            return Variable(**response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 return None

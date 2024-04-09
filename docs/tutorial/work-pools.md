@@ -5,7 +5,6 @@ tags:
     - orchestration
     - flow runs
     - deployments
-    - schedules
     - tutorial
 search:
   boost: 2
@@ -155,7 +154,7 @@ Successfully created/updated all deployments!
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
 ┃ Name                              ┃ Status  ┃ Details ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ get-repo-info/my-first-deployment  | applied │         │
+│ get-repo-info/my-first-deployment | applied │         │
 └───────────────────────────────────┴─────────┴─────────┘
 
 To schedule a run for this deployment, use the following command:
@@ -311,12 +310,15 @@ if __name__ == "__main__":
     my_flow.deploy(                                                            
         name="my-deployment",
         work_pool_name="above-ground",
+        cron="0 1 * * *",
         image=DeploymentImage(
             name="my-image:latest",
             platform="linux/amd64",
         )
     )
 ```
+
+Run the script to create the deployment on the Prefect Cloud server.
 
 Running this script will build a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to your repository.
 
@@ -325,6 +327,9 @@ Running this script will build a Docker image with the tag `<region>-docker.pkg.
 
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
 Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
+
+Also note that the `cron` argument will schedule the deployment to run at 1am every day. 
+See the [schedules](/concepts/schedules/) docs for more information on scheduling options.
 
 See the [Push Work Pool guide](/guides/push-work-pools/) for more details and example commands for each cloud provider.
 
