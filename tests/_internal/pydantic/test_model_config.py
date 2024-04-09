@@ -1,3 +1,5 @@
+import typing
+
 import pytest
 
 from prefect.pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -62,3 +64,15 @@ def test_orm_mode():
 
     assert User.model_validate(User(name="John", age=42)).name == "John"
     assert User.model_validate(User(name="John", age=42)).age == 42
+
+
+def test_schema_extra():
+    def pop_age(s: typing.Dict[str, typing.Any]) -> None:
+        s["properties"].pop("age")
+
+    class User(BaseModel):
+        name: str
+        age: int
+        model_config = ConfigDict(json_schema_extra=pop_age)
+
+    assert "age" not in User.model_json_schema()["properties"]
