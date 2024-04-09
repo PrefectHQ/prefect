@@ -1,4 +1,6 @@
-from prefect.pydantic import BaseModel, ConfigDict, Field
+import pytest
+
+from prefect.pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 def test_allow_population_by_field_name():
@@ -32,3 +34,12 @@ def test_anystr_upper():
         model_config = ConfigDict(str_to_upper=True)
 
     assert User(name="john").name == "JOHN"
+
+
+def test_max_anystr_length():
+    class User(BaseModel):
+        name: str
+        model_config = ConfigDict(str_max_length=3)
+
+    with pytest.raises(ValidationError):
+        User(name="John")
