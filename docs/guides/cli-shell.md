@@ -11,7 +11,7 @@ search:
 ---
 
 # Orchestrating Shell Commands with Prefect
-Harness the power of the Prefect CLI to execute and schedule shell commands as Prefect flows. This guide show how to use the `watch` and `serve` commands to showcase the CLI's versatility for automation tasks.
+Harness the power of the Prefect CLI to execute and schedule shell commands as Prefect flows. This guide shows how to use the `watch` and `serve` commands to showcase the CLI's versatility for automation tasks.
 
 Here's what you'll learn:
 
