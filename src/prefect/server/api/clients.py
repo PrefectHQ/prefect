@@ -6,11 +6,18 @@ from httpx import Response
 from prefect._vendor.starlette import status
 from typing_extensions import Self
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.exceptions import ObjectNotFound
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from prefect.client.base import PrefectHttpxClient
 from prefect.logging import get_logger
-from prefect.server.api.server import create_app
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
-from prefect.server.schemas.responses import DeploymentResponse
+from prefect.server.schemas.responses import DeploymentResponse, WorkPoolResponse
 
 logger = get_logger(__name__)
 
@@ -19,6 +26,8 @@ class BaseClient:
     _http_client: PrefectHttpxClient
 
     def __init__(self, additional_headers: Dict[str, str] = {}):
+        from prefect.server.api.server import create_app
+
         # create_app caches application instances, and invoking it with no arguments
         # will point it to the the currently running server instance
         api_app = create_app()
@@ -93,3 +102,27 @@ class OrchestrationClient(BaseClient):
                 break
 
         return variables
+
+
+class WorkPoolsOrchestrationClient(BaseClient):
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def read_work_pool(self, work_pool_name: str) -> WorkPoolResponse:
+        """
+        Reads information for a given work pool
+        Args:
+            work_pool_name: The name of the work pool to for which to get
+                information.
+        Returns:
+            Information about the requested work pool.
+        """
+        try:
+            response = await self._http_client.get(f"/work_pools/{work_pool_name}")
+            response.raise_for_status()
+            return pydantic.parse_obj_as(WorkPoolResponse, response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise

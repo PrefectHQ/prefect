@@ -1,12 +1,14 @@
 from datetime import timedelta
-from typing import Sequence
+from typing import List, Sequence
 from uuid import UUID, uuid4
 
+import pendulum
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.events import actions
+from prefect.server.events import actions, filters
 from prefect.server.events.models import automations
 from prefect.server.events.schemas.automations import (
     Automation,
@@ -417,6 +419,41 @@ async def test_reading_automations_from_related_resource_owned_by(
 
     assert len(retrieved) == 1
     assert retrieved[0].id == some_workspace_automations[0].id
+
+
+async def test_reading_automations_from_related_resource_filter_created_before(
+    db: PrefectDBInterface,
+    automations_session: AsyncSession,
+    some_workspace_automations: List[Automation],
+):
+    deployment_resource_id = f"prefect.deployment.{uuid4()}"
+
+    for automation in some_workspace_automations[:3]:
+        await automations.relate_automation_to_resource(
+            session=automations_session,
+            automation_id=automation.id,
+            resource_id=deployment_resource_id,
+            owned_by_resource=False,
+        )
+
+    old_automation = some_workspace_automations[0]
+    horizon = pendulum.now("UTC") - timedelta(days=1)
+
+    await automations_session.execute(
+        sa.update(db.Automation)
+        .where(db.Automation.id == old_automation.id)
+        .values(created=horizon - timedelta(days=1))
+    )
+
+    retrieved = await automations.read_automations_related_to_resource(
+        session=automations_session,
+        resource_id=deployment_resource_id,
+        automation_filter=filters.AutomationFilter(
+            created=filters.AutomationFilterCreated(before_=horizon)
+        ),
+    )
+
+    assert {old_automation.id} == {automation.id for automation in retrieved}
 
 
 async def test_deleting_automations_owned_by_resource(

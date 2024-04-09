@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events import filters
 from prefect.server.events.schemas.automations import (
     Automation,
     AutomationPartialUpdate,
@@ -290,6 +291,7 @@ async def read_automations_related_to_resource(
     session: AsyncSession,
     resource_id: str,
     owned_by_resource: Optional[bool] = None,
+    automation_filter: Optional[filters.AutomationFilter] = None,
 ) -> Sequence[Automation]:
     query = (
         sa.select(db.Automation)
@@ -304,6 +306,9 @@ async def read_automations_related_to_resource(
             == owned_by_resource
         )
 
+    if automation_filter:
+        query = query.where(automation_filter.as_sql_filter(db))
+
     result = await session.execute(query)
     return [Automation.from_orm(a) for a in result.scalars().all()]
 
@@ -313,11 +318,13 @@ async def delete_automations_owned_by_resource(
     db: PrefectDBInterface,
     session: AsyncSession,
     resource_id: str,
+    automation_filter: Optional[filters.AutomationFilter] = None,
 ) -> Sequence[UUID]:
     automations = await read_automations_related_to_resource(
         session=session,
         resource_id=resource_id,
         owned_by_resource=True,
+        automation_filter=automation_filter,
     )
 
     automation_ids = [automation.id for automation in automations]
