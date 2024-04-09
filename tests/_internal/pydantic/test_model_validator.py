@@ -181,4 +181,132 @@ class TestModelValidatorV1:
     reason="These tests are only valid when compatibility layer is enabled and V2 is installed",
 )
 class TestModelValidatorV2:
-    pass
+    def test_basic_model_validation_behavior(self):
+        """
+        Ensure that the `pre` argument defaults to False
+        """
+
+        class TestModel(BaseModel):
+            a: int
+
+            @model_validator
+            def test_method(cls, values):
+                if values.get("a") < 0:
+                    raise ValueError("a must be greater than 0")
+                return values
+
+        assert TestModel(a=1)
+
+        with pytest.raises(ValidationError) as e:
+            TestModel(a=-1)
+        assert "a must be greater than 0" in str(e)
+
+    def test_mode_param_before_after(self):
+        """
+        Example from:
+        https://docs.pydantic.dev/latest/concepts/validators/#model-validators
+        """
+        from typing import Any
+
+        from pydantic import BaseModel, ValidationError
+
+        class UserModel(BaseModel):
+            username: str
+            password1: str
+            password2: str
+
+            @model_validator(mode="before")
+            @classmethod
+            def check_card_number_omitted(cls, data: Any) -> Any:
+                if isinstance(data, dict):
+                    assert (
+                        "card_number" not in data
+                    ), "card_number should not be included"
+                return data
+
+            @model_validator(mode="after")
+            def check_passwords_match(self) -> "UserModel":
+                pw1 = self.password1
+                pw2 = self.password2
+                if pw1 is not None and pw2 is not None and pw1 != pw2:
+                    raise ValueError("passwords do not match")
+                return self
+
+        print(UserModel(username="scolvin", password1="zxcvbn", password2="zxcvbn"))
+        # > username='scolvin' password1='zxcvbn' password2='zxcvbn'
+        try:
+            UserModel(username="scolvin", password1="zxcvbn", password2="zxcvbn2")
+        except ValidationError as e:
+            print(e)
+            """
+            1 validation error for UserModel
+            Value error, passwords do not match [type=value_error, input_value={'username': 'scolvin', '... 'password2': 'zxcvbn2'}, input_type=dict]
+            """
+
+        try:
+            UserModel(
+                username="scolvin",
+                password1="zxcvbn",
+                password2="zxcvbn",
+                card_number="1234",  # type: ignore
+            )
+        except ValidationError as e:
+            print(e)
+            """
+            1 validation error for UserModel
+            Assertion failed, card_number should not be included
+            assert 'card_number' not in {'card_number': '1234', 'password1': 'zxcvbn', 'password2': 'zxcvbn', 'username': 'scolvin'} [type=assertion_error, input_value={'username': 'scolvin', '..., 'card_number': '1234'}, input_type=dict]
+            """
+
+    def test_mode_param_wrap_succeeds(self):
+        """
+        Example from:
+        https://docs.pydantic.dev/latest/concepts/validators/#before-after-wrap-and-plain-validators
+        """
+        import json
+        from typing import Any, List
+
+        from pydantic import (
+            BaseModel,
+            ValidationError,
+            ValidationInfo,
+            ValidatorFunctionWrapHandler,
+        )
+        from pydantic.functional_validators import WrapValidator
+        from typing_extensions import Annotated
+
+        def maybe_strip_whitespace(
+            v: Any, handler: ValidatorFunctionWrapHandler, info: ValidationInfo
+        ) -> int:
+            if info.mode == "json":
+                assert isinstance(v, str), "In JSON mode the input must be a string!"
+                # you can call the handler multiple times
+                try:
+                    return handler(v)
+                except ValidationError:
+                    return handler(v.strip())
+            assert info.mode == "python"
+            assert isinstance(v, int), "In Python mode the input must be an int!"
+            # do no further validation
+            return v
+
+        MyNumber = Annotated[int, WrapValidator(maybe_strip_whitespace)]
+
+        class DemoModel(BaseModel):
+            number: List[MyNumber]
+
+        print(DemoModel(number=[2, 8]))
+        # > number=[2, 8]
+        print(DemoModel.model_validate_json(json.dumps({"number": [" 2 ", "8"]})))
+        # > number=[2, 8]
+        try:
+            DemoModel(number=["2"])
+        except ValidationError as e:
+            print(e)
+            """
+            1 validation error for DemoModel
+            number.0
+            Assertion failed, In Python mode the input must be an int!
+            assert False
+            +  where False = isinstance('2', int) [type=assertion_error, input_value='2', input_type=str]
+            """

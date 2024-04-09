@@ -1,19 +1,17 @@
 import functools
 from typing import Any, Callable, Literal, Optional, TypeVar
 
-from pydantic.typing import AnyCallable
-
 from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
 
 T = TypeVar("T", bound=Callable[..., Any])
 
 
 def model_validator(
-    _func: Optional[AnyCallable] = None,
+    _func: Optional[Callable] = None,
     *,
     mode: Literal["wrap", "before", "after"] = "before",  # v2 only
-    pre: bool = False,
-    skip_on_failure: bool = False,
+    pre: bool = False,  # v1 only
+    skip_on_failure: bool = False,  # v1 only
 ) -> Any:
     """Usage docs: https://docs.pydantic.dev/2.6/concepts/validators/#model-validators
 
@@ -72,8 +70,6 @@ def model_validator(
 
             return model_validator(
                 mode=mode,
-                pre=pre,
-                skip_on_failure=skip_on_failure,
             )(validate_func)  # type: ignore
 
         elif HAS_PYDANTIC_V2:
