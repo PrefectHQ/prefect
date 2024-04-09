@@ -86,6 +86,8 @@ API_ROUTERS = (
     api.variables.router,
     api.csrf_token.router,
     api.events.router,
+    api.automations.router,
+    api.templates.router,
     api.ui.flow_runs.router,
     api.ui.schemas.router,
     api.ui.task_runs.router,
