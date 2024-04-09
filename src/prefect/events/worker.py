@@ -23,6 +23,10 @@ from .related import related_resources_from_run_context
 from .schemas.events import Event
 
 
+def emit_events() -> bool:
+    return emit_events_to_cloud() or emit_events_to_running_server()
+
+
 def emit_events_to_cloud() -> bool:
     api = PREFECT_API_URL.value()
     return api and api.startswith(PREFECT_CLOUD_API_URL.value())
