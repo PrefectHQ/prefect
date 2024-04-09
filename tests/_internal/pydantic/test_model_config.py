@@ -8,3 +8,11 @@ def test_allow_population_by_field_name():
         model_config = ConfigDict(populate_by_name=True)
 
     assert User(full_name="John", age=42).name == "John"
+
+
+def test_anystr_lower():
+    class User(BaseModel):
+        name: str
+        model_config = ConfigDict(str_to_lower=True)
+
+    assert User(name="John").name == "john"
