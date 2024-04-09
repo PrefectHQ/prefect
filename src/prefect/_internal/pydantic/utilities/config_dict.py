@@ -28,7 +28,7 @@ CONFIG_V2_V1_KEYS: typing.Dict[str, str] = {v: k for k, v in CONFIG_V1_V2_KEYS.i
 
 
 def _convert_v2_config_to_v1_config(
-    config_dict: ConfigDict | typing.Dict[str, typing.Any],
+    config_dict: typing.Union[ConfigDict, typing.Dict[str, typing.Any]],
 ) -> type:
     deprecated_renamed_keys = CONFIG_V2_V1_KEYS.keys() & config_dict.keys()
     output: typing.Dict[str, typing.Any] = {}
