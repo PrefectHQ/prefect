@@ -1,6 +1,6 @@
 import typing
 
-from prefect._internal.pydantic._base_model import ConfigDict
+from prefect._internal.pydantic._base_model import BaseModel, ConfigDict
 from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -48,3 +48,10 @@ class ConfigMeta(PydanticModelMetaclass):  # type: ignore
         if model_config := namespace.get("model_config"):
             namespace["Config"] = _convert_v2_config_to_v1_config(model_config)
         return super().__new__(cls, name, bases, namespace, **kwargs)  # type: ignore
+
+
+class ConfigMixin(BaseModel, metaclass=ConfigMeta):
+    model_config: typing.ClassVar[ConfigDict]
+
+
+__all__ = ["ConfigMixin"]
