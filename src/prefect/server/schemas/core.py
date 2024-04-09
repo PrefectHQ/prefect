@@ -490,7 +490,7 @@ class DeploymentSchedule(ORMBaseModel):
     )
 
 
-class Deployment(ORMBaseModel, DeprecatedInfraOverridesField):
+class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")

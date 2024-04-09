@@ -922,7 +922,7 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
-class Deployment(ObjectBaseModel, DeprecatedInfraOverridesField):
+class Deployment(DeprecatedInfraOverridesField, ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")

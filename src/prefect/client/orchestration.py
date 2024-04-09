@@ -20,7 +20,9 @@ import httpcore
 import httpx
 import pendulum
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.compatibility.deprecated import (
+    handle_deprecated_infra_overrides_parameter,
+)
 from prefect._internal.compatibility.experimental import (
     EXPERIMENTAL_WARNING,
     ExperimentalFeature,
@@ -183,23 +185,6 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
         api_key=PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
     )
-
-
-def handle_deployment_job_variables(
-    job_variables: Dict[str, Any], infra_overrides: Dict[str, Any]
-):
-    if infra_overrides is not None and job_variables is not None:
-        raise RuntimeError(
-            "The `infra_overrides` argument has been renamed to `job_variables`."
-            "Use one or the other, but not both."
-        )
-    elif infra_overrides is not None and job_variables is None:
-        jv = infra_overrides
-    elif job_variables is not None and infra_overrides is None:
-        jv = job_variables
-    else:
-        jv = None
-    return jv
 
 
 class PrefectClient:
@@ -1589,12 +1574,6 @@ class PrefectClient:
 
         return pydantic.parse_obj_as(List[BlockDocument], response.json())
 
-    @deprecated_parameter(
-        "infra_overrides",
-        start_date="Mar 2023",
-        when=lambda p: p is not None,
-        help="Use `job_variables` instead.",
-    )
     async def create_deployment(
         self,
         flow_id: UUID,
@@ -1612,13 +1591,13 @@ class PrefectClient:
         path: str = None,
         entrypoint: str = None,
         infrastructure_document_id: UUID = None,
-        job_variables: Optional[Dict[str, Any]] = None,
-        infra_overrides: Optional[Dict[str, Any]] = None,
+        infra_overrides: Optional[Dict[str, Any]] = None,  # for backwards compat
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
         enforce_parameter_schema: Optional[bool] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1635,7 +1614,8 @@ class PrefectClient:
                 to use for this deployment
             job_variables: A dictionary of dot delimited infrastructure overrides that
                 will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
-                `namespace='prefect'`
+                `namespace='prefect'`. This argument was previously named `infra_overrides`.
+                Both arguments are supported for backwards compatibility.
 
         Raises:
             httpx.RequestError: if the deployment was not created for any reason
@@ -1643,7 +1623,7 @@ class PrefectClient:
         Returns:
             the ID of the deployment in the backend
         """
-        jv = handle_deployment_job_variables(job_variables, infra_overrides)
+        jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
 
         deployment_create = DeploymentCreate(
             flow_id=flow_id,

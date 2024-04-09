@@ -323,7 +323,7 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
-class DeploymentResponse(ORMBaseModel, DeprecatedInfraOverridesField):
+class DeploymentResponse(DeprecatedInfraOverridesField, ORMBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."

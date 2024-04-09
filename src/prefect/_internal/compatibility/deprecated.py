@@ -308,3 +308,22 @@ class DeprecatedInfraOverridesField(BaseModel):
         if key == "infra_overrides" or key == "job_variables":
             super().__setattr__("infra_overrides", value)
             super().__setattr__("job_variables", value)
+            return
+        super().__setattr__(key, value)
+
+
+def handle_deprecated_infra_overrides_parameter(
+    job_variables: Dict[str, Any], infra_overrides: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    if infra_overrides is not None and job_variables is not None:
+        raise RuntimeError(
+            "The `infra_overrides` argument has been renamed to `job_variables`."
+            "Use one or the other, but not both."
+        )
+    elif infra_overrides is not None and job_variables is None:
+        jv = infra_overrides
+    elif job_variables is not None and infra_overrides is None:
+        jv = job_variables
+    else:
+        jv = None
+    return jv

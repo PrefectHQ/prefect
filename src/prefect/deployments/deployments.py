@@ -19,6 +19,8 @@ import yaml
 from prefect._internal.compatibility.deprecated import (
     deprecated_callable,
     deprecated_class,
+    deprecated_parameter,
+    handle_deprecated_infra_overrides_parameter,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
@@ -71,6 +73,11 @@ logger = get_logger("deployments")
 
 
 @sync_compatible
+@deprecated_parameter(
+    "infra_overrides",
+    start_date="Apr 2024",
+    help="Use `job_variables` instead.",
+)
 @inject_client
 async def run_deployment(
     name: Union[str, UUID],
@@ -84,6 +91,7 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
+    infra_overrides: Optional[dict] = None,
     job_variables: Optional[dict] = None,
 ) -> FlowRun:
     """
@@ -122,12 +130,17 @@ async def run_deployment(
             the default work queue for the deployment.
         as_subflow: Whether to link the flow run as a subflow of the current
             flow or task run.
+        job_variables: A dictionary of dot delimited infrastructure overrides that
+            will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
+            `namespace='prefect'`
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
 
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
+
+    jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
 
     parameters = parameters or {}
 
@@ -204,7 +217,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
-        job_variables=job_variables,
+        job_variables=jv,
     )
 
     flow_run_id = flow_run.id
@@ -363,7 +376,7 @@ class Deployment(BaseModel):
         infrastructure: An optional infrastructure block used to configure
             infrastructure for runs; if not provided, will default to running this
             deployment in Agent subprocesses
-        job_variables: A dictionary of dot delimited infrastructure overrides that
+        infra_overrides: A dictionary of dot delimited infrastructure overrides that
             will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
             `namespace='prefect'`
         storage: An optional remote storage block used to store and retrieve this
@@ -405,7 +418,7 @@ class Deployment(BaseModel):
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
-        ...     job_variables=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
+        ...     infra_overrides=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
         >>> )
         >>> deployment.apply()
 
@@ -429,7 +442,7 @@ class Deployment(BaseModel):
             "schedule",
             "schedules",
             "is_schedule_active",
-            "job_variables",
+            "infra_overrides",
         ]
 
         # if infrastructure is baked as a pre-saved block, then
@@ -558,7 +571,7 @@ class Deployment(BaseModel):
         ),
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
-    job_variables: Dict[str, Any] = Field(
+    infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
@@ -869,7 +882,7 @@ class Deployment(BaseModel):
                 manifest_path=self.manifest_path,  # allows for backwards YAML compat
                 path=self.path,
                 entrypoint=self.entrypoint,
-                job_variables=self.job_variables,
+                job_variables=self.infra_overrides,
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),

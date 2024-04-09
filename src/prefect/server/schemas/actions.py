@@ -136,7 +136,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-class DeploymentCreate(ActionBaseModel, DeprecatedInfraOverridesField):
+class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
     @root_validator
@@ -233,7 +233,7 @@ class DeploymentCreate(ActionBaseModel, DeprecatedInfraOverridesField):
         return validate_parameter_openapi_schema(value, values)
 
 
-class DeploymentUpdate(ActionBaseModel, DeprecatedInfraOverridesField):
+class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
     @root_validator(pre=True)
