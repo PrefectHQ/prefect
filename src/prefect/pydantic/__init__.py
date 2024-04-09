@@ -14,6 +14,7 @@ if typing.TYPE_CHECKING:
         SecretStr,
         field_validator,
         ConfigDict,
+        ValidationError,
     )
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "root_validator",
     "field_validator",
     "ConfigDict",
+    "ValidationError",
 ]
 
 _dynamic_imports: "typing.Dict[str, typing.Tuple[str, str]]" = {
@@ -38,6 +40,7 @@ _dynamic_imports: "typing.Dict[str, typing.Tuple[str, str]]" = {
     "SecretStr": ("prefect.pydantic", ".main"),
     "field_validator": ("prefect.pydantic", ".main"),
     "ConfigDict": ("prefect.pydantic", ".main"),
+    "ValidationError": ("prefect.pydantic", ".main"),
 }
 
 
