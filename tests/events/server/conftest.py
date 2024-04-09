@@ -139,7 +139,7 @@ async def some_workspace_automations(
     ]
 
     automations_session.add_all(automations)
-    await automations_session.flush()
+    await automations_session.commit()
     return pydantic.parse_obj_as(List[Automation], automations)
 
 

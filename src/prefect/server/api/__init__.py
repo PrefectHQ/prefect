@@ -1,6 +1,7 @@
 from . import (
     artifacts,
     admin,
+    automations,
     block_capabilities,
     block_documents,
     block_schemas,
@@ -23,6 +24,7 @@ from . import (
     saved_searches,
     task_run_states,
     task_runs,
+    templates,
     ui,
     variables,
     work_queues,
