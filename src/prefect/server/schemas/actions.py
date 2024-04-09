@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 import jsonschema
 
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -135,7 +136,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-class DeploymentCreate(ActionBaseModel):
+class DeploymentCreate(ActionBaseModel, DeprecatedInfraOverridesField):
     """Data used by the Prefect REST API to create a deployment."""
 
     @root_validator
@@ -200,13 +201,9 @@ class DeploymentCreate(ActionBaseModel):
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
     job_variables: Dict[str, Any] = Field(
-        alias="infra_overrides",
         default_factory=dict,
         description="Overrides for the flow's infrastructure configuration.",
     )
-
-    class Config:
-        allow_population_by_field_name = True
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -236,7 +233,7 @@ class DeploymentCreate(ActionBaseModel):
         return validate_parameter_openapi_schema(value, values)
 
 
-class DeploymentUpdate(ActionBaseModel):
+class DeploymentUpdate(ActionBaseModel, DeprecatedInfraOverridesField):
     """Data used by the Prefect REST API to update a deployment."""
 
     @root_validator(pre=True)
@@ -276,7 +273,6 @@ class DeploymentUpdate(ActionBaseModel):
     path: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(
         default=None,
-        alias="infra_overrides",
         description="Overrides for the flow's infrastructure configuration.",
     )
     entrypoint: Optional[str] = Field(None)

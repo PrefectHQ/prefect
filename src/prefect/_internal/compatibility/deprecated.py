@@ -12,16 +12,16 @@ e.g. Jan 2023.
 import functools
 import sys
 import warnings
-from typing import Any, Callable, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
+    from pydantic.v1 import BaseModel, Field, root_validator
 else:
-    import pydantic
+    from pydantic import BaseModel, Field, root_validator
 
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
@@ -31,7 +31,7 @@ from prefect.utilities.importtools import (
 )
 
 T = TypeVar("T", bound=Callable)
-M = TypeVar("M", bound=pydantic.BaseModel)
+M = TypeVar("M", bound=BaseModel)
 
 
 DEPRECATED_WARNING = (
@@ -207,7 +207,7 @@ def deprecated_field(
         ```python
 
         @deprecated_field("x", when=lambda x: x is not None)
-        class Model(pydantic.BaseModel)
+        class Model(BaseModel)
             x: Optional[int] = None
             y: str
         ```
@@ -276,3 +276,35 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
     DEPRECATED_MODULE_ALIASES.append(
         AliasedModuleDefinition(old_name, new_name, callback)
     )
+
+
+class DeprecatedInfraOverridesField(BaseModel):
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Deprecated field. Use `job_variables` instead.",
+    )
+
+    @root_validator(pre=True)
+    def _job_variables_from_infra_overrides(
+        cls, values: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        job_variables = values.get("job_variables")
+        infra_overrides = values.get("infra_overrides")
+
+        if job_variables is not None and infra_overrides is not None:
+            if job_variables != infra_overrides:
+                raise ValueError(
+                    "The `infra_overrides` field has been renamed to `job_variables`."
+                    "Use one of these fields, but not both."
+                )
+            return values
+        elif job_variables is not None and infra_overrides is None:
+            values["infra_overrides"] = job_variables
+        elif job_variables is None and infra_overrides is not None:
+            values["job_variables"] = infra_overrides
+        return values
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key == "infra_overrides" or key == "job_variables":
+            super().__setattr__("infra_overrides", value)
+            super().__setattr__("job_variables", value)
