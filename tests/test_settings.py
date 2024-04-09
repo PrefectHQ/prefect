@@ -658,17 +658,15 @@ class TestLoadProfiles:
         with pytest.raises(ValueError, match="Unknown setting.*'test'"):
             load_profile("foo")
 
-    def test_removed_experimental_flags(self, temporary_profiles_path):
-        assert (
-            "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI"
-            in REMOVED_EXPERIMENTAL_FLAGS
-        )
+    @pytest.mark.parametrize("removed_flag", sorted(REMOVED_EXPERIMENTAL_FLAGS))
+    def test_removed_experimental_flags(self, temporary_profiles_path, removed_flag):
+        assert removed_flag in REMOVED_EXPERIMENTAL_FLAGS
 
         temporary_profiles_path.write_text(
             textwrap.dedent(
-                """
+                f"""
                 [profiles.foo]
-                PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI = "False"
+                {removed_flag} = "False"
                 """
             )
         )
@@ -676,7 +674,7 @@ class TestLoadProfiles:
         with pytest.warns(
             UserWarning,
             match=(
-                "Experimental flag 'PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI' "
+                f"Experimental flag '{removed_flag}' "
                 "has been removed, please update your 'foo' profile."
             ),
         ):
