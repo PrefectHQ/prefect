@@ -590,13 +590,13 @@ class Flow(Generic[P, R]):
     @sync_compatible
     @deprecated_parameter(
         "schedule",
-        start_date="Mar 2023",
+        start_date="Mar 2024",
         when=lambda p: p is not None,
         help="Use `schedules` instead.",
     )
     @deprecated_parameter(
         "is_schedule_active",
-        start_date="Mar 2023",
+        start_date="Mar 2024",
         when=lambda p: p is not None,
         help="Use `paused` instead.",
     )
@@ -970,6 +970,7 @@ class Flow(Generic[P, R]):
         enforce_parameter_schema: bool = False,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
+        ignore_warnings: bool = False,
         stream_docker_build_progress_to_stdout: bool = True,
     ) -> UUID:
         """
@@ -1025,6 +1026,7 @@ class Flow(Generic[P, R]):
                 entrypoint, ensure that the module will be importable in the execution environment.
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
+            ignore_warnings: Whether or not to ignore warnings about the work pool type.
             stream_docker_build_progress_to_stdout: Whether or not to stream `docker build`
                 progress to stdout.
 
@@ -1103,6 +1105,7 @@ class Flow(Generic[P, R]):
             build=build,
             push=push,
             print_next_steps_message=False,
+            ignore_warnings=ignore_warnings,
             stream_docker_build_progress_to_stdout=stream_docker_build_progress_to_stdout,
         )
 

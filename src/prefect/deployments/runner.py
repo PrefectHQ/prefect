@@ -45,6 +45,11 @@ from rich.table import Table
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    reconcile_paused_deployment,
+    reconcile_schedules_runner,
+    validate_automation_names,
+)
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
@@ -67,7 +72,6 @@ from prefect.client.schemas.schedules import (
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
     create_minimal_deployment_schedule,
-    normalize_to_minimal_deployment_schedules,
 )
 from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import (
@@ -230,42 +234,17 @@ class RunnerDeployment(BaseModel):
         return self._entrypoint_type
 
     @validator("triggers", allow_reuse=True)
-    def validate_automation_names(cls, field_value, values, field, config):
+    def validate_automation_names(cls, field_value, values):
         """Ensure that each trigger has a name for its automation if none is provided."""
-        for i, trigger in enumerate(field_value, start=1):
-            if trigger.name is None:
-                trigger.name = f"{values['name']}__automation_{i}"
-
-        return field_value
+        return validate_automation_names(field_value, values)
 
     @root_validator(pre=True)
     def reconcile_paused(cls, values):
-        paused = values.get("paused")
-        is_schedule_active = values.get("is_schedule_active")
-
-        if paused is not None:
-            values["paused"] = paused
-            values["is_schedule_active"] = not paused
-        elif is_schedule_active is not None:
-            values["paused"] = not is_schedule_active
-            values["is_schedule_active"] = is_schedule_active
-        else:
-            values["paused"] = False
-            values["is_schedule_active"] = True
-
-        return values
+        return reconcile_paused_deployment(values)
 
     @root_validator(pre=True)
     def reconcile_schedules(cls, values):
-        schedule = values.get("schedule")
-        schedules = values.get("schedules")
-
-        if schedules is None and schedule is not None:
-            values["schedules"] = [create_minimal_deployment_schedule(schedule)]
-        elif schedules is not None and len(schedules) > 0:
-            values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
-
-        return values
+        return reconcile_schedules_runner(values)
 
     @sync_compatible
     async def apply(

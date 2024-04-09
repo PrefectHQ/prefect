@@ -11,6 +11,7 @@ create them from YAML.
 
 import abc
 import textwrap
+import warnings
 from datetime import timedelta
 from typing import (
     Any,
@@ -27,6 +28,7 @@ from typing_extensions import TypeAlias
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_trigger_within
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -35,8 +37,17 @@ else:
     from pydantic import Field, PrivateAttr, root_validator, validator
     from pydantic.fields import ModelField
 
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    PREFECT_EXPERIMENTAL_WARN,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import RunDeployment
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
+)
 
 from .automations import (
     Automation,
@@ -79,7 +90,13 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
             "deployment's default parameters"
         ),
     )
-
+    job_variables: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Job variables to pass to the deployment, or None to use the "
+            "deployment's default job variables"
+        ),
+    )
     _deployment_id: Optional[UUID] = PrivateAttr(default=None)
 
     def set_deployment_id(self, deployment_id: UUID):
@@ -89,11 +106,32 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
         return f"prefect.deployment.{self._deployment_id}"
 
     def actions(self) -> List[RunDeployment]:
+        if self.job_variables is not None and experiment_enabled(
+            "flow_run_infra_overrides"
+        ):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+        if not experiment_enabled("flow_run_infra_overrides"):
+            # nullify job_variables if the flag is disabled
+            self.job_variables = None
+
         assert self._deployment_id
         return [
             RunDeployment(
                 parameters=self.parameters,
                 deployment_id=self._deployment_id,
+                job_variables=self.job_variables,
             )
         ]
 
@@ -123,11 +161,11 @@ class DeploymentResourceTrigger(BaseDeploymentTrigger, abc.ABC):
     type: str
 
     match: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for resources which this trigger will match.",
     )
     match_related: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for related resources which this trigger will match.",
     )
 
@@ -200,10 +238,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
     def enforce_minimum_within(
         cls, value: timedelta, values, config, field: ModelField
     ):
-        minimum = field.field_info.extra["minimum"]
-        if value.total_seconds() < minimum:
-            raise ValueError("The minimum within is 0 seconds")
-        return value
+        return validate_trigger_within(value, field)
 
     @root_validator(skip_on_failure=True)
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
@@ -256,6 +291,7 @@ class DeploymentMetricTrigger(DeploymentResourceTrigger):
             match_related=self.match_related,
             posture=self.posture,
             metric=self.metric,
+            job_variables=self.job_variables,
         )
 
 
@@ -295,6 +331,7 @@ class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
             require=self.require,
             triggers=self.triggers,
             within=self.within,
+            job_variables=self.job_variables,
         )
 
 
@@ -308,6 +345,7 @@ class DeploymentSequenceTrigger(DeploymentCompositeTrigger):
         return SequenceTrigger(
             triggers=self.triggers,
             within=self.within,
+            job_variables=self.job_variables,
         )
 
 
@@ -345,15 +383,22 @@ class DeploymentTrigger(PrefectBaseModel):
     )
     description: str = Field("", description="A longer description of this automation")
     enabled: bool = Field(True, description="Whether this automation will be evaluated")
+    job_variables: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Job variables to pass to the run, or None to use the "
+            "deployment's default job variables"
+        ),
+    )
 
     # from ResourceTrigger
 
     match: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for resources which this trigger will match.",
     )
     match_related: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification(__root__={}),
+        default_factory=lambda: ResourceSpecification.parse_obj({}),
         description="Labels for related resources which this trigger will match.",
     )
 
@@ -474,10 +519,31 @@ class DeploymentTrigger(PrefectBaseModel):
         return f"prefect.deployment.{self._deployment_id}"
 
     def actions(self) -> List[RunDeployment]:
+        if self.job_variables is not None and experiment_enabled(
+            "flow_run_infra_overrides"
+        ):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Flow run job variables",
+                        group="flow_run_infra_overrides",
+                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+        if not experiment_enabled("flow_run_infra_overrides"):
+            # nullify job_variables if the flag is disabled
+            self.job_variables = None
+
         assert self._deployment_id
         return [
             RunDeployment(
                 parameters=self.parameters,
                 deployment_id=self._deployment_id,
+                job_variables=self.job_variables,
             )
         ]

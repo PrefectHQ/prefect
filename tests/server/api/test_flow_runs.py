@@ -311,6 +311,31 @@ class TestReadFlowRun:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(flow_run.id)
         assert response.json()["flow_id"] == str(flow.id)
+        assert response.json()["deployment_version"] is None
+
+    @pytest.fixture
+    async def flow_run_with_deployment_version(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                deployment_version="Deployment Version 1.0",
+                state=schemas.states.Pending(),
+            ),
+        )
+        await session.commit()
+        return flow_run
+
+    async def test_read_flow_run_with_deployment_version(
+        self, flow, flow_run_with_deployment_version, client
+    ):
+        # make sure we we can read the flow run correctly
+        response = await client.get(f"/flow_runs/{flow_run_with_deployment_version.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == str(flow_run_with_deployment_version.id)
+        assert response.json()["flow_id"] == str(flow.id)
+        assert response.json()["deployment_version"] == "Deployment Version 1.0"
 
     async def test_read_flow_run_like_the_engine_does(self, flow, flow_run, client):
         """Regression test for the hex format of UUIDs in `PREFECT__FLOW_RUN_ID`

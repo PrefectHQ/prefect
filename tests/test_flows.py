@@ -3792,6 +3792,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
             stream_docker_build_progress_to_stdout=True,
         )
 
@@ -3841,6 +3842,7 @@ class TestFlowDeploy:
             build=True,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
             stream_docker_build_progress_to_stdout=True,
         )
 
