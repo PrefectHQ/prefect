@@ -341,8 +341,6 @@ class StateCreate(ActionBaseModel):
         description="The details of the state to create",
     )
 
-    # DEPRECATED
-
     timestamp: Optional[DateTimeTZ] = Field(
         default=None,
         repr=False,
