@@ -23,8 +23,8 @@ from .related import related_resources_from_run_context
 from .schemas.events import Event
 
 
-def emit_events() -> bool:
-    return emit_events_to_cloud() or emit_events_to_running_server()
+def should_emit_events() -> bool:
+    return emit_events_to_cloud() or should_emit_events_to_running_server()
 
 
 def emit_events_to_cloud() -> bool:
@@ -34,7 +34,7 @@ def emit_events_to_cloud() -> bool:
     )
 
 
-def emit_events_to_running_server() -> bool:
+def should_emit_events_to_running_server() -> bool:
     api_url = PREFECT_API_URL.value()
     return isinstance(api_url, str) and PREFECT_EXPERIMENTAL_EVENTS
 
@@ -83,7 +83,7 @@ class EventsWorker(QueueService[Event]):
                     "api_url": PREFECT_API_URL.value(),
                     "api_key": PREFECT_API_KEY.value(),
                 }
-            elif emit_events_to_running_server():
+            elif should_emit_events_to_running_server():
                 client_type = PrefectEventsClient
 
             else:

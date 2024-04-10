@@ -10,8 +10,8 @@ def reset_asserting_events_client():
 
 
 @pytest.fixture(autouse=True)
-def mock_emit_events(mock_emit_events):
-    yield mock_emit_events
+def mock_should_emit_events(mock_should_emit_events):
+    yield mock_should_emit_events
 
 
 @pytest.fixture

@@ -12,7 +12,7 @@ from .clients import (
     PrefectEventsClient,
 )
 from .schemas.events import Event, RelatedResource
-from .worker import EventsWorker, emit_events
+from .worker import EventsWorker, should_emit_events
 
 TIGHT_TIMING = timedelta(minutes=5)
 
@@ -46,7 +46,7 @@ def emit_event(
         The event that was emitted if worker is using a client that emit
         events, otherwise None
     """
-    if not emit_events():
+    if not should_emit_events():
         return None
 
     operational_clients = [

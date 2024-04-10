@@ -325,10 +325,10 @@ def events_cloud_api_url(events_server: WebSocketServer, unused_tcp_port: int) -
 
 
 @pytest.fixture
-def mock_emit_events(monkeypatch) -> mock.Mock:
+def mock_should_emit_events(monkeypatch) -> mock.Mock:
     m = mock.Mock()
     m.return_value = True
-    monkeypatch.setattr("prefect.events.utilities.emit_events", m)
+    monkeypatch.setattr("prefect.events.utilities.should_emit_events", m)
     return m
 
 
