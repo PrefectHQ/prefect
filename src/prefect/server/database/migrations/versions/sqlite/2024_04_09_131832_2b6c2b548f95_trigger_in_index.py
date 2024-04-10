@@ -22,7 +22,7 @@ def upgrade():
     with op.batch_alter_table("automation_bucket", schema=None) as batch_op:
         batch_op.alter_column(
             "trigger_id",
-            existing_type=sa.UUID(),
+            existing_type=prefect.server.utilities.database.UUID(),
             nullable=False,
         )
         batch_op.alter_column(
@@ -51,7 +51,7 @@ def downgrade():
         )
         batch_op.alter_column(
             "trigger_id",
-            existing_type=sa.UUID(),
+            existing_type=prefect.server.utilities.database.UUID(),
             nullable=True,
         )
         batch_op.alter_column(
