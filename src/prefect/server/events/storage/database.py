@@ -33,8 +33,8 @@ async def read_events(
     db: PrefectDBInterface,
     session: AsyncSession,
     events_filter: EventFilter,
-    limit: int | None = None,
-    offset: int | None = None,
+    limit: "int | None" = None,
+    offset: "int | None" = None,
 ) -> Sequence[ORMEvent]:
     """
     Read events from the Postgres database.
