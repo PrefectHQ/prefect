@@ -1,19 +1,30 @@
 import pytest
-from pydantic import BaseModel, Field, ValidationError
 from typing_extensions import Annotated
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.field_validator import field_validator
 
-if USE_V2_MODELS:
-    from pydantic import ValidationInfo
-elif not HAS_PYDANTIC_V2:
-    from pydantic.errors import ConfigError
+if not HAS_PYDANTIC_V2:
+    # v1v1
+    from pydantic import BaseModel, ConfigError, Field, ValidationError
+elif HAS_PYDANTIC_V2 and not USE_V2_MODELS:
+    # v2v1
+    from pydantic.v1 import ConfigError
+
+    from prefect.pydantic import BaseModel, Field, ValidationError
+else:
+    # v2v2
+    from pydantic import (  # type: ignore
+        BaseModel,
+        Field,
+        ValidationError,
+        ValidationInfo,
+    )
 
 
 @pytest.mark.skipif(
-    HAS_PYDANTIC_V2,
+    USE_V2_MODELS,
     reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
 )
 class TestFieldValidatorV1:

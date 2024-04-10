@@ -95,7 +95,9 @@ def field_validator(
                 field, *fields, mode=mode, check_fields=check_fields
             )(validate_func)
         elif HAS_PYDANTIC_V2:
-            from pydantic.v1 import BaseModel, validator  # type: ignore
+            from pydantic.v1 import validator  # type: ignore
+
+            from prefect.pydantic import BaseModel
         else:
             from pydantic import BaseModel, validator
 
