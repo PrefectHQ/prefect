@@ -6,7 +6,7 @@ from typing_extensions import Annotated
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.field_validator import field_validator
-from prefect.pydantic import BaseModel, ValidationError
+from prefect.pydantic import BaseModel, Field, ValidationError
 
 if not HAS_PYDANTIC_V2:
     # v1v1
@@ -14,8 +14,6 @@ if not HAS_PYDANTIC_V2:
 elif HAS_PYDANTIC_V2 and not USE_V2_MODELS:
     # v2v1
     from pydantic.v1 import ConfigError
-
-    from prefect.pydantic import Field
 else:
     # v2v2
     from pydantic import (  # type: ignore
