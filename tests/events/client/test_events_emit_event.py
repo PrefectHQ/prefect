@@ -123,9 +123,9 @@ def test_noop_with_null_events_client():
         )
 
 
-def test_noop_with_non_cloud_client(mock_emit_events_to_cloud: mock.Mock):
+def test_noop_with_non_cloud_client(mock_should_emit_events: mock.Mock):
     with temporary_settings(updates={PREFECT_API_URL: "http://localhost:4242"}):
-        mock_emit_events_to_cloud.return_value = None
+        mock_should_emit_events.return_value = None
 
         assert (
             emit_event(

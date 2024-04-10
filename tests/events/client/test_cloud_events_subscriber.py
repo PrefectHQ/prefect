@@ -9,14 +9,14 @@ from prefect.testing.fixtures import Puppeteer, Recorder
 
 
 async def test_subscriber_can_connect_with_defaults(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
     with temporary_settings(
-        updates={PREFECT_API_KEY: "my-token", PREFECT_API_URL: events_api_url}
+        updates={PREFECT_API_KEY: "my-token", PREFECT_API_URL: events_cloud_api_url}
     ):
         puppeteer.token = "my-token"
         puppeteer.outgoing_events = [example_event_1, example_event_2]
@@ -34,7 +34,7 @@ async def test_subscriber_can_connect_with_defaults(
 
 
 async def test_subscriber_complains_without_api_url_and_key(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -46,7 +46,7 @@ async def test_subscriber_complains_without_api_url_and_key(
 
 
 async def test_subscriber_can_connect_and_receive_one_event(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -58,7 +58,7 @@ async def test_subscriber_can_connect_and_receive_one_event(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     async with PrefectCloudEventSubscriber(
-        events_api_url,
+        events_cloud_api_url,
         "my-token",
         filter,
         reconnection_attempts=0,
@@ -74,7 +74,7 @@ async def test_subscriber_can_connect_and_receive_one_event(
 
 
 async def test_subscriber_specifying_negative_reconnects_gets_error(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -87,7 +87,7 @@ async def test_subscriber_specifying_negative_reconnects_gets_error(
 
     with pytest.raises(ValueError, match="non-negative"):
         PrefectCloudEventSubscriber(
-            events_api_url,
+            events_cloud_api_url,
             "my-token",
             filter,
             reconnection_attempts=-1,
@@ -97,7 +97,7 @@ async def test_subscriber_specifying_negative_reconnects_gets_error(
 
 
 async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -110,7 +110,7 @@ async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
 
     with pytest.raises(Exception, match="Unable to authenticate"):
         subscriber = PrefectCloudEventSubscriber(
-            events_api_url,
+            events_cloud_api_url,
             "bogus",
             filter,
             reconnection_attempts=0,
@@ -124,7 +124,7 @@ async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
 
 
 async def test_subscriber_raises_on_invalid_auth_with_hard_denial(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -138,7 +138,7 @@ async def test_subscriber_raises_on_invalid_auth_with_hard_denial(
 
     with pytest.raises(Exception, match="Unable to authenticate"):
         subscriber = PrefectCloudEventSubscriber(
-            events_api_url,
+            events_cloud_api_url,
             "bogus",
             filter,
             reconnection_attempts=0,
@@ -152,7 +152,7 @@ async def test_subscriber_raises_on_invalid_auth_with_hard_denial(
 
 
 async def test_subscriber_reconnects_on_hard_disconnects(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -165,7 +165,7 @@ async def test_subscriber_reconnects_on_hard_disconnects(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     async with PrefectCloudEventSubscriber(
-        events_api_url,
+        events_cloud_api_url,
         "my-token",
         filter,
         reconnection_attempts=2,
@@ -178,7 +178,7 @@ async def test_subscriber_reconnects_on_hard_disconnects(
 
 
 async def test_subscriber_gives_up_after_so_many_attempts(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -192,7 +192,7 @@ async def test_subscriber_gives_up_after_so_many_attempts(
 
     with pytest.raises(ConnectionClosedError):
         async with PrefectCloudEventSubscriber(
-            events_api_url,
+            events_cloud_api_url,
             "my-token",
             filter,
             reconnection_attempts=4,
@@ -205,7 +205,7 @@ async def test_subscriber_gives_up_after_so_many_attempts(
 
 
 async def test_subscriber_skips_duplicate_events(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -217,7 +217,7 @@ async def test_subscriber_skips_duplicate_events(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     async with PrefectCloudEventSubscriber(
-        events_api_url,
+        events_cloud_api_url,
         "my-token",
         filter,
     ) as subscriber:
