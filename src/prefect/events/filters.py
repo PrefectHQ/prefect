@@ -1,9 +1,8 @@
-from typing import List, Optional, Sequence, Tuple, cast
+from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, cast
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import ColumnElement, ColumnExpressionArgument
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -17,6 +16,9 @@ if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr
 else:
     from pydantic import Field, PrivateAttr
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument
 
 
 class EventDataFilter(PrefectBaseModel, extra="forbid"):
@@ -45,9 +47,9 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
     def build_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
         """Convert the criteria to a WHERE clause."""
-        clauses: List[ColumnExpressionArgument[bool]] = []
+        clauses: List["ColumnExpressionArgument[bool]"] = []
         for filter in self.get_filters():
             clauses.extend(filter.build_where_clauses(db))
         return clauses
@@ -71,8 +73,8 @@ class EventOccurredFilter(EventDataFilter):
 
     def build_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
-        filters: List[ColumnExpressionArgument[bool]] = []
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+        filters: List["ColumnExpressionArgument[bool]"] = []
 
         filters.append(db.Event.occurred >= self.since)
         filters.append(db.Event.occurred <= self.until)
@@ -116,8 +118,8 @@ class EventNameFilter(EventDataFilter):
 
     def build_postgres_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
-        filters: List[ColumnExpressionArgument[bool]] = []
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+        filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.prefix:
             filters.append(
@@ -191,8 +193,8 @@ class EventResourceFilter(EventDataFilter):
 
     def build_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
-        filters: List[ColumnExpressionArgument[bool]] = []
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+        filters: List["ColumnExpressionArgument[bool]"] = []
 
         # If we're doing an exact or prefix search on resource_id, this is efficient
         # enough to do on the events table without going to the event_resources table
@@ -273,8 +275,8 @@ class EventRelatedFilter(EventDataFilter):
 
     def build_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
-        filters: List[ColumnExpressionArgument[bool]] = []
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+        filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(db.EventResource.resource_id.in_(self.id))
@@ -296,7 +298,7 @@ class EventRelatedFilter(EventDataFilter):
             )
 
         if self.labels:
-            label_filters: List[ColumnElement[bool]] = []
+            label_filters: List["ColumnElement[bool]"] = []
             labels = self.labels.deepcopy()
 
             # On the event_resources table, resource_id and resource_role are unpacked
@@ -384,8 +386,8 @@ class EventAnyResourceFilter(EventDataFilter):
 
     def build_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
-        filters: List[ColumnExpressionArgument[bool]] = []
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+        filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(db.EventResource.resource_id.in_(self.id))
@@ -459,8 +461,8 @@ class EventIDFilter(EventDataFilter):
 
     def build_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
-        filters: List[ColumnExpressionArgument[bool]] = []
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+        filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(db.Event.id.in_(self.id))
@@ -503,6 +505,6 @@ class EventFilter(EventDataFilter):
 
     def build_where_clauses(
         self, db: PrefectDBInterface
-    ) -> Sequence[ColumnExpressionArgument[bool]]:
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
         self._top_level_filter = self
         return super().build_where_clauses(db)
