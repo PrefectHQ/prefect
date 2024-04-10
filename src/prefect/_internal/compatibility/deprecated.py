@@ -12,7 +12,7 @@ e.g. Jan 2023.
 import functools
 import sys
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 import pendulum
 
@@ -315,6 +315,22 @@ class DeprecatedInfraOverridesField(BaseModel):
             self.__dict__.update(updates)
             return
         super().__setattr__(key, value)
+
+    def dict(self, **kwargs) -> Dict[str, Any]:
+        """
+        Override the default dict method to ensure that both `infra_overrides` and
+        `job_variables` are serialized.
+        """
+        exclude: Union[set, Dict[str, Any]] = kwargs.pop("exclude", set())
+        exclude_type = type(exclude)
+
+        if exclude_type is set:
+            exclude.add("job_variables")
+        elif exclude_type is dict:
+            exclude["job_variables"] = True
+        kwargs["exclude"] = exclude
+
+        return super().dict(**kwargs)
 
 
 def handle_deprecated_infra_overrides_parameter(

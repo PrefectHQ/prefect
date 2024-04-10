@@ -221,7 +221,6 @@ class TestDeprecatedInfraOverridesField:
         assert deployment.infra_overrides == {"foo": "bar"}
 
         json = deployment.dict()
-        assert json["job_variables"] == {"foo": "bar"}
         assert json["infra_overrides"] == {"foo": "bar"}
 
     def test_infra_overrides_sets_job_variables(self, my_deployment_model):
@@ -237,7 +236,6 @@ class TestDeprecatedInfraOverridesField:
         assert my_deployment.infra_overrides == {"set_by": "infra_overrides"}
 
         json_dict = my_deployment.dict()
-        assert json_dict["job_variables"] == {"set_by": "infra_overrides"}
         assert json_dict["infra_overrides"] == {"set_by": "infra_overrides"}
 
     def test_job_variables_sets_infra_overrides(self, my_deployment_model):
@@ -253,7 +251,6 @@ class TestDeprecatedInfraOverridesField:
         assert my_deployment.infra_overrides == {"set_by": "job_variables"}
 
         json_dict = my_deployment.dict()
-        assert json_dict["job_variables"] == {"set_by": "job_variables"}
         assert json_dict["infra_overrides"] == {"set_by": "job_variables"}
 
     def test_job_variables_can_unset_infra_overrides(self, my_deployment_model):
@@ -269,7 +266,6 @@ class TestDeprecatedInfraOverridesField:
         assert my_deployment.infra_overrides is None
 
         json_dict = my_deployment.dict()
-        assert json_dict["job_variables"] is None
         assert json_dict["infra_overrides"] is None
 
     def test_infra_overrides_can_unset_job_variables(self, my_deployment_model):
@@ -285,5 +281,16 @@ class TestDeprecatedInfraOverridesField:
         assert my_deployment.infra_overrides is None
 
         json_dict = my_deployment.dict()
-        assert json_dict["job_variables"] is None
         assert json_dict["infra_overrides"] is None
+
+    def test_job_variables_not_serialized(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+            job_variables={"foo": "bar"},
+        )
+        assert my_deployment.job_variables == {"foo": "bar"}
+        assert my_deployment.infra_overrides == {"foo": "bar"}
+
+        json_dict = my_deployment.dict()
+        assert "job_variables" not in json_dict
+        assert json_dict["infra_overrides"] == {"foo": "bar"}
