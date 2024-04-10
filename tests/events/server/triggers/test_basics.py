@@ -416,7 +416,6 @@ async def test_reactive_automation_triggers_for_each_related_label(
     )
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_proactive_trigger_fires_after_time_expires(
     effective_automations: List[Automation],
     chonk_sadness: Automation,

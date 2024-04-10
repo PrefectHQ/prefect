@@ -126,7 +126,6 @@ def work_queue_health_healthy(
     return [event.receive() for event in events]
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_alerts_work_queue_unhealthy(
     unhealthy_work_queue_automation: Automation,
     work_queue,
@@ -168,7 +167,6 @@ async def test_alerts_work_queue_unhealthy(
     )
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_does_not_alert_work_queue_went_healthy(
     unhealthy_work_queue_automation: Automation,
     work_queue_health_healthy: List[ReceivedEvent],
@@ -401,7 +399,7 @@ async def proactive_extended_expect_and_after(
                 expect={"some-event"},
                 posture=Posture.Proactive,
                 threshold=2,
-                within=timedelta(seconds=5),
+                within=timedelta(seconds=10),
             ),
             actions=[actions.DoNothing()],
         ),
@@ -411,7 +409,6 @@ async def proactive_extended_expect_and_after(
     return automation
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_same_event_in_expect_and_after_proactively_does_not_fire(
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,
@@ -482,8 +479,15 @@ async def test_same_event_in_expect_and_after_proactively_does_not_fire(
     )
     act.assert_not_awaited()  # won't act here, we've reached the threshold
 
+    act.reset_mock()
+    await triggers.proactive_evaluation(
+        automations_session,
+        proactive_extended_expect_and_after.trigger,
+        frozen_time + timedelta(seconds=11),
+    )
+    act.assert_not_awaited()  # won't act here, we've reached the threshold
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
+
 async def test_same_event_in_expect_and_after_proactively_fires(
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,

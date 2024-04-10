@@ -181,7 +181,6 @@ async def test_automation_covers_all_the_events_we_expect(
         assert stuck_flow_runs_sla.covers(event)
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_only_the_stuck_flow_triggers(
     stuck_flow_runs_sla: EventTrigger,
     received_events: List[ReceivedEvent],
@@ -263,7 +262,6 @@ async def stuck_flow_runs_sla_with_wildcard_expect(
     return cast(EventTrigger, automation.trigger)
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset(
     stuck_flow_runs_sla_with_wildcard_expect: EventTrigger,
     received_events: List[ReceivedEvent],
@@ -539,7 +537,6 @@ async def sequence_of_events_3521(
     ]
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3521_negative_case(
     trigger_from_3521: EventTrigger,
     sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
@@ -560,7 +557,6 @@ async def test_regression_3521_negative_case(
         act.assert_not_awaited()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3521_positive_case(
     trigger_from_3521: EventTrigger,
     sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
@@ -583,7 +579,6 @@ async def test_regression_3521_positive_case(
     act.assert_awaited_once()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3521_side_quest(
     trigger_from_3521: EventTrigger,
     sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
@@ -756,7 +751,6 @@ async def sequence_of_events_3244(
     ]
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3244_negative_case(
     trigger_from_3244: EventTrigger,
     sequence_of_events_3244: List[Union[ReceivedEvent, pendulum.DateTime]],
@@ -784,7 +778,6 @@ async def test_regression_3244_negative_case(
         act.assert_not_awaited()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3244_positive_case(
     trigger_from_3244: EventTrigger,
     sequence_of_events_3244: List[Union[ReceivedEvent, pendulum.DateTime]],
@@ -857,8 +850,8 @@ def trigger_from_3803(automation_from_3803: Automation) -> EventTrigger:
     return cast(EventTrigger, automation_from_3803.trigger)
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3803_negative_case(
+    reset_events_clock: None,
     trigger_from_3803: EventTrigger,
     act: mock.AsyncMock,
     start_of_test: DateTime,
@@ -904,8 +897,8 @@ async def test_regression_3803_negative_case(
     act.assert_not_awaited()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3803_positive_case_no_events_at_all(
+    reset_events_clock: None,
     trigger_from_3803: EventTrigger,
     act: mock.AsyncMock,
     start_of_test: DateTime,
@@ -942,8 +935,8 @@ async def test_regression_3803_positive_case_no_events_at_all(
     act.assert_awaited_once()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3803_positive_case_no_relevant_event(
+    reset_events_clock: None,
     trigger_from_3803: EventTrigger,
     act: mock.AsyncMock,
     start_of_test: DateTime,
