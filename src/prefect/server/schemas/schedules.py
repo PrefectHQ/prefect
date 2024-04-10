@@ -83,7 +83,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     interval: datetime.timedelta
     anchor_date: DateTimeTZ = None
-    timezone: Optional[str] = Field(default=None, example="America/New_York")
+    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
     @validator("interval")
     def validate_interval_schedule(cls, v):
@@ -224,8 +224,8 @@ class CronSchedule(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    cron: str = Field(default=..., example="0 0 * * *")
-    timezone: Optional[str] = Field(default=None, example="America/New_York")
+    cron: str = Field(default=..., examples=["0 0 * * *"])
+    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
     day_or: bool = Field(
         default=True,
         description=(
@@ -378,7 +378,7 @@ class RRuleSchedule(PrefectBaseModel):
         extra = "forbid"
 
     rrule: str
-    timezone: Optional[str] = Field(default=None, example="America/New_York")
+    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
     @validator("rrule")
     def validate_rrule_str(cls, v):

@@ -48,7 +48,7 @@ class FlowFilterName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of flow names to include",
-        example=["my-flow-1", "my-flow-2"],
+        examples=[["my-flow-1", "my-flow-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -58,7 +58,7 @@ class FlowFilterName(PrefectBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
 
@@ -67,7 +67,7 @@ class FlowFilterTags(PrefectBaseModel, OperatorMixin):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Flows will be returned only if their tags are a superset"
             " of the list"
@@ -109,7 +109,7 @@ class FlowRunFilterName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of flow run names to include",
-        example=["my-flow-run-1", "my-flow-run-2"],
+        examples=[["my-flow-run-1", "my-flow-run-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -119,7 +119,7 @@ class FlowRunFilterName(PrefectBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
 
@@ -128,7 +128,7 @@ class FlowRunFilterTags(PrefectBaseModel, OperatorMixin):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Flow runs will be returned only if their tags are a"
             " superset of the list"
@@ -157,7 +157,7 @@ class FlowRunFilterWorkQueueName(PrefectBaseModel, OperatorMixin):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of work queue names to include",
-        example=["work_queue_1", "work_queue_2"],
+        examples=[["work_queue_1", "work_queue_2"]],
     )
     is_null_: Optional[bool] = Field(
         default=None,
@@ -343,7 +343,7 @@ class TaskRunFilterName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of task run names to include",
-        example=["my-task-run-1", "my-task-run-2"],
+        examples=[["my-task-run-1", "my-task-run-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -353,7 +353,7 @@ class TaskRunFilterName(PrefectBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
 
@@ -362,7 +362,7 @@ class TaskRunFilterTags(PrefectBaseModel, OperatorMixin):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Task runs will be returned only if their tags are a"
             " superset of the list"
@@ -460,7 +460,7 @@ class DeploymentFilterName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of deployment names to include",
-        example=["my-deployment-1", "my-deployment-2"],
+        examples=[["my-deployment-1", "my-deployment-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -470,7 +470,7 @@ class DeploymentFilterName(PrefectBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
 
@@ -480,7 +480,7 @@ class DeploymentFilterWorkQueueName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of work queue names to include",
-        example=["work_queue_1", "work_queue_2"],
+        examples=[["work_queue_1", "work_queue_2"]],
     )
 
 
@@ -498,7 +498,7 @@ class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Deployments will be returned only if their tags are a"
             " superset of the list"
@@ -535,7 +535,7 @@ class LogFilterName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of log names to include",
-        example=["prefect.logger.flow_runs", "prefect.logger.task_runs"],
+        examples=[["prefect.logger.flow_runs", "prefect.logger.task_runs"]],
     )
 
 
@@ -545,13 +545,13 @@ class LogFilterLevel(PrefectBaseModel):
     ge_: Optional[int] = Field(
         default=None,
         description="Include logs with a level greater than or equal to this level",
-        example=20,
+        examples=[20],
     )
 
     le_: Optional[int] = Field(
         default=None,
         description="Include logs with a level less than or equal to this level",
-        example=50,
+        examples=[50],
     )
 
 
@@ -629,7 +629,7 @@ class BlockTypeFilterName(PrefectBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
 
@@ -674,7 +674,7 @@ class BlockSchemaFilterCapabilities(PrefectBaseModel):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["write-storage", "read-storage"],
+        examples=[["write-storage", "read-storage"]],
         description=(
             "A list of block capabilities. Block entities will be returned only if an"
             " associated block schema has a superset of the defined capabilities."
@@ -687,7 +687,7 @@ class BlockSchemaFilterVersion(PrefectBaseModel):
 
     any_: Optional[List[str]] = Field(
         default=None,
-        example=["2.0.0", "2.1.0"],
+        examples=[["2.0.0", "2.1.0"]],
         description="A list of block schema versions.",
     )
 
@@ -748,7 +748,7 @@ class BlockDocumentFilterName(PrefectBaseModel):
             "A string to match block names against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-block%",
+        examples=["my-block%"],
     )
 
 
@@ -809,7 +809,7 @@ class WorkQueueFilterName(PrefectBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of work queue names to include",
-        example=["wq-1", "wq-2"],
+        examples=[["wq-1", "wq-2"]],
     )
 
     startswith_: Optional[List[str]] = Field(
@@ -819,7 +819,7 @@ class WorkQueueFilterName(PrefectBaseModel):
             " passing 'marvin' will match "
             "'marvin', and 'Marvin-robot', but not 'sad-marvin'."
         ),
-        example=["marvin", "Marvin-robot"],
+        examples=[["marvin", "Marvin-robot"]],
     )
 
 
@@ -929,7 +929,7 @@ class ArtifactFilterKey(PrefectBaseModel):
             "A string to match artifact keys against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-artifact-%",
+        examples=["my-artifact-%"],
     )
 
     exists_: Optional[bool] = Field(
@@ -1009,7 +1009,7 @@ class ArtifactCollectionFilterKey(PrefectBaseModel):
             "A string to match artifact keys against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-artifact-%",
+        examples=["my-artifact-%"],
     )
 
     exists_: Optional[bool] = Field(
@@ -1089,7 +1089,7 @@ class VariableFilterName(PrefectBaseModel):
             "A string to match variable names against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my_variable_%",
+        examples=["my_variable_%"],
     )
 
 
@@ -1105,7 +1105,7 @@ class VariableFilterValue(PrefectBaseModel):
             "A string to match variable value against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-value-%",
+        examples=["my-value-%"],
     )
 
 
@@ -1114,7 +1114,7 @@ class VariableFilterTags(PrefectBaseModel, OperatorMixin):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Variables will be returned only if their tags are a"
             " superset of the list"
