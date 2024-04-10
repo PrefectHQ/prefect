@@ -1,4 +1,5 @@
 import typing
+from uuid import uuid4
 
 from prefect._internal.pydantic._compat import (
     BaseModel,
@@ -12,7 +13,11 @@ from prefect._internal.pydantic._compat import (
 )
 
 if typing.TYPE_CHECKING:
+    from uuid import UUID
+
     from rich.repr import Result
+
+    from prefect._internal.schemas.fields import DateTimeTZ
 
 
 class PrefectBaseModel(BaseModel):
@@ -43,6 +48,42 @@ class PrefectBaseModel(BaseModel):
     def __rich_repr__(self: "typing.Self") -> "Result":
         for name, value in self.model_dump(mode="json").items():
             yield name, value
+
+
+class IDBaseModel(PrefectBaseModel):
+    """
+    A PrefectBaseModel with an auto-generated UUID ID value.
+
+    The ID is reset on copy() and not included in equality comparisons.
+    """
+
+    __prefect_exclude__: typing.ClassVar[typing.Set[str]] = {"id"}
+
+    id: "UUID" = Field(default_factory=uuid4)
+
+
+class ObjectBaseModel(IDBaseModel):
+    """
+    A PrefectBaseModel with an auto-generated UUID ID value and created /
+    updated timestamps, intended for compatibility with our standard ORM models.
+
+    The ID, created, and updated fields are reset on copy() and not included in
+    equality comparisons.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    __prefect_exclude__: typing.ClassVar[typing.Set[str]] = {"created", "updated", "id"}
+
+    class Config:
+        orm_mode = True
+
+    created: typing.Optional["DateTimeTZ"] = Field(default=None, repr=False)
+    updated: typing.Optional["DateTimeTZ"] = Field(default=None, repr=False)
+
+
+class ActionBaseModel(PrefectBaseModel):
+    model_config = ConfigDict(extra="forbid")
 
 
 __all__ = [
