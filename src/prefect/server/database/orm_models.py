@@ -1542,6 +1542,68 @@ class ORMAutomationEventFollower:
     follower = sa.Column(Pydantic(ReceivedEvent), nullable=False)
 
 
+@declarative_mixin
+class ORMEvent:
+    @declared_attr
+    def __tablename__(cls):
+        return "events"
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_events__related_resource_ids", "related_resource_ids"),
+            sa.Index("ix_events__occurred", "occurred"),
+            sa.Index("ix_events__event__id", "event", "id"),
+            sa.Index(
+                "ix_events__event_resource_id_occurred",
+                "event",
+                "resource_id",
+                "occurred",
+            ),
+            sa.Index("ix_events__occurred_id", "occurred", "id"),
+            sa.Index("ix_events__event_occurred_id", "event", "occurred", "id"),
+            sa.Index(
+                "ix_events__event_related_occurred", "event", "related", "occurred"
+            ),
+        )
+
+    occurred = sa.Column(Timestamp(), nullable=False)
+    event = sa.Column(sa.Text(), nullable=False)
+    resource_id = sa.Column(sa.Text(), nullable=False)
+    resource = sa.Column(JSON(), nullable=False)
+    related_resource_ids = sa.Column(
+        JSON(), server_default="[]", default=list, nullable=False
+    )
+    related = sa.Column(JSON(), server_default="[]", default=list, nullable=False)
+    payload = sa.Column(JSON(), nullable=False)
+    received = sa.Column(Timestamp(), nullable=False)
+    recorded = sa.Column(Timestamp(), nullable=False)
+    follows = sa.Column(UUID(), nullable=True)
+
+
+@declarative_mixin
+class ORMEventResource:
+    @declared_attr
+    def __tablename__(cls):
+        return "event_resources"
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_event_resources__resource_id__occurred",
+                "resource_id",
+                "occurred",
+            ),
+        )
+
+    occurred = sa.Column("occurred", Timestamp(), nullable=False)
+    resource_id = sa.Column("resource_id", sa.Text(), nullable=False)
+    resource_role = sa.Column("resource_role", sa.Text(), nullable=False)
+    resource = sa.Column("resource", sa.JSON(), nullable=False)
+    event_id = sa.Column("event_id", UUID(), nullable=False)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1609,6 +1671,8 @@ class BaseORMConfiguration(ABC):
         automation_related_resource_mixin=ORMAutomationRelatedResource,
         composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
         event_follower_mixin=ORMAutomationEventFollower,
+        event_mixin=ORMEvent,
+        event_resource_mixin=ORMEventResource,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1670,6 +1734,8 @@ class BaseORMConfiguration(ABC):
             automation_related_resource_mixin=automation_related_resource_mixin,
             composite_trigger_child_firing_mixin=composite_trigger_child_firing_mixin,
             event_follower_mixin=event_follower_mixin,
+            event_mixin=event_mixin,
+            event_resource_mixin=event_resource_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1727,6 +1793,8 @@ class BaseORMConfiguration(ABC):
         automation_related_resource_mixin=ORMAutomationRelatedResource,
         composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
         event_follower_mixin=ORMAutomationEventFollower,
+        event_mixin=ORMEvent,
+        event_resource_mixin=ORMEventResource,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1837,6 +1905,12 @@ class BaseORMConfiguration(ABC):
         class AutomationEventFollower(event_follower_mixin, self.Base):
             pass
 
+        class Event(event_mixin, self.Base):
+            pass
+
+        class EventResource(event_resource_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1871,6 +1945,8 @@ class BaseORMConfiguration(ABC):
         self.AutomationRelatedResource = AutomationRelatedResource
         self.CompositeTriggerChildFiring = CompositeTriggerChildFiring
         self.AutomationEventFollower = AutomationEventFollower
+        self.Event = Event
+        self.EventResource = EventResource
 
     @property
     @abstractmethod
