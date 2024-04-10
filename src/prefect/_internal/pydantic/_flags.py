@@ -1,3 +1,6 @@
+"""
+This file defines flags that determine whether Pydantic V2 is available and whether its features should be used.
+"""
 import os
 
 # Retrieve current version of Pydantic installed in environment
