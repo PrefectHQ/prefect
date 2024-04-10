@@ -10,16 +10,13 @@ from prefect.pydantic import BaseModel, Field, ValidationError
 
 if not HAS_PYDANTIC_V2:
     # v1v1
-    from pydantic import ConfigError, Field
+    from pydantic import ConfigError
 elif HAS_PYDANTIC_V2 and not USE_V2_MODELS:
     # v2v1
     from pydantic.v1 import ConfigError
 else:
     # v2v2
-    from pydantic import (  # type: ignore
-        Field,
-        ValidationInfo,
-    )
+    from pydantic import ValidationInfo  # type: ignore
 
 
 @pytest.mark.skipif(
