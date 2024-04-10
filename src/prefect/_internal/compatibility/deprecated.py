@@ -279,7 +279,7 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
 
 
 class DeprecatedInfraOverridesField(BaseModel):
-    infra_overrides: Dict[str, Any] = Field(
+    infra_overrides: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="Deprecated field. Use `job_variables` instead.",
     )
