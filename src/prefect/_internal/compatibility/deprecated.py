@@ -305,9 +305,14 @@ class DeprecatedInfraOverridesField(BaseModel):
         return values
 
     def __setattr__(self, key: str, value: Any) -> None:
+        """
+        Override the default __setattr__ to ensure that setting `infra_overrides` or
+        `job_variables` will update both fields.
+        """
         if key == "infra_overrides" or key == "job_variables":
-            super().__setattr__("infra_overrides", value)
-            super().__setattr__("job_variables", value)
+            updates = {"infra_overrides": value, "job_variables": value}
+            self.__class__.validate(self.__dict__ | updates)
+            self.__dict__.update(updates)
             return
         super().__setattr__(key, value)
 
