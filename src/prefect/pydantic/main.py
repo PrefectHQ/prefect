@@ -9,6 +9,7 @@ from prefect._internal.pydantic._compat import (
     SecretStr,
     ValidationError,
     field_validator,
+    model_validator,
 )
 
 
@@ -29,6 +30,7 @@ __all__ = [
     "PrivateAttr",
     "SecretStr",
     "field_validator",
+    "model_validator",
     "ConfigDict",
     "ValidationError",
 ]

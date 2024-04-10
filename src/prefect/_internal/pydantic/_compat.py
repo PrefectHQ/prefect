@@ -21,6 +21,7 @@ from .utilities.model_fields_set import ModelFieldsSetMixin, model_fields_set
 from .utilities.model_json_schema import ModelJsonSchemaMixin, model_json_schema
 from .utilities.model_validate import ModelValidateMixin, model_validate
 from .utilities.model_validate_json import ModelValidateJsonMixin, model_validate_json
+from .utilities.model_validator import model_validator
 from .utilities.type_adapter import TypeAdapter, validate_python
 
 if typing.TYPE_CHECKING:
@@ -68,6 +69,7 @@ __all__ = [
     "Field",
     "FieldInfo",
     "field_validator",
+    "model_validator",
     "PrivateAttr",
     "SecretStr",
     "ConfigDict",
