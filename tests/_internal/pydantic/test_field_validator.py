@@ -1,24 +1,25 @@
+from typing import Optional
+
 import pytest
-from pydantic import BaseModel
 from typing_extensions import Annotated
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.field_validator import field_validator
+from prefect.pydantic import BaseModel, ValidationError
 
 if not HAS_PYDANTIC_V2:
     # v1v1
-    from pydantic import ConfigError, Field, ValidationError
+    from pydantic import ConfigError, Field
 elif HAS_PYDANTIC_V2 and not USE_V2_MODELS:
     # v2v1
     from pydantic.v1 import ConfigError
 
-    from prefect.pydantic import Field, ValidationError
+    from prefect.pydantic import Field
 else:
     # v2v2
     from pydantic import (  # type: ignore
         Field,
-        ValidationError,
         ValidationInfo,
     )
 
@@ -137,8 +138,6 @@ class TestFieldValidatorV1:
         Tests that the `field_validator` correctly handles optional fields, applying validation
         only when a value is provided.
         """
-
-        from typing import Optional
 
         class TestModel(BaseModel):
             a: Optional[str] = None

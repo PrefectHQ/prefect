@@ -88,7 +88,7 @@ def field_validator(
     """
 
     def decorator(validate_func: T) -> T:
-        from pydantic import BaseModel
+        from prefect.pydantic import BaseModel
 
         if USE_V2_MODELS:
             from pydantic import field_validator  # type: ignore
