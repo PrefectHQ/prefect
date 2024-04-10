@@ -4,14 +4,25 @@ import pytest
 from websockets.exceptions import ConnectionClosed
 
 from prefect.events import Event
-from prefect.events.clients import PrefectCloudEventsClient
+from prefect.events.clients import PrefectCloudEventsClient, PrefectEventsClient
 from prefect.testing.fixtures import Puppeteer, Recorder
 
 
-async def test_cloud_client_can_connect_and_emit(
+async def test_events_client_can_connect_and_emit(
     events_api_url: str, example_event_1: Event, recorder: Recorder
 ):
-    async with PrefectCloudEventsClient(events_api_url, "my-token") as client:
+    async with PrefectEventsClient(events_api_url) as client:
+        await client.emit(example_event_1)
+
+    assert recorder.connections == 1
+    assert recorder.path == "/events/in"
+    assert recorder.events == [example_event_1]
+
+
+async def test_cloud_client_can_connect_and_emit(
+    events_cloud_api_url: str, example_event_1: Event, recorder: Recorder
+):
+    async with PrefectCloudEventsClient(events_cloud_api_url, "my-token") as client:
         await client.emit(example_event_1)
 
     assert recorder.connections == 1
@@ -20,7 +31,7 @@ async def test_cloud_client_can_connect_and_emit(
 
 
 async def test_reconnects_and_resends_after_hard_disconnect(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -29,7 +40,7 @@ async def test_reconnects_and_resends_after_hard_disconnect(
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    client = PrefectCloudEventsClient(events_api_url, "my-token", checkpoint_every=1)
+    client = PrefectEventsClient(events_cloud_api_url, checkpoint_every=1)
     async with client:
         assert recorder.connections == 1
 
@@ -55,7 +66,7 @@ async def test_reconnects_and_resends_after_hard_disconnect(
 
 @pytest.mark.parametrize("attempts", [4, 1, 0])
 async def test_gives_up_after_a_certain_amount_of_tries(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -63,8 +74,10 @@ async def test_gives_up_after_a_certain_amount_of_tries(
     puppeteer: Puppeteer,
     attempts: int,
 ):
-    client = PrefectCloudEventsClient(
-        events_api_url, "my-token", checkpoint_every=1, reconnection_attempts=attempts
+    client = PrefectEventsClient(
+        events_cloud_api_url,
+        checkpoint_every=1,
+        reconnection_attempts=attempts,
     )
     async with client:
         assert recorder.connections == 1
@@ -86,7 +99,7 @@ async def test_gives_up_after_a_certain_amount_of_tries(
 
 
 async def test_giving_up_after_negative_one_tries_is_a_noop(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -95,8 +108,8 @@ async def test_giving_up_after_negative_one_tries_is_a_noop(
 ):
     """This is a nonsensical configuration, but covers a branch of client.emit where
     the primary reconnection loop does nothing (not even sending events)"""
-    client = PrefectCloudEventsClient(
-        events_api_url, "my-token", checkpoint_every=1, reconnection_attempts=-1
+    client = PrefectEventsClient(
+        events_cloud_api_url, checkpoint_every=1, reconnection_attempts=-1
     )
     async with client:
         assert recorder.connections == 1
@@ -114,15 +127,15 @@ async def test_giving_up_after_negative_one_tries_is_a_noop(
 
 
 async def test_handles_api_url_with_trailing_slash(
-    events_api_url: str, example_event_1: Event, recorder: Recorder
+    events_cloud_api_url: str, example_event_1: Event, recorder: Recorder
 ):
     # Regression test for https://github.com/PrefectHQ/prefect/issues/9662
     # where a configuration that has a trailing slash on the PREFECT_API_URL
     # would cause the client to fail to connect with a 403 as the path would
     # contain a double slash, ie: `wss:api.prefect.cloud/...//events/in`
 
-    events_api_url += "/"
-    async with PrefectCloudEventsClient(events_api_url, "my-token") as client:
+    events_cloud_api_url += "/"
+    async with PrefectEventsClient(events_cloud_api_url) as client:
         await client.emit(example_event_1)
 
     assert recorder.connections == 1
@@ -131,7 +144,7 @@ async def test_handles_api_url_with_trailing_slash(
 
 
 async def test_recovers_from_temporary_error_reconnecting(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -139,9 +152,9 @@ async def test_recovers_from_temporary_error_reconnecting(
     puppeteer: Puppeteer,
 ):
     """Regression test for an error where the client encountered assertion errors in
-    PrefectCloudEventsClient._emit because the websocket was None"""
-    client = PrefectCloudEventsClient(
-        events_api_url, "my-token", checkpoint_every=1, reconnection_attempts=3
+    PrefectEventsClient._emit because the websocket was None"""
+    client = PrefectEventsClient(
+        events_cloud_api_url, checkpoint_every=1, reconnection_attempts=3
     )
     async with client:
         assert recorder.connections == 1
@@ -179,7 +192,7 @@ async def test_recovers_from_temporary_error_reconnecting(
 
 
 async def test_recovers_from_long_lasting_error_reconnecting(
-    events_api_url: str,
+    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -187,9 +200,9 @@ async def test_recovers_from_long_lasting_error_reconnecting(
     puppeteer: Puppeteer,
 ):
     """Regression test for an error where the client encountered assertion errors in
-    PrefectCloudEventsClient._emit because the websocket was None"""
-    client = PrefectCloudEventsClient(
-        events_api_url, "my-token", checkpoint_every=1, reconnection_attempts=3
+    PrefectEventsClient._emit because the websocket was None"""
+    client = PrefectEventsClient(
+        events_cloud_api_url, checkpoint_every=1, reconnection_attempts=3
     )
     async with client:
         assert recorder.connections == 1
