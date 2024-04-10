@@ -24,7 +24,6 @@ from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging import get_logger
-from prefect.pydantic import BaseModel
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import LazySemaphore, run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
@@ -402,7 +401,7 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedule"):
         if isinstance(deployment["schedule"], IntervalSchedule):
             deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
-        elif isinstance(deployment["schedule"], BaseModel):
+        else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
             deployment["schedule"] = deployment["schedule"].dict()
 
         if "is_schedule_active" in deployment:
@@ -417,7 +416,7 @@ def _format_deployment_for_saving_to_prefect_file(
                 schedule_config = _interval_schedule_to_dict(
                     deployment_schedule.schedule
                 )
-            else:  # all valid schedule types are subclasses of BaseModel
+            else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
                 schedule_config = deployment_schedule.schedule.dict()
 
             schedule_config["active"] = deployment_schedule.active
