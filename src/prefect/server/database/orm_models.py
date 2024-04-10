@@ -1440,8 +1440,9 @@ class ORMAutomationBucket:
     def __table_args__(cls):
         return (
             sa.Index(
-                "uq_automation_bucket__automation_id__bucketing_key",
+                "uq_automation_bucket__automation_id__trigger_id__bucketing_key",
                 "automation_id",
+                "trigger_id",
                 "bucketing_key",
                 unique=True,
             ),
@@ -1458,7 +1459,7 @@ class ORMAutomationBucket:
             UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
         )
 
-    trigger_id = sa.Column(UUID, nullable=True)
+    trigger_id = sa.Column(UUID, nullable=False)
 
     bucketing_key = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
@@ -1471,7 +1472,7 @@ class ORMAutomationBucket:
 
     last_operation = sa.Column(sa.String, nullable=True)
 
-    triggered_at = sa.Column(Timestamp(), nullable=False)
+    triggered_at = sa.Column(Timestamp(), nullable=True)
 
 
 @declarative_mixin
@@ -1531,6 +1532,14 @@ class ORMCompositeTriggerChildFiring:
     child_firing_id = sa.Column(UUID(), nullable=False)
     child_fired_at = sa.Column(Timestamp())
     child_firing = sa.Column(Pydantic(Firing), nullable=False)
+
+
+@declarative_mixin
+class ORMAutomationEventFollower:
+    leader_event_id = sa.Column(UUID(), nullable=False, index=True)
+    follower_event_id = sa.Column(UUID(), nullable=False, unique=True)
+    received = sa.Column(Timestamp(), nullable=False, index=True)
+    follower = sa.Column(Pydantic(ReceivedEvent), nullable=False)
 
 
 class BaseORMConfiguration(ABC):
@@ -1599,6 +1608,7 @@ class BaseORMConfiguration(ABC):
         automation_bucket_mixin=ORMAutomationBucket,
         automation_related_resource_mixin=ORMAutomationRelatedResource,
         composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
+        event_follower_mixin=ORMAutomationEventFollower,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1659,6 +1669,7 @@ class BaseORMConfiguration(ABC):
             automation_bucket_mixin=automation_bucket_mixin,
             automation_related_resource_mixin=automation_related_resource_mixin,
             composite_trigger_child_firing_mixin=composite_trigger_child_firing_mixin,
+            event_follower_mixin=event_follower_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1715,6 +1726,7 @@ class BaseORMConfiguration(ABC):
         automation_bucket_mixin=ORMAutomationBucket,
         automation_related_resource_mixin=ORMAutomationRelatedResource,
         composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
+        event_follower_mixin=ORMAutomationEventFollower,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1822,6 +1834,9 @@ class BaseORMConfiguration(ABC):
         ):
             pass
 
+        class AutomationEventFollower(event_follower_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1855,6 +1870,7 @@ class BaseORMConfiguration(ABC):
         self.AutomationBucket = AutomationBucket
         self.AutomationRelatedResource = AutomationRelatedResource
         self.CompositeTriggerChildFiring = CompositeTriggerChildFiring
+        self.AutomationEventFollower = AutomationEventFollower
 
     @property
     @abstractmethod

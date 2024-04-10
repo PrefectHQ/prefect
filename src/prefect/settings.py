@@ -1671,6 +1671,15 @@ PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
 Whether or not to start the event debug logger service in the server application.
 """
 
+PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the triggers service in the server application.
+"""
+
+PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
+"""The amount of time to retain expired automation buckets"""
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 

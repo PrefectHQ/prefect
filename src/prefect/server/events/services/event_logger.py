@@ -19,7 +19,6 @@ class EventLogger:
     consumer_task: Optional[asyncio.Task] = None
 
     async def start(self):
-        logger.debug("Event logger started")
         assert self.consumer_task is None, "Logger already started"
         self.consumer = create_consumer("events")
 
@@ -40,13 +39,14 @@ class EventLogger:
             console.file.flush()
 
         self.consumer_task = asyncio.create_task(self.consumer.run(handler))
+        logger.debug("Event logger started")
+
         try:
             await self.consumer_task
         except asyncio.CancelledError:
             pass
 
     async def stop(self):
-        logger.debug("Event logger stopped")
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
         try:
@@ -55,3 +55,4 @@ class EventLogger:
             pass
         finally:
             self.consumer_task = None
+        logger.debug("Event logger stopped")

@@ -61,3 +61,7 @@ class EventPublisher(Publisher):
 def create_event_publisher() -> EventPublisher:
     publisher = create_publisher(topic="events", deduplicate_by="id")
     return EventPublisher(publisher=publisher)
+
+
+def create_actions_publisher() -> Publisher:
+    return create_publisher(topic="actions", deduplicate_by=None)
