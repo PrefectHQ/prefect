@@ -103,7 +103,7 @@ async def run_deployment(
 
     Args:
         name: The deployment id or deployment name in the form:
-            `<slugified-flow-name>/<slugified-deployment-name>`
+            `"flow name/deployment name"`
         parameters: Parameter overrides for this flow run. Merged with the deployment
             defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
