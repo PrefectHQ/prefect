@@ -17,6 +17,7 @@ from .utilities.model_copy import ModelCopyMixin, model_copy
 from .utilities.model_dump import ModelDumpMixin, model_dump
 from .utilities.model_dump_json import ModelDumpJsonMixin, model_dump_json
 from .utilities.model_fields import ModelFieldMixin
+from .utilities.model_fields_set import ModelFieldsSetMixin, model_fields_set
 from .utilities.model_json_schema import ModelJsonSchemaMixin, model_json_schema
 from .utilities.model_validate import ModelValidateMixin, model_validate
 from .utilities.model_validate_json import ModelValidateJsonMixin, model_validate_json
@@ -46,6 +47,7 @@ else:
         ModelValidateJsonMixin,
         ModelFieldMixin,
         ConfigMixin,
+        ModelFieldsSetMixin,
         PydanticBaseModel,
     ):
         pass
@@ -59,6 +61,7 @@ __all__ = [
     "model_json_schema",
     "model_validate",
     "model_validate_json",
+    "model_fields_set",
     "TypeAdapter",
     "validate_python",
     "BaseModel",
