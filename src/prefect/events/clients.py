@@ -17,6 +17,7 @@ from uuid import UUID
 import orjson
 import pendulum
 from cachetools import TTLCache
+from typing_extensions import Self
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
     ConnectionClosed,
@@ -144,21 +145,19 @@ class PrefectEventsClient(EventsClient):
                 "api_url must be provided or set in the Prefect configuration"
             )
 
-        socket_url = (
+        self._events_socket_url = (
             api_url.replace("https://", "wss://")
             .replace("http://", "ws://")
             .rstrip("/")
+            + "/events/in"
         )
-
-        self._connect = connect(
-            socket_url + "/events/in",
-        )
+        self._connect = connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
 
-    async def __aenter__(self) -> "PrefectEventsClient":
+    async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
         await super().__aenter__()
@@ -242,9 +241,6 @@ class PrefectEventsClient(EventsClient):
 class PrefectCloudEventsClient(PrefectEventsClient):
     """A Prefect Events client that streams events to a Prefect Cloud Workspace"""
 
-    _websocket: Optional[WebSocketClientProtocol]
-    _unconfirmed_events: List[Event]
-
     def __init__(
         self,
         api_url: str = None,
@@ -262,21 +258,16 @@ class PrefectCloudEventsClient(PrefectEventsClient):
                 confirm receipt of all previously sent events
         """
         api_url, api_key = _get_api_url_and_key(api_url, api_key)
-
-        socket_url = (
-            api_url.replace("https://", "wss://")
-            .replace("http://", "ws://")
-            .rstrip("/")
+        super().__init__(
+            api_url=api_url,
+            reconnection_attempts=reconnection_attempts,
+            checkpoint_every=checkpoint_every,
         )
 
         self._connect = connect(
-            socket_url + "/events/in",
+            self._events_socket_url,
             extra_headers={"Authorization": f"bearer {api_key}"},
         )
-        self._websocket = None
-        self._reconnection_attempts = reconnection_attempts
-        self._unconfirmed_events = []
-        self._checkpoint_every = checkpoint_every
 
 
 SEEN_EVENTS_SIZE = 500_000
