@@ -1,3 +1,6 @@
+"""
+This file introduces a conditional import of `BaseModel` from Pydantic, depending on the Pydantic version available. If Pydantic V2 is not used, it falls back to importing `BaseModel` from Pydantic V1. This is to ensure compatibility with different versions of Pydantic.
+"""
 import typing
 
 from prefect._internal.pydantic._flags import (
