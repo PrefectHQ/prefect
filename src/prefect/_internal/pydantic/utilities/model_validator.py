@@ -1,9 +1,12 @@
 import functools
-from typing import Any, Callable, Literal, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, TypeVar
 
 from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
 
 T = TypeVar("T", bound=Callable[..., Any])
+
+if TYPE_CHECKING:
+    from prefect._internal.pydantic._compat import BaseModel
 
 
 def model_validator(
@@ -47,7 +50,7 @@ def model_validator(
 
     def decorator(validate_func: T) -> T:
         if USE_V2_MODELS:
-            from prefect.pydantic import model_validator
+            from pydantic import model_validator
 
             return model_validator(
                 mode=mode,
@@ -56,10 +59,8 @@ def model_validator(
         elif HAS_PYDANTIC_V2:
             from pydantic.v1 import root_validator
 
-            from prefect.pydantic import BaseModel
-
         else:
-            from pydantic import BaseModel, root_validator
+            from pydantic import root_validator
 
         @functools.wraps(validate_func)
         def wrapper(
