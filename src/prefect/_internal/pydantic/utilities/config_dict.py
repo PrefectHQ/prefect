@@ -28,6 +28,7 @@ else:
         "orm_mode": "from_attributes",
         "schema_extra": "json_schema_extra",
         "validate_all": "validate_default",
+        "copy_on_model_validation": "revalidate_instances",
     }
 
     CONFIG_V2_V1_KEYS: typing.Dict[str, str] = {
@@ -40,7 +41,16 @@ else:
         deprecated_renamed_keys = CONFIG_V2_V1_KEYS.keys() & config_dict.keys()
         output: typing.Dict[str, typing.Any] = {}
         for k in sorted(deprecated_renamed_keys):
-            output[CONFIG_V2_V1_KEYS[k]] = config_dict.get(k)
+            if CONFIG_V2_V1_KEYS[k] == "copy_on_model_validation":
+                value = config_dict.get(k)
+                if value == "never":
+                    output[CONFIG_V2_V1_KEYS[k]] = "none"
+                if value == "always":
+                    output[CONFIG_V2_V1_KEYS[k]] = "deep"
+                if value == "subclass-instances":
+                    output[CONFIG_V2_V1_KEYS[k]] = "deep"
+            else:
+                output[CONFIG_V2_V1_KEYS[k]] = config_dict.get(k)
         return type("Config", (), output)
 
     class ConfigMeta(PydanticModelMetaclass):  # type: ignore
