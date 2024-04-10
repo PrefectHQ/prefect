@@ -1,9 +1,15 @@
 import pytest
-from pydantic.v1 import ValidationError
 
-from prefect._internal.pydantic._flags import USE_V2_MODELS
+from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
 from prefect._internal.pydantic.utilities.model_validator import model_validator
-from prefect.pydantic import BaseModel
+
+if not HAS_PYDANTIC_V2:  # v1v1
+    from pydantic import BaseModel, ValidationError
+elif HAS_PYDANTIC_V2 and not USE_V2_MODELS:  # v2v1
+    from prefect.pydantic import BaseModel, ValidationError
+else:
+    # v2v2
+    from pydantic import BaseModel, ValidationError
 
 
 @pytest.mark.skipif(
