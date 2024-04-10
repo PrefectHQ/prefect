@@ -38,36 +38,8 @@ class TestDeploymentResponseDeprecatedFields:
             **deployment_kwargs, **job_variable_kwarg
         )
         assert deployment_response.job_variables == {"foo": "bar"}
-        assert deployment_response.job_variables == {"foo": "bar"}
+        assert deployment_response.infra_overrides == {"foo": "bar"}
 
         json = deployment_response.dict()
-        assert json["job_variables"] == {"foo": "bar"}
         assert json["infra_overrides"] == {"foo": "bar"}
-
-    def test_infra_overrides_sets_job_variables(self, deployment_kwargs):
-        deployment_response = DeploymentResponse(
-            **deployment_kwargs,
-            job_variables={"foo": "bar"},
-        )
-        assert deployment_response.job_variables == {"foo": "bar"}
-
-        deployment_response.job_variables = {"set_by": "infra_overrides"}
-        assert deployment_response.job_variables == {"set_by": "infra_overrides"}
-
-        json_dict = deployment_response.dict()
-        assert json_dict["job_variables"] == {"set_by": "infra_overrides"}
-        assert json_dict["infra_overrides"] == {"set_by": "infra_overrides"}
-
-    def test_job_variables_sets_infra_overrides(self, deployment_kwargs):
-        deployment_response = DeploymentResponse(
-            **deployment_kwargs,
-            job_variables={"foo": "bar"},
-        )
-        assert deployment_response.job_variables == {"foo": "bar"}
-
-        deployment_response.job_variables = {"set_by": "job_variables"}
-        assert deployment_response.job_variables == {"set_by": "job_variables"}
-
-        json_dict = deployment_response.dict()
-        assert json_dict["job_variables"] == {"set_by": "job_variables"}
-        assert json_dict["infra_overrides"] == {"set_by": "job_variables"}
+        assert "job_variables" not in json

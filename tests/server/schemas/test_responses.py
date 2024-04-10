@@ -41,5 +41,5 @@ class TestDeploymentResponseDeprecatedFields:
         assert deployment_response.infra_overrides == {"foo": "bar"}
 
         json = deployment_response.dict()
-        assert json["job_variables"] == {"foo": "bar"}
         assert json["infra_overrides"] == {"foo": "bar"}
+        assert "job_variables" not in json
