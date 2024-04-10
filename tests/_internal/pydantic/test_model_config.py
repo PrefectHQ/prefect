@@ -30,6 +30,31 @@ def test_anystr_strip_whitespace():
     assert User(name="  John  ").name == "John"
 
 
+def test_copy_on_model_validation_none():
+    class Child(BaseModel):
+        model_config = ConfigDict(revalidate_instances="never")
+
+    class Parent(BaseModel):
+        child: Child
+
+    child = Child()
+    parent = Parent(child=child)
+    assert parent.child is child
+
+
+def test_copy_on_model_validation_always():
+    class Child(BaseModel):
+        model_config = ConfigDict(revalidate_instances="always")
+
+    class Parent(BaseModel):
+        child: Child
+
+    child = Child()
+    parent = Parent(child=child)
+    with pytest.raises(AssertionError):
+        assert parent.child is child
+
+
 def test_anystr_upper():
     class User(BaseModel):
         name: str
