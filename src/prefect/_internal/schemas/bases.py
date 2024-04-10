@@ -4,7 +4,6 @@ Utilities for creating and working with Prefect REST API schemas.
 
 import datetime
 import json
-import os
 from functools import partial
 from typing import Any, Dict, Generator, Optional, Set, TypeVar
 from uuid import UUID, uuid4
@@ -43,14 +42,7 @@ class PrefectBaseModel(BaseModel):
     """
 
     class Config:
-        # extra attributes are forbidden in order to raise meaningful errors for
-        # bad API payloads
-        # We cannot load this setting through the normal pattern due to circular
-        # imports; instead just check if its a truthy setting directly
-        if os.getenv("PREFECT_TEST_MODE", "0").lower() in ["1", "true"]:
-            extra = "forbid"
-        else:
-            extra = "ignore"
+        extra = "ignore"
 
         json_encoders = {
             # Uses secret fields and strange logic to avoid a circular import error
