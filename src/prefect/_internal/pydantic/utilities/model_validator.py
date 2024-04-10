@@ -47,7 +47,7 @@ def model_validator(
 
     def decorator(validate_func: T) -> T:
         if USE_V2_MODELS:
-            from pydantic import model_validator
+            from prefect.pydantic import model_validator
 
             return model_validator(
                 mode=mode,

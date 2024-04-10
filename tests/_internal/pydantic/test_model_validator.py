@@ -1,15 +1,19 @@
+import json
+from typing import Any, List
+
 import pytest
 
-from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
+from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.model_validator import model_validator
+from prefect.pydantic import BaseModel, ValidationError
 
-if not HAS_PYDANTIC_V2:  # v1v1
-    from pydantic import BaseModel, ValidationError
-elif HAS_PYDANTIC_V2 and not USE_V2_MODELS:  # v2v1
-    from prefect.pydantic import BaseModel, ValidationError
-else:
-    # v2v2
-    from pydantic import BaseModel, ValidationError
+if USE_V2_MODELS:
+    from pydantic import (
+        ValidationInfo,
+        ValidatorFunctionWrapHandler,
+    )
+    from pydantic.functional_validators import WrapValidator
+from typing_extensions import Annotated
 
 
 @pytest.mark.skipif(
@@ -208,9 +212,6 @@ class TestModelValidatorV2:
         Example from:
         https://docs.pydantic.dev/latest/concepts/validators/#model-validators
         """
-        from typing import Any
-
-        from pydantic import BaseModel, ValidationError
 
         class UserModel(BaseModel):
             username: str
@@ -254,17 +255,6 @@ class TestModelValidatorV2:
         Example from:
         https://docs.pydantic.dev/latest/concepts/validators/#before-after-wrap-and-plain-validators
         """
-        import json
-        from typing import Any, List
-
-        from pydantic import (
-            BaseModel,
-            ValidationError,
-            ValidationInfo,
-            ValidatorFunctionWrapHandler,
-        )
-        from pydantic.functional_validators import WrapValidator
-        from typing_extensions import Annotated
 
         def maybe_strip_whitespace(
             v: Any, handler: ValidatorFunctionWrapHandler, info: ValidationInfo
