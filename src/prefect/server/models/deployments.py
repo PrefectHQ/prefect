@@ -619,6 +619,7 @@ async def _generate_scheduled_flow_runs(
                     "id": uuid4(),
                     "flow_id": deployment.flow_id,
                     "deployment_id": deployment_id,
+                    "deployment_version": deployment.version,
                     "work_queue_name": deployment.work_queue_name,
                     "work_queue_id": deployment.work_queue_id,
                     "parameters": deployment.parameters,

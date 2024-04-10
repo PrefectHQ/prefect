@@ -1,6 +1,15 @@
 import typing
 
-from prefect._internal.pydantic._compat import BaseModel, Field, FieldInfo, PrivateAttr
+from prefect._internal.pydantic._compat import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    FieldInfo,
+    PrivateAttr,
+    SecretStr,
+    ValidationError,
+    field_validator,
+)
 
 
 class PrefectBaseModel(BaseModel):
@@ -12,4 +21,14 @@ class PrefectBaseModel(BaseModel):
         return set()
 
 
-__all__ = ["BaseModel", "PrefectBaseModel", "Field", "FieldInfo", "PrivateAttr"]
+__all__ = [
+    "BaseModel",
+    "PrefectBaseModel",
+    "Field",
+    "FieldInfo",
+    "PrivateAttr",
+    "SecretStr",
+    "field_validator",
+    "ConfigDict",
+    "ValidationError",
+]

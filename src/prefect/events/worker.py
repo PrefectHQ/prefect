@@ -4,23 +4,39 @@ from typing import Any, Optional, Tuple, Type
 
 from typing_extensions import Self
 
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect._internal.concurrency.services import QueueService
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_EVENTS,
+)
 from prefect.utilities.context import temporary_context
 
-from .clients import EventsClient, NullEventsClient, PrefectCloudEventsClient
+from .clients import (
+    EventsClient,
+    NullEventsClient,
+    PrefectCloudEventsClient,
+    PrefectEventsClient,
+)
 from .related import related_resources_from_run_context
 from .schemas.events import Event
 
 
+def should_emit_events() -> bool:
+    return emit_events_to_cloud() or should_emit_events_to_running_server()
+
+
 def emit_events_to_cloud() -> bool:
-    api = PREFECT_API_URL.value()
-    return (
-        experiment_enabled("events_client")
-        and api
-        and api.startswith(PREFECT_CLOUD_API_URL.value())
+    api_url = PREFECT_API_URL.value()
+    return isinstance(api_url, str) and api_url.startswith(
+        PREFECT_CLOUD_API_URL.value()
     )
+
+
+def should_emit_events_to_running_server() -> bool:
+    api_url = PREFECT_API_URL.value()
+    return isinstance(api_url, str) and PREFECT_EXPERIMENTAL_EVENTS
 
 
 class EventsWorker(QueueService[Event]):
@@ -67,6 +83,8 @@ class EventsWorker(QueueService[Event]):
                     "api_url": PREFECT_API_URL.value(),
                     "api_key": PREFECT_API_KEY.value(),
                 }
+            elif should_emit_events_to_running_server():
+                client_type = PrefectEventsClient
 
             else:
                 client_type = NullEventsClient

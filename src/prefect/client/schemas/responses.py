@@ -172,6 +172,11 @@ class FlowRunResponse(ObjectBaseModel):
             "The id of the deployment associated with this flow run, if available."
         ),
     )
+    deployment_version: Optional[str] = Field(
+        default=None,
+        description="The version of the deployment associated with this flow run.",
+        example="1.0",
+    )
     work_queue_name: Optional[str] = Field(
         default=None, description="The work queue that handled this flow run."
     )

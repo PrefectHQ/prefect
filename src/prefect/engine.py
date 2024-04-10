@@ -163,7 +163,6 @@ from prefect.logging.loggers import (
 from prefect.results import ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -617,13 +616,21 @@ async def create_and_begin_subflow_run(
     if wait_for:
         task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
-    rerunning = parent_flow_run_context.flow_run.run_count > 1
+    rerunning = (
+        parent_flow_run_context.flow_run.run_count > 1
+        if getattr(parent_flow_run_context, "flow_run", None)
+        else False
+    )
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
     parent_task_run = await client.create_task_run(
         task=dummy_task,
-        flow_run_id=parent_flow_run_context.flow_run.id,
+        flow_run_id=(
+            parent_flow_run_context.flow_run.id
+            if getattr(parent_flow_run_context, "flow_run", None)
+            else None
+        ),
         dynamic_key=_dynamic_key_for_task_run(parent_flow_run_context, dummy_task),
         task_inputs=task_inputs,
         state=Pending(),
@@ -851,7 +858,7 @@ async def orchestrate_flow_run(
                 if parent_call and (
                     not parent_flow_run_context
                     or (
-                        parent_flow_run_context
+                        getattr(parent_flow_run_context, "flow", None)
                         and parent_flow_run_context.flow.isasync == flow.isasync
                     )
                 ):
@@ -1372,17 +1379,11 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
 
     if not flow_run_context:
-        if (
-            not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
-            or return_type == "future"
-            or mapped
-        ):
+        if return_type == "future" or mapped:
             raise RuntimeError(
-                "Tasks cannot be run outside of a flow by default."
-                " If you meant to submit an autonomous task, you need to set"
+                " If you meant to submit a background task, you need to set"
                 " `prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=true`"
                 " and use `your_task.submit()` instead of `your_task()`."
-                " Mapping autonomous tasks is not yet supported."
             )
         from prefect.task_engine import submit_autonomous_task_run_to_engine
 

@@ -107,6 +107,8 @@ DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
 }
 
 
@@ -1365,16 +1367,6 @@ Whether or not to enable artifacts on the flow run graph.
 PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
 """
 Whether or not to enable flow run states on the flow run graph.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect work pools.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect work pools are used.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)

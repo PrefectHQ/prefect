@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@prefecthq/prefect-design": "2.7.1",
-    "@prefecthq/prefect-ui-library": "2.7.9",
+    "@prefecthq/prefect-ui-library": "2.8.1",
     "@prefecthq/vue-charts": "2.0.3",
-    "@prefecthq/vue-compositions": "1.11.2",
+    "@prefecthq/vue-compositions": "1.11.4",
     "@types/lodash.debounce": "4.0.9",
     "axios": "1.6.7",
     "lodash.debounce": "4.0.8",
@@ -29,8 +29,8 @@
     "autoprefixer": "10.4.19",
     "eslint": "^8.57.0",
     "ts-node": "10.9.2",
-    "typescript": "^5.4.3",
-    "vite": "5.2.7",
-    "vue-tsc": "^2.0.7"
+    "typescript": "^5.4.4",
+    "vite": "5.2.8",
+    "vue-tsc": "^2.0.11"
   }
 }

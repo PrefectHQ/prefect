@@ -1,6 +1,16 @@
+import typing
+
 from ._base_model import BaseModel as PydanticBaseModel
-from ._base_model import Field, FieldInfo, PrivateAttr
+from ._base_model import (
+    ConfigDict,
+    Field,
+    FieldInfo,
+    PrivateAttr,
+    SecretStr,
+    ValidationError,
+)
 from ._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
+from .utilities.config_dict import ConfigMixin
 from .utilities.field_validator import field_validator
 from .utilities.model_construct import ModelConstructMixin, model_construct
 from .utilities.model_copy import ModelCopyMixin, model_copy
@@ -13,7 +23,12 @@ from .utilities.model_validate_json import ModelValidateJsonMixin, model_validat
 from .utilities.model_validator import model_validator
 from .utilities.type_adapter import TypeAdapter, validate_python
 
-if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
+if typing.TYPE_CHECKING:
+
+    class BaseModel(PydanticBaseModel):  # type: ignore
+        pass
+
+elif HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
     # In this case, there's no functionality to add, so we just alias the Pydantic v2 BaseModel
     class BaseModel(PydanticBaseModel):  # type: ignore
         pass
@@ -31,6 +46,7 @@ else:
         ModelValidateMixin,
         ModelValidateJsonMixin,
         ModelFieldMixin,
+        ConfigMixin,
         PydanticBaseModel,
     ):
         pass
@@ -52,4 +68,7 @@ __all__ = [
     "field_validator",
     "model_validator",
     "PrivateAttr",
+    "SecretStr",
+    "ConfigDict",
+    "ValidationError",
 ]
