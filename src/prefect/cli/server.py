@@ -244,8 +244,6 @@ async def downgrade(
 
     engine = await db.engine()
 
-    db.dialect
-
     if not yes:
         confirm = typer.confirm(
             "Are you sure you want to downgrade the Prefect "
