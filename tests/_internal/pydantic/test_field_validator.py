@@ -4,9 +4,9 @@ import pytest
 from typing_extensions import Annotated
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._compat import BaseModel, Field, ValidationError
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.field_validator import field_validator
-from prefect.pydantic import BaseModel, Field, ValidationError
 
 if not HAS_PYDANTIC_V2:
     # v1v1
