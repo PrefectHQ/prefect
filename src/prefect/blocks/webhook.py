@@ -36,7 +36,7 @@ class Webhook(Block):
         default=...,
         title="Webhook URL",
         description="The webhook URL.",
-        example="https://hooks.slack.com/XXX",
+        examples=["https://hooks.slack.com/XXX"],
     )
 
     headers: SecretDict = Field(

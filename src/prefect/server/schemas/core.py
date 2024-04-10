@@ -65,12 +65,12 @@ class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
 
     name: str = Field(
-        default=..., description="The name of the flow", example="my-flow"
+        default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     @validator("name", check_fields=False)
@@ -147,7 +147,7 @@ class FlowRun(ORMBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     state_id: Optional[UUID] = Field(
@@ -162,7 +162,7 @@ class FlowRun(ORMBaseModel):
     deployment_version: Optional[str] = Field(
         default=None,
         description="The version of the deployment associated with this flow run.",
-        example="1.0",
+        examples=["1.0"],
     )
     work_queue_name: Optional[str] = Field(
         default=None, description="The work queue that handled this flow run."
@@ -170,7 +170,7 @@ class FlowRun(ORMBaseModel):
     flow_version: Optional[str] = Field(
         default=None,
         description="The version of the flow executed in this flow run.",
-        example="1.0",
+        examples=["1.0"],
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
@@ -185,7 +185,7 @@ class FlowRun(ORMBaseModel):
     context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
-        example={"my_var": "my_val"},
+        examples=[{"my_var": "my_value"}],
     )
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
@@ -193,7 +193,7 @@ class FlowRun(ORMBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
@@ -371,7 +371,9 @@ class Constant(TaskRunInput):
 class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: generate_slug(2), examples=["my-task-run"]
+    )
     flow_run_id: Optional[UUID] = Field(
         default=None, description="The flow run id of the task run."
     )
@@ -405,7 +407,7 @@ class TaskRun(ORMBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
@@ -534,7 +536,7 @@ class Deployment(ORMBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     work_queue_name: Optional[str] = Field(
         default=None,
@@ -1010,10 +1012,10 @@ class FlowRunNotificationPolicy(ORMBaseModel):
             " Valid variables include:"
             f" {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
         ),
-        example=(
+        examples=[
             "Flow run {flow_run_name} with id {flow_run_id} entered state"
             " {flow_run_state_name}."
-        ),
+        ],
     )
 
     @validator("message_template")
@@ -1196,19 +1198,19 @@ class Variable(ORMBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my-variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
     value: str = Field(
         default=...,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of variable tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
 
