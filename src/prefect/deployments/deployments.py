@@ -17,6 +17,7 @@ import pendulum
 import yaml
 
 from prefect._internal.compatibility.deprecated import (
+    DeprecatedInfraOverridesField,
     deprecated_callable,
     deprecated_class,
     deprecated_parameter,
@@ -347,7 +348,7 @@ def load_deployments_from_yaml(
     " Refer to the upgrade guide for more information:"
     " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
 )
-class Deployment(BaseModel):
+class Deployment(DeprecatedInfraOverridesField, BaseModel):
     """
     DEPRECATION WARNING:
 
@@ -376,7 +377,7 @@ class Deployment(BaseModel):
         infrastructure: An optional infrastructure block used to configure
             infrastructure for runs; if not provided, will default to running this
             deployment in Agent subprocesses
-        infra_overrides: A dictionary of dot delimited infrastructure overrides that
+        job_variables: A dictionary of dot delimited infrastructure overrides that
             will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
             `namespace='prefect'`
         storage: An optional remote storage block used to store and retrieve this
@@ -418,7 +419,7 @@ class Deployment(BaseModel):
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
-        ...     infra_overrides=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
+        ...     job_variables=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
         >>> )
         >>> deployment.apply()
 
@@ -442,6 +443,11 @@ class Deployment(BaseModel):
             "schedule",
             "schedules",
             "is_schedule_active",
+            # The `infra_overrides` field has been renamed to `job_variables`.
+            # We will continue writing it in the YAML file as `infra_overrides`
+            # instead of `job_variables` for better backwards compat, but we'll
+            # accept either `job_variables` or `infra_overrides` when we read
+            # the file.
             "infra_overrides",
         ]
 
@@ -491,10 +497,16 @@ class Deployment(BaseModel):
                 # write the field
                 yaml.dump({field: yaml_dict[field]}, f, sort_keys=False)
 
-            # write non-editable fields
+            # write non-editable fields, excluding `job_variables` because we'll
+            # continue writing it as `infra_overrides` for better backwards compat
+            # with the existing file format.
             f.write("\n###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
             yaml.dump(
-                {k: v for k, v in yaml_dict.items() if k not in self._editable_fields},
+                {
+                    k: v
+                    for k, v in yaml_dict.items()
+                    if k not in self._editable_fields and k != "job_variables"
+                },
                 f,
                 sort_keys=False,
             )
@@ -571,7 +583,7 @@ class Deployment(BaseModel):
         ),
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
@@ -882,7 +894,7 @@ class Deployment(BaseModel):
                 manifest_path=self.manifest_path,  # allows for backwards YAML compat
                 path=self.path,
                 entrypoint=self.entrypoint,
-                job_variables=self.infra_overrides,
+                job_variables=self.job_variables,
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),

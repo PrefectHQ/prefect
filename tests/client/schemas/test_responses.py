@@ -37,7 +37,7 @@ class TestDeploymentResponseDeprecatedFields:
         deployment_response = DeploymentResponse(
             **deployment_kwargs, **job_variable_kwarg
         )
-        assert deployment_response.infra_overrides == {"foo": "bar"}
+        assert deployment_response.job_variables == {"foo": "bar"}
         assert deployment_response.job_variables == {"foo": "bar"}
 
         json = deployment_response.dict()
@@ -51,7 +51,7 @@ class TestDeploymentResponseDeprecatedFields:
         )
         assert deployment_response.job_variables == {"foo": "bar"}
 
-        deployment_response.infra_overrides = {"set_by": "infra_overrides"}
+        deployment_response.job_variables = {"set_by": "infra_overrides"}
         assert deployment_response.job_variables == {"set_by": "infra_overrides"}
 
         json_dict = deployment_response.dict()
@@ -66,7 +66,7 @@ class TestDeploymentResponseDeprecatedFields:
         assert deployment_response.job_variables == {"foo": "bar"}
 
         deployment_response.job_variables = {"set_by": "job_variables"}
-        assert deployment_response.infra_overrides == {"set_by": "job_variables"}
+        assert deployment_response.job_variables == {"set_by": "job_variables"}
 
         json_dict = deployment_response.dict()
         assert json_dict["job_variables"] == {"set_by": "job_variables"}

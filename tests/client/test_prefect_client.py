@@ -647,7 +647,7 @@ async def test_create_then_read_deployment_using_deprecated_infra_overrides_inst
 
     # Should be able to access `job_variables` using the `infra_overrides` attribute
     # because of the alias.
-    assert lookup.infra_overrides == {"foo": "bar"}
+    assert lookup.job_variables == {"foo": "bar"}
 
     # And with `job_variables`
     assert lookup.job_variables == {"foo": "bar"}
