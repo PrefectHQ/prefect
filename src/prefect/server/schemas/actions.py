@@ -67,7 +67,7 @@ def validate_variable_name(value):
 
 class ActionBaseModel(PrefectBaseModel):
     class Config:
-        extra = "forbid"
+        extra = "ignore"
 
     def __iter__(self):
         # By default, `pydantic.BaseModel.__iter__` yields from `self.__dict__` directly
