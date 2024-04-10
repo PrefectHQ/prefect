@@ -1,7 +1,7 @@
 """Add `events` and `event_resources` tables
 
 Revision ID: 824e9edafa60
-Revises: 8644a9595a08
+Revises: 2b6c2b548f95
 Create Date: 2024-04-10 10:43:04.801473
 
 """
@@ -13,7 +13,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "824e9edafa60"
-down_revision = "8644a9595a08"
+down_revision = "2b6c2b548f95"
 branch_labels = None
 depends_on = None
 

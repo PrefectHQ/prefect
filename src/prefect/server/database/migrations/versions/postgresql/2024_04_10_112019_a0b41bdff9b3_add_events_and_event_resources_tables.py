@@ -1,7 +1,7 @@
 """Add events and event_resources tables
 
 Revision ID: a0b41bdff9b3
-Revises: bd6efa529f03
+Revises: 954db7517015
 Create Date: 2024-04-10 11:20:19.726770
 
 """
@@ -13,7 +13,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "a0b41bdff9b3"
-down_revision = "bd6efa529f03"
+down_revision = "954db7517015"
 branch_labels = None
 depends_on = None
 

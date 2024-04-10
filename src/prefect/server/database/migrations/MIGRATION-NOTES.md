@@ -12,6 +12,10 @@ This gives us a history of changes and will create merge conflicts if two migrat
 SQLite: `824e9edafa60`
 Postgres: `a0b41bdff9b3`
 
+# Trigger in index
+SQLite: `2b6c2b548f95`
+Postgres: `954db7517015`
+
 # Create `csrf_token` table
 SQLite: `bacc60edce16`
 Postgres: `7a653837d9ba`
