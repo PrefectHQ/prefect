@@ -1,6 +1,7 @@
 """
 Command line interface for interacting with Prefect Cloud
 """
+
 import signal
 import traceback
 import uuid
@@ -17,12 +18,7 @@ import uvicorn
 from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
+from prefect.pydantic import BaseModel
 
 from rich.live import Live
 from rich.table import Table
