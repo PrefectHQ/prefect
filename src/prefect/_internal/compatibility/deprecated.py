@@ -279,6 +279,17 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
 
 
 class DeprecatedInfraOverridesField(BaseModel):
+    """
+    A model mixin that handles the deprecated `infra_overrides` field.
+
+    The `infra_overrides` field has been renamed to `job_variables`. This mixin maintains
+    backwards compatibility with users of the `infra_overrides` field while presenting
+    `job_variables` as the user-facing field.
+
+    When we remove support for `infra_overrides`, we can remove this class as a parent of
+    all schemas that use it, leaving them with only the `job_variables` field.
+    """
+
     infra_overrides: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="Deprecated field. Use `job_variables` instead.",
@@ -288,6 +299,10 @@ class DeprecatedInfraOverridesField(BaseModel):
     def _job_variables_from_infra_overrides(
         cls, values: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """
+        Validate that only one of `infra_overrides` or `job_variables` is used
+        and keep them in sync during init.
+        """
         job_variables = values.get("job_variables")
         infra_overrides = values.get("infra_overrides")
 
@@ -318,8 +333,8 @@ class DeprecatedInfraOverridesField(BaseModel):
 
     def dict(self, **kwargs) -> Dict[str, Any]:
         """
-        Override the default dict method to ensure that both `infra_overrides` and
-        `job_variables` are serialized.
+        Override the default dict method to ensure only `infra_overrides` is serialized.
+        This preserves backwards compatibility for newer clients talking to older servers.
         """
         exclude: Union[set, Dict[str, Any]] = kwargs.pop("exclude", set())
         exclude_type = type(exclude)
