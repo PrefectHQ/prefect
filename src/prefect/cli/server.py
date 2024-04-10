@@ -1,6 +1,7 @@
 """
 Command line interface for working with Prefect
 """
+
 import os
 import textwrap
 from functools import partial
@@ -242,6 +243,8 @@ async def downgrade(
     db = provide_database_interface()
 
     engine = await db.engine()
+
+    db.dialect
 
     if not yes:
         confirm = typer.confirm(
