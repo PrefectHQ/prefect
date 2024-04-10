@@ -54,10 +54,11 @@ def model_validator(
             )(validate_func)  # type: ignore
 
         elif HAS_PYDANTIC_V2:
-            from pydantic.v1 import BaseModel, root_validator
+            from pydantic.v1 import root_validator
+
+            from prefect.pydantic import BaseModel
 
         else:
-            # use the v1 root_validator imported regular not from .v1
             from pydantic import BaseModel, root_validator
 
         @functools.wraps(validate_func)
@@ -67,7 +68,10 @@ def model_validator(
         ) -> Any:
             return validate_func(cls, v)
 
-        return root_validator(pre=pre, skip_on_failure=skip_on_failure)(wrapper)  # type: ignore
+        return root_validator(
+            pre=pre,
+            skip_on_failure=skip_on_failure,
+        )(wrapper)  # type: ignore
 
     if _func is None:
         return decorator

@@ -1,13 +1,13 @@
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic.v1 import ValidationError
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.model_validator import model_validator
+from prefect.pydantic import BaseModel
 
 
 @pytest.mark.skipif(
-    HAS_PYDANTIC_V2,
+    USE_V2_MODELS,
     reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
 )
 class TestModelValidatorV1:
@@ -54,7 +54,6 @@ class TestModelValidatorV1:
         try:
             TestModel(a="foo")  # type: ignore
         except ValidationError as e:
-            # Pydantic error message
             assert "value is not a valid integer" in str(e)
 
     def test_skip_on_failure_default(self):
@@ -151,7 +150,7 @@ class TestModelValidatorV1:
             a: int
             b: int = 0
 
-            @model_validator(pre=True, skip_on_failure=True)
+            @model_validator(skip_on_failure=True)
             def check_a_positive(cls, values):
                 if values.get("a", 0) <= 0:
                     raise ValueError("Field 'a' must be positive")
@@ -167,8 +166,10 @@ class TestModelValidatorV1:
             TestModel(a=-1, b=-1)
         errors = str(exc_info.value)
 
-        assert "Field 'a' must be positive" in errors
-        assert "Field 'b' must be positive" not in errors
+        assert (
+            "Field 'b' must be positive" in errors
+        )  # This check verifies that the pre-validation ran
+        assert "Field 'a' must be positive" not in errors
 
 
 @pytest.mark.skipif(
