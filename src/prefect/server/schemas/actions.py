@@ -341,15 +341,6 @@ class StateCreate(ActionBaseModel):
         description="The details of the state to create",
     )
 
-    # DEPRECATED
-
-    timestamp: Optional[DateTimeTZ] = Field(
-        default=None,
-        repr=False,
-        ignored=True,
-    )
-    id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
-
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
         return get_or_create_state_name(v, values)
