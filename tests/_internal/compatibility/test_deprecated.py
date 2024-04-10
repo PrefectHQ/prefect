@@ -294,3 +294,14 @@ class TestDeprecatedInfraOverridesField:
         json_dict = my_deployment.dict()
         assert "job_variables" not in json_dict
         assert json_dict["infra_overrides"] == {"foo": "bar"}
+
+    def test_handles_setting_none(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+        )
+        my_deployment.infra_overrides = None
+        my_deployment.job_variables = None
+
+        json_dict = my_deployment.dict()
+        assert "job_variables" not in json_dict
+        assert json_dict["infra_overrides"] is None

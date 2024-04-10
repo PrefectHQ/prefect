@@ -326,7 +326,6 @@ class DeprecatedInfraOverridesField(BaseModel):
         """
         if key == "infra_overrides" or key == "job_variables":
             updates = {"infra_overrides": value, "job_variables": value}
-            self.__class__.validate(self.__dict__.update(updates))
             self.__dict__.update(updates)
             return
         super().__setattr__(key, value)
