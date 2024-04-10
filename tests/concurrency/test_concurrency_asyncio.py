@@ -94,7 +94,7 @@ async def test_concurrency_emits_events(
     concurrency_limit: ConcurrencyLimitV2,
     other_concurrency_limit: ConcurrencyLimitV2,
     asserting_events_worker: EventsWorker,
-    mock_emit_events_to_cloud,
+    mock_should_emit_events,
     reset_worker_events,
 ):
     executed = False
@@ -248,7 +248,7 @@ async def test_rate_limit_emits_events(
     concurrency_limit_with_decay: ConcurrencyLimitV2,
     other_concurrency_limit_with_decay: ConcurrencyLimitV2,
     asserting_events_worker: EventsWorker,
-    mock_emit_events_to_cloud,
+    mock_should_emit_events,
     reset_worker_events,
 ):
     async def resource_heavy():
