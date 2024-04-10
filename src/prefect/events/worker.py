@@ -28,13 +28,15 @@ def emit_events() -> bool:
 
 
 def emit_events_to_cloud() -> bool:
-    api = PREFECT_API_URL.value()
-    return api and api.startswith(PREFECT_CLOUD_API_URL.value())
+    api_url = PREFECT_API_URL.value()
+    return isinstance(api_url, str) and api_url.startswith(
+        PREFECT_CLOUD_API_URL.value()
+    )
 
 
 def emit_events_to_running_server() -> bool:
-    api = PREFECT_API_URL.value()
-    return api and PREFECT_EXPERIMENTAL_EVENTS
+    api_url = PREFECT_API_URL.value()
+    return isinstance(api_url, str) and PREFECT_EXPERIMENTAL_EVENTS
 
 
 class EventsWorker(QueueService[Event]):
