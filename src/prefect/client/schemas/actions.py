@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 import jsonschema
 
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -110,7 +111,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-class DeploymentCreate(ActionBaseModel):
+class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
     @root_validator(pre=True)
@@ -153,11 +154,14 @@ class DeploymentCreate(ActionBaseModel):
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
-    infra_overrides: Optional[Dict[str, Any]] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Overrides to apply to flow run infrastructure at runtime.",
+    )
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
-        and infra_overrides conforms to the specified schema.
+        and job_variables conforms to the specified schema.
         """
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -172,10 +176,10 @@ class DeploymentCreate(ActionBaseModel):
                     if "default" in v and k in required:
                         required.remove(k)
 
-            jsonschema.validate(self.infra_overrides, variables_schema)
+            jsonschema.validate(self.job_variables, variables_schema)
 
 
-class DeploymentUpdate(ActionBaseModel):
+class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
     @root_validator(pre=True)
@@ -202,7 +206,10 @@ class DeploymentUpdate(ActionBaseModel):
         examples=["my-work-pool"],
     )
     path: Optional[str] = Field(None)
-    infra_overrides: Optional[Dict[str, Any]] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Overrides to apply to flow run infrastructure at runtime.",
+    )
     entrypoint: Optional[str] = Field(None)
     manifest_path: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
@@ -216,7 +223,7 @@ class DeploymentUpdate(ActionBaseModel):
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
-        and infra_overrides conforms to the specified schema.
+        and job_variables conforms to the specified schema.
         """
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -232,7 +239,7 @@ class DeploymentUpdate(ActionBaseModel):
                         required.remove(k)
 
         if variables_schema is not None:
-            jsonschema.validate(self.infra_overrides, variables_schema)
+            jsonschema.validate(self.job_variables, variables_schema)
 
 
 class FlowRunUpdate(ActionBaseModel):

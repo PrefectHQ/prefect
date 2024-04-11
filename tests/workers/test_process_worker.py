@@ -122,7 +122,7 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
 
     class MockDeployment(BaseModel):
         id: UUID = uuid.uuid4()
-        infra_overrides: Dict[str, Any] = overrides or {}
+        job_variables: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
         updated: pendulum.DateTime = pendulum.now("utc")
 
