@@ -4,7 +4,7 @@
 
 ### Manage Prefect variables via the Python SDK
 
-Prefect variables are useful for storing and reusing data and configuration between and across workflows, but previously you could only create and update variables via the Prefect UI. With this release, you can now get and set Prefect variables directly in your Python code with the new `Variable.set` and `Variable.get` methods!
+Prefect variables are useful for storing and reusing data and configuration between and across workflows; and previously you could only create and update variables via the Prefect UI. With this release, you can now get and set Prefect variables directly in your Python code with the new `Variable.set` and `Variable.get` methods!
 
 For an example of reading and writing variable values in Python see the following example:
 
@@ -14,7 +14,7 @@ from prefect.variables import Variable
 # set a variable
 variable = Variable.set(name="the_answer", value="42")
 
-# get a variables
+# get a variable
 answer = Variable.get('the_answer')
 print(answer.value)
 # 42
@@ -24,7 +24,7 @@ answer = Variable.get('not_the_answer', default='42')
 print(answer.value)
 # 42
 
-# updating a variable
+# update a variable
 answer = Variable.set(name="the_answer", value="43", overwrite=True)
 print(answer.value)
 #43
@@ -32,26 +32,24 @@ print(answer.value)
 
 See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
 
-
 ### Enhancements
 - Allow flows inside tasks — https://github.com/PrefectHQ/prefect/pull/12559
 - Add `User-Agent` header containing the running Prefect version — https://github.com/PrefectHQ/prefect/pull/12601
 - Add `Variable.get` and `Variable.set` for retrieving and updating Prefect variable values — https://github.com/PrefectHQ/prefect/pull/12596
-- Adds deployment version to the flow run object — https://github.com/PrefectHQ/prefect/pull/12591
+- Add deployment version to the flow run object — https://github.com/PrefectHQ/prefect/pull/12591
 - Allow flows in standalone tasks — https://github.com/PrefectHQ/prefect/pull/12607
 
 ### Fixes
-- Add orchestration rule to transition flow runs without active infrastructure directly to cancelled — https://github.com/PrefectHQ/prefect/pull/12582
+- Transition flow runs without active infrastructure directly to cancelled — https://github.com/PrefectHQ/prefect/pull/12582
 - Remove duplicate CLI output when reauthorizing with `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12664
-- Add `blob_storage` extra as requirement for Azure recipes — https://github.com/PrefectHQ/prefect/pull/12333
+- Add `blob_storage` extra as requirement for Azure `prefect.yaml` recipes — https://github.com/PrefectHQ/prefect/pull/12333
 - Exclude Typer 0.12.2 from solver — https://github.com/PrefectHQ/prefect/pull/12618
 - Correct `schedules`/`is_schedule_active` deprecation windows — https://github.com/PrefectHQ/prefect/pull/12616
 
 ### Experimental / In-Flight Features
 
 #### Pydantic V2 Compatibility
-
-- Add `pydantic` V2 compatible field validator  — https://github.com/PrefectHQ/prefect/pull/12576
+- Add `pydantic` V2 compatible `field_validator`  — https://github.com/PrefectHQ/prefect/pull/12576
 - Add `pydantic` V2 `model_validator` — https://github.com/PrefectHQ/prefect/pull/12635
 - Expose `field_validator` in `pydantic` compatibility layer — https://github.com/PrefectHQ/prefect/pull/12608
 - Add `ConfigDict` to `pydantic` compatibility layer — https://github.com/PrefectHQ/prefect/pull/12629
@@ -59,7 +57,6 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 - Map `copy_on_model_validation` to `revalidate_instances` in `pydantic` compatibility layer — https://github.com/PrefectHQ/prefect/pull/12644
 
 #### Events and Automations
-
 - Enable `EventsWorker` to emit events to Prefect servers — https://github.com/PrefectHQ/prefect/pull/12637
 - Add ORM models and database migrations for events storage — https://github.com/PrefectHQ/prefect/pull/12651
 - Add automations API — https://github.com/PrefectHQ/prefect/pull/12620
