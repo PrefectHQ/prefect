@@ -16,6 +16,8 @@ from prefect.server.utilities.messaging import Message, MessageHandler, create_c
 
 logger = get_logger(__name__)
 
+_event_persister_started = asyncio.Event()
+
 
 class EventPersister:
     """A service that persists events to the database as they arrive."""
@@ -31,6 +33,7 @@ class EventPersister:
         async with create_handler() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
             logger.debug("Event persister started")
+            _event_persister_started.set()
 
             try:
                 await self.consumer_task
@@ -46,6 +49,7 @@ class EventPersister:
             pass
         finally:
             self.consumer_task = None
+            _event_persister_started.clear()
         logger.debug("Event persister stopped")
 
 
