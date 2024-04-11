@@ -46,7 +46,7 @@ def field_validator(
 
     Read more discussion on that here: https://github.com/pydantic/pydantic/discussions/6337
 
-    !!! note Replace Pydantic V1 `allow_reuse=True` kwarg:
+    !!! note Replacing Pydantic V1 `allow_reuse=True` kwarg:
     To replace a @validator that uses Pydantic V1's `allow_reuse=True` parameter, e.g. `@validator('a', allow_reuse=True)`,
     you can simply remove the `allow_reuse` parameter when replacing the decorator, e.g. `@field_validator('a')`. This is because
     Pydantic V2 by default allows reuse of the decorated function, rendering the kwarg necessary), while Pydantic V1 required explicit
