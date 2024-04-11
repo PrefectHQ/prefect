@@ -1,7 +1,6 @@
-import json
 from typing import Any, Callable, Dict, Generator, Generic, TypeVar
 
-from pydantic_core import SchemaValidator
+from pydantic_core import SchemaValidator, core_schema
 
 SecretType = TypeVar("SecretType")
 
@@ -37,14 +36,10 @@ class _SecretBase(Generic[SecretType]):
         raise NotImplementedError
 
 
-class SecretDict(_SecretBase[Dict[str, Any]], Dict[str, Any]):
-    def __init__(self, secret_value: Dict[str, Any]) -> None:
-        self._secret_value = secret_value
-        self.update(**secret_value)
-
+class SecretDict(_SecretBase[Dict[str, Any]]):
     @classmethod
     def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(type="object")
+        field_schema.update(field_schema="object")
 
     @classmethod
     def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
@@ -52,15 +47,17 @@ class SecretDict(_SecretBase[Dict[str, Any]], Dict[str, Any]):
 
     @classmethod
     def validate(cls, value: Any) -> "SecretDict":
-        value = SchemaValidator({"type": "dict"}).validate_python(value)
+        if isinstance(value, cls):
+            return value
+        value = SchemaValidator(core_schema.dict_schema()).validate_python(value)
         return cls(value)
 
-    def get_secret_value(self) -> Dict[str, Any]:
-        return self._secret_value
+    def _display(self) -> str:
+        if self.get_secret_value():
+            return str({key: "**********" for key in self.get_secret_value().keys()})
+        return ""
 
-    def _display(self) -> str | bytes:
-        return (
-            json.dumps({key: "**********" for key in self.get_secret_value().keys()})
-            if self.get_secret_value()
-            else ""
-        )
+    def dict(self) -> Dict[str, Any]:
+        # TODO: Have SecretDict inherit from Dict[str, Any] so that it's JSON serializable
+        # and we don't have to do this
+        return {key: "**********" for key in self.get_secret_value().keys()}
