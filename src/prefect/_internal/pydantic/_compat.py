@@ -2,6 +2,7 @@
 Functions within this module check for Pydantic V2 compatibility and provide mechanisms for copying,
  dumping, and validating models in a way that is agnostic to the underlying Pydantic version.
 """
+
 import typing
 
 from ._base_model import BaseModel as PydanticBaseModel
@@ -23,6 +24,7 @@ from .utilities.model_dump_json import ModelDumpJsonMixin, model_dump_json
 from .utilities.model_fields import ModelFieldMixin
 from .utilities.model_fields_set import ModelFieldsSetMixin, model_fields_set
 from .utilities.model_json_schema import ModelJsonSchemaMixin, model_json_schema
+from .utilities.model_rebuild import ModelRebuildMixin
 from .utilities.model_validate import ModelValidateMixin, model_validate
 from .utilities.model_validate_json import ModelValidateJsonMixin, model_validate_json
 from .utilities.model_validator import model_validator
@@ -48,6 +50,7 @@ else:
         ModelDumpMixin,
         ModelDumpJsonMixin,
         ModelJsonSchemaMixin,
+        ModelRebuildMixin,
         ModelValidateMixin,
         ModelValidateJsonMixin,
         ModelFieldMixin,

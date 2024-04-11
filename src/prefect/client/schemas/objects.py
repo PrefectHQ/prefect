@@ -531,7 +531,7 @@ class FlowRun(ObjectBaseModel):
     state: Optional[State] = Field(
         default=None,
         description="The state of the flow run.",
-        examples=[State(type=StateType.COMPLETED)],
+        examples=["State(type=StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
         default=None, description="Job variables for the flow run."
@@ -741,7 +741,7 @@ class TaskRun(ObjectBaseModel):
     state: Optional[State] = Field(
         default=None,
         description="The state of the flow run.",
-        examples=[State(type=StateType.COMPLETED)],
+        examples=["State(type=StateType.COMPLETED)"],
     )
 
     @validator("name", pre=True)

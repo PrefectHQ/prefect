@@ -24,8 +24,8 @@ else:
     from pydantic import Field, root_validator, validator
     from pydantic.fields import ModelField
 
-from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import ActionTypes
+from prefect.pydantic import PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -269,8 +269,8 @@ TriggerTypes: TypeAlias = Union[
 ]
 """The union of all concrete trigger types that a user may actually create"""
 
-CompoundTrigger.update_forward_refs()
-SequenceTrigger.update_forward_refs()
+CompoundTrigger.model_rebuild()
+SequenceTrigger.model_rebuild()
 
 
 class Automation(PrefectBaseModel, extra="ignore"):

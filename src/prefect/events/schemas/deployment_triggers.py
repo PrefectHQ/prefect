@@ -43,8 +43,8 @@ from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
     experiment_enabled,
 )
-from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import RunDeployment
+from prefect.pydantic import PrefectBaseModel
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
 )

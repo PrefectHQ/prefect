@@ -23,7 +23,7 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_parameter,
     handle_deprecated_infra_overrides_parameter,
 )
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic import model_validate
 from prefect._internal.schemas.validators import (
     handle_openapi_schema,
     infrastructure_must_have_capabilities,
@@ -32,16 +32,10 @@ from prefect._internal.schemas.validators import (
     validate_automation_names,
     validate_deprecated_schedule_fields,
 )
-from prefect.client.schemas.actions import DeploymentScheduleCreate
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
-
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
     FlowRun,
     MinimalDeploymentSchedule,
@@ -63,6 +57,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger, get_logger
+from prefect.pydantic import BaseModel, Field, field_validator, model_validator
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -337,7 +332,7 @@ def load_deployments_from_yaml(
                 deployment_dict = yaml.safe_load(yaml.serialize(node))
                 # The return value is not necessary, just instantiating the Deployment
                 # is enough to get it recorded on the registry
-                parse_obj_as(Deployment, deployment_dict)
+                model_validate(Deployment, deployment_dict)
 
     return registry
 
@@ -622,27 +617,27 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
         ),
     )
 
-    @validator("infrastructure", pre=True)
+    @field_validator("infrastructure", mode="before")
     def validate_infrastructure_capabilities(cls, value):
         return infrastructure_must_have_capabilities(value)
 
-    @validator("storage", pre=True)
+    @field_validator("storage", mode="before")
     def validate_storage(cls, value):
         return storage_must_have_capabilities(value)
 
-    @validator("parameter_openapi_schema", pre=True)
+    @field_validator("parameter_openapi_schema", mode="before")
     def validate_parameter_openapi_schema(cls, value):
         return handle_openapi_schema(value)
 
-    @validator("triggers")
+    @field_validator("triggers")
     def validate_triggers(cls, field_value, values):
         return validate_automation_names(field_value, values)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def validate_schedule(cls, values):
         return validate_deprecated_schedule_fields(values, logger)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def validate_backwards_compatibility_for_schedule(cls, values):
         return reconcile_schedules(cls, values)
 
