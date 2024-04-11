@@ -30,14 +30,14 @@ print(answer.value)
 #43
 ```
 
-See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
+Refer the [docs](https://docs.prefect.io/latest/guides/variables/#accessing-variables) for more information and see the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
 
 ### Enhancements
-- Allow flows inside tasks — https://github.com/PrefectHQ/prefect/pull/12559
+- Allow flows inside tasks 
+    — https://github.com/PrefectHQ/prefect/pull/12559
+    — https://github.com/PrefectHQ/prefect/pull/12607
 - Add `User-Agent` header containing the running Prefect version — https://github.com/PrefectHQ/prefect/pull/12601
-- Add `Variable.get` and `Variable.set` for retrieving and updating Prefect variable values — https://github.com/PrefectHQ/prefect/pull/12596
-- Add deployment version to the flow run object — https://github.com/PrefectHQ/prefect/pull/12591
-- Allow flows in standalone tasks — https://github.com/PrefectHQ/prefect/pull/12607
+- Adds deployment version to the flow run object — https://github.com/PrefectHQ/prefect/pull/12591
 
 ### Fixes
 - Transition flow runs without active infrastructure directly to cancelled — https://github.com/PrefectHQ/prefect/pull/12582
