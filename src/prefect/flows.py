@@ -1125,10 +1125,11 @@ class Flow(Generic[P, R]):
                 style="blue",
             )
             if PREFECT_UI_URL:
-                console.print(
+                message = (
                     "\nYou can also run your flow via the Prefect UI:"
                     f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_ids[0]}[/]\n"
                 )
+                console.print(message, soft_wrap=True)
 
         return deployment_ids[0]
 
