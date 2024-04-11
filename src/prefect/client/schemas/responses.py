@@ -2,6 +2,7 @@ import datetime
 from typing import Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -160,7 +161,7 @@ class FlowRunResponse(ObjectBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     state_id: Optional[UUID] = Field(
@@ -175,7 +176,7 @@ class FlowRunResponse(ObjectBaseModel):
     deployment_version: Optional[str] = Field(
         default=None,
         description="The version of the deployment associated with this flow run.",
-        example="1.0",
+        examples=["1.0"],
     )
     work_queue_name: Optional[str] = Field(
         default=None, description="The work queue that handled this flow run."
@@ -183,7 +184,7 @@ class FlowRunResponse(ObjectBaseModel):
     flow_version: Optional[str] = Field(
         default=None,
         description="The version of the flow executed in this flow run.",
-        example="1.0",
+        examples=["1.0"],
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
@@ -198,7 +199,7 @@ class FlowRunResponse(ObjectBaseModel):
     context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
-        example={"my_var": "my_val"},
+        examples=[{"my_var": "my_val"}],
     )
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy,
@@ -206,7 +207,7 @@ class FlowRunResponse(ObjectBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
@@ -273,12 +274,12 @@ class FlowRunResponse(ObjectBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     state: Optional[objects.State] = Field(
         default=None,
         description="The state of the flow run.",
-        example=objects.State(type=objects.StateType.COMPLETED),
+        examples=[objects.State(type=objects.StateType.COMPLETED)],
     )
     job_variables: Optional[dict] = Field(
         default=None, description="Job variables for the flow run."
@@ -309,7 +310,7 @@ class FlowRunResponse(ObjectBaseModel):
         return super().__eq__(other)
 
 
-class DeploymentResponse(ObjectBaseModel):
+class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
@@ -332,9 +333,9 @@ class DeploymentResponse(ObjectBaseModel):
     schedules: List[objects.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Overrides to apply to the base infrastructure block at runtime.",
+        description="Overrides to apply to flow run infrastructure at runtime.",
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -347,7 +348,7 @@ class DeploymentResponse(ObjectBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     work_queue_name: Optional[str] = Field(
         default=None,
@@ -423,7 +424,7 @@ class DeploymentResponse(ObjectBaseModel):
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     class Config:
-        extra = "ignore"
+        extra = "ignore"  # 2024/4/1
 
     id: UUID
     name: str

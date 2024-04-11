@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import pytest
 
@@ -48,7 +48,7 @@ async def create_deployment(
     session,
     flow: schemas.core.Flow,
     work_pool: schemas.core.WorkPool,
-    job_variables: dict,
+    job_variables: Dict[str, Any],
 ) -> schemas.core.Deployment:
     deployment = await deployments.create_deployment(
         session=session,
@@ -57,7 +57,7 @@ async def create_deployment(
             flow_id=flow.id,
             paused=False,
             work_queue_id=work_pool.default_queue_id,
-            infra_overrides=job_variables,
+            job_variables=job_variables,
         ),
     )
     await session.commit()

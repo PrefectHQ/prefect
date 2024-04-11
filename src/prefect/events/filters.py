@@ -6,17 +6,20 @@ import pendulum
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
+    from pydantic.v1 import Field, PrivateAttr
 else:
-    from pydantic import Field
+    from pydantic import Field, PrivateAttr
 
 
 class EventDataFilter(PrefectBaseModel, extra="forbid"):
     """A base class for filtering event data."""
+
+    _top_level_filter: "EventFilter | None" = PrivateAttr(None)
 
     def get_filters(self) -> List["EventDataFilter"]:
         return [
@@ -102,6 +105,10 @@ class EventResourceFilter(EventDataFilter):
     )
     labels: Optional[ResourceSpecification] = Field(
         None, description="Only include events for resources with these labels"
+    )
+    distinct: bool = Field(
+        False,
+        description="Only include events for distinct resources",
     )
 
     def includes(self, event: Event) -> bool:
@@ -189,6 +196,11 @@ class EventIDFilter(EventDataFilter):
         return True
 
 
+class EventOrder(AutoEnum):
+    ASC = "ASC"
+    DESC = "DESC"
+
+
 class EventFilter(EventDataFilter):
     occurred: EventOccurredFilter = Field(
         default_factory=EventOccurredFilter,
@@ -210,4 +222,9 @@ class EventFilter(EventDataFilter):
     id: EventIDFilter = Field(
         default_factory=EventIDFilter,
         description="Filter criteria for the events' ID",
+    )
+
+    order: EventOrder = Field(
+        EventOrder.DESC,
+        description="The order to return filtered events",
     )
