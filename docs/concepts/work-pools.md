@@ -192,7 +192,7 @@ The job configuration section defines how values provided for fields in the vari
 
 The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section. Placeholders are declared using double curly braces, e.g., `{{ variable_name }}`. `job_configuration` values can also be hard-coded if the value should not be customizable.
 
-Each worker type is configured with a default base job template, making it easy to start with a work pool. The default base template defines fields that can be edited on a per-deployment basis or for the entire work pool via the Prefect API and UI.
+Each worker type is configured with a default base job template, making it easy to start with a work pool. The default base template defines values that will be passed to every flow run, but can be overridden on a per-deployment or per-flow run basis.
 
 For example, if we create a `process` work pool named 'above-ground' via the CLI:
 
@@ -275,7 +275,7 @@ prefect work-pool get-default-base-job-template --type process
 ```
 </div>
 
-You can override each of these attributes on a per-deployment basis. When deploying a flow, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
+You can override each of these attributes on a per-deployment or per-flow run basis. When deploying a flow, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
 
 If we wanted to turn off streaming output for a specific deployment, we could add the following to our `deployment.yaml`:
 
