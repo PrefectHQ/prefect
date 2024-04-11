@@ -238,6 +238,7 @@ async def my_workspace_variable(
     await variables.create_variable(
         session, VariableCreate(name="my_variable", value="my variable value")
     )
+    await session.commit()
 
 
 async def test_running_a_deployment_supports_schemas_v2(
