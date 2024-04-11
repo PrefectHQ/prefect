@@ -1,58 +1,66 @@
-from typing import TYPE_CHECKING, Any, Dict
+import json
+from typing import Any, Callable, Dict, Generator, Generic, TypeVar
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from pydantic_core import SchemaValidator
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretField
-    from pydantic.v1.utils import update_not_none
-    from pydantic.v1.validators import dict_validator
-
-    if TYPE_CHECKING:
-        from pydantic.v1.typing import CallableGenerator
-
-else:
-    from pydantic import SecretField
-    from pydantic.utils import update_not_none
-    from pydantic.validators import dict_validator
-
-    if TYPE_CHECKING:
-        from pydantic.typing import CallableGenerator
+SecretType = TypeVar("SecretType")
 
 
-class SecretDict(SecretField):
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        update_not_none(
-            field_schema,
-            type="object",
+class _SecretBase(Generic[SecretType]):
+    def __init__(self, secret_value: SecretType) -> None:
+        self._secret_value: SecretType = secret_value
+
+    def get_secret_value(self) -> SecretType:
+        """Get the secret value.
+
+        Returns:
+            The secret value.
+        """
+        return self._secret_value
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, self.__class__)
+            and self.get_secret_value() == other.get_secret_value()
         )
 
+    def __hash__(self) -> int:
+        return hash(self.get_secret_value())
+
+    def __str__(self) -> str:
+        return str(self._display())
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._display()!r})"
+
+    def _display(self) -> str | bytes:
+        raise NotImplementedError
+
+
+class SecretDict(_SecretBase[Dict[str, Any]], Dict[str, Any]):
+    def __init__(self, secret_value: Dict[str, Any]) -> None:
+        self._secret_value = secret_value
+        self.update(**secret_value)
+
     @classmethod
-    def __get_validators__(cls) -> "CallableGenerator":
+    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+        field_schema.update(type="object")
+
+    @classmethod
+    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 
     @classmethod
     def validate(cls, value: Any) -> "SecretDict":
-        if isinstance(value, cls):
-            return value
-        value = dict_validator(value)
+        value = SchemaValidator({"type": "dict"}).validate_python(value)
         return cls(value)
-
-    def __init__(self, value: Dict[str, Any]):
-        self._secret_value = value
-
-    def __str__(self) -> str:
-        return (
-            str({key: "**********" for key in self.get_secret_value().keys()})
-            if self.get_secret_value()
-            else ""
-        )
-
-    def __repr__(self) -> str:
-        return f"SecretDict('{self}')"
 
     def get_secret_value(self) -> Dict[str, Any]:
         return self._secret_value
 
-    def dict(self) -> Dict:
-        return {key: "**********" for key in self.get_secret_value().keys()}
+    def _display(self) -> str | bytes:
+        return (
+            json.dumps({key: "**********" for key in self.get_secret_value().keys()})
+            if self.get_secret_value()
+            else ""
+        )
