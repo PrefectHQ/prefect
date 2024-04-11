@@ -12,18 +12,12 @@ import anyio.abc
 import pendulum
 import pytest
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
-
 import prefect
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
+from prefect.pydantic import BaseModel
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
@@ -125,6 +119,9 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
         job_variables: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
         updated: pendulum.DateTime = pendulum.now("utc")
+
+        class Config:
+            arbitrary_types_allowed = True
 
     class MockFlow(BaseModel):
         id: UUID = uuid.uuid4()

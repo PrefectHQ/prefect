@@ -8,20 +8,13 @@ import anyio
 import anyio.abc
 import pendulum
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import return_v_or_none
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, validator
-
 import prefect
 from prefect._internal.compatibility.experimental import (
     EXPERIMENTAL_WARNING,
     ExperimentalFeature,
     experiment_enabled,
 )
+from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
@@ -48,6 +41,7 @@ from prefect.exceptions import (
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
+from prefect.pydantic import BaseModel, Field, PrivateAttr, field_validator
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
@@ -107,7 +101,7 @@ class BaseJobConfiguration(BaseModel):
     def is_using_a_runner(self):
         return self.command is not None and "prefect flow-run execute" in self.command
 
-    @validator("command")
+    @field_validator("command")
     def _coerce_command(cls, v):
         return return_v_or_none(v)
 
