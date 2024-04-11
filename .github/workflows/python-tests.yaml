@@ -400,7 +400,7 @@ jobs:
   run-sqlalchemy-v1-tests:
     runs-on:
       group: oss-larger-runners
-    name: sqlalchemy v1, python:${{ matrix.python-version }}
+    name: sqlalchemy v1, ${{ matrix.database }} python:${{ matrix.python-version }}
     strategy:
       matrix:
         database:
