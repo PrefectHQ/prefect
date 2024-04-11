@@ -1686,6 +1686,12 @@ PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seco
 How frequently proactive automations are evaluated
 """
 
+PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the event persister service in the server application.
+"""
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 
