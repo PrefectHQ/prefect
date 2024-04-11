@@ -227,7 +227,7 @@ You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/A
 
 ### Fetching artifacts
 
-In Python code you can retrieve an artifact stored on the server with the `Artifact.get` class method:
+In Python code, you can retrieve an existing artifact with the `Artifact.get` class method:
 
 ```python
 from prefect.artifacts import Artifact
