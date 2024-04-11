@@ -211,7 +211,7 @@ You can create one anywhere in a Python script and see it in the Prefect UI.
 ### Reading artifacts
 
 In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time.
-Additionally, you can inspect all versions of an artifact with a given key by running:
+Additionally, you can inspect all versions of an artifact with a given key from the CLI by running:
 
 ```bash
 prefect artifact inspect <my_key>
@@ -224,6 +224,17 @@ prefect artifact ls
 ```
 
 You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/read_artifacts_api_accounts__account_id__workspaces__workspace_id__artifacts_filter_post) to programmatically filter your results.
+
+### Fetching artifacts
+
+In Python code, you can retrieve an existing artifact with the `Artifact.get` class method:
+
+```python
+from prefect.artifacts import Artifact
+
+my_retrieved_artifact = Artifact.get("my_artifact_key")
+
+```
 
 ### Deleting artifacts
 
