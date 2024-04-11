@@ -19,7 +19,7 @@ answer = Variable.get('the_answer')
 print(answer.value)
 # 42
 
-# getting with a default value
+# get a variable with a default value
 answer = Variable.get('not_the_answer', default='42')
 print(answer.value)
 # 42
