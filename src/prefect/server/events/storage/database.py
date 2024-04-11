@@ -3,11 +3,11 @@ from typing import Any, Dict, Generator, List, Sequence
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.events.filters import EventFilter, EventOrder
 from prefect.logging.loggers import get_logger
 from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMEvent
+from prefect.server.events.filters import EventFilter, EventOrder
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL

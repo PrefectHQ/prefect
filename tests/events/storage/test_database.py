@@ -6,13 +6,13 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.events.filters import (
+from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.filters import (
     EventFilter,
     EventIDFilter,
     EventOccurredFilter,
     EventResourceFilter,
 )
-from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import (
     get_max_query_parameters,
