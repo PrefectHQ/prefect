@@ -35,7 +35,7 @@ class TestFieldValidatorV1:
             a: int
             b: str
 
-            @field_validator("b", mode="after", allow_reuse=True)
+            @field_validator("b", mode="after")
             def check_b(cls, v):
                 if "a" in v:
                     raise ValueError("'a' not allowed in b")
@@ -115,7 +115,7 @@ class TestFieldValidatorV1:
         class TestModel(BaseModel):
             a: str = "default"
 
-            @field_validator("a", mode="before", allow_reuse=True)
+            @field_validator("a", mode="before")
             def check_a(cls, v):
                 if not v.isalpha():
                     raise ValueError(
@@ -165,7 +165,7 @@ class TestFieldValidatorV1:
             a: str
             b: str
 
-            @field_validator("a", "b", allow_reuse=True)
+            @field_validator("a", "b")
             def check_length(cls, v):
                 if len(v) < 5:
                     raise ValueError(
