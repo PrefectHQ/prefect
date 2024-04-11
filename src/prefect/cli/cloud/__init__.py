@@ -367,9 +367,6 @@ async def login(
     if current_profile_is_logged_in:
         app.console.print("It looks like you're already authenticated on this profile.")
         if is_interactive():
-            app.console.print(
-                "It looks like you're already authenticated on this profile."
-            )
             should_reauth = typer.confirm(
                 "? Would you like to reauthenticate?", default=False
             )
