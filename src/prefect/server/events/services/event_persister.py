@@ -20,8 +20,6 @@ from prefect.settings import (
 
 logger = get_logger(__name__)
 
-_event_persister_started = asyncio.Event()
-
 
 class EventPersister:
     """A service that persists events to the database as they arrive."""
@@ -29,10 +27,13 @@ class EventPersister:
     name: str = "EventLogger"
 
     consumer_task: Optional[asyncio.Task] = None
+    started_event: Optional[asyncio.Event] = asyncio.Event()
 
-    async def start(self):
+    async def start(self, started_event: Optional[asyncio.Event] = None):
         assert self.consumer_task is None, "Event persister already started"
         self.consumer = create_consumer("events")
+        if started_event:
+            self.started_event = started_event
 
         async with create_handler(
             batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
@@ -42,7 +43,7 @@ class EventPersister:
         ) as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
             logger.debug("Event persister started")
-            _event_persister_started.set()
+            self.started_event.set()
 
             try:
                 await self.consumer_task
@@ -58,7 +59,8 @@ class EventPersister:
             pass
         finally:
             self.consumer_task = None
-            _event_persister_started.clear()
+            if self.started_event:
+                self.started_event.clear()
         logger.debug("Event persister stopped")
 
 
