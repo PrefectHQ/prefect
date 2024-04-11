@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Generator, Generic, TypeVar
+from typing import Any, Callable, Dict, Generator, Generic, TypeVar, Union
 
 from pydantic_core import SchemaValidator, core_schema
 
@@ -32,7 +32,7 @@ class _SecretBase(Generic[SecretType]):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._display()!r})"
 
-    def _display(self) -> str | bytes:
+    def _display(self) -> Union[str, bytes]:
         raise NotImplementedError
 
 
