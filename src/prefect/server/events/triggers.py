@@ -1086,9 +1086,7 @@ async def consumer(
         proactive_task.cancel()
 
 
-async def proactive_evaluation(
-    session: AsyncSession, trigger: EventTrigger, as_of: DateTime
-) -> DateTime:
+async def proactive_evaluation(trigger: EventTrigger, as_of: DateTime) -> DateTime:
     """The core proactive evaluation operation for a single Automation"""
     assert isinstance(trigger, EventTrigger), repr(trigger)
     automation = trigger.automation
@@ -1108,28 +1106,32 @@ async def proactive_evaluation(
     # may be sooner based on the state of the buckets
     run_again_at = as_of + trigger.within
 
-    if not trigger.for_each:
-        await ensure_bucket(
-            session,
-            trigger,
-            bucketing_key=tuple(),
-            start=as_of,
-            end=as_of + trigger.within,
-            last_event=None,
-        )
+    async with automations_session() as session:
+        try:
+            if not trigger.for_each:
+                await ensure_bucket(
+                    session,
+                    trigger,
+                    bucketing_key=tuple(),
+                    start=as_of,
+                    end=as_of + trigger.within,
+                    last_event=None,
+                )
 
-    # preemptively delete buckets where possible without
-    # evaluating them in memory
-    await remove_buckets_exceeding_threshold(session, trigger)
+            # preemptively delete buckets where possible without
+            # evaluating them in memory
+            await remove_buckets_exceeding_threshold(session, trigger)
 
-    async for bucket in read_buckets_for_automation(session, trigger):
-        next_bucket = await evaluate(
-            session, trigger, bucket, as_of, triggering_event=None
-        )
-        if next_bucket and as_of < next_bucket.end < run_again_at:
-            run_again_at = pendulum.instance(next_bucket.end)
+            async for bucket in read_buckets_for_automation(session, trigger):
+                next_bucket = await evaluate(
+                    session, trigger, bucket, as_of, triggering_event=None
+                )
+                if next_bucket and as_of < next_bucket.end < run_again_at:
+                    run_again_at = pendulum.instance(next_bucket.end)
 
-    return run_again_at
+            return run_again_at
+        finally:
+            await session.commit()
 
 
 async def evaluate_proactive_triggers():
@@ -1141,22 +1143,18 @@ async def evaluate_proactive_triggers():
         if next_run > pendulum.now("UTC"):
             continue
 
-        async with automations_session() as session:
-            try:
-                run_again_at = await proactive_evaluation(
-                    session, trigger, pendulum.now("UTC")
-                )
-                logger.debug(
-                    "Automation %s trigger %s will run again at %s",
-                    trigger.automation.id,
-                    trigger.id,
-                    run_again_at,
-                )
-                next_proactive_runs[trigger.id] = run_again_at
-                await session.commit()
-            except Exception:
-                logger.exception(
-                    "Error evaluating automation %s trigger %s proactively",
-                    trigger.automation.id,
-                    trigger.id,
-                )
+        try:
+            run_again_at = await proactive_evaluation(trigger, pendulum.now("UTC"))
+            logger.debug(
+                "Automation %s trigger %s will run again at %s",
+                trigger.automation.id,
+                trigger.id,
+                run_again_at,
+            )
+            next_proactive_runs[trigger.id] = run_again_at
+        except Exception:
+            logger.exception(
+                "Error evaluating automation %s trigger %s proactively",
+                trigger.automation.id,
+                trigger.id,
+            )

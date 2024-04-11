@@ -421,36 +421,29 @@ async def test_proactive_trigger_fires_after_time_expires(
     chonk_sadness: Automation,
     start_of_test: DateTime,
     act: mock.AsyncMock,
-    automations_session: AsyncSession,
     frozen_time: DateTime,
 ):
-    async def run_proactive_evaluation(
-        session: AsyncSession, automations: List[Automation], as_of: DateTime
-    ):
+    async def run_proactive_evaluation(automations: List[Automation], as_of: DateTime):
         for automation in automations:
             trigger = automation.trigger
             assert isinstance(trigger, EventTrigger), repr(trigger)
-            await triggers.proactive_evaluation(session, trigger, as_of)
+            await triggers.proactive_evaluation(trigger, as_of)
+
+    await run_proactive_evaluation(effective_automations, start_of_test)
+    act.assert_not_awaited()
 
     await run_proactive_evaluation(
-        automations_session, effective_automations, start_of_test
+        effective_automations, start_of_test + timedelta(seconds=9)
     )
     act.assert_not_awaited()
 
     await run_proactive_evaluation(
-        automations_session, effective_automations, start_of_test + timedelta(seconds=9)
-    )
-    act.assert_not_awaited()
-
-    await run_proactive_evaluation(
-        automations_session,
         effective_automations,
         start_of_test + timedelta(seconds=10),
     )
     act.assert_not_awaited()
 
     await run_proactive_evaluation(
-        automations_session,
         effective_automations,
         start_of_test + timedelta(seconds=30),
     )
@@ -468,14 +461,12 @@ async def test_proactive_trigger_fires_after_time_expires(
     # The period should start over after 30 seconds
 
     await run_proactive_evaluation(
-        automations_session,
         effective_automations,
         start_of_test + timedelta(seconds=31),
     )
     act.assert_not_awaited()
 
     await run_proactive_evaluation(
-        automations_session,
         effective_automations,
         start_of_test + timedelta(seconds=60),
     )
