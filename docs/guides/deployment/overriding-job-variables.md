@@ -2,6 +2,7 @@
 description: Learn how to override job variables on a work pool for a given deployment.
 tags:
     - deployments
+    - flow runs
     - work pools
     - job variables
     - environment variables
@@ -20,7 +21,7 @@ While exactly _which_ job variables are available to be overridden depends on th
 ## Background
 First of all, what are _"job variables"_?
 
-Job variables are infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure.
+Job variables are infrastructure related values that are configurable on a work pool, which may be relevant to how your flow run executes on your infrastructure. Job variables can be overridden on a per-deployment or per-flow run basis, allowing you to dynamically change infrastructure from the work pools defaults depending on your needs.
 
 <hr>
 
@@ -40,7 +41,7 @@ Rather than hardcoding these values into your work pool in the UI and making the
 
 Let's look at how to do that.
 
-## How to override job variables
+## How to override job variables on a deployment
 Say we have the following repo structure:
 ```
 » tree
@@ -186,3 +187,33 @@ python demo_project/daily_flow.py
 ... will deploy the flow with the specified job variables, which should then be visible in the UI under the `Configuration` tab.
 
 ![Job variables in the UI](/img/guides/job-variables.png)
+
+
+## How to override job variables on a flow run
+
+When running flows, you can pass in job variables that override any values set on the work pool or deployment. Any interface that runs deployments can accept job variables.
+
+### Using the custom run form in the UI
+
+Custom runs allow you to pass in a dictionary of variables into your flow run infrastructure. Using the same `env` example from above, we could do the following:
+
+![Job variables via custom run](/img/ui/deployment-job-variables.png)
+
+### Using the CLI
+
+Similarly, runs kicked off via CLI accept job variables with the `-jv` or `--job-variable` flag.
+
+```bash
+prefect deployment run \
+  --id "fb8e3073-c449-474b-b993-851fe5e80e53" \
+  --job-variable MY_NEW_ENV_VAR=42 \
+  --job-variable HELLO=THERE
+```
+
+### Using job variables in automations
+
+Additionally, runs kicked off via automation actions can use job variables, including ones rendered from Jinja templates.
+
+![Job variables via automation action](/img/ui/automations-action-job-variable.png)
+
+
