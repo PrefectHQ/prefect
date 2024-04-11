@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import timedelta
 from typing import AsyncGenerator, Sequence
 from uuid import UUID, uuid4
@@ -11,6 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests._internal.pydantic.test_dynamic_imports import HAS_PYDANTIC_V1
 
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMEventResource
 from prefect.server.events.schemas.events import ReceivedEvent
@@ -23,16 +25,24 @@ else:
     from pydantic.v1 import ValidationError
 
 
-async def get_event(session: AsyncSession, id: UUID) -> "ReceivedEvent | None":
-    result = await session.execute(
-        sa.text("SELECT * FROM events WHERE id = :id"),
-        params={"id": id},
-    )
-    event = result.mappings().fetchone()
-    if not event:
-        return None
+@db_injector
+async def get_event(db: PrefectDBInterface, id: UUID) -> "ReceivedEvent | None":
+    async with await db.session() as session:
+        result = await session.execute(
+            sa.text("SELECT * FROM events WHERE id = :id"),
+            params={"id": str(id)},
+        )
+        event = result.mappings().fetchone()
+        if db.uses_json_strings:
+            event = dict(event)
+            event["resource"] = json.loads(event["resource"])
+            event["related"] = json.loads(event["related"])
+            event["payload"] = json.loads(event["payload"])
 
-    return ReceivedEvent.parse_obj(event)
+        if not event:
+            return None
+
+        return ReceivedEvent.parse_obj(event)
 
 
 async def get_resources(
@@ -121,7 +131,7 @@ async def test_handling_message_writes_event(
 ):
     await event_persister_handler(message)
 
-    stored_event = await get_event(session, event.id)
+    stored_event = await get_event(event.id)
     assert stored_event
     assert stored_event == ReceivedEvent(
         occurred=pendulum.now("UTC"),
