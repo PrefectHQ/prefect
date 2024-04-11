@@ -389,11 +389,6 @@ async def test_periodic_evaluation_continues_event_if_it_raises(
     assert periodic_evaluation.await_count > 1
 
 
-@pytest.fixture
-async def reset_events_clock():
-    await triggers.reset_events_clock()
-
-
 async def test_event_clock_produces_none_when_never_updated(reset_events_clock: None):
     assert await triggers.get_events_clock() is None
     assert await triggers.get_events_clock_offset() == 0.0

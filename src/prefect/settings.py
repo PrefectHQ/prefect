@@ -1677,8 +1677,14 @@ Whether or not to start the triggers service in the server application.
 """
 
 PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
-"""The amount of time to retain expired automation buckets"""
+"""
+The amount of time to retain expired automation buckets
+"""
 
+PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seconds=5))
+"""
+How frequently proactive automations are evaluated
+"""
 
 # Deprecated settings ------------------------------------------------------------------
 

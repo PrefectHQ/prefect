@@ -502,7 +502,7 @@ async def periodic_evaluation(now: DateTime):
     offset = await get_events_clock_offset()
     as_of = now + timedelta(seconds=offset)
 
-    logger.info("Running periodic evaluation as of %s (offset %ss)", as_of, offset)
+    logger.debug("Running periodic evaluation as of %s (offset %ss)", as_of, offset)
 
     # Any followers that have been sitting around longer than our lookback are never
     # going to see their leader event (maybe it was lost or took too long to arrive).
@@ -520,7 +520,7 @@ async def periodic_evaluation(now: DateTime):
 
 async def evaluate_periodically(periodic_granularity: timedelta):
     """Runs periodic evaluation on the given interval"""
-    logger.info(
+    logger.debug(
         "Starting periodic evaluation task every %s seconds",
         periodic_granularity.total_seconds(),
     )
@@ -537,6 +537,7 @@ async def evaluate_periodically(periodic_granularity: timedelta):
 # account and workspace
 automations_by_id: Dict[UUID, Automation] = {}
 triggers: Dict[TriggerID, EventTrigger] = {}
+next_proactive_runs: Dict[TriggerID, DateTime] = {}
 
 # This lock governs any changes to the set of loaded automations; any routine that will
 # add/remove automations must be holding this lock when it does so.  It's best to use
@@ -564,6 +565,7 @@ def load_automation(automation: Optional[Automation]):
 
     for trigger in event_triggers:
         triggers[trigger.id] = trigger
+        next_proactive_runs.pop(trigger.id, None)
 
 
 def forget_automation(automation_id: UUID):
@@ -571,6 +573,7 @@ def forget_automation(automation_id: UUID):
     if automation := automations_by_id.pop(automation_id, None):
         for trigger in automation.triggers():
             triggers.pop(trigger.id, None)
+            next_proactive_runs.pop(trigger.id, None)
 
 
 async def automation_changed(
@@ -592,13 +595,13 @@ async def load_automations(db: PrefectDBInterface, session: AsyncSession):
     """Loads all automations for the given set of accounts"""
     query = sa.select(db.Automation)
 
-    logger.info("Loading automations")
+    logger.debug("Loading automations")
 
     result = await session.execute(query)
     for automation in result.scalars().all():
         load_automation(Automation.from_orm(automation))
 
-    logger.info(
+    logger.debug(
         "Loaded %s automations with %s triggers", len(automations_by_id), len(triggers)
     )
 
@@ -930,7 +933,7 @@ async def with_preceding_event_confirmed(event: ReceivedEvent, depth: int = 0):
         if not await event_has_been_seen(event.follows):
             age = pendulum.now("UTC") - event.received
             if age < PRECEDING_EVENT_LOOKBACK:
-                logger.info(
+                logger.debug(
                     "Event %r (%s) for %r arrived before the event it follows %s",
                     event.event,
                     event.id,
@@ -1025,9 +1028,10 @@ async def get_lost_followers(db: PrefectDBInterface) -> List[ReceivedEvent]:
 
 async def reset():
     """Resets the in-memory state of the service"""
+    reset_events_clock()
     automations_by_id.clear()
     triggers.clear()
-    reset_events_clock()
+    next_proactive_runs.clear()
 
 
 @asynccontextmanager
@@ -1076,13 +1080,81 @@ async def consumer(
             pass  # it's fine to ACK this message, since it is safe in the DB
 
     try:
-        logger.info("Starting reactive evaluation task")
+        logger.debug("Starting reactive evaluation task")
         yield message_handler
     finally:
         proactive_task.cancel()
 
 
-async def proactive_evaluation(
-    session: AsyncSession, trigger: EventTrigger, as_of: DateTime
-) -> DateTime:
-    raise NotImplementedError("Proactive triggers to be implemented in a future update")
+async def proactive_evaluation(trigger: EventTrigger, as_of: DateTime) -> DateTime:
+    """The core proactive evaluation operation for a single Automation"""
+    assert isinstance(trigger, EventTrigger), repr(trigger)
+    automation = trigger.automation
+
+    offset = await get_events_clock_offset()
+    as_of += timedelta(seconds=offset)
+
+    logger.debug(
+        "Evaluating automation %s trigger %s proactively as of %s (offset %ss)",
+        automation.id,
+        trigger.id,
+        as_of,
+        offset,
+    )
+
+    # By default, the next run will come after the full trigger window, but it
+    # may be sooner based on the state of the buckets
+    run_again_at = as_of + trigger.within
+
+    async with automations_session() as session:
+        try:
+            if not trigger.for_each:
+                await ensure_bucket(
+                    session,
+                    trigger,
+                    bucketing_key=tuple(),
+                    start=as_of,
+                    end=as_of + trigger.within,
+                    last_event=None,
+                )
+
+            # preemptively delete buckets where possible without
+            # evaluating them in memory
+            await remove_buckets_exceeding_threshold(session, trigger)
+
+            async for bucket in read_buckets_for_automation(session, trigger):
+                next_bucket = await evaluate(
+                    session, trigger, bucket, as_of, triggering_event=None
+                )
+                if next_bucket and as_of < next_bucket.end < run_again_at:
+                    run_again_at = pendulum.instance(next_bucket.end)
+
+            return run_again_at
+        finally:
+            await session.commit()
+
+
+async def evaluate_proactive_triggers():
+    for trigger in triggers.values():
+        if trigger.posture != Posture.Proactive:
+            continue
+
+        next_run = next_proactive_runs.get(trigger.id, pendulum.now("UTC"))
+        if next_run > pendulum.now("UTC"):
+            continue
+
+        try:
+            run_again_at = await proactive_evaluation(trigger, pendulum.now("UTC"))
+            logger.debug(
+                "Automation %s trigger %s will run again at %s",
+                trigger.automation.id,
+                trigger.id,
+                run_again_at,
+            )
+            next_proactive_runs[trigger.id] = run_again_at
+        except Exception:
+            logger.exception(
+                "Error evaluating automation %s trigger %s proactively",
+                trigger.automation.id,
+                trigger.id,
+            )
