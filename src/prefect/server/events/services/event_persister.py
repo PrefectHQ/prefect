@@ -13,6 +13,10 @@ from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
 from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
+from prefect.settings import (
+    PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
+    PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
+)
 
 logger = get_logger(__name__)
 
@@ -30,7 +34,12 @@ class EventPersister:
         assert self.consumer_task is None, "Event persister already started"
         self.consumer = create_consumer("events")
 
-        async with create_handler() as handler:
+        async with create_handler(
+            batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
+            flush_every=timedelta(
+                seconds=PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL.value()
+            ),
+        ) as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
             logger.debug("Event persister started")
             _event_persister_started.set()
