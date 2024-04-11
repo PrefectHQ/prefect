@@ -25,15 +25,6 @@ from prefect.utilities.pydantic import (
 )
 
 
-class BaseClass:
-    def __init__(self, value):
-        self.value = value
-
-
-class DerivedClass(BaseClass):
-    pass
-
-
 class SimplePydantic(pydantic.BaseModel):
     x: int
     y: int
