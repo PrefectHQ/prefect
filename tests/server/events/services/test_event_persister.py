@@ -23,7 +23,7 @@ else:
     from pydantic.v1 import ValidationError
 
 
-async def get_event(session: AsyncSession, id: UUID) -> ReceivedEvent | None:
+async def get_event(session: AsyncSession, id: UUID) -> "ReceivedEvent | None":
     result = await session.execute(
         sa.text("SELECT * FROM events WHERE id = :id"),
         params={"id": id},
