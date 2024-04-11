@@ -10,7 +10,7 @@ This gives us a history of changes and will create merge conflicts if two migrat
 
 # Add `events` and `event_resources` tables
 SQLite: `824e9edafa60`
-Postgres: `a0b41bdff9b3`
+Postgres: `15768c2ec702`
 
 # Trigger in index
 SQLite: `2b6c2b548f95`

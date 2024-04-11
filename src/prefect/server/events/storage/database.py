@@ -144,12 +144,13 @@ def get_max_query_parameters() -> int:
 
 
 # Events require a fixed number of parameters per event,...
-NUMBER_OF_EVENT_FIELDS = provide_database_interface().Event.__table__.columns.__len__()
+def get_number_of_event_fields():
+    return provide_database_interface().Event.__table__.columns.__len__()
+
 
 # ...plus a variable number of parameters per resource...
-NUMBER_OF_RESOURCE_FIELDS = (
-    provide_database_interface().EventResource.__table__.columns.__len__()
-)
+def get_number_of_resource_fields():
+    return provide_database_interface().EventResource.__table__.columns.__len__()
 
 
 def _in_safe_batches(
@@ -158,10 +159,12 @@ def _in_safe_batches(
     batch = []
     parameters_used = 0
     max_query_parameters = get_max_query_parameters()
+    number_of_event_fields = get_number_of_event_fields()
+    number_of_resource_fields = get_number_of_resource_fields()
 
     for event in events:
-        these_parameters = NUMBER_OF_EVENT_FIELDS + (
-            len(event.involved_resources) * NUMBER_OF_RESOURCE_FIELDS
+        these_parameters = number_of_event_fields + (
+            len(event.involved_resources) * number_of_resource_fields
         )
         if parameters_used + these_parameters < max_query_parameters:
             batch.append(event)

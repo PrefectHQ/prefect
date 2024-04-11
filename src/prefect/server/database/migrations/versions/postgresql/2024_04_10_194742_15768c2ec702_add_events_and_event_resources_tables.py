@@ -1,18 +1,19 @@
 """Add events and event_resources tables
 
-Revision ID: a0b41bdff9b3
+Revision ID: 15768c2ec702
 Revises: 954db7517015
-Create Date: 2024-04-10 11:20:19.726770
+Create Date: 2024-04-10 19:47:42.208099
 
 """
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import Text
 
 import prefect
 
 # revision identifiers, used by Alembic.
-revision = "a0b41bdff9b3"
+revision = "15768c2ec702"
 down_revision = "954db7517015"
 branch_labels = None
 depends_on = None
@@ -73,24 +74,24 @@ def upgrade():
         sa.Column("resource_id", sa.Text(), nullable=False),
         sa.Column(
             "resource",
-            prefect.server.utilities.database.JSON(astext_type=sa.Text()),
+            prefect.server.utilities.database.JSON(astext_type=Text()),
             nullable=False,
         ),
         sa.Column(
             "related_resource_ids",
-            prefect.server.utilities.database.JSON(astext_type=sa.Text()),
+            prefect.server.utilities.database.JSON(astext_type=Text()),
             server_default="[]",
             nullable=False,
         ),
         sa.Column(
             "related",
-            prefect.server.utilities.database.JSON(astext_type=sa.Text()),
+            prefect.server.utilities.database.JSON(astext_type=Text()),
             server_default="[]",
             nullable=False,
         ),
         sa.Column(
             "payload",
-            prefect.server.utilities.database.JSON(astext_type=sa.Text()),
+            prefect.server.utilities.database.JSON(astext_type=Text()),
             nullable=False,
         ),
         sa.Column(

@@ -15,9 +15,9 @@ from prefect.events.filters import (
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import (
-    NUMBER_OF_EVENT_FIELDS,
-    NUMBER_OF_RESOURCE_FIELDS,
     get_max_query_parameters,
+    get_number_of_event_fields,
+    get_number_of_resource_fields,
     read_events,
     write_events,
 )
@@ -137,8 +137,8 @@ class TestWriteEvents:
         assert total_events == 1000
         assert total_resources == 4000
 
-        total_parameters = (total_events * NUMBER_OF_EVENT_FIELDS) + (
-            total_resources * NUMBER_OF_RESOURCE_FIELDS
+        total_parameters = (total_events * get_number_of_event_fields()) + (
+            total_resources * get_number_of_resource_fields()
         )
         assert total_parameters > get_max_query_parameters()
 
