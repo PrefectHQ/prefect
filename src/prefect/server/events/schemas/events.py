@@ -191,6 +191,33 @@ class ReceivedEvent(Event):
         description="When the event was received by Prefect Cloud",
     )
 
+    def as_database_row(self) -> Dict[str, Any]:
+        row = self.dict()
+        row["resource_id"] = self.resource.id
+        row["recorded"] = pendulum.now("UTC")
+        row["related_resource_ids"] = [related.id for related in self.related]
+        return row
+
+    def as_database_resource_rows(self) -> List[Dict[str, Any]]:
+        def without_id_and_role(resource: Resource) -> Dict[str, str]:
+            d: Dict[str, str] = resource.dict()["__root__"]
+            d.pop("prefect.resource.id", None)
+            d.pop("prefect.resource.role", None)
+            return d
+
+        return [
+            {
+                "occurred": self.occurred,
+                "resource_id": resource.id,
+                "resource_role": (
+                    resource.role if isinstance(resource, RelatedResource) else ""
+                ),
+                "resource": without_id_and_role(resource),
+                "event_id": self.id,
+            }
+            for resource in [self.resource, *self.related]
+        ]
+
 
 def matches(expected: str, value: Optional[str]) -> bool:
     """Returns true if the given value matches the expected string, which may
