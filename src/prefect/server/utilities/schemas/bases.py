@@ -14,14 +14,13 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
     from pydantic.v1 import BaseModel, Field, SecretField
-    from pydantic.v1.json import custom_pydantic_encoder
 else:
     import pydantic
     from pydantic import BaseModel, Field, SecretField
-    from pydantic.json import custom_pydantic_encoder
 
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.utilities.pydantic import custom_pydantic_encoder
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)

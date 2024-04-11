@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 
 import cloudpickle
@@ -19,8 +20,18 @@ from prefect.utilities.pydantic import (
     PartialModel,
     add_cloudpickle_reduction,
     add_type_dispatch,
+    custom_pydantic_encoder,
     get_class_fields_only,
 )
+
+
+class BaseClass:
+    def __init__(self, value):
+        self.value = value
+
+
+class DerivedClass(BaseClass):
+    pass
 
 
 class SimplePydantic(pydantic.BaseModel):
@@ -390,3 +401,21 @@ class TestJsonPatch:
                 "additionalProperties": {"type": "string"},
             },
         }
+
+
+class TestCustomPydanticEncoder:
+    @pytest.mark.parametrize(
+        "input_data, expected_output",
+        [
+            (datetime(2021, 1, 1), "2021-01-01T00:00:00"),
+            (Path("foo.txt"), "foo.txt"),
+            (pydantic.SecretStr("secret"), "secret"),
+        ],
+    )
+    def test_custom_encoder(self, input_data, expected_output):
+        assert (
+            custom_pydantic_encoder(
+                {pydantic.SecretStr: lambda x: x.get_secret_value()}, input_data
+            )
+            == expected_output
+        )
