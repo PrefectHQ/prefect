@@ -2,6 +2,14 @@
 
 ## Release 2.17.0
 
+### Fixes
+- Fix events storage import — https://github.com/PrefectHQ/prefect/pull/12681
+- Remove `opentelemetry` import — https://github.com/PrefectHQ/prefect/pull/12684
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.17.0...2.17.1
+
+## Release 2.17.0
+
 ### Manage Prefect variables via the Python SDK
 
 Prefect variables are useful for storing and reusing data and configuration between and across workflows; and previously you could only create and update variables via the Prefect UI. With this release, you can now get and set Prefect variables directly in your Python code with the new `Variable.set` and `Variable.get` methods!
