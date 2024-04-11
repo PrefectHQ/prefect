@@ -15,14 +15,15 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 import pendulum
-from pydantic.v1.schema import default_ref_template
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, root_validator
+    from pydantic.v1.schema import default_ref_template
 else:
     from pydantic import BaseModel, Field, root_validator
+    from pydantic.schema import default_ref_template
 
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
