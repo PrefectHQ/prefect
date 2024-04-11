@@ -122,7 +122,7 @@ class State(StateBaseModel, Generic[R]):
     type: StateType
     name: Optional[str] = Field(default=None)
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
-    message: Optional[str] = Field(default=None, example="Run started")
+    message: Optional[str] = Field(default=None, examples=["Run started"])
     data: Optional[Any] = Field(
         default=None,
         description=(

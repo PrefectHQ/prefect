@@ -270,7 +270,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     basepath: str = Field(
         default=...,
         description="Default path for this block to write to.",
-        example="s3://my-bucket/my-folder/",
+        examples=["s3://my-bucket/my-folder/"],
     )
     settings: Dict[str, Any] = Field(
         default_factory=dict,
@@ -451,19 +451,19 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     bucket_path: str = Field(
         default=...,
         description="An S3 bucket path.",
-        example="my-bucket/a-directory-within",
+        examples=["my-bucket/a-directory-within"],
     )
     aws_access_key_id: Optional[SecretStr] = Field(
         default=None,
         title="AWS Access Key ID",
         description="Equivalent to the AWS_ACCESS_KEY_ID environment variable.",
-        example="AKIAIOSFODNN7EXAMPLE",
+        examples=["AKIAIOSFODNN7EXAMPLE"],
     )
     aws_secret_access_key: Optional[SecretStr] = Field(
         default=None,
         title="AWS Secret Access Key",
         description="Equivalent to the AWS_SECRET_ACCESS_KEY environment variable.",
-        example="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        examples=["wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"],
     )
 
     _remote_file_system: RemoteFileSystem = None
@@ -549,7 +549,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     bucket_path: str = Field(
         default=...,
         description="A GCS bucket path.",
-        example="my-bucket/a-directory-within",
+        examples=["my-bucket/a-directory-within"],
     )
     service_account_info: Optional[SecretStr] = Field(
         default=None,
@@ -653,7 +653,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     bucket_path: str = Field(
         default=...,
         description="An Azure storage bucket path.",
-        example="my-bucket/a-directory-within",
+        examples=["my-bucket/a-directory-within"],
     )
     azure_storage_connection_string: Optional[SecretStr] = Field(
         default=None,
@@ -804,7 +804,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     share_path: str = Field(
         default=...,
         description="SMB target (requires <SHARE>, followed by <PATH>).",
-        example="/SHARE/dir/subdir",
+        examples=["/SHARE/dir/subdir"],
     )
     smb_username: Optional[SecretStr] = Field(
         default=None,

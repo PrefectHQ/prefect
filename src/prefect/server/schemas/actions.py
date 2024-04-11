@@ -90,12 +90,12 @@ class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
     name: str = Field(
-        default=..., description="The name of the flow", example="my-flow"
+        default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     @validator("name", check_fields=False)
@@ -109,7 +109,7 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     @validator("name", check_fields=False)
@@ -147,7 +147,9 @@ class DeploymentCreate(ActionBaseModel):
         return remove_old_deployment_fields(values)
 
     name: str = Field(
-        default=..., description="The name of the deployment.", example="my-deployment"
+        default=...,
+        description="The name of the deployment.",
+        examples=["my-deployment"],
     )
     flow_id: UUID = Field(
         default=..., description="The ID of the flow associated with the deployment."
@@ -179,7 +181,7 @@ class DeploymentCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of deployment tags.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     pull_steps: Optional[List[dict]] = Field(None)
 
@@ -188,7 +190,7 @@ class DeploymentCreate(ActionBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
@@ -261,13 +263,13 @@ class DeploymentUpdate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of deployment tags.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     path: Optional[str] = Field(None)
     infra_overrides: Optional[Dict[str, Any]] = Field(None)
@@ -341,8 +343,6 @@ class StateCreate(ActionBaseModel):
         description="The details of the state to create",
     )
 
-    # DEPRECATED
-
     timestamp: Optional[DateTimeTZ] = Field(
         default=None,
         repr=False,
@@ -367,7 +367,9 @@ class TaskRunCreate(ActionBaseModel):
         default=None, description="The state of the task run to create"
     )
 
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: generate_slug(2), examples=["my-task-run"]
+    )
     flow_run_id: Optional[UUID] = Field(
         default=None, description="The flow run id of the task run."
     )
@@ -401,7 +403,7 @@ class TaskRunCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     task_inputs: Dict[
         str,
@@ -429,7 +431,9 @@ class TaskRunCreate(ActionBaseModel):
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: generate_slug(2), examples=["my-task-run"]
+    )
 
     @validator("name", pre=True)
     def set_name(cls, name):
@@ -449,7 +453,7 @@ class FlowRunCreate(ActionBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     flow_version: Optional[str] = Field(
@@ -471,7 +475,7 @@ class FlowRunCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the flow run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     idempotency_key: Optional[str] = Field(
         None,
@@ -513,7 +517,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     parameters: Dict[str, Any] = Field(default_factory=dict)
     context: Dict[str, Any] = Field(default_factory=dict)
@@ -525,7 +529,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the flow run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     idempotency_key: Optional[str] = Field(
         None,
@@ -881,10 +885,10 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
             " Valid variables include:"
             f" {listrepr(sorted(schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
         ),
-        example=(
+        examples=[
             "Flow run {flow_run_name} with id {flow_run_id} entered state"
             " {flow_run_state_name}."
-        ),
+        ],
     )
 
     @validator("message_template")
@@ -986,19 +990,19 @@ class VariableCreate(ActionBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
     value: str = Field(
         default=...,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of variable tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     # validators
@@ -1011,19 +1015,19 @@ class VariableUpdate(ActionBaseModel):
     name: Optional[str] = Field(
         default=None,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
     value: Optional[str] = Field(
         default=None,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(
         default=None,
         description="A list of variable tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     # validators

@@ -62,7 +62,7 @@ class StateCreate(ActionBaseModel):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    message: Optional[str] = Field(default=None, example="Run started")
+    message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
         default=None,
@@ -73,12 +73,12 @@ class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
     name: str = Field(
-        default=..., description="The name of the flow", example="my-flow"
+        default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
 
@@ -88,7 +88,7 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
 
@@ -144,7 +144,7 @@ class DeploymentCreate(ActionBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
@@ -199,7 +199,7 @@ class DeploymentUpdate(ActionBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     path: Optional[str] = Field(None)
     infra_overrides: Optional[Dict[str, Any]] = Field(None)
@@ -605,10 +605,10 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
             " Valid variables include:"
             f" {listrepr(sorted(objects.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
         ),
-        example=(
+        examples=[
             "Flow run {flow_run_name} with id {flow_run_id} entered state"
             " {flow_run_state_name}."
-        ),
+        ],
     )
 
     @validator("message_template")
@@ -656,13 +656,13 @@ class VariableCreate(ActionBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
     value: str = Field(
         default=...,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=objects.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)
@@ -677,13 +677,13 @@ class VariableUpdate(ActionBaseModel):
     name: Optional[str] = Field(
         default=None,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
     value: Optional[str] = Field(
         default=None,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)

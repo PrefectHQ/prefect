@@ -17,6 +17,7 @@ from uuid import UUID
 import orjson
 import pendulum
 from cachetools import TTLCache
+from typing_extensions import Self
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
     ConnectionClosed,
@@ -118,8 +119,8 @@ def _get_api_url_and_key(
     return api_url, api_key
 
 
-class PrefectCloudEventsClient(EventsClient):
-    """A Prefect Events client that streams Events to a Prefect Cloud Workspace"""
+class PrefectEventsClient(EventsClient):
+    """A Prefect Events client that streams events to a Prefect server"""
 
     _websocket: Optional[WebSocketClientProtocol]
     _unconfirmed_events: List[Event]
@@ -127,37 +128,36 @@ class PrefectCloudEventsClient(EventsClient):
     def __init__(
         self,
         api_url: str = None,
-        api_key: str = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 20,
     ):
         """
         Args:
-            api_url: The base URL for a Prefect Cloud workspace
-            api_key: The API of an actor with the manage_events scope
+            api_url: The base URL for a Prefect server
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
         """
-        api_url, api_key = _get_api_url_and_key(api_url, api_key)
+        api_url = api_url or PREFECT_API_URL.value()
+        if not api_url:
+            raise ValueError(
+                "api_url must be provided or set in the Prefect configuration"
+            )
 
-        socket_url = (
+        self._events_socket_url = (
             api_url.replace("https://", "wss://")
             .replace("http://", "ws://")
             .rstrip("/")
+            + "/events/in"
         )
-
-        self._connect = connect(
-            socket_url + "/events/in",
-            extra_headers={"Authorization": f"bearer {api_key}"},
-        )
+        self._connect = connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
 
-    async def __aenter__(self) -> "PrefectCloudEventsClient":
+    async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
         await super().__aenter__()
@@ -236,6 +236,38 @@ class PrefectCloudEventsClient(EventsClient):
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.
                     await asyncio.sleep(1)
+
+
+class PrefectCloudEventsClient(PrefectEventsClient):
+    """A Prefect Events client that streams events to a Prefect Cloud Workspace"""
+
+    def __init__(
+        self,
+        api_url: str = None,
+        api_key: str = None,
+        reconnection_attempts: int = 10,
+        checkpoint_every: int = 20,
+    ):
+        """
+        Args:
+            api_url: The base URL for a Prefect Cloud workspace
+            api_key: The API of an actor with the manage_events scope
+            reconnection_attempts: When the client is disconnected, how many times
+                the client should attempt to reconnect
+            checkpoint_every: How often the client should sync with the server to
+                confirm receipt of all previously sent events
+        """
+        api_url, api_key = _get_api_url_and_key(api_url, api_key)
+        super().__init__(
+            api_url=api_url,
+            reconnection_attempts=reconnection_attempts,
+            checkpoint_every=checkpoint_every,
+        )
+
+        self._connect = connect(
+            self._events_socket_url,
+            extra_headers={"Authorization": f"bearer {api_key}"},
+        )
 
 
 SEEN_EVENTS_SIZE = 500_000

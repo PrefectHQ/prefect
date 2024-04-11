@@ -4,7 +4,7 @@ Conditional decorator for fields depending on Pydantic version.
 
 import functools
 from inspect import signature
-from typing import Any, Callable, Dict, Literal, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
@@ -12,6 +12,9 @@ from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
 
 FieldValidatorModes: TypeAlias = Literal["before", "after", "wrap", "plain"]
 T = TypeVar("T", bound=Callable[..., Any])
+
+if TYPE_CHECKING:
+    from prefect._internal.pydantic._compat import BaseModel
 
 
 def field_validator(
@@ -89,15 +92,15 @@ def field_validator(
 
     def decorator(validate_func: T) -> T:
         if USE_V2_MODELS:
-            from pydantic import field_validator
+            from pydantic import field_validator  # type: ignore
 
             return field_validator(
                 field, *fields, mode=mode, check_fields=check_fields
             )(validate_func)
         elif HAS_PYDANTIC_V2:
-            from pydantic.v1 import BaseModel, validator  # type: ignore
+            from pydantic.v1 import validator  # type: ignore
         else:
-            from pydantic import BaseModel, validator
+            from pydantic import validator
 
         # Extract the parameters of the validate_func function
         # e.g. if validate_func has a signature of (cls, v, values, config), we want to
