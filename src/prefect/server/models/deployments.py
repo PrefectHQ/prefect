@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 from uuid import UUID, uuid4
 
 import pendulum
@@ -14,8 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.api.workers import WorkerLookups
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database.orm_models import ORMDeployment
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.database import json_contains
 from prefect.settings import (
@@ -26,11 +27,11 @@ from prefect.settings import (
 )
 
 
-@inject_db
+@db_injector
 async def _delete_scheduled_runs(
-    session: sa.orm.Session,
-    deployment_id: UUID,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
     auto_scheduled_only: bool = False,
 ):
     """
@@ -55,12 +56,12 @@ async def _delete_scheduled_runs(
     await session.execute(delete_query)
 
 
-@inject_db
+@db_injector
 async def create_deployment(
+    db: PrefectDBInterface,
     session: AsyncSession,
     deployment: schemas.core.Deployment,
-    db: PrefectDBInterface,
-):
+) -> Optional[ORMDeployment]:
     """Upserts a deployment.
 
     Args:
@@ -125,7 +126,7 @@ async def create_deployment(
     # schedules and any runs from the old deployment.
 
     await _delete_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
+        session=session, deployment_id=deployment_id, auto_scheduled_only=True
     )
 
     await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
@@ -157,12 +158,12 @@ async def create_deployment(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def update_deployment(
-    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    session: AsyncSession,
     deployment_id: UUID,
     deployment: schemas.actions.DeploymentUpdate,
-    db: PrefectDBInterface,
 ) -> bool:
     """Updates a deployment.
 
@@ -234,7 +235,7 @@ async def update_deployment(
 
     # delete any auto scheduled runs that would have reflected the old deployment config
     await _delete_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
+        session=session, deployment_id=deployment_id, auto_scheduled_only=True
     )
 
     if should_update_schedules:
@@ -258,10 +259,10 @@ async def update_deployment(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def read_deployment(
-    session: sa.orm.Session, deployment_id: UUID, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
+) -> Optional[ORMDeployment]:
     """Reads a deployment by id.
 
     Args:
@@ -275,10 +276,10 @@ async def read_deployment(
     return await session.get(db.Deployment, deployment_id)
 
 
-@inject_db
+@db_injector
 async def read_deployment_by_name(
-    session: sa.orm.Session, name: str, flow_name: str, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, name: str, flow_name: str
+) -> Optional[ORMDeployment]:
     """Reads a deployment by name.
 
     Args:
@@ -304,10 +305,10 @@ async def read_deployment_by_name(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def _apply_deployment_filters(
-    query,
     db: PrefectDBInterface,
+    query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -363,10 +364,10 @@ async def _apply_deployment_filters(
     return query
 
 
-@inject_db
+@db_injector
 async def read_deployments(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: AsyncSession,
     offset: int = None,
     limit: int = None,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -376,7 +377,7 @@ async def read_deployments(
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
-):
+) -> Sequence[ORMDeployment]:
     """
     Read deployments.
 
@@ -406,7 +407,6 @@ async def read_deployments(
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
         work_queue_filter=work_queue_filter,
-        db=db,
     )
 
     if offset is not None:
@@ -418,10 +418,10 @@ async def read_deployments(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def count_deployments(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: AsyncSession,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -455,16 +455,15 @@ async def count_deployments(
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
         work_queue_filter=work_queue_filter,
-        db=db,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def delete_deployment(
-    session: sa.orm.Session, deployment_id: UUID, db: PrefectDBInterface
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
 ) -> bool:
     """
     Delete a deployment by id.
@@ -489,7 +488,7 @@ async def delete_deployment(
 
 
 async def schedule_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
@@ -552,16 +551,16 @@ async def schedule_runs(
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
 
-@inject_db
+@db_injector
 async def _generate_scheduled_flow_runs(
-    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    session: AsyncSession,
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
     min_time: datetime.timedelta,
     min_runs: int,
     max_runs: int,
-    db: PrefectDBInterface,
     auto_scheduled: bool = True,
 ) -> List[Dict]:
     """
@@ -655,10 +654,10 @@ async def _generate_scheduled_flow_runs(
     return runs
 
 
-@inject_db
+@db_injector
 async def _insert_scheduled_flow_runs(
-    session: sa.orm.Session, runs: List[Dict], db: PrefectDBInterface
-) -> List[UUID]:
+    db: PrefectDBInterface, session: AsyncSession, runs: List[Dict]
+) -> Sequence[UUID]:
     """
     Given a list of flow runs to schedule, as generated by `_generate_scheduled_flow_runs`,
     inserts them into the database. Note this is a separate method to facilitate batch
@@ -725,9 +724,9 @@ async def _insert_scheduled_flow_runs(
     return inserted_flow_run_ids
 
 
-@inject_db
+@db_injector
 async def check_work_queues_for_deployment(
-    db: PrefectDBInterface, session: sa.orm.Session, deployment_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
 ) -> List[schemas.core.WorkQueue]:
     """
     Get work queues that can pick up the specified deployment.
@@ -782,9 +781,9 @@ async def check_work_queues_for_deployment(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def _update_deployment_last_polled(
-    db: PrefectDBInterface, session: sa.orm.Session, deployment_ids: List[UUID]
+    db: PrefectDBInterface, session: AsyncSession, deployment_ids: List[UUID]
 ) -> None:
     """
     Update the last_polled for a list of deployment ids
@@ -797,7 +796,7 @@ async def _update_deployment_last_polled(
     await session.execute(query)
 
 
-@inject_db
+@db_injector
 async def create_deployment_schedules(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -828,7 +827,7 @@ async def create_deployment_schedules(
     return [schemas.core.DeploymentSchedule.from_orm(m) for m in models]
 
 
-@inject_db
+@db_injector
 async def read_deployment_schedules(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -862,7 +861,7 @@ async def read_deployment_schedules(
     return [schemas.core.DeploymentSchedule.from_orm(s) for s in result.scalars().all()]
 
 
-@inject_db
+@db_injector
 async def update_deployment_schedule(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -893,7 +892,7 @@ async def update_deployment_schedule(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def delete_schedules_for_deployment(
     db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
 ) -> bool:
@@ -914,7 +913,7 @@ async def delete_schedules_for_deployment(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def delete_deployment_schedule(
     db: PrefectDBInterface,
     session: AsyncSession,

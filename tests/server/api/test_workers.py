@@ -869,7 +869,6 @@ class TestDeleteWorker:
         remaining_workers = await models.workers.read_workers(
             session=session,
             work_pool_id=work_pool_id,
-            db=db,
         )
         assert deleted_worker_name not in map(lambda x: x.name, remaining_workers)
 
