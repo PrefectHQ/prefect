@@ -93,17 +93,6 @@ class EventNameFilter(EventDataFilter):
         return True
 
 
-def _partition_by_wildcards(names: List[str]) -> Tuple[List[str], List[str]]:
-    """Partition a list of names into those with wildcards and those without"""
-    without_wildcards, with_wildcards = [], []
-    for name in names:
-        if name.endswith("*"):
-            with_wildcards.append(name.strip("*"))
-        else:
-            without_wildcards.append(name)
-    return without_wildcards, with_wildcards
-
-
 class EventResourceFilter(EventDataFilter):
     id: Optional[List[str]] = Field(
         None, description="Only include events for resources with these IDs"
