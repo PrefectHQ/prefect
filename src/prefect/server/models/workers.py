@@ -319,7 +319,6 @@ async def create_work_queue(
             session=session,
             work_pool_id=work_pool_id,
             new_priorities={model.id: work_queue.priority},
-            db=db,
         )
     return model
 

@@ -214,7 +214,6 @@ async def read_flows(
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
-        db=db,
     )
 
     if offset is not None:
@@ -261,7 +260,6 @@ async def count_flows(
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
-        db=db,
     )
 
     result = await session.execute(query)
