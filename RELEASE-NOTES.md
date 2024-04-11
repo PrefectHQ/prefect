@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-## Release 2.17.0
+## Release 2.17.1
 
 ### Fixes
 - Fix events storage import — https://github.com/PrefectHQ/prefect/pull/12681
