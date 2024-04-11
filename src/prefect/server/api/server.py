@@ -37,6 +37,7 @@ from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.events.services.actions import ActionLogger
 from prefect.server.events.services.event_logger import EventLogger
+from prefect.server.events.services.event_persister import EventPersister
 from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.database import get_dialect
@@ -588,6 +589,12 @@ def create_app(
             service_instances.append(ReactiveTriggers())
             service_instances.append(ProactiveTriggers())
             service_instances.append(ActionLogger())
+
+        if (
+            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
+            and prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED
+        ):
+            service_instances.append(EventPersister())
 
         loop = asyncio.get_running_loop()
 

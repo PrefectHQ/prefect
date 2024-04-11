@@ -179,12 +179,9 @@ class Event(PrefectBaseModel):
         return self.resource.get(label)
 
 
-class ReceivedEvent(Event):
+class ReceivedEvent(Event, extra="ignore", orm_mode=True):
     """The server-side view of an event that has happened to a Resource after it has
     been received by the server"""
-
-    class Config:
-        orm_mode = True
 
     received: DateTimeTZ = Field(
         default_factory=lambda: pendulum.now("UTC"),

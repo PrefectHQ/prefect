@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Sequence, Tuple
 from unittest import mock
 from uuid import uuid4
 
@@ -8,7 +8,6 @@ import pydantic
 import pytest
 import sqlalchemy as sa
 from pendulum.datetime import DateTime
-from pendulum.tz.timezone import Timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -28,19 +27,6 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
-
-
-@pytest.fixture
-def frozen_time(monkeypatch: pytest.MonkeyPatch) -> pendulum.DateTime:
-    frozen = pendulum.now("UTC")
-
-    def frozen_time(tz: Optional[Union[str, Timezone]] = None):
-        if tz is None:
-            return frozen
-        return frozen.in_timezone(tz)
-
-    monkeypatch.setattr(pendulum, "now", frozen_time)
-    return frozen
 
 
 @pytest.fixture
