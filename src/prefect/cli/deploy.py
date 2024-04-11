@@ -676,7 +676,7 @@ async def _run_single_deploy(
         tags=deploy_config.get("tags", []),
         entrypoint=deploy_config.get("entrypoint"),
         pull_steps=pull_steps,
-        infra_overrides=get_from_dict(deploy_config, "work_pool.job_variables"),
+        job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
 
     await _create_deployment_triggers(client, deployment_id, triggers)

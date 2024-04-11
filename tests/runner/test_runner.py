@@ -1105,7 +1105,7 @@ class TestRunnerDeployment:
         assert deployment.work_queue_name is None
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema is False
-        assert deployment.infra_overrides == {}
+        assert deployment.job_variables == {}
         assert deployment.is_schedule_active is True
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
@@ -1122,7 +1122,7 @@ class TestRunnerDeployment:
         deployment = await prefect_client.read_deployment(deployment_id)
 
         assert deployment.work_pool_name == work_pool.name
-        assert deployment.infra_overrides == {
+        assert deployment.job_variables == {
             "image": "my-repo/my-image:latest",
         }
         assert deployment.work_queue_name == "default"
@@ -1558,14 +1558,14 @@ class TestDeploy:
             deployment_id=deployment_ids[0]
         )
         assert (
-            deployment_1.infra_overrides["image"] == "test-registry/test-image:test-tag"
+            deployment_1.job_variables["image"] == "test-registry/test-image:test-tag"
         )
 
         deployment_2 = await prefect_client.read_deployment(
             deployment_id=deployment_ids[1]
         )
         assert (
-            deployment_2.infra_overrides["image"] == "test-registry/test-image:test-tag"
+            deployment_2.job_variables["image"] == "test-registry/test-image:test-tag"
         )
 
     async def test_deploy_skip_push(

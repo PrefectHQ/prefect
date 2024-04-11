@@ -82,18 +82,26 @@ async def create_deployment(
         shallow=True, exclude_unset=True, exclude={"schedules"}
     )
 
+    # The job_variables field in client and server schemas is named
+    # infra_overrides in the database.
+    job_variables = insert_values.pop("job_variables", None)
+    if job_variables:
+        insert_values["infra_overrides"] = job_variables
+
+    conflict_update_fields = deployment.dict(
+        shallow=True,
+        exclude_unset=True,
+        exclude={"id", "created", "created_by", "schedules", "job_variables"},
+    )
+    if job_variables:
+        conflict_update_fields["infra_overrides"] = job_variables
+
     insert_stmt = (
         db.insert(db.Deployment)
         .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.deployment_unique_upsert_columns,
-            set_={
-                **deployment.dict(
-                    shallow=True,
-                    exclude_unset=True,
-                    exclude={"id", "created", "created_by", "schedules"},
-                ),
-            },
+            set_={**conflict_update_fields},
         )
     )
 
@@ -177,6 +185,12 @@ async def update_deployment(
         exclude_unset=True,
         exclude={"work_pool_name"},
     )
+
+    # The job_variables field in client and server schemas is named
+    # infra_overrides in the database.
+    job_variables = update_data.pop("job_variables", None)
+    if job_variables:
+        update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
 

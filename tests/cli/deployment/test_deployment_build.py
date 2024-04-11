@@ -1187,7 +1187,7 @@ class TestInfraOverrides:
         )
 
         build_kwargs = mock_build_from_flow.call_args.kwargs
-        assert build_kwargs["infra_overrides"] == {"my.dog": "1", "your.cat": "test"}
+        assert build_kwargs["job_variables"] == {"my.dog": "1", "your.cat": "test"}
 
     @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
     def test_overrides_default_is_empty(
@@ -1211,7 +1211,7 @@ class TestInfraOverrides:
         )
 
         build_kwargs = mock_build_from_flow.call_args.kwargs
-        assert build_kwargs["infra_overrides"] == {}
+        assert build_kwargs["job_variables"] == {}
 
 
 class TestStorageBlock:
