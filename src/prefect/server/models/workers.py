@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -13,7 +13,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkQueue
 
@@ -28,11 +28,11 @@ DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 # -----------------------------------------------------
 
 
-@inject_db
+@db_injector
 async def create_work_pool(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool: schemas.core.WorkPool,
-    db: PrefectDBInterface,
 ) -> ORMWorkPool:
     """
     Creates a work pool.
@@ -66,10 +66,10 @@ async def create_work_pool(
     return pool
 
 
-@inject_db
+@db_injector
 async def read_work_pool(
-    session: AsyncSession, work_pool_id: UUID, db: PrefectDBInterface
-) -> ORMWorkPool:
+    db: PrefectDBInterface, session: AsyncSession, work_pool_id: UUID
+) -> Optional[ORMWorkPool]:
     """
     Reads a WorkPool by id.
 
@@ -85,10 +85,10 @@ async def read_work_pool(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def read_work_pool_by_name(
-    session: AsyncSession, work_pool_name: str, db: PrefectDBInterface
-) -> ORMWorkPool:
+    db: PrefectDBInterface, session: AsyncSession, work_pool_name: str
+) -> Optional[ORMWorkPool]:
     """
     Reads a WorkPool by name.
 
@@ -104,14 +104,14 @@ async def read_work_pool_by_name(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def read_work_pools(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     offset: int = None,
     limit: int = None,
-) -> List[ORMWorkPool]:
+) -> Sequence[ORMWorkPool]:
     """
     Read worker configs.
 
@@ -136,7 +136,7 @@ async def read_work_pools(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def count_work_pools(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -161,12 +161,12 @@ async def count_work_pools(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def update_work_pool(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     work_pool: schemas.actions.WorkPoolUpdate,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a WorkPool by id.
@@ -192,9 +192,9 @@ async def update_work_pool(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def delete_work_pool(
-    session: AsyncSession, work_pool_id: UUID, db: PrefectDBInterface
+    db: PrefectDBInterface, session: AsyncSession, work_pool_id: UUID
 ) -> bool:
     """
     Delete a WorkPool by id.
@@ -213,8 +213,9 @@ async def delete_work_pool(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def get_scheduled_flow_runs(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_ids: List[UUID] = None,
     work_queue_ids: List[UUID] = None,
@@ -222,8 +223,7 @@ async def get_scheduled_flow_runs(
     scheduled_after: datetime.datetime = None,
     limit: int = None,
     respect_queue_priorities: bool = None,
-    db: PrefectDBInterface = None,
-) -> List[schemas.responses.WorkerFlowRunResponse]:
+) -> Sequence[schemas.responses.WorkerFlowRunResponse]:
     """
     Get runs from queues in a specific work pool.
 
@@ -266,12 +266,12 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 
 
-@inject_db
+@db_injector
 async def create_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     work_queue: schemas.actions.WorkQueueCreate,
-    db: PrefectDBInterface,
 ) -> ORMWorkQueue:
     """
     Creates a work pool queue.
@@ -319,18 +319,17 @@ async def create_work_queue(
             session=session,
             work_pool_id=work_pool_id,
             new_priorities={model.id: work_queue.priority},
-            db=db,
         )
     return model
 
 
-@inject_db
+@db_injector
 async def bulk_update_work_queue_priorities(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     new_priorities: Dict[UUID, int],
-    db: PrefectDBInterface,
-):
+) -> None:
     """
     This is a brute force update of all work pool queue priorities for a given work
     pool.
@@ -390,15 +389,15 @@ async def bulk_update_work_queue_priorities(
     await session.flush()
 
 
-@inject_db
+@db_injector
 async def read_work_queues(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
-    db: PrefectDBInterface,
     work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-) -> List[ORMWorkQueue]:
+) -> Sequence[ORMWorkQueue]:
     """
     Read all work pool queues for a work pool. Results are ordered by ascending priority.
 
@@ -431,12 +430,12 @@ async def read_work_queues(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def read_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-    db: PrefectDBInterface,
-) -> ORMWorkQueue:
+) -> Optional[ORMWorkQueue]:
     """
     Read a specific work pool queue.
 
@@ -451,13 +450,13 @@ async def read_work_queue(
     return await session.get(db.WorkQueue, work_queue_id)
 
 
-@inject_db
+@db_injector
 async def read_work_queue_by_name(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_name: str,
     work_queue_name: str,
-    db: PrefectDBInterface,
-) -> ORMWorkQueue:
+) -> Optional[ORMWorkQueue]:
     """
     Reads a WorkQueue by name.
 
@@ -482,12 +481,12 @@ async def read_work_queue_by_name(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def update_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a work pool queue.
@@ -519,11 +518,11 @@ async def update_work_queue(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def delete_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Delete a work pool queue.
@@ -567,15 +566,15 @@ async def delete_work_queue(
 # -----------------------------------------------------
 
 
-@inject_db
+@db_injector
 async def read_workers(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     worker_filter: schemas.filters.WorkerFilter = None,
     limit: int = None,
     offset: int = None,
-    db: PrefectDBInterface = None,
-) -> List[ORMWorker]:
+) -> Sequence[ORMWorker]:
     query = (
         sa.select(db.Worker)
         .where(db.Worker.work_pool_id == work_pool_id)
@@ -596,12 +595,12 @@ async def read_workers(
     return result.scalars().all()
 
 
-@inject_db
+@db_injector
 async def worker_heartbeat(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     worker_name: str,
-    db: PrefectDBInterface,
     heartbeat_interval_seconds: Optional[int] = None,
 ) -> bool:
     """
@@ -645,12 +644,12 @@ async def worker_heartbeat(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def delete_worker(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     worker_name: str,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Delete a work pool's worker.
