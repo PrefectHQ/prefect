@@ -181,13 +181,11 @@ async def test_automation_covers_all_the_events_we_expect(
         assert stuck_flow_runs_sla.covers(event)
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_only_the_stuck_flow_triggers(
     stuck_flow_runs_sla: EventTrigger,
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,
-    automations_session: AsyncSession,
 ):
     for event in received_events:
         await triggers.reactive_evaluation(event)
@@ -197,13 +195,13 @@ async def test_only_the_stuck_flow_triggers(
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session, stuck_flow_runs_sla, frozen_time + timedelta(seconds=50)
+        stuck_flow_runs_sla, frozen_time + timedelta(seconds=50)
     )
     # It still hasn't been a minute
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session, stuck_flow_runs_sla, frozen_time + timedelta(seconds=64)
+        stuck_flow_runs_sla, frozen_time + timedelta(seconds=64)
     )
 
     last_event = received_events[5]
@@ -263,13 +261,11 @@ async def stuck_flow_runs_sla_with_wildcard_expect(
     return cast(EventTrigger, automation.trigger)
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset(
     stuck_flow_runs_sla_with_wildcard_expect: EventTrigger,
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,
-    automations_session: AsyncSession,
 ):
     """Regression test for observed failures to trigger proactive automations when
     the `after` event is a subset of the `expect` events"""
@@ -281,7 +277,6 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session,
         stuck_flow_runs_sla_with_wildcard_expect,
         frozen_time + timedelta(seconds=50),
     )
@@ -289,7 +284,6 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session,
         stuck_flow_runs_sla_with_wildcard_expect,
         frozen_time + timedelta(seconds=64),
     )
@@ -539,33 +533,27 @@ async def sequence_of_events_3521(
     ]
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3521_negative_case(
     trigger_from_3521: EventTrigger,
     sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
     act: mock.AsyncMock,
-    automations_session: AsyncSession,
 ):
     # we expect no action to ever be called for these
     for item in sequence_of_events_3521:
         if isinstance(item, ReceivedEvent):
             await triggers.reactive_evaluation(event=item)
         elif isinstance(item, pendulum.DateTime):
-            await triggers.proactive_evaluation(
-                automations_session, trigger_from_3521, as_of=item
-            )
+            await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
 
         act.assert_not_awaited()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3521_positive_case(
     trigger_from_3521: EventTrigger,
     sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
     act: mock.AsyncMock,
-    automations_session: AsyncSession,
 ):
     # if we never get the completed event, the automation should fire
     for item in sequence_of_events_3521:
@@ -574,21 +562,17 @@ async def test_regression_3521_positive_case(
                 continue
             await triggers.reactive_evaluation(event=item)
         elif isinstance(item, pendulum.DateTime):
-            await triggers.proactive_evaluation(
-                automations_session, trigger_from_3521, as_of=item
-            )
+            await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
 
     act.assert_awaited_once()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3521_side_quest(
     trigger_from_3521: EventTrigger,
     sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
     act: mock.AsyncMock,
-    automations_session: AsyncSession,
 ):
     """While testing this issue, found another issue where sweeping older buckets might
     cause buckets to disappear before they are checked if there are long lags between
@@ -609,22 +593,16 @@ async def test_regression_3521_side_quest(
     # now run one at the end, which represents a time after the automation should have
     # triggered but didn't
     assert isinstance(item, pendulum.DateTime)
-    await triggers.proactive_evaluation(
-        automations_session, trigger_from_3521, as_of=item
-    )
+    await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
     act.assert_awaited_once()
 
     act.reset_mock()
 
     # but make sure that no further triggers happen later...
-    await triggers.proactive_evaluation(
-        automations_session, trigger_from_3521, as_of=item.add(minutes=1)
-    )
+    await triggers.proactive_evaluation(trigger_from_3521, as_of=item.add(minutes=1))
     act.assert_not_awaited()
 
-    await triggers.proactive_evaluation(
-        automations_session, trigger_from_3521, as_of=item.add(minutes=200)
-    )
+    await triggers.proactive_evaluation(trigger_from_3521, as_of=item.add(minutes=200))
     act.assert_not_awaited()
 
 
@@ -756,7 +734,6 @@ async def sequence_of_events_3244(
     ]
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3244_negative_case(
     trigger_from_3244: EventTrigger,
     sequence_of_events_3244: List[Union[ReceivedEvent, pendulum.DateTime]],
@@ -775,21 +752,17 @@ async def test_regression_3244_negative_case(
             else:
                 await triggers.reactive_evaluation(event=item)
         elif isinstance(item, pendulum.DateTime):
-            await triggers.proactive_evaluation(
-                automations_session, trigger_from_3244, as_of=item
-            )
+            await triggers.proactive_evaluation(trigger_from_3244, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
 
         act.assert_not_awaited()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3244_positive_case(
     trigger_from_3244: EventTrigger,
     sequence_of_events_3244: List[Union[ReceivedEvent, pendulum.DateTime]],
     act: mock.AsyncMock,
-    automations_session: AsyncSession,
 ):
     # if we never get the completed event, the automation should fire
     for item in sequence_of_events_3244:
@@ -798,9 +771,7 @@ async def test_regression_3244_positive_case(
                 continue
             await triggers.reactive_evaluation(event=item)
         elif isinstance(item, pendulum.DateTime):
-            await triggers.proactive_evaluation(
-                automations_session, trigger_from_3244, as_of=item
-            )
+            await triggers.proactive_evaluation(trigger_from_3244, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
 
@@ -857,8 +828,8 @@ def trigger_from_3803(automation_from_3803: Automation) -> EventTrigger:
     return cast(EventTrigger, automation_from_3803.trigger)
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3803_negative_case(
+    reset_events_clock: None,
     trigger_from_3803: EventTrigger,
     act: mock.AsyncMock,
     start_of_test: DateTime,
@@ -877,12 +848,12 @@ async def test_regression_3803_negative_case(
     # local offset should be preventing it
     # Before the fix, the trigger would have just fired here prematurely
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=1)
+        trigger_from_3803, start_of_test + timedelta(minutes=1)
     )
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=4)
+        trigger_from_3803, start_of_test + timedelta(minutes=4)
     )
     act.assert_not_awaited()
 
@@ -899,13 +870,13 @@ async def test_regression_3803_negative_case(
 
     # We shouldn't fire later because the Running event closed it out
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=6)
+        trigger_from_3803, start_of_test + timedelta(minutes=6)
     )
     act.assert_not_awaited()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3803_positive_case_no_events_at_all(
+    reset_events_clock: None,
     trigger_from_3803: EventTrigger,
     act: mock.AsyncMock,
     start_of_test: DateTime,
@@ -924,12 +895,12 @@ async def test_regression_3803_positive_case_no_events_at_all(
     # local offset should be preventing it
     # Before the fix, the trigger would have just fired here prematurely
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=1)
+        trigger_from_3803, start_of_test + timedelta(minutes=1)
     )
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=4)
+        trigger_from_3803, start_of_test + timedelta(minutes=4)
     )
     act.assert_not_awaited()
 
@@ -937,13 +908,13 @@ async def test_regression_3803_positive_case_no_events_at_all(
 
     # We should fire later because the Running event never closed it out
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=6)
+        trigger_from_3803, start_of_test + timedelta(minutes=6)
     )
     act.assert_awaited_once()
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_regression_3803_positive_case_no_relevant_event(
+    reset_events_clock: None,
     trigger_from_3803: EventTrigger,
     act: mock.AsyncMock,
     start_of_test: DateTime,
@@ -962,14 +933,13 @@ async def test_regression_3803_positive_case_no_relevant_event(
     # local offset should be preventing it
     # Before the fix, the trigger would have just fired here prematurely
     await triggers.proactive_evaluation(
-        automations_session,
         trigger_from_3803,
         start_of_test + timedelta(minutes=1),
     )
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=4)
+        trigger_from_3803, start_of_test + timedelta(minutes=4)
     )
     act.assert_not_awaited()
 
@@ -986,6 +956,6 @@ async def test_regression_3803_positive_case_no_relevant_event(
 
     # We should fire now because the Running event never closed it out
     await triggers.proactive_evaluation(
-        automations_session, trigger_from_3803, start_of_test + timedelta(minutes=6)
+        trigger_from_3803, start_of_test + timedelta(minutes=6)
     )
     act.assert_awaited_once()

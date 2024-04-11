@@ -14,6 +14,11 @@ async def reset_triggers(cleared_automations: None):
 
 
 @pytest.fixture
+async def reset_events_clock():
+    await triggers.reset_events_clock()
+
+
+@pytest.fixture
 def actions_publish_mocks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Tuple[mock.MagicMock, mock.AsyncMock]:

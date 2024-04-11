@@ -3,7 +3,9 @@ from typing import Optional
 
 from prefect.logging import get_logger
 from prefect.server.events import triggers
+from prefect.server.services.loop_service import LoopService
 from prefect.server.utilities.messaging import create_consumer
+from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
 
 logger = get_logger(__name__)
 
@@ -38,3 +40,17 @@ class ReactiveTriggers:
         finally:
             self.consumer_task = None
         logger.debug("Reactive triggers stopped")
+
+
+class ProactiveTriggers(LoopService):
+    def __init__(self, loop_seconds: float = None, **kwargs):
+        super().__init__(
+            loop_seconds=(
+                loop_seconds
+                or PREFECT_EVENTS_PROACTIVE_GRANULARITY.value().total_seconds()
+            ),
+            **kwargs,
+        )
+
+    async def run_once(self):
+        await triggers.evaluate_proactive_triggers()
