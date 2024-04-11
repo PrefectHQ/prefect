@@ -1,4 +1,4 @@
-"""Trigger in index
+"""Add `trigger_id` to the unique index for `automation_bucket`
 
 Revision ID: 2b6c2b548f95
 Revises: cc510aec4689
