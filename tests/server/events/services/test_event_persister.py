@@ -101,6 +101,7 @@ def message(event: ReceivedEvent) -> Message:
 async def test_start_and_stop_service():
     service = event_persister.EventPersister()
     service_task = asyncio.create_task(service.start())
+    service.started_event = asyncio.Event()
 
     await service.started_event.wait()
     assert service.consumer_task is not None

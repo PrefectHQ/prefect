@@ -29,11 +29,9 @@ class EventPersister:
     consumer_task: Optional[asyncio.Task] = None
     started_event: Optional[asyncio.Event] = asyncio.Event()
 
-    async def start(self, started_event: Optional[asyncio.Event] = None):
+    async def start(self):
         assert self.consumer_task is None, "Event persister already started"
         self.consumer = create_consumer("events")
-        if started_event:
-            self.started_event = started_event
 
         async with create_handler(
             batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
