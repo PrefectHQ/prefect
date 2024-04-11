@@ -46,7 +46,7 @@ if TYPE_CHECKING:
             # TODO: we need to account for rewriting the validator to not use ModelField
             pass
         if not USE_PYDANTIC_V2:
-            from pydantic.v1.fields import ModelField
+            pass
 
 
 def raise_on_name_with_banned_characters(name: str) -> str:
@@ -144,6 +144,12 @@ def validate_values_conform_to_schema(
             "The provided schema is not a valid json schema. Schema error:"
             f" {exc.message}"
         ) from exc
+
+
+def validate_integer_above_or_equal_to_value(value: int, minimum: int) -> int:
+    if value < minimum:
+        raise ValueError(f"Value must be greater than or equal to {minimum}.")
+    return value
 
 
 ### DEPLOYMENT SCHEMA VALIDATORS ###
@@ -485,12 +491,11 @@ def validate_rrule_string(v: str) -> str:
 
 
 def validate_trigger_within(
-    value: datetime.timedelta, field: "ModelField"
+    value: datetime.timedelta, minimum: float = 0.0
 ) -> datetime.timedelta:
     """
     Validate that the `within` field is greater than the minimum value.
     """
-    minimum = field.field_info.extra["minimum"]
     if value.total_seconds() < minimum:
         raise ValueError("The minimum `within` is 0 seconds")
     return value

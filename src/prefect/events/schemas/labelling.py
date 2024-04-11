@@ -1,6 +1,8 @@
-from typing import Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Dict, Generic, Iterable, Iterator, List, Optional, Tuple, TypeVar
 
 from prefect.pydantic import HAS_PYDANTIC_V2, USE_PYDANTIC_V2, BaseModel
+
+T = TypeVar("T")
 
 
 class LabelDiver:
@@ -71,30 +73,29 @@ class LabelDiver:
             raise AttributeError
 
 
-if not HAS_PYDANTIC_V2 or not USE_PYDANTIC_V2:
-
-    class _RootBase(BaseModel):
-        __root__: Dict[str, str]
-
-        @property
-        def _root(self) -> Dict[str, str]:
-            return self.__root__
-
-else:
+if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
     from pydantic import RootModel
 
-    class _RootBase(RootModel[Dict[str, str]]):
-        root: Dict[str, str]
+    class _RootBase(RootModel[Dict[str, T]], Generic[T]):
+        root: Dict[str, T]
 
         @property
-        def _root(self) -> Dict[str, str]:
+        def _root(self) -> Dict[str, T]:
             return self.root
 
-        def __init__(self, __root__: Dict[str, str]):
+        def __init__(self, __root__: Dict[str, T]):
             super().__init__(root=__root__)
+else:
+
+    class _RootBase(BaseModel, Generic[T]):
+        __root__: Dict[str, T]
+
+        @property
+        def _root(self) -> Dict[str, T]:
+            return self.__root__
 
 
-class Labelled(_RootBase):
+class Labelled(_RootBase[str]):
     """An object defined by string labels and values"""
 
     def keys(self) -> Iterable[str]:

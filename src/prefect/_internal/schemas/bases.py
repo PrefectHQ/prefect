@@ -13,20 +13,12 @@ import orjson
 import pendulum
 from packaging.version import Version
 
-from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
-from prefect.pydantic import BaseModel
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import Field, SecretField
-    from pydantic.v1.json import custom_pydantic_encoder
-else:
-    import pydantic
-    from pydantic import Field, SecretField
-    from pydantic.json import custom_pydantic_encoder
-
+from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.pydantic import VERSION as PYDANTIC_VERSION
+from prefect.pydantic import BaseModel, Field, SecretField
+from prefect.utilities.pydantic import custom_pydantic_encoder
 
 T = TypeVar("T")
 
@@ -60,11 +52,7 @@ class PrefectBaseModel(BaseModel):
                 "json_loads": orjson.loads,
                 "json_dumps": orjson_dumps_extra_compatible,
                 "copy_on_model_validation": (
-                    "none"
-                    if (pydantic_version := getattr(pydantic, "__version__", None))
-                    is not None
-                    and Version(pydantic_version) >= Version("1.9.2")
-                    else False
+                    "none" if Version(PYDANTIC_VERSION) >= Version("1.9.2") else False
                 ),
             }
             if not USE_V2_MODELS
@@ -230,9 +218,11 @@ class ObjectBaseModel(IDBaseModel):
     equality comparisons.
     """
 
-    model_config = (
-        dict(orm_mode=True) if not USE_V2_MODELS else dict(from_attributes=True)
-    )
+    class Config:
+        if USE_V2_MODELS:
+            from_attributes = True
+        else:
+            orm_mode = True
 
     created: Optional[DateTimeTZ] = Field(default=None, repr=False)
     updated: Optional[DateTimeTZ] = Field(default=None, repr=False)

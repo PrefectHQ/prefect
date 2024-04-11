@@ -27,24 +27,21 @@ from uuid import UUID
 from typing_extensions import TypeAlias
 
 from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_trigger_within
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-    from pydantic.v1.fields import ModelField
-else:
-    from pydantic import Field, PrivateAttr, root_validator, validator
-    from pydantic.fields import ModelField
-
 from prefect._internal.compatibility.experimental import (
     EXPERIMENTAL_WARNING,
     PREFECT_EXPERIMENTAL_WARN,
     ExperimentalFeature,
     experiment_enabled,
 )
+from prefect._internal.schemas.validators import validate_trigger_within
 from prefect.events.actions import RunDeployment
-from prefect.pydantic import PrefectBaseModel
+from prefect.pydantic import (
+    Field,
+    PrefectBaseModel,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
 )
@@ -234,13 +231,11 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
         ),
     )
 
-    @validator("within")
-    def enforce_minimum_within(
-        cls, value: timedelta, values, config, field: ModelField
-    ):
-        return validate_trigger_within(value, field)
+    @field_validator("within")
+    def enforce_minimum_within(cls, value: timedelta):
+        return validate_trigger_within(value)
 
-    @root_validator(skip_on_failure=True)
+    @model_validator
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
         posture: Optional[Posture] = values.get("posture")
         within: Optional[timedelta] = values.get("within")
@@ -312,7 +307,6 @@ class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
     type: Literal["compound"] = "compound"
     require: Union[int, Literal["any", "all"]]
 
-    @root_validator
     def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         require = values.get("require")
 

@@ -1,5 +1,7 @@
 from functools import partial
-from typing import Any, Callable, Generic, Type, TypeVar, cast, overload
+from typing import Any, Callable, Dict, Generic, Type, TypeVar, cast, overload
+
+from pydantic_core import to_jsonable_python
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -267,3 +269,18 @@ class JsonPatch(JsonPatchBase):
                 },
             }
         )
+
+
+def custom_pydantic_encoder(
+    type_encoders: Dict[Any, Callable[[Type[Any]], Any]], obj: Any
+) -> Any:
+    # Check the class type and its superclasses for a matching encoder
+    for base in obj.__class__.__mro__[:-1]:
+        try:
+            encoder = type_encoders[base]
+        except KeyError:
+            continue
+
+        return encoder(obj)
+    else:  # We have exited the for loop without finding a suitable encoder
+        return to_jsonable_python(obj)

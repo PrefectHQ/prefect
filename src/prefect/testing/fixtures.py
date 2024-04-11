@@ -294,7 +294,7 @@ async def events_server(
         # 2. filter
         filter_message = json.loads(await socket.recv())
         assert filter_message["type"] == "filter"
-        recorder.filter = EventFilter.parse_obj(filter_message["filter"])
+        recorder.filter = EventFilter.model_validate(filter_message["filter"])
 
         # 3. send events
         for event in puppeteer.outgoing_events:
@@ -302,7 +302,7 @@ async def events_server(
                 json.dumps(
                     {
                         "type": "event",
-                        "event": event.dict(json_compatible=True),
+                        "event": event.model_dump(mode="json"),
                     }
                 )
             )

@@ -9,25 +9,17 @@ import orjson
 import pendulum
 from packaging.version import Version
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import BaseModel, Field, SecretField
-    from pydantic.v1.json import custom_pydantic_encoder
-else:
-    import pydantic
-    from pydantic import BaseModel, Field, SecretField
-    from pydantic.json import custom_pydantic_encoder
-
+from prefect.pydantic import VERSION as PYDANTIC_VERSION
+from prefect.pydantic import BaseModel, Field, SecretField
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.utilities.pydantic import custom_pydantic_encoder
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)
 
 
-def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
+def get_class_fields_only(model: Type[BaseModel]) -> set:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
@@ -36,7 +28,7 @@ def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
     parent_class_fields = set()
 
     for base in model.__class__.__bases__:
-        if issubclass(base, pydantic.BaseModel):
+        if issubclass(base, BaseModel):
             parent_class_fields.update(base.__annotations__.keys())
 
     return (subclass_class_fields - parent_class_fields) | (
@@ -72,10 +64,7 @@ class PrefectBaseModel(BaseModel):
             SecretField: lambda v: v.dict() if getattr(v, "dict", None) else str(v)
         }
 
-        pydantic_version = getattr(pydantic, "__version__", None)
-        if pydantic_version is not None and Version(pydantic_version) >= Version(
-            "1.9.2"
-        ):
+        if Version(PYDANTIC_VERSION) >= Version("1.9.2"):
             copy_on_model_validation = "none"
         else:
             copy_on_model_validation = False

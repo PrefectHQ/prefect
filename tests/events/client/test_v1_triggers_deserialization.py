@@ -9,7 +9,7 @@ These tests will help to ensure that as we're refactoring Triggers as part of
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Set, Type
+from typing import Any, Dict, List, Optional, Set, Type, Union
 
 import orjson
 import pytest
@@ -18,32 +18,39 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
-    from pydantic.v1 import Field
+    from pydantic.v1 import BaseModel, Field
 else:
     import pydantic
-    from pydantic import Field
+    from pydantic import BaseModel, Field
 
 from prefect.events.schemas.automations import (
     EventTrigger,
     MetricTrigger,
     MetricTriggerQuery,
     Posture,
-    ResourceSpecification,
     ResourceTrigger,
     TriggerTypes,
 )
 from prefect.server.utilities.schemas import PrefectBaseModel
 
 
-class V1Trigger(PrefectBaseModel):
+class V1ResourceSpecification(BaseModel):
+    """A specification that may match zero, one, or many resources, used to target or
+    select a set of resources in a query or automation.  A resource must match at least
+    one value of all of the provided labels"""
+
+    __root__: Dict[str, Union[str, List[str]]]
+
+
+class V1Trigger(BaseModel):
     """A copy of the original events.automations.Trigger class for reference."""
 
-    match: ResourceSpecification = Field(  # pragma: no branch
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+    match: V1ResourceSpecification = Field(  # pragma: no branch
+        default_factory=lambda: V1ResourceSpecification.parse_obj({}),
         description="Labels for resources which this Automation will match.",
     )
-    match_related: ResourceSpecification = Field(  # pragma: no branch
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+    match_related: V1ResourceSpecification = Field(  # pragma: no branch
+        default_factory=lambda: V1ResourceSpecification.parse_obj({}),
         description="Labels for related resources which this Automation will match.",
     )
 
