@@ -4,20 +4,27 @@ and carries them out.  Also includes the various concrete subtypes of Actions
 """
 
 import abc
+import asyncio
+import copy
 from base64 import b64encode
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
+    Callable,
     ClassVar,
+    Coroutine,
     Dict,
     List,
     Literal,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 from uuid import UUID, uuid4
 
+import jinja2
 import orjson
 import pendulum
 from httpx import Response
@@ -37,19 +44,50 @@ from prefect.server.events.clients import (
     PrefectServerEventsAPIClient,
     PrefectServerEventsClient,
 )
+from prefect.server.events.jinja_filters import all_filters
 from prefect.server.events.schemas.events import Event, RelatedResource, Resource
-from prefect.server.schemas.actions import StateCreate
+from prefect.server.events.schemas.labelling import LabelDiver
+from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import (
+    ConcurrencyLimitV2,
+    Flow,
+    TaskRun,
     WorkPool,
 )
-from prefect.server.schemas.states import StateType, Suspended
+from prefect.server.schemas.responses import (
+    DeploymentResponse,
+    FlowRunResponse,
+    WorkPoolResponse,
+    WorkQueueWithStatus,
+)
+from prefect.server.schemas.states import Scheduled, State, StateType, Suspended
 from prefect.server.utilities.schemas import PrefectBaseModel
+from prefect.server.utilities.user_templates import (
+    TemplateSecurityError,
+    matching_types_in_templates,
+    maybe_template,
+    register_user_template_filters,
+    render_user_template,
+    validate_user_template,
+)
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
+from prefect.utilities.schema_tools.hydration import (
+    HydrationContext,
+    HydrationError,
+    Placeholder,
+    ValidJinja,
+    WorkspaceVariable,
+    hydrate,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from prefect.server.api.clients import OrchestrationClient
     from prefect.server.events.schemas.automations import TriggeredAction
 
 logger = get_logger(__name__)
+
+# Register our notification-related filters
+register_user_template_filters(all_filters)
 
 
 class ActionFailed(Exception):
@@ -80,32 +118,33 @@ class Action(PrefectBaseModel, abc.ABC):
 
         automation_resource_id = f"prefect-cloud.automation.{automation.id}"
 
+        logger.warning(
+            "Action failed: %r",
+            reason,
+            extra={**self.logging_context(triggered_action)},
+        )
+        event = Event(
+            occurred=pendulum.now("UTC"),
+            event="prefect-cloud.automation.action.failed",
+            resource={
+                "prefect.resource.id": automation_resource_id,
+                "prefect.resource.name": automation.name,
+                "prefect-cloud.trigger-type": automation.trigger.type,
+            },
+            related=self._resulting_related_resources,
+            payload={
+                "action_index": action_index,
+                "action_type": action.type,
+                "invocation": str(triggered_action.id),
+                "reason": reason,
+                **self._result_details,
+            },
+            id=uuid4(),
+        )
+        if isinstance(automation.trigger, EventTrigger):
+            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+
         async with PrefectServerEventsClient() as events:
-            logger.warning(
-                "Action failed: %r",
-                reason,
-                extra={**self.logging_context(triggered_action)},
-            )
-            event = Event(
-                occurred=pendulum.now("UTC"),
-                event="prefect-cloud.automation.action.failed",
-                resource={
-                    "prefect.resource.id": automation_resource_id,
-                    "prefect.resource.name": automation.name,
-                    "prefect-cloud.trigger-type": automation.trigger.type,
-                },
-                related=self._resulting_related_resources,
-                payload={
-                    "action_index": action_index,
-                    "action_type": action.type,
-                    "invocation": str(triggered_action.id),
-                    "reason": reason,
-                    **self._result_details,
-                },
-                id=uuid4(),
-            )
-            if isinstance(automation.trigger, EventTrigger):
-                event.resource["prefect-cloud.posture"] = automation.trigger.posture
             await events.emit(event)
 
     async def succeed(self, triggered_action: "TriggeredAction") -> None:
@@ -117,26 +156,27 @@ class Action(PrefectBaseModel, abc.ABC):
 
         automation_resource_id = f"prefect-cloud.automation.{automation.id}"
 
+        event = Event(
+            occurred=pendulum.now("UTC"),
+            event="prefect-cloud.automation.action.executed",
+            resource={
+                "prefect.resource.id": automation_resource_id,
+                "prefect.resource.name": automation.name,
+                "prefect-cloud.trigger-type": automation.trigger.type,
+            },
+            related=self._resulting_related_resources,
+            payload={
+                "action_index": action_index,
+                "action_type": action.type,
+                "invocation": str(triggered_action.id),
+                **self._result_details,
+            },
+            id=uuid4(),
+        )
+        if isinstance(automation.trigger, EventTrigger):
+            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+
         async with PrefectServerEventsClient() as events:
-            event = Event(
-                occurred=pendulum.now("UTC"),
-                event="prefect-cloud.automation.action.executed",
-                resource={
-                    "prefect.resource.id": automation_resource_id,
-                    "prefect.resource.name": automation.name,
-                    "prefect-cloud.trigger-type": automation.trigger.type,
-                },
-                related=self._resulting_related_resources,
-                payload={
-                    "action_index": action_index,
-                    "action_type": action.type,
-                    "invocation": str(triggered_action.id),
-                    **self._result_details,
-                },
-                id=uuid4(),
-            )
-            if isinstance(automation.trigger, EventTrigger):
-                event.resource["prefect-cloud.posture"] = automation.trigger.posture
             await events.emit(event)
 
     def logging_context(self, triggered_action: "TriggeredAction") -> Dict[str, Any]:
@@ -184,7 +224,7 @@ class EmitEventAction(Action):
 
 class ExternalDataAction(Action):
     """Base class for Actions that require data from an external source such as
-    the Orion or Nebula APIs"""
+    the Orchestration API"""
 
     async def orchestration_client(
         self, triggered_action: "TriggeredAction"
@@ -262,19 +302,228 @@ TemplateContextObject: TypeAlias = Union[PrefectBaseModel, WorkspaceVariables, N
 class JinjaTemplateAction(ExternalDataAction):
     """Base class for Actions that use Jinja templates supplied by the user and
     are rendered with a context containing data from the triggered action,
-    orion and nebula."""
+    and the orchestration API."""
 
     _object_cache: Dict[str, TemplateContextObject] = PrivateAttr(default_factory=dict)
 
     @classmethod
     def validate_template(cls, template: str, field_name: str) -> str:
-        pass  # TODO: coming in a future update
+        try:
+            validate_user_template(template)
+        except (jinja2.exceptions.TemplateSyntaxError, TemplateSecurityError) as exc:
+            raise ValueError(f"{field_name!r} is not a valid template: {exc}")
+
         return template
+
+    @classmethod
+    def templates_in_dictionary(
+        cls, dict_: Dict[Any, Any]
+    ) -> List[Tuple[Dict[Any, Any], Dict[Any, str]]]:
+        to_traverse = []
+        templates_at_layer: Dict[Any, str] = {}
+        for key, value in dict_.items():
+            if isinstance(value, str) and maybe_template(value):
+                templates_at_layer[key] = value
+            elif isinstance(value, dict):
+                to_traverse.append(value)
+
+        templates = []
+
+        if templates_at_layer:
+            templates.append((dict_, templates_at_layer))
+
+        for item in to_traverse:
+            templates += cls.templates_in_dictionary(item)
+
+        return templates
+
+    def instantiate_object(
+        self,
+        model: Type[PrefectBaseModel],
+        data: Dict[str, Any],
+        triggered_action: "TriggeredAction",
+        resource: Optional["Resource"] = None,
+    ) -> PrefectBaseModel:
+        object = model.parse_obj(data)
+
+        if isinstance(object, FlowRunResponse) or isinstance(object, TaskRun):
+            # The flow/task run was fetched from the API, but between when its
+            # state changed and now it's possible that the state in the API has
+            # changed again from what's contained in the event. Use the event's
+            # data to rebuild the state object and attach it to the object
+            # received from the API.
+            # https://github.com/PrefectHQ/nebula/issues/3310
+            state_fields = [
+                "prefect.state-message",
+                "prefect.state-name",
+                "prefect.state-timestamp",
+                "prefect.state-type",
+            ]
+
+            if resource and all(field in resource for field in state_fields):
+                try:
+                    object.state = State(
+                        message=resource["prefect.state-message"],
+                        name=resource["prefect.state-name"],
+                        timestamp=pendulum.parse(resource["prefect.state-timestamp"]),
+                        type=StateType(resource["prefect.state-type"]),
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to parse state from event resource",
+                        extra={
+                            **self.logging_context(triggered_action),
+                        },
+                    )
+
+        return object
+
+    async def _get_object_from_prefect_api(
+        self,
+        orchestration_client: "OrchestrationClient",
+        triggered_action: "TriggeredAction",
+        resource: Optional["Resource"],
+    ) -> Optional[PrefectBaseModel]:
+        if not resource:
+            return None
+
+        kind, obj_id = _kind_and_id_from_resource(resource)
+
+        if not obj_id:
+            return None
+
+        kind_to_model_and_methods: Dict[
+            str,
+            Tuple[
+                Type[PrefectBaseModel],
+                List[Callable[..., Coroutine[Any, Any, Response]]],
+            ],
+        ] = {
+            "prefect.deployment": (
+                DeploymentResponse,
+                [orchestration_client.read_deployment_raw],
+            ),
+            "prefect.flow": (Flow, [orchestration_client.read_flow_raw]),
+            "prefect.flow-run": (
+                FlowRunResponse,
+                [orchestration_client.read_flow_run_raw],
+            ),
+            "prefect.task-run": (TaskRun, [orchestration_client.read_task_run_raw]),
+            "prefect.work-pool": (
+                WorkPoolResponse,
+                [orchestration_client.read_work_pool_raw],
+            ),
+            "prefect.work-queue": (
+                WorkQueueWithStatus,
+                [
+                    orchestration_client.read_work_queue_raw,
+                    orchestration_client.read_work_queue_status_raw,
+                ],
+            ),
+            "prefect.concurrency-limit": (
+                ConcurrencyLimitV2,
+                [orchestration_client.read_concurrency_limit_v2_raw],
+            ),
+        }
+
+        if kind not in kind_to_model_and_methods:
+            return None
+
+        model, client_methods = kind_to_model_and_methods[kind]
+
+        responses = await asyncio.gather(
+            *[client_method(obj_id) for client_method in client_methods]
+        )
+
+        if any(response.status_code >= 300 for response in responses):
+            return None
+
+        combined_response = {}
+        for response in responses:
+            data = response.json()
+
+            # Sometimes we have to call filter endpoints that return a list of 0..1
+            if isinstance(data, list):
+                if len(data) == 0:
+                    return None
+                data = data[0]
+
+            combined_response.update(data)
+
+        return self.instantiate_object(
+            model, combined_response, triggered_action, resource=resource
+        )
+
+    async def _relevant_native_objects(
+        self, templates: List[str], triggered_action: "TriggeredAction"
+    ) -> Dict[str, TemplateContextObject]:
+        if not triggered_action.triggering_event:
+            return {}
+
+        orchestration_types = {
+            "deployment",
+            "flow",
+            "flow_run",
+            "task_run",
+            "work_pool",
+            "work_queue",
+            "concurrency_limit",
+        }
+        special_types = {"variables"}
+
+        types = matching_types_in_templates(
+            templates, types=orchestration_types | special_types
+        )
+        if not types:
+            return {}
+
+        needed_types = list(set(types) - set(self._object_cache.keys()))
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            calls: List[Awaitable[TemplateContextObject]] = []
+            for type_ in needed_types:
+                if type_ in orchestration_types:
+                    calls.append(
+                        self._get_object_from_prefect_api(
+                            orchestration,
+                            triggered_action,
+                            _first_resource_of_kind(
+                                triggered_action.triggering_event,
+                                f"prefect.{type_.replace('_', '-')}",
+                            ),
+                        )
+                    )
+                elif type_ == "variables":
+                    calls.append(orchestration.read_workspace_variables())
+
+            objects = await asyncio.gather(*calls)
+
+        self._object_cache.update(dict(zip(needed_types, objects)))
+
+        return self._object_cache
+
+    async def _template_context(
+        self, templates: List[str], triggered_action: "TriggeredAction"
+    ) -> Dict[str, Any]:
+        context = {
+            "automation": triggered_action.automation,
+            "event": triggered_action.triggering_event,
+            "labels": LabelDiver(triggered_action.triggering_labels),
+            "firing": triggered_action.firing,
+            "firings": triggered_action.all_firings(),
+            "events": triggered_action.all_events(),
+        }
+        context.update(await self._relevant_native_objects(templates, triggered_action))
+        return context
 
     async def _render(
         self, templates: List[str], triggered_action: "TriggeredAction"
     ) -> List[str]:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        context = await self._template_context(templates, triggered_action)
+
+        return await asyncio.gather(
+            *[render_user_template(template, context) for template in templates]
+        )
 
 
 class DeploymentAction(Action):
@@ -347,8 +596,10 @@ class DeploymentCommandAction(DeploymentAction, ExternalDataAction):
             },
         )
 
-        async with await self.orchestration_client(triggered_action) as orion:
-            response = await self.command(orion, deployment_id, triggered_action)
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(
+                orchestration, deployment_id, triggered_action
+            )
 
             self._result_details["status_code"] = response.status_code
             if response.status_code >= 300:
@@ -357,11 +608,11 @@ class DeploymentCommandAction(DeploymentAction, ExternalDataAction):
     @abc.abstractmethod
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        """Execute the orion deployment command"""
+        """Execute the deployment command"""
 
 
 class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
@@ -388,16 +639,213 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        # Only create a flow run with job_vars if the feature is enabled
+        if not PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
+            self.job_variables = None
+
+        state = Scheduled()
+
+        try:
+            flow_run_create = DeploymentFlowRunCreate(  # type: ignore
+                state=StateCreate(
+                    type=state.type,
+                    name=state.name,
+                    message=state.message,
+                    state_details=state.state_details,
+                ),
+                parameters=await self.render_parameters(triggered_action),
+                idempotency_key=triggered_action.idempotency_key(),
+                job_variables=self.job_variables,
+            )
+        except Exception as exc:
+            raise ActionFailed(f"Unable to create flow run from deployment: {exc!r}")
+
+        response = await orchestration.create_flow_run(deployment_id, flow_run_create)
+
+        if response.status_code < 300:
+            flow_run = FlowRunResponse.parse_obj(response.json())
+
+            self._resulting_related_resources.append(
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                        "prefect.resource.role": "flow-run",
+                        "prefect.resource.name": flow_run.name,
+                    }
+                )
+            )
+
+            logger.info(
+                "Started flow run",
+                extra={
+                    "flow_run": {
+                        "id": str(flow_run.id),
+                        "name": flow_run.name,
+                    },
+                    **self.logging_context(triggered_action),
+                },
+            )
+
+        return response
+
+    @validator("parameters")
+    def validate_parameters(
+        cls, value: Optional[Dict[str, Any]], field: ModelField
+    ) -> Optional[Dict[str, Any]]:
+        if not value:
+            return value
+
+        for_testing = copy.deepcopy(value) or {}
+        cls._upgrade_v1_templates(for_testing)
+
+        problems = cls._collect_errors(
+            hydrate(
+                for_testing,
+                HydrationContext(
+                    raise_on_error=False,
+                    render_workspace_variables=False,
+                    render_jinja=False,
+                ),
+            )
+        )
+        if not problems:
+            return value
+
+        raise ValueError(
+            "Invalid parameters: \n"
+            + "\n  ".join(
+                f"{k + ':' if k else ''} {e.message}" for k, e in problems.items()
+            )
+        )
+
+    @classmethod
+    def _collect_errors(
+        cls, hydrated: Union[Dict[str, Any], Placeholder], prefix: str = ""
+    ) -> Dict[str, HydrationError]:
+        problems: Dict[str, HydrationError] = {}
+
+        if isinstance(hydrated, HydrationError):
+            problems[prefix] = hydrated
+
+        if isinstance(hydrated, Placeholder):
+            return problems
+
+        for key, value in hydrated.items():
+            if isinstance(value, dict):
+                problems.update(cls._collect_errors(value, f"{prefix}{key}."))
+            elif isinstance(value, list):
+                for item, index in enumerate(value):
+                    if isinstance(item, dict):
+                        problems.update(
+                            cls._collect_errors(item, f"{prefix}{key}[{index}].")
+                        )
+                    elif isinstance(item, HydrationError):
+                        problems[f"{prefix}{key}[{index}]"] = item
+            elif isinstance(value, HydrationError):
+                problems[f"{prefix}{key}"] = value
+
+        return problems
 
     async def render_parameters(
         self, triggered_action: "TriggeredAction"
     ) -> Dict[str, Any]:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        parameters = copy.deepcopy(self.parameters) or {}
+
+        # pre-process the parameters to upgrade any v1-style template values to v2
+        self._upgrade_v1_templates(parameters)
+
+        # first-pass, hydrate parameters without rendering in order to collect all of
+        # the embedded Jinja templates, workspace variables, etc
+        placeholders = self._collect_placeholders(
+            hydrate(
+                parameters,
+                HydrationContext(
+                    raise_on_error=False,
+                    render_jinja=False,
+                    render_workspace_variables=False,
+                ),
+            )
+        )
+
+        # collect all templates so we can build up the context variables they need
+        templates = [p.template for p in placeholders if isinstance(p, ValidJinja)]
+        template_context = await self._template_context(templates, triggered_action)
+
+        # collect any referenced workspace variables so we can fetch them
+        variable_names = [
+            p.variable_name for p in placeholders if isinstance(p, WorkspaceVariable)
+        ]
+        workspace_variables: Dict[str, str] = {}
+        if variable_names:
+            async with await self.orchestration_client(triggered_action) as client:
+                workspace_variables = await client.read_workspace_variables(
+                    variable_names
+                )
+
+        # second-pass, render the parameters with the full context
+        parameters = hydrate(
+            parameters,
+            HydrationContext(
+                raise_on_error=True,
+                render_jinja=True,
+                jinja_context=template_context,
+                render_workspace_variables=True,
+                workspace_variables=workspace_variables,
+            ),
+        )
+
+        return parameters
+
+    @classmethod
+    def _upgrade_v1_templates(cls, parameters: Dict[str, Any]):
+        """
+        Upgrades all v1-style template values from the parameters dictionary, changing
+        the values in the given dictionary.  v1-style templates are any plain strings
+        that include Jinja2 template syntax.
+        """
+        for key, value in parameters.items():
+            if isinstance(value, dict):
+                # if we already have a __prefect_kind, don't upgrade or recurse
+                if "__prefect_kind" in value:
+                    continue
+                cls._upgrade_v1_templates(value)
+            elif isinstance(value, list):
+                for i, item in enumerate(value):
+                    if isinstance(item, dict):
+                        cls._upgrade_v1_templates(item)
+                    elif isinstance(item, str) and maybe_template(item):
+                        value[i] = {"__prefect_kind": "jinja", "template": item}
+            elif isinstance(value, str) and maybe_template(value):
+                parameters[key] = {"__prefect_kind": "jinja", "template": value}
+
+    def _collect_placeholders(
+        self, parameters: Union[Dict[str, Any], Placeholder]
+    ) -> List[Placeholder]:
+        """
+        Recursively collects all placeholder values embedded within the parameters
+        dictionary, including templates and workspace variables
+        """
+        placeholders = []
+
+        if isinstance(parameters, Placeholder):
+            return [parameters]
+
+        for _, value in parameters.items():
+            if isinstance(value, dict):
+                placeholders += self._collect_placeholders(value)
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        placeholders += self._collect_placeholders(item)
+                    elif isinstance(item, Placeholder):
+                        placeholders.append(item)
+            elif isinstance(value, Placeholder):
+                placeholders.append(value)
+        return placeholders
 
 
 class PauseDeployment(DeploymentCommandAction):
@@ -409,7 +857,7 @@ class PauseDeployment(DeploymentCommandAction):
 
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
@@ -425,7 +873,7 @@ class ResumeDeployment(DeploymentCommandAction):
 
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
@@ -644,7 +1092,7 @@ class WorkPoolCommandAction(WorkPoolAction, ExternalDataAction):
     @abc.abstractmethod
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
@@ -660,7 +1108,7 @@ class PauseWorkPool(WorkPoolCommandAction):
 
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
@@ -676,7 +1124,7 @@ class ResumeWorkPool(WorkPoolCommandAction):
 
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
@@ -737,7 +1185,7 @@ class WorkQueueCommandAction(WorkQueueAction, ExternalDataAction):
     @abc.abstractmethod
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
@@ -753,7 +1201,7 @@ class PauseWorkQueue(WorkQueueCommandAction):
 
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
@@ -769,7 +1217,7 @@ class ResumeWorkQueue(WorkQueueCommandAction):
 
     async def command(
         self,
-        orion: "OrchestrationClient",
+        orchestration: "OrchestrationClient",
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
