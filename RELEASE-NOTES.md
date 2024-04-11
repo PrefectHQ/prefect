@@ -2,6 +2,37 @@
 
 ## Release 2.17.0
 
+### Manage Prefect variables via the Python SDK
+
+Prefect variables are useful for storing and reusing data and configuration between and across workflows, but previously you could only create and update variables via the Prefect UI. With this release, you can now get and set Prefect variables directly in your Python code with the new `Variable.set` and `Variable.get` methods!
+
+For an example of reading and writing variable values in Python see the following example:
+
+```python
+from prefect.variables import Variable
+
+# set a variable
+variable = Variable.set(name="the_answer", value="42")
+
+# get a variables
+answer = Variable.get('the_answer')
+print(answer.value)
+# 42
+
+# getting with a default value
+answer = Variable.get('not_the_answer', default='42')
+print(answer.value)
+# 42
+
+# updating a variable
+answer = Variable.set(name="the_answer", value="43", overwrite=True)
+print(answer.value)
+#43
+```
+
+See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
+
+
 ### Enhancements
 - Allow flows inside tasks — https://github.com/PrefectHQ/prefect/pull/12559
 - Add `User-Agent` header containing the running Prefect version — https://github.com/PrefectHQ/prefect/pull/12601
