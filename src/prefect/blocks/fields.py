@@ -36,7 +36,11 @@ class _SecretBase(Generic[SecretType]):
         raise NotImplementedError
 
 
-class SecretDict(_SecretBase[Dict[str, Any]]):
+class SecretDict(_SecretBase[Dict[str, Any]], Dict[str, Any]):
+    def __init__(self, secret_value: Dict[str, Any]) -> None:
+        self._secret_value: Dict[str, Any] = secret_value
+        self.update(**secret_value)
+
     @classmethod
     def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
         field_schema.update(field_schema="object")
