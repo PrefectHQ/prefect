@@ -1,5 +1,13 @@
 # Prefect Release Notes
 
+## Release 2.17.1
+
+### Fixes
+- Fix events storage import — https://github.com/PrefectHQ/prefect/pull/12681
+- Remove `opentelemetry` import — https://github.com/PrefectHQ/prefect/pull/12684
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.17.0...2.17.1
+
 ## Release 2.17.0
 
 ### Manage Prefect variables via the Python SDK
