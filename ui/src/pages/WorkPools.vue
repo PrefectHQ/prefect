@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="work-pools">
     <template #header>
-      <PageHeadingWorkPools />
+      <PageHeadingWorkPools  :work-pools-limit="null" :current-work-pools="null" />
     </template>
 
     <template v-if="loaded">
