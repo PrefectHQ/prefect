@@ -30,7 +30,7 @@ print(answer.value)
 #43
 ```
 
-Refer the [docs](https://docs.prefect.io/latest/guides/variables/#accessing-variables) for more information and see the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
+Refer to the [docs](https://docs.prefect.io/latest/guides/variables/#accessing-variables) for more information and see the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
 
 ### Enhancements
 - Allow flows inside tasks 
