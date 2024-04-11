@@ -28,16 +28,10 @@ import anyio
 import anyio.abc
 import sniffio
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
 from prefect._internal.schemas.validators import validate_command
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
+from prefect.pydantic import Field, field_validator
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -83,7 +77,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(default=True)
     working_dir: Optional[Path] = Field(default=None)
 
-    @validator("working_dir")
+    @field_validator("working_dir")
     def validate_command(cls, v):
         return validate_command(v)
 
