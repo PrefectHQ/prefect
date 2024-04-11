@@ -1677,7 +1677,29 @@ Whether or not to start the triggers service in the server application.
 """
 
 PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
-"""The amount of time to retain expired automation buckets"""
+"""
+The amount of time to retain expired automation buckets
+"""
+
+PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seconds=5))
+"""
+How frequently proactive automations are evaluated
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the event persister service in the server application.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE = Setting(int, default=20, gt=0)
+"""
+The number of events the event persister will attempt to insert in one batch.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, gt=0.0)
+"""
+The maximum number of seconds between flushes of the event persister.
+"""
 
 
 # Deprecated settings ------------------------------------------------------------------

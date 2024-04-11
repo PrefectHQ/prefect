@@ -574,7 +574,6 @@ async def set_schedule_inactive(
         await models.deployments._delete_scheduled_runs(
             session=session,
             deployment_id=deployment_id,
-            db=db,
             auto_scheduled_only=True,
         )
 
@@ -802,7 +801,6 @@ async def update_deployment_schedule(
         await models.deployments._delete_scheduled_runs(
             session=session,
             deployment_id=deployment_id,
-            db=db,
             auto_scheduled_only=True,
         )
 
@@ -835,6 +833,5 @@ async def delete_deployment_schedule(
         await models.deployments._delete_scheduled_runs(
             session=session,
             deployment_id=deployment_id,
-            db=db,
             auto_scheduled_only=True,
         )
