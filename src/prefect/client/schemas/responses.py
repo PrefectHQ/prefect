@@ -2,6 +2,7 @@ import datetime
 from typing import Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -309,7 +310,7 @@ class FlowRunResponse(ObjectBaseModel):
         return super().__eq__(other)
 
 
-class DeploymentResponse(ObjectBaseModel):
+class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
@@ -332,9 +333,9 @@ class DeploymentResponse(ObjectBaseModel):
     schedules: List[objects.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Overrides to apply to the base infrastructure block at runtime.",
+        description="Overrides to apply to flow run infrastructure at runtime.",
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -423,7 +424,7 @@ class DeploymentResponse(ObjectBaseModel):
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     class Config:
-        extra = "ignore"
+        extra = "ignore"  # 2024/4/1
 
     id: UUID
     name: str

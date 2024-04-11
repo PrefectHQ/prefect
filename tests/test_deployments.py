@@ -227,7 +227,7 @@ class TestDeploymentLoad:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"limits.cpu": 24},
+            job_variables={"limits.cpu": 24},
             storage_document_id=storage_document_id,
             schedules=[
                 DeploymentScheduleCreate(
@@ -253,7 +253,7 @@ class TestDeploymentLoad:
         assert d.entrypoint == "/file.py:flow"
         assert d.tags == ["foo"]
         assert d.parameters == {"foo": "bar"}
-        assert d.infra_overrides == {"limits.cpu": 24}
+        assert d.job_variables == {"limits.cpu": 24}
         assert d.schedules == [
             MinimalDeploymentSchedule(
                 schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),
@@ -283,7 +283,7 @@ class TestDeploymentLoad:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"limits.cpu": 24},
+            job_variables={"limits.cpu": 24},
             storage_document_id=storage_document_id,
         )
 
@@ -308,7 +308,7 @@ class TestDeploymentLoad:
         assert d.entrypoint == "/file.py:flow"
         assert d.tags == ["foo"]
         assert d.parameters == {"foo": "bar"}
-        assert d.infra_overrides == {"limits.cpu": 24}
+        assert d.job_variables == {"limits.cpu": 24}
         assert d.schedules == [
             MinimalDeploymentSchedule(
                 schedule=RRuleSchedule(rrule="FREQ=HOURLY;INTERVAL=1"),

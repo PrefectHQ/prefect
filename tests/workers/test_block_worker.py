@@ -138,7 +138,7 @@ async def block_worker_deployment_with_infra_overrides(session, flow, block_work
             path="./subdir",
             entrypoint="/file.py:flow",
             parameter_openapi_schema=parameter_schema(hello),
-            infra_overrides={"field": "you've changed man", "env.test_value": "bloop"},
+            job_variables={"field": "you've changed man", "env.test_value": "bloop"},
             work_queue_id=block_work_pool.default_queue_id,
         ),
     )

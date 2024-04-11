@@ -8,6 +8,7 @@ from uuid import UUID
 
 import pendulum
 
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -496,7 +497,7 @@ class DeploymentSchedule(ORMBaseModel):
     )
 
 
-class Deployment(ORMBaseModel):
+class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")
@@ -521,9 +522,9 @@ class Deployment(ORMBaseModel):
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Overrides to apply to the base infrastructure block at runtime.",
+        description="Overrides to apply to flow run infrastructure at runtime.",
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -600,6 +601,9 @@ class Deployment(ORMBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+
+    class Config:
+        allow_population_by_field_name = True
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):

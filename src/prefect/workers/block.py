@@ -171,7 +171,7 @@ class BlockWorker(BaseWorker):
         # attributes of the infrastructure block
         doc_dict = infra_document.dict()
         infra_dict = doc_dict.get("data", {})
-        for override, value in (deployment.infra_overrides or {}).items():
+        for override, value in (deployment.job_variables or {}).items():
             nested_fields = override.split(".")
             if nested_fields == ["command"]:
                 value = shlex.split(value)

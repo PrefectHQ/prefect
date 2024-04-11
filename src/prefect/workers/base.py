@@ -975,7 +975,7 @@ class BaseWorker(abc.ABC):
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         flow = await self._client.read_flow(flow_run.flow_id)
 
-        deployment_vars = deployment.infra_overrides or {}
+        deployment_vars = deployment.job_variables or {}
         flow_run_vars = flow_run.job_variables or {}
         job_variables = {**deployment_vars, **flow_run_vars}
 

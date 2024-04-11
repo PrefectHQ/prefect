@@ -76,7 +76,7 @@ async def validate_job_variables_for_flow_run(
     )
     base_vars = await _resolve_default_references(base_vars, session)
     flow_run_vars = flow_run.job_variables or {}
-    job_vars = {**base_vars, **deployment.infra_overrides, **flow_run_vars}
+    job_vars = {**base_vars, **deployment.job_variables, **flow_run_vars}
 
     try:
         validate_values_conform_to_schema(

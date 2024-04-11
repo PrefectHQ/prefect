@@ -15,6 +15,9 @@ from uuid import UUID
 import orjson
 import pendulum
 
+from prefect._internal.compatibility.deprecated import (
+    DeprecatedInfraOverridesField,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -926,7 +929,7 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
-class Deployment(ObjectBaseModel):
+class Deployment(DeprecatedInfraOverridesField, ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")
@@ -951,9 +954,9 @@ class Deployment(ObjectBaseModel):
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Overrides to apply to the base infrastructure block at runtime.",
+        description="Overrides to apply to flow run infrastructure at runtime.",
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,

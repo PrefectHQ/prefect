@@ -20,6 +20,9 @@ import httpcore
 import httpx
 import pendulum
 
+from prefect._internal.compatibility.deprecated import (
+    handle_deprecated_infra_overrides_parameter,
+)
 from prefect._internal.compatibility.experimental import (
     EXPERIMENTAL_WARNING,
     ExperimentalFeature,
@@ -1590,12 +1593,13 @@ class PrefectClient:
         path: str = None,
         entrypoint: str = None,
         infrastructure_document_id: UUID = None,
-        infra_overrides: Optional[Dict[str, Any]] = None,
+        infra_overrides: Optional[Dict[str, Any]] = None,  # for backwards compat
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
         enforce_parameter_schema: Optional[bool] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1610,6 +1614,10 @@ class PrefectClient:
                 used for the deployed flow
             infrastructure_document_id: an reference to the infrastructure block document
                 to use for this deployment
+            job_variables: A dictionary of dot delimited infrastructure overrides that
+                will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
+                `namespace='prefect'`. This argument was previously named `infra_overrides`.
+                Both arguments are supported for backwards compatibility.
 
         Raises:
             httpx.RequestError: if the deployment was not created for any reason
@@ -1617,6 +1625,7 @@ class PrefectClient:
         Returns:
             the ID of the deployment in the backend
         """
+        jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
 
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
@@ -1631,7 +1640,7 @@ class PrefectClient:
             entrypoint=entrypoint,
             manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides=infra_overrides or {},
+            job_variables=jv,
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             paused=paused,
@@ -1708,7 +1717,7 @@ class PrefectClient:
             parameters=deployment.parameters,
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
-            infra_overrides=deployment.infra_overrides,
+            job_variables=deployment.job_variables,
             enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 
