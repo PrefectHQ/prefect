@@ -305,3 +305,18 @@ class TestDeprecatedInfraOverridesField:
         json_dict = my_deployment.dict()
         assert "job_variables" not in json_dict
         assert json_dict["infra_overrides"] is None
+
+    def test_does_not_override_description_if_none_set(self, my_deployment_model):
+        assert "description" not in my_deployment_model.schema()
+
+    def test_preserves_description_if_present(self):
+        class MyModel(DeprecatedInfraOverridesField, pydantic.BaseModel):
+            """Hey mom"""
+
+            name: str
+            job_variables: Optional[Dict[str, Any]] = pydantic.Field(
+                default_factory=dict,
+                description="Overrides to apply to my deployment infrastructure at runtime.",
+            )
+
+        assert MyModel.schema()["description"] == "Hey mom"

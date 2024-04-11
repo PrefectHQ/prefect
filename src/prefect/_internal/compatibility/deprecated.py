@@ -20,8 +20,10 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, root_validator
+    from pydantic.v1.schema import default_ref_template
 else:
     from pydantic import BaseModel, Field, root_validator
+    from pydantic.schema import default_ref_template
 
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
@@ -345,6 +347,21 @@ class DeprecatedInfraOverridesField(BaseModel):
         kwargs["exclude"] = exclude
 
         return super().dict(**kwargs)
+
+    @classmethod
+    def schema(
+        cls, by_alias: bool = True, ref_template: str = default_ref_template
+    ) -> Dict[str, Any]:
+        """
+        Don't use the mixin docstring as the description if this class is missing a
+        docstring.
+        """
+        schema = super().schema(by_alias=by_alias, ref_template=ref_template)
+
+        if not cls.__doc__:
+            schema.pop("description", None)
+
+        return schema
 
 
 def handle_deprecated_infra_overrides_parameter(
