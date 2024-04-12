@@ -1,7 +1,19 @@
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from logging import Logger
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    BinaryIO,
+    Dict,
+    Generator,
+    Generic,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 from typing_extensions import Self
 
@@ -63,8 +75,6 @@ class NotificationBlock(Block, ABC):
     _block_schema_capabilities = ["notify"]
     _events_excluded_methods = Block._events_excluded_methods + ["notify"]
 
-    raise_on_failure: bool = False
-
     @property
     def logger(self) -> Logger:
         """
@@ -90,6 +100,20 @@ class NotificationBlock(Block, ABC):
             body: The body of the notification.
             subject: The subject of the notification.
         """
+
+    _raise_on_failure: bool = False
+
+    @contextmanager
+    def raise_on_failure(self) -> Generator[None, None, None]:
+        """
+        Context manager that, while active, causes the block to raise errors if it
+        encounters a failure sending notifications.
+        """
+        self._raise_on_failure = True
+        try:
+            yield
+        finally:
+            self._raise_on_failure = False
 
 
 class JobRun(ABC, Generic[T]):  # not a block

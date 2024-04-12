@@ -72,7 +72,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
             result = await self._apprise_client.async_notify(
                 body=body, title=subject, notify_type=self.notify_type
             )
-        if not result and self.raise_on_failure:
+        if not result and self._raise_on_failure:
             raise NotificationError(log=eavesdropper.text())
 
 

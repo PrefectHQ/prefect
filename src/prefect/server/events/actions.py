@@ -1070,12 +1070,12 @@ class SendNotification(JinjaTemplateAction):
 
         subject, body = await self.render(triggered_action)
 
-        block.raise_on_failure = True
-        try:
-            await block.notify(subject=subject, body=body)
-        except NotificationError as e:
-            self._result_details["notification_log"] = e.log
-            raise ActionFailed("Notification failed")
+        with block.raise_on_failure():
+            try:
+                await block.notify(subject=subject, body=body)
+            except NotificationError as e:
+                self._result_details["notification_log"] = e.log
+                raise ActionFailed("Notification failed")
 
     async def render(self, triggered_action: "TriggeredAction") -> List[str]:
         return await self._render([self.subject, self.body], triggered_action)
