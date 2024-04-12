@@ -117,6 +117,8 @@ jobs:
             server-disable-csrf: true
           - prefect-version: "2.16"
             server-incompatible: false
+          - prefect-version: "2.17"
+            server-incompatible: false
 
     steps:
       - uses: actions/checkout@v4
@@ -143,7 +145,7 @@ jobs:
       - name: Install python packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+          uv pip install --upgrade --system .
 
       - name: Start server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
