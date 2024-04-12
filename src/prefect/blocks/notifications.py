@@ -3,7 +3,7 @@ from abc import ABC
 from typing import Dict, List, Optional
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.logging.loggers import LogEavesdropper
+from prefect.logging import LogEavesdropper
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import AnyHttpUrl, Field, SecretStr
