@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pendulum
 import sqlalchemy as sa
 from pendulum.datetime import DateTime
-from sqlalchemy.sql.selectable import Select, TableValuedAlias
+from sqlalchemy.sql.selectable import Select
 
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 
 
 # The earliest possible event.occurred date in any Prefect environment is
-# 2024-04-11, so we use the Monday before that as our pivot date.
-PIVOT_DATETIME = pendulum.DateTime(2024, 4, 8, tzinfo=pendulum.timezone("UTC"))
+# 2024-04-4, so we use the Monday before that as our pivot date.
+PIVOT_DATETIME = pendulum.DateTime(2024, 4, 1, tzinfo=pendulum.timezone("UTC"))
 
 
 class InvalidEventCountParameters(ValueError):
@@ -138,8 +138,6 @@ class Countable(AutoEnum):
     time = AutoEnum.auto()
     event = AutoEnum.auto()
     resource = AutoEnum.auto()
-    workspace = AutoEnum.auto()
-    actor = AutoEnum.auto()
 
     # Implementations for storage backend
 
@@ -150,18 +148,9 @@ class Countable(AutoEnum):
         time_interval: float,
     ) -> Select:
         db = provide_database_interface()
-        # Counting by a related resource requires a JOIN that unnests the related
-        # resources and filters them to the given role
-        related_resource: "TableValuedAlias | None" = None
-        if self in (self.workspace, self.actor):
-            related_resource = sa.func.unnest(db.Event.related, type_=sa.JSONB).alias(
-                "related_resource"
-            )
-
         # The innermost SELECT pulls the matching events and groups them up by their
         # buckets.  At this point, there may be duplicate buckets for each value, since
-        # the label of the thing referred to might have changed (like the email address
-        # of an actor changing over time).
+        # the label of the thing referred to might have changed
         fundamental_counts = (
             sa.select(
                 (
@@ -169,7 +158,6 @@ class Countable(AutoEnum):
                         db,
                         time_unit=time_unit,
                         time_interval=time_interval,
-                        related_resource=related_resource,
                     ).label("value")
                 ),
                 (
@@ -177,33 +165,20 @@ class Countable(AutoEnum):
                         db,
                         time_unit=time_unit,
                         time_interval=time_interval,
-                        related_resource=related_resource,
                     ).label("label")
                 ),
                 sa.func.max(db.Event.occurred).label("latest"),
                 sa.func.min(db.Event.occurred).label("oldest"),
                 sa.func.count().label("count"),
             )
-            .where(sa.and_(*filter.build_postgres_where_clauses()))
+            .where(sa.and_(*filter.build_where_clauses(db)))
             .group_by("value", "label")
         )
 
-        if related_resource is not None:
-            fundamental_counts = fundamental_counts.select_from(
-                sa.join(
-                    db.Event,
-                    related_resource,
-                    onclause=related_resource.column.contains(
-                        {"prefect.resource.role": str(self.value)}
-                    ),
-                )
-            )
-        else:
-            fundamental_counts = fundamental_counts.select_from(db.Event)
+        fundamental_counts = fundamental_counts.select_from(db.Event)
 
         # An intermediate SELECT takes the fundamental counts and reprojects it with the
-        # most recent value for the labels of that bucket.  This means that we'll get
-        # the most recent email of an actor, or handle of a workspace, for example.
+        # most recent value for the labels of that bucket.
         fundamental = fundamental_counts.subquery("fundamental_counts")
         with_latest_labels = (
             sa.select(
@@ -255,22 +230,16 @@ class Countable(AutoEnum):
         db: PrefectDBInterface,
         time_unit: TimeUnit,
         time_interval: float,
-        related_resource: "TableValuedAlias | None",
     ):
         if self == self.day:
             # The legacy `day` Countable is just a special case of the `time` one
-            return TimeUnit.day.postgresql_value_expression(1)
+            return TimeUnit.day.database_value_expression(1)
         elif self == self.time:
-            return time_unit.postgresql_value_expression(time_interval)
+            return time_unit.database_value_expression(time_interval)
         elif self == self.event:
             return db.Event.event
         elif self == self.resource:
             return db.Event.resource_id
-        elif self == self.workspace:
-            return db.Event.workspace.cast(sa.Text)
-        elif self == self.actor:
-            assert related_resource is not None
-            return related_resource.column.op("->>")("prefect.resource.id")
         else:
             raise NotImplementedError()
 
@@ -279,35 +248,21 @@ class Countable(AutoEnum):
         db: PrefectDBInterface,
         time_unit: TimeUnit,
         time_interval: float,
-        related_resource: "TableValuedAlias | None",
     ):
         if self == self.day:
             # The legacy `day` Countable is just a special case of the `time` one
-            return TimeUnit.day.database_label_expression(1)
+            return TimeUnit.day.database_label_expression(db, 1)
         elif self == self.time:
-            return time_unit.database_label_expression(time_interval)
+            return time_unit.database_label_expression(db, time_interval)
         elif self == self.event:
             return db.Event.event
         elif self == self.resource:
             return sa.func.coalesce(
-                db.Event.resource.op("->>")("prefect.resource.name"),
-                db.Event.resource.op("->>")("prefect-cloud.name"),
-                db.Event.resource.op("->>")("prefect.name"),
+                db.Event.resource.op("->>")(
+                    sa.cast("prefect.resource.name", sa.String)
+                ),
+                db.Event.resource.op("->>")(sa.cast("prefect.name", sa.String)),
                 db.Event.resource_id,
-            )
-        elif self == self.workspace:
-            assert related_resource is not None
-            return sa.func.coalesce(
-                related_resource.column.op("->>")("prefect-cloud.handle"),
-                related_resource.column.op("->>")("prefect.resource.id"),
-            )
-        elif self == self.actor:
-            # Users are displayed by their email, bots by their name
-            assert related_resource is not None
-            return sa.func.coalesce(
-                related_resource.column.op("->>")("prefect-cloud.email"),
-                related_resource.column.op("->>")("prefect-cloud.name"),
-                related_resource.column.op("->>")("prefect.resource.id"),
             )
         else:
             raise NotImplementedError()
