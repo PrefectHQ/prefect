@@ -1,6 +1,6 @@
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
-from unittest import mock
+from typing import Any, Dict, Generator, List, Sequence, Tuple
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pendulum
@@ -8,10 +8,13 @@ import pydantic
 import pytest
 import sqlalchemy as sa
 from pendulum.datetime import DateTime
-from pendulum.tz.timezone import Timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
+    temporary_settings,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -31,21 +34,8 @@ from prefect.server.utilities.messaging import Message
 
 
 @pytest.fixture
-def frozen_time(monkeypatch: pytest.MonkeyPatch) -> pendulum.DateTime:
-    frozen = pendulum.now("UTC")
-
-    def frozen_time(tz: Optional[Union[str, Timezone]] = None):
-        if tz is None:
-            return frozen
-        return frozen.in_timezone(tz)
-
-    monkeypatch.setattr(pendulum, "now", frozen_time)
-    return frozen
-
-
-@pytest.fixture
-def act(monkeypatch: pytest.MonkeyPatch) -> mock.AsyncMock:
-    mock_act = mock.AsyncMock()
+def act(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    mock_act = AsyncMock()
     monkeypatch.setattr("prefect.server.events.triggers.act", mock_act)
     return mock_act
 
@@ -422,11 +412,19 @@ async def some_workspace_automations(
 
 
 @pytest.fixture
+def enable_infra_overrides() -> Generator[None, None, None]:
+    with temporary_settings(
+        updates={PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
+    ):
+        yield
+
+
+@pytest.fixture
 def publish_mocks(
     monkeypatch: pytest.MonkeyPatch,
-) -> Tuple[mock.MagicMock, mock.AsyncMock]:
-    mock_create_publisher = mock.MagicMock(spec=messaging.create_event_publisher)
-    mock_publish = mock.AsyncMock()
+) -> Tuple[MagicMock, AsyncMock]:
+    mock_create_publisher = MagicMock(spec=messaging.create_event_publisher)
+    mock_publish = AsyncMock()
     mock_create_publisher.return_value.__aenter__.return_value.publish_data = (
         mock_publish
     )
@@ -439,14 +437,14 @@ def publish_mocks(
 
 
 @pytest.fixture
-def publish(publish_mocks: Tuple[mock.MagicMock, mock.AsyncMock]) -> mock.AsyncMock:
+def publish(publish_mocks: Tuple[MagicMock, AsyncMock]) -> AsyncMock:
     return publish_mocks[1]
 
 
 @pytest.fixture
 def create_publisher(
-    publish_mocks: Tuple[mock.MagicMock, mock.AsyncMock],
-) -> mock.MagicMock:
+    publish_mocks: Tuple[MagicMock, AsyncMock],
+) -> MagicMock:
     return publish_mocks[0]
 
 

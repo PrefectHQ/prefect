@@ -126,14 +126,12 @@ def work_queue_health_healthy(
     return [event.receive() for event in events]
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_alerts_work_queue_unhealthy(
     unhealthy_work_queue_automation: Automation,
     work_queue,
     work_queue_health_unhealthy: List[ReceivedEvent],
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,
-    automations_session: AsyncSession,
 ):
     assert isinstance(unhealthy_work_queue_automation.trigger, EventTrigger)
 
@@ -141,7 +139,6 @@ async def test_alerts_work_queue_unhealthy(
         await triggers.reactive_evaluation(event)
 
     await triggers.proactive_evaluation(
-        automations_session,
         unhealthy_work_queue_automation.trigger,
         frozen_time + timedelta(minutes=21),
     )
@@ -149,7 +146,6 @@ async def test_alerts_work_queue_unhealthy(
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session,
         unhealthy_work_queue_automation.trigger,
         frozen_time + timedelta(hours=2),
     )
@@ -168,13 +164,11 @@ async def test_alerts_work_queue_unhealthy(
     )
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_does_not_alert_work_queue_went_healthy(
     unhealthy_work_queue_automation: Automation,
     work_queue_health_healthy: List[ReceivedEvent],
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,
-    automations_session: AsyncSession,
 ):
     assert isinstance(unhealthy_work_queue_automation.trigger, EventTrigger)
 
@@ -182,7 +176,6 @@ async def test_does_not_alert_work_queue_went_healthy(
         await triggers.reactive_evaluation(event)
 
     await triggers.proactive_evaluation(
-        automations_session,
         unhealthy_work_queue_automation.trigger,
         frozen_time + timedelta(minutes=21),
     )
@@ -190,7 +183,6 @@ async def test_does_not_alert_work_queue_went_healthy(
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        automations_session,
         unhealthy_work_queue_automation.trigger,
         frozen_time + timedelta(hours=2),
     )
@@ -401,7 +393,7 @@ async def proactive_extended_expect_and_after(
                 expect={"some-event"},
                 posture=Posture.Proactive,
                 threshold=2,
-                within=timedelta(seconds=5),
+                within=timedelta(seconds=10),
             ),
             actions=[actions.DoNothing()],
         ),
@@ -411,12 +403,10 @@ async def proactive_extended_expect_and_after(
     return automation
 
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
 async def test_same_event_in_expect_and_after_proactively_does_not_fire(
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,
     proactive_extended_expect_and_after: Automation,
-    automations_session: AsyncSession,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/4201, where
     having the same event in after and expect causes weird behavior
@@ -436,7 +426,6 @@ async def test_same_event_in_expect_and_after_proactively_does_not_fire(
     )
 
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=1),
     )
@@ -452,7 +441,6 @@ async def test_same_event_in_expect_and_after_proactively_does_not_fire(
         ).receive()
     )
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=2),
     )
@@ -468,7 +456,6 @@ async def test_same_event_in_expect_and_after_proactively_does_not_fire(
         ).receive()
     )
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=3),
     )
@@ -476,19 +463,23 @@ async def test_same_event_in_expect_and_after_proactively_does_not_fire(
 
     act.reset_mock()
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=10),
     )
     act.assert_not_awaited()  # won't act here, we've reached the threshold
 
+    act.reset_mock()
+    await triggers.proactive_evaluation(
+        proactive_extended_expect_and_after.trigger,
+        frozen_time + timedelta(seconds=11),
+    )
+    act.assert_not_awaited()  # won't act here, we've reached the threshold
 
-@pytest.mark.xfail(reason="Will be implemented with proactive triggers")
+
 async def test_same_event_in_expect_and_after_proactively_fires(
     act: mock.AsyncMock,
     frozen_time: pendulum.DateTime,
     proactive_extended_expect_and_after: Automation,
-    automations_session: AsyncSession,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/4201, where
     having the same event in after and expect causes weird behavior
@@ -508,7 +499,6 @@ async def test_same_event_in_expect_and_after_proactively_fires(
     )
 
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=2),
     )
@@ -524,7 +514,6 @@ async def test_same_event_in_expect_and_after_proactively_fires(
         ).receive()
     )
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=4),
     )
@@ -532,7 +521,6 @@ async def test_same_event_in_expect_and_after_proactively_fires(
 
     act.reset_mock()
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=11),
     )
@@ -540,7 +528,6 @@ async def test_same_event_in_expect_and_after_proactively_fires(
 
     act.reset_mock()
     await triggers.proactive_evaluation(
-        automations_session,
         proactive_extended_expect_and_after.trigger,
         frozen_time + timedelta(seconds=30),
     )

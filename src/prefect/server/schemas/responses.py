@@ -18,7 +18,12 @@ from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
+from prefect.server.schemas.core import (
+    CreatedBy,
+    FlowRunPolicy,
+    UpdatedBy,
+    WorkQueueStatusDetail,
+)
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
@@ -496,6 +501,10 @@ class WorkQueueResponse(schemas.core.WorkQueue):
             else:
                 response.status = schemas.statuses.WorkQueueStatus.NOT_READY
         return response
+
+
+class WorkQueueWithStatus(WorkQueueResponse, WorkQueueStatusDetail):
+    """Combines a work queue and its status details into a single object"""
 
 
 class WorkPoolResponse(schemas.core.WorkPool):

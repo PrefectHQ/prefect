@@ -12,7 +12,7 @@ This gives us a history of changes and will create merge conflicts if two migrat
 SQLite: `824e9edafa60`
 Postgres: `15768c2ec702`
 
-# Trigger in index
+# Add `trigger_id` to the unique index for `automation_bucket`
 SQLite: `2b6c2b548f95`
 Postgres: `954db7517015`
 

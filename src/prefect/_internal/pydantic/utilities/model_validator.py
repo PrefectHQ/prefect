@@ -13,8 +13,6 @@ def model_validator(
     _func: Optional[Callable] = None,
     *,
     mode: Literal["wrap", "before", "after"] = "before",  # v2 only
-    pre: bool = False,  # v1 only
-    skip_on_failure: bool = False,  # v1 only
 ) -> Any:
     """Usage docs: https://docs.pydantic.dev/2.6/concepts/validators/#model-validators
 
@@ -32,6 +30,15 @@ def model_validator(
     where appropriate. This decorator simply intercepts the method call, allowing for custom
     validation logic before, after, or wrapping the original method call, depending on the
     `mode` parameter.
+
+    !!! note Replacing Pydantic V1 `pre=True` kwarg:
+    To replace a @root_validator that uses Pydantic V1's `pre=True` parameter, e.g. `@root_validator('a', pre=True)`,
+    you can use the @model_validator with the `mode='before'` parameter, (and also add a check that the field is not None, if necessary).
+    This will map to the `pre` parameter of `root_validator` in Pydantic V1, if the value is `True`.
+
+    !!! note Replacing Pydantic V1 `skip_on_failure=True` kwarg:
+    To replace a @root_validator that uses Pydantic V1's `skip_on_failure=True` parameter, e.g. `@root_validator('a', skip_on_failure=True)`,
+    we'll simply remove it. Pydantic V2 does not have an equivalent parameter, and we use it in only 3 places in Prefect, none of which are critical.
 
     Args:
         _func: The function to be decorated. If None, the decorator is applied with parameters.
@@ -69,9 +76,10 @@ def model_validator(
         ) -> Any:
             return validate_func(cls, v)
 
+        pre: bool = mode == "before"
+
         return root_validator(
             pre=pre,
-            skip_on_failure=skip_on_failure,
         )(wrapper)  # type: ignore
 
     if _func is None:

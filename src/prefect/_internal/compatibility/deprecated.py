@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 import pendulum
 
+from prefect._internal.pydantic._types import DEFAULT_REF_TEMPLATE
 from prefect.pydantic import BaseModel, Field, model_validator
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
@@ -340,6 +341,21 @@ class DeprecatedInfraOverridesField(BaseModel):
         kwargs["exclude"] = exclude
 
         return super().dict(**kwargs)
+
+    @classmethod
+    def schema(
+        cls, by_alias: bool = True, ref_template: str = DEFAULT_REF_TEMPLATE
+    ) -> Dict[str, Any]:
+        """
+        Don't use the mixin docstring as the description if this class is missing a
+        docstring.
+        """
+        schema = super().schema(by_alias=by_alias, ref_template=ref_template)
+
+        if not cls.__doc__:
+            schema.pop("description", None)
+
+        return schema
 
 
 def handle_deprecated_infra_overrides_parameter(

@@ -622,7 +622,7 @@ def get_dialect(
         from prefect.server.utilities.database import get_dialect
 
         dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
-        if dialect == "sqlite":
+        if dialect.name == "sqlite":
             print("Using SQLite!")
         else:
             print("Using Postgres!")
