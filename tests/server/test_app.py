@@ -1,3 +1,5 @@
+from typing import Set
+
 import pytest
 from prefect._vendor.fastapi.testclient import TestClient
 
@@ -5,14 +7,52 @@ from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     PREFECT_UI_API_URL,
+    SETTING_VARIABLES,
+    Setting,
+    Settings,
     temporary_settings,
 )
 
-# Steal some fixtures from the experimental test suite
-from .._internal.compatibility.test_experimental import (
-    enable_prefect_experimental_test_opt_in_setting,  # noqa: F401
-    prefect_experimental_test_opt_in_setting,  # noqa: F401
-)
+
+@pytest.fixture()
+def example_experiments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Set[str]:
+    enabled_experiments = {
+        "michelson_morley",
+        "pavlov_dog",
+        "double_slit",
+    }
+
+    disabled_experiments = {
+        "schrodinger_cat",
+        "rutherford_gold_foil",
+    }
+
+    # Clear any existing settings that start with the
+    # PREFECT_EXPERIMENTAL_ENABLE_ prefix
+    keys_to_remove = [
+        key
+        for key in SETTING_VARIABLES
+        if key.startswith("PREFECT_EXPERIMENTAL_ENABLE_")
+    ]
+    for key in keys_to_remove:
+        del SETTING_VARIABLES[key]
+        setting_name = f"prefect.settings.Settings.{key}"
+        if hasattr(Settings, key):
+            monkeypatch.delattr(setting_name, raising=False)
+
+    # Add in the example experiments.
+    for experiment in enabled_experiments | disabled_experiments:
+        enabled = experiment in enabled_experiments
+        setting = Setting(bool, default=False)
+        setting.name = f"PREFECT_EXPERIMENTAL_ENABLE_{experiment.upper()}"
+        monkeypatch.setitem(SETTING_VARIABLES, setting.name, setting)
+        monkeypatch.setattr(
+            f"prefect.settings.Settings.{setting.name}", enabled, raising=False
+        )
+
+    return enabled_experiments
 
 
 def test_app_generates_correct_api_openapi_schema():
@@ -26,46 +66,14 @@ def test_app_generates_correct_api_openapi_schema():
     assert all([p.startswith("/api/") for p in schema["paths"].keys()])
 
 
-def test_app_exposes_ui_settings():
+def test_app_exposes_ui_settings(example_experiments: Set[str]):
     app = create_app()
     client = TestClient(app)
     response = client.get("/ui-settings")
     response.raise_for_status()
     json = response.json()
     assert json["api_url"] == PREFECT_UI_API_URL.value()
-    assert set(json["flags"]) == {
-        "artifacts",
-        "workers",
-        "work_pools",
-        "workspace_dashboard",
-        "deployment_status",
-        "enhanced_cancellation",
-        "work_queue_status",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
-    }
-
-
-@pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
-def test_app_exposes_ui_settings_with_experiments_enabled():
-    app = create_app()
-    client = TestClient(app)
-    response = client.get("/ui-settings")
-    response.raise_for_status()
-    json = response.json()
-    assert json["api_url"] == PREFECT_UI_API_URL.value()
-    assert set(json["flags"]) == {
-        "test",
-        "work_pools",
-        "workers",
-        "artifacts",
-        "workspace_dashboard",
-        "deployment_status",
-        "enhanced_cancellation",
-        "work_queue_status",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
-    }
+    assert set(json["flags"]) == example_experiments
 
 
 @pytest.mark.parametrize("enabled", [True, False])

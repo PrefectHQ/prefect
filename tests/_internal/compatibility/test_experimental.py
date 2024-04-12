@@ -15,6 +15,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
     SETTING_VARIABLES,
     Setting,
+    Settings,
     temporary_settings,
 )
 
@@ -38,6 +39,47 @@ def prefect_experimental_test_setting(
     )
 
     yield PREFECT_EXPERIMENTAL_WARN_TEST
+
+
+@pytest.fixture()
+def example_experiments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> typing.Set[str]:
+    enabled_experiments = {
+        "michelson_morley",
+        "pavlov_dog",
+        "double_slit",
+    }
+
+    disabled_experiments = {
+        "schrodinger_cat",
+        "rutherford_gold_foil",
+    }
+
+    # Clear any existing settings that start with the
+    # PREFECT_EXPERIMENTAL_ENABLE_ prefix
+    keys_to_remove = [
+        key
+        for key in SETTING_VARIABLES
+        if key.startswith("PREFECT_EXPERIMENTAL_ENABLE_")
+    ]
+    for key in keys_to_remove:
+        del SETTING_VARIABLES[key]
+        setting_name = f"prefect.settings.Settings.{key}"
+        if hasattr(Settings, key):
+            monkeypatch.delattr(setting_name, raising=False)
+
+    # Add in the example experiments.
+    for experiment in enabled_experiments | disabled_experiments:
+        enabled = experiment in enabled_experiments
+        setting = Setting(bool, default=False)
+        setting.name = f"PREFECT_EXPERIMENTAL_ENABLE_{experiment.upper()}"
+        monkeypatch.setitem(SETTING_VARIABLES, setting.name, setting)
+        monkeypatch.setattr(
+            f"prefect.settings.Settings.{setting.name}", enabled, raising=False
+        )
+
+    return enabled_experiments
 
 
 @pytest.fixture
@@ -351,31 +393,5 @@ def test_experimental_marker_cannot_be_used_without_opt_in_setting_if_required()
             return 1
 
 
-@pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
-def test_enabled_experiments_with_opt_in():
-    assert enabled_experiments() == {
-        "test",
-        "work_pools",
-        "workers",
-        "artifacts",
-        "workspace_dashboard",
-        "deployment_status",
-        "enhanced_cancellation",
-        "work_queue_status",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
-    }
-
-
-def test_enabled_experiments_without_opt_in():
-    assert enabled_experiments() == {
-        "work_pools",
-        "workers",
-        "artifacts",
-        "workspace_dashboard",
-        "deployment_status",
-        "enhanced_cancellation",
-        "work_queue_status",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
-    }
+def test_enabled_experiments(example_experiments: typing.Set[str]):
+    assert enabled_experiments() == example_experiments
