@@ -7,9 +7,11 @@ import abc
 import asyncio
 import copy
 from base64 import b64encode
+from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncGenerator,
     Awaitable,
     Callable,
     ClassVar,
@@ -17,6 +19,7 @@ from typing import (
     Dict,
     List,
     Literal,
+    MutableMapping,
     Optional,
     Tuple,
     Type,
@@ -28,11 +31,13 @@ from uuid import UUID, uuid4
 import jinja2
 import orjson
 import pendulum
+from cachetools import TTLCache
 from httpx import Response
 from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
+from prefect.server.utilities.messaging import Message, MessageHandler
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -1409,3 +1414,47 @@ ActionTypes: TypeAlias = Union[
     PauseWorkPool,
     ResumeWorkPool,
 ]
+
+
+_recent_actions: MutableMapping[UUID, bool] = TTLCache(maxsize=10000, ttl=3600)
+
+
+async def record_action_happening(id: UUID):
+    """Record that an action has happened, with an expiration of an hour."""
+    _recent_actions[id] = True
+
+
+async def action_has_already_happened(id: UUID) -> bool:
+    """Check if the action has already happened"""
+    return _recent_actions.get(id, False)
+
+
+@asynccontextmanager
+async def consumer() -> AsyncGenerator[MessageHandler, None]:
+    from prefect.server.events.schemas.automations import TriggeredAction
+
+    async def message_handler(message: Message):
+        if not message.data:
+            return
+
+        triggered_action = TriggeredAction.parse_raw(message.data)
+        action = triggered_action.action
+
+        if await action_has_already_happened(triggered_action.id):
+            logger.info(
+                "Action %s has already been executed, skipping",
+                triggered_action.id,
+            )
+            return
+
+        try:
+            await action.act(triggered_action)
+        except ActionFailed as e:
+            # ActionFailed errors are expected errors and will not be retried
+            await action.fail(triggered_action, e.reason)
+        else:
+            await action.succeed(triggered_action)
+            await record_action_happening(triggered_action.id)
+
+    logger.info("Starting action message handler")
+    yield message_handler
