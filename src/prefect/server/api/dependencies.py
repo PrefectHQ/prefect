@@ -1,11 +1,16 @@
 """
 Utilities for injecting FastAPI dependencies.
 """
+
 import logging
+from base64 import b64decode
+from typing import Optional
+from uuid import UUID
 
 from packaging.version import Version
 from prefect._vendor.fastapi import Body, Depends, Header, HTTPException, status
 
+from prefect.server import schemas
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
 
 
@@ -116,3 +121,41 @@ def LimitBody() -> Depends:
         return limit
 
     return Depends(get_limit)
+
+
+def get_created_by(
+    prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
+    prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
+) -> Optional[schemas.core.CreatedBy]:
+    """A dependency that returns the provenance information to use when creating objects
+    during this API call."""
+    if prefect_automation_id and prefect_automation_name:
+        try:
+            display_value = b64decode(prefect_automation_name.encode()).decode()
+        except Exception:
+            display_value = None
+
+        if display_value:
+            return schemas.core.CreatedBy(
+                id=prefect_automation_id,
+                type="AUTOMATION",
+                display_value=display_value,
+            )
+
+    return None
+
+
+def get_updated_by(
+    prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
+    prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
+) -> Optional[schemas.core.UpdatedBy]:
+    """A dependency that returns the provenance information to use when updating objects
+    during this API call."""
+    if prefect_automation_id and prefect_automation_name:
+        return schemas.core.UpdatedBy(
+            id=prefect_automation_id,
+            type="AUTOMATION",
+            display_value=prefect_automation_name,
+        )
+
+    return None

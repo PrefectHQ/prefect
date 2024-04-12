@@ -53,6 +53,7 @@ async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
+    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
@@ -65,7 +66,7 @@ async def create_flow_run(
     If no state is provided, the flow run will be created in a PENDING state.
     """
     # hydrate the input model into a full flow run / state model
-    flow_run = schemas.core.FlowRun(**flow_run.dict())
+    flow_run = schemas.core.FlowRun(**flow_run.dict(), created_by=created_by)
 
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})

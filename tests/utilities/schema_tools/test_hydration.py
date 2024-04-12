@@ -2,8 +2,12 @@ import pytest
 
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
+    InvalidJinja,
     InvalidJSON,
+    TemplateNotFound,
+    ValidJinja,
     ValueNotFound,
+    WorkspaceVariable,
     WorkspaceVariableNotFound,
     hydrate,
 )
@@ -181,6 +185,73 @@ class TestHydrateWithJsonPrefectKind:
         assert hydrate(input_object) == expected_output
 
 
+class TestHydrateWithJinjaPrefectKind:
+    @pytest.mark.parametrize(
+        "input_object, expected_output",
+        [
+            # Valid Jinja template
+            (
+                {"param": {"__prefect_kind": "jinja", "template": "Hello {{ name }}"}},
+                {"param": ValidJinja("Hello {{ name }}")},
+            ),
+            # Jinja template with syntax error
+            (
+                {"param": {"__prefect_kind": "jinja", "template": "Hello {{ name"}},
+                {
+                    "param": InvalidJinja(
+                        "unexpected end of template, expected 'end of print statement'."
+                    )
+                },
+            ),
+            # Security error in Jinja template
+            (
+                {
+                    "param": {
+                        "__prefect_kind": "jinja",
+                        "template": """
+                        {% for i in range(1) %}
+                            Level 1
+                            {% for j in range(1) %}
+                                Level 2
+                                    {% for k in range(1) %}
+                                        Level 3
+                                    {% endfor %}
+                            {% endfor %}
+                        {% endfor %}
+                        """,
+                    }
+                },
+                {
+                    "param": InvalidJinja(
+                        "Contains nested for loops at a depth of 3. Templates can nest for loops no more than 2 loops deep."
+                    )
+                },
+            ),
+            # Missing template
+            (
+                {"param": {"__prefect_kind": "jinja"}},
+                {"param": TemplateNotFound()},
+            ),
+        ],
+    )
+    def test_hydrate_with_jinja_prefect_kind(self, input_object, expected_output):
+        assert hydrate(input_object) == expected_output
+
+    def test_render_jinja(self):
+        values = {"param": {"__prefect_kind": "jinja", "template": "Hello {{ name }}"}}
+
+        ctx = HydrationContext(render_jinja=False, jinja_context={"name": "world"})
+        assert hydrate(values, ctx) == {"param": ValidJinja("Hello {{ name }}")}
+
+        # render
+        ctx = HydrationContext(render_jinja=True, jinja_context={"name": "world"})
+        assert hydrate(values, ctx) == {"param": "Hello world"}
+
+        # render with no jinja_context
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        assert hydrate(values, ctx) == {"param": "Hello "}
+
+
 class TestHydrateWithWorkspaceVariablePrefectKind:
     @pytest.mark.parametrize(
         "input_object, expected_output, ctx",
@@ -193,7 +264,34 @@ class TestHydrateWithWorkspaceVariablePrefectKind:
                 HydrationContext(),
             ),
             ({"__prefect_kind": "workspace_variable"}, {}, HydrationContext()),
-            # variable not found in context
+            # variable not found in context and we don't render it
+            # we just assume it's fine
+            (
+                {
+                    "param": {
+                        "__prefect_kind": "workspace_variable",
+                        "variable_name": "my-var",
+                    }
+                },
+                {"param": WorkspaceVariable("my-var")},
+                HydrationContext(render_workspace_variables=False),
+            ),
+            # variable exists in context and we don't render it
+            #
+            (
+                {
+                    "param": {
+                        "__prefect_kind": "workspace_variable",
+                        "variable_name": "my-var",
+                    }
+                },
+                {"param": WorkspaceVariable("my-var")},
+                HydrationContext(
+                    workspace_variables={"my-var": "my-value"},
+                    render_workspace_variables=False,
+                ),
+            ),
+            # variable not found in context and we render it
             (
                 {
                     "param": {
@@ -202,9 +300,9 @@ class TestHydrateWithWorkspaceVariablePrefectKind:
                     }
                 },
                 {"param": WorkspaceVariableNotFound("my-var")},
-                HydrationContext(),
+                HydrationContext(render_workspace_variables=True),
             ),
-            # variable exists in context
+            # variable exists in context and we render it
             (
                 {
                     "param": {
@@ -213,12 +311,16 @@ class TestHydrateWithWorkspaceVariablePrefectKind:
                     }
                 },
                 {"param": "my-value"},
-                HydrationContext(workspace_variables={"my-var": "my-value"}),
+                HydrationContext(
+                    workspace_variables={"my-var": "my-value"},
+                    render_workspace_variables=True,
+                ),
             ),
         ],
     )
     def test_hydrate_with_null_prefect_kind(self, input_object, expected_output, ctx):
-        assert hydrate(input_object, ctx) == expected_output
+        hydrated_value = hydrate(input_object, ctx)
+        assert hydrated_value == expected_output
 
 
 class TestNestedHydration:
@@ -227,21 +329,27 @@ class TestNestedHydration:
         [
             (
                 # The workspace variable is resolved first.
-                # It returns a json string.
-                # The JSON string is then decoded to give
+                # It returns a jinja template that renders
+                # and outputs a JSON string of '"4"'.
+                # the JSON string is then decoded to give
                 # an actual integer value.
                 {
                     "param": {
                         "__prefect_kind": "json",
                         "value": {
-                            "__prefect_kind": "workspace_variable",
-                            "variable_name": "four_json_string",
+                            "__prefect_kind": "jinja",
+                            "template": {
+                                "__prefect_kind": "workspace_variable",
+                                "variable_name": "2_plus_2",
+                            },
                         },
-                    },
+                    }
                 },
                 {"param": 4},
                 HydrationContext(
-                    workspace_variables={"four_json_string": "4"},
+                    render_jinja=True,
+                    render_workspace_variables=True,
+                    workspace_variables={"2_plus_2": "{{ (2 + 2) | tojson }}"},
                 ),
             ),
         ],
