@@ -2,6 +2,7 @@
 Functions within this module check for Pydantic V2 compatibility and provide mechanisms for copying,
  dumping, and validating models in a way that is agnostic to the underlying Pydantic version.
 """
+
 import typing
 
 from ._base_model import BaseModel as PydanticBaseModel
