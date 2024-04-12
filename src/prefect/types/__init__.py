@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, ClassVar
+from typing import Any, Callable, ClassVar, Generator
 
 from pydantic_core import core_schema, CoreSchema, SchemaValidator
 from typing_extensions import Self
@@ -10,7 +10,7 @@ class NonNegativeInteger(int):
     schema: ClassVar[CoreSchema] = core_schema.int_schema(ge=0)
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 
     @classmethod
@@ -20,7 +20,7 @@ class NonNegativeInteger(int):
         return cls.schema
 
     @classmethod
-    def validate(cls, v) -> Self:
+    def validate(cls, v: Any) -> Self:
         return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
@@ -29,7 +29,7 @@ class PositiveInteger(int):
     schema: ClassVar[CoreSchema] = core_schema.int_schema(gt=0)
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 
     @classmethod
@@ -39,5 +39,5 @@ class PositiveInteger(int):
         return cls.schema
 
     @classmethod
-    def validate(cls, v) -> Self:
+    def validate(cls, v: Any) -> Self:
         return SchemaValidator(schema=cls.schema).validate_python(v)
