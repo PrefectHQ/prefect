@@ -289,7 +289,7 @@ deployments:
         stream_output: false
 ```
 
-See more about overriding job variables in the [Overriding Job Variables Guide](deployment/overriding-job-variables/).
+See more about overriding job variables in the [Overriding Job Variables Guide](/guides/deployment/overriding-job-variables/).
 
 !!! tip "Advanced Customization of the Base Job Template"
     For advanced use cases, you can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
