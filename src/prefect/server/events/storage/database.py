@@ -99,8 +99,60 @@ async def read_events(
     return select_events_query_result.scalars().unique().all()
 
 
+async def write_events(session: AsyncSession, events: List[ReceivedEvent]) -> None:
+    """
+    Write events to the database.
+
+    Args:
+        session: a database session
+        events: the events to insert
+    """
+    if events:
+        dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
+        if dialect.name == "postgresql":
+            await _write_postgres_events(session, events)
+        else:
+            await _write_sqlite_events(session, events)
+
+
 @db_injector
-async def write_events(
+async def _write_sqlite_events(
+    db: PrefectDBInterface, session: AsyncSession, events: List[ReceivedEvent]
+) -> None:
+    """
+    Write events to the SQLite database.
+
+    SQLite does not support the `RETURNING` clause with SQLAlchemy < 2, so we need to
+    check for existing events before inserting them.
+
+    Args:
+        session: a SQLite events session
+        events: the events to insert
+    """
+    for batch in _in_safe_batches(events):
+        event_ids = {event.id for event in batch}
+        result = await session.scalars(
+            sa.select(db.Event.id).where(db.Event.id.in_(event_ids))
+        )
+        existing_event_ids = list(result.all())
+        events_to_insert = [
+            event for event in batch if event.id not in existing_event_ids
+        ]
+        event_rows = [event.as_database_row() for event in events_to_insert]
+        await session.execute(db.insert(db.Event).values(event_rows))
+
+        resource_rows: List[Dict[str, Any]] = []
+        for event in events_to_insert:
+            resource_rows.extend(event.as_database_resource_rows())
+
+        if not resource_rows:
+            continue
+
+        await session.execute(db.insert(db.EventResource).values(resource_rows))
+
+
+@db_injector
+async def _write_postgres_events(
     db: PrefectDBInterface, session: AsyncSession, events: List[ReceivedEvent]
 ) -> None:
     """
@@ -137,7 +189,7 @@ async def write_events(
 
 def get_max_query_parameters() -> int:
     dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
-    if dialect == "postgresql":
+    if dialect.name == "postgresql":
         return 32_767
     else:
         return 999
