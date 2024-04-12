@@ -25,6 +25,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
+from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
@@ -1570,3 +1571,16 @@ def test_log_adapter_get_child(flow_run):
     child_logger = logger.getChild("child", {"goodnight": "moon"})
     assert child_logger.logger.name == "prefect.parent.child"
     assert child_logger.extra == {"hello": "world", "goodnight": "moon"}
+
+
+def test_eavesdropping():
+    logging.getLogger("my_logger").debug("This is before the context")
+
+    with LogEavesdropper("my_logger", level=logging.INFO) as eavesdropper:
+        logging.getLogger("my_logger").info("Hello, world!")
+        logging.getLogger("my_logger.child_module").warning("Another one!")
+        logging.getLogger("my_logger").debug("Not this one!")
+
+    logging.getLogger("my_logger").debug("This is after the context")
+
+    assert eavesdropper.text() == "[INFO]: Hello, world!\n[WARNING]: Another one!"

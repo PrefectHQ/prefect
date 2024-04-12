@@ -21,6 +21,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    cast,
 )
 from uuid import UUID, uuid4
 
@@ -31,6 +32,7 @@ from httpx import Response
 from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.blocks.core import Block
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -39,6 +41,7 @@ else:
     from pydantic import Field, PrivateAttr, root_validator, validator
     from pydantic.fields import ModelField
 
+from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import get_logger
 from prefect.server.events.clients import (
     PrefectServerEventsAPIClient,
@@ -49,6 +52,7 @@ from prefect.server.events.schemas.events import Event, RelatedResource, Resourc
 from prefect.server.events.schemas.labelling import LabelDiver
 from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import (
+    BlockDocument,
     ConcurrencyLimitV2,
     Flow,
     TaskRun,
@@ -1026,8 +1030,52 @@ class SendNotification(JinjaTemplateAction):
     def is_valid_template(cls, value: str, field: ModelField) -> str:
         return cls.validate_template(value, field.name)
 
+    async def _get_notification_block(
+        self, triggered_action: "TriggeredAction"
+    ) -> NotificationBlock:
+        async with await self.orchestration_client(triggered_action) as orion:
+            response = await orion.read_block_document_raw(self.block_document_id)
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            try:
+                block_document = BlockDocument.parse_obj(response.json())
+                block = Block._from_block_document(block_document)
+            except Exception as e:
+                raise ActionFailed(f"The notification block was invalid: {e!r}")
+
+            if "notify" not in block.get_block_capabilities():
+                raise ActionFailed("The referenced block was not a notification block")
+
+            self._resulting_related_resources += [
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
+                        "prefect.resource.role": "block",
+                        "prefect.resource.name": block_document.name,
+                    }
+                ),
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
+                        "prefect.resource.role": "block-type",
+                    }
+                ),
+            ]
+
+            return cast(NotificationBlock, block)
+
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        block = await self._get_notification_block(triggered_action=triggered_action)
+
+        subject, body = await self.render(triggered_action)
+
+        with block.raise_on_failure():
+            try:
+                await block.notify(subject=subject, body=body)
+            except NotificationError as e:
+                self._result_details["notification_log"] = e.log
+                raise ActionFailed("Notification failed")
 
     async def render(self, triggered_action: "TriggeredAction") -> List[str]:
         return await self._render([self.subject, self.body], triggered_action)
