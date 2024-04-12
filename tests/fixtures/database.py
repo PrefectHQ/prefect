@@ -4,7 +4,7 @@ import gc
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import AsyncContextManager, AsyncGenerator, Callable
+from typing import AsyncContextManager, AsyncGenerator, Callable, Type
 
 import aiosqlite
 import asyncpg
@@ -1093,10 +1093,7 @@ def initialize_orchestration(flow):
 
 
 @pytest.fixture
-async def notifier_block(prefect_client):
-    # Ignore warnings from block reuse in fixture
-    warnings.filterwarnings("ignore", category=UserWarning)
-
+def DebugPrintNotification() -> Type[NotificationBlock]:
     class DebugPrintNotification(NotificationBlock):
         """
         Notification block that prints a message, useful for debugging.
@@ -1108,6 +1105,14 @@ async def notifier_block(prefect_client):
 
         async def notify(self, subject: str, body: str):
             print(body)
+
+    return DebugPrintNotification
+
+
+@pytest.fixture
+async def notifier_block(DebugPrintNotification: Type[NotificationBlock]):
+    # Ignore warnings from block reuse in fixture
+    warnings.filterwarnings("ignore", category=UserWarning)
 
     block = DebugPrintNotification()
     await block.save("debug-print-notification")
