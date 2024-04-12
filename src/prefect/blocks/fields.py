@@ -43,7 +43,7 @@ class SecretDict(_SecretBase[Dict[str, Any]], Dict[str, Any]):
 
     @classmethod
     def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(field_schema="object")
+        field_schema.update(type="object")
 
     @classmethod
     def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
