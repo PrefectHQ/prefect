@@ -10,7 +10,7 @@ import pendulum
 
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._types import NonNegativeInteger, PositiveInteger
+from prefect.types import NonNegativeInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator

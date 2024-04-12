@@ -15,7 +15,6 @@ from ._base_model import (
     ValidationError,
 )
 from ._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
-from ._types import NonNegativeInteger, PositiveInteger
 from .utilities.config_dict import ConfigMixin
 from .utilities.field_validator import field_validator
 from .utilities.model_construct import ModelConstructMixin, model_construct
@@ -74,8 +73,6 @@ __all__ = [
     "BaseModel",
     "Field",
     "FieldInfo",
-    "NonNegativeInteger",
-    "PositiveInteger",
     "field_validator",
     "model_validator",
     "PrivateAttr",
