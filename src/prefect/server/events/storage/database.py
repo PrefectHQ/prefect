@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V1
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.logging.loggers import get_logger
 from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
@@ -21,10 +21,10 @@ from prefect.server.events.storage import (
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
-if HAS_PYDANTIC_V1:
-    import pydantic
-else:
+if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+else:
+    import pydantic
 
 logger = get_logger(__name__)
 
