@@ -275,16 +275,21 @@ prefect work-pool get-default-base-job-template --type process
 ```
 </div>
 
-You can override each of these attributes on a per-deployment or per-flow run basis. When deploying a flow, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
+You can override each of these attributes on a per-deployment or per-flow run basis. When creating a deployment, you can specify these overrides in the `deployments.work_pool.job_variables` section of a `prefect.yaml` file or in the `job_variables` argument of a Python `flow.deploy` method. 
 
-If we wanted to turn off streaming output for a specific deployment, we could add the following to our `deployment.yaml`:
+For example, to turn off streaming output for a specific deployment, we could add the following to our `prefect.yaml`:
 
 ```yaml
-work_pool:
+deployments:
+- name: demo-deployment
+  entrypoint: demo_project/demo_flow.py:some_work
+  work_pool:
     name: above-ground  
     job_variables:
         stream_output: false
 ```
+
+See more about overriding job variables in the [Overriding Job Variables Guide](/guides/deployment/overriding-job-variables/).
 
 !!! tip "Advanced Customization of the Base Job Template"
     For advanced use cases, you can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
