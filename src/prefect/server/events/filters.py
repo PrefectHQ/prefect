@@ -1,8 +1,10 @@
+import sys
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, cast
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from sqlalchemy.sql import Select
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -61,7 +63,7 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
     _top_level_filter: "EventFilter | None" = PrivateAttr(None)
 
     def get_filters(self) -> List["EventDataFilter"]:
-        return [
+        filters: List[EventDataFilter] = [
             filter
             for filter in [
                 getattr(self, name)
@@ -70,6 +72,9 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
             ]
             if filter
         ]
+        for filter in filters:
+            filter._top_level_filter = self._top_level_filter
+        return filters
 
     def includes(self, event: Event) -> bool:
         """Does the given event match the criteria of this filter?"""
@@ -281,7 +286,7 @@ class EventResourceFilter(EventDataFilter):
             assert self._top_level_filter
             filters.append(
                 db.Event.id.in_(
-                    self._top_level_filter._scoped_event_resources().where(
+                    self._top_level_filter._scoped_event_resources(db).where(
                         *label_filters
                     )
                 )
@@ -376,7 +381,7 @@ class EventRelatedFilter(EventDataFilter):
             assert self._top_level_filter
             filters = [
                 db.Event.id.in_(
-                    self._top_level_filter._scoped_event_resources().where(*filters)
+                    self._top_level_filter._scoped_event_resources(db).where(*filters)
                 )
             ]
 
@@ -474,7 +479,7 @@ class EventAnyResourceFilter(EventDataFilter):
             assert self._top_level_filter
             filters = [
                 db.Event.id.in_(
-                    self._top_level_filter._scoped_event_resources().where(*filters)
+                    self._top_level_filter._scoped_event_resources(db).where(*filters)
                 )
             ]
 
@@ -542,3 +547,23 @@ class EventFilter(EventDataFilter):
     ) -> Sequence["ColumnExpressionArgument[bool]"]:
         self._top_level_filter = self
         return super().build_where_clauses(db)
+
+    def _scoped_event_resources(self, db: PrefectDBInterface) -> Select:
+        """Returns an event_resources query that is scoped to this filter's scope by occurred."""
+        query = sa.select(db.EventResource.event_id).where(
+            db.EventResource.occurred >= self.occurred.since,
+            db.EventResource.occurred <= self.occurred.until,
+        )
+        return query
+
+    @property
+    def logical_limit(self) -> int:
+        """The logical limit for this query, which is a maximum number of rows that it
+        _could_ return (regardless of what the caller has requested).  May be used as
+        an optimization for DB queries"""
+        if self.id and self.id.id:
+            # If we're asking for a specific set of IDs, the most we could get back is
+            # that number of rows
+            return len(self.id.id)
+
+        return sys.maxsize
