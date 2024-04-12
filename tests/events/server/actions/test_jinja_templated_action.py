@@ -110,11 +110,19 @@ def woodchonk_triggered(
     tell_me_about_the_culprit: Automation,
     woodchonk_nibbled: ReceivedEvent,
 ) -> TriggeredAction:
-    return TriggeredAction(
-        automation=tell_me_about_the_culprit,
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
         triggering_labels={"i.am.so": "triggered"},
         triggering_event=woodchonk_nibbled,
+    )
+    return TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=tell_me_about_the_culprit.actions[0],
     )
 
@@ -309,11 +317,19 @@ def took_a_picture(
     tell_me_about_the_culprit: Automation,
     picture_taken: ReceivedEvent,
 ) -> TriggeredAction:
-    return TriggeredAction(
-        automation=tell_me_about_the_culprit,
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
         triggering_labels={},
         triggering_event=picture_taken,
+    )
+    return TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=tell_me_about_the_culprit.actions[0],
     )
 
@@ -323,11 +339,19 @@ def took_a_picture_by_task(
     tell_me_about_the_culprit: Automation,
     picture_taken_by_task: ReceivedEvent,
 ) -> TriggeredAction:
-    return TriggeredAction(
-        automation=tell_me_about_the_culprit,
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
         triggering_labels={},
         triggering_event=picture_taken_by_task,
+    )
+    return TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=tell_me_about_the_culprit.actions[0],
     )
 
@@ -1121,9 +1145,9 @@ async def test_work_queue_health_late_run_count(
     URL: {{ work_queue|ui_url }}
     """
 
-    triggered_action = TriggeredAction(
-        automation=tell_me_about_the_culprit,
-        id=uuid4(),
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=start_of_test + timedelta(seconds=1),
         triggering_event=Event(
             occurred=start_of_test,
@@ -1136,6 +1160,14 @@ async def test_work_queue_health_late_run_count(
             id=uuid4(),
         ).receive(),
         triggering_labels={},
+    )
+    triggered_action = TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        id=uuid4(),
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=actions.DoNothing(),  # this doesn't matter for the test
         action_index=0,
     )
@@ -1170,9 +1202,9 @@ async def test_related_resource_by_role_in_templates(
     Pools: {% for resource in event.resources_in_role['work-pool'] %}{{ resource.name }},{% endfor %}
     """
 
-    triggered_action = TriggeredAction(
-        automation=tell_me_about_the_culprit,
-        id=uuid4(),
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=start_of_test + timedelta(seconds=1),
         triggering_event=Event(
             occurred=start_of_test,
@@ -1196,6 +1228,14 @@ async def test_related_resource_by_role_in_templates(
             id=uuid4(),
         ).receive(),
         triggering_labels={},
+    )
+    triggered_action = TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        id=uuid4(),
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=actions.DoNothing(),  # this doesn't matter for the test
         action_index=0,
     )
@@ -1227,9 +1267,9 @@ async def test_work_pool_is_available_to_templates(
     Pool: {{ work_pool.name }}
     """
 
-    triggered_action = TriggeredAction(
-        automation=tell_me_about_the_culprit,
-        id=uuid4(),
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=start_of_test + timedelta(seconds=1),
         triggering_event=Event(
             occurred=start_of_test,
@@ -1245,6 +1285,14 @@ async def test_work_pool_is_available_to_templates(
             id=uuid4(),
         ).receive(),
         triggering_labels={},
+    )
+    triggered_action = TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        id=uuid4(),
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=actions.DoNothing(),  # this doesn't matter for the test
         action_index=0,
     )
@@ -1274,9 +1322,9 @@ async def test_concurrency_limit_is_available_in_templates(
     Limit: {{ concurrency_limit.limit }}
     """
 
-    triggered_action = TriggeredAction(
-        automation=tell_me_about_the_culprit,
-        id=uuid4(),
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=start_of_test + timedelta(seconds=1),
         triggering_event=Event(
             occurred=start_of_test,
@@ -1287,6 +1335,15 @@ async def test_concurrency_limit_is_available_in_templates(
             id=uuid4(),
         ).receive(),
         triggering_labels={},
+    )
+
+    triggered_action = TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        id=uuid4(),
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=actions.DoNothing(),  # this doesn't matter for the test
         action_index=0,
     )

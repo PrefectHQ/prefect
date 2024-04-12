@@ -26,8 +26,10 @@ from prefect.server.events import ResourceSpecification, actions, messaging
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
+    Firing,
     Posture,
     TriggeredAction,
+    TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
@@ -356,11 +358,19 @@ def email_me_when_that_dang_spider_comes(
     arachnophobia: Automation,
     daddy_long_legs_walked: ReceivedEvent,
 ) -> TriggeredAction:
-    return TriggeredAction(
-        automation=arachnophobia,
+    firing = Firing(
+        trigger=arachnophobia.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
         triggering_labels={"hello": "world"},
         triggering_event=daddy_long_legs_walked,
+    )
+    return TriggeredAction(
+        automation=arachnophobia,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=arachnophobia.actions[0],
     )
 
