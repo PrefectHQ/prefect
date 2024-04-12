@@ -490,17 +490,6 @@ def validate_rrule_string(v: str) -> str:
 ### AUTOMATION SCHEMA VALIDATORS ###
 
 
-def validate_trigger_within(
-    value: datetime.timedelta, minimum: float = 0.0
-) -> datetime.timedelta:
-    """
-    Validate that the `within` field is greater than the minimum value.
-    """
-    if value.total_seconds() < minimum:
-        raise ValueError("The minimum `within` is 0 seconds")
-    return value
-
-
 def validate_automation_names(
     field_value: List["DeploymentTrigger"], values: dict
 ) -> List["DeploymentTrigger"]:

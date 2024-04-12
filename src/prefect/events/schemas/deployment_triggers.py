@@ -33,18 +33,17 @@ from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
     experiment_enabled,
 )
-from prefect._internal.schemas.validators import validate_trigger_within
 from prefect.events.actions import RunDeployment
 from prefect.pydantic import (
     Field,
     PrefectBaseModel,
     PrivateAttr,
-    field_validator,
     model_validator,
 )
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
 )
+from prefect.types import NonNegativeTimedelta
 
 from .automations import (
     Automation,
@@ -220,7 +219,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: NonNegativeTimedelta = Field(
         timedelta(0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
@@ -228,10 +227,6 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
             "Proactive triggers"
         ),
     )
-
-    @field_validator("within")
-    def enforce_minimum_within(cls, value: timedelta):
-        return validate_trigger_within(value)
 
     @model_validator(mode="before")
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
