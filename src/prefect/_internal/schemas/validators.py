@@ -146,13 +146,6 @@ def validate_values_conform_to_schema(
         ) from exc
 
 
-def validate_work_queue_priority(v: int) -> int:
-    """Validate that the provided work queue priority is greater than or equal to 1."""
-    if v < 1:
-        raise ValueError("Priority must be greater than or equal to 1.")
-    return v
-
-
 ### DEPLOYMENT SCHEMA VALIDATORS ###
 
 
