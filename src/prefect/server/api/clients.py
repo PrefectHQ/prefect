@@ -8,6 +8,7 @@ from typing_extensions import Self
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import ObjectNotFound
+from prefect.server.schemas.actions import DeploymentFlowRunCreate
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -37,6 +38,7 @@ class BaseClient:
             headers={**additional_headers},
             base_url="http://prefect-in-memory/api",
             enable_csrf_support=False,
+            raise_on_all_errors=False,
         )
 
     async def __aenter__(self) -> Self:
@@ -62,6 +64,45 @@ class OrchestrationClient(BaseClient):
                 return None
             raise
         return DeploymentResponse.parse_obj(response.json())
+
+    async def read_flow_raw(self, flow_id: UUID) -> Response:
+        return await self._http_client.get(f"/flows/{flow_id}")
+
+    async def create_flow_run(
+        self, deployment_id: UUID, flow_run_create: DeploymentFlowRunCreate
+    ) -> Response:
+        return await self._http_client.post(
+            f"/deployments/{deployment_id}/create_flow_run",
+            json=flow_run_create.dict(json_compatible=True),
+        )
+
+    async def read_flow_run_raw(self, flow_run_id: UUID) -> Response:
+        return await self._http_client.get(f"/flow_runs/{flow_run_id}")
+
+    async def read_task_run_raw(self, task_run_id: UUID) -> Response:
+        return await self._http_client.get(f"/task_runs/{task_run_id}")
+
+    async def read_work_pool_raw(self, work_pool_id: UUID) -> Response:
+        return await self._http_client.post(
+            "/work_pools/filter",
+            json={"work_pools": {"id": {"any_": [str(work_pool_id)]}}},
+        )
+
+    async def read_work_queue_raw(self, work_queue_id: UUID) -> Response:
+        return await self._http_client.get(f"/work_queues/{work_queue_id}")
+
+    async def read_work_queue_status_raw(self, work_queue_id: UUID) -> Response:
+        return await self._http_client.get(f"/work_queues/{work_queue_id}/status")
+
+    async def read_block_document_raw(
+        self,
+        block_document_id: UUID,
+        include_secrets: bool = True,
+    ) -> Response:
+        return await self._http_client.get(
+            f"/block_documents/{block_document_id}",
+            params=dict(include_secrets=include_secrets),
+        )
 
     VARIABLE_PAGE_SIZE = 200
     MAX_VARIABLES_PER_WORKSPACE = 1000
@@ -102,6 +143,13 @@ class OrchestrationClient(BaseClient):
                 break
 
         return variables
+
+    async def read_concurrency_limit_v2_raw(
+        self, concurrency_limit_id: UUID
+    ) -> Response:
+        return await self._http_client.get(
+            f"/v2/concurrency_limits/{concurrency_limit_id}"
+        )
 
 
 class WorkPoolsOrchestrationClient(BaseClient):

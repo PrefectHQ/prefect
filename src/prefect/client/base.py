@@ -193,11 +193,18 @@ class PrefectHttpxClient(httpx.AsyncClient):
     [Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
     """
 
-    def __init__(self, *args, enable_csrf_support: bool = False, **kwargs):
+    def __init__(
+        self,
+        *args,
+        enable_csrf_support: bool = False,
+        raise_on_all_errors: bool = True,
+        **kwargs,
+    ):
         self.enable_csrf_support: bool = enable_csrf_support
         self.csrf_token: Optional[str] = None
         self.csrf_token_expiration: Optional[datetime] = None
         self.csrf_client_id: uuid.UUID = uuid.uuid4()
+        self.raise_on_all_errors: bool = raise_on_all_errors
 
         super().__init__(*args, **kwargs)
 
@@ -345,10 +352,8 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # Convert to a Prefect response to add nicer errors messages
         response = PrefectResponse.from_httpx_response(response)
 
-        # Always raise bad responses
-        # NOTE: We may want to remove this and handle responses per route in the
-        #       `PrefectClient`
-        response.raise_for_status()
+        if self.raise_on_all_errors:
+            response.raise_for_status()
 
         return response
 
