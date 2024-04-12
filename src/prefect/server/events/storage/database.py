@@ -3,8 +3,8 @@ from typing import Any, Dict, Generator, List, Sequence, Tuple
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
-from tests._internal.pydantic.test_dynamic_imports import HAS_PYDANTIC_V1
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V1
 from prefect.logging.loggers import get_logger
 from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface

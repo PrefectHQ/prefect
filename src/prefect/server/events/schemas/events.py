@@ -319,7 +319,7 @@ class EventPage(PrefectBaseModel):
         ..., description="The Events matching the query"
     )
     total: int = Field(..., description="The total number of matching Events")
-    next_page: AnyHttpUrl | None = Field(
+    next_page: "AnyHttpUrl | None" = Field(
         ..., description="The URL for the next page of results, if there are more"
     )
 
