@@ -15,8 +15,10 @@ from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
+    Firing,
     Posture,
     TriggeredAction,
+    TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 
@@ -70,11 +72,19 @@ def notify_me(
     tell_me_about_the_culprit: Automation,
     woodchonk_nibbled: ReceivedEvent,
 ) -> TriggeredAction:
-    return TriggeredAction(
-        automation=tell_me_about_the_culprit,
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
         triggering_labels={"i.am.so": "triggered"},
         triggering_event=woodchonk_nibbled,
+    )
+    return TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=tell_me_about_the_culprit.actions[0],
     )
 
@@ -84,11 +94,19 @@ def invalid_block_id(
     tell_me_about_the_culprit: Automation,
     woodchonk_nibbled: ReceivedEvent,
 ) -> TriggeredAction:
-    return TriggeredAction(
-        automation=tell_me_about_the_culprit,
+    firing = Firing(
+        trigger=tell_me_about_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
         triggering_labels={},
         triggering_event=woodchonk_nibbled,
+    )
+    return TriggeredAction(
+        automation=tell_me_about_the_culprit,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=tell_me_about_the_culprit.actions[1],
     )
 
