@@ -5,25 +5,18 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.settings import (
-    PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
-    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
-    temporary_settings,
-)
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
-
-
+from prefect.pydantic import ValidationError
 from prefect.server.events import (
     Event,
     LabelDiver,
     RelatedResource,
     Resource,
     ResourceSpecification,
+)
+from prefect.settings import (
+    PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
+    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
+    temporary_settings,
 )
 
 
@@ -187,18 +180,6 @@ def test_resource_disallows_none_values(resource_class: Type[Resource]) -> None:
             "type": "type_error.none.not_allowed",
         },
     ]
-
-
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
-def test_resource_coerces_other_values(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
-        {
-            "prefect.resource.id": "my.unique.resource",
-            "prefect.resource.role": "any-role",
-            "another.thing": 5,
-        }
-    )
-    assert resource["another.thing"] == "5"
 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])

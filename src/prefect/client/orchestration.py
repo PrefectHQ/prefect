@@ -3005,7 +3005,7 @@ class PrefectClient:
 
         response = await self._client.post(
             "/automations/",
-            json=automation.dict(json_compatible=True),
+            json=automation.model_dump(mode="json"),
         )
 
         return UUID(response.json()["id"])

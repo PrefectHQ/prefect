@@ -2118,7 +2118,7 @@ class TestAutomations:
 
     async def test_create_automation(self, cloud_client, automation: Automation):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             create_route = router.post("/automations/").mock(
                 return_value=httpx.Response(200, json=created_automation)
@@ -2127,9 +2127,9 @@ class TestAutomations:
             automation_id = await cloud_client.create_automation(automation)
 
             assert create_route.called
-            assert json.loads(create_route.calls[0].request.content) == automation.dict(
-                json_compatible=True
-            )
+            assert json.loads(
+                create_route.calls[0].request.content
+            ) == automation.model_dump(mode="json")
             assert automation_id == UUID(created_automation["id"])
 
     async def test_delete_owned_automations_not_cloud_runtime_error(

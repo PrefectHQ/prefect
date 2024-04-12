@@ -493,7 +493,7 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
             # Only for autonomous tasks
             return
 
-        task_run: TaskRun = TaskRun.from_orm(context.run)
+        task_run: TaskRun = TaskRun.model_validate(context.run)
         queue = TaskQueue.for_key(task_run.task_key)
 
         if validated_state.name == "AwaitingRetry":

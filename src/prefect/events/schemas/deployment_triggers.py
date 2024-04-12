@@ -222,8 +222,6 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
     )
     within: timedelta = Field(
         timedelta(0),
-        minimum=0.0,
-        exclusiveMinimum=False,
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -235,7 +233,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
     def enforce_minimum_within(cls, value: timedelta):
         return validate_trigger_within(value)
 
-    @model_validator
+    @model_validator(mode="before")
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
         posture: Optional[Posture] = values.get("posture")
         within: Optional[timedelta] = values.get("within")

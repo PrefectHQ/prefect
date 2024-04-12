@@ -17,8 +17,7 @@ else:
     from pydantic import Field, root_validator, validator
 
 from prefect._internal.schemas.validators import (
-    get_or_create_state_name,
-    set_default_scheduled_time,
+    set_state_name_based_on_type_if_needed,
 )
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
@@ -161,13 +160,9 @@ class State(StateBaseModel, Generic[R]):
         state_data["data"] = with_data
         return cls(**state_data)
 
-    @validator("name", always=True)
-    def default_name_from_type(cls, v, *, values, **kwargs):
-        return get_or_create_state_name(v, values)
-
-    @root_validator
-    def default_scheduled_start_time(cls, values):
-        return set_default_scheduled_time(cls, values)
+    @root_validator(pre=True)
+    def set_state_name_based_on_type_if_needed(cls, values):
+        return set_state_name_based_on_type_if_needed(values)
 
     def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED

@@ -23,11 +23,11 @@ from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    get_or_create_state_name,
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
     set_run_policy_deprecated_fields,
+    set_state_name_based_on_type_if_needed,
     validate_default_queue_id_not_none,
     validate_integer_above_or_equal_to_value,
     validate_max_metadata_length,
@@ -252,24 +252,9 @@ class State(ObjectBaseModel, Generic[R]):
             state_details=self.state_details,
         )
 
-    @field_validator("name", always=True)
-    def default_name_from_type(cls, v, *, values, **kwargs):
-        return get_or_create_state_name(v, values)
-
     @model_validator
-    def default_scheduled_start_time(cls, values):
-        """
-        TODO: This should throw an error instead of setting a default but is out of
-              scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
-              into work refactoring state initialization
-        """
-        if values.get("type") == StateType.SCHEDULED:
-            state_details = values.setdefault(
-                "state_details", cls.__fields__["state_details"].get_default()
-            )
-            if not state_details.scheduled_time:
-                state_details.scheduled_time = pendulum.now("utc")
-        return values
+    def default_name_from_type(cls, values):
+        return set_state_name_based_on_type_if_needed(values)
 
     def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED
@@ -558,7 +543,7 @@ class FlowRun(ObjectBaseModel):
             )
         return super().__eq__(other)
 
-    @field_validator("name", pre=True)
+    @field_validator("name", mode="before")
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -739,7 +724,7 @@ class TaskRun(ObjectBaseModel):
         examples=["State(type=StateType.COMPLETED)"],
     )
 
-    @field_validator("name", pre=True)
+    @field_validator("name", mode="before")
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -1380,7 +1365,7 @@ class WorkPool(ObjectBaseModel):
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
-    @field_validator("default_queue_id", always=True)
+    @field_validator("default_queue_id", mode="before")
     def helpful_error_for_missing_default_queue_id(cls, v):
         return validate_default_queue_id_not_none(v)
 

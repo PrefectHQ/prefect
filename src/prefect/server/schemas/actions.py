@@ -20,13 +20,12 @@ else:
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
-    set_default_scheduled_time,
     set_deployment_schedules,
+    set_state_name_based_on_type_if_needed,
     validate_cache_key_length,
     validate_max_metadata_length,
     validate_message_template_variables,
@@ -357,13 +356,9 @@ class StateCreate(ActionBaseModel):
     )
     id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
 
-    @validator("name", always=True)
-    def default_name_from_type(cls, v, *, values, **kwargs):
-        return get_or_create_state_name(v, values)
-
     @root_validator
-    def default_scheduled_start_time(cls, values):
-        return set_default_scheduled_time(cls, values)
+    def set_state_name_based_on_type_if_needed(cls, values):
+        return set_state_name_based_on_type_if_needed(values)
 
 
 class TaskRunCreate(ActionBaseModel):

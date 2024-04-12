@@ -130,7 +130,7 @@ def test_deployment_reactive_trigger_disallows_negative_withins():
             {
                 "name": "A deployment automation",
                 "posture": "Reactive",
-                "within": -1,
+                "within": datetime.timedelta(seconds=-1),
             },
         )
 
@@ -142,7 +142,7 @@ def test_deployment_proactive_trigger_disallows_negative_withins():
             {
                 "name": "A deployment automation",
                 "posture": "Proactive",
-                "within": -1,
+                "within": datetime.timedelta(seconds=-1),
             },
         )
 
@@ -154,7 +154,7 @@ def test_deployment_trigger_proactive_trigger_disallows_short_withins():
             {
                 "name": "A deployment automation",
                 "posture": "Proactive",
-                "within": 9,
+                "within": datetime.timedelta(seconds=9),
             },
         )
 

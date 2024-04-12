@@ -203,7 +203,7 @@ def matches(expected: str, value: Optional[str]) -> bool:
     return value == expected
 
 
-class ResourceSpecification(_RootBase[Union[str, List[str]]]):
+class ResourceSpecification(_RootBase[Union[str, List[str]]], extra="ignore"):
     """A specification that may match zero, one, or many resources, used to target or
     select a set of resources in a query or automation.  A resource must match at least
     one value of all of the provided labels"""

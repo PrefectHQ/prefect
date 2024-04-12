@@ -1,6 +1,6 @@
 from typing import Dict, Generic, Iterable, Iterator, List, Optional, Tuple, TypeVar
 
-from prefect.pydantic import HAS_PYDANTIC_V2, USE_PYDANTIC_V2, BaseModel
+from prefect.pydantic import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 
 T = TypeVar("T")
 
@@ -85,9 +85,20 @@ if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
 
         def __init__(self, __root__: Dict[str, T]):
             super().__init__(root=__root__)
-else:
+elif HAS_PYDANTIC_V2:
+    from pydantic.v1.generics import GenericModel
 
-    class _RootBase(BaseModel, Generic[T]):
+    class _RootBase(GenericModel, Generic[T]):
+        __root__: Dict[str, T]
+
+        @property
+        def _root(self) -> Dict[str, T]:
+            return self.__root__
+
+else:
+    from pydantic.generics import GenericModel
+
+    class _RootBase(GenericModel, Generic[T]):
         __root__: Dict[str, T]
 
         @property
@@ -95,7 +106,7 @@ else:
             return self.__root__
 
 
-class Labelled(_RootBase[str]):
+class Labelled(_RootBase[str], extra="ignore"):
     """An object defined by string labels and values"""
 
     def keys(self) -> Iterable[str]:

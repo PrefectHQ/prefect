@@ -607,30 +607,10 @@ def set_default_image(values: dict) -> dict:
 ### STATE SCHEMA VALIDATORS ###
 
 
-def get_or_create_state_name(v: str, values: dict) -> str:
+def set_state_name_based_on_type_if_needed(values: dict) -> dict:
     """If a name is not provided, use the type"""
-
-    # if `type` is not in `values` it means the `type` didn't pass its own
-    # validation check and an error will be raised after this function is called
-    if v is None and values.get("type"):
-        v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
-    return v
-
-
-def set_default_scheduled_time(cls, values: dict) -> dict:
-    """
-    TODO: This should throw an error instead of setting a default but is out of
-            scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
-            into work refactoring state initialization
-    """
-    from prefect.server.schemas.states import StateType
-
-    if values.get("type") == StateType.SCHEDULED:
-        state_details = values.setdefault(
-            "state_details", cls.__fields__["state_details"].get_default()
-        )
-        if not state_details.scheduled_time:
-            state_details.scheduled_time = pendulum.now("utc")
+    if not values.get("name"):
+        values["name"] = values.get("type").title()
     return values
 
 

@@ -16,14 +16,8 @@ from uuid import UUID
 
 import pendulum
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
-
 from prefect.logging import get_logger
+from prefect.pydantic import Field, field_validator, model_validator
 from prefect.server.events.schemas.labelling import Labelled
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.settings import (
@@ -37,7 +31,7 @@ logger = get_logger(__name__)
 class Resource(Labelled):
     """An observable business object of interest to the user"""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def enforce_maximum_labels(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -51,7 +45,7 @@ class Resource(Labelled):
 
         return values
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def requires_resource_id(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -78,7 +72,7 @@ class Resource(Labelled):
 class RelatedResource(Resource):
     """A Resource with a specific role in an Event"""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def requires_resource_role(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -150,7 +144,7 @@ class Event(PrefectBaseModel):
             resources[related.role].append(related)
         return resources
 
-    @validator("related")
+    @field_validator("related")
     def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
         if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
             raise ValueError(
