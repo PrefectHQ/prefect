@@ -18,14 +18,6 @@ from typing import Any, Dict, List, Optional, cast
 
 import anyio
 import yaml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
-
 from ruamel.yaml import YAML
 
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
@@ -409,7 +401,7 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedule"):
         if isinstance(deployment["schedule"], IntervalSchedule):
             deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
-        elif isinstance(deployment["schedule"], BaseModel):
+        else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
             deployment["schedule"] = deployment["schedule"].dict()
 
         if "is_schedule_active" in deployment:
@@ -424,7 +416,7 @@ def _format_deployment_for_saving_to_prefect_file(
                 schedule_config = _interval_schedule_to_dict(
                     deployment_schedule.schedule
                 )
-            elif isinstance(deployment_schedule.schedule, BaseModel):
+            else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
                 schedule_config = deployment_schedule.schedule.dict()
 
             schedule_config["active"] = deployment_schedule.active

@@ -10,6 +10,8 @@ import dateutil.rrule
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.validators import (
     default_anchor_date,
     default_timezone,
@@ -23,10 +25,6 @@ if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, validator
 else:
     from pydantic import Field, validator
-
-
-from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -68,7 +66,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     interval: datetime.timedelta
     anchor_date: DateTimeTZ = None
-    timezone: Optional[str] = Field(default=None, example="America/New_York")
+    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
     @validator("interval")
     def validate_interval_schedule(cls, v):
@@ -111,8 +109,8 @@ class CronSchedule(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    cron: str = Field(default=..., example="0 0 * * *")
-    timezone: Optional[str] = Field(default=None, example="America/New_York")
+    cron: str = Field(default=..., examples=["0 0 * * *"])
+    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
     day_or: bool = Field(
         default=True,
         description=(
@@ -156,7 +154,7 @@ class RRuleSchedule(PrefectBaseModel):
         extra = "forbid"
 
     rrule: str
-    timezone: Optional[str] = Field(default=None, example="America/New_York")
+    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
     @validator("rrule")
     def validate_rrule_str(cls, v):

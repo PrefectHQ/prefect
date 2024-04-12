@@ -1,6 +1,7 @@
 """
 Command line interface for interacting with Prefect Cloud
 """
+
 import signal
 import traceback
 import uuid
@@ -18,11 +19,6 @@ from prefect._vendor.fastapi import FastAPI
 from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
 
 from rich.live import Live
 from rich.table import Table
@@ -47,6 +43,11 @@ from prefect.settings import (
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.compat import raise_signal
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
 cloud_app = PrefectTyper(
@@ -366,9 +367,6 @@ async def login(
     if current_profile_is_logged_in:
         app.console.print("It looks like you're already authenticated on this profile.")
         if is_interactive():
-            app.console.print(
-                "It looks like you're already authenticated on this profile."
-            )
             should_reauth = typer.confirm(
                 "? Would you like to reauthenticate?", default=False
             )

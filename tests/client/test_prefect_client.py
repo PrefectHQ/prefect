@@ -614,6 +614,45 @@ async def test_create_then_read_deployment(
     assert lookup.parameter_openapi_schema == {}
 
 
+async def test_create_then_read_deployment_using_deprecated_infra_overrides_instead_of_job_variables(
+    prefect_client, infrastructure_document_id, storage_document_id
+):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+    schedule = DeploymentScheduleCreate(
+        schedule=IntervalSchedule(interval=timedelta(days=1))
+    )
+
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        version="git-commit-hash",
+        manifest_path="path/file.json",
+        schedules=[schedule],
+        parameters={"foo": "bar"},
+        tags=["foo", "bar"],
+        infrastructure_document_id=infrastructure_document_id,
+        storage_document_id=storage_document_id,
+        parameter_openapi_schema={},
+        infra_overrides={"foo": "bar"},
+    )
+
+    lookup = await prefect_client.read_deployment(deployment_id)
+
+    assert isinstance(lookup, DeploymentResponse)
+    assert lookup.name == "test-deployment"
+
+    # Should be able to access `job_variables` using the `infra_overrides` attribute
+    # because of the alias.
+    assert lookup.job_variables == {"foo": "bar"}
+
+    # And with `job_variables`
+    assert lookup.job_variables == {"foo": "bar"}
+
+
 async def test_updating_deployment(
     prefect_client, infrastructure_document_id, storage_document_id
 ):

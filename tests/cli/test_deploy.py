@@ -301,7 +301,7 @@ class TestProjectDeploySingleDeploymentYAML:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod", "kind": "single"}
+        assert deployment.job_variables == {"env": "prod", "kind": "single"}
 
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir, prefect_client
@@ -328,7 +328,7 @@ class TestProjectDeploySingleDeploymentYAML:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.job_variables == {"env": "prod"}
 
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
@@ -696,7 +696,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema is False
 
     async def test_project_deploy_with_default_work_pool(
@@ -726,7 +726,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema is False
 
     async def test_project_deploy_with_no_deployment_file(
@@ -752,7 +752,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema is True
 
     async def test_project_deploy_with_no_prefect_yaml(self, project_dir, work_pool):
@@ -3837,7 +3837,7 @@ class TestMultiDeploy:
         assert deployment.work_pool_name == work_pool.name
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.job_variables == {"env": "prod"}
 
     async def test_deploy_single_deployment_with_name_in_cli(
         self, project_dir, prefect_client, work_pool
@@ -6778,7 +6778,7 @@ class TestDeployInfraOverrides:
             WorkPoolCreate(name="test-pool", type="test")
         )
 
-    async def test_uses_infra_overrides(self, project_dir, work_pool, prefect_client):
+    async def test_uses_job_variables(self, project_dir, work_pool, prefect_client):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -6800,7 +6800,7 @@ class TestDeployInfraOverrides:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.infra_overrides == {
+        assert deployment.job_variables == {
             "env": "prod",
             "resources": {"limits": {"cpu": 1}},
         }

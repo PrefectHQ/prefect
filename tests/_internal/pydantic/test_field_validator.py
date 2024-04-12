@@ -1,19 +1,27 @@
+from typing import Optional
+
 import pytest
-from pydantic import BaseModel, Field, ValidationError
 from typing_extensions import Annotated
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._compat import BaseModel, Field, ValidationError
 from prefect._internal.pydantic._flags import USE_V2_MODELS
 from prefect._internal.pydantic.utilities.field_validator import field_validator
+from prefect._internal.pydantic.utilities.model_validator import model_validator
 
-if USE_V2_MODELS:
-    from pydantic import ValidationInfo
-elif not HAS_PYDANTIC_V2:
-    from pydantic.errors import ConfigError
+if not HAS_PYDANTIC_V2:
+    # v1v1
+    from pydantic import ConfigError
+elif HAS_PYDANTIC_V2 and not USE_V2_MODELS:
+    # v2v1
+    from pydantic.v1 import ConfigError
+else:
+    # v2v2
+    from pydantic import ValidationInfo  # type: ignore
 
 
 @pytest.mark.skipif(
-    HAS_PYDANTIC_V2,
+    USE_V2_MODELS,
     reason="These tests are only valid when compatibility layer is disabled and/or V1 is installed",
 )
 class TestFieldValidatorV1:
@@ -27,7 +35,7 @@ class TestFieldValidatorV1:
             a: int
             b: str
 
-            @field_validator("b", mode="after", allow_reuse=True)
+            @field_validator("b", mode="after")
             def check_b(cls, v):
                 if "a" in v:
                     raise ValueError("'a' not allowed in b")
@@ -83,7 +91,7 @@ class TestFieldValidatorV1:
             field1: int
             field2: str
 
-            @field_validator("field2", pre=True)
+            @field_validator("field2", mode="before")
             def validate_field2(cls, v, values):
                 if values["field1"] > 10 and "special" not in v:
                     raise ValueError("field2 must contain 'special' when field1 > 10")
@@ -107,7 +115,7 @@ class TestFieldValidatorV1:
         class TestModel(BaseModel):
             a: str = "default"
 
-            @field_validator("a", pre=True, allow_reuse=True)
+            @field_validator("a", mode="before")
             def check_a(cls, v):
                 if not v.isalpha():
                     raise ValueError(
@@ -127,12 +135,10 @@ class TestFieldValidatorV1:
         only when a value is provided.
         """
 
-        from typing import Optional
-
         class TestModel(BaseModel):
             a: Optional[str] = None
 
-            @field_validator("a", pre=True)
+            @field_validator("a", mode="before")
             def check_a(cls, v):
                 if v is not None and len(v) < 3:
                     raise ValueError("Field 'a' must be at least 3 characters long")
@@ -159,7 +165,7 @@ class TestFieldValidatorV1:
             a: str
             b: str
 
-            @field_validator("a", "b", allow_reuse=True)
+            @field_validator("a", "b")
             def check_length(cls, v):
                 if len(v) < 5:
                     raise ValueError(
@@ -253,7 +259,7 @@ class TestFieldValidatorV1:
         class TestModel(BaseModel):
             a: int
 
-            @field_validator("a", pre=True)
+            @field_validator("a", mode="before")
             def ensure_positive(cls, v):
                 if v <= 0:
                     raise ValueError("Field 'a' must be positive")
@@ -292,28 +298,27 @@ class TestFieldValidatorV1:
             TestModel(a=-1)
         assert "Field 'a' must be positive" in str(exc_info.value)
 
-    def test_always_parameter_in_v1_set_to_true(self):
+    def test_always_parameter_in_v1_set_to_true_behavior(self):
         """
-        Test that the `always` parameter in Pydantic V1 models can be set to `True`
-        to ensure that the validator is always called, even when the field is not explicitly set.
-
-        !!! note
-            This test is only valid for Pydantic V1 models.
-            In Pydantic V2, the `always` parameter is not available, and validation is always performed.
+        The `always` parameter is not available in Pydantic V2 models.
+        In order to achieve the same behavior, without exposing an `always` parameter in the @field_validator decorator,
+        we can use @model_validator with `mode='before'` and check that the field is not None, if necessary.
         """
 
         class TestModel(BaseModel):
             a: int = -1
 
-            @field_validator("a", always=True)
-            def ensure_positive(cls, v):
-                if v <= 0:
+            @model_validator(mode="before")
+            def ensure_positive(cls, data):
+                if "a" not in data:
+                    raise ValueError("Field 'a' must be present")
+                if data["a"] <= 0:
                     raise ValueError("Field 'a' must be positive")
-                return v
+                return data
 
         with pytest.raises(ValidationError) as exc_info:
             TestModel()
-        assert "Field 'a' must be positive" in str(exc_info.value)
+        assert "Field 'a' must be present" in str(exc_info.value)
 
         with pytest.raises(ValidationError) as exc_info:
             TestModel(a=-2)

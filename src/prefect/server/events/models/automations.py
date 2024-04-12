@@ -1,10 +1,10 @@
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.dependencies import db_injector
@@ -92,7 +92,18 @@ async def read_automation_by_id(
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
-    pass  # TODO: implement this in a future PR
+    from prefect.server.events.triggers import automation_changed
+
+    loop = asyncio.get_event_loop()
+    sync_session = session.sync_session
+
+    def change_notification(session, **kwargs):
+        asyncio.run_coroutine_threadsafe(
+            automation_changed(automation.id, f"automation__{event}"),
+            loop=loop,
+        )
+
+    sa.event.listen(sync_session, "after_commit", change_notification, once=True)
 
 
 @db_injector
@@ -263,7 +274,7 @@ async def relate_automation_to_resource(
     owned_by_resource: bool,
 ) -> None:
     await session.execute(
-        postgres_insert(db.AutomationRelatedResource)
+        db.insert(db.AutomationRelatedResource)
         .values(
             automation_id=automation_id,
             resource_id=resource_id,

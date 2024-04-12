@@ -1,7 +1,9 @@
 import datetime
 import enum
 import math
+import sqlite3
 from typing import List
+from unittest import mock
 
 import pendulum
 
@@ -511,18 +513,18 @@ class TestDateFunctions:
         assert result.scalar() == datetime.timedelta(days=3, minutes=48)
 
 
-async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
-    monkeypatch.setattr("sqlite3.sqlite_version_info", (3, 23, 9))
-    monkeypatch.setattr("sqlite3.sqlite_version", "3.23.9")
-    with pytest.raises(
-        RuntimeError,
-        match="Prefect requires sqlite >= 3.24.0 but we found version 3.23.9",
-    ):
-        db = PrefectDBInterface(
-            database_config=AioSqliteConfiguration(
-                connection_url="sqlite+aiosqlite:///file::memory",
-            ),
-            query_components=AioSqliteQueryComponents(),
-            orm=AioSqliteORMConfiguration(),
-        )
-        await db.engine()
+async def test_error_thrown_if_sqlite_version_is_below_minimum():
+    with mock.patch.object(sqlite3, "sqlite_version_info", (3, 23, 9)):
+        with mock.patch.object(sqlite3, "sqlite_version", "3.23.9"):
+            with pytest.raises(
+                RuntimeError,
+                match="Prefect requires sqlite >= 3.24.0 but we found version 3.23.9",
+            ):
+                db = PrefectDBInterface(
+                    database_config=AioSqliteConfiguration(
+                        connection_url="sqlite+aiosqlite:///file::memory",
+                    ),
+                    query_components=AioSqliteQueryComponents(),
+                    orm=AioSqliteORMConfiguration(),
+                )
+                await db.engine()

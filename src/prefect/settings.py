@@ -107,6 +107,8 @@ DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
 }
 
 
@@ -1367,16 +1369,6 @@ PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=Tru
 Whether or not to enable flow run states on the flow run graph.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect work pools.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect work pools are used.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1678,6 +1670,37 @@ PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
 """
 Whether or not to start the event debug logger service in the server application.
 """
+
+PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the triggers service in the server application.
+"""
+
+PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
+"""
+The amount of time to retain expired automation buckets
+"""
+
+PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seconds=5))
+"""
+How frequently proactive automations are evaluated
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the event persister service in the server application.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE = Setting(int, default=20, gt=0)
+"""
+The number of events the event persister will attempt to insert in one batch.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, gt=0.0)
+"""
+The maximum number of seconds between flushes of the event persister.
+"""
+
 
 # Deprecated settings ------------------------------------------------------------------
 

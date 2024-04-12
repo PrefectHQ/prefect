@@ -3,7 +3,7 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import jsonschema.exceptions
@@ -53,6 +53,8 @@ async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
+    updated_by: Optional[schemas.core.UpdatedBy] = Depends(dependencies.get_updated_by),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
@@ -64,6 +66,8 @@ async def create_deployment(
     """
 
     data = deployment.dict(exclude_unset=True)
+    data["created_by"] = created_by.dict() if created_by else None
+    data["updated_by"] = updated_by.dict() if created_by else None
 
     async with db.session_context(begin_transaction=True) as session:
         if (
@@ -574,7 +578,6 @@ async def set_schedule_inactive(
         await models.deployments._delete_scheduled_runs(
             session=session,
             deployment_id=deployment_id,
-            db=db,
             auto_scheduled_only=True,
         )
 
@@ -585,6 +588,7 @@ async def set_schedule_inactive(
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
     db: PrefectDBInterface = Depends(provide_database_interface),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     response: Response = None,
@@ -681,6 +685,7 @@ async def create_flow_run_from_deployment(
             ),
             work_queue_name=work_queue_name,
             work_queue_id=work_queue_id,
+            created_by=created_by,
         )
 
         if not flow_run.state:
@@ -802,7 +807,6 @@ async def update_deployment_schedule(
         await models.deployments._delete_scheduled_runs(
             session=session,
             deployment_id=deployment_id,
-            db=db,
             auto_scheduled_only=True,
         )
 
@@ -835,6 +839,5 @@ async def delete_deployment_schedule(
         await models.deployments._delete_scheduled_runs(
             session=session,
             deployment_id=deployment_id,
-            db=db,
             auto_scheduled_only=True,
         )
