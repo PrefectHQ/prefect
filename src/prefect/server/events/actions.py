@@ -7,9 +7,11 @@ import abc
 import asyncio
 import copy
 from base64 import b64encode
+from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncGenerator,
     Awaitable,
     Callable,
     ClassVar,
@@ -17,20 +19,25 @@ from typing import (
     Dict,
     List,
     Literal,
+    MutableMapping,
     Optional,
     Tuple,
     Type,
     Union,
+    cast,
 )
 from uuid import UUID, uuid4
 
 import jinja2
 import orjson
 import pendulum
+from cachetools import TTLCache
 from httpx import Response
 from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.blocks.core import Block
+from prefect.server.utilities.messaging import Message, MessageHandler
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -39,6 +46,7 @@ else:
     from pydantic import Field, PrivateAttr, root_validator, validator
     from pydantic.fields import ModelField
 
+from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import get_logger
 from prefect.server.events.clients import (
     PrefectServerEventsAPIClient,
@@ -49,6 +57,7 @@ from prefect.server.events.schemas.events import Event, RelatedResource, Resourc
 from prefect.server.events.schemas.labelling import LabelDiver
 from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import (
+    BlockDocument,
     ConcurrencyLimitV2,
     Flow,
     TaskRun,
@@ -1026,8 +1035,52 @@ class SendNotification(JinjaTemplateAction):
     def is_valid_template(cls, value: str, field: ModelField) -> str:
         return cls.validate_template(value, field.name)
 
+    async def _get_notification_block(
+        self, triggered_action: "TriggeredAction"
+    ) -> NotificationBlock:
+        async with await self.orchestration_client(triggered_action) as orion:
+            response = await orion.read_block_document_raw(self.block_document_id)
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            try:
+                block_document = BlockDocument.parse_obj(response.json())
+                block = Block._from_block_document(block_document)
+            except Exception as e:
+                raise ActionFailed(f"The notification block was invalid: {e!r}")
+
+            if "notify" not in block.get_block_capabilities():
+                raise ActionFailed("The referenced block was not a notification block")
+
+            self._resulting_related_resources += [
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
+                        "prefect.resource.role": "block",
+                        "prefect.resource.name": block_document.name,
+                    }
+                ),
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
+                        "prefect.resource.role": "block-type",
+                    }
+                ),
+            ]
+
+            return cast(NotificationBlock, block)
+
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        block = await self._get_notification_block(triggered_action=triggered_action)
+
+        subject, body = await self.render(triggered_action)
+
+        with block.raise_on_failure():
+            try:
+                await block.notify(subject=subject, body=body)
+            except NotificationError as e:
+                self._result_details["notification_log"] = e.log
+                raise ActionFailed("Notification failed")
 
     async def render(self, triggered_action: "TriggeredAction") -> List[str]:
         return await self._render([self.subject, self.body], triggered_action)
@@ -1361,3 +1414,47 @@ ActionTypes: TypeAlias = Union[
     PauseWorkPool,
     ResumeWorkPool,
 ]
+
+
+_recent_actions: MutableMapping[UUID, bool] = TTLCache(maxsize=10000, ttl=3600)
+
+
+async def record_action_happening(id: UUID):
+    """Record that an action has happened, with an expiration of an hour."""
+    _recent_actions[id] = True
+
+
+async def action_has_already_happened(id: UUID) -> bool:
+    """Check if the action has already happened"""
+    return _recent_actions.get(id, False)
+
+
+@asynccontextmanager
+async def consumer() -> AsyncGenerator[MessageHandler, None]:
+    from prefect.server.events.schemas.automations import TriggeredAction
+
+    async def message_handler(message: Message):
+        if not message.data:
+            return
+
+        triggered_action = TriggeredAction.parse_raw(message.data)
+        action = triggered_action.action
+
+        if await action_has_already_happened(triggered_action.id):
+            logger.info(
+                "Action %s has already been executed, skipping",
+                triggered_action.id,
+            )
+            return
+
+        try:
+            await action.act(triggered_action)
+        except ActionFailed as e:
+            # ActionFailed errors are expected errors and will not be retried
+            await action.fail(triggered_action, e.reason)
+        else:
+            await action.succeed(triggered_action)
+            await record_action_happening(triggered_action.id)
+
+    logger.info("Starting action message handler")
+    yield message_handler

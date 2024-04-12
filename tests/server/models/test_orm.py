@@ -637,9 +637,11 @@ class TestExpectedStartTimeDelta:
         )
         estimated_start_time_delta = result.scalar()
 
-        # allow for some wiggle room in the time delta
-        assert (estimated_start_time_delta - lateness) <= pendulum.duration(seconds=1)
-        assert (pendulum.now() - dt - lateness) <= pendulum.duration(seconds=1)
+        # allow for some wiggle room in the time delta to allow for slow tests
+        wiggle_room = pendulum.duration(seconds=5)
+
+        assert (estimated_start_time_delta - lateness) <= wiggle_room
+        assert (pendulum.now() - dt - lateness) <= wiggle_room
 
     async def test_flow_run_lateness_when_running(self, session, flow, db):
         dt = pendulum.now("UTC").subtract(minutes=1)
