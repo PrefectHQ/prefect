@@ -6,7 +6,6 @@ import jsonschema
 
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._types import NonNegativeInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, root_validator, validator
@@ -27,6 +26,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.types import NonNegativeInteger
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
