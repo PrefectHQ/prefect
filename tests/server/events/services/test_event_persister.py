@@ -20,9 +20,9 @@ from prefect.server.events.services import event_persister
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 
 if HAS_PYDANTIC_V2:
-    from pydantic import ValidationError
-else:
     from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
 
 
 @db_injector

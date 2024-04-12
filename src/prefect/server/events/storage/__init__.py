@@ -18,7 +18,7 @@ class InvalidTokenError(ValueError):
 
 def to_page_token(
     filter: "EventFilter", count: int, page_size: int, current_offset: int
-) -> str | None:
+) -> "str | None":
     if current_offset + page_size >= count:
         return None
 
