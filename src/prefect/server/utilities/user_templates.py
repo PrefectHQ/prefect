@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Set
 import jinja2.sandbox
 from jinja2 import ChainableUndefined, nodes
 from jinja2.sandbox import ImmutableSandboxedEnvironment
+from opentelemetry import trace
 
 from prefect.logging import get_logger
 
@@ -109,10 +110,13 @@ async def render_user_template(template: str, context: Dict[str, Any]) -> str:
     if not maybe_template(template):
         return template
 
+    span = trace.get_current_span()
+
     try:
         loaded = _template_environment.from_string(template)
         return await loaded.render_async(context)
     except Exception as e:
+        span.record_exception(e)
         logger.warning("Unhandled exception rendering template", exc_info=True)
         return (
             f"Failed to render template due to the following error: {e!r}\n"
