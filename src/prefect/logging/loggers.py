@@ -5,7 +5,10 @@ import warnings
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from logging import LogRecord
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from typing_extensions import Self
 
 import prefect
 from prefect.exceptions import MissingContextError
@@ -295,3 +298,36 @@ def patch_print():
         yield
     finally:
         builtins.print = original
+
+
+class LogEavesdropper(logging.Handler):
+    """A context manager that collects logs for the duration of the context"""
+
+    _target_logger: logging.Logger
+    _lines: List[str]
+
+    def __init__(self, eavesdrop_on: str, level: int = logging.NOTSET):
+        super().__init__(level=level)
+        self.eavesdrop_on = eavesdrop_on
+        self._target_logger = None
+
+        # It's important that we use a very minimalistic formatter for use cases where
+        # we may present these logs back to the user.  We shouldn't leak filenames,
+        # versions, or other environmental information.
+        self.formatter = logging.Formatter("[%(levelname)s]: %(message)s")
+
+    def __enter__(self) -> Self:
+        self._target_logger = logging.getLogger(self.eavesdrop_on)
+        self._target_logger.addHandler(self)
+        self._lines = []
+        return self
+
+    def __exit__(self, *_):
+        if self._target_logger:
+            self._target_logger.removeHandler(self)
+
+    def emit(self, record: LogRecord) -> None:
+        self._lines.append(self.format(record))
+
+    def text(self) -> str:
+        return "\n".join(self._lines)

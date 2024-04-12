@@ -48,6 +48,13 @@ class CredentialsBlock(Block, ABC):
         """
 
 
+class NotificationError(Exception):
+    """Raised if a notification block fails to send a notification."""
+
+    def __init__(self, log: str) -> None:
+        self.log = log
+
+
 class NotificationBlock(Block, ABC):
     """
     Block that represents a resource in an external system that is able to send notifications.
@@ -55,6 +62,8 @@ class NotificationBlock(Block, ABC):
 
     _block_schema_capabilities = ["notify"]
     _events_excluded_methods = Block._events_excluded_methods + ["notify"]
+
+    raise_on_failure: bool = False
 
     @property
     def logger(self) -> Logger:

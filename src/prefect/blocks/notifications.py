@@ -1,7 +1,9 @@
+import logging
 from abc import ABC
 from typing import Dict, List, Optional
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.logging.loggers import LogEavesdropper
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import AnyHttpUrl, Field, SecretStr
@@ -10,7 +12,7 @@ else:
 
 from typing_extensions import Literal
 
-from prefect.blocks.abstract import NotificationBlock
+from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.fields import SecretDict
 from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
@@ -61,10 +63,17 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
 
     @sync_compatible
     @instrument_instance_method_call()
-    async def notify(self, body: str, subject: Optional[str] = None):
-        await self._apprise_client.async_notify(
-            body=body, title=subject, notify_type=self.notify_type
-        )
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+    ):
+        with LogEavesdropper("apprise", level=logging.DEBUG) as eavesdropper:
+            result = await self._apprise_client.async_notify(
+                body=body, title=subject, notify_type=self.notify_type
+            )
+        if not result and self.raise_on_failure:
+            raise NotificationError(log=eavesdropper.text())
 
 
 class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
