@@ -18,8 +18,10 @@ from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
+    Firing,
     Posture,
     TriggeredAction,
+    TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows, variables, workers
@@ -131,11 +133,18 @@ def snap_that_naughty_woodchuck(
     take_a_picture_of_the_culprit: Automation,
     woodchonk_nibbled: ReceivedEvent,
 ) -> TriggeredAction:
-    return TriggeredAction(
-        automation=take_a_picture_of_the_culprit,
+    firing = Firing(
+        trigger=take_a_picture_of_the_culprit.trigger,
+        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
         triggering_labels={},
         triggering_event=woodchonk_nibbled,
+    )
+    return TriggeredAction(
+        automation=take_a_picture_of_the_culprit,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
         action=take_a_picture_of_the_culprit.actions[0],
     )
 

@@ -704,9 +704,7 @@ class TriggeredAction(PrefectBaseModel):
         description="A unique key representing a single triggering of an action",
     )
 
-    firing: Optional[Firing] = Field(
-        None, description="The Firing that prompted this action"
-    )
+    firing: Firing = Field(None, description="The Firing that prompted this action")
 
     triggered: DateTimeTZ = Field(..., description="When this action was triggered")
     triggering_labels: Dict[str, str] = Field(
