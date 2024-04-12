@@ -46,7 +46,7 @@ async def query_events(
     session: AsyncSession,
     filter: EventFilter,
     page_size: int = INTERACTIVE_PAGE_SIZE,
-) -> Tuple[List[ReceivedEvent], int, str | None]:
+) -> Tuple[List[ReceivedEvent], int, "str | None"]:
     assert isinstance(session, AsyncSession)
     count = await raw_count_events(session, filter)
     page = await read_events(session, filter, limit=page_size, offset=0)
@@ -58,7 +58,7 @@ async def query_events(
 async def query_next_page(
     session: AsyncSession,
     page_token: str,
-) -> Tuple[List[ReceivedEvent], int, str | None]:
+) -> Tuple[List[ReceivedEvent], int, "str | None"]:
     assert isinstance(session, AsyncSession)
     filter, count, page_size, offset = from_page_token(page_token)
     page = await read_events(session, filter, limit=page_size, offset=offset)
