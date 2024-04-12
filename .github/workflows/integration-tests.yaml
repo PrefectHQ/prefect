@@ -51,6 +51,7 @@ jobs:
           - "2.14"
           - "2.15"
           - "2.16"
+          - "2.17"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -170,7 +171,7 @@ jobs:
           TEST_SERVER_VERSION=${{ matrix.prefect-version }}
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           TEST_CLIENT_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
-          ./scripts/run-integration-flows.py
+          ./scripts/run-integration-flows.py flows/
 
       - name: Turn off CSRF protection for older clients.
         if: ${{ matrix.server-disable-csrf }}
