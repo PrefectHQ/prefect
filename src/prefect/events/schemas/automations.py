@@ -14,14 +14,13 @@ from uuid import UUID
 
 from typing_extensions import TypeAlias
 
-from prefect._internal.schemas.validators import validate_trigger_within
 from prefect.events.actions import ActionTypes
 from prefect.pydantic import (
     Field,
     PrefectBaseModel,
-    field_validator,
     model_validator,
 )
+from prefect.types import AtLeastFiveMinutesTimedelta, NonNegativeTimedelta
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -112,7 +111,7 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: NonNegativeTimedelta = Field(
         timedelta(0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
@@ -120,10 +119,6 @@ class EventTrigger(ResourceTrigger):
             "Proactive triggers"
         ),
     )
-
-    @field_validator("within")
-    def enforce_minimum_within(cls, value: timedelta):
-        return validate_trigger_within(value)
 
     @model_validator(mode="before")
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
@@ -176,20 +171,16 @@ class MetricTriggerQuery(PrefectBaseModel):
             "the query result against the threshold value."
         ),
     )
-    range: timedelta = Field(
+    range: AtLeastFiveMinutesTimedelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
-        minimum=300.0,
-        exclusiveMinimum=False,
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
             "used to determine the time range over which the query will be executed. "
             "The minimum value is 300 seconds (5 minutes)."
         ),
     )
-    firing_for: timedelta = Field(
+    firing_for: AtLeastFiveMinutesTimedelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
-        minimum=300.0,
-        exclusiveMinimum=False,
         description=(
             "The duration (seconds) for which the metric query must breach "
             "or resolve continuously before the state is updated and the "
@@ -224,7 +215,7 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["TriggerTypes"]
-    within: Optional[timedelta]
+    within: Optional[NonNegativeTimedelta]
 
 
 class CompoundTrigger(CompositeTrigger):
