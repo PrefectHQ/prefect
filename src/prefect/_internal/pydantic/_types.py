@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, ClassVar, Dict, Literal, Set, Union
 
 from pydantic_core import CoreSchema, SchemaValidator, core_schema
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 IncEx: TypeAlias = "Union[Set[int], Set[str], Dict[int, Any], Dict[str, Any], None]"
 
@@ -11,7 +11,7 @@ JsonSchemaMode = Literal["validation", "serialization"]
 
 
 @dataclass
-class NonNegativeInteger:
+class NonNegativeInteger(int):
     schema: ClassVar[CoreSchema] = core_schema.int_schema(ge=0)
 
     @classmethod
@@ -25,12 +25,12 @@ class NonNegativeInteger:
         return cls.schema
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v) -> Self:
         return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
 @dataclass
-class PositiveInteger:
+class PositiveInteger(int):
     schema: ClassVar[CoreSchema] = core_schema.int_schema(gt=0)
 
     @classmethod
@@ -44,5 +44,5 @@ class PositiveInteger:
         return cls.schema
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v) -> Self:
         return SchemaValidator(schema=cls.schema).validate_python(v)
