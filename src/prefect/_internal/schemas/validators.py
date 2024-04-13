@@ -372,12 +372,6 @@ def reconcile_paused_deployment(values):
     return values
 
 
-def interval_schedule_must_be_positive(v: datetime.timedelta) -> datetime.timedelta:
-    if v.total_seconds() <= 0:
-        raise ValueError("The interval must be positive")
-    return v
-
-
 def default_anchor_date(v: DateTimeTZ) -> DateTimeTZ:
     if v is None:
         return pendulum.now("UTC")
