@@ -36,7 +36,10 @@ class TestCreateIntervalSchedule:
 
     @pytest.mark.parametrize("minutes", [-1, 0])
     def test_interval_must_be_positive(self, minutes):
-        with pytest.raises(ValidationError, match="(interval must be positive)"):
+        with pytest.raises(
+            ValidationError,
+            match="(interval must be positive|should be greater than 0 seconds)",
+        ):
             IntervalSchedule(interval=timedelta(minutes=minutes))
 
     def test_default_anchor(self):
