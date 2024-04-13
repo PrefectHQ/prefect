@@ -7,19 +7,10 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import NonNegativeInteger, PositiveInteger
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, HttpUrl, root_validator, validator
-
 from typing_extensions import Literal
 
 import prefect.server.database
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     list_length_50_or_less,
@@ -34,12 +25,15 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
+from prefect.pydantic import BaseModel, Field, field_validator, model_validator
+from prefect.pydantic.networks import HttpUrl
 from prefect.server.schemas import schedules, states
 from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
@@ -75,7 +69,7 @@ class Flow(ORMBaseModel):
         examples=[["tag-1", "tag-2"]],
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name")
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -112,7 +106,7 @@ class FlowRunPolicy(PrefectBaseModel):
         default=False, description="Indicates if this run is resuming from a pause."
     )
 
-    @root_validator
+    @model_validator
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
@@ -276,7 +270,7 @@ class FlowRun(ORMBaseModel):
         description="Variables used as overrides in the base job template",
     )
 
-    @validator("name", pre=True)
+    @field_validator("name")
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -323,15 +317,15 @@ class TaskRunPolicy(PrefectBaseModel):
         default=None, description="Determines the amount a retry should jitter"
     )
 
-    @root_validator
+    @model_validator
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
-    @validator("retry_delay")
+    @field_validator("retry_delay")
     def validate_configured_retry_delays(cls, v):
         return list_length_50_or_less(v)
 
-    @validator("retry_jitter_factor")
+    @field_validator("retry_jitter_factor")
     def validate_jitter_factor(cls, v):
         return validate_not_negative(v)
 
@@ -476,11 +470,11 @@ class TaskRun(ORMBaseModel):
         default=None, description="The current task run state."
     )
 
-    @validator("name", pre=True)
+    @field_validator("name")
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
-    @validator("cache_key")
+    @field_validator("cache_key")
     def validate_cache_key(cls, cache_key):
         return validate_cache_key_length(cache_key)
 
@@ -606,7 +600,7 @@ class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
     class Config:
         allow_population_by_field_name = True
 
-    @validator("name", check_fields=False)
+    @field_validator("name")
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -642,7 +636,7 @@ class ConcurrencyLimitV2(ORMBaseModel):
         default=2.0, description="The average amount of time a slot is occupied."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name")
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -670,7 +664,7 @@ class BlockType(ORMBaseModel):
         default=False, description="Protected block types cannot be modified via API."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name")
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -750,13 +744,13 @@ class BlockDocument(ORMBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name")
     def validate_name_characters(cls, v):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
         return raise_on_name_with_banned_characters(v)
 
-    @root_validator
+    @model_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -828,7 +822,7 @@ class BlockDocumentReference(ORMBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
-    @root_validator
+    @model_validator
     def validate_parent_and_ref_are_different(cls, values):
         return validate_parent_and_ref_diff(values)
 
@@ -926,7 +920,7 @@ class WorkQueue(ORMBaseModel):
         default=None, description="The last time an agent polled this queue for work."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name")
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -1023,7 +1017,7 @@ class FlowRunNotificationPolicy(ORMBaseModel):
         ],
     )
 
-    @validator("message_template")
+    @field_validator("message_template")
     def validate_message_template_variables(cls, v):
         return validate_message_template_variables(v)
 
@@ -1072,11 +1066,11 @@ class WorkPool(ORMBaseModel):
         None, description="The id of the pool's default queue."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name")
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
-    @validator("default_queue_id", always=True)
+    @field_validator("default_queue_id", mode="before")
     def helpful_error_for_missing_default_queue_id(cls, v):
         return validate_default_queue_id_not_none(v)
 
@@ -1157,7 +1151,7 @@ class Artifact(ORMBaseModel):
 
         return cls(data=data, **artifact_info)
 
-    @validator("metadata_")
+    @field_validator("metadata_")
     def validate_metadata_length(cls, v):
         return validate_max_metadata_length(v)
 
@@ -1225,7 +1219,7 @@ class FlowRunInput(ORMBaseModel):
     value: str = Field(description="The value of the input.")
     sender: Optional[str] = Field(description="The sender of the input.")
 
-    @validator("key", check_fields=False)
+    @field_validator("key")
     def validate_name_characters(cls, v):
         raise_on_name_alphanumeric_dashes_only(v)
         return v

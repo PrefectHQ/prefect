@@ -1,6 +1,6 @@
 import datetime
 from dataclasses import dataclass
-from typing import Any, Callable, ClassVar, Generator
+from typing import Any, Callable, ClassVar, Generator, Optional
 
 from pydantic_core import core_schema, CoreSchema, SchemaValidator
 from typing_extensions import Self

@@ -124,7 +124,7 @@ def test_deployment_trigger_proactive_trigger_with_defaults():
 
 
 def test_deployment_reactive_trigger_disallows_negative_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
+    with pytest.raises(pydantic.ValidationError, match="greater than or equal to 0"):
         pydantic.parse_obj_as(
             DeploymentTriggerTypes,
             {
@@ -135,26 +135,18 @@ def test_deployment_reactive_trigger_disallows_negative_withins():
         )
 
 
-def test_deployment_proactive_trigger_disallows_negative_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
+@pytest.mark.parametrize("seconds", [-1, 9])
+def test_deployment_trigger_proactive_trigger_disallows_short_withins(seconds):
+    with pytest.raises(
+        pydantic.ValidationError,
+        match="minimum within for Proactive triggers is 10 seconds",
+    ):
         pydantic.parse_obj_as(
             DeploymentTriggerTypes,
             {
                 "name": "A deployment automation",
                 "posture": "Proactive",
-                "within": datetime.timedelta(seconds=-1),
-            },
-        )
-
-
-def test_deployment_trigger_proactive_trigger_disallows_short_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
-        pydantic.parse_obj_as(
-            DeploymentTriggerTypes,
-            {
-                "name": "A deployment automation",
-                "posture": "Proactive",
-                "within": datetime.timedelta(seconds=9),
+                "within": datetime.timedelta(seconds=seconds),
             },
         )
 
