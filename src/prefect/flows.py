@@ -759,6 +759,7 @@ class Flow(Generic[P, R]):
         limit: Optional[int] = None,
         webserver: bool = False,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        background_fn: Optional[Awaitable[None]] = None,
     ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
@@ -797,6 +798,8 @@ class Flow(Generic[P, R]):
             webserver: Whether or not to start a monitoring webserver for this flow.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
+            background_fn: An async function that will be run in the background while the flow is being
+                served. This can be used to run additional services or tasks in the same process, e.g. watchdog.
 
         Examples:
             Serve a flow:
@@ -832,7 +835,12 @@ class Flow(Generic[P, R]):
         # Non filepath strings will pass through unchanged
         name = Path(name).stem
 
-        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
+        runner = Runner(
+            name=name,
+            pause_on_shutdown=pause_on_shutdown,
+            limit=limit,
+            custom_workload=background_fn,
+        )
         deployment_id = await runner.add_flow(
             self,
             name=name,

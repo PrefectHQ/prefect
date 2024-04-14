@@ -29,6 +29,7 @@ Example:
     ```
 
 """
+
 import asyncio
 import datetime
 import inspect
@@ -44,7 +45,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -55,6 +56,7 @@ from rich.console import Console, Group
 from rich.table import Table
 
 from prefect._internal.concurrency.api import (
+    Call,
     create_call,
     from_async,
     from_sync,
@@ -103,7 +105,9 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.processutils import _register_signal, run_process
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.services import (
+    critical_service_loop,
+)
 
 __all__ = ["Runner", "serve"]
 
@@ -117,6 +121,7 @@ class Runner:
         limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
         webserver: bool = False,
+        custom_workload: Optional[Awaitable[None]] = None,
     ):
         """
         Responsible for managing the execution of remotely initiated flow runs.
@@ -131,6 +136,8 @@ class Runner:
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
             webserver: a boolean flag for whether to start a webserver for this runner
+            custom_workload: A custom workload to run in the background. This workload
+                will be run in a separate thread and will not be managed by the runner.
 
         Examples:
             Set up a Runner to manage the execute of scheduled flow runs for two flows:
@@ -169,6 +176,7 @@ class Runner:
         self.webserver = webserver
 
         self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
+        self.custom_workload = custom_workload
         self._prefetch_seconds = prefetch_seconds
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
@@ -190,6 +198,7 @@ class Runner:
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
         self._loop = asyncio.get_event_loop()
+        self._custom_workload_call: Optional[Call] = None
 
     @sync_compatible
     async def add_deployment(
@@ -419,6 +428,10 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
+                if self.custom_workload:
+                    self._custom_workload_call = from_async.call_soon_in_new_thread(
+                        create_call(self.custom_workload)
+                    )
 
     def execute_in_background(self, func, *args, **kwargs):
         """
