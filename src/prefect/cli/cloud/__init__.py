@@ -303,6 +303,67 @@ async def check_key_is_valid_for_login(key: str):
             return False
 
 
+async def _prompt_for_account_and_workspace(
+    prompt_switch_workspace: bool,
+    current_workspace: Optional[Workspace],
+    workspaces: List[Workspace],
+) -> Workspace:
+    workspaces_copy = workspaces.copy()
+    if prompt_switch_workspace:
+        if len(workspaces) > 10:
+            # Group workspaces by account_id
+            workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
+            for workspace in workspaces:
+                workspace_by_account.setdefault(workspace.account_id, []).append(
+                    workspace
+                )
+
+            if len(workspace_by_account) == 1:
+                account_id = next(iter(workspace_by_account.keys()))
+                workspaces = workspace_by_account[account_id]
+            else:
+                accounts = [
+                    {
+                        "account_id": account_id,
+                        "account_handle": workspace_by_account[account_id][
+                            0
+                        ].account_handle,
+                    }
+                    for account_id in workspace_by_account.keys()
+                ]
+                account = prompt_select_from_list(
+                    app.console,
+                    "Which account would you like to use?",
+                    [(account, account["account_handle"]) for account in accounts],
+                )
+                workspaces = workspace_by_account[account["account_id"]]
+
+        result = prompt_select_from_list(
+            app.console,
+            "Which workspace would you like to use?",
+            [(workspace, workspace.handle) for workspace in workspaces]
+            + [
+                "[bold]Go back to account selection[/bold]",
+            ],
+        )
+        if "Go back" in result:
+            return await _prompt_for_account_and_workspace(
+                prompt_switch_workspace, current_workspace, workspaces_copy
+            )
+        else:
+            return result
+    else:
+        if current_workspace:
+            return current_workspace
+        elif len(workspaces) > 0:
+            return workspaces[0]
+        else:
+            exit_with_error(
+                "No workspaces found! Create a workspace at"
+                f" {PREFECT_CLOUD_UI_URL.value()} and try again."
+            )
+
+
 @cloud_app.command()
 async def login(
     key: Optional[str] = typer.Option(
@@ -466,60 +527,19 @@ async def login(
                 "? Would you like to switch workspaces?", default=False
             )
 
-        if prompt_switch_workspace:
-            if len(workspaces) > 10:
-                # Group workspaces by account_id
-                workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
-                for workspace in workspaces:
-                    workspace_by_account.setdefault(workspace.account_id, []).append(
-                        workspace
-                    )
-
-                if len(workspace_by_account) == 1:
-                    account_id = next(iter(workspace_by_account.keys()))
-                    workspaces = workspace_by_account[account_id]
-                else:
-                    accounts = [
-                        {
-                            "account_id": account_id,
-                            "account_handle": workspace_by_account[account_id][
-                                0
-                            ].account_handle,
-                        }
-                        for account_id in workspace_by_account.keys()
-                    ]
-                    account = prompt_select_from_list(
-                        app.console,
-                        "Which account would you like to use?",
-                        [(account, account["account_handle"]) for account in accounts],
-                    )
-                    workspaces = workspace_by_account[account["account_id"]]
-
-            workspace = prompt_select_from_list(
-                app.console,
-                "Which workspace would you like to use?",
-                [(workspace, workspace.handle) for workspace in workspaces],
-            )
-        else:
-            if current_workspace:
-                workspace = current_workspace
-            elif len(workspaces) > 0:
-                workspace = workspaces[0]
-            else:
-                exit_with_error(
-                    "No workspaces found! Create a workspace at"
-                    f" {PREFECT_CLOUD_UI_URL.value()} and try again."
-                )
+    selected_workspace = await _prompt_for_account_and_workspace(
+        prompt_switch_workspace, current_workspace, workspaces
+    )
 
     update_current_profile(
         {
             PREFECT_API_KEY: key,
-            PREFECT_API_URL: workspace.api_url(),
+            PREFECT_API_URL: selected_workspace.api_url(),
         }
     )
 
     exit_with_success(
-        f"Authenticated with Prefect Cloud! Using workspace {workspace.handle!r}."
+        f"Authenticated with Prefect Cloud! Using workspace {selected_workspace.handle!r}."
     )
 
 
@@ -635,41 +655,13 @@ async def set(
             else:
                 exit_with_error(f"Workspace {workspace_handle!r} not found.")
         else:
-            if len(workspaces) > 10:
-                # Group workspaces by account_id
-                workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
-                for workspace in workspaces:
-                    workspace_by_account.setdefault(workspace.account_id, []).append(
-                        workspace
-                    )
-
-                if len(workspace_by_account) == 1:
-                    account_id = next(iter(workspace_by_account.keys()))
-                    workspaces = workspace_by_account[account_id]
-                else:
-                    accounts = [
-                        {
-                            "account_id": account_id,
-                            "account_handle": workspace_by_account[account_id][
-                                0
-                            ].account_handle,
-                        }
-                        for account_id in workspace_by_account.keys()
-                    ]
-                    account = prompt_select_from_list(
-                        app.console,
-                        "Which account would you like to use?",
-                        [(account, account["account_handle"]) for account in accounts],
-                    )
-                    workspaces = workspace_by_account[account["account_id"]]
-
             if not workspaces:
                 exit_with_error("No workspaces found in the selected account.")
 
-            workspace = prompt_select_from_list(
-                app.console,
-                "Which workspace would you like to use?",
-                [(workspace, workspace.handle) for workspace in workspaces],
+            workspace = await _prompt_for_account_and_workspace(
+                prompt_switch_workspace=True,
+                current_workspace=None,
+                workspaces=workspaces,
             )
 
         profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
