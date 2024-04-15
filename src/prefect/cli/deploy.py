@@ -97,7 +97,7 @@ async def init(
     ),
 ):
     """
-    Initialize a new project.
+    Initialize a new deployment configuration recipe.
     """
     inputs = {}
     fields = fields or []
