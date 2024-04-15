@@ -12,8 +12,6 @@ def should_redact_header(key: str) -> bool:
         return True
     if key.startswith("x-envoy"):
         return True
-    if key.startswith("x-nebula"):
-        return True
     if key.startswith("x-prefect"):
         return True
 
