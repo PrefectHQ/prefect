@@ -535,7 +535,7 @@ def _json_extract_sqlite(element, compiler, **kwargs):
     path = element.path.replace("'", "''")  # escape single quotes for JSON path
     if element.wrap_quotes:
         path = f'"{path}"'
-    return "json_extract(%s, '$.%s')" % (
+    return "JSON_EXTRACT(%s, '$.%s')" % (
         compiler.process(element.column, **kwargs),
         path,
     )
