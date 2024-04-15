@@ -30,6 +30,7 @@ from prefect._internal.compatibility.experimental import (
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
 )
@@ -160,6 +161,12 @@ class ServerType(AutoEnum):
     EPHEMERAL = AutoEnum.auto()
     SERVER = AutoEnum.auto()
     CLOUD = AutoEnum.auto()
+
+    def supports_automations(self) -> bool:
+        if self == ServerType.CLOUD:
+            return True
+
+        return PREFECT_EXPERIMENTAL_EVENTS.value()
 
 
 def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
@@ -3000,7 +3007,7 @@ class PrefectClient:
 
     async def create_automation(self, automation: Automation) -> UUID:
         """Creates an automation in Prefect Cloud."""
-        if self.server_type != ServerType.CLOUD:
+        if not self.server_type.supports_automations():
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         response = await self._client.post(
@@ -3013,7 +3020,7 @@ class PrefectClient:
     async def read_resource_related_automations(
         self, resource_id: str
     ) -> List[ExistingAutomation]:
-        if self.server_type != ServerType.CLOUD:
+        if not self.server_type.supports_automations():
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         response = await self._client.get(f"/automations/related-to/{resource_id}")
@@ -3021,7 +3028,7 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[ExistingAutomation], response.json())
 
     async def delete_resource_owned_automations(self, resource_id: str):
-        if self.server_type != ServerType.CLOUD:
+        if not self.server_type.supports_automations():
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         await self._client.delete(f"/automations/owned-by/{resource_id}")
