@@ -11,7 +11,7 @@ search:
 
 # Quickstart
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale resilient code quickly, turning their Python scripts into resilient, recurring workflows.
+Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly, turning their Python scripts into resilient, recurring workflows.
 
 In this quickstart, you'll see how you can schedule your code on remote infrastructure and observe the state of your workflows.
 With Prefect, you can go from a Python script to a production-ready workflow that runs remotely in a few minutes.
