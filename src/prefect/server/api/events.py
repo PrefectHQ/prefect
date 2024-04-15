@@ -7,7 +7,6 @@ from prefect._vendor.fastapi.param_functions import Depends, Path
 from prefect._vendor.fastapi.params import Body, Query
 from prefect._vendor.starlette.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.server.api.test_events import query_next_page
 
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import provide_database_interface
@@ -21,7 +20,11 @@ from prefect.server.events.counting import (
 from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import Event, EventCount, EventPage
 from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
-from prefect.server.events.storage.database import count_events, query_events
+from prefect.server.events.storage.database import (
+    count_events,
+    query_events,
+    query_next_page,
+)
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 
