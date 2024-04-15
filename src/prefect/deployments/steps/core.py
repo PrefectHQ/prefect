@@ -1,7 +1,7 @@
 """
 Core primitives for running Prefect deployment steps.
 
-Project steps are YAML representations of Python functions along with their inputs.
+Deployment steps are YAML representations of Python functions along with their inputs.
 
 Whenever a step is run, the following actions are taken:
 
