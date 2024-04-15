@@ -57,7 +57,7 @@ In addition to the UI and API, variables can be referenced in code and in certai
 You can access any variable via the Python SDK via the `Variable.get()` method. If you attempt to reference a variable that does not exist, the method will return `None`. You can create variables via the Python SDK with the `Variable.set()` method. Note that if a variable of the same name exists, you'll need to pass `overwrite=True`.
 
 ```python
-from prefect import variables.Variable
+from prefect.variables import Variable
 
 # setting the variable
 variable = Variable.set(name="the_answer", value="42")
