@@ -698,36 +698,6 @@ def validate_picklelib(value: str) -> str:
     return value
 
 
-def validate_picklelib_version(values: dict) -> dict:
-    """
-    Infers a default value for `picklelib_version` if null or ensures it matches
-    the version retrieved from the `pickelib`.
-    """
-    picklelib = values.get("picklelib")
-    picklelib_version = values.get("picklelib_version")
-
-    if not picklelib:
-        raise ValueError("Unable to check version of unrecognized picklelib module")
-
-    pickler = from_qualified_name(picklelib)
-    pickler_version = getattr(pickler, "__version__", None)
-
-    if not picklelib_version:
-        values["picklelib_version"] = pickler_version
-    elif picklelib_version != pickler_version:
-        warnings.warn(
-            (
-                f"Mismatched {picklelib!r} versions. Found {pickler_version} in the"
-                f" environment but {picklelib_version} was requested. This may"
-                " cause the serializer to fail."
-            ),
-            RuntimeWarning,
-            stacklevel=3,
-        )
-
-    return values
-
-
 def validate_picklelib_and_modules(values: dict) -> dict:
     """
     Prevents modules from being specified if picklelib is not cloudpickle
