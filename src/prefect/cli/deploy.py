@@ -1637,7 +1637,7 @@ def _initialize_deployment_triggers(
 async def _create_deployment_triggers(
     client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTriggerTypes]
 ):
-    if client.server_type == ServerType.CLOUD:
+    if client.server_type.supports_automations():
         # The triggers defined in the deployment spec are, essentially,
         # anonymous and attempting truly sync them with cloud is not
         # feasible. Instead, we remove all automations that are owned
