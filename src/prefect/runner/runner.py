@@ -1189,6 +1189,8 @@ class Runner:
             scope.cancel()
         if self._runs_task_group:
             await self._runs_task_group.__aexit__(*exc_info)
+        if self._custom_workload_call:
+            self._custom_workload_call.cancel()
         if self._client:
             await self._client.__aexit__(*exc_info)
         shutil.rmtree(str(self._tmp_dir))
@@ -1222,6 +1224,7 @@ async def serve(
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
+    background_fn: Optional[Awaitable[None]] = None,
     **kwargs,
 ):
     """
@@ -1234,6 +1237,8 @@ async def serve(
         print_starting_message: Whether or not to print message to the console
             on startup.
         limit: The maximum number of runs that can be executed concurrently.
+        background_fn: An optional background function to run while the runner is
+            serving deployments.
         **kwargs: Additional keyword arguments to pass to the runner.
 
     Examples:
@@ -1266,7 +1271,12 @@ async def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
-    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
+    runner = Runner(
+        pause_on_shutdown=pause_on_shutdown,
+        limit=limit,
+        background_fn=background_fn,
+        **kwargs,
+    )
     for deployment in args:
         await runner.add_deployment(deployment)
 
