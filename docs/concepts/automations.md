@@ -556,15 +556,21 @@ Sequence triggers are defined as:
 
 To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
+Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](/concepts/events/#event-grammar), which will pass the templatable `event` as a parameter to the deployment's flow run.
+
+### Defining triggers in `prefect.yaml`
+
+A list of triggers can be included directly on any deployment in a `prefect.yaml` file:
+
 ```yaml
-# prefect.yaml
 deployments:
   - name: my-deployment
     entrypoint: path/to/flow.py:decorated_fn
     work_pool:
-      name: my-process-pool
+      name: my-work-pool
     triggers:
-      - enabled: true
+      - type: event
+        enabled: true
         match:
           prefect.resource.id: my.external.resource
         expect:
@@ -573,7 +579,101 @@ deployments:
           param_1: "{{ event }}"
 ```
 
-At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](/concepts/events/#event-grammar), which will pass the templatable `event` as a parameter to the deployment's flow run.
+This deployment will be run when an `external.resource.pinged` event _and_ an `external.resource.replied` event have been seen from `my.external.resource`:
+
+```yaml
+deployments:
+  - name: my-deployment
+    entrypoint: path/to/flow.py:decorated_fn
+    work_pool:
+      name: my-work-pool
+    triggers:
+      - type: compound
+        require: all
+        parameters:
+          param_1: "{{ event }}"
+        triggers:
+          - type: event
+            match:
+              prefect.resource.id: my.external.resource
+            expect:
+              - external.resource.pinged
+          - type: event
+            match:
+              prefect.resource.id: my.external.resource
+            expect:
+              - external.resource.replied
+```
+
+### Defining triggers in `.serve` and `.deploy`
+
+For creating deployments with triggers in Python, the trigger types `DeploymentEventTrigger`, `DeploymentMetricTrigger`, `DeploymentCompoundTrigger`, and `DeploymentSequenceTrigger` can be imported from `prefect.events`:
+
+```python
+from prefect import flow
+from prefect.events import DeploymentEventTrigger 
+
+
+@flow(log_prints=True)
+def decorated_fn(param_1):
+    print(param_1["payload"])
+
+
+if __name__=="__main__":
+    decorated_fn.serve(
+        name="my-deployment",
+        triggers=[
+            DeploymentEventTrigger(
+                enabled=True,
+                match={"prefect.resource.id": "my.external.resource"},
+                expect=["external.resource.pinged"],
+                parameters={
+                    "param_1": "{{ event }}",
+                },
+            )
+        ],
+    )
+```
+
+As with prior examples, composite triggers must be supplied with a list of underlying triggers:
+
+```python
+from prefect import flow
+from prefect.events import DeploymentEventTrigger, DeploymentCompoundTrigger
+
+
+@flow(log_prints=True)
+def decorated_fn(param_1):
+    print(param_1["payload"])
+
+
+if __name__=="__main__":
+    decorated_fn.deploy(
+        name="my-deployment",
+        image="prefecthq/prefect:2-latest"
+        triggers=[
+            DeploymentCompoundTrigger(
+                name="my-compound-trigger",
+                require="all",
+                triggers=[
+                    DeploymentEventTrigger(
+                      match={"prefect.resource.id": "my.external.resource"},
+                      expect=["external.resource.pinged"],
+                    ),
+                    DeploymentEventTrigger(
+                      match={"prefect.resource.id": "my.external.resource"},
+                      expect=["external.resource.replied"],
+                    ),
+                ],
+                parameters={
+                    "param_1": "{{ event }}",
+                },
+            )
+        ],
+        work_pool_name="my-work-pool",
+    )
+```
+
 
 ### Pass triggers to `prefect deploy`
 
