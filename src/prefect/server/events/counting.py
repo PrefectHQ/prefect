@@ -133,26 +133,23 @@ class TimeUnit(AutoEnum):
             bucket_index = sa.func.floor(
                 sa.cast(seconds_since_pivot, sa.Integer) / delta.total_seconds()
             )
-            # Cast to Text if necessary to match the PostgreSQL version's output type
             return sa.cast(bucket_index, sa.Text)
         else:
             raise NotImplementedError(f"Dialect {db.dialect.name} is not supported.")
 
     def database_label_expression(self, db: PrefectDBInterface, time_interval: float):
         """Returns the SQL expression to label a time bucket"""
-        # The date_bin function can do the bucketing for us:
-        # https://www.postgresql.org/docs/14/functions-datetime.html#FUNCTIONS-DATETIME-BIN
         time_delta = self.as_timedelta(time_interval)
         if db.dialect.name == "postgresql":
+            # The date_bin function can do the bucketing for us:
+            # https://www.postgresql.org/docs/14/functions-datetime.html#FUNCTIONS-DATETIME-BIN
             return sa.func.to_char(
                 sa.func.date_bin(time_delta, db.Event.occurred, PIVOT_DATETIME),
                 'YYYY-MM-DD"T"HH24:MI:SSTZH:TZM',
             )
         elif db.dialect.name == "sqlite":
-            # Calculate the number of seconds since a fixed point (e.g., '1970-01-01')
-            seconds_since_epoch = sa.func.strftime(
-                "%s", db.Event.occurred
-            )  # seconds since 1970-01-01
+            # We can't use date_bin in SQLite, so we have to do the bucketing manually
+            seconds_since_epoch = sa.func.strftime("%s", db.Event.occurred)
             # Convert the total seconds of the timedelta to a constant in SQL
             bucket_size = time_delta.total_seconds()
             # Perform integer division and multiplication to find the bucket start epoch using SQL functions
@@ -160,8 +157,6 @@ class TimeUnit(AutoEnum):
                 (sa.cast(seconds_since_epoch, sa.Integer) / bucket_size) * bucket_size,
                 sa.Integer,
             )
-
-            # Optionally format the datetime string to match the required format:
             bucket_datetime = sa.func.strftime(
                 "%Y-%m-%dT%H:%M:%SZ", sa.func.datetime(bucket_start_epoch, "unixepoch")
             )
