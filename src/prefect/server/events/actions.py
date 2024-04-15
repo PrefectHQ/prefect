@@ -37,7 +37,10 @@ from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
+from prefect.blocks.webhook import Webhook
+from prefect.server.utilities.http import should_redact_header
 from prefect.server.utilities.messaging import Message, MessageHandler
+from prefect.utilities.text import truncated_to
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -66,6 +69,8 @@ from prefect.server.schemas.core import (
 from prefect.server.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
+    OrchestrationResult,
+    StateAcceptDetails,
     WorkPoolResponse,
     WorkQueueWithStatus,
 )
@@ -912,7 +917,37 @@ class FlowRunStateChangeAction(ExternalDataAction):
         """Return the new state for the flow run"""
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        flow_run_id = await self.flow_run_to_change(triggered_action)
+
+        self._resulting_related_resources.append(
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        )
+
+        logger.info(
+            "Changing flow run state",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await orchestration.set_flow_run_state(
+                flow_run_id, await self.new_state(triggered_action=triggered_action)
+            )
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            result = OrchestrationResult.parse_obj(response.json())
+            if not isinstance(result.details, StateAcceptDetails):
+                raise ActionFailed(f"Failed to set state: {result.details.reason}")
 
 
 class ChangeFlowRunState(FlowRunStateChangeAction):
@@ -1017,8 +1052,63 @@ class CallWebhook(JinjaTemplateAction):
 
         return value
 
+    async def _get_webhook_block(self, triggered_action: "TriggeredAction") -> Webhook:
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await orchestration.read_block_document_raw(
+                self.block_document_id
+            )
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            try:
+                block_document = BlockDocument.parse_obj(response.json())
+                block = Block._from_block_document(block_document)
+            except Exception as e:
+                raise ActionFailed(f"The webhook block was invalid: {e!r}")
+
+            if not isinstance(block, Webhook):
+                raise ActionFailed("The referenced block was not a webhook block")
+
+            self._resulting_related_resources += [
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
+                        "prefect.resource.role": "block",
+                        "prefect.resource.name": block_document.name,
+                    }
+                ),
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
+                        "prefect.resource.role": "block-type",
+                    }
+                ),
+            ]
+
+            return block
+
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        block = await self._get_webhook_block(triggered_action=triggered_action)
+        block = cast(Webhook, block)
+
+        (payload,) = await self._render([self.payload], triggered_action)
+
+        try:
+            response = await block.call(payload=payload)
+
+            ok_headers = {
+                k: v for k, v in response.headers.items() if not should_redact_header(k)
+            }
+
+            self._result_details.update(
+                {
+                    "status_code": response.status_code,
+                    "response_body": truncated_to(1000, response.text),
+                    "response_headers": {**(ok_headers or {})},
+                }
+            )
+        except Exception as e:
+            raise ActionFailed(f"Webhook call failed: {e!r}")
 
 
 class SendNotification(JinjaTemplateAction):
