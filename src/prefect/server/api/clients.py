@@ -8,7 +8,7 @@ from typing_extensions import Self
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import ObjectNotFound
-from prefect.server.schemas.actions import DeploymentFlowRunCreate
+from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -81,6 +81,17 @@ class OrchestrationClient(BaseClient):
 
     async def read_task_run_raw(self, task_run_id: UUID) -> Response:
         return await self._http_client.get(f"/task_runs/{task_run_id}")
+
+    async def set_flow_run_state(
+        self, flow_run_id: UUID, state: StateCreate
+    ) -> Response:
+        return await self._http_client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json={
+                "state": state.dict(json_compatible=True),
+                "force": False,
+            },
+        )
 
     async def read_work_pool_raw(self, work_pool_id: UUID) -> Response:
         return await self._http_client.post(

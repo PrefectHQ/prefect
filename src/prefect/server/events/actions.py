@@ -69,6 +69,8 @@ from prefect.server.schemas.core import (
 from prefect.server.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
+    OrchestrationResult,
+    StateAcceptDetails,
     WorkPoolResponse,
     WorkQueueWithStatus,
 )
@@ -915,7 +917,37 @@ class FlowRunStateChangeAction(ExternalDataAction):
         """Return the new state for the flow run"""
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        flow_run_id = await self.flow_run_to_change(triggered_action)
+
+        self._resulting_related_resources.append(
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        )
+
+        logger.info(
+            "Changing flow run state",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await orchestration.set_flow_run_state(
+                flow_run_id, await self.new_state(triggered_action=triggered_action)
+            )
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            result = OrchestrationResult.parse_obj(response.json())
+            if not isinstance(result.details, StateAcceptDetails):
+                raise ActionFailed(f"Failed to set state: {result.details.reason}")
 
 
 class ChangeFlowRunState(FlowRunStateChangeAction):
