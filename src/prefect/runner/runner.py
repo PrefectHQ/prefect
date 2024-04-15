@@ -1274,7 +1274,7 @@ async def serve(
     runner = Runner(
         pause_on_shutdown=pause_on_shutdown,
         limit=limit,
-        background_fn=background_fn,
+        custom_workload=background_fn,
         **kwargs,
     )
     for deployment in args:
