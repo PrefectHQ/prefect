@@ -171,7 +171,7 @@ prefect work-pool create my-managed-pool --type prefect:managed
 You should see a message in the CLI that your work pool was created.
 Feel free to check out your new work pool on the **Work Pools** page in the UI.
 
-## Step 4: Make your code schedulable
+## Step 5: Make your code schedulable
 
 We have a flow function and we have a work pool where we can run our flow remotely.
 Let's package both of these things, along with the location for where to find our flow code, into a [deployment](/concepts/deployments/) so that we can schedule our workflow to run remotely.
