@@ -875,7 +875,7 @@ class PauseDeployment(DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_deployment(deployment_id)
 
 
 class ResumeDeployment(DeploymentCommandAction):
@@ -891,7 +891,7 @@ class ResumeDeployment(DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_deployment(deployment_id)
 
 
 class FlowRunStateChangeAction(ExternalDataAction):

@@ -509,8 +509,9 @@ async def schedule_deployment(
         )
 
 
-@router.post("/{id}/set_schedule_active")
-async def set_schedule_active(
+@router.post("/{id:uuid}/set_schedule_active")  # Legacy route
+@router.post("/{id:uuid}/resume_deployment")
+async def resume_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -540,8 +541,9 @@ async def set_schedule_active(
             raise _multiple_schedules_error(deployment_id)
 
 
-@router.post("/{id}/set_schedule_inactive")
-async def set_schedule_inactive(
+@router.post("/{id:uuid}/set_schedule_inactive")  # Legacy route
+@router.post("/{id:uuid}/pause_deployment")
+async def pause_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -558,7 +560,7 @@ async def set_schedule_inactive(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
         deployment.is_schedule_active = False
-        deployment.paused = False
+        deployment.paused = True
 
         # Ensure that we're updating the replicated schedule's `active` field,
         # if there is only a single schedule. This is support for legacy

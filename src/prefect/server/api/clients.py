@@ -82,6 +82,16 @@ class OrchestrationClient(BaseClient):
     async def read_task_run_raw(self, task_run_id: UUID) -> Response:
         return await self._http_client.get(f"/task_runs/{task_run_id}")
 
+    async def pause_deployment(self, deployment_id: UUID) -> Response:
+        return await self._http_client.post(
+            f"/deployments/{deployment_id}/pause_deployment",
+        )
+
+    async def resume_deployment(self, deployment_id: UUID) -> Response:
+        return await self._http_client.post(
+            f"/deployments/{deployment_id}/resume_deployment",
+        )
+
     async def set_flow_run_state(
         self, flow_run_id: UUID, state: StateCreate
     ) -> Response:
