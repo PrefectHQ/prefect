@@ -30,11 +30,11 @@ class Variable(VariableRequest):
         """
         Sets a new variable. If one exists with the same name, user must pass `overwrite=True`
         ```
-            from prefect import variables
+            from prefect.variables import Variable
 
             @flow
             def my_flow():
-                var = variables.Variable.set(name="my_var",value="test_value", tags=["hi", "there"], overwrite=True)
+                var = Variable.set(name="my_var",value="test_value", tags=["hi", "there"], overwrite=True)
         ```
         or
         ```
@@ -69,11 +69,11 @@ class Variable(VariableRequest):
         """
         Get a variable by name. If doesn't exist return the default.
         ```
-            from prefect import variables
+            from prefect.variables import Variable
 
             @flow
             def my_flow():
-                var = variables.Variable.get("my_var")
+                var = Variable.get("my_var")
         ```
         or
         ```
