@@ -198,7 +198,7 @@ prefect config set PREFECT_LOGGING_LOG_PRINTS=True
 
 ## Formatters
 
-Prefect log formatters specify the format of log messages. You can see details of message formatting for different loggers in [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml). For example, the default formatting for task run log records is:
+Prefect log formatters specify the format of log messages. You can see details of message formatting for different loggers in [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml). For example, the default formatting for task run log records is:
 
 ```python
 "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
