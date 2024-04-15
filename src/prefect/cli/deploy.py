@@ -1,4 +1,4 @@
-"""Module containing implementation for deploying projects."""
+"""Module containing implementation for deploying flows."""
 
 import json
 import os
@@ -510,12 +510,10 @@ async def _run_single_deploy(
 
     docker_build_steps = [
         "prefect_docker.deployments.steps.build_docker_image",
-        "prefect_docker.projects.steps.build_docker_image",
     ]
 
     docker_push_steps = [
         "prefect_docker.deployments.steps.push_docker_image",
-        "prefect_docker.projects.steps.push_docker_image",
     ]
 
     docker_build_step_exists = any(
@@ -1039,7 +1037,6 @@ async def _check_for_build_docker_image_step(
         return None
 
     build_docker_image_steps = [
-        "prefect_docker.projects.steps.build_docker_image",  # legacy
         "prefect_docker.deployments.steps.build_docker_image",
     ]
     for build_docker_image_step in build_docker_image_steps:
