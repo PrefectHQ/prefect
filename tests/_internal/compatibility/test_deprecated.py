@@ -320,3 +320,15 @@ class TestDeprecatedInfraOverridesField:
             )
 
         assert MyModel.schema()["description"] == "Hey mom"
+
+    def test_excludes_job_variables_if_excludes_is_none(self):
+        class MyModel(DeprecatedInfraOverridesField, pydantic.BaseModel):
+            name: str
+            job_variables: Optional[Dict[str, Any]] = pydantic.Field(
+                default_factory=dict,
+                description="Overrides to apply to my deployment infrastructure at runtime.",
+            )
+
+        serialized = MyModel(name="hey").dict(exclude=None)
+        assert "job_variables" not in serialized
+        assert serialized["infra_overrides"] == {}
