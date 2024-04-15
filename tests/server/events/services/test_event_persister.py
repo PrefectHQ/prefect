@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from pendulum.datetime import DateTime
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests._internal.pydantic.test_dynamic_imports import HAS_PYDANTIC_V1
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMEventResource
@@ -19,10 +19,10 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.services import event_persister
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 
-if HAS_PYDANTIC_V1:
-    from pydantic import ValidationError
-else:
+if HAS_PYDANTIC_V2:
     from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
 
 
 @db_injector

@@ -1,16 +1,30 @@
-from typing import Any, Dict, Generator, List, Sequence
+from typing import Any, Dict, Generator, List, Sequence, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.logging.loggers import get_logger
 from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMEvent
+from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import EventFilter, EventOrder
-from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.events.schemas.events import EventCount, ReceivedEvent
+from prefect.server.events.storage import (
+    INTERACTIVE_PAGE_SIZE,
+    from_page_token,
+    process_time_based_counts,
+    to_page_token,
+)
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
 
 logger = get_logger(__name__)
 
@@ -26,6 +40,86 @@ def build_distinct_queries(
     if distinct_fields:
         return [getattr(db.Event, field) for field in distinct_fields]
     return []
+
+
+async def query_events(
+    session: AsyncSession,
+    filter: EventFilter,
+    page_size: int = INTERACTIVE_PAGE_SIZE,
+) -> Tuple[List[ReceivedEvent], int, "str | None"]:
+    assert isinstance(session, AsyncSession)
+    count = await raw_count_events(session, filter)
+    page = await read_events(session, filter, limit=page_size, offset=0)
+    events = [ReceivedEvent.from_orm(e) for e in page]
+    page_token = to_page_token(filter, count, page_size, 0)
+    return events, count, page_token
+
+
+async def query_next_page(
+    session: AsyncSession,
+    page_token: str,
+) -> Tuple[List[ReceivedEvent], int, "str | None"]:
+    assert isinstance(session, AsyncSession)
+    filter, count, page_size, offset = from_page_token(page_token)
+    page = await read_events(session, filter, limit=page_size, offset=offset)
+    events = [ReceivedEvent.from_orm(e) for e in page]
+    next_token = to_page_token(filter, count, page_size, offset)
+    return events, count, next_token
+
+
+async def count_events(
+    session: AsyncSession,
+    filter: EventFilter,
+    countable: Countable,
+    time_unit: TimeUnit,
+    time_interval: float,
+) -> List[EventCount]:
+    time_unit.validate_buckets(
+        filter.occurred.since, filter.occurred.until, time_interval
+    )
+    results = await session.execute(
+        countable.get_database_query(filter, time_unit, time_interval)
+    )
+
+    counts = pydantic.parse_obj_as(List[EventCount], results.mappings().all())
+
+    if countable in (Countable.day, Countable.time):
+        counts = process_time_based_counts(filter, time_unit, time_interval, counts)
+
+    return counts
+
+
+@db_injector
+async def raw_count_events(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    events_filter: EventFilter,
+) -> int:
+    """
+    Count events from the database with the given filter.
+
+    Only returns the count and does not return any addition metadata. For additional
+    metadata, use `count_events`.
+
+    Args:
+        session: a database session
+        events_filter: filter criteria for events
+
+    Returns:
+        The count of events in the database that match the filter criteria.
+    """
+    # start with sa.func.count(), don't sa.select
+    select_events_query = sa.select(sa.func.count()).select_from(db.Event)
+
+    if distinct_fields := build_distinct_queries(events_filter):
+        select_events_query = sa.select(
+            sa.func.count(sa.distinct(*distinct_fields))
+        ).select_from(db.Event)
+
+    select_events_query_result = await session.execute(
+        select_events_query.where(sa.and_(*events_filter.build_where_clauses(db)))
+    )
+    return select_events_query_result.scalar() or 0
 
 
 @db_injector
@@ -64,14 +158,14 @@ async def read_events(
             sa.select(db.Event, window_function)
             .where(
                 sa.and_(
-                    *events_filter.build_where_clauses()
+                    *events_filter.build_where_clauses(db)
                 )  # Ensure the same filters are applied here
             )
             .subquery()
         )
 
         # Alias the subquery for easier column references
-        aliased_table = sa.aliased(db.Event, subquery)
+        aliased_table = aliased(db.Event, subquery)
 
         # Create the final query from the subquery, filtering to get only rows with row_number = 1
         select_events_query = sa.select(aliased_table).where(subquery.c.row_number == 1)
