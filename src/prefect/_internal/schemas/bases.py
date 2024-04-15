@@ -58,8 +58,8 @@ class PrefectBaseModel(BaseModel):
         ),
         **(
             {"copy_on_model_validation": "none"}
-            if USE_V2_MODELS and Version(PYDANTIC_VERSION) >= Version("1.9.2")
-            else {}
+            if not USE_V2_MODELS and Version(PYDANTIC_VERSION) >= Version("1.9.2")
+            else ({"copy_on_model_validation": False} if not USE_V2_MODELS else {})
         ),
     }
 

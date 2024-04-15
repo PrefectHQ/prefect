@@ -12,6 +12,7 @@ import pytz
 from croniter import croniter
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.types import PositiveDuration
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, validator
@@ -21,7 +22,6 @@ else:
 from prefect._internal.schemas.validators import (
     default_anchor_date,
     default_timezone,
-    interval_schedule_must_be_positive,
     validate_cron_string,
     validate_rrule_string,
     validate_rrule_timezone,
@@ -81,13 +81,9 @@ class IntervalSchedule(PrefectBaseModel):
         extra = "forbid"
         exclude_none = True
 
-    interval: datetime.timedelta
+    interval: PositiveDuration
     anchor_date: DateTimeTZ = None
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
-
-    @validator("interval")
-    def validate_interval_schedule(cls, v):
-        return interval_schedule_must_be_positive(v)
 
     @validator("anchor_date", always=True)
     def validate_anchor_date(cls, v):

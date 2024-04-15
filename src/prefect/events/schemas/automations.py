@@ -20,7 +20,7 @@ from prefect.pydantic import (
     PrefectBaseModel,
     model_validator,
 )
-from prefect.types import AtLeastFiveMinutesTimedelta, NonNegativeTimedelta
+from prefect.types import AtLeastFiveMinutesDuration, NonNegativeDuration
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -111,7 +111,7 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: NonNegativeTimedelta = Field(
+    within: NonNegativeDuration = Field(
         timedelta(0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
@@ -171,7 +171,7 @@ class MetricTriggerQuery(PrefectBaseModel):
             "the query result against the threshold value."
         ),
     )
-    range: AtLeastFiveMinutesTimedelta = Field(
+    range: AtLeastFiveMinutesDuration = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
@@ -179,7 +179,7 @@ class MetricTriggerQuery(PrefectBaseModel):
             "The minimum value is 300 seconds (5 minutes)."
         ),
     )
-    firing_for: AtLeastFiveMinutesTimedelta = Field(
+    firing_for: AtLeastFiveMinutesDuration = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
         description=(
             "The duration (seconds) for which the metric query must breach "
@@ -215,7 +215,7 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["TriggerTypes"]
-    within: Optional[NonNegativeTimedelta]
+    within: Optional[NonNegativeDuration]
 
 
 class CompoundTrigger(CompositeTrigger):

@@ -43,7 +43,7 @@ from prefect.pydantic import (
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
 )
-from prefect.types import NonNegativeTimedelta
+from prefect.types import NonNegativeDuration
 
 from .automations import (
     Automation,
@@ -219,7 +219,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
             "triggers)"
         ),
     )
-    within: NonNegativeTimedelta = Field(
+    within: NonNegativeDuration = Field(
         timedelta(0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
