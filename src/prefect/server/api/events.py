@@ -1,5 +1,5 @@
 import base64
-from typing import List
+from typing import List, Optional
 
 from prefect._vendor.fastapi import Response, WebSocket, status
 from prefect._vendor.fastapi.exceptions import HTTPException
@@ -76,7 +76,7 @@ def verified_page_token(
 )
 async def read_events(
     request: Request,
-    filter: EventFilter | None = Body(
+    filter: Optional[EventFilter] = Body(
         None,
         description=(
             "Additional optional filter criteria to narrow down the set of Events"
@@ -140,8 +140,8 @@ async def read_account_events_page(
 
 def generate_next_page_link(
     request: Request,
-    page_token: str | None,
-) -> str | None:
+    page_token: "str | None",
+) -> "str | None":
     if not page_token:
         return None
 
