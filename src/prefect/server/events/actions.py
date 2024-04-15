@@ -1227,10 +1227,46 @@ class WorkPoolCommandAction(WorkPoolAction, ExternalDataAction):
     _target_work_pool: Optional[WorkPool] = PrivateAttr(default=None)
 
     async def target_work_pool(self, triggered_action: "TriggeredAction") -> WorkPool:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        if not self._target_work_pool:
+            work_pool_id = await self.work_pool_id_to_use(triggered_action)
+
+            async with await self.orchestration_client(
+                triggered_action
+            ) as orchestration:
+                work_pool = await orchestration.read_work_pool(work_pool_id)
+
+                if not work_pool:
+                    raise ActionFailed(f"Work pool {work_pool_id} not found")
+                self._target_work_pool = work_pool
+        return self._target_work_pool
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        work_pool = await self.target_work_pool(triggered_action)
+
+        self._resulting_related_resources += [
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                    "prefect.resource.name": work_pool.name,
+                    "prefect.resource.role": "target",
+                }
+            )
+        ]
+
+        logger.info(
+            self._action_description,
+            extra={
+                "work_pool_id": work_pool.id,
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(orchestration, work_pool, triggered_action)
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
 
     @abc.abstractmethod
     async def command(
@@ -1255,7 +1291,7 @@ class PauseWorkPool(WorkPoolCommandAction):
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_work_pool(work_pool.name)
 
 
 class ResumeWorkPool(WorkPoolCommandAction):
@@ -1271,7 +1307,7 @@ class ResumeWorkPool(WorkPoolCommandAction):
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_work_pool(work_pool.name)
 
 
 class WorkQueueAction(Action):
@@ -1323,7 +1359,33 @@ class WorkQueueCommandAction(WorkQueueAction, ExternalDataAction):
     _action_description: ClassVar[str]
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        work_queue_id = await self.work_queue_id_to_use(triggered_action)
+
+        self._resulting_related_resources += [
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.work-queue.{work_queue_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        ]
+
+        logger.info(
+            self._action_description,
+            extra={
+                "work_queue_id": work_queue_id,
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(
+                orchestration, work_queue_id, triggered_action
+            )
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
 
     @abc.abstractmethod
     async def command(
@@ -1348,7 +1410,7 @@ class PauseWorkQueue(WorkQueueCommandAction):
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_work_queue(work_queue_id)
 
 
 class ResumeWorkQueue(WorkQueueCommandAction):
@@ -1364,7 +1426,7 @@ class ResumeWorkQueue(WorkQueueCommandAction):
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_work_queue(work_queue_id)
 
 
 class AutomationAction(Action):
