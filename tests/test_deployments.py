@@ -32,7 +32,7 @@ import prefect.server.schemas as schemas
 from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
 from prefect.events import DeploymentTriggerTypes
@@ -43,8 +43,10 @@ from prefect.server.schemas import states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
+    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 from prefect.utilities.slugify import slugify
@@ -915,7 +917,7 @@ class TestDeploymentApply:
         dep = await prefect_client.read_deployment(dep_id)
         assert dep.is_schedule_active == expected
 
-    async def test_deployment_apply_syncs_triggers(
+    async def test_deployment_apply_syncs_triggers_to_cloud_api(
         self,
         patch_import,
         tmp_path,
@@ -940,8 +942,11 @@ class TestDeploymentApply:
             updates={
                 PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{uuid4()}/workspaces/{uuid4()}",
                 PREFECT_CLOUD_API_URL: "https://api.prefect.cloud/api/",
+                PREFECT_EXPERIMENTAL_EVENTS: False,
             }
         ):
+            assert get_client().server_type.supports_automations()
+
             with respx.mock(base_url=PREFECT_API_URL.value()) as router:
                 router.post("/flows/").mock(
                     return_value=httpx.Response(201, json={"id": str(uuid4())})
@@ -963,6 +968,103 @@ class TestDeploymentApply:
                 assert json.loads(
                     create_route.calls[0].request.content
                 ) == trigger.as_automation().dict(json_compatible=True)
+
+    async def test_deployment_apply_syncs_triggers_to_prefect_api(
+        self,
+        patch_import,
+        tmp_path,
+    ):
+        infrastructure = Process()
+        await infrastructure._save(is_anonymous=True)
+
+        trigger = pydantic.parse_obj_as(
+            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
+        )
+
+        deployment = Deployment(
+            name="TEST",
+            flow_name="fn",
+            triggers=[trigger],
+            infrastructure=infrastructure,
+        )
+
+        created_deployment_id = str(uuid4())
+
+        with temporary_settings(
+            updates={
+                PREFECT_API_URL: "http://localhost:4242/api",
+                PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False,
+                PREFECT_EXPERIMENTAL_EVENTS: True,
+            }
+        ):
+            assert get_client().server_type.supports_automations()
+
+            with respx.mock(base_url=PREFECT_API_URL.value()) as router:
+                router.post("/flows/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+                router.post("/deployments/").mock(
+                    return_value=httpx.Response(201, json={"id": created_deployment_id})
+                )
+                delete_route = router.delete(
+                    f"/automations/owned-by/prefect.deployment.{created_deployment_id}"
+                ).mock(return_value=httpx.Response(204))
+                create_route = router.post("/automations/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+
+                await deployment.apply()
+
+                assert delete_route.called
+                assert create_route.called
+                assert json.loads(
+                    create_route.calls[0].request.content
+                ) == trigger.as_automation().dict(json_compatible=True)
+
+    async def test_deployment_apply_does_not_sync_triggers_to_prefect_api_when_off(
+        self,
+        patch_import,
+        tmp_path,
+    ):
+        infrastructure = Process()
+        await infrastructure._save(is_anonymous=True)
+
+        trigger = pydantic.parse_obj_as(
+            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
+        )
+
+        deployment = Deployment(
+            name="TEST",
+            flow_name="fn",
+            triggers=[trigger],
+            infrastructure=infrastructure,
+        )
+
+        created_deployment_id = str(uuid4())
+
+        with temporary_settings(updates={PREFECT_EXPERIMENTAL_EVENTS: False}):
+            assert not get_client().server_type.supports_automations()
+
+            with respx.mock(
+                base_url=PREFECT_API_URL.value(), assert_all_called=False
+            ) as router:
+                router.post("/flows/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+                router.post("/deployments/").mock(
+                    return_value=httpx.Response(201, json={"id": created_deployment_id})
+                )
+                delete_route = router.delete(
+                    f"/automations/owned-by/prefect.deployment.{created_deployment_id}"
+                ).mock(return_value=httpx.Response(204))
+                create_route = router.post("/automations/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+
+                await deployment.apply()
+
+                assert not delete_route.called
+                assert not create_route.called
 
     @pytest.mark.parametrize("enable_flag", [True, False])
     async def test_trigger_job_vars_value_if_enable_infra_overrides_flag_is_toggled(
