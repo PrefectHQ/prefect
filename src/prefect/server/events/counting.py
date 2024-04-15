@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 # The earliest possible event.occurred date in any Prefect environment is
-# 2024-04-4, so we use the Monday before that as our pivot date.
+# 2024-04-04, so we use the Monday before that as our pivot date.
 PIVOT_DATETIME = pendulum.DateTime(2024, 4, 1, tzinfo=pendulum.timezone("UTC"))
 
 
