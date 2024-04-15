@@ -32,7 +32,6 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
 
 router = PrefectRouter(prefix="/automations", tags=["Automations"])
 
@@ -74,7 +73,7 @@ async def _validate_run_deployment_action_against_pool_schema(
         work_pool = await wpc.read_work_pool(deployment.work_pool_name)
 
     default_vars = _get_base_config_defaults(work_pool.base_job_template)
-    deployment_vars = deployment.infra_overrides or {}
+    deployment_vars = deployment.job_variables or {}
     validate_values_conform_to_schema(
         {**default_vars, **deployment_vars, **job_variables},
         work_pool.base_job_template.get("variables", {}),
@@ -89,22 +88,21 @@ async def create_automation(
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
 
-    if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
-        errors = []
-        for action in automation.actions:
-            if (
-                isinstance(action, actions.RunDeployment)
-                and action.deployment_id is not None
-                and action.job_variables is not None
-                and action.job_variables != {}
-            ):
-                try:
-                    await _validate_run_deployment_action_against_pool_schema(
-                        deployment_id=action.deployment_id,
-                        job_variables=action.job_variables,
-                    )
-                except (ValueError, FlowRunInfrastructureMissing) as exc:
-                    errors.append(str(exc))
+    errors = []
+    for action in automation.actions:
+        if (
+            isinstance(action, actions.RunDeployment)
+            and action.deployment_id is not None
+            and action.job_variables is not None
+            and action.job_variables != {}
+        ):
+            try:
+                await _validate_run_deployment_action_against_pool_schema(
+                    deployment_id=action.deployment_id,
+                    job_variables=action.job_variables,
+                )
+            except (ValueError, FlowRunInfrastructureMissing) as exc:
+                errors.append(str(exc))
 
         if errors:
             raise HTTPException(
@@ -143,25 +141,24 @@ async def update_automation(
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
 
-    if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
-        errors = []
-        for action in automation.actions:
-            if (
-                isinstance(action, actions.RunDeployment)
-                and action.deployment_id is not None
-                and action.job_variables is not None
-            ):
-                try:
-                    await _validate_run_deployment_action_against_pool_schema(
-                        deployment_id=action.deployment_id,
-                        job_variables=action.job_variables,
-                    )
-                except ValueError as exc:
-                    errors.append(str(exc))
-                except AssertionError:
-                    errors.append(
-                        "Unable to find required resources for automation update."
-                    )
+    errors = []
+    for action in automation.actions:
+        if (
+            isinstance(action, actions.RunDeployment)
+            and action.deployment_id is not None
+            and action.job_variables is not None
+        ):
+            try:
+                await _validate_run_deployment_action_against_pool_schema(
+                    deployment_id=action.deployment_id,
+                    job_variables=action.job_variables,
+                )
+            except ValueError as exc:
+                errors.append(str(exc))
+            except AssertionError:
+                errors.append(
+                    "Unable to find required resources for automation update."
+                )
         if errors:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

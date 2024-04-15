@@ -190,7 +190,6 @@ async def test_running_a_deployment(
 async def test_running_a_deployment_with_overrides_enabled(
     snap_that_naughty_woodchuck: TriggeredAction,
     session: AsyncSession,
-    enable_infra_overrides,
 ):
     action = snap_that_naughty_woodchuck.action
 

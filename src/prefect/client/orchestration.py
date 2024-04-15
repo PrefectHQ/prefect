@@ -23,17 +23,7 @@ import pendulum
 from prefect._internal.compatibility.deprecated import (
     handle_deprecated_infra_overrides_parameter,
 )
-from prefect._internal.compatibility.experimental import (
-    EXPERIMENTAL_WARNING,
-    ExperimentalFeature,
-    experiment_enabled,
-)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_EVENTS,
-    PREFECT_EXPERIMENTAL_WARN,
-    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
-)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -161,12 +151,6 @@ class ServerType(AutoEnum):
     EPHEMERAL = AutoEnum.auto()
     SERVER = AutoEnum.auto()
     CLOUD = AutoEnum.auto()
-
-    def supports_automations(self) -> bool:
-        if self == ServerType.CLOUD:
-            return True
-
-        return PREFECT_EXPERIMENTAL_EVENTS.value()
 
 
 def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
@@ -575,21 +559,6 @@ class PrefectClient:
         Returns:
             The flow run model
         """
-        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Flow run job variables",
-                        group="flow_run_infra_overrides",
-                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-
         parameters = parameters or {}
         context = context or {}
         state = state or prefect.states.Scheduled()
@@ -710,21 +679,6 @@ class PrefectClient:
         Returns:
             an `httpx.Response` object from the PATCH request
         """
-        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Flow run job variables",
-                        group="flow_run_infra_overrides",
-                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-
         params = {}
         if flow_version is not None:
             params["flow_version"] = flow_version
@@ -3007,7 +2961,7 @@ class PrefectClient:
 
     async def create_automation(self, automation: Automation) -> UUID:
         """Creates an automation in Prefect Cloud."""
-        if not self.server_type.supports_automations():
+        if self.server_type != ServerType.CLOUD:
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         response = await self._client.post(
@@ -3020,7 +2974,7 @@ class PrefectClient:
     async def read_resource_related_automations(
         self, resource_id: str
     ) -> List[ExistingAutomation]:
-        if not self.server_type.supports_automations():
+        if self.server_type != ServerType.CLOUD:
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         response = await self._client.get(f"/automations/related-to/{resource_id}")
@@ -3028,7 +2982,7 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[ExistingAutomation], response.json())
 
     async def delete_resource_owned_automations(self, resource_id: str):
-        if not self.server_type.supports_automations():
+        if self.server_type != ServerType.CLOUD:
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         await self._client.delete(f"/automations/owned-by/{resource_id}")

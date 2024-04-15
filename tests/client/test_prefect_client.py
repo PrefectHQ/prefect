@@ -80,21 +80,12 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-
-
-@pytest.fixture
-def enable_infra_overrides():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
 
 
 class TestGetClient:
@@ -1056,7 +1047,7 @@ async def test_create_flow_run_from_deployment_with_options(prefect_client, depl
 
 
 async def test_create_flow_run_from_deployment_with_options_emits_warning(
-    prefect_client, deployment, enable_infra_overrides
+    prefect_client, deployment
 ):
     with pytest.warns(
         ExperimentalFeature,
@@ -1126,9 +1117,7 @@ async def test_update_flow_run_overrides_tags(prefect_client):
     assert updated_flow_run.tags == ["hello", "world"]
 
 
-async def test_update_flow_run_with_job_vars_emits_warning(
-    prefect_client, deployment, enable_infra_overrides
-):
+async def test_update_flow_run_with_job_vars_emits_warning(prefect_client, deployment):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment.id,
         name="test-run-name",

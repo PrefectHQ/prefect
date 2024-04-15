@@ -26,10 +26,6 @@ from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
-    temporary_settings,
-)
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
     ProcessJobConfiguration,
@@ -41,14 +37,6 @@ from prefect.workers.process import (
 @flow
 def example_process_worker_flow():
     return 1
-
-
-@pytest.fixture
-def enable_infra_overrides():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
 
 
 @pytest.fixture
@@ -266,7 +254,6 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
 async def test_flow_run_without_job_vars(
     flow_run,
     work_pool_with_default_env,
-    enable_infra_overrides,
     monkeypatch,
 ):
     deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
@@ -283,7 +270,6 @@ async def test_flow_run_without_job_vars(
 async def test_flow_run_vars_take_precedence(
     flow_run_with_overrides,
     work_pool_with_default_env,
-    enable_infra_overrides,
     monkeypatch,
 ):
     deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
@@ -304,7 +290,6 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
     flow_run_with_overrides,
     work_pool_with_default_env,
     monkeypatch,
-    enable_infra_overrides,
 ):
     deployment_job_vars = {"stream_output": False}
     patch_client(monkeypatch, overrides=deployment_job_vars)

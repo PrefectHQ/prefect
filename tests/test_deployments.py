@@ -1,7 +1,6 @@
 import datetime
 import json
 import re
-from contextlib import nullcontext
 from unittest import mock
 from uuid import uuid4
 
@@ -45,19 +44,10 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 from prefect.utilities.slugify import slugify
-
-
-@pytest.fixture
-def enable_infra_overrides():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True)
@@ -1066,9 +1056,10 @@ class TestDeploymentApply:
                 assert not delete_route.called
                 assert not create_route.called
 
-    @pytest.mark.parametrize("enable_flag", [True, False])
-    async def test_trigger_job_vars_value_if_enable_infra_overrides_flag_is_toggled(
-        self, patch_import, tmp_path, enable_flag: bool
+    async def test_trigger_job_vars(
+        self,
+        patch_import,
+        tmp_path,
     ):
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
@@ -1090,8 +1081,6 @@ class TestDeploymentApply:
             PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{uuid4()}/workspaces/{uuid4()}",
             PREFECT_CLOUD_API_URL: "https://api.prefect.cloud/api/",
         }
-        if enable_flag:
-            updates[PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES] = True
 
         with temporary_settings(updates=updates):
             with respx.mock(base_url=PREFECT_API_URL.value()) as router:
@@ -1108,24 +1097,12 @@ class TestDeploymentApply:
                     return_value=httpx.Response(201, json={"id": str(uuid4())})
                 )
 
-                if enable_flag:
-                    warning_catcher = pytest.warns(
-                        ExperimentalFeature,
-                        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
-                    )
-                else:
-                    warning_catcher = nullcontext()
-
-                with warning_catcher:
-                    await deployment.apply()
+            await deployment.apply()
 
             assert delete_route.called
             assert create_route.called
 
-            if enable_flag:
-                expected_job_vars = {"foo": 123}
-            else:
-                expected_job_vars = None
+            expected_job_vars = {"foo": 123}
 
             assert (
                 json.loads(create_route.calls[0].request.content)["actions"][0][
@@ -1324,7 +1301,6 @@ class TestRunDeployment:
         self,
         test_deployment,
         prefect_client,
-        enable_infra_overrides,
     ):
         # This can be removed once the flow run infra overrides is no longer an experiment
         _, deployment_id = test_deployment
@@ -1344,7 +1320,6 @@ class TestRunDeployment:
         self,
         test_deployment,
         prefect_client,
-        enable_infra_overrides,
     ):
         # This can be removed once the flow run infra overrides is no longer an experiment
         _, deployment_id = test_deployment

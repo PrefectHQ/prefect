@@ -1542,12 +1542,12 @@ a task server should move a task from PENDING to RUNNING very quickly, so runs s
 PENDING for a while is a sign that the task server may have crashed.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=True)
 """
 Whether or not to enable infrastructure overrides made on flow runs.
 """
 
-PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
 """
 Whether or not to warn infrastructure when experimental flow runs overrides are used.
 """
