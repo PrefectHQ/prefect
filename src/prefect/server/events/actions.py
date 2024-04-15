@@ -37,7 +37,10 @@ from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
+from prefect.blocks.webhook import Webhook
+from prefect.server.utilities.http import should_redact_header
 from prefect.server.utilities.messaging import Message, MessageHandler
+from prefect.utilities.text import truncated_to
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -1017,8 +1020,63 @@ class CallWebhook(JinjaTemplateAction):
 
         return value
 
+    async def _get_webhook_block(self, triggered_action: "TriggeredAction") -> Webhook:
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await orchestration.read_block_document_raw(
+                self.block_document_id
+            )
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            try:
+                block_document = BlockDocument.parse_obj(response.json())
+                block = Block._from_block_document(block_document)
+            except Exception as e:
+                raise ActionFailed(f"The webhook block was invalid: {e!r}")
+
+            if not isinstance(block, Webhook):
+                raise ActionFailed("The referenced block was not a webhook block")
+
+            self._resulting_related_resources += [
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
+                        "prefect.resource.role": "block",
+                        "prefect.resource.name": block_document.name,
+                    }
+                ),
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
+                        "prefect.resource.role": "block-type",
+                    }
+                ),
+            ]
+
+            return block
+
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        block = await self._get_webhook_block(triggered_action=triggered_action)
+        block = cast(Webhook, block)
+
+        (payload,) = await self._render([self.payload], triggered_action)
+
+        try:
+            response = await block.call(payload=payload)
+
+            ok_headers = {
+                k: v for k, v in response.headers.items() if not should_redact_header(k)
+            }
+
+            self._result_details.update(
+                {
+                    "status_code": response.status_code,
+                    "response_body": truncated_to(1000, response.text),
+                    "response_headers": {**(ok_headers or {})},
+                }
+            )
+        except Exception as e:
+            raise ActionFailed(f"Webhook call failed: {e!r}")
 
 
 class SendNotification(JinjaTemplateAction):
