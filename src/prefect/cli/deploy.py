@@ -54,7 +54,6 @@ from prefect.client.schemas.schedules import (
 from prefect.client.utilities import inject_client
 from prefect.deployments import find_prefect_directory, register_flow
 from prefect.deployments.base import (
-    _copy_deployments_into_prefect_file,
     _format_deployment_for_saving_to_prefect_file,
     _get_git_branch,
     _get_git_remote_origin_url,
@@ -89,12 +88,6 @@ async def deploy(
             "The path to a flow entrypoint within a project, in the form of"
             " `./path/to/file.py:flow_func_name`"
         ),
-    ),
-    flow_name: str = typer.Option(
-        None,
-        "--flow",
-        "-f",
-        help="DEPRECATED: The name of a registered flow to create a deployment for.",
     ),
     names: List[str] = typer.Option(
         None,
@@ -281,7 +274,6 @@ async def deploy(
 
     options = {
         "entrypoint": entrypoint,
-        "flow_name": flow_name,
         "description": description,
         "version": version,
         "tags": tags,
@@ -1145,63 +1137,11 @@ async def _generate_default_pull_action(
         ]
 
 
-def _handle_deployment_yaml_copy(prefect_yaml_contents, ci):
-    """
-    Handle the deprecation of the deployment.yaml file by copying the
-    deployment configurations into the prefect.yaml file.
-
-    Remove this after December 2023.
-
-    Args:
-        prefect_yaml_contents: The contents of the prefect.yaml file
-        ci: Disables interactive mode if True
-    """
-    if is_interactive() and not ci and prefect_yaml_contents:
-        if confirm(
-            generate_deprecation_message(
-                "Using a `deployment.yaml` file with `prefect deploy`",
-                start_date="Jun 2023",
-                help=(
-                    "Would you like to copy the contents of your `deployment.yaml`"
-                    " file into your `prefect.yaml` file now?"
-                ),
-            )
-        ):
-            try:
-                _copy_deployments_into_prefect_file()
-                app.console.print(
-                    "Successfully copied your deployment configurations into your"
-                    " prefect.yaml file! Once you've verified that all your"
-                    " deployment configurations in your prefect.yaml file are"
-                    " correct, you can delete your deployment.yaml file."
-                )
-            except Exception:
-                app.console.print(
-                    "Encountered an error while copying deployments into"
-                    " prefect.yaml: {exc}"
-                )
-    else:
-        app.console.print(
-            generate_deprecation_message(
-                "Using a `deployment.yaml` file with `prefect deploy`",
-                start_date="Jun 2023",
-                help=(
-                    "Please use the `prefect.yaml` file instead by copying the"
-                    " contents of your `deployment.yaml` file into your"
-                    " `prefect.yaml` file."
-                ),
-            ),
-            style="yellow",
-        )
-
-
 def _load_deploy_configs_and_actions(
     prefect_file: Path, ci: bool = False
 ) -> Tuple[List[Dict], Dict]:
     """
     Load deploy configs and actions from a deployment configuration YAML file.
-
-    Handles the deprecation of the deployment.yaml file.
 
     Args:
         ci: Disables interactive mode if True
@@ -1231,19 +1171,7 @@ def _load_deploy_configs_and_actions(
         "pull": prefect_yaml_contents.get("pull", []),
     }
 
-    # TODO: Remove this after December 2023
-    try:
-        with open("deployment.yaml", "r") as f:
-            deployment_yaml_contents = yaml.safe_load(f)
-            if not deployment_yaml_contents:
-                deploy_configs = [{}]
-            elif deployment_yaml_contents.get("deployments"):
-                deploy_configs = deployment_yaml_contents["deployments"]
-            else:
-                deploy_configs = [deployment_yaml_contents]
-        _handle_deployment_yaml_copy(prefect_yaml_contents, ci)
-    except FileNotFoundError:
-        deploy_configs = prefect_yaml_contents.get("deployments", [])
+    deploy_configs = prefect_yaml_contents.get("deployments", [])
 
     return deploy_configs, actions
 
