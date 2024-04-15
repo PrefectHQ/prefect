@@ -21,8 +21,10 @@ import typer
 import yaml
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 from yaml.error import YAMLError
 
+import prefect
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
 )
@@ -52,7 +54,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.deployments import register_flow
+from prefect.deployments import initialize_project, register_flow
 from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
     _get_git_branch,
@@ -78,6 +80,123 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+
+
+@app.command()
+async def init(
+    name: str = None,
+    recipe: str = None,
+    fields: List[str] = typer.Option(
+        None,
+        "-f",
+        "--field",
+        help=(
+            "One or more fields to pass to the recipe (e.g., image_name) in the format"
+            " of key=value."
+        ),
+    ),
+):
+    """
+    Initialize a new project.
+    """
+    inputs = {}
+    fields = fields or []
+    recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
+
+    for field in fields:
+        key, value = field.split("=")
+        inputs[key] = value
+
+    if not recipe and is_interactive():
+        recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
+        recipes = []
+
+        for r in recipe_paths.iterdir():
+            if r.is_dir() and (r / "prefect.yaml").exists():
+                with open(r / "prefect.yaml") as f:
+                    recipe_data = yaml.safe_load(f)
+                    recipe_name = r.name
+                    recipe_description = recipe_data.get(
+                        "description", "(no description available)"
+                    )
+                    recipe_dict = {
+                        "name": recipe_name,
+                        "description": recipe_description,
+                    }
+                    recipes.append(recipe_dict)
+
+        selected_recipe = prompt_select_from_table(
+            app.console,
+            "Would you like to initialize your deployment configuration with a recipe?",
+            columns=[
+                {"header": "Name", "key": "name"},
+                {"header": "Description", "key": "description"},
+            ],
+            data=recipes,
+            opt_out_message="No, I'll use the default deployment configuration.",
+            opt_out_response={},
+        )
+        if selected_recipe != {}:
+            recipe = selected_recipe["name"]
+
+    if recipe and (recipe_paths / recipe / "prefect.yaml").exists():
+        with open(recipe_paths / recipe / "prefect.yaml") as f:
+            recipe_inputs = yaml.safe_load(f).get("required_inputs") or {}
+
+        if recipe_inputs:
+            if set(recipe_inputs.keys()) < set(inputs.keys()):
+                # message to user about extra fields
+                app.console.print(
+                    (
+                        f"Warning: extra fields provided for {recipe!r} recipe:"
+                        f" '{', '.join(set(inputs.keys()) - set(recipe_inputs.keys()))}'"
+                    ),
+                    style="red",
+                )
+            elif set(recipe_inputs.keys()) > set(inputs.keys()):
+                table = Table(
+                    title=f"[red]Required inputs for {recipe!r} recipe[/red]",
+                )
+                table.add_column("Field Name", style="green", no_wrap=True)
+                table.add_column(
+                    "Description", justify="left", style="white", no_wrap=False
+                )
+                for field, description in recipe_inputs.items():
+                    if field not in inputs:
+                        table.add_row(field, description)
+
+                app.console.print(table)
+
+                for key, description in recipe_inputs.items():
+                    if key not in inputs:
+                        inputs[key] = typer.prompt(key)
+
+            app.console.print("-" * 15)
+
+    try:
+        files = [
+            f"[green]{fname}[/green]"
+            for fname in initialize_project(name=name, recipe=recipe, inputs=inputs)
+        ]
+    except ValueError as exc:
+        if "Unknown recipe" in str(exc):
+            exit_with_error(
+                f"Unknown recipe {recipe!r} provided - run [yellow]`prefect init"
+                "`[/yellow] to see all available recipes."
+            )
+        else:
+            raise
+
+    files = "\n".join(files)
+    empty_msg = (
+        f"Created project in [green]{Path('.').resolve()}[/green]; no new files"
+        " created."
+    )
+    file_msg = (
+        f"Created project in [green]{Path('.').resolve()}[/green] with the following"
+        f" new files:\n{files}"
+    )
+    app.console.print(file_msg if files else empty_msg)
 
 
 @app.command()
