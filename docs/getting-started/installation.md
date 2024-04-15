@@ -17,7 +17,7 @@ search:
 
 Prefect requires Python 3.8 or newer.
 
-Python 3.12 support is experimental, as not all dependencies to support it yet. If you encounter any errors, please [open an issue](https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=needs%3Atriage%2Cbug&projects=&template=1_general_bug_report.yaml).
+Python 3.12 support is experimental, as not all dependencies support Python 3.12 yet. If you encounter any errors, please [open an issue](https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=needs%3Atriage%2Cbug&projects=&template=1_general_bug_report.yaml).
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
