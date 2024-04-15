@@ -89,7 +89,7 @@ def process_time_based_counts(
     ]
 
     for count in counts:
-        index = int(count.value) - spans_since_pivot
+        index = int(float(count.value)) - spans_since_pivot
         backfilled_counts[index].count = count.count
 
     return backfilled_counts

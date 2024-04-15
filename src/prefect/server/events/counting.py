@@ -9,6 +9,7 @@ from sqlalchemy.sql.selectable import Select
 
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.utilities.database import json_extract
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -107,30 +108,66 @@ class TimeUnit(AutoEnum):
         # https://www.postgresql.org/docs/14/functions-datetime.html#FUNCTIONS-DATETIME-BIN
         db = provide_database_interface()
         delta = self.as_timedelta(time_interval)
-        return sa.cast(
-            sa.func.floor(
-                sa.extract(
-                    "epoch",
-                    (
-                        sa.func.date_bin(delta, db.Event.occurred, PIVOT_DATETIME)
-                        - PIVOT_DATETIME
-                    ),
-                )
-                / delta.total_seconds(),
-            ),
-            sa.Text,
-        )
+        if db.dialect.name == "postgresql":
+            return sa.cast(
+                sa.func.floor(
+                    sa.extract(
+                        "epoch",
+                        (
+                            sa.func.date_bin(delta, db.Event.occurred, PIVOT_DATETIME)
+                            - PIVOT_DATETIME
+                        ),
+                    )
+                    / delta.total_seconds(),
+                ),
+                sa.Text,
+            )
+        elif db.dialect.name == "sqlite":
+            # Convert pivot date and event date to strings formatted as seconds since the epoch
+            pivot_timestamp = sa.func.strftime(
+                "%s", PIVOT_DATETIME.strftime("%Y-%m-%d %H:%M:%S")
+            )
+            event_timestamp = sa.func.strftime("%s", db.Event.occurred)
+            seconds_since_pivot = event_timestamp - pivot_timestamp
+            # Calculate the bucket index by dividing by the interval in seconds and flooring the result
+            bucket_index = sa.func.floor(
+                sa.cast(seconds_since_pivot, sa.Integer) / delta.total_seconds()
+            )
+            # Cast to Text if necessary to match the PostgreSQL version's output type
+            return sa.cast(bucket_index, sa.Text)
+        else:
+            raise NotImplementedError(f"Dialect {db.dialect.name} is not supported.")
 
     def database_label_expression(self, db: PrefectDBInterface, time_interval: float):
         """Returns the SQL expression to label a time bucket"""
         # The date_bin function can do the bucketing for us:
         # https://www.postgresql.org/docs/14/functions-datetime.html#FUNCTIONS-DATETIME-BIN
-        return sa.func.to_char(
-            sa.func.date_bin(
-                self.as_timedelta(time_interval), db.Event.occurred, PIVOT_DATETIME
-            ),
-            'YYYY-MM-DD"T"HH24:MI:SSTZH:TZM',
-        )
+        time_delta = self.as_timedelta(time_interval)
+        if db.dialect.name == "postgresql":
+            return sa.func.to_char(
+                sa.func.date_bin(time_delta, db.Event.occurred, PIVOT_DATETIME),
+                'YYYY-MM-DD"T"HH24:MI:SSTZH:TZM',
+            )
+        elif db.dialect.name == "sqlite":
+            # Calculate the number of seconds since a fixed point (e.g., '1970-01-01')
+            seconds_since_epoch = sa.func.strftime(
+                "%s", db.Event.occurred
+            )  # seconds since 1970-01-01
+            # Convert the total seconds of the timedelta to a constant in SQL
+            bucket_size = time_delta.total_seconds()
+            # Perform integer division and multiplication to find the bucket start epoch using SQL functions
+            bucket_start_epoch = sa.func.cast(
+                (sa.cast(seconds_since_epoch, sa.Integer) / bucket_size) * bucket_size,
+                sa.Integer,
+            )
+
+            # Optionally format the datetime string to match the required format:
+            bucket_datetime = sa.func.strftime(
+                "%Y-%m-%dT%H:%M:%SZ", sa.func.datetime(bucket_start_epoch, "unixepoch")
+            )
+            return bucket_datetime
+        else:
+            raise NotImplementedError(f"Dialect {db.dialect.name} is not supported.")
 
 
 class Countable(AutoEnum):
@@ -258,10 +295,16 @@ class Countable(AutoEnum):
             return db.Event.event
         elif self == self.resource:
             return sa.func.coalesce(
-                db.Event.resource.op("->>")(
-                    sa.cast("prefect.resource.name", sa.String)
+                json_extract(
+                    db.Event.resource,
+                    "prefect.resource.name",
+                    wrap_quotes=db.dialect.name == "sqlite",
                 ),
-                db.Event.resource.op("->>")(sa.cast("prefect.name", sa.String)),
+                json_extract(
+                    db.Event.resource,
+                    "prefect.name",
+                    wrap_quotes=db.dialect.name == "sqlite",
+                ),
                 db.Event.resource_id,
             )
         else:

@@ -31,6 +31,7 @@ from prefect.server.utilities.database import (
     date_diff,
     interval_add,
     json_contains,
+    json_extract,
     json_has_all_keys,
     json_has_any_key,
 )
@@ -404,12 +405,17 @@ class TestJSON:
         dialect = sa.dialects.postgresql.dialect()
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
+        alt_extract_statement = json_extract(SQLJSONModel.data, "x").compile(
+            dialect=dialect
+        )
         contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
 
         assert "->" in str(extract_statement)
         assert "JSON_EXTRACT" not in str(extract_statement)
+        assert "->" not in str(alt_extract_statement)
+        assert "JSON_EXTRACT" in str(alt_extract_statement)
         assert "@>" in str(contains_stmt)
         assert "json_each" not in str(contains_stmt)
         assert "?|" in str(any_stmt)
@@ -421,12 +427,17 @@ class TestJSON:
         dialect = sa.dialects.sqlite.dialect()
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
+        alt_extract_statement = json_extract(SQLJSONModel.data, "x").compile(
+            dialect=dialect
+        )
         contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
 
         assert "->" not in str(extract_statement)
         assert "JSON_EXTRACT" in str(extract_statement)
+        assert "->" not in str(alt_extract_statement)
+        assert "JSON_EXTRACT" in str(alt_extract_statement)
         assert "@>" not in str(contains_stmt)
         assert "json_each" in str(contains_stmt)
         assert "?|" not in str(any_stmt)

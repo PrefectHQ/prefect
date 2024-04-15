@@ -14,6 +14,7 @@ from prefect.server.schemas.filters import (
     PrefectFilterBaseModel,
     PrefectOperatorFilterBaseModel,
 )
+from prefect.server.utilities.database import json_extract
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
@@ -274,11 +275,11 @@ class EventResourceFilter(EventDataFilter):
                     simple, prefixes = _partition_by_wildcards(values)
                     if simple:
                         label_filters.append(
-                            db.EventResource.resource.op("->>")(label).in_(simple)
+                            json_extract(db.EventResource.resource, label).in_(simple)
                         )
                     for prefix in prefixes:
                         label_filters.append(
-                            db.EventResource.resource.op("->>")(label).startswith(
+                            json_extract(db.EventResource.resource, label).startswith(
                                 prefix
                             )
                         )
@@ -359,11 +360,11 @@ class EventRelatedFilter(EventDataFilter):
                     simple, prefixes = _partition_by_wildcards(values)
                     if simple:
                         label_filters.append(
-                            db.EventResource.resource.op("->>")(label).in_(simple)
+                            json_extract(db.EventResource.resource, label).in_(simple)
                         )
                     for prefix in prefixes:
                         label_filters.append(
-                            db.EventResource.resource.op("->>")(label).startswith(
+                            json_extract(db.EventResource.resource, label).startswith(
                                 prefix
                             )
                         )
@@ -464,11 +465,11 @@ class EventAnyResourceFilter(EventDataFilter):
                     simple, prefixes = _partition_by_wildcards(values)
                     if simple:
                         label_filters.append(
-                            db.EventResource.resource.op("->>")(label).in_(simple)
+                            json_extract(db.EventResource.resource, label).in_(simple)
                         )
                     for prefix in prefixes:
                         label_filters.append(
-                            db.EventResource.resource.op("->>")(label).startswith(
+                            json_extract(db.EventResource.resource, label).startswith(
                                 prefix
                             )
                         )
