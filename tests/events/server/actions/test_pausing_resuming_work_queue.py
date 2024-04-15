@@ -363,6 +363,7 @@ async def test_resuming_inferred_work_queue(
             is_paused=True,
         ),
     )
+    await session.commit()
 
     patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
     assert patrol
