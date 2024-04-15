@@ -49,7 +49,7 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 ## Step 2: Connect to Prefect's API
 
 Much of Prefect's functionality is backed by an API.
-Sign up for a forever free [Prefect Cloud account](/cloud/) or accept your organization's invite to join their Prefect Cloud account.
+Sign up for a forever-free [Prefect Cloud account](/cloud/) or accept your organization's invite to join their Prefect Cloud account.
 
 1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
 1. Use the `prefect cloud login` CLI command to [log in to Prefect Cloud](/cloud/users/api-keys) from your environment.
