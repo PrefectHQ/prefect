@@ -89,12 +89,6 @@ async def deploy(
             " `./path/to/file.py:flow_func_name`"
         ),
     ),
-    flow_name: str = typer.Option(
-        None,
-        "--flow",
-        "-f",
-        help="DEPRECATED: The name of a registered flow to create a deployment for.",
-    ),
     names: List[str] = typer.Option(
         None,
         "--name",
@@ -280,7 +274,6 @@ async def deploy(
 
     options = {
         "entrypoint": entrypoint,
-        "flow_name": flow_name,
         "description": description,
         "version": version,
         "tags": tags,
