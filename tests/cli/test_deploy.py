@@ -2637,29 +2637,6 @@ class TestSchedules:
         )
         assert deployment.schedule is None
 
-    @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_no_schedule_interactive_with_ci_flag(
-        self, prefect_client, work_pool
-    ):
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --pool"
-                f" {work_pool.name} --ci"
-            ),
-            expected_code=0,
-            expected_output_contains=(
-                "The `--ci` flag has been deprecated. It will not be available after"
-                " Dec 2023. Please use the global `--no-prompt` flag instead: `prefect"
-                " --no-prompt deploy`."
-            ),
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
-        assert deployment.schedule is None
-
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_inactive_schedule(self, work_pool, prefect_client):
         prefect_file = Path("prefect.yaml")
