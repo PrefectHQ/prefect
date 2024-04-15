@@ -52,7 +52,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.deployments import find_prefect_directory, register_flow
+from prefect.deployments import register_flow
 from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
     _get_git_branch,
@@ -370,7 +370,7 @@ async def _run_single_deploy(
     # check for env var placeholders early so users can pass work pool names, etc.
     deploy_config = apply_values(deploy_config, os.environ, remove_notset=False)
 
-    if not deploy_config.get("flow_name") and not deploy_config.get("entrypoint"):
+    if not deploy_config.get("entrypoint"):
         if not is_interactive() and not ci:
             raise ValueError(
                 "An entrypoint must be provided:\n\n"
@@ -384,7 +384,7 @@ async def _run_single_deploy(
             " either an entrypoint or a flow name."
         )
 
-    # flow-name and entrypoint logic
+    # entrypoint logic
     flow = None
     if deploy_config.get("entrypoint"):
         try:
@@ -405,41 +405,6 @@ async def _run_single_deploy(
                 load_flow_from_entrypoint, deploy_config["entrypoint"]
             )
         deploy_config["flow_name"] = flow.name
-    elif deploy_config.get("flow_name"):
-        app.console.print(
-            generate_deprecation_message(
-                "The ability to deploy by flow name",
-                start_date="Jun 2023",
-                help=(
-                    "\nUse `prefect deploy ./path/to/file.py:flow_fn_name` to specify"
-                    " an entrypoint instead."
-                ),
-            )
-        )
-        prefect_dir = find_prefect_directory()
-        if not prefect_dir:
-            raise ValueError(
-                "No .prefect directory could be found - run [yellow]`prefect"
-                " init`[/yellow] to create one."
-            )
-        if not (prefect_dir / "flows.json").exists():
-            raise ValueError(
-                f"Flow {deploy_config['flow_name']!r} cannot be found;"
-                " run\n\t[yellow]prefect project register-flow"
-                " ./path/to/file.py:flow_fn_name[/yellow]\nto register its location."
-            )
-        with open(prefect_dir / "flows.json", "r") as f:
-            flows = json.load(f)
-
-        if deploy_config["flow_name"] not in flows:
-            raise ValueError(
-                f"Flow {deploy_config['flow_name']!r} cannot be found;"
-                " run\n\t[yellow]prefect project register-flow"
-                " ./path/to/file.py:flow_fn_name[/yellow]\nto register its location."
-            )
-
-        # set entrypoint from prior registration
-        deploy_config["entrypoint"] = flows[deploy_config["flow_name"]]
 
     deployment_name = deploy_config.get("name")
     if not deployment_name:

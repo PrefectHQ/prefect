@@ -1596,7 +1596,9 @@ class TestProjectDeploy:
         ]
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_reads_flow_name_from_prefect_yaml(self, work_pool):
+    async def test_project_deploy_reads_flow_name_from_prefect_yaml_raises(
+        self, work_pool
+    ):
         await register_flow("flows/hello.py:my_flow")
         create_default_prefect_yaml(".")
         prefect_file = Path("prefect.yaml")
@@ -1613,8 +1615,8 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy -n test-name",
-            expected_code=0,
-            expected_output_contains="An important name/test-name",
+            expected_code=1,
+            expected_output_contains="An entrypoint must be provided",
         )
 
     @pytest.mark.usefixtures("project_dir")
