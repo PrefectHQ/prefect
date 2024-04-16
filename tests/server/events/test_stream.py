@@ -101,7 +101,7 @@ async def subscription2(
         yield subscription2
 
 
-async def subscriptions_are_cleaned_up_when_the_context_is_closed(
+async def test_subscriptions_are_cleaned_up_when_the_context_is_closed(
     default_liberal_filter: EventFilter,
 ):
     assert len(stream.subscribers) == 0

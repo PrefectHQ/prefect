@@ -3,8 +3,6 @@ from asyncio import Queue
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, AsyncIterable, Dict, Set
 
-import anyio
-
 from prefect.logging import get_logger
 from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import ReceivedEvent
@@ -12,8 +10,8 @@ from prefect.server.utilities import messaging
 
 logger = get_logger(__name__)
 
-subscribers: Set[Queue[ReceivedEvent]] = set()
-filters: Dict[Queue[ReceivedEvent], EventFilter] = {}
+subscribers: Set["Queue[ReceivedEvent]"] = set()
+filters: Dict["Queue[ReceivedEvent]", EventFilter] = {}
 
 # The maximum number of message that can be waiting for one subscriber, after which
 # new messages will be dropped
@@ -23,8 +21,8 @@ SUBSCRIPTION_BACKLOG = 256
 @asynccontextmanager
 async def subscribed(
     filter: EventFilter,
-) -> AsyncGenerator[Queue[ReceivedEvent], None]:
-    queue: Queue[ReceivedEvent] = Queue(maxsize=SUBSCRIPTION_BACKLOG)
+) -> AsyncGenerator["Queue[ReceivedEvent]", None]:
+    queue: "Queue[ReceivedEvent]" = Queue(maxsize=SUBSCRIPTION_BACKLOG)
 
     subscribers.add(queue)
     filters[queue] = filter
@@ -49,8 +47,7 @@ async def events(
                 # forever waiting for a message to be put on the queue, and never notice
                 # that their client (like a websocket) has actually disconnected.
                 try:
-                    with anyio.move_on_after(5):
-                        event = await queue.get()
+                    event = await asyncio.wait_for(queue.get(), timeout=5)
                 except asyncio.TimeoutError:
                     continue
                 yield event
@@ -83,29 +80,32 @@ async def distributor() -> AsyncGenerator[messaging.MessageHandler, None]:
     yield message_handler
 
 
-_distributor_task: asyncio.Task | None = None
-_distributor_started: asyncio.Event = asyncio.Event()
+_distributor_task: "asyncio.Task | None" = None
+_distributor_started: "asyncio.Event | None" = None
 
 
 async def start_distributor():
     """Starts the distributor consumer as a global background task"""
     global _distributor_task
+    global _distributor_started
     if _distributor_task:
         return
 
-    _distributor_task = asyncio.create_task(run_distributor())
+    _distributor_started = asyncio.Event()
+    _distributor_task = asyncio.create_task(run_distributor(_distributor_started))
     await _distributor_started.wait()
 
 
 async def stop_distributor():
     """Stops the distributor consumer global background task"""
     global _distributor_task
+    global _distributor_started
     if not _distributor_task:
         return
 
     task = _distributor_task
     _distributor_task = None
-    _distributor_started.clear()
+    _distributor_started = None
 
     task.cancel()
     try:
@@ -114,12 +114,13 @@ async def stop_distributor():
         pass
 
 
-async def run_distributor():
+async def run_distributor(started: asyncio.Event):
     """Runs the distributor consumer forever until it is cancelled"""
+    global _distributor_started
     async with messaging.ephemeral_subscription(
         topic="events",
     ) as create_consumer_kwargs:
-        _distributor_started.set()
+        started.set()
         async with distributor() as handler:
             consumer = messaging.create_consumer(**create_consumer_kwargs)
             await consumer.run(
