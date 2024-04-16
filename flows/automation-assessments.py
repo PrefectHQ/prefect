@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any, AsyncGenerator, Dict
@@ -6,7 +8,9 @@ from uuid import uuid4
 
 import anyio
 import pendulum
+from packaging.version import Version
 
+import prefect
 from prefect import flow, get_client, get_run_logger
 from prefect.events import Event
 from prefect.events.clients import get_events_client, get_events_subscriber
@@ -280,6 +284,10 @@ async def assess_sequence_automation():
 
 
 if __name__ == "__main__":
+    TEST_SERVER_VERSION = os.environ.get("TEST_SERVER_VERSION", prefect.__version__)
+    if Version(prefect.__version__) < Version("2.17.1"):
+        sys.exit(0)
+
     asyncio.run(assess_reactive_automation())
     asyncio.run(assess_proactive_automation())
     asyncio.run(assess_compound_automation())
