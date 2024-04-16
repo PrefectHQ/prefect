@@ -39,7 +39,7 @@ def model_validate(
             context=context,
         )
     else:
-        return getattr(model_instance, "validate")(obj)
+        return getattr(model_instance, "parse_obj")(obj)
 
 
 class ModelValidateMixin(BaseModel):

@@ -47,7 +47,7 @@ def model_dump(  # type: ignore[no-redef]
     Returns:
         A dictionary representation of the model.
     """
-    if USE_V2_MODELS:
+    if USE_V2_MODELS and hasattr(model_instance, "model_dump"):
         return model_instance.model_dump(
             mode=mode,
             include=include,
