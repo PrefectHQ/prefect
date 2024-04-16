@@ -11,7 +11,7 @@ else:
     import pydantic
 
 from prefect.events import (
-    Automation,
+    AutomationCore,
     CompoundTrigger,
     EventTrigger,
     MetricTrigger,
@@ -71,7 +71,7 @@ def test_deployment_trigger_defaults_to_reactive_event_trigger():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -102,7 +102,7 @@ def test_deployment_trigger_proactive_trigger_with_defaults():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -173,7 +173,7 @@ def test_deployment_trigger_metric_trigger():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -211,7 +211,7 @@ def test_compound_deployment_trigger_as_automation():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -277,7 +277,7 @@ def test_deeply_nested_compound_deployment_trigger_as_automation():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -349,7 +349,7 @@ def test_sequence_deployment_trigger_as_automation():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,

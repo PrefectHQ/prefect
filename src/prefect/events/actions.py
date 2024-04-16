@@ -19,6 +19,10 @@ class Action(PrefectBaseModel, abc.ABC):
 
     type: str
 
+    def describe_for_cli(self) -> str:
+        """A human-readable description of the action"""
+        return self.type.replace("-", " ").capitalize()
+
 
 class DoNothing(Action):
     """Do nothing when an Automation is triggered"""
