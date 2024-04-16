@@ -129,7 +129,7 @@ class Action(PrefectBaseModel, abc.ABC):
         action = triggered_action.action
         action_index = triggered_action.action_index
 
-        automation_resource_id = f"prefect-cloud.automation.{automation.id}"
+        automation_resource_id = f"prefect.automation.{automation.id}"
 
         logger.warning(
             "Action failed: %r",
@@ -138,11 +138,11 @@ class Action(PrefectBaseModel, abc.ABC):
         )
         event = Event(
             occurred=pendulum.now("UTC"),
-            event="prefect-cloud.automation.action.failed",
+            event="prefect.automation.action.failed",
             resource={
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
-                "prefect-cloud.trigger-type": automation.trigger.type,
+                "prefect.trigger-type": automation.trigger.type,
             },
             related=self._resulting_related_resources,
             payload={
@@ -155,7 +155,7 @@ class Action(PrefectBaseModel, abc.ABC):
             id=uuid4(),
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
             await events.emit(event)
@@ -167,15 +167,15 @@ class Action(PrefectBaseModel, abc.ABC):
         action = triggered_action.action
         action_index = triggered_action.action_index
 
-        automation_resource_id = f"prefect-cloud.automation.{automation.id}"
+        automation_resource_id = f"prefect.automation.{automation.id}"
 
         event = Event(
             occurred=pendulum.now("UTC"),
-            event="prefect-cloud.automation.action.executed",
+            event="prefect.automation.action.executed",
             resource={
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
-                "prefect-cloud.trigger-type": automation.trigger.type,
+                "prefect.trigger-type": automation.trigger.type,
             },
             related=self._resulting_related_resources,
             payload={
@@ -187,7 +187,7 @@ class Action(PrefectBaseModel, abc.ABC):
             id=uuid4(),
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
             await events.emit(event)
@@ -1463,7 +1463,7 @@ class AutomationAction(Action):
             raise ActionFailed("No event to infer the automation")
 
         assert event
-        if id := _id_of_first_resource_of_kind(event, "prefect-cloud.automation"):
+        if id := _id_of_first_resource_of_kind(event, "prefect.automation"):
             return id
 
         raise ActionFailed("No automation could be inferred")
@@ -1478,7 +1478,7 @@ class AutomationCommandAction(AutomationAction, ExternalDataAction):
         self._resulting_related_resources += [
             RelatedResource.parse_obj(
                 {
-                    "prefect.resource.id": f"prefect-cloud.automation.{automation_id}",
+                    "prefect.resource.id": f"prefect.automation.{automation_id}",
                     "prefect.resource.role": "target",
                 }
             )
@@ -1522,7 +1522,7 @@ class PauseAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.pause_automation(automation_id)
 
 
 class ResumeAutomation(AutomationCommandAction):
@@ -1538,7 +1538,7 @@ class ResumeAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.resume_automation(automation_id)
 
 
 # The actual action types that we support.  It's important to update this

@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -25,6 +26,7 @@ from prefect._internal.compatibility.deprecated import (
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_EVENTS,
 )
 
@@ -127,7 +129,7 @@ from prefect.client.schemas.sorting import (
     TaskRunSort,
 )
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas.automations import Automation, ExistingAutomation
+from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -159,7 +161,7 @@ class ServerType(AutoEnum):
         if self == ServerType.CLOUD:
             return True
 
-        return PREFECT_EXPERIMENTAL_EVENTS.value()
+        return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
 
 def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
@@ -2968,34 +2970,6 @@ class PrefectClient:
         response.raise_for_status()
         return response.json()
 
-    async def create_automation(self, automation: Automation) -> UUID:
-        """Creates an automation in Prefect Cloud."""
-        if self.server_type != ServerType.CLOUD:
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
-
-        response = await self._client.post(
-            "/automations/",
-            json=automation.dict(json_compatible=True),
-        )
-
-        return UUID(response.json()["id"])
-
-    async def read_resource_related_automations(
-        self, resource_id: str
-    ) -> List[ExistingAutomation]:
-        if self.server_type != ServerType.CLOUD:
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
-
-        response = await self._client.get(f"/automations/related-to/{resource_id}")
-        response.raise_for_status()
-        return pydantic.parse_obj_as(List[ExistingAutomation], response.json())
-
-    async def delete_resource_owned_automations(self, resource_id: str):
-        if self.server_type != ServerType.CLOUD:
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
-
-        await self._client.delete(f"/automations/owned-by/{resource_id}")
-
     async def increment_concurrency_slots(
         self, names: List[str], slots: int, mode: str
     ) -> httpx.Response:
@@ -3134,6 +3108,121 @@ class PrefectClient:
         """
         response = await self._client.delete(f"/flow_runs/{flow_run_id}/input/{key}")
         response.raise_for_status()
+
+    def _raise_for_unsupported_automations(self) -> NoReturn:
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            raise RuntimeError(
+                "The current server and client configuration does not support "
+                "events.  Enable experimental events support with the "
+                "PREFECT_EXPERIMENTAL_EVENTS setting."
+            )
+        else:
+            raise RuntimeError(
+                "The current server and client configuration does not support "
+                "automations.  Enable experimental automations with the "
+                "PREFECT_API_SERVICES_TRIGGERS_ENABLED setting."
+            )
+
+    async def create_automation(self, automation: AutomationCore) -> UUID:
+        """Creates an automation in Prefect Cloud."""
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.post(
+            "/automations/",
+            json=automation.dict(json_compatible=True),
+        )
+
+        return UUID(response.json()["id"])
+
+    async def read_automations(self) -> List[Automation]:
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.post("/automations/filter")
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[Automation], response.json())
+
+    async def find_automation(
+        self, id_or_name: str, exit_if_not_found: bool = True
+    ) -> Optional[Automation]:
+        try:
+            id = UUID(id_or_name)
+        except ValueError:
+            id = None
+
+        if id:
+            automation = await self.read_automation(id)
+            if automation:
+                return automation
+
+        automations = await self.read_automations()
+
+        # Look for it by an exact name
+        for automation in automations:
+            if automation.name == id_or_name:
+                return automation
+
+        # Look for it by a case-insensitive name
+        for automation in automations:
+            if automation.name.lower() == id_or_name.lower():
+                return automation
+
+        return None
+
+    async def read_automation(self, automation_id: UUID) -> Optional[Automation]:
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.get(f"/automations/{automation_id}")
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return Automation.parse_obj(response.json())
+
+    async def pause_automation(self, automation_id: UUID):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.patch(
+            f"/automations/{automation_id}", json={"enabled": False}
+        )
+        response.raise_for_status()
+
+    async def resume_automation(self, automation_id: UUID):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.patch(
+            f"/automations/{automation_id}", json={"enabled": True}
+        )
+        response.raise_for_status()
+
+    async def delete_automation(self, automation_id: UUID):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.delete(f"/automations/{automation_id}")
+        if response.status_code == 404:
+            return
+
+        response.raise_for_status()
+
+    async def read_resource_related_automations(
+        self, resource_id: str
+    ) -> List[Automation]:
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.get(f"/automations/related-to/{resource_id}")
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[Automation], response.json())
+
+    async def delete_resource_owned_automations(self, resource_id: str):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        await self._client.delete(f"/automations/owned-by/{resource_id}")
 
     async def __aenter__(self):
         """
