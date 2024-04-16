@@ -23,6 +23,7 @@ from prefect._internal.schemas.validators import (
     validate_dump_kwargs,
     validate_load_kwargs,
     validate_picklelib,
+    validate_picklelib_version,
 )
 from prefect.pydantic import HAS_PYDANTIC_V2
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
@@ -30,9 +31,23 @@ from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect.utilities.pydantic import custom_pydantic_encoder
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, ValidationError, parse_obj_as, validator
+    from pydantic.v1 import (
+        BaseModel,
+        Field,
+        ValidationError,
+        parse_obj_as,
+        root_validator,
+        validator,
+    )
 else:
-    from pydantic import BaseModel, Field, ValidationError, parse_obj_as, validator
+    from pydantic import (
+        BaseModel,
+        Field,
+        ValidationError,
+        parse_obj_as,
+        root_validator,
+        validator,
+    )
 
 D = TypeVar("D")
 
@@ -147,13 +162,15 @@ class PickleSerializer(Serializer):
     type: str = "pickle"
 
     picklelib: str = "cloudpickle"
-    picklelib_version: str = Field(
-        default_factory=lambda: from_qualified_name("cloudpickle").__version__
-    )
+    picklelib_version: str = None
 
     @validator("picklelib")
     def check_picklelib(cls, value):
         return validate_picklelib(value)
+
+    @root_validator
+    def check_picklelib_version(cls, values):
+        return validate_picklelib_version(values)
 
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)

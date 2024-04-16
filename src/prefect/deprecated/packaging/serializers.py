@@ -16,6 +16,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
     validate_picklelib,
     validate_picklelib_and_modules,
+    validate_picklelib_version,
 )
 
 if HAS_PYDANTIC_V2:
@@ -53,9 +54,8 @@ class PickleSerializer(Serializer):
     type: Literal["pickle"] = "pickle"
 
     picklelib: str = "cloudpickle"
-    picklelib_version: str = pydantic.Field(
-        default_factory=lambda: from_qualified_name("cloudpickle").__version__
-    )
+    picklelib_version: str = None
+
     pickle_modules: List[str] = pydantic.Field(default_factory=list)
 
     @pydantic.validator("picklelib")
@@ -65,6 +65,10 @@ class PickleSerializer(Serializer):
     @pydantic.root_validator
     def check_picklelib_and_modules(cls, values):
         return validate_picklelib_and_modules(values)
+
+    @pydantic.root_validator
+    def check_picklelib_version(cls, values):
+        return validate_picklelib_version(values)
 
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)
