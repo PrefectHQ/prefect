@@ -13,7 +13,7 @@ import prefect
 
 TEST_SERVER_VERSION = os.environ.get("TEST_SERVER_VERSION", prefect.__version__)
 
-if Version(TEST_SERVER_VERSION) < Version("2.17"):
+if Version(TEST_SERVER_VERSION) < Version("2.17.2"):
     raise NotImplementedError()
 
 try:
