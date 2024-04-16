@@ -2,6 +2,8 @@
 Command line interface for working with automations.
 """
 
+import functools
+
 import orjson
 import yaml as pyyaml
 from rich.pretty import Pretty
@@ -20,7 +22,21 @@ automations_app = PrefectTyper(
 app.add_typer(automations_app, aliases=["automations"])
 
 
+def requires_automations(func):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except RuntimeError as exc:
+            if "Enable experimental" in str(exc):
+                exit_with_error(str(exc))
+            raise
+
+    return wrapper
+
+
 @automations_app.command()
+@requires_automations
 async def ls():
     """List all automations."""
     async with get_client() as client:
@@ -79,6 +95,7 @@ async def ls():
 
 
 @automations_app.command()
+@requires_automations
 async def inspect(id_or_name: str, yaml: bool = False, json: bool = False):
     """Inspect an automation."""
     async with get_client() as client:
@@ -101,6 +118,7 @@ async def inspect(id_or_name: str, yaml: bool = False, json: bool = False):
 
 
 @automations_app.command(aliases=["enable"])
+@requires_automations
 async def resume(id_or_name: str):
     """Resume an automation."""
     async with get_client() as client:
@@ -115,6 +133,7 @@ async def resume(id_or_name: str):
 
 
 @automations_app.command(aliases=["disable"])
+@requires_automations
 async def pause(id_or_name: str):
     """Pause an automation."""
     async with get_client() as client:
@@ -129,13 +148,14 @@ async def pause(id_or_name: str):
 
 
 @automations_app.command()
+@requires_automations
 async def delete(id_or_name: str):
     """Delete an automation."""
     async with get_client() as client:
         automation = await client.find_automation(id_or_name)
 
     if not automation:
-        exit_with_success(f"Automation {id_or_name!r} not found")
+        exit_with_success(f"Automation {id_or_name!r} not found.")
 
     async with get_client() as client:
         await client.delete_automation(automation.id)

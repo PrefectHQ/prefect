@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -30,6 +31,7 @@ from prefect._internal.compatibility.experimental import (
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
@@ -166,7 +168,7 @@ class ServerType(AutoEnum):
         if self == ServerType.CLOUD:
             return True
 
-        return PREFECT_EXPERIMENTAL_EVENTS.value()
+        return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
 
 def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
@@ -3144,10 +3146,24 @@ class PrefectClient:
         response = await self._client.delete(f"/flow_runs/{flow_run_id}/input/{key}")
         response.raise_for_status()
 
+    def _raise_for_unsupported_automations(self) -> NoReturn:
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            raise RuntimeError(
+                "The current server and client configuration does not support "
+                "events.  Enable experimental events support with the "
+                "PREFECT_EXPERIMENTAL_EVENTS setting."
+            )
+        else:
+            raise RuntimeError(
+                "The current server and client configuration does not support "
+                "automations.  Enable experimental automations with the "
+                "PREFECT_API_SERVICES_TRIGGERS_ENABLED setting."
+            )
+
     async def create_automation(self, automation: AutomationCore) -> UUID:
         """Creates an automation in Prefect Cloud."""
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         response = await self._client.post(
             "/automations/",
@@ -3158,7 +3174,7 @@ class PrefectClient:
 
     async def read_automations(self) -> List[Automation]:
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         response = await self._client.post("/automations/filter")
         response.raise_for_status()
@@ -3193,7 +3209,7 @@ class PrefectClient:
 
     async def read_automation(self, automation_id: UUID) -> Optional[Automation]:
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         response = await self._client.get(f"/automations/{automation_id}")
         if response.status_code == 404:
@@ -3203,7 +3219,7 @@ class PrefectClient:
 
     async def pause_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         response = await self._client.patch(
             f"/automations/{automation_id}", json={"enabled": False}
@@ -3212,7 +3228,7 @@ class PrefectClient:
 
     async def resume_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         response = await self._client.patch(
             f"/automations/{automation_id}", json={"enabled": True}
@@ -3221,7 +3237,7 @@ class PrefectClient:
 
     async def delete_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         response = await self._client.delete(f"/automations/{automation_id}")
         if response.status_code == 404:
@@ -3233,7 +3249,7 @@ class PrefectClient:
         self, resource_id: str
     ) -> List[Automation]:
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         response = await self._client.get(f"/automations/related-to/{resource_id}")
         response.raise_for_status()
@@ -3241,7 +3257,7 @@ class PrefectClient:
 
     async def delete_resource_owned_automations(self, resource_id: str):
         if not self.server_type.supports_automations():
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+            self._raise_for_unsupported_automations()
 
         await self._client.delete(f"/automations/owned-by/{resource_id}")
 
