@@ -443,7 +443,7 @@ async def test_pausing_success_event(
     assert AssertingEventsClient.last
     (event,) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect-cloud.automation.action.executed"
+    assert event.event == "prefect.automation.action.executed"
     assert event.related == [
         RelatedResource.parse_obj(
             {
@@ -472,7 +472,7 @@ async def test_resuming_success_event(
     assert AssertingEventsClient.last
     (event,) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect-cloud.automation.action.executed"
+    assert event.event == "prefect.automation.action.executed"
     assert event.related == [
         RelatedResource.parse_obj(
             {

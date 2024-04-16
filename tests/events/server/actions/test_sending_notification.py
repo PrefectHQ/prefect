@@ -207,7 +207,7 @@ async def test_success_event(
     assert AssertingEventsClient.last
     (event,) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect-cloud.automation.action.executed"
+    assert event.event == "prefect.automation.action.executed"
     assert event.related == [
         RelatedResource.parse_obj(
             {
@@ -250,7 +250,7 @@ async def test_captures_notification_failures(
     assert AssertingEventsClient.last
     (event,) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect-cloud.automation.action.failed"
+    assert event.event == "prefect.automation.action.failed"
     assert event.related == [
         RelatedResource.parse_obj(
             {
