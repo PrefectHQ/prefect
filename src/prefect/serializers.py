@@ -15,10 +15,8 @@ import abc
 import base64
 from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
-from pydantic_core import to_jsonable_python
 from typing_extensions import Self
 
-from prefect._internal.pydantic._compat import model_validate
 from prefect._internal.schemas.validators import (
     cast_type_names_to_serializers,
     validate_compressionlib,
@@ -26,9 +24,15 @@ from prefect._internal.schemas.validators import (
     validate_load_kwargs,
     validate_picklelib,
 )
-from prefect.pydantic import BaseModel, Field, ValidationError, field_validator
+from prefect.pydantic import HAS_PYDANTIC_V2
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
+from prefect.utilities.pydantic import custom_pydantic_encoder
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, ValidationError, parse_obj_as, validator
+else:
+    from pydantic import BaseModel, Field, ValidationError, parse_obj_as, validator
 
 D = TypeVar("D")
 
@@ -71,7 +75,7 @@ def prefect_json_object_encoder(obj: Any) -> Any:
     else:
         return {
             "__class__": to_qualified_name(obj.__class__),
-            "data": to_jsonable_python(obj),
+            "data": custom_pydantic_encoder({}, obj),
         }
 
 
@@ -81,7 +85,7 @@ def prefect_json_object_decoder(result: dict):
     with `prefect_json_object_encoder`
     """
     if "__class__" in result:
-        return model_validate(from_qualified_name(result["__class__"]), result["data"])
+        return parse_obj_as(from_qualified_name(result["__class__"]), result["data"])
     elif "__exc_type__" in result:
         return from_qualified_name(result["__exc_type__"])(result["message"])
     else:
@@ -125,9 +129,9 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
 
     @classmethod
     def __dispatch_key__(cls):
-        return cls.__fields__.get("type").get_default() or convert_serializer_name(
-            cls.__name__
-        )
+        if explicit_type := cls.__fields__.get("type"):
+            return explicit_type.get_default()
+        return convert_serializer_name(cls.__name__)
 
 
 class PickleSerializer(Serializer):
@@ -147,7 +151,7 @@ class PickleSerializer(Serializer):
         default_factory=lambda: from_qualified_name("cloudpickle").__version__
     )
 
-    @field_validator("picklelib")
+    @validator("picklelib")
     def check_picklelib(cls, value):
         return validate_picklelib(value)
 
@@ -193,11 +197,11 @@ class JSONSerializer(Serializer):
     dumps_kwargs: Dict[str, Any] = Field(default_factory=dict)
     loads_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("dumps_kwargs")
+    @validator("dumps_kwargs")
     def dumps_kwargs_cannot_contain_default(cls, value):
         return validate_dump_kwargs(value)
 
-    @field_validator("loads_kwargs")
+    @validator("loads_kwargs")
     def loads_kwargs_cannot_contain_object_hook(cls, value):
         return validate_load_kwargs(value)
 
@@ -237,11 +241,11 @@ class CompressedSerializer(Serializer):
     serializer: Serializer
     compressionlib: str = "lzma"
 
-    @field_validator("serializer")
+    @validator("serializer", pre=True)
     def validate_serializer(cls, value):
         return cast_type_names_to_serializers(value)
 
-    @field_validator("compressionlib")
+    @validator("compressionlib")
     def check_compressionlib(cls, value):
         return validate_compressionlib(value)
 
