@@ -1701,6 +1701,10 @@ PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, 
 The maximum number of seconds between flushes of the event persister.
 """
 
+PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to allow streaming events out of via websockets.
+"""
 
 # Deprecated settings ------------------------------------------------------------------
 

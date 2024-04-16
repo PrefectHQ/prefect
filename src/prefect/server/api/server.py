@@ -35,6 +35,7 @@ from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
+from prefect.server.events import stream
 from prefect.server.events.services.actions import Actions
 from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.events.services.event_persister import EventPersister
@@ -595,6 +596,12 @@ def create_app(
             and prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED
         ):
             service_instances.append(EventPersister())
+
+        if (
+            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
+            and prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED
+        ):
+            service_instances.append(stream.Distributor())
 
         loop = asyncio.get_running_loop()
 
