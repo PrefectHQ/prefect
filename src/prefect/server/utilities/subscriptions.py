@@ -30,7 +30,9 @@ async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
         # Cloud.
         message = await websocket.receive_json()
         if message["type"] != "auth":
-            return await websocket.close(WS_1008_POLICY_VIOLATION)
+            return await websocket.close(
+                WS_1008_POLICY_VIOLATION, reason="Expected 'auth' message"
+            )
 
         await websocket.send_json({"type": "auth_success"})
         return websocket
