@@ -10,5 +10,4 @@ pytest \
     --cov-branch \
     --cov-report=term-missing \
     tests/events/ \
-    tests/server/events/ \
     $@
