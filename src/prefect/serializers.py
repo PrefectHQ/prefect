@@ -52,33 +52,6 @@ else:
 D = TypeVar("D")
 
 
-def convert_serializer_name(name: str) -> str:
-    prefixes = ["Compressed"]
-    suffix = "Serializer"
-    prefix_used = ""
-
-    if name == suffix:
-        return name.lower()
-
-    for prefix in prefixes:
-        if name.startswith(prefix):
-            if name == prefix + suffix:
-                return prefix.lower()
-            prefix_used = prefix.lower() + "/"
-            name = name[len(prefix) :]
-            break
-
-    if name.endswith(suffix):
-        name = name[: -len(suffix)]
-
-    result = name.lower()
-
-    if prefix_used:
-        result = prefix_used + result
-
-    return result
-
-
 def prefect_json_object_encoder(obj: Any) -> Any:
     """
     `JSONEncoder.default` for encoding objects into JSON with extended type support.
@@ -144,9 +117,7 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
 
     @classmethod
     def __dispatch_key__(cls):
-        if explicit_type := cls.__fields__.get("type"):
-            return explicit_type.get_default()
-        return convert_serializer_name(cls.__name__)
+        return cls.__fields__.get("type").get_default()
 
 
 class PickleSerializer(Serializer):

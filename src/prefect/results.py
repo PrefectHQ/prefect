@@ -81,18 +81,6 @@ async def get_default_result_storage() -> ResultStorage:
 _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
 
 
-def convert_result_type_to_key(cls: Type) -> str:
-    """
-    Convert a result type class to a key for serialization.
-    """
-    suffix = "Result"
-
-    if cls.__name__ == "PersistedResult":
-        return "reference"
-    else:
-        return cls.__name__.replace(suffix, "").lower()
-
-
 async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
     Generate a default file system for autonomous task parameter/result storage.
@@ -540,7 +528,7 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):
-        return convert_result_type_to_key(cls)
+        return cls.__fields__.get("type").get_default()
 
 
 class UnpersistedResult(BaseResult):
