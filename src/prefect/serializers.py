@@ -15,7 +15,7 @@ import abc
 import base64
 from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
-from typing_extensions import Self
+from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
     cast_type_names_to_serializers,
@@ -159,7 +159,7 @@ class PickleSerializer(Serializer):
     - Wraps pickles in base64 for safe transmission.
     """
 
-    type: str = "pickle"
+    type: Literal["pickle"] = "pickle"
 
     picklelib: str = "cloudpickle"
     picklelib_version: str = None
@@ -191,7 +191,7 @@ class JSONSerializer(Serializer):
     Wraps the `json` library to serialize to UTF-8 bytes instead of string types.
     """
 
-    type: str = "json"
+    type: Literal["json"] = "json"
 
     jsonlib: str = "json"
     object_encoder: Optional[str] = Field(
@@ -253,7 +253,7 @@ class CompressedSerializer(Serializer):
         level: If not null, the level of compression to pass to `compress`.
     """
 
-    type: str = "compressed"
+    type: Literal["compressed"] = "compressed"
 
     serializer: Serializer
     compressionlib: str = "lzma"
@@ -282,7 +282,7 @@ class CompressedPickleSerializer(CompressedSerializer):
     A compressed serializer preconfigured to use the pickle serializer.
     """
 
-    type: str = "compressed/pickle"
+    type: Literal["compressed/pickle"] = "compressed/pickle"
 
     serializer: Serializer = Field(default_factory=PickleSerializer)
 
@@ -292,6 +292,6 @@ class CompressedJSONSerializer(CompressedSerializer):
     A compressed serializer preconfigured to use the json serializer.
     """
 
-    type: str = "compressed/json"
+    type: Literal["compressed/json"] = "compressed/json"
 
     serializer: Serializer = Field(default_factory=JSONSerializer)
