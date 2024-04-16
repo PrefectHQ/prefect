@@ -548,6 +548,8 @@ class UnpersistedResult(BaseResult):
     Result type for results that are not persisted outside of local memory.
     """
 
+    type = "unpersisted"
+
     @sync_compatible
     async def get(self) -> R:
         if self.has_cached_object():
@@ -581,6 +583,7 @@ class LiteralResult(BaseResult):
     They are not persisted to external result storage.
     """
 
+    type = "literal"
     value: Any
 
     def has_cached_object(self) -> bool:
@@ -616,6 +619,8 @@ class PersistedResult(BaseResult):
     of the object, such as a reference to the storage block and the key where the
     content was written.
     """
+
+    type = "reference"
 
     serializer_type: str
     storage_block_id: uuid.UUID
@@ -748,6 +753,7 @@ class UnknownResult(BaseResult):
     completed task.
     """
 
+    type = "unknown"
     value: None
 
     def has_cached_object(self) -> bool:

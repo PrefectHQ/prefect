@@ -1,16 +1,14 @@
 import typing
 
-from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_V2_MODELS
+from prefect._internal.pydantic._flags import USE_V2_MODELS
 
 T = typing.TypeVar("T")
 
 if USE_V2_MODELS:
     from pydantic import TypeAdapter  # type: ignore
+
 else:
-    if HAS_PYDANTIC_V2:
-        from pydantic.v1 import parse_obj_as  # type: ignore
-    else:
-        from pydantic import parse_obj_as
+    from pydantic import parse_obj_as  # type: ignore
 
     class TypeAdapter(typing.Generic[T]):
         """
