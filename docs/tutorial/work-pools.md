@@ -331,7 +331,7 @@ Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
 Also note that the `cron` argument will schedule the deployment to run at 1am every day. 
 See the [schedules](/concepts/schedules/) docs for more information on scheduling options.
 
-See the [Push Work Pool guide](/guides/push-work-pools/) for more details and example commands for each cloud provider.
+See the [Push Work Pool guide](/guides/deployment/push-work-pools/) for more details and example commands for each cloud provider.
 
 ## Next step
 
