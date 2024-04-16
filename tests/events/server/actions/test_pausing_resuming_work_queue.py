@@ -16,7 +16,6 @@ else:
     import pydantic
     from pydantic import ValidationError
 
-
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (
@@ -28,60 +27,40 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
-from prefect.server.models import deployments, flows
-from prefect.server.schemas.actions import DeploymentScheduleCreate
-from prefect.server.schemas.core import Deployment, Flow
-from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.server.models import work_queues
+from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
+from prefect.server.schemas.core import WorkQueue
 
 
-def test_source_determines_if_deployment_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="deployment_id is required"):
-        actions.PauseDeployment(source="selected")
+def test_source_determines_if_work_queue_id_is_required_or_allowed():
+    with pytest.raises(ValidationError, match="work_queue_id is required"):
+        actions.PauseWorkQueue(source="selected")
 
-    with pytest.raises(ValidationError, match="deployment_id is not allowed"):
-        actions.PauseDeployment(source="inferred", deployment_id=uuid4())
+    with pytest.raises(ValidationError, match="work_queue_id is required"):
+        actions.ResumeWorkQueue(source="selected")
+
+    with pytest.raises(ValidationError, match="work_queue_id is not allowed"):
+        actions.PauseWorkQueue(source="inferred", work_queue_id=uuid4())
+
+    with pytest.raises(ValidationError, match="work_queue_id is not allowed"):
+        actions.ResumeWorkQueue(source="inferred", work_queue_id=uuid4())
 
 
 @pytest.fixture
-async def hourly_garden_patrol(session: AsyncSession) -> Deployment:
-    walk_the_perimeter = await flows.create_flow(
+async def patrols_queue(
+    session: AsyncSession,
+) -> WorkQueue:
+    patrols_queue = await work_queues.create_work_queue(
         session=session,
-        flow=Flow(name="walk-the-perimeter"),
+        work_queue=WorkQueueCreate(name="Patrols"),
     )
-    assert walk_the_perimeter
-    await session.flush()
-
-    hourly_garden_patrol = await deployments.create_deployment(
-        session=session,
-        deployment=Deployment(
-            name="Walk the perimeter of the garden",
-            manifest_path="file.json",
-            flow_id=walk_the_perimeter.id,
-            paused=False,
-        ),
-    )
-
-    assert hourly_garden_patrol
-
-    await deployments.create_deployment_schedules(
-        session=session,
-        deployment_id=hourly_garden_patrol.id,
-        schedules=[
-            DeploymentScheduleCreate(
-                active=True,
-                schedule=IntervalSchedule(interval=timedelta(hours=1)),
-            )
-        ],
-    )
-
     await session.commit()
-
-    return Deployment.from_orm(hourly_garden_patrol)
+    return WorkQueue.from_orm(patrols_queue)
 
 
 @pytest.fixture
 def when_the_guard_gets_sick_stop_the_patrol(
-    hourly_garden_patrol: Deployment,
+    patrols_queue: WorkQueue,
 ) -> Automation:
     return Automation(
         name="If a guard gets sick, stop the hourly patrol",
@@ -92,9 +71,9 @@ def when_the_guard_gets_sick_stop_the_patrol(
             within=timedelta(seconds=30),
         ),
         actions=[
-            actions.PauseDeployment(
+            actions.PauseWorkQueue(
                 source="selected",
-                deployment_id=hourly_garden_patrol.id,
+                work_queue_id=patrols_queue.id,
             )
         ],
     )
@@ -102,7 +81,7 @@ def when_the_guard_gets_sick_stop_the_patrol(
 
 @pytest.fixture
 def guard_one_got_sick(
-    hourly_garden_patrol: Deployment,
+    patrols_queue: WorkQueue,
     start_of_test: DateTime,
 ) -> ReceivedEvent:
     return ReceivedEvent(
@@ -113,8 +92,8 @@ def guard_one_got_sick(
         },
         related=[
             {
-                "prefect.resource.role": "deployment",
-                "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
+                "prefect.resource.role": "work-queue",
+                "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
             }
         ],
         id=uuid4(),
@@ -128,8 +107,8 @@ def let_guard_one_get_some_sleep(
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_gets_sick_stop_the_patrol.trigger,
-        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
+        trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_sick,
     )
@@ -143,35 +122,33 @@ def let_guard_one_get_some_sleep(
     )
 
 
-async def test_pausing_deployment(
+async def test_pausing_work_queue(
     let_guard_one_get_some_sleep: TriggeredAction,
-    hourly_garden_patrol: Deployment,
+    patrols_queue: WorkQueue,
     session: AsyncSession,
 ):
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
-    assert not patrol.paused
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
+    assert patrol
+    assert not patrol.is_paused
 
     action = let_guard_one_get_some_sleep.action
     await action.act(let_guard_one_get_some_sleep)
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
+    assert patrol
 
-    assert patrol.paused
+    assert patrol.is_paused
 
 
 async def test_pausing_errors_are_reported_as_events(
     let_guard_one_get_some_sleep: TriggeredAction,
 ):
     action = let_guard_one_get_some_sleep.action
-    assert isinstance(action, actions.PauseDeployment)
+    assert isinstance(action, actions.PauseWorkQueue)
 
-    action.deployment_id = uuid4()  # this doesn't exist
+    action.work_queue_id = uuid4()  # this doesn't exist
 
     with pytest.raises(actions.ActionFailed, match="Unexpected status"):
         await action.act(let_guard_one_get_some_sleep)
@@ -179,7 +156,7 @@ async def test_pausing_errors_are_reported_as_events(
 
 @pytest.fixture
 def when_the_guard_gets_well_resume_the_patrol(
-    hourly_garden_patrol: Deployment,
+    patrols_queue: WorkQueue,
 ) -> Automation:
     return Automation(
         name="If a guard gets well, resume the hourly patrol",
@@ -190,9 +167,9 @@ def when_the_guard_gets_well_resume_the_patrol(
             within=timedelta(seconds=30),
         ),
         actions=[
-            actions.ResumeDeployment(
+            actions.ResumeWorkQueue(
                 source="selected",
-                deployment_id=hourly_garden_patrol.id,
+                work_queue_id=patrols_queue.id,
             )
         ],
     )
@@ -200,7 +177,7 @@ def when_the_guard_gets_well_resume_the_patrol(
 
 @pytest.fixture
 def guard_one_got_well(
-    hourly_garden_patrol: Deployment,
+    patrols_queue: WorkQueue,
     start_of_test: DateTime,
 ):
     return ReceivedEvent(
@@ -211,8 +188,8 @@ def guard_one_got_well(
         },
         related=[
             {
-                "prefect.resource.role": "deployment",
-                "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
+                "prefect.resource.role": "work-queue",
+                "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
             }
         ],
         id=uuid4(),
@@ -226,8 +203,8 @@ def put_guard_one_back_on_duty(
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_gets_well_resume_the_patrol.trigger,
-        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
+        trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_sick,
     )
@@ -241,39 +218,42 @@ def put_guard_one_back_on_duty(
     )
 
 
-async def test_resuming_deployment(
+async def test_resuming_work_queue(
     put_guard_one_back_on_duty: TriggeredAction,
-    hourly_garden_patrol: Deployment,
+    patrols_queue: WorkQueue,
     session: AsyncSession,
 ):
-    patrol = await deployments.read_deployment(session, hourly_garden_patrol.id)
-    patrol.paused = True
+    await work_queues.update_work_queue(
+        session=session,
+        work_queue_id=patrols_queue.id,
+        work_queue=WorkQueueUpdate(
+            is_paused=True,
+        ),
+    )
     await session.commit()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
-    assert patrol.paused
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
+    assert patrol
+    assert patrol.is_paused
 
     action = put_guard_one_back_on_duty.action
     await action.act(put_guard_one_back_on_duty)
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
 
-    assert not patrol.paused
+    assert patrol
+    assert not patrol.is_paused
 
 
-async def test_resuming_errors_are_reported_as_events(
+async def test_orion_errors_are_reported_as_events(
     put_guard_one_back_on_duty: TriggeredAction,
 ):
     action = put_guard_one_back_on_duty.action
-    assert isinstance(action, actions.ResumeDeployment)
+    assert isinstance(action, actions.ResumeWorkQueue)
 
-    action.deployment_id = uuid4()  # this doesn't exist
+    action.work_queue_id = uuid4()  # this doesn't exist
 
     with pytest.raises(actions.ActionFailed, match="Unexpected status"):
         await action.act(put_guard_one_back_on_duty)
@@ -289,19 +269,19 @@ def when_the_guard_gets_sick_stop_their_patrol() -> Automation:
             threshold=0,
             within=timedelta(seconds=30),
         ),
-        actions=[actions.PauseDeployment(source="inferred")],
+        actions=[actions.PauseWorkQueue(source="inferred")],
     )
 
 
 @pytest.fixture
-def pause_their_deployment(
+def pause_related_patrols(
     when_the_guard_gets_sick_stop_their_patrol: Automation,
     guard_one_got_sick: ReceivedEvent,
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_gets_sick_stop_their_patrol.trigger,
-        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
+        trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_sick,
     )
@@ -315,25 +295,24 @@ def pause_their_deployment(
     )
 
 
-async def test_pausing_inferred_deployment(
-    pause_their_deployment: TriggeredAction,
-    hourly_garden_patrol: Deployment,
+async def test_pausing_inferred_work_queue(
+    pause_related_patrols: TriggeredAction,
+    patrols_queue: WorkQueue,
     session: AsyncSession,
 ):
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
-    assert not patrol.paused
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
+    assert patrol
+    assert not patrol.is_paused
 
-    action = pause_their_deployment.action
-    await action.act(pause_their_deployment)
+    action = pause_related_patrols.action
+    await action.act(pause_related_patrols)
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
-    assert patrol.paused
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
+
+    assert patrol
+    assert patrol.is_paused
 
 
 @pytest.fixture
@@ -346,19 +325,19 @@ def when_the_guard_recovers_resume_their_patrol() -> Automation:
             threshold=0,
             within=timedelta(seconds=30),
         ),
-        actions=[actions.ResumeDeployment(source="inferred")],
+        actions=[actions.ResumeWorkQueue(source="inferred")],
     )
 
 
 @pytest.fixture
-def resume_their_deployment(
+def resume_the_associated_queue(
     when_the_guard_recovers_resume_their_patrol: Automation,
     guard_one_got_well: ReceivedEvent,
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_recovers_resume_their_patrol.trigger,
-        trigger_states={TriggerState.Triggered},
         triggered=pendulum.now("UTC"),
+        trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_well,
     )
@@ -372,91 +351,94 @@ def resume_their_deployment(
     )
 
 
-async def test_resuming_inferred_deployment(
-    resume_their_deployment: TriggeredAction,
-    hourly_garden_patrol: Deployment,
+async def test_resuming_inferred_work_queue(
+    resume_the_associated_queue: TriggeredAction,
+    patrols_queue: WorkQueue,
     session: AsyncSession,
 ):
-    patrol = await deployments.read_deployment(session, hourly_garden_patrol.id)
-    patrol.paused = True
+    await work_queues.update_work_queue(
+        session=session,
+        work_queue_id=patrols_queue.id,
+        work_queue=WorkQueueUpdate(
+            is_paused=True,
+        ),
+    )
     await session.commit()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
-    assert patrol.paused
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
+    assert patrol
+    assert patrol.is_paused
 
-    action = resume_their_deployment.action
-    await action.act(resume_their_deployment)
+    action = resume_the_associated_queue.action
+    await action.act(resume_the_associated_queue)
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
-    )
+    patrol = await work_queues.read_work_queue(session, work_queue_id=patrols_queue.id)
 
-    assert not patrol.paused
+    assert patrol
+    assert not patrol.is_paused
 
 
-async def test_inferring_deployment_requires_event(
-    resume_their_deployment: TriggeredAction,
+async def test_inferring_work_queue_requires_event(
+    resume_the_associated_queue: TriggeredAction,
 ):
-    resume_their_deployment.triggering_event = None  # simulate a proactive trigger
+    resume_the_associated_queue.triggering_event = None  # simulate a proactive trigger
 
-    action = resume_their_deployment.action
+    action = resume_the_associated_queue.action
 
-    with pytest.raises(actions.ActionFailed, match="No event to infer the deployment"):
-        await action.act(resume_their_deployment)
+    with pytest.raises(actions.ActionFailed, match="No event to infer the work queue"):
+        await action.act(resume_the_associated_queue)
 
 
-async def test_inferring_deployment_requires_some_matching_resource(
-    resume_their_deployment: TriggeredAction,
+async def test_inferring_work_queue_requires_some_matching_resource(
+    resume_the_associated_queue: TriggeredAction,
 ):
-    assert resume_their_deployment.triggering_event
-    resume_their_deployment.triggering_event.related = []  # no relevant related resources
+    assert resume_the_associated_queue.triggering_event
+    resume_the_associated_queue.triggering_event.related = []  # no relevant related resources
 
-    action = resume_their_deployment.action
+    action = resume_the_associated_queue.action
 
-    with pytest.raises(actions.ActionFailed, match="No deployment could be inferred"):
-        await action.act(resume_their_deployment)
+    with pytest.raises(actions.ActionFailed, match="No work queue could be inferred"):
+        await action.act(resume_the_associated_queue)
 
 
-async def test_inferring_deployment_requires_recognizable_resource_id(
-    resume_their_deployment: TriggeredAction,
+async def test_inferring_work_queue_requires_recognizable_resource_id(
+    resume_the_associated_queue: TriggeredAction,
 ):
-    assert resume_their_deployment.triggering_event
-    resume_their_deployment.triggering_event.related = pydantic.parse_obj_as(
+    assert resume_the_associated_queue.triggering_event
+    resume_the_associated_queue.triggering_event.related = pydantic.parse_obj_as(
         List[RelatedResource],
         [
             {
-                "prefect.resource.role": "deployment",
-                "prefect.resource.id": "prefect.deployment.nope",  # not a uuid
+                "prefect.resource.role": "work-queue",
+                "prefect.resource.id": "prefect.work-queue.nope",  # not a uuid
             },
             {
-                "prefect.resource.role": "deployment",
-                "prefect.resource.id": f"oh.so.close.{uuid4()}",  # not a deployment
+                "prefect.resource.role": "work-queue",
+                "prefect.resource.id": f"oh.so.close.{uuid4()}",  # not a work-queue
             },
             {
-                "prefect.resource.role": "deployment",
+                "prefect.resource.role": "work-queue",
                 "prefect.resource.id": "nah-ah",  # not a dotted name
             },
         ],
     )
 
-    action = resume_their_deployment.action
+    action = resume_the_associated_queue.action
 
-    with pytest.raises(actions.ActionFailed, match="No deployment could be inferred"):
-        await action.act(resume_their_deployment)
+    with pytest.raises(actions.ActionFailed, match="No work queue could be inferred"):
+        await action.act(resume_the_associated_queue)
 
 
 async def test_pausing_success_event(
-    pause_their_deployment: TriggeredAction,
-    hourly_garden_patrol: Deployment,
+    pause_related_patrols: TriggeredAction,
+    patrols_queue: WorkQueue,
 ):
-    action = pause_their_deployment.action
+    action = pause_related_patrols.action
 
-    await action.act(pause_their_deployment)
-    await action.succeed(pause_their_deployment)
+    await action.act(pause_related_patrols)
+    await action.succeed(pause_related_patrols)
 
     assert AssertingEventsClient.last
     (event,) = AssertingEventsClient.last.events
@@ -465,27 +447,27 @@ async def test_pausing_success_event(
     assert event.related == [
         RelatedResource.parse_obj(
             {
-                "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
+                "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",
             }
         )
     ]
     assert event.payload == {
         "action_index": 0,
-        "action_type": "pause-deployment",
-        "invocation": str(pause_their_deployment.id),
-        "status_code": 200,
+        "action_type": "pause-work-queue",
+        "invocation": str(pause_related_patrols.id),
+        "status_code": 204,
     }
 
 
 async def test_resuming_success_event(
-    resume_their_deployment: TriggeredAction,
-    hourly_garden_patrol: Deployment,
+    resume_the_associated_queue: TriggeredAction,
+    patrols_queue: WorkQueue,
 ):
-    action = resume_their_deployment.action
+    action = resume_the_associated_queue.action
 
-    await action.act(resume_their_deployment)
-    await action.succeed(resume_their_deployment)
+    await action.act(resume_the_associated_queue)
+    await action.succeed(resume_the_associated_queue)
 
     assert AssertingEventsClient.last
     (event,) = AssertingEventsClient.last.events
@@ -494,14 +476,14 @@ async def test_resuming_success_event(
     assert event.related == [
         RelatedResource.parse_obj(
             {
-                "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
+                "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",
             }
         )
     ]
     assert event.payload == {
         "action_index": 0,
-        "action_type": "resume-deployment",
-        "invocation": str(resume_their_deployment.id),
-        "status_code": 200,
+        "action_type": "resume-work-queue",
+        "invocation": str(resume_the_associated_queue.id),
+        "status_code": 204,
     }
