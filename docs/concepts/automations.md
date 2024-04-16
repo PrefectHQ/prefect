@@ -615,7 +615,7 @@ from prefect.events import DeploymentEventTrigger
 
 
 @flow(log_prints=True)
-def decorated_fn(param_1):
+def decorated_fn(param_1: str):
     print(param_1["payload"])
 
 
