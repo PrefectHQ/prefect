@@ -16,6 +16,7 @@ from prefect.server.events.schemas.automations import (
     AutomationSort,
     AutomationUpdate,
 )
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
 
 @asynccontextmanager
@@ -92,6 +93,9 @@ async def read_automation_by_id(
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
+    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
+        return
+
     from prefect.server.events.triggers import automation_changed
 
     loop = asyncio.get_event_loop()

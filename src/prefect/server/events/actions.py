@@ -1527,7 +1527,7 @@ class PauseAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.pause_automation(automation_id)
 
 
 class ResumeAutomation(AutomationCommandAction):
@@ -1543,7 +1543,7 @@ class ResumeAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.resume_automation(automation_id)
 
 
 # The actual action types that we support.  It's important to update this

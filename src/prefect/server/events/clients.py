@@ -2,9 +2,12 @@ import abc
 from textwrap import dedent
 from types import TracebackType
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
+from uuid import UUID
 
+import httpx
 from typing_extensions import Self, TypeAlias
 
+from prefect.client.base import PrefectHttpxClient
 from prefect.logging import get_logger
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import (
@@ -218,4 +221,36 @@ class PrefectServerEventsClient(EventsClient):
 
 
 class PrefectServerEventsAPIClient:
-    pass
+    _http_client: PrefectHttpxClient
+
+    def __init__(self, additional_headers: Dict[str, str] = {}):
+        from prefect.server.api.server import create_app
+
+        # create_app caches application instances, and invoking it with no arguments
+        # will point it to the the currently running server instance
+        api_app = create_app()
+
+        self._http_client = PrefectHttpxClient(
+            transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
+            headers={**additional_headers},
+            base_url="http://prefect-in-memory/api",
+            enable_csrf_support=False,
+            raise_on_all_errors=False,
+        )
+
+    async def __aenter__(self) -> Self:
+        await self._http_client.__aenter__()
+        return self
+
+    async def __aexit__(self, *args):
+        await self._http_client.__aexit__(*args)
+
+    async def pause_automation(self, automation_id: UUID) -> httpx.Response:
+        return await self._http_client.patch(
+            f"/automations/{automation_id}", json={"enabled": False}
+        )
+
+    async def resume_automation(self, automation_id: UUID) -> httpx.Response:
+        return await self._http_client.patch(
+            f"/automations/{automation_id}", json={"enabled": True}
+        )
