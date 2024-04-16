@@ -6,12 +6,13 @@ from prefect._vendor.fastapi.exceptions import HTTPException
 from prefect._vendor.fastapi.param_functions import Depends, Path
 from prefect._vendor.fastapi.params import Body, Query
 from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.status import WS_1002_PROTOCOL_ERROR
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.events import messaging
+from prefect.server.events import messaging, stream
 from prefect.server.events.counting import (
     Countable,
     InvalidEventCountParameters,
@@ -51,6 +52,70 @@ async def stream_events_in(websocket: WebSocket) -> None:
             async for event_json in websocket.iter_text():
                 event = Event.parse_raw(event_json)
                 await publisher.publish_event(event.receive())
+    except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
+        pass  # it's fine if a client disconnects either normally or abnormally
+
+    return None
+
+
+@router.websocket("/out")
+async def stream_workspace_events_out(
+    websocket: WebSocket,
+) -> None:
+    """Open a WebSocket to stream Events"""
+
+    websocket = await subscriptions.accept_prefect_socket(
+        websocket,
+    )
+    if not websocket:
+        return
+
+    try:
+        # After authentication, the next message is expected to be a filter message, any
+        # other type of message will close the connection.
+        message = await websocket.receive_json()
+
+        if message["type"] != "filter":
+            return await websocket.close(
+                WS_1002_PROTOCOL_ERROR, reason="Expected 'filter' message"
+            )
+
+        wants_backfill = message.get("backfill", True)
+
+        try:
+            filter = EventFilter.parse_obj(message["filter"])
+        except Exception as e:
+            return await websocket.close(
+                WS_1002_PROTOCOL_ERROR, reason=f"Invalid filter: {e}"
+            )
+
+        # subscribe to the ongoing event stream first so we don't miss events...
+        async with stream.events(filter) as event_stream:
+            # ...then if the user wants, backfill up to the last 1k events...
+            if wants_backfill:
+                backfill, _, _ = await query_events(
+                    filter=filter,
+                    page_size=1000,
+                )
+
+                backfilled_ids = set()
+
+                for event in sorted(backfill, key=lambda e: e.occurred):
+                    backfilled_ids.add(event.id)
+                    await websocket.send_json(
+                        {"type": "event", "event": event.dict(json_compatible=True)}
+                    )
+
+            # ...before resuming the ongoing stream of events
+            async for event in event_stream:
+                if wants_backfill and event.id in backfilled_ids:
+                    backfilled_ids.remove(event.id)
+                    continue
+
+                await websocket.send_json(
+                    {"type": "event", "event": event.dict(json_compatible=True)}
+                )
+
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
         pass  # it's fine if a client disconnects either normally or abnormally
 
