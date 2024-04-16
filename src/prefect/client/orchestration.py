@@ -24,6 +24,9 @@ from prefect._internal.compatibility.deprecated import (
     handle_deprecated_infra_overrides_parameter,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_EVENTS,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -151,6 +154,12 @@ class ServerType(AutoEnum):
     EPHEMERAL = AutoEnum.auto()
     SERVER = AutoEnum.auto()
     CLOUD = AutoEnum.auto()
+
+    def supports_automations(self) -> bool:
+        if self == ServerType.CLOUD:
+            return True
+
+        return PREFECT_EXPERIMENTAL_EVENTS.value()
 
 
 def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":

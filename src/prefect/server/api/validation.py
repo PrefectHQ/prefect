@@ -71,6 +71,8 @@ async def validate_job_variables_for_flow_run(
         # base job template to validate job variables against
         return
 
+    # This is the problem, the block doesn't exist in tests, why not?
+    # {'block': {'$ref': {'block_document_id': '25531358-bfeb-49dc-bc98-4dac5e3f0c04'}}}
     base_vars = _get_base_config_defaults(
         deployment.work_queue.work_pool.base_job_template
     )
