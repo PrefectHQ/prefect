@@ -597,6 +597,12 @@ def create_app(
         ):
             service_instances.append(EventPersister())
 
+        if (
+            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
+            and prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED
+        ):
+            service_instances.append(stream.Distributor())
+
         loop = asyncio.get_running_loop()
 
         app.state.services = {
@@ -625,10 +631,8 @@ def create_app(
             await run_migrations()
             await add_block_types()
             await start_services()
-            await stream.start_distributor()
             yield
         finally:
-            await stream.stop_distributor()
             await stop_services()
 
     def on_service_exit(service, task):

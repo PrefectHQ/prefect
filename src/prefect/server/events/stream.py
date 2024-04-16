@@ -114,6 +114,16 @@ async def stop_distributor():
         pass
 
 
+class Distributor:
+    name: str = "Distributor"
+
+    async def start(self):
+        await start_distributor()
+
+    async def stop(self):
+        await stop_distributor()
+
+
 async def run_distributor(started: asyncio.Event):
     """Runs the distributor consumer forever until it is cancelled"""
     global _distributor_started
