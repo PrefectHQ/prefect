@@ -12,18 +12,18 @@ from packaging.version import Version
 
 import prefect
 from prefect import flow, get_client, get_run_logger
-from prefect.events import Event
-from prefect.events.filters import (
-    EventFilter,
-    EventNameFilter,
-    EventOccurredFilter,
-    EventResourceFilter,
-)
 
 try:
+    from prefect.events import Event
     from prefect.events.clients import get_events_client, get_events_subscriber
+    from prefect.events.filters import (
+        EventFilter,
+        EventNameFilter,
+        EventOccurredFilter,
+        EventResourceFilter,
+    )
 except ImportError:
-    # These were introduced in 2.17.1+ and are not available in older versions
+    # These were introduced in ~2.17.1+ and are not available in older versions
     sys.exit(0)
 
 
