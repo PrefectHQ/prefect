@@ -383,7 +383,6 @@ async def _run_single_deploy(
         )
 
     # entrypoint logic
-    flow = None
     if deploy_config.get("entrypoint"):
         flow = await run_sync_in_worker_thread(
             load_flow_from_entrypoint, deploy_config["entrypoint"]
@@ -395,12 +394,6 @@ async def _run_single_deploy(
         if not is_interactive() or ci:
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
-
-    # minor optimization in case we already loaded the flow
-    if not flow:
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, deploy_config["entrypoint"]
-        )
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
