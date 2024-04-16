@@ -290,7 +290,7 @@ async def assess_sequence_automation():
 
 if __name__ == "__main__":
     TEST_SERVER_VERSION = os.environ.get("TEST_SERVER_VERSION", prefect.__version__)
-    if Version(prefect.__version__) < Version("2.17.1"):
+    if Version(TEST_SERVER_VERSION) < Version("2.17.1"):
         sys.exit(0)
 
     asyncio.run(assess_reactive_automation())
