@@ -98,9 +98,9 @@ async def test_successes_emit_events(
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
-    assert event.event == "prefect-cloud.automation.action.executed"
+    assert event.event == "prefect.automation.action.executed"
 
-    assert event.resource.id == f"prefect-cloud.automation.{automation_id}"
+    assert event.resource.id == f"prefect.automation.{automation_id}"
     assert event.resource["prefect.resource.name"] == "React immediately to spiders"
 
     assert not event.related
@@ -133,8 +133,8 @@ async def test_failures_emit_events(
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
-    assert event.event == "prefect-cloud.automation.action.failed"
-    assert event.resource.id == f"prefect-cloud.automation.{automation_id}"
+    assert event.event == "prefect.automation.action.failed"
+    assert event.resource.id == f"prefect.automation.{automation_id}"
     assert event.resource["prefect.resource.name"] == "React immediately to spiders"
 
     assert not event.related
