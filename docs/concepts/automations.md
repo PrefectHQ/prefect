@@ -579,7 +579,7 @@ deployments:
           param_1: "{{ event }}"
 ```
 
-This deployment will be run when an `external.resource.pinged` event _and_ an `external.resource.replied` event have been seen from `my.external.resource`:
+This deployment will create a flow run when an `external.resource.pinged` event _and_ an `external.resource.replied` event have been seen from `my.external.resource`:
 
 ```yaml
 deployments:
