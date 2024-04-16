@@ -9,6 +9,7 @@ from prefect._vendor.starlette.status import (
 )
 from prefect._vendor.starlette.testclient import TestClient
 from prefect._vendor.starlette.websockets import WebSocketDisconnect
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events.filters import (
     EventFilter,
@@ -52,7 +53,7 @@ def backfill_mock(
         filter: EventFilter,
         page_size: int = 0,
     ) -> Tuple[List[ReceivedEvent], Any, Any]:
-        assert session is None
+        assert isinstance(session, AsyncSession)
 
         assert isinstance(filter, EventFilter)
 

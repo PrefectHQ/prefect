@@ -15,17 +15,23 @@ from prefect.settings import (
 from prefect.testing.fixtures import Puppeteer, Recorder
 
 
-def test_constructs_server_subscriber():
+@pytest.fixture
+def server_settings():
     with temporary_settings(
         {
             PREFECT_API_URL: "https://locally/api",
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
         }
     ):
-        assert isinstance(get_events_subscriber(), PrefectEventSubscriber)
+        yield
 
 
-def test_constructs_cloud_subscriber():
+async def test_constructs_server_client(server_settings):
+    assert isinstance(get_events_subscriber(), PrefectEventSubscriber)
+
+
+@pytest.fixture
+def cloud_settings():
     with temporary_settings(
         {
             PREFECT_API_URL: "https://cloudy/api/accounts/1/workspaces/2",
@@ -33,7 +39,11 @@ def test_constructs_cloud_subscriber():
             PREFECT_API_KEY: "howdy-doody",
         }
     ):
-        assert isinstance(get_events_subscriber(), PrefectCloudEventSubscriber)
+        yield
+
+
+async def test_constructs_cloud_client(cloud_settings):
+    assert isinstance(get_events_subscriber(), PrefectCloudEventSubscriber)
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc):
