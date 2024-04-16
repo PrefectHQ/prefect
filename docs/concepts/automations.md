@@ -616,7 +616,7 @@ from prefect.events import DeploymentEventTrigger
 
 @flow(log_prints=True)
 def decorated_fn(param_1: str):
-    print(param_1["payload"])
+    print(param_1)
 
 
 if __name__=="__main__":
@@ -644,7 +644,7 @@ from prefect.events import DeploymentEventTrigger, DeploymentCompoundTrigger
 
 @flow(log_prints=True)
 def decorated_fn(param_1: str):
-    print(param_1["payload"])
+    print(param_1)
 
 
 if __name__=="__main__":
