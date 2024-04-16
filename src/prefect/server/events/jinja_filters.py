@@ -84,7 +84,7 @@ def ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]:
     url_format = "events?resource={resource_id}"
 
     if isinstance(obj, Automation):
-        url = url_format.format(resource_id=f"prefect-cloud.automation.{obj.id}")
+        url = url_format.format(resource_id=f"prefect.automation.{obj.id}")
     elif isinstance(obj, Resource):
         kind, _, id = obj.id.rpartition(".")
         url = url_format.format(resource_id=f"{kind}.{id}")

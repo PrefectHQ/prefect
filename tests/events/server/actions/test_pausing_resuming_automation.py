@@ -313,7 +313,7 @@ def the_sprinklers_stopped(
             List[RelatedResource],
             [
                 {
-                    "prefect.resource.id": f"prefect-cloud.automation.{self_managing_sprinkler_automation.id}",
+                    "prefect.resource.id": f"prefect.automation.{self_managing_sprinkler_automation.id}",
                     "prefect.resource.role": "i-automated-it",
                 }
             ],
@@ -446,7 +446,7 @@ async def test_inferring_automation_requires_recognizable_resource_id(
         [
             {
                 "prefect.resource.role": "i-automated-it",
-                "prefect.resource.id": "prefect-cloud.automation.nope",  # not a uuid
+                "prefect.resource.id": "prefect.automation.nope",  # not a uuid
             },
             {
                 "prefect.resource.role": "i-automated-it",
