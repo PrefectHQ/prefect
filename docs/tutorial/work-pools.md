@@ -143,7 +143,17 @@ Alternatively, you could store your flow code in cloud provider storage such as 
     In the example above, we store our code in a GitHub repository.
     If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
 
-Run the script again and you should see a message in the CLI that your deployment was created with instructions for how to run it.
+Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
+
+<div class="terminal">
+
+```bash
+python repo_info.py
+```
+
+</div>
+
+You should see a message in the CLI that your deployment was created with instructions for how to run it.
 
 <div class="terminal">
 
@@ -174,16 +184,6 @@ Click the **Run** button to trigger a run of your deployment.
 Because this deployment was configured with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
 
 View the logs in the UI.
-
-Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
-
-<div class="terminal">
-
-```bash
-python repo_info.py
-```
-
-</div>
 
 ### Schedule a deployment run
 
