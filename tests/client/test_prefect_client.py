@@ -2112,7 +2112,7 @@ class TestAutomations:
     ):
         with pytest.raises(
             RuntimeError,
-            match="Automations are only supported for Prefect Cloud.",
+            match="The current server and client configuration does not support",
         ):
             await prefect_client.create_automation(automation)
 
@@ -2137,7 +2137,7 @@ class TestAutomations:
     ):
         with pytest.raises(
             RuntimeError,
-            match="Automations are only supported for Prefect Cloud.",
+            match="The current server and client configuration does not support",
         ):
             resource_id = f"prefect.deployment.{uuid4()}"
             await prefect_client.delete_resource_owned_automations(resource_id)
