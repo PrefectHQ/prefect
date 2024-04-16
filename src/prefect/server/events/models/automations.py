@@ -93,7 +93,7 @@ async def read_automation_by_id(
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
-    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
+    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
         return
 
     from prefect.server.events.triggers import automation_changed
