@@ -37,7 +37,10 @@ from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
+from prefect.blocks.webhook import Webhook
+from prefect.server.utilities.http import should_redact_header
 from prefect.server.utilities.messaging import Message, MessageHandler
+from prefect.utilities.text import truncated_to
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -66,6 +69,8 @@ from prefect.server.schemas.core import (
 from prefect.server.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
+    OrchestrationResult,
+    StateAcceptDetails,
     WorkPoolResponse,
     WorkQueueWithStatus,
 )
@@ -125,7 +130,7 @@ class Action(PrefectBaseModel, abc.ABC):
         action = triggered_action.action
         action_index = triggered_action.action_index
 
-        automation_resource_id = f"prefect-cloud.automation.{automation.id}"
+        automation_resource_id = f"prefect.automation.{automation.id}"
 
         logger.warning(
             "Action failed: %r",
@@ -134,11 +139,11 @@ class Action(PrefectBaseModel, abc.ABC):
         )
         event = Event(
             occurred=pendulum.now("UTC"),
-            event="prefect-cloud.automation.action.failed",
+            event="prefect.automation.action.failed",
             resource={
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
-                "prefect-cloud.trigger-type": automation.trigger.type,
+                "prefect.trigger-type": automation.trigger.type,
             },
             related=self._resulting_related_resources,
             payload={
@@ -151,7 +156,7 @@ class Action(PrefectBaseModel, abc.ABC):
             id=uuid4(),
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
             await events.emit(event)
@@ -163,15 +168,15 @@ class Action(PrefectBaseModel, abc.ABC):
         action = triggered_action.action
         action_index = triggered_action.action_index
 
-        automation_resource_id = f"prefect-cloud.automation.{automation.id}"
+        automation_resource_id = f"prefect.automation.{automation.id}"
 
         event = Event(
             occurred=pendulum.now("UTC"),
-            event="prefect-cloud.automation.action.executed",
+            event="prefect.automation.action.executed",
             resource={
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
-                "prefect-cloud.trigger-type": automation.trigger.type,
+                "prefect.trigger-type": automation.trigger.type,
             },
             related=self._resulting_related_resources,
             payload={
@@ -183,7 +188,7 @@ class Action(PrefectBaseModel, abc.ABC):
             id=uuid4(),
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
             await events.emit(event)
@@ -870,7 +875,7 @@ class PauseDeployment(DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_deployment(deployment_id)
 
 
 class ResumeDeployment(DeploymentCommandAction):
@@ -886,7 +891,7 @@ class ResumeDeployment(DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_deployment(deployment_id)
 
 
 class FlowRunStateChangeAction(ExternalDataAction):
@@ -912,7 +917,37 @@ class FlowRunStateChangeAction(ExternalDataAction):
         """Return the new state for the flow run"""
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        flow_run_id = await self.flow_run_to_change(triggered_action)
+
+        self._resulting_related_resources.append(
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        )
+
+        logger.info(
+            "Changing flow run state",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await orchestration.set_flow_run_state(
+                flow_run_id, await self.new_state(triggered_action=triggered_action)
+            )
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            result = OrchestrationResult.parse_obj(response.json())
+            if not isinstance(result.details, StateAcceptDetails):
+                raise ActionFailed(f"Failed to set state: {result.details.reason}")
 
 
 class ChangeFlowRunState(FlowRunStateChangeAction):
@@ -1017,8 +1052,63 @@ class CallWebhook(JinjaTemplateAction):
 
         return value
 
+    async def _get_webhook_block(self, triggered_action: "TriggeredAction") -> Webhook:
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await orchestration.read_block_document_raw(
+                self.block_document_id
+            )
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+            try:
+                block_document = BlockDocument.parse_obj(response.json())
+                block = Block._from_block_document(block_document)
+            except Exception as e:
+                raise ActionFailed(f"The webhook block was invalid: {e!r}")
+
+            if not isinstance(block, Webhook):
+                raise ActionFailed("The referenced block was not a webhook block")
+
+            self._resulting_related_resources += [
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
+                        "prefect.resource.role": "block",
+                        "prefect.resource.name": block_document.name,
+                    }
+                ),
+                RelatedResource.parse_obj(
+                    {
+                        "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
+                        "prefect.resource.role": "block-type",
+                    }
+                ),
+            ]
+
+            return block
+
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        block = await self._get_webhook_block(triggered_action=triggered_action)
+        block = cast(Webhook, block)
+
+        (payload,) = await self._render([self.payload], triggered_action)
+
+        try:
+            response = await block.call(payload=payload)
+
+            ok_headers = {
+                k: v for k, v in response.headers.items() if not should_redact_header(k)
+            }
+
+            self._result_details.update(
+                {
+                    "status_code": response.status_code,
+                    "response_body": truncated_to(1000, response.text),
+                    "response_headers": {**(ok_headers or {})},
+                }
+            )
+        except Exception as e:
+            raise ActionFailed(f"Webhook call failed: {e!r}")
 
 
 class SendNotification(JinjaTemplateAction):
@@ -1137,10 +1227,46 @@ class WorkPoolCommandAction(WorkPoolAction, ExternalDataAction):
     _target_work_pool: Optional[WorkPool] = PrivateAttr(default=None)
 
     async def target_work_pool(self, triggered_action: "TriggeredAction") -> WorkPool:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        if not self._target_work_pool:
+            work_pool_id = await self.work_pool_id_to_use(triggered_action)
+
+            async with await self.orchestration_client(
+                triggered_action
+            ) as orchestration:
+                work_pool = await orchestration.read_work_pool(work_pool_id)
+
+                if not work_pool:
+                    raise ActionFailed(f"Work pool {work_pool_id} not found")
+                self._target_work_pool = work_pool
+        return self._target_work_pool
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        work_pool = await self.target_work_pool(triggered_action)
+
+        self._resulting_related_resources += [
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                    "prefect.resource.name": work_pool.name,
+                    "prefect.resource.role": "target",
+                }
+            )
+        ]
+
+        logger.info(
+            self._action_description,
+            extra={
+                "work_pool_id": work_pool.id,
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(orchestration, work_pool, triggered_action)
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
 
     @abc.abstractmethod
     async def command(
@@ -1165,7 +1291,7 @@ class PauseWorkPool(WorkPoolCommandAction):
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_work_pool(work_pool.name)
 
 
 class ResumeWorkPool(WorkPoolCommandAction):
@@ -1181,7 +1307,7 @@ class ResumeWorkPool(WorkPoolCommandAction):
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_work_pool(work_pool.name)
 
 
 class WorkQueueAction(Action):
@@ -1233,7 +1359,33 @@ class WorkQueueCommandAction(WorkQueueAction, ExternalDataAction):
     _action_description: ClassVar[str]
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        work_queue_id = await self.work_queue_id_to_use(triggered_action)
+
+        self._resulting_related_resources += [
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.work-queue.{work_queue_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        ]
+
+        logger.info(
+            self._action_description,
+            extra={
+                "work_queue_id": work_queue_id,
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(
+                orchestration, work_queue_id, triggered_action
+            )
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
 
     @abc.abstractmethod
     async def command(
@@ -1258,7 +1410,7 @@ class PauseWorkQueue(WorkQueueCommandAction):
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_work_queue(work_queue_id)
 
 
 class ResumeWorkQueue(WorkQueueCommandAction):
@@ -1274,7 +1426,7 @@ class ResumeWorkQueue(WorkQueueCommandAction):
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_work_queue(work_queue_id)
 
 
 class AutomationAction(Action):
@@ -1316,7 +1468,7 @@ class AutomationAction(Action):
             raise ActionFailed("No event to infer the automation")
 
         assert event
-        if id := _id_of_first_resource_of_kind(event, "prefect-cloud.automation"):
+        if id := _id_of_first_resource_of_kind(event, "prefect.automation"):
             return id
 
         raise ActionFailed("No automation could be inferred")
@@ -1331,7 +1483,7 @@ class AutomationCommandAction(AutomationAction, ExternalDataAction):
         self._resulting_related_resources += [
             RelatedResource.parse_obj(
                 {
-                    "prefect.resource.id": f"prefect-cloud.automation.{automation_id}",
+                    "prefect.resource.id": f"prefect.automation.{automation_id}",
                     "prefect.resource.role": "target",
                 }
             )
@@ -1375,7 +1527,7 @@ class PauseAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.pause_automation(automation_id)
 
 
 class ResumeAutomation(AutomationCommandAction):
@@ -1391,7 +1543,7 @@ class ResumeAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.resume_automation(automation_id)
 
 
 # The actual action types that we support.  It's important to update this

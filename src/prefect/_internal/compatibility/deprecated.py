@@ -338,6 +338,8 @@ class DeprecatedInfraOverridesField(BaseModel):
             exclude.add("job_variables")
         elif exclude_type is dict:
             exclude["job_variables"] = True
+        else:
+            exclude = {"job_variables"}
         kwargs["exclude"] = exclude
 
         return super().dict(**kwargs)

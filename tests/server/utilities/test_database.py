@@ -31,6 +31,7 @@ from prefect.server.utilities.database import (
     date_diff,
     interval_add,
     json_contains,
+    json_extract,
     json_has_all_keys,
     json_has_any_key,
 )
@@ -404,12 +405,17 @@ class TestJSON:
         dialect = sa.dialects.postgresql.dialect()
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
+        alt_extract_statement = json_extract(SQLJSONModel.data, "x").compile(
+            dialect=dialect
+        )
         contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
 
         assert "->" in str(extract_statement)
         assert "JSON_EXTRACT" not in str(extract_statement)
+        assert "->" in str(alt_extract_statement)
+        assert "JSON_EXTRACT" not in str(alt_extract_statement)
         assert "@>" in str(contains_stmt)
         assert "json_each" not in str(contains_stmt)
         assert "?|" in str(any_stmt)
@@ -421,18 +427,38 @@ class TestJSON:
         dialect = sa.dialects.sqlite.dialect()
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
+        alt_extract_statement = json_extract(SQLJSONModel.data, "x").compile(
+            dialect=dialect
+        )
         contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
 
         assert "->" not in str(extract_statement)
         assert "JSON_EXTRACT" in str(extract_statement)
+        assert "->" not in str(alt_extract_statement)
+        assert "JSON_EXTRACT" in str(alt_extract_statement)
         assert "@>" not in str(contains_stmt)
         assert "json_each" in str(contains_stmt)
         assert "?|" not in str(any_stmt)
         assert "json_each" in str(any_stmt)
         assert "?&" not in str(all_stmt)
         assert "json_each" in str(all_stmt)
+
+    async def test_sqlite_json_extract_wrap_quotes(self):
+        dialect = sa.dialects.sqlite.dialect()
+        extract_statement = json_extract(
+            SQLJSONModel.data, "x.y.z", wrap_quotes=True
+        ).compile(dialect=dialect)
+        assert '$."x.y.z"' in str(extract_statement)
+
+    async def test_postgres_json_extract_no_wrap_quotes(self):
+        dialect = sa.dialects.postgresql.dialect()
+        extract_statement = json_extract(
+            SQLJSONModel.data, "x.y.z", wrap_quotes=True
+        ).compile(dialect=dialect)
+        assert "x.y.z" in str(extract_statement)
+        assert '"x.y.z"' not in str(extract_statement)
 
     @pytest.mark.parametrize("extrema", [-math.inf, math.nan, +math.inf])
     async def test_json_floating_point_extrema(

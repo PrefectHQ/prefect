@@ -171,24 +171,21 @@ class PrefectBaseModel(BaseModel):
         if reset_fields:
             update = update or dict()
             for field in self._reset_fields():
-                update.setdefault(field, self.__fields__[field].get_default())
+                update.setdefault(field, self.model_fields[field].get_default())
         return super().copy(update=update, **kwargs)
 
     def __rich_repr__(self):
         # Display all of the fields in the model if they differ from the default value
-        for name, field in self.__fields__.items():
+        for name, field in self.model_fields.items():
             value = getattr(self, name)
+            type_ = field.annotation if USE_V2_MODELS else field.type_
 
             # Simplify the display of some common fields
-            if field.type_ == UUID and value:
+            if type_ == UUID and value:
                 value = str(value)
-            elif (
-                isinstance(field.type_, datetime.datetime)
-                and name == "timestamp"
-                and value
-            ):
+            elif isinstance(type_, datetime.datetime) and name == "timestamp" and value:
                 value = pendulum.instance(value).isoformat()
-            elif isinstance(field.type_, datetime.datetime) and value:
+            elif isinstance(type_, datetime.datetime) and value:
                 value = pendulum.instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
@@ -235,7 +232,7 @@ class ActionBaseModel(PrefectBaseModel):
 
     def __iter__(self):
         # By default, `pydantic.BaseModel.__iter__` yields from `self.__dict__` directly
-        # instead  of going through `_iter`. We want tor retain our custom logic in
+        # instead  of going through `_iter`. We want to retain our custom logic in
         # `_iter` during `dict(model)` calls which is what Pydantic uses for
         # `parse_obj(model)`
         yield from self._iter(to_dict=True)
@@ -243,7 +240,7 @@ class ActionBaseModel(PrefectBaseModel):
     def _iter(self, *args, **kwargs) -> Generator[tuple, None, None]:
         # Drop fields that are marked as `ignored` from json and dictionary outputs
         exclude = kwargs.pop("exclude", None) or set()
-        for name, field in self.__fields__.items():
+        for name, field in self.model_fields.items():
             if field.field_info.extra.get("ignored"):
                 exclude.add(name)
 

@@ -1,4 +1,5 @@
 import abc
+import textwrap
 from datetime import timedelta
 from enum import Enum
 from typing import (
@@ -39,6 +40,10 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     """
 
     type: str
+
+    @abc.abstractmethod
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
 
 
 class ResourceTrigger(Trigger, abc.ABC):
@@ -135,6 +140,28 @@ class EventTrigger(ResourceTrigger):
 
         return values
 
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        if self.posture == Posture.Reactive:
+            return textwrap.indent(
+                "\n".join(
+                    [
+                        f"Reactive: expecting {self.threshold} of {self.expect}",
+                    ],
+                ),
+                prefix="  " * indent,
+            )
+        else:
+            return textwrap.indent(
+                "\n".join(
+                    [
+                        f"Proactive: expecting {self.threshold} {self.expect} event "
+                        f"within {self.within}",
+                    ],
+                ),
+                prefix="  " * indent,
+            )
+
 
 class MetricTriggerOperator(Enum):
     LT = "<"
@@ -207,6 +234,18 @@ class MetricTrigger(ResourceTrigger):
         description="The metric query to evaluate for this trigger. ",
     )
 
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        m = self.metric
+        return textwrap.indent(
+            "\n".join(
+                [
+                    f"Metric: {m.name.value} {m.operator.value} {m.threshold} for {m.range}",
+                ]
+            ),
+            prefix="  " * indent,
+        )
+
 
 class CompositeTrigger(Trigger, abc.ABC):
     """
@@ -238,12 +277,46 @@ class CompoundTrigger(CompositeTrigger):
 
         return values
 
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        return textwrap.indent(
+            "\n".join(
+                [
+                    f"{str(self.require).capitalize()} of:",
+                    "\n".join(
+                        [
+                            trigger.describe_for_cli(indent=indent + 1)
+                            for trigger in self.triggers
+                        ]
+                    ),
+                ]
+            ),
+            prefix="  " * indent,
+        )
+
 
 class SequenceTrigger(CompositeTrigger):
     """A composite trigger that requires some number of triggers to have fired
     within the given time period in a specific order"""
 
     type: Literal["sequence"] = "sequence"
+
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        return textwrap.indent(
+            "\n".join(
+                [
+                    "In this order:",
+                    "\n".join(
+                        [
+                            trigger.describe_for_cli(indent=indent + 1)
+                            for trigger in self.triggers
+                        ]
+                    ),
+                ]
+            ),
+            prefix="  " * indent,
+        )
 
 
 TriggerTypes: TypeAlias = Union[
@@ -255,7 +328,7 @@ CompoundTrigger.model_rebuild()
 SequenceTrigger.model_rebuild()
 
 
-class Automation(PrefectBaseModel, extra="ignore"):
+class AutomationCore(PrefectBaseModel, extra="ignore"):
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 
@@ -292,5 +365,5 @@ class Automation(PrefectBaseModel, extra="ignore"):
     )
 
 
-class ExistingAutomation(Automation):
+class Automation(AutomationCore):
     id: UUID = Field(..., description="The ID of this automation")

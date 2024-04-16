@@ -18,6 +18,7 @@ import pendulum
 
 from prefect.logging import get_logger
 from prefect.pydantic import Field, field_validator, model_validator
+from prefect.pydantic.networks import HttpUrl
 from prefect.server.events.schemas.labelling import Labelled
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.settings import (
@@ -303,3 +304,30 @@ class ResourceSpecification(PrefectBaseModel):
 
     def deepcopy(self) -> "ResourceSpecification":
         return ResourceSpecification.parse_obj(copy.deepcopy(self.__root__))
+
+
+class EventPage(PrefectBaseModel):
+    """A single page of events returned from the API, with an optional link to the
+    next page of results"""
+
+    events: List[ReceivedEvent] = Field(
+        ..., description="The Events matching the query"
+    )
+    total: int = Field(..., description="The total number of matching Events")
+    next_page: Optional[HttpUrl] = Field(
+        ..., description="The URL for the next page of results, if there are more"
+    )
+
+
+class EventCount(PrefectBaseModel):
+    """The count of events with the given filter value"""
+
+    value: str = Field(..., description="The value to use for filtering")
+    label: str = Field(..., description="The value to display for this count")
+    count: int = Field(..., description="The count of matching events")
+    start_time: DateTimeTZ = Field(
+        ..., description="The start time of this group of events"
+    )
+    end_time: DateTimeTZ = Field(
+        ..., description="The end time of this group of events"
+    )
