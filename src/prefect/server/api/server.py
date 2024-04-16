@@ -625,7 +625,7 @@ def create_app(
             await run_migrations()
             await add_block_types()
             await start_services()
-            await stream.start_distributor("events")
+            await stream.start_distributor()
             yield
         finally:
             await stream.stop_distributor()
