@@ -50,8 +50,8 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 
 Much of Prefect's functionality is backed by an API. The easiest way to get started is to use the API hosted by Prefect:
 
-1. Create a forever-free Prefect Cloud account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
-1. Use the `prefect cloud login` CLI command to [log in to Prefect Cloud](/cloud/users/api-keys) from your environment.
+1. Create a forever-free Prefect Cloud account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/)
+1. Use the `prefect cloud login` CLI command to log in to Prefect Cloud from your development environment
 
 <div class="terminal">
 
@@ -170,7 +170,7 @@ prefect work-pool create my-managed-pool --type prefect:managed
 You should see a message in the CLI that your work pool was created.
 Feel free to check out your new work pool on the **Work Pools** page in the UI.
 
-## Step 4: Make your code schedulable
+## Step 5: Make your code schedulable
 
 We have a flow function and we have a work pool where we can run our flow remotely.
 Let's package both of these things, along with the location for where to find our flow code, into a [deployment](/concepts/deployments/) so that we can schedule our workflow to run remotely.
