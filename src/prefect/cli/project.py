@@ -15,8 +15,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
-from prefect.deployments import find_prefect_directory, initialize_project
-from prefect.deployments import register_flow as register
+from prefect.deployments import initialize_project
 from prefect.deployments.steps.core import run_steps
 from prefect.exceptions import ObjectNotFound
 
@@ -242,39 +241,3 @@ async def clone(
         app.console.out(output["directory"])
     else:
         exit_with_error("No pull steps found, exiting early.")
-
-
-@project_app.command()
-async def register_flow(
-    entrypoint: str = typer.Argument(
-        ...,
-        help=(
-            "The path to a flow entrypoint, in the form of"
-            " `./path/to/file.py:flow_func_name`"
-        ),
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help=(
-            "An optional flag to force register this flow and overwrite any existing"
-            " entry"
-        ),
-    ),
-):
-    """
-    Register a flow with this project.
-    """
-    try:
-        flow = await register(entrypoint, force=force)
-    except Exception as exc:
-        exit_with_error(exc)
-
-    app.console.print(
-        (
-            f"Registered flow {flow.name!r} in"
-            f" {(find_prefect_directory()/'flows.json').resolve()!s}"
-        ),
-        style="green",
-    )
