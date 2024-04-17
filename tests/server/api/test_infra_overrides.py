@@ -95,6 +95,7 @@ class TestInfraOverrides:
                         "expected_variable_2": {},
                     },
                     "required": ["expected_variable_1", "expected_variable_2"],
+                    "additionalProperties": False,
                 },
             },
         )
