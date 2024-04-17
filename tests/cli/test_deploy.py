@@ -31,10 +31,8 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.deployments import register_flow
 from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
-    create_default_prefect_yaml,
     initialize_project,
 )
 from prefect.deployments.steps.core import StepExecutionError
@@ -1596,28 +1594,6 @@ class TestProjectDeploy:
         ]
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_reads_flow_name_from_prefect_yaml(self, work_pool):
-        await register_flow("flows/hello.py:my_flow")
-        create_default_prefect_yaml(".")
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"][0]["name"] = "test-name"
-        deploy_config["deployments"][0]["flow_name"] = "An important name"
-        deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
-
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy -n test-name",
-            expected_code=0,
-            expected_output_contains="An important name/test-name",
-        )
-
-    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_reads_entrypoint_from_prefect_yaml(self, work_pool):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -1638,33 +1614,7 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_exits_with_name_and_entrypoint_passed(
-        self, work_pool
-    ):
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"][0]["name"] = "test-name"
-        deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
-
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy -f 'An important name' -n test-name flows/hello.py:my_flow",
-            expected_code=1,
-            expected_output=(
-                "Received an entrypoint and a flow name for this deployment. Please"
-                " provide either an entrypoint or a flow name."
-            ),
-        )
-
-    @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_exits_with_no_name_or_entrypoint_configured(
-        self, work_pool
-    ):
+    async def test_project_deploy_exits_with_no_entrypoint_configured(self, work_pool):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -2654,29 +2604,6 @@ class TestSchedules:
                 + readchar.key.ENTER
             ),
             expected_code=0,
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
-        assert deployment.schedule is None
-
-    @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_no_schedule_interactive_with_ci_flag(
-        self, prefect_client, work_pool
-    ):
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --pool"
-                f" {work_pool.name} --ci"
-            ),
-            expected_code=0,
-            expected_output_contains=(
-                "The `--ci` flag has been deprecated. It will not be available after"
-                " Dec 2023. Please use the global `--no-prompt` flag instead: `prefect"
-                " --no-prompt deploy`."
-            ),
         )
 
         deployment = await prefect_client.read_deployment_by_name(
