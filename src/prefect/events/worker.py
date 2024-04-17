@@ -17,6 +17,7 @@ from .clients import (
     EventsClient,
     NullEventsClient,
     PrefectCloudEventsClient,
+    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from .related import related_resources_from_run_context
@@ -24,7 +25,11 @@ from .schemas.events import Event
 
 
 def should_emit_events() -> bool:
-    return emit_events_to_cloud() or should_emit_events_to_running_server()
+    return (
+        emit_events_to_cloud()
+        or should_emit_events_to_running_server()
+        or should_emit_events_to_ephemeral_server()
+    )
 
 
 def emit_events_to_cloud() -> bool:
@@ -37,6 +42,10 @@ def emit_events_to_cloud() -> bool:
 def should_emit_events_to_running_server() -> bool:
     api_url = PREFECT_API_URL.value()
     return isinstance(api_url, str) and PREFECT_EXPERIMENTAL_EVENTS
+
+
+def should_emit_events_to_ephemeral_server() -> bool:
+    return PREFECT_API_KEY.value() is None and PREFECT_EXPERIMENTAL_EVENTS
 
 
 class EventsWorker(QueueService[Event]):
@@ -85,7 +94,8 @@ class EventsWorker(QueueService[Event]):
                 }
             elif should_emit_events_to_running_server():
                 client_type = PrefectEventsClient
-
+            elif should_emit_events_to_ephemeral_server():
+                client_type = PrefectEphemeralEventsClient
             else:
                 client_type = NullEventsClient
 
