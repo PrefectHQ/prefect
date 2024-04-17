@@ -18,7 +18,7 @@ R = TypeVar("R")
 class TaskRun:
     def __init__(self, task, parameters, task_run_id, client):
         self.task = task
-        self.paramters = parameters
+        self.parameters = parameters
         self.task_run_id = task_run_id
         self.client = client
 
