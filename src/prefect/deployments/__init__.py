@@ -1,9 +1,7 @@
 import prefect.deployments.base
 import prefect.deployments.steps
 from prefect.deployments.base import (
-    find_prefect_directory,
     initialize_project,
-    register_flow,
 )
 
 from prefect.deployments.deployments import (
