@@ -15,6 +15,7 @@ from prefect.server.events.filters import (
     EventOccurredFilter,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.events.storage import database
 
 
 @pytest.fixture
@@ -61,7 +62,8 @@ def backfill_mock(
         return [received_event1, old_event2, old_event1], object(), object()
 
     monkeypatch.setattr(
-        "prefect.server.api.events.query_events",
+        database,
+        "query_events",
         mock_query_events,
     )
 

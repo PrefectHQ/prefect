@@ -14,6 +14,7 @@ from typing import (
 )
 from uuid import UUID
 
+import httpx
 import orjson
 import pendulum
 from cachetools import TTLCache
@@ -25,9 +26,14 @@ from websockets.exceptions import (
     ConnectionClosedOK,
 )
 
+from prefect.client.base import PrefectHttpxClient
 from prefect.events import Event
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_EXPERIMENTAL_EVENTS,
+)
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -117,6 +123,52 @@ def _get_api_url_and_key(
         )
 
     return api_url, api_key
+
+
+class PrefectEphemeralEventsClient(EventsClient):
+    """A Prefect Events client that sends events to an ephemeral Prefect server"""
+
+    def __init__(self):
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            raise ValueError(
+                "PrefectEphemeralEventsClient can only be used when "
+                "PREFECT_EXPERIMENTAL_EVENTS is set to True"
+            )
+        if PREFECT_API_KEY.value():
+            raise ValueError(
+                "PrefectEphemeralEventsClient cannot be used when PREFECT_API_KEY is set."
+                " Please use PrefectEventsClient or PrefectCloudEventsClient instead."
+            )
+        from prefect.server.api.server import create_app
+
+        app = create_app()
+
+        self._http_client = PrefectHttpxClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://ephemeral-prefect/api",
+            enable_csrf_support=False,
+        )
+
+    async def __aenter__(self) -> Self:
+        await super().__aenter__()
+        await self._http_client.__aenter__()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[Exception]],
+        exc_val: Optional[Exception],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        self._websocket = None
+        await self._http_client.__aexit__(exc_type, exc_val, exc_tb)
+        return await super().__aexit__(exc_type, exc_val, exc_tb)
+
+    async def _emit(self, event: Event) -> None:
+        await self._http_client.post(
+            "/events",
+            json=[event.dict(json_compatible=True)],
+        )
 
 
 class PrefectEventsClient(EventsClient):
