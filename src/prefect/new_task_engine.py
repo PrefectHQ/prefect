@@ -134,7 +134,7 @@ async def run_task(
 #     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
 # ) -> Callable[P, Coroutine[Any, Any, R]]:
 #     """
-#     Runs a task against the API.
+#     Turns a naked task into an `orchestrated task` whose execution is managed by the Prefect API.
 #     """
 
 #     async def orchestrated_task(*args: P.args, **kwargs: P.kwargs) -> R:
