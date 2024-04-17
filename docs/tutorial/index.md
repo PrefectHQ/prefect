@@ -15,7 +15,13 @@ search:
 ---
 # Tutorial Overview
 
-This tutorial provides a guided walk-through of Prefect core concepts and instructions on how to use them.
+Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines.
+You define workflows as Python code and Prefect handles the rest.
+
+Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
+It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
+
+This tutorial provides a guided walk-through of Prefect's core concepts and instructions on how to use them.
 
 By the end of this tutorial you will have:
 
@@ -34,15 +40,11 @@ If you're looking for examples of more advanced operations (like [deploying on K
 
 ## Prerequisites
 
-1. Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
+Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
 
-See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
+See the [install guide](/getting-started/installation/) for more detailed instructions.
 
-2. To use Prefect, you need to self-host a Prefect server or connect to [Prefect Cloud](https://app.prefect.cloud).
-
-To get the most out of this tutorial, we recommend using Prefect Cloud.
-Sign up for a forever free [Prefect Cloud account](/cloud/) or accept your organization's invite to join their Prefect Cloud account.
-
+To get the most out of Prefect, you need to connect to a forever-free [Prefect Cloud](https://app.prefect.cloud) account.
 1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
 1. Use the `prefect cloud login` CLI command to [authenticate to Prefect Cloud](/cloud/users/api-keys/) from your environment.
 
@@ -58,16 +60,6 @@ Choose **Log in with a web browser** and click the **Authorize** button in the b
 
 As an alternative to using Prefect Cloud, you can self-host a [Prefect server instance](/host/).
 If you choose this option, run `prefect server start` to start a local Prefect server instance.
-
-## What is Prefect?
-
-Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines.
-With Prefect, you define workflows as Python code and let it handle the rest.
-
-Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
-It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
-
-Just bring your Python code, sprinkle in a few decorators, and go!
 
 ## [First steps: Flows](/tutorial/flows/)
 
