@@ -812,7 +812,7 @@
               "title": "Volumes",
               "description": "A list of volume to mount into created containers.",
               "example": [
-                "/my/local/path:/path/in/container"
+                "[\"/my/local/path:/path/in/container\"]"
               ],
               "type": "array",
               "items": {
