@@ -21,7 +21,7 @@ You define workflows as Python code and Prefect handles the rest.
 Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
 It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 
-This tutorial provides a guided walk-through of Prefect core concepts and instructions on how to use them.
+This tutorial provides a guided walk-through of Prefect's core concepts and instructions on how to use them.
 
 By the end of this tutorial you will have:
 
