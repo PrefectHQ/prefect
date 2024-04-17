@@ -300,7 +300,7 @@ To set up a new `prefect.yaml` file for your deployments, run the following comm
 
 <div class="terminal">
 ```bash
-perfect deploy
+prefect deploy
 ```
 </div>
 
