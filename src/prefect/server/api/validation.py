@@ -3,8 +3,8 @@ from typing import Any, Dict, Union
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.server import models, schemas
+from prefect.utilities.schema_tools import validate
 
 
 def _get_base_config_defaults(base_config: dict):
@@ -71,23 +71,30 @@ async def validate_job_variables_for_flow_run(
         # base job template to validate job variables against
         return
 
-    # This is the problem, the block doesn't exist in tests, why not?
+    # When we hydrate the block from its reference, the data we get back for the block
+    # includes its default name, None, which fails the JSON schema validation for the
+    # block.
+    # Before hydrating:
     # {'block': {'$ref': {'block_document_id': '25531358-bfeb-49dc-bc98-4dac5e3f0c04'}}}
     base_vars = _get_base_config_defaults(
         deployment.work_queue.work_pool.base_job_template
     )
+    # After hydrating:
+    # {'command': None, 'env': {}, 'field': 'default', 'labels': {}, 'name': None, 'type': 'mock'}
     base_vars = await _resolve_default_references(base_vars, session)
     flow_run_vars = flow_run.job_variables or {}
     job_vars = {**base_vars, **deployment.job_variables, **flow_run_vars}
 
-    try:
-        validate_values_conform_to_schema(
-            job_vars,
-            deployment.work_queue.work_pool.base_job_template.get("variables"),
-        )
-    except ValueError as exc:
+    errors = validate(
+        job_vars,
+        deployment.work_queue.work_pool.base_job_template.get("variables"),
+        raise_on_error=False,
+        preprocess=True,
+    )
+
+    if errors:
         if isinstance(flow_run, schemas.actions.FlowRunUpdate):
-            error_msg = f"Error updating flow run: {exc}"
+            error_msg = f"Error updating flow run: {errors}"
         else:
-            error_msg = f"Error creating flow run: {exc}"
+            error_msg = f"Error creating flow run: {errors}"
         raise HTTPException(status.HTTP_409_CONFLICT, detail=error_msg)
