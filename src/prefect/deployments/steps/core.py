@@ -1,11 +1,11 @@
 """
-Core primitives for running Prefect project steps.
+Core primitives for running Prefect deployment steps.
 
-Project steps are YAML representations of Python functions along with their inputs.
+Deployment steps are YAML representations of Python functions along with their inputs.
 
 Whenever a step is run, the following actions are taken:
 
-- The step's inputs and block / variable references are resolved (see [the projects concepts documentation](/concepts/projects/#templating-options) for more details)
+- The step's inputs and block / variable references are resolved (see [the `prefect deploy` documentation](/guides/prefect-deploy/#templating-options) for more details)
 - The step's function is imported; if it cannot be found, the `requires` keyword is used to install the necessary packages
 - The step's function is called with the resolved inputs
 - The step's output is returned and used to resolve inputs for subsequent steps
