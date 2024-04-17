@@ -62,7 +62,7 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
-from prefect.client.orchestration import ServerType, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -325,7 +325,7 @@ class RunnerDeployment(BaseModel):
                     f"Error while applying deployment: {str(exc)}"
                 ) from exc
 
-            if client.server_type == ServerType.CLOUD:
+            if client.server_type.supports_automations():
                 # The triggers defined in the deployment spec are, essentially,
                 # anonymous and attempting truly sync them with cloud is not
                 # feasible. Instead, we remove all automations that are owned

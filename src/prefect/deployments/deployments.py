@@ -41,7 +41,7 @@ else:
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import (
     FlowRun,
     MinimalDeploymentSchedule,
@@ -901,7 +901,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
-            if client.server_type == ServerType.CLOUD:
+            if client.server_type.supports_automations():
                 # The triggers defined in the deployment spec are, essentially,
                 # anonymous and attempting truly sync them with cloud is not
                 # feasible. Instead, we remove all automations that are owned

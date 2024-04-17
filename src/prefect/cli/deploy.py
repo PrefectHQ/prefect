@@ -54,7 +54,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.deployments import initialize_project, register_flow
+from prefect.deployments import initialize_project
 from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
     _get_git_branch,
@@ -66,7 +66,6 @@ from prefect.events import DeploymentTriggerTypes
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
-    PREFECT_DEBUG_MODE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
@@ -481,25 +480,10 @@ async def _run_single_deploy(
         )
 
     # entrypoint logic
-    flow = None
     if deploy_config.get("entrypoint"):
-        try:
-            flow = await register_flow(deploy_config["entrypoint"])
-        except ModuleNotFoundError:
-            raise ValueError(
-                f"Could not find a flow at {deploy_config['entrypoint']}.\n\nPlease"
-                " ensure your entrypoint is in the format path/to/file.py:flow_fn_name"
-                " and the file name and flow function name are correct."
-            )
-        except FileNotFoundError:
-            if PREFECT_DEBUG_MODE:
-                app.console.print(
-                    "Could not find .prefect directory. Flow entrypoint will not be"
-                    " registered."
-                )
-            flow = await run_sync_in_worker_thread(
-                load_flow_from_entrypoint, deploy_config["entrypoint"]
-            )
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, deploy_config["entrypoint"]
+        )
         deploy_config["flow_name"] = flow.name
 
     deployment_name = deploy_config.get("name")
@@ -507,12 +491,6 @@ async def _run_single_deploy(
         if not is_interactive():
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
-
-    # minor optimization in case we already loaded the flow
-    if not flow:
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, deploy_config["entrypoint"]
-        )
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
@@ -1626,7 +1604,7 @@ def _initialize_deployment_triggers(
 async def _create_deployment_triggers(
     client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTriggerTypes]
 ):
-    if client.server_type == ServerType.CLOUD:
+    if client.server_type.supports_automations():
         # The triggers defined in the deployment spec are, essentially,
         # anonymous and attempting truly sync them with cloud is not
         # feasible. Instead, we remove all automations that are owned

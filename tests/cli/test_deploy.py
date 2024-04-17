@@ -31,10 +31,8 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.deployments import register_flow
 from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
-    create_default_prefect_yaml,
     initialize_project,
 )
 from prefect.deployments.steps.core import StepExecutionError
@@ -1594,30 +1592,6 @@ class TestProjectDeploy:
                 }
             },
         ]
-
-    @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_reads_flow_name_from_prefect_yaml_raises(
-        self, work_pool
-    ):
-        await register_flow("flows/hello.py:my_flow")
-        create_default_prefect_yaml(".")
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"][0]["name"] = "test-name"
-        deploy_config["deployments"][0]["flow_name"] = "An important name"
-        deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
-
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy -n test-name",
-            expected_code=1,
-            expected_output_contains="An entrypoint must be provided",
-        )
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_reads_entrypoint_from_prefect_yaml(self, work_pool):

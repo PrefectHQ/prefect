@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+from urllib.parse import quote
 from uuid import UUID
 
 import httpx
@@ -8,7 +9,7 @@ from typing_extensions import Self
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import ObjectNotFound
-from prefect.server.schemas.actions import DeploymentFlowRunCreate
+from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -82,17 +83,67 @@ class OrchestrationClient(BaseClient):
     async def read_task_run_raw(self, task_run_id: UUID) -> Response:
         return await self._http_client.get(f"/task_runs/{task_run_id}")
 
+    async def pause_deployment(self, deployment_id: UUID) -> Response:
+        return await self._http_client.post(
+            f"/deployments/{deployment_id}/pause_deployment",
+        )
+
+    async def resume_deployment(self, deployment_id: UUID) -> Response:
+        return await self._http_client.post(
+            f"/deployments/{deployment_id}/resume_deployment",
+        )
+
+    async def set_flow_run_state(
+        self, flow_run_id: UUID, state: StateCreate
+    ) -> Response:
+        return await self._http_client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json={
+                "state": state.dict(json_compatible=True),
+                "force": False,
+            },
+        )
+
+    async def pause_work_pool(self, work_pool_name: str) -> Response:
+        return await self._http_client.patch(
+            f"/work_pools/{quote(work_pool_name)}", json={"is_paused": True}
+        )
+
+    async def resume_work_pool(self, work_pool_name: str) -> Response:
+        return await self._http_client.patch(
+            f"/work_pools/{quote(work_pool_name)}", json={"is_paused": False}
+        )
+
     async def read_work_pool_raw(self, work_pool_id: UUID) -> Response:
         return await self._http_client.post(
             "/work_pools/filter",
             json={"work_pools": {"id": {"any_": [str(work_pool_id)]}}},
         )
 
+    async def read_work_pool(self, work_pool_id: UUID) -> Optional[WorkPoolResponse]:
+        response = await self.read_work_pool_raw(work_pool_id)
+        response.raise_for_status()
+
+        pools = pydantic.parse_obj_as(List[WorkPoolResponse], response.json())
+        return pools[0] if pools else None
+
     async def read_work_queue_raw(self, work_queue_id: UUID) -> Response:
         return await self._http_client.get(f"/work_queues/{work_queue_id}")
 
     async def read_work_queue_status_raw(self, work_queue_id: UUID) -> Response:
         return await self._http_client.get(f"/work_queues/{work_queue_id}/status")
+
+    async def pause_work_queue(self, work_queue_id: UUID) -> Response:
+        return await self._http_client.patch(
+            f"/work_queues/{work_queue_id}",
+            json={"is_paused": True},
+        )
+
+    async def resume_work_queue(self, work_queue_id: UUID) -> Response:
+        return await self._http_client.patch(
+            f"/work_queues/{work_queue_id}",
+            json={"is_paused": False},
+        )
 
     async def read_block_document_raw(
         self,

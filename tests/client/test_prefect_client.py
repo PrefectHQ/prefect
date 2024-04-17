@@ -70,7 +70,7 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events import Automation, EventTrigger, Posture
+from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
@@ -2096,7 +2096,7 @@ class TestVariables:
 class TestAutomations:
     @pytest.fixture
     def automation(self):
-        return Automation(
+        return AutomationCore(
             name="test-automation",
             trigger=EventTrigger(
                 match={"flow_run_id": "123"},
@@ -2108,15 +2108,15 @@ class TestAutomations:
         )
 
     async def test_create_not_cloud_runtime_error(
-        self, prefect_client, automation: Automation
+        self, prefect_client, automation: AutomationCore
     ):
         with pytest.raises(
             RuntimeError,
-            match="Automations are only supported for Prefect Cloud.",
+            match="The current server and client configuration does not support",
         ):
             await prefect_client.create_automation(automation)
 
-    async def test_create_automation(self, cloud_client, automation: Automation):
+    async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
             created_automation = automation.dict(json_compatible=True)
             created_automation["id"] = str(uuid4())
@@ -2137,7 +2137,7 @@ class TestAutomations:
     ):
         with pytest.raises(
             RuntimeError,
-            match="Automations are only supported for Prefect Cloud.",
+            match="The current server and client configuration does not support",
         ):
             resource_id = f"prefect.deployment.{uuid4()}"
             await prefect_client.delete_resource_owned_automations(resource_id)

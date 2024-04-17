@@ -50,7 +50,7 @@ from prefect.settings import (
 )
 
 from .automations import (
-    Automation,
+    AutomationCore,
     CompoundTrigger,
     EventTrigger,
     MetricTrigger,
@@ -135,11 +135,11 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
             )
         ]
 
-    def as_automation(self) -> Automation:
+    def as_automation(self) -> AutomationCore:
         if not self.name:
             raise ValueError("name is required")
 
-        return Automation(
+        return AutomationCore(
             name=self.name,
             description=self.description,
             enabled=self.enabled,
@@ -480,7 +480,7 @@ class DeploymentTrigger(PrefectBaseModel):
         ),
     )
 
-    def as_automation(self) -> Automation:
+    def as_automation(self) -> AutomationCore:
         assert self.name
 
         if self.posture == Posture.Metric:
@@ -503,7 +503,7 @@ class DeploymentTrigger(PrefectBaseModel):
                 within=self.within,
             )
 
-        return Automation(
+        return AutomationCore(
             name=self.name,
             description=self.description,
             enabled=self.enabled,
