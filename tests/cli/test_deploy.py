@@ -5199,7 +5199,7 @@ class TestDeploymentTrigger:
                 )
             ]
 
-        async def test_initialize_deployment_triggers_compoosite(self):
+        async def test_initialize_deployment_triggers_composite(self):
             trigger_spec = {
                 "name": "Trigger McTriggerson",
                 "enabled": True,
