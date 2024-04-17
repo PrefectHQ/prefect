@@ -42,7 +42,7 @@ If you're looking for examples of more advanced operations (like [deploying on K
 
 Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
 
-See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
+See the [install guide](/getting-started/installation/) for more detailed instructions.
 
 To go the most out of Prefect, you need connect to a forever-free [Prefect Cloud](https://app.prefect.cloud) account.
 1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
