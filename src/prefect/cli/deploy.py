@@ -342,34 +342,12 @@ async def deploy(
         "--prefect-file",
         help="Specify a custom path to a prefect.yaml file",
     ),
-    ci: bool = typer.Option(
-        False,
-        "--ci",
-        help=(
-            "DEPRECATED: Please use the global '--no-prompt' flag instead: 'prefect"
-            " --no-prompt deploy'.\n\nRun this command in CI mode. This will disable"
-            " interactive prompts and will error if any required arguments are not"
-            " provided."
-        ),
-    ),
 ):
     """
     Deploy a flow from this project by creating a deployment.
 
     Should be run from a project root directory.
     """
-    if ci:
-        app.console.print(
-            generate_deprecation_message(
-                name="The `--ci` flag",
-                start_date="Jun 2023",
-                help=(
-                    "Please use the global `--no-prompt` flag instead: `prefect"
-                    " --no-prompt deploy`."
-                ),
-            ),
-            style="yellow",
-        )
 
     if variables is not None:
         app.console.print(
@@ -410,7 +388,7 @@ async def deploy(
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(
-            prefect_file=prefect_file, ci=ci
+            prefect_file=prefect_file,
         )
         parsed_names = []
         for name in names or []:
@@ -419,7 +397,9 @@ async def deploy(
             else:
                 parsed_names.append(name)
         deploy_configs = _pick_deploy_configs(
-            deploy_configs, parsed_names, deploy_all, ci
+            deploy_configs,
+            parsed_names,
+            deploy_all,
         )
 
         if len(deploy_configs) > 1:
@@ -436,7 +416,6 @@ async def deploy(
                 deploy_configs=deploy_configs,
                 actions=actions,
                 deploy_all=deploy_all,
-                ci=ci,
                 prefect_file=prefect_file,
             )
         else:
@@ -449,7 +428,6 @@ async def deploy(
                 deploy_config=deploy_configs[0] if deploy_configs else {},
                 actions=actions,
                 options=options,
-                ci=ci,
                 prefect_file=prefect_file,
             )
     except ValueError as exc:
@@ -461,7 +439,6 @@ async def _run_single_deploy(
     deploy_config: Dict,
     actions: Dict,
     options: Optional[Dict] = None,
-    ci: bool = False,
     client: PrefectClient = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
@@ -469,7 +446,7 @@ async def _run_single_deploy(
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
 
-    should_prompt_for_save = is_interactive() and not ci
+    should_prompt_for_save = is_interactive()
 
     deploy_config = _merge_with_default_deploy_config(deploy_config)
     deploy_config = _handle_deprecated_schedule_fields(deploy_config)
@@ -489,7 +466,7 @@ async def _run_single_deploy(
     deploy_config = apply_values(deploy_config, os.environ, remove_notset=False)
 
     if not deploy_config.get("entrypoint"):
-        if not is_interactive() and not ci:
+        if not is_interactive():
             raise ValueError(
                 "An entrypoint must be provided:\n\n"
                 " \t[yellow]prefect deploy path/to/file.py:flow_function\n\n"
@@ -511,13 +488,15 @@ async def _run_single_deploy(
 
     deployment_name = deploy_config.get("name")
     if not deployment_name:
-        if not is_interactive() or ci:
+        if not is_interactive():
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    deploy_config["schedules"] = _construct_schedules(deploy_config, ci=ci)
+    deploy_config["schedules"] = _construct_schedules(
+        deploy_config,
+    )
 
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
@@ -527,7 +506,7 @@ async def _run_single_deploy(
 
             # dont allow submitting to prefect-agent typed work pools
             if work_pool.type == "prefect-agent":
-                if not is_interactive() or ci:
+                if not is_interactive():
                     raise ValueError(
                         "Cannot create a project-style deployment with work pool of"
                         " type 'prefect-agent'. If you wish to use an agent with"
@@ -551,7 +530,7 @@ async def _run_single_deploy(
                 " work pool in the Prefect UI."
             )
     else:
-        if not is_interactive() or ci:
+        if not is_interactive():
             raise ValueError(
                 "A work pool is required to deploy this flow. Please specify a work"
                 " pool name via the '--pool' flag or in your prefect.yaml file."
@@ -625,7 +604,6 @@ async def _run_single_deploy(
     ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
     if (
         is_interactive()
-        and not ci
         and not (deploy_config.get("pull") or actions.get("pull"))
         and not docker_push_step_exists
         and confirm(
@@ -667,7 +645,6 @@ async def _run_single_deploy(
             app.console,
             deploy_config=deploy_config,
             actions=actions,
-            ci=ci,
         )
     )
 
@@ -827,7 +804,6 @@ async def _run_multi_deploy(
     actions: Dict,
     names: Optional[List[str]] = None,
     deploy_all: bool = False,
-    ci: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
@@ -842,7 +818,7 @@ async def _run_multi_deploy(
         app.console.print("Deploying flows with selected deployment configurations...")
     for deploy_config in deploy_configs:
         if deploy_config.get("name") is None:
-            if not is_interactive() or ci:
+            if not is_interactive():
                 app.console.print(
                     "Discovered unnamed deployment. Skipping...", style="yellow"
                 )
@@ -859,21 +835,17 @@ async def _run_multi_deploy(
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
         app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
-        await _run_single_deploy(
-            deploy_config, actions, ci=ci, prefect_file=prefect_file
-        )
+        await _run_single_deploy(deploy_config, actions, prefect_file=prefect_file)
 
 
 def _construct_schedules(
     deploy_config: Dict,
-    ci: bool = False,
 ) -> List[MinimalDeploymentSchedule]:
     """
     Constructs a schedule from a deployment configuration.
 
     Args:
         deploy_config: A deployment configuration
-        ci: Disable interactive prompts if True
 
     Returns:
         A list of schedule objects
@@ -886,7 +858,7 @@ def _construct_schedules(
             for schedule_config in schedule_configs
         ]
     elif schedule_configs is NotSet:
-        if not ci and is_interactive():
+        if is_interactive():
             schedules = prompt_schedules(app.console)
         else:
             schedules = []
@@ -1158,7 +1130,9 @@ async def _generate_actions_for_remote_flow_storage(
 
 
 async def _generate_default_pull_action(
-    console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
+    console: Console,
+    deploy_config: Dict,
+    actions: List[Dict],
 ):
     build_docker_image_step = await _check_for_build_docker_image_step(
         deploy_config.get("build") or actions["build"]
@@ -1169,7 +1143,7 @@ async def _generate_default_pull_action(
             return await _generate_pull_step_for_build_docker_image(
                 console, deploy_config
             )
-        if is_interactive() and not ci:
+        if is_interactive():
             if not confirm(
                 "Does your Dockerfile have a line that copies the current working"
                 " directory into your image?"
@@ -1200,13 +1174,10 @@ async def _generate_default_pull_action(
 
 
 def _load_deploy_configs_and_actions(
-    prefect_file: Path, ci: bool = False
+    prefect_file: Path,
 ) -> Tuple[List[Dict], Dict]:
     """
     Load deploy configs and actions from a deployment configuration YAML file.
-
-    Args:
-        ci: Disables interactive mode if True
 
     Returns:
         Tuple[List[Dict], Dict]: a tuple of deployment configurations and actions
@@ -1361,13 +1332,16 @@ def _parse_name_from_pattern(deploy_configs, name_pattern):
     return parsed_names
 
 
-def _handle_pick_deploy_with_name(deploy_configs, names, ci=False):
+def _handle_pick_deploy_with_name(
+    deploy_configs,
+    names,
+):
     matched_deploy_configs = []
     deployment_names = []
     for name in names:
         matching_deployments = _filter_matching_deploy_config(name, deploy_configs)
 
-        if len(matching_deployments) > 1 and is_interactive() and not ci:
+        if len(matching_deployments) > 1 and is_interactive():
             user_selected_matching_deployment = prompt_select_from_table(
                 app.console,
                 (
@@ -1398,7 +1372,11 @@ def _handle_pick_deploy_with_name(deploy_configs, names, ci=False):
     return matched_deploy_configs
 
 
-def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
+def _pick_deploy_configs(
+    deploy_configs,
+    names,
+    deploy_all,
+):
     """
     Return a list of deploy configs to deploy based on the given
     deploy configs, names, and deploy_all flag.
@@ -1407,7 +1385,6 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         deploy_configs: A list of deploy configs
         names: A list of names of deploy configs to deploy
         deploy_all: Whether to use all deploy configs
-        ci: Disables interactive mode if True
 
     Returns:
         List[Dict]: a list of deploy configs to deploy
@@ -1419,17 +1396,20 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         return deploy_configs
 
     # e.g. `prefect --no-prompt deploy`
-    elif (not is_interactive() or ci) and len(deploy_configs) == 1 and len(names) <= 1:
+    elif not is_interactive() and len(deploy_configs) == 1 and len(names) <= 1:
         # No name is needed if there is only one deployment configuration
         # and we are not in interactive mode
         return deploy_configs
 
     # e.g. `prefect deploy -n flow-name/deployment-name -n deployment-name`
     elif len(names) >= 1:
-        return _handle_pick_deploy_with_name(deploy_configs, names, ci=ci)
+        return _handle_pick_deploy_with_name(
+            deploy_configs,
+            names,
+        )
 
     # e.g. `prefect deploy`
-    elif is_interactive() and not ci:
+    elif is_interactive():
         return _handle_pick_deploy_without_name(deploy_configs)
 
     # e.g `prefect --no-prompt deploy` where we have multiple deployment configurations
