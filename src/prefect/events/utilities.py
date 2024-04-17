@@ -9,6 +9,7 @@ from prefect._internal.schemas.fields import DateTimeTZ
 from .clients import (
     AssertingEventsClient,
     PrefectCloudEventsClient,
+    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from .schemas.events import Event, RelatedResource
@@ -53,6 +54,7 @@ def emit_event(
         AssertingEventsClient,
         PrefectCloudEventsClient,
         PrefectEventsClient,
+        PrefectEphemeralEventsClient,
     ]
     worker_instance = EventsWorker.instance()
 

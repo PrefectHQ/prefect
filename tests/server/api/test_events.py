@@ -87,7 +87,7 @@ ENCODED_MOCK_PAGE_TOKEN = base64.b64encode(MOCK_PAGE_TOKEN.encode()).decode()
 def query_events(
     events_page_one: List[ReceivedEvent],
 ) -> Generator[mock.AsyncMock, None, None]:
-    with mock.patch("prefect.server.api.events.query_events") as query_events:
+    with mock.patch("prefect.server.api.events.database.query_events") as query_events:
         query_events.return_value = (events_page_one, 123, MOCK_PAGE_TOKEN)
         yield query_events
 
@@ -97,7 +97,8 @@ def query_next_page(
     events_page_two: List[ReceivedEvent],
 ) -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.server.api.events.query_next_page", new_callable=mock.AsyncMock
+        "prefect.server.api.events.database.query_next_page",
+        new_callable=mock.AsyncMock,
     ) as query_next_page:
         query_next_page.return_value = (events_page_two, 123, "THAT:NEXTNEXTTOKEN")
         yield query_next_page
@@ -108,7 +109,8 @@ def last_events_page(
     events_page_three: List[ReceivedEvent],
 ) -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.server.api.events.query_next_page", new_callable=mock.AsyncMock
+        "prefect.server.api.events.database.query_next_page",
+        new_callable=mock.AsyncMock,
     ) as query_next_page:
         query_next_page.return_value = (events_page_three, 123, None)
         yield query_next_page
@@ -294,7 +296,7 @@ async def test_events_api_returns_times_with_timezone_offsets(
 
 @pytest.fixture
 def count_events() -> Generator[mock.AsyncMock, None, None]:
-    with mock.patch("prefect.server.api.events.count_events") as count_events:
+    with mock.patch("prefect.server.api.events.database.count_events") as count_events:
         count_events.return_value = [
             EventCount(
                 value="hello",

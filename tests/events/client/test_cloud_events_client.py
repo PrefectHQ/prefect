@@ -3,9 +3,36 @@ from unittest import mock
 import pytest
 from websockets.exceptions import ConnectionClosed
 
+from prefect.client.base import PrefectHttpxClient
 from prefect.events import Event
-from prefect.events.clients import PrefectCloudEventsClient, PrefectEventsClient
+from prefect.events.clients import (
+    PrefectCloudEventsClient,
+    PrefectEphemeralEventsClient,
+    PrefectEventsClient,
+)
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 from prefect.testing.fixtures import Puppeteer, Recorder
+
+
+async def test_ephemeral_events_client_can_emit(
+    example_event_1: Event, monkeypatch: pytest.MonkeyPatch
+):
+    mock_http_client = mock.MagicMock(
+        spec=PrefectHttpxClient, name="PrefectHttpxClient"
+    )
+    mock_http_client.return_value.__aenter__ = mock.AsyncMock(
+        return_value=mock_http_client
+    )
+    mock_http_client.return_value.post = mock.AsyncMock()
+    monkeypatch.setattr("prefect.events.clients.PrefectHttpxClient", mock_http_client)
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
+        async with PrefectEphemeralEventsClient() as client:
+            await client.emit(example_event_1)
+
+    mock_http_client().post.assert_called_once_with(
+        "/events",
+        json=[example_event_1.dict(json_compatible=True)],
+    )
 
 
 async def test_events_client_can_connect_and_emit(
