@@ -44,7 +44,7 @@ Before you start, make sure you have Python installed, then install Prefect: `pi
 
 See the [install guide](/getting-started/installation/) for more detailed instructions.
 
-To go the most out of Prefect, you need connect to a forever-free [Prefect Cloud](https://app.prefect.cloud) account.
+To get the most out of Prefect, you need to connect to a forever-free [Prefect Cloud](https://app.prefect.cloud) account.
 1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
 1. Use the `prefect cloud login` CLI command to [authenticate to Prefect Cloud](/cloud/users/api-keys/) from your environment.
 
