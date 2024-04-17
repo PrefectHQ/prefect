@@ -50,11 +50,17 @@ class Client:
     """
 
     async def create_task_run(self, task: Task[P, Coroutine[Any, Any, R]]) -> TaskRun:
+        """
+        This should probably be propose-state-like and not return a new TaskRun.
+        """
         return TaskRun(
             task_key=str(uuid4()), dynamic_key=str(uuid4()), state_name="Running"
         )
 
     async def set_failed(self, task_run: TaskRun, exc: Exception) -> TaskRun:
+        """
+        This should probably be propose-state-like and not return a new TaskRun.
+        """
         return TaskRun(
             task_key=task_run.task_key,
             dynamic_key=task_run.dynamic_key,
@@ -63,6 +69,9 @@ class Client:
         )
 
     async def set_retrying(self, task_run: TaskRun) -> TaskRun:
+        """
+        This should probably be propose-state-like and not return a new TaskRun.
+        """
         return TaskRun(
             task_key=task_run.task_key,
             dynamic_key=task_run.dynamic_key,
@@ -70,6 +79,9 @@ class Client:
         )
 
     async def finalize_run(self, task_run: TaskRun, result: Any) -> TaskRun:
+        """
+        This should probably be propose-state-like and not return a new TaskRun.
+        """
         return TaskRun(
             task_key=task_run.task_key,
             dynamic_key=task_run.dynamic_key,
