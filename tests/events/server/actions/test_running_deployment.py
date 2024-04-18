@@ -183,14 +183,12 @@ async def test_running_a_deployment(
         display_value=snap_that_naughty_woodchuck.automation.name,
     )
 
-    # Since the feature flag is off, the run should omit job_variables entirely
-    assert run.job_variables is None
+    assert run.job_variables == {"mode": "color", "resolution": "high"}
 
 
 async def test_running_a_deployment_with_overrides_enabled(
     snap_that_naughty_woodchuck: TriggeredAction,
     session: AsyncSession,
-    enable_infra_overrides,
 ):
     action = snap_that_naughty_woodchuck.action
 

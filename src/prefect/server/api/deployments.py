@@ -21,7 +21,6 @@ from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -650,8 +649,7 @@ async def create_flow_run_from_deployment(
                     detail="Invalid schema: Unable to validate schema with circular references.",
                 )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES:
-            await validate_job_variables_for_flow_run(flow_run, deployment, session)
+        await validate_job_variables_for_flow_run(flow_run, deployment, session)
 
         work_queue_name = deployment.work_queue_name
         work_queue_id = deployment.work_queue_id

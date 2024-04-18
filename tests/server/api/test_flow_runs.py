@@ -253,10 +253,114 @@ class TestUpdateFlowRun:
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
 
-    async def test_update_flow_run_with_job_vars(self, flow, session, client):
+    async def test_update_flow_run_with_job_vars_but_no_state(
+        self, flow, session, client
+    ):
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            "Flow run state is required to update job variables but none exists"
+            in response.json()["detail"]
+        )
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            schemas.states.Pending(),
+            schemas.states.Running(),
+            schemas.states.Failed(),
+            schemas.states.Cancelled(),
+        ],
+    )
+    async def test_update_flow_run_with_job_vars_wrong_state(
+        self, flow, session, client, state
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=state,
+            ),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            f"Job variables for a flow run in state {state.type.name} cannot be updated"
+            in response.json()["detail"]
+        )
+
+    async def test_update_flow_run_with_job_vars_no_deployment(
+        self, flow, session, client
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC").add(days=1)
+                ),
+            ),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            "A deployment for the flow run could not be found"
+            in response.json()["detail"]
+        )
+
+    async def test_update_flow_run_with_job_vars_deployment_and_scheduled_state(
+        self, flow, session, client
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                manifest_path="file.json",
+                flow_id=flow.id,
+                parameters={"foo": "bar"},
+                tags=["foo", "bar"],
+            ),
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC").add(days=1)
+                ),
+                deployment_id=deployment.id,
+            ),
         )
         await session.commit()
 

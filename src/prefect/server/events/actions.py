@@ -84,7 +84,6 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -657,10 +656,6 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        # Only create a flow run with job_vars if the feature is enabled
-        if not PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
-            self.job_variables = None
-
         state = Scheduled()
 
         try:
