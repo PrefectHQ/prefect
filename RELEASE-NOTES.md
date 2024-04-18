@@ -13,11 +13,6 @@
 
 ### Fixes
 - Better flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
-- Fix import syntax in `variables.Variable` example — https://github.com/PrefectHQ/prefect/pull/12727
-- Fix typo in How-to Guide document — https://github.com/PrefectHQ/prefect/pull/12761
-- Fix a flake with the SQLite version check test — https://github.com/PrefectHQ/prefect/pull/12690
-- Fix a test flake in flow run lateness — https://github.com/PrefectHQ/prefect/pull/12698
-- Remove `version` from `docker-compose.yml`, as it is now deprecated — https://github.com/PrefectHQ/prefect/pull/12706
 - Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
 - Exclude job_variables when exclude=None — https://github.com/PrefectHQ/prefect/pull/12712
 - Remove all infra overrides-related flags — https://github.com/PrefectHQ/prefect/pull/12742
@@ -71,6 +66,9 @@
 - Fix minor restructure to improve legibility of `work pools` tutorial — https://github.com/PrefectHQ/prefect/pull/12747
 - Fix `typing` import and typos in Tasks tutorial — https://github.com/PrefectHQ/prefect/pull/12746
 - Simplify installation — https://github.com/PrefectHQ/prefect/pull/12772
+- Fix import syntax in `variables.Variable` example — https://github.com/PrefectHQ/prefect/pull/12727
+- Fix typo in How-to Guide document — https://github.com/PrefectHQ/prefect/pull/12761
+
 
 ### Uncategorized
 
