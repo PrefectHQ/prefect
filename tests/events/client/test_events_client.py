@@ -22,11 +22,48 @@ from prefect.testing.fixtures import Puppeteer, Recorder
 
 
 @pytest.fixture
+def no_viable_settings():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: "https://locally/api",
+            PREFECT_API_KEY: None,
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_EXPERIMENTAL_EVENTS: False,
+        }
+    ):
+        yield
+
+
+async def test_raises_when_no_viable_client(no_viable_settings):
+    with pytest.raises(RuntimeError, match="does not support events"):
+        get_events_client()
+
+
+@pytest.fixture
+def ephemeral_settings():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: None,
+            PREFECT_API_KEY: None,
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_EXPERIMENTAL_EVENTS: True,
+        }
+    ):
+        yield
+
+
+async def test_constructs_ephemeral_client(ephemeral_settings):
+    assert isinstance(get_events_client(), PrefectEphemeralEventsClient)
+
+
+@pytest.fixture
 def server_settings():
     with temporary_settings(
         {
             PREFECT_API_URL: "https://locally/api",
+            PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_EXPERIMENTAL_EVENTS: True,
         }
     ):
         yield
@@ -43,6 +80,7 @@ def cloud_settings():
             PREFECT_API_URL: "https://cloudy/api/accounts/1/workspaces/2",
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
             PREFECT_API_KEY: "howdy-doody",
+            PREFECT_EXPERIMENTAL_EVENTS: False,
         }
     ):
         yield
@@ -53,7 +91,7 @@ async def test_constructs_cloud_client(cloud_settings):
 
 
 async def test_ephemeral_events_client_can_emit(
-    example_event_1: Event, monkeypatch: pytest.MonkeyPatch
+    example_event_1: Event, monkeypatch: pytest.MonkeyPatch, ephemeral_settings
 ):
     mock_http_client = mock.MagicMock(
         spec=PrefectHttpxClient, name="PrefectHttpxClient"
@@ -63,9 +101,12 @@ async def test_ephemeral_events_client_can_emit(
     )
     mock_http_client.return_value.post = mock.AsyncMock()
     monkeypatch.setattr("prefect.events.clients.PrefectHttpxClient", mock_http_client)
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
-        async with PrefectEphemeralEventsClient() as client:
-            await client.emit(example_event_1)
+
+    assert not PREFECT_API_URL.value()
+    assert not PREFECT_API_KEY.value()
+
+    async with PrefectEphemeralEventsClient() as client:
+        await client.emit(example_event_1)
 
     mock_http_client().post.assert_called_once_with(
         "/events",

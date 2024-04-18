@@ -52,11 +52,14 @@ def get_events_client(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-    elif not PREFECT_EXPERIMENTAL_EVENTS:
-        return PrefectEventsClient(
-            reconnection_attempts=reconnection_attempts,
-            checkpoint_every=checkpoint_every,
-        )
+    elif PREFECT_EXPERIMENTAL_EVENTS:
+        if PREFECT_API_URL:
+            return PrefectEventsClient(
+                reconnection_attempts=reconnection_attempts,
+                checkpoint_every=checkpoint_every,
+            )
+        else:
+            return PrefectEphemeralEventsClient()
 
     raise RuntimeError(
         "The current server and client configuration does not support "
@@ -74,7 +77,7 @@ def get_events_subscriber(
         return PrefectCloudEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
-    elif not PREFECT_EXPERIMENTAL_EVENTS:
+    elif PREFECT_EXPERIMENTAL_EVENTS:
         return PrefectEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
