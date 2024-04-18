@@ -61,7 +61,7 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     description: str = Field("", description="A longer description of this automation")
     enabled: bool = Field(True, description="Whether this automation will be evaluated")
 
-    # Fields from Deployment
+    # Fields from the RunDeployment action
 
     parameters: Optional[Dict[str, Any]] = Field(
         None,
