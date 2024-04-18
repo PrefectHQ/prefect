@@ -76,7 +76,7 @@ class TaskRunEngine(Generic[P, R]):
             self.task, self.task_run, self.state
         )  # type: ignore
 
-    async def begin_run(self) -> State:
+    def _compute_state_details(self) -> StateDetails:
         ## setup cache metadata
         task_run_context = TaskRunContext.get()
         cache_key = (
@@ -94,9 +94,11 @@ class TaskRunEngine(Generic[P, R]):
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
-        state = Running(
-            state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
-        )
+
+        return StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
+
+    async def begin_run(self) -> State:
+        state = Running(state_details=self._compute_state_details())
         return await self.set_state(state)
 
     async def set_state(self, state: State) -> State:
@@ -115,6 +117,7 @@ class TaskRunEngine(Generic[P, R]):
             await resolve_futures_to_states(result),
             result_factory=result_factory,
         )
+        terminal_state.state_details = self._compute_state_details()
         await self.set_state(terminal_state)
         return result
 
