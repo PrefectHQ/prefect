@@ -30,18 +30,19 @@ You can use [Prefect Cloud](/ui/cloud/) as your API server or [host your own Pre
 For development, you can use [SQLite](/concepts/database/#configuring_a_sqlite_database) 2.24 or newer as your database.
 
 [Prefect Cloud](/cloud/) is a managed solution that provides strong scaling, performance, and security.
-[Paid tiers](/cloud/users/) offer the user and team management features that enterprises require.
+Learn more about Prefect Cloud solutions for enterprises [here](https://www.prefect.io/pricing).
 
 !!! info "Windows and Linux requirements"
     See [Windows installation notes](#windows-installation-notes) and [Linux installation notes](#linux-installation-notes) for details on additional installation requirements and considerations.
 
 ## Install Prefect
 
-The following sections describe how to install Prefect in your development or execution environment.
+The following sections describe how to install Prefect in your environment.
 
 ### Installing the latest version
 
-Prefect is published as a Python package. To install the latest release or upgrade an existing Prefect install, run the following command in your terminal:
+Prefect is published as a Python package.
+To install the latest release or upgrade an existing Prefect install, and upgrade existing Python dependencies, run the following command in your terminal:
 
 <div class="terminal">
 ```bash
@@ -49,7 +50,7 @@ pip install -U prefect
 ```
 </div>
 
-To install a specific version, specify the version number like this:
+To install a specific Prefect version, specify the version number like this:
 
 <div class="terminal">
 ```bash
@@ -59,37 +60,7 @@ pip install -U "prefect==2.17.1"
 
 See available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
 
-### Installing the bleeding edge
-
-If you'd like to test with the most up-to-date code, you can install directly off the `main` branch on GitHub:
-
-<div class="terminal">
-```bash
-pip install -U git+https://github.com/PrefectHQ/prefect
-```
-</div>
-
-!!! warning "The `main` branch may not be stable"
-    Please be aware that this method installs unreleased code and may not be stable.
-
-### Installing for development
-
-If you'd like to install a version of Prefect for development:
-
-1. Clone the [Prefect repository](https://github.com/PrefectHQ/prefect).
-2. Install an editable version of the Python package with `pip install -e`.
-3. Install pre-commit hooks.
-
-<div class="terminal">
-```bash
-git clone https://github.com/PrefectHQ/prefect.git
-cd prefect
-pip install -e ".[dev]"
-pre-commit install
-```
-</div>
-
-See our [Contributing](/contributing/overview/) guide for more details about standards and practices for contributing to Prefect.
+See our [Contributing guide](/contributing/overview/) for instructions on installing Prefect for development and see the [section below](#installing_unreleased_code) to install directly from the `main` branch.
 
 ### Checking your installation
 
@@ -242,6 +213,19 @@ pip3 install prefect
 </div>
 
 </details>
+
+## Installing unreleased code
+
+If you'd like to use the most up-to-date, unreleased Prefect code, you can install directly off the `main` GitHub branch:
+
+<div class="terminal">
+```bash
+pip install -U git+https://github.com/PrefectHQ/prefect
+```
+</div>
+
+!!! warning "The `main` branch may not be stable"
+    Please be aware that this method installs unreleased code and may not be stable.
 
 ## Next steps
 
