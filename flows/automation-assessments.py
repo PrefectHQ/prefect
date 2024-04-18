@@ -16,6 +16,9 @@ TEST_SERVER_VERSION = os.environ.get("TEST_SERVER_VERSION", prefect.__version__)
 if Version(TEST_SERVER_VERSION) < Version("2.17.2"):
     raise NotImplementedError()
 
+if TEST_SERVER_VERSION == "9.9.9+for.the.tests":
+    raise NotImplementedError("Automations have a separate integration test for Cloud")
+
 try:
     from prefect import flow, get_client, get_run_logger
     from prefect.events import Event
