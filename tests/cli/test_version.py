@@ -3,7 +3,6 @@ import sqlite3
 import sys
 from unittest.mock import MagicMock, Mock
 
-import pendulum
 import pytest
 
 import prefect
@@ -46,8 +45,6 @@ def test_version_client_error_server_type(monkeypatch):
 
 
 def test_correct_output_ephemeral_sqlite(monkeypatch):
-    version_info = prefect.__version_info__
-    built = pendulum.parse(prefect.__version_info__["date"])
     profile = prefect.context.get_settings_context().profile
 
     dialect = Mock()
@@ -59,8 +56,6 @@ def test_correct_output_ephemeral_sqlite(monkeypatch):
         expected_output=f"""Version:             {prefect.__version__}
 API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
-Git commit:          {version_info['full-revisionid'][:8]}
-Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         ephemeral
@@ -72,8 +67,6 @@ Server:
 
 
 def test_correct_output_ephemeral_postgres(monkeypatch):
-    version_info = prefect.__version_info__
-    built = pendulum.parse(prefect.__version_info__["date"])
     profile = prefect.context.get_settings_context().profile
 
     dialect = Mock()
@@ -85,8 +78,6 @@ def test_correct_output_ephemeral_postgres(monkeypatch):
         expected_output=f"""Version:             {prefect.__version__}
 API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
-Git commit:          {version_info['full-revisionid'][:8]}
-Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         ephemeral
@@ -98,8 +89,6 @@ Server:
 
 @pytest.mark.usefixtures("use_hosted_api_server")
 def test_correct_output_non_ephemeral_server_type():
-    version_info = prefect.__version_info__
-    built = pendulum.parse(prefect.__version_info__["date"])
     profile = prefect.context.get_settings_context().profile
 
     invoke_and_assert(
@@ -107,8 +96,6 @@ def test_correct_output_non_ephemeral_server_type():
         expected_output=f"""Version:             {prefect.__version__}
 API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
-Git commit:          {version_info['full-revisionid'][:8]}
-Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         server

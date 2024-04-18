@@ -8,9 +8,8 @@ import pathlib
 import warnings
 import sys
 
-__version_info__ = _version.get_versions()
-__version__ = __version_info__["version"]
 
+__version__ = _version.__version__
 # The absolute path to this module
 __module_path__ = pathlib.Path(__file__).parent
 # The absolute path to the root of the repository, only valid for use during development

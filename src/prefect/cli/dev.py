@@ -1,6 +1,7 @@
 """
 Command line interface for working with Prefect Server
 """
+
 import json
 import os
 import platform
@@ -47,7 +48,7 @@ app.add_typer(dev_app)
 def exit_with_error_if_not_editable_install():
     if (
         prefect.__module_path__.parent == "site-packages"
-        or not (prefect.__development_base_path__ / "setup.py").exists()
+        or not (prefect.__development_base_path__ / "pyproject.toml").exists()
     ):
         exit_with_error(
             "Development commands require an editable Prefect installation. "

@@ -53,7 +53,7 @@ def get_prefect_image_name(
     prefect_version = (
         parsed_version[0]
         if is_prod_build
-        else "sha-" + prefect.__version_info__["full-revisionid"][:7]
+        else "sha-" + prefect.__version__.split("+")[-1]
     )
 
     python_version = python_version or python_version_minor()

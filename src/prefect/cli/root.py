@@ -6,7 +6,6 @@ import asyncio
 import platform
 import sys
 
-import pendulum
 import rich.console
 import typer
 from rich.theme import Theme
@@ -114,14 +113,9 @@ async def version():
         "Version": prefect.__version__,
         "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
-        "Git commit": prefect.__version_info__["full-revisionid"][:8],
-        "Built": pendulum.parse(
-            prefect.__version_info__["date"]
-        ).to_day_datetime_string(),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }
-
     server_type: str
 
     try:

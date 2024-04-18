@@ -56,8 +56,7 @@ COPY . ./
 COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
-RUN rm -rf dist && python setup.py sdist
-RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
+RUN rm -rf dist && python -m pip install --upgrade build && python -m build
 
 
 # Setup a base final image from miniconda
@@ -104,11 +103,12 @@ RUN apt-get update && \
 RUN python -m pip install --no-cache-dir pip==23.3.1
 
 # Install the base requirements separately so they cache
-COPY requirements-client.txt requirements.txt ./
-RUN pip install --upgrade --upgrade-strategy eager --no-cache-dir -r requirements.txt
+COPY pyproject.toml ./
+RUN pip install --upgrade --upgrade-strategy eager --no-cache-dir ".[client]"
 
 # Install prefect from the sdist
-COPY --from=python-builder /opt/prefect/dist ./dist
+COPY --from=python-builder /opt/prefect/dist/*.tar.gz ./dist/
+RUN pip install --no-cache-dir "./dist/prefect-*.tar.gz${PREFECT_EXTRAS}"
 
 # Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
 ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
