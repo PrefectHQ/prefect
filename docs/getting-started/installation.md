@@ -161,7 +161,7 @@ Most systems will already have SQLite installed, because it is typically bundled
 
 ### Install SQLite on RHEL
 
-To install an appropriate version of SQLite on Red Hat Custom Linux (RHEL), follow the instruction below:
+To install an appropriate version of SQLite on Red Hat Custom Linux (RHEL), follow the instructions below:
 
 <details>
     <summary>Expand for instructions</summary>
