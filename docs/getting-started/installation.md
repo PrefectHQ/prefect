@@ -176,9 +176,7 @@ pip install -U prefect-client
 ```
 </div>
 
-## Additional Prefect requirements
-
-### SQLite
+## SQLite
 
 By default, a local Prefect server instance uses SQLite as the backing database.
 SQLite is not packaged with the Prefect installation.
@@ -190,7 +188,7 @@ Most systems will already have SQLite installed, because it is typically bundled
 !!! info
     If you install the [`prefect-client`](https://pypi.org/project/prefect-client/) library that provides a limited set of the full Prefect library's functionality, you do not need SQLite installed.
 
-#### Install SQLite on RHEL
+### Install SQLite on RHEL
 
 To install an appropriate version of SQLite on Red Hat Custom Linux (RHEL), follow the instruction below:
 
