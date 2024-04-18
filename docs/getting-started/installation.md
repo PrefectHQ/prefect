@@ -17,7 +17,7 @@ search:
 
 Prefect requires Python 3.8 or newer.
 
-Python 3.12 support is experimental, as not all dependencies support Python 3.12 yet. If you encounter any errors, please [open an issue](https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=needs%3Atriage%2Cbug&projects=&template=1_general_bug_report.yaml).
+Python 3.12 support is experimental, as not all of Prefect's dependencies support Python 3.12 yet.
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
@@ -45,7 +45,7 @@ pip install -U prefect
 ```
 </div>
 
-To install a specific version, specify the version number like this:
+To install a specific version, specify the version number, like this:
 
 <div class="terminal">
 ```bash
@@ -53,39 +53,7 @@ pip install -U "prefect==2.16.2"
 ```
 </div>
 
-See available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
-
-### Installing the bleeding edge
-
-If you'd like to test with the most up-to-date code, you can install directly off the `main` branch on GitHub:
-
-<div class="terminal">
-```bash
-pip install -U git+https://github.com/PrefectHQ/prefect
-```
-</div>
-
-!!! warning "The `main` branch may not be stable"
-    Please be aware that this method installs unreleased code and may not be stable.
-
-### Installing for development
-
-If you'd like to install a version of Prefect for development:
-
-1. Clone the [Prefect repository](https://github.com/PrefectHQ/prefect).
-2. Install an editable version of the Python package with `pip install -e`.
-3. Install pre-commit hooks.
-
-<div class="terminal">
-```bash
-$ git clone https://github.com/PrefectHQ/prefect.git
-$ cd prefect
-$ pip install -e ".[dev]"
-$ pre-commit install
-```
-</div>
-
-See our [Contributing](/contributing/overview/) guide for more details about standards and practices for contributing to Prefect.
+See available release versions in the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
 
 ### Checking your installation
 
@@ -110,7 +78,7 @@ Server:
 ```
 </div>
 
-## Windows installation notes
+### Windows installation
 
 You can install and run Prefect via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). After installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
 
@@ -124,7 +92,7 @@ Watch the `pip install` output messages for the `Scripts` folder path on your sy
 
 If you're using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
 
-## Linux installation notes
+### Linux installation
 
 Linux is a popular operating system for running Prefect. You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database).
 
@@ -143,19 +111,30 @@ If the certificate is not part of your system bundle, you can set the
 
 ***Note:*** Disabling certificate validation is insecure and only suggested as an option for testing!
 
-## Proxies
+## Installing for development
 
-Prefect supports communicating via proxies through environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. Read more about using Prefect Cloud with proxies [here](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
+If you'd like to install a version of Prefect for development:
 
-## External requirements
+1. Clone the [Prefect repository](https://github.com/PrefectHQ/prefect).
+2. Install an editable version of the Python package with `pip install -e`.
+3. Install pre-commit hooks.
 
-### SQLite
+<div class="terminal">
+```bash
+$ git clone https://github.com/PrefectHQ/prefect.git
+$ cd prefect
+$ pip install -e ".[dev]"
+$ pre-commit install
+```
+</div>
 
-You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database).
+See the [Contributing](/contributing/overview/) guide for more details about standards and practices for contributing to Prefect.
 
-By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation. Most systems will already have SQLite installed, because it is typically bundled as a part of Python.
+## SQLite
 
-The Prefect CLI command `prefect version` prints environment details to your console, including the server database. For example:
+You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/). By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation, but most Python environments will already have SQLite installed.
+
+The Prefect CLI command `prefect version` prints environment details to your console, including the server type. For example:
 
 <div class="terminal">
 ```
@@ -219,7 +198,7 @@ pip3 install prefect
 ```
 </div>
 
-## Using Prefect in an environment with HTTP proxies
+## HTTP Proxies
 
 If you are using Prefect Cloud or hosting your own Prefect server instance, the Prefect library
 will connect to the API via any proxies you have listed in the `HTTP_PROXY`,
@@ -227,8 +206,8 @@ will connect to the API via any proxies you have listed in the `HTTP_PROXY`,
 environment variable to specify which hosts should not be sent through the proxy.
 
 For more information about these environment variables, see the [cURL
-documentation](https://everything.curl.dev/usingcurl/proxies/env).
+documentation](https://everything.curl.dev/usingcurl/proxies/env). Read more about using Prefect Cloud with proxies [here](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
 
 ## Next steps
 
-Now that you have Prefect installed and your environment configured, you may want to check out the [Tutorial](/tutorial/) to get more familiar with Prefect.
+Now that you have Prefect installed and your environment configured, check out the [Tutorial](/tutorial/) to get more familiar with Prefect.
