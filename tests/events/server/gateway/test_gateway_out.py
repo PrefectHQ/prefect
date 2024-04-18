@@ -16,6 +16,13 @@ from prefect.server.events.filters import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage import database
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
+
+
+@pytest.fixture(autouse=True)
+def enable_events():
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
+        yield
 
 
 @pytest.fixture

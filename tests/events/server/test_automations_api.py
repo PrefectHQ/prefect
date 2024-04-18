@@ -45,9 +45,19 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.models import deployments
 from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
+    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
+
+
+@pytest.fixture(autouse=True)
+def enable_events():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
+    ):
+        yield
 
 
 @pytest.fixture
@@ -171,6 +181,32 @@ async def create_objects_for_automation(
     await session.commit()
 
     return wp, deployment, automation
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {
+            PREFECT_EXPERIMENTAL_EVENTS: False,
+        },
+        {
+            PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
+        },
+    ],
+)
+async def test_returns_404_when_automations_are_disabled(
+    client: AsyncClient,
+    settings: Dict,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+):
+    with temporary_settings(settings):
+        response = await client.post(
+            f"{automations_url}/",
+            json=automation_to_create.dict(json_compatible=True),
+        )
+
+    assert response.status_code == 404, response.content
 
 
 @pytest.mark.parametrize(
