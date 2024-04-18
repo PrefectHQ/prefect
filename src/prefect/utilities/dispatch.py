@@ -181,7 +181,6 @@ def lookup_type(cls: T, dispatch_key: str) -> T:
 
     # Look up this type in the registry
     subcls = registry.get(dispatch_key)
-    print(registry, dispatch_key, subcls)
 
     if subcls is None:
         raise KeyError(
