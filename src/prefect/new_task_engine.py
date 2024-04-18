@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
@@ -22,8 +23,8 @@ from prefect.client.schemas.objects import TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import State, StateType
-from prefect.states import Completed, Failed, Retrying, Running
+from prefect.server.schemas.states import State
+from prefect.states import Completed, Failed, Pending, Retrying, Running
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
     _resolve_custom_task_run_name,
@@ -69,6 +70,7 @@ class TaskRunEngine(Generic[P, R]):
 
     async def set_state(self, state: State) -> State:
         """ """
+        print("WHAT IS STATE", state)
         state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
         self.task_run.state = state  # type: ignore
         self.task_run.state_name = state.name  # type: ignore
@@ -130,9 +132,10 @@ class TaskRunEngine(Generic[P, R]):
                 else None
             ),
             dynamic_key=uuid4().hex,
-            state=Running(),
+            state=Pending(),
             task_inputs=task_inputs,
         )
+        print("MY FIRST STATE", task_run.state)
         return task_run
 
     @asynccontextmanager
@@ -170,12 +173,14 @@ class TaskRunEngine(Generic[P, R]):
             return self._client
 
     def is_running(self) -> bool:
-        if self.task_run is None:
+        if getattr(self, "task_run", None) is None:
             return False
-        return (
-            getattr(getattr(self.task_run, "state", None), "type", None)
-            == StateType.RUNNING
-        )
+        return getattr(self, "task_run").state.is_running()
+
+    def is_pending(self) -> bool:
+        if getattr(self, "task_run", None) is None:
+            return False
+        return getattr(self, "task_run").state.is_pending()
 
 
 async def run_task(
@@ -193,6 +198,11 @@ async def run_task(
     engine = TaskRunEngine[P, R](task, parameters, task_run)
     async with engine.start() as state:
         # This is a context manager that keeps track of the state of the task run.
+
+        while state.is_pending():
+            print('I"M PENDING')
+            await state.set_state(Running())
+            await asyncio.sleep(1)
         while state.is_running():
             try:
                 # This is where the task is actually run.
