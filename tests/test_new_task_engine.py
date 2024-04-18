@@ -202,13 +202,12 @@ class TestTaskRuns:
 
         assert await api_state.result() == str(run_id)
 
-    @pytest.mark.skip(reason="This wont work until caching is wired up")
     async def test_task_runs_respect_cache_key(self, prefect_client):
-        @task(cache_key_fn="key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key")
         async def first():
             return 42
 
-        @task(cache_key_fn="key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key")
         async def second():
             return 500
 

@@ -24,11 +24,13 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
+from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
     Failed,
     Pending,
     Retrying,
     Running,
+    StateDetails,
     return_value_to_state,
 )
 from prefect.utilities.asyncutils import A, Async
@@ -74,15 +76,41 @@ class TaskRunEngine(Generic[P, R]):
             self.task, self.task_run, self.state
         )  # type: ignore
 
-    async def set_state(self, state: State) -> State:
-        """ """
-        state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
-        self.task_run.state = state  # type: ignore
-        self.task_run.state_name = state.name  # type: ignore
-        self.task_run.state_type = state.type  # type: ignore
-        return state
+    async def begin_run(self) -> State:
+        ## setup cache metadata
+        task_run_context = TaskRunContext.get()
+        cache_key = (
+            self.task.cache_key_fn(
+                task_run_context,
+                self.parameters,
+            )
+            if self.task.cache_key_fn
+            else None
+        )
+        # Ignore the cached results for a cache key, default = false
+        # Setting on task level overrules the Prefect setting (env var)
+        refresh_cache = (
+            self.task.refresh_cache
+            if self.task.refresh_cache is not None
+            else PREFECT_TASKS_REFRESH_CACHE.value()
+        )
+        state = Running(
+            state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
+        )
+        return await self.set_state(state)
 
-    async def handle_success(self, result: R, result_factory) -> R:
+    async def set_state(self, state: State) -> State:
+        new_state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
+        self.task_run.state = new_state  # type: ignore
+        self.task_run.state_name = new_state.name  # type: ignore
+        self.task_run.state_type = new_state.type  # type: ignore
+        return new_state
+
+    async def result(self) -> R:
+        return await self.state.result()
+
+    async def handle_success(self, result: R) -> R:
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         terminal_state = await return_value_to_state(
             await resolve_futures_to_states(result),
             result_factory=result_factory,
@@ -187,7 +215,7 @@ class TaskRunEngine(Generic[P, R]):
 
     def is_pending(self) -> bool:
         if getattr(self, "task_run", None) is None:
-            return False
+            return False  # TODO: handle this differently?
         return getattr(self, "task_run").state.is_pending()
 
 
@@ -207,18 +235,22 @@ async def run_task(
     async with engine.start() as state:
         # This is a context manager that keeps track of the state of the task run.
 
+        await state.begin_run()
+
         while state.is_pending():
-            await state.set_state(Running())
             await asyncio.sleep(1)
+            await state.begin_run()
+
         while state.is_running():
             try:
                 # This is where the task is actually run.
                 result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
-                factory = getattr(TaskRunContext.get(), "result_factory")
-                await state.handle_success(result, result_factory=factory)
+                await state.handle_success(result)
                 return result
 
             except Exception as exc:
                 # If the task fails, and we have retries left, set the task to retrying.
                 await state.handle_exception(exc)
+
+        return await state.result()
