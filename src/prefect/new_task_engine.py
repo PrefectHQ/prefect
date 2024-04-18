@@ -60,6 +60,7 @@ class TaskRunEngine(Generic[P, R]):
         self.task_run.state_name = state.name
         self.task_run.state_type = state.type
         self.retries = self.retries + 1
+        raise exc
 
     async def handle_retry(self, exc: Exception) -> bool:
         """
@@ -149,17 +150,14 @@ async def run_task(
     """
 
     engine = TaskRunEngine[P, R](task, parameters, task_run)
-
     async with engine.start() as state:
         # This is a context manager that keeps track of the state of the task run.
         while state.is_running():
             try:
                 # This is where the task is actually run.
                 result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
-
                 # If the task run is successful, finalize it.
                 await state.handle_success(result)
-
                 return result
 
             except Exception as exc:
