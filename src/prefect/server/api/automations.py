@@ -32,8 +32,27 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    PREFECT_EXPERIMENTAL_EVENTS,
+)
 
-router = PrefectRouter(prefix="/automations", tags=["Automations"])
+
+def automations_enabled() -> bool:
+    if not PREFECT_EXPERIMENTAL_EVENTS or not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Automations are not enabled. Please enable the"
+            " PREFECT_EXPERIMENTAL_EVENTS and"
+            " PREFECT_API_SERVICES_TRIGGERS_ENABLED settings.",
+        )
+
+
+router = PrefectRouter(
+    prefix="/automations",
+    tags=["Automations"],
+    dependencies=[Depends(automations_enabled)],
+)
 
 
 class FlowRunInfrastructureMissing(Exception):

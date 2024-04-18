@@ -23,11 +23,18 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 else:
     import pydantic
+
+
+@pytest.fixture(autouse=True)
+def enable_events():
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
+        yield
 
 
 @pytest.fixture
@@ -87,7 +94,7 @@ ENCODED_MOCK_PAGE_TOKEN = base64.b64encode(MOCK_PAGE_TOKEN.encode()).decode()
 def query_events(
     events_page_one: List[ReceivedEvent],
 ) -> Generator[mock.AsyncMock, None, None]:
-    with mock.patch("prefect.server.api.events.query_events") as query_events:
+    with mock.patch("prefect.server.api.events.database.query_events") as query_events:
         query_events.return_value = (events_page_one, 123, MOCK_PAGE_TOKEN)
         yield query_events
 
@@ -97,7 +104,8 @@ def query_next_page(
     events_page_two: List[ReceivedEvent],
 ) -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.server.api.events.query_next_page", new_callable=mock.AsyncMock
+        "prefect.server.api.events.database.query_next_page",
+        new_callable=mock.AsyncMock,
     ) as query_next_page:
         query_next_page.return_value = (events_page_two, 123, "THAT:NEXTNEXTTOKEN")
         yield query_next_page
@@ -108,10 +116,21 @@ def last_events_page(
     events_page_three: List[ReceivedEvent],
 ) -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.server.api.events.query_next_page", new_callable=mock.AsyncMock
+        "prefect.server.api.events.database.query_next_page",
+        new_callable=mock.AsyncMock,
     ) as query_next_page:
         query_next_page.return_value = (events_page_three, 123, None)
         yield query_next_page
+
+
+async def test_returns_404_when_events_are_disabled(client: AsyncClient):
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        response = await client.post(
+            "http://test/api/events/filter",
+            json={"filter": {}},
+        )
+
+    assert response.status_code == 404, response.content
 
 
 async def test_querying_for_events_returns_first_page(
@@ -294,7 +313,7 @@ async def test_events_api_returns_times_with_timezone_offsets(
 
 @pytest.fixture
 def count_events() -> Generator[mock.AsyncMock, None, None]:
-    with mock.patch("prefect.server.api.events.count_events") as count_events:
+    with mock.patch("prefect.server.api.events.database.count_events") as count_events:
         count_events.return_value = [
             EventCount(
                 value="hello",

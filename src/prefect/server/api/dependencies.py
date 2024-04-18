@@ -9,6 +9,7 @@ from uuid import UUID
 
 from packaging.version import Version
 from prefect._vendor.fastapi import Body, Depends, Header, HTTPException, status
+from prefect._vendor.starlette.requests import Request
 
 from prefect.server import schemas
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
@@ -159,3 +160,10 @@ def get_updated_by(
         )
 
     return None
+
+
+def is_ephemeral_request(request: Request):
+    """
+    A dependency that returns whether the request is to an ephemeral server.
+    """
+    return "ephemeral-prefect" in str(request.base_url)

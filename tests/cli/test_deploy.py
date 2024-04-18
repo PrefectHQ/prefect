@@ -36,7 +36,12 @@ from prefect.deployments.base import (
     initialize_project,
 )
 from prefect.deployments.steps.core import StepExecutionError
-from prefect.events import DeploymentEventTrigger, Posture
+from prefect.events import (
+    DeploymentCompoundTrigger,
+    DeploymentEventTrigger,
+    EventTrigger,
+    Posture,
+)
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import (
@@ -5117,6 +5122,59 @@ class TestDeploymentTrigger:
                         "threshold": 1,
                         "within": timedelta(0),
                         "job_variables": {"foo": "bar"},
+                    }
+                )
+            ]
+
+        async def test_initialize_deployment_triggers_composite(self):
+            trigger_spec = {
+                "name": "Trigger McTriggerson",
+                "enabled": True,
+                "type": "compound",
+                "require": "all",
+                "job_variables": {"foo": "bar"},
+                "triggers": [
+                    {
+                        "type": "event",
+                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                        "match_related": {
+                            "prefect.resource.name": "seed",
+                            "prefect.resource.role": "flow",
+                        },
+                        "expect": {"prefect.flow-run.Completed"},
+                    }
+                ],
+            }
+
+            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+            assert triggers == [
+                DeploymentCompoundTrigger(
+                    **{
+                        "name": "Trigger McTriggerson",
+                        "enabled": True,
+                        "require": "all",
+                        "job_variables": {"foo": "bar"},
+                        "triggers": [
+                            EventTrigger(
+                                **{
+                                    "enabled": True,
+                                    "match": {
+                                        "prefect.resource.id": "prefect.flow-run.*"
+                                    },
+                                    "match_related": {
+                                        "prefect.resource.name": "seed",
+                                        "prefect.resource.role": "flow",
+                                    },
+                                    "after": set(),
+                                    "expect": {"prefect.flow-run.Completed"},
+                                    "for_each": set(),
+                                    "posture": Posture.Reactive,
+                                    "threshold": 1,
+                                    "within": timedelta(0),
+                                    "job_variables": {"foo": "bar"},
+                                }
+                            )
+                        ],
                     }
                 )
             ]
