@@ -164,8 +164,17 @@ For more information about these environment variables, see the [cURL documentat
 ## `prefect-client` library
 
 The `prefect-client` library is a minimal installation of Prefect designed for interacting with Prefect Cloud or a remote self-hosted server instance.
+
 `prefect-client` contains a subset of functionality with a smaller installation size, making it ideal for use in lightweight, resource-constrained, or ephemeral environments.
 It omits all CLI and server components found in the `prefect` library.
+
+Install the latest version with:
+
+<div class="terminal">
+```bash
+pip install -U prefect-client
+```
+</div>
 
 ## Additional Prefect requirements
 
