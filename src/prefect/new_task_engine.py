@@ -64,7 +64,7 @@ class TaskRunEngine(Generic[P, R]):
         - initialize task run logger
         - update task run name
         """
-        with get_client() as client:
+        async with get_client() as client:
             self._client = client
             self._is_started = True
 
