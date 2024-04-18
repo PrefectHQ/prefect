@@ -17,8 +17,6 @@ search:
 
 Prefect requires Python 3.8 or newer.
 
-Python 3.12 support is experimental, as not all of Prefect's dependencies support Python 3.12 yet.
-
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
         <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" /></a>
