@@ -639,7 +639,7 @@ As with prior examples, composite triggers must be supplied with a list of under
 
 ```python
 from prefect import flow
-from prefect.events import DeploymentCompoundTrigger, EventTrigger
+from prefect.events import DeploymentCompoundTrigger
 
 
 @flow(log_prints=True)
