@@ -169,7 +169,7 @@ class ServerType(AutoEnum):
         return PREFECT_EXPERIMENTAL_EVENTS.value()
 
 
-def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
+def get_client(httpx_settings: Optional[Dict[str, Any]] = None) -> "PrefectClient":
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
