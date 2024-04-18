@@ -75,4 +75,14 @@ class TestTaskRuns:
         assert record.levelname == "CRITICAL"
 
     async def test_flow_run_id_is_set(self, flow_run, prefect_client):
-        pass
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.flow_run_id
+
+        factory = await ResultFactory.from_autonomous_task(foo)
+        with FlowRunContext(
+            flow_run=flow_run, client=prefect_client, result_factory=factory
+        ):
+            result = await run_task(foo)
+
+        assert result == flow_run.id
