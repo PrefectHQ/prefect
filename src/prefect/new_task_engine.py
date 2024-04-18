@@ -18,6 +18,7 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
@@ -43,6 +44,10 @@ class TaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
 
+    def __post_init__(self):
+        if self.parameters is None:
+            self.parameters = {}
+
     @property
     def client(self) -> PrefectClient:
         if not self._is_started or self._client is None:
@@ -65,7 +70,7 @@ class TaskRunEngine(Generic[P, R]):
     async def set_state(self, state: State) -> State:
         """ """
         state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
-        self.task.run.state = state  # type: ignore
+        self.task_run.state = state  # type: ignore
         self.task_run.state_name = state.name  # type: ignore
         self.task_run.state_type = state.type  # type: ignore
         return state
@@ -99,9 +104,7 @@ class TaskRunEngine(Generic[P, R]):
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
         flow_run_ctx = FlowRunContext.get()
         try:
-            task_run_name = _resolve_custom_task_run_name(
-                self.task, self.parameters or {}
-            )
+            task_run_name = _resolve_custom_task_run_name(self.task, self.parameters)
         except TypeError:
             task_run_name = None
 
@@ -109,9 +112,16 @@ class TaskRunEngine(Generic[P, R]):
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in self.parameters.items()
         }
+
+        # anticipate nested runs
+        task_run_ctx = TaskRunContext.get()
+        if task_run_ctx:
+            task_inputs["wait_for"] = [TaskRunResult(id=task_run_ctx.task_run.id)]
+
         #        if wait_for:
         #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
+        breakpoint()
         task_run = await client.create_task_run(
             task=self.task,
             name=task_run_name,
@@ -145,7 +155,7 @@ class TaskRunEngine(Generic[P, R]):
                 task=self.task,
                 log_prints=self.task.log_prints or False,
                 task_run=self.task_run,
-                parameters=self.parameters or {},
+                parameters=self.parameters,
                 result_factory=await ResultFactory.from_autonomous_task(self.task),
                 client=client,
             ):

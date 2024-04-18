@@ -22,6 +22,7 @@ class TestTaskRunEngine:
         engine = TaskRunEngine(task=foo)
         assert isinstance(engine.task, Task)
         assert engine.task.name == "foo"
+        assert engine.parameters == {}
 
     async def test_get_client_raises_informative_error(self):
         engine = TaskRunEngine(task=foo)
@@ -142,3 +143,21 @@ class TestTaskRuns:
         run = await prefect_client.read_task_run(result)
 
         assert run.state_type == StateType.COMPLETED
+
+    @pytest.mark.skip(reason="This wont work until both task runs use run_task")
+    async def test_task_tracks_nested_parent_as_dependency(self, prefect_client):
+        @task
+        async def inner():
+            return TaskRunContext.get().task_run.id
+
+        @task
+        async def outer():
+            id1 = inner()
+            return (id1, TaskRunContext.get().task_run.id)
+
+        a, b = await run_task(outer)
+        assert a != b
+
+        # assertions on outer
+        outer_run = await prefect_client.read_task_run(b)
+        assert outer_run.task_inputs
