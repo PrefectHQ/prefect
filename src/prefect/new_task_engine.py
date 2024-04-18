@@ -21,8 +21,9 @@ from prefect.context import TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import StateType
-from prefect.states import Retrying, Running
+from prefect.states import Failed, Retrying, Running
 from prefect.utilities.asyncutils import A, Async
+from prefect.utilities.engine import propose_state
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -42,27 +43,36 @@ class TaskRunEngine(Generic[P, R]):
         pass
 
     async def handle_exception(self, exc: Exception):
-        # If
-        pass
+        if not await self.handle_retry(exc):
+            await self.handle_failure(exc)
 
-    @property
-    def state(self) -> StateType:
-        return self.task_run.state_type  # type: ignore
+    async def handle_failure(self, exc: Exception) -> None:
+        if not self._is_started or self._client is None:
+            raise RuntimeError("Engine has not started.")
+        state = await propose_state(
+            self._client, Failed(), task_run_id=self.task_run.id
+        )
+        self.task_run.state = state
+        self.task_run.state_name = state.name
+        self.task_run.state_type = state.type
+        self.retries = self.retries + 1
 
-    async def handle_retry(self, exc: Exception) -> None:
+    async def handle_retry(self, exc: Exception) -> bool:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         if self.retries < self.task.retries:
             if not self.task.retry_condition_fn or self.task.retry_condition_fn(
                 self.task, self.task_run, self.task_run.state
             ):
-                self.task_run = await self._client.create_task_run(
-                    task=self.task,
-                    flow_run_id=self.flow_run_id,
-                    dynamic_key=uuid4().hex,
-                    state=Retrying(),
+                state = await propose_state(
+                    self._client, Retrying(), task_run_id=self.task_run.id
                 )
+                self.task_run.state = state
+                self.task_run.state_name = state.name
+                self.task_run.state_type = state.type
                 self.retries = self.retries + 1
+                return True
+        return False
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
         task_run = await client.create_task_run(
