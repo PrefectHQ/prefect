@@ -43,7 +43,9 @@ class TaskRunEngine(Generic[P, R]):
         pass
 
     async def handle_exception(self, exc: Exception):
+        # If the task has retries left, and the retry condition is met, set the task to retrying.
         if not await self.handle_retry(exc):
+            # If the task has no retries left, or the retry condition is not met, set the task to failed.
             await self.handle_failure(exc)
 
     async def handle_failure(self, exc: Exception) -> None:
@@ -58,6 +60,11 @@ class TaskRunEngine(Generic[P, R]):
         self.retries = self.retries + 1
 
     async def handle_retry(self, exc: Exception) -> bool:
+        """
+        If the task has retries left, and the retry condition is met, set the task to retrying.
+        - If the task has no retries left, or the retry condition is not met, return False.
+        - If the task has retries left, and the retry condition is met, return True.
+        """
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         if self.retries < self.task.retries:
