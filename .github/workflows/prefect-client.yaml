@@ -45,7 +45,7 @@ jobs:
           TMPDIR: ${{ env.TMPDIR }}
 
       - name: Build a binary wheel and a source tarball
-        run: pip install tomli wheel && python setup.py sdist bdist_wheel
+        run: pip install setuptools tomli wheel && python setup.py sdist bdist_wheel
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
