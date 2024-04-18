@@ -53,7 +53,7 @@ from prefect.settings import (
 
 
 @pytest.fixture(autouse=True)
-def enable_events():
+def enable_automations():
     with temporary_settings(
         {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
     ):

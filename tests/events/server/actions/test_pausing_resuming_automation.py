@@ -8,7 +8,11 @@ from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    PREFECT_EXPERIMENTAL_EVENTS,
+    temporary_settings,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -30,6 +34,14 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import RelatedResource
+
+
+@pytest.fixture
+def enable_automations():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -142,6 +154,7 @@ async def test_pausing_automation(
     turn_off_the_sprinkler_automation: TriggeredAction,
     sprinkler_automation: Automation,
     automations_session: AsyncSession,
+    enable_automations: None,
 ):
     before = await automations.read_automation(
         automations_session, sprinkler_automation.id
@@ -235,6 +248,7 @@ async def test_resuming_automation(
     turn_on_the_sprinkler_automation: TriggeredAction,
     sprinkler_automation: Automation,
     automations_session: AsyncSession,
+    enable_automations: None,
 ):
     await automations.update_automation(
         automations_session,
@@ -348,6 +362,7 @@ async def test_pausing_inferred_automation(
     self_managing_sprinkler_automation: Automation,
     turn_off_the_self_managing_automation: TriggeredAction,
     automations_session: AsyncSession,
+    enable_automations,
 ):
     before = await automations.read_automation(
         automations_session,
@@ -393,6 +408,7 @@ async def test_resuming_inferred_automation(
     self_managing_sprinkler_automation: Automation,
     turn_off_the_self_managing_automation: TriggeredAction,
     automations_session: AsyncSession,
+    enable_automations,
 ):
     before = await automations.read_automation(
         automations_session,
