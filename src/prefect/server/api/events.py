@@ -20,6 +20,7 @@ from prefect.server.events.counting import (
     TimeUnit,
 )
 from prefect.server.events.filters import EventFilter
+from prefect.server.events.models.automations import automations_session
 from prefect.server.events.schemas.events import Event, EventCount, EventPage
 from prefect.server.events.storage import (
     INTERACTIVE_PAGE_SIZE,
@@ -102,10 +103,12 @@ async def stream_workspace_events_out(
         async with stream.events(filter) as event_stream:
             # ...then if the user wants, backfill up to the last 1k events...
             if wants_backfill:
-                backfill, _, _ = await database.query_events(
-                    filter=filter,
-                    page_size=1000,
-                )
+                async with automations_session() as session:
+                    backfill, _, _ = await database.query_events(
+                        session=session,
+                        filter=filter,
+                        page_size=1000,
+                    )
 
                 backfilled_ids = set()
 

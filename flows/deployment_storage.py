@@ -15,7 +15,7 @@ SUPPORTED_VERSION = "2.6.0"
 
 
 if Version(prefect.__version__) < Version(SUPPORTED_VERSION):
-    sys.exit(0)
+    raise NotImplementedError()
 
 
 @prefect.flow
