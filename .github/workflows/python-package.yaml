@@ -38,8 +38,8 @@ jobs:
 
       - name: Install python packages
         run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install --upgrade uv
+          uv pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Build UI
         run: |
@@ -47,7 +47,8 @@ jobs:
 
       - name: Build a binary wheel and a source tarball
         run: |
-          python setup.py sdist bdist_wheel
+          pip install -U build
+          python -m build --wheel --sdist .
 
       - name: Publish build artifacts
         uses: actions/upload-artifact@v4

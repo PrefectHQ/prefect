@@ -8,9 +8,7 @@ on:
     paths:
       - .github/workflows/python-tests.yaml
       - "**/*.py"
-      - requirements.txt
-      - requirements-dev.txt
-      - setup.cfg
+      - "pyproject.toml"
       - Dockerfile
   push:
     branches:

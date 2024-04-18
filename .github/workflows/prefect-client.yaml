@@ -4,10 +4,7 @@ on:
   pull_request:
     paths:
       - "**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - setup.cfg
-  push:
+      - pyproject.toml
     branches:
       - main
   workflow_call:
@@ -48,7 +45,9 @@ jobs:
           TMPDIR: ${{ env.TMPDIR }}
 
       - name: Build a binary wheel and a source tarball
-        run: pip install wheel && python setup.py sdist bdist_wheel
+        run: |
+          pip install -U build
+          python -m build --wheel --sdist .
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package

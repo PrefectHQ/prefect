@@ -57,6 +57,7 @@ COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && python -m pip install --upgrade build && python -m build
+RUN mv dist/*.tar.gz dist/prefect.tar.gz
 
 
 # Setup a base final image from miniconda
@@ -100,22 +101,17 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
-RUN python -m pip install --no-cache-dir pip==23.3.1
-
-# Install the base requirements separately so they cache
-COPY pyproject.toml ./
-RUN pip install --upgrade --upgrade-strategy eager --no-cache-dir ".[client]"
+RUN python -m pip install --no-cache-dir uv==0.1.33
 
 # Install prefect from the sdist
-COPY --from=python-builder /opt/prefect/dist/*.tar.gz ./dist/
-RUN pip install --no-cache-dir "./dist/prefect-*.tar.gz${PREFECT_EXTRAS}"
+COPY --from=python-builder /opt/prefect/dist ./dist
 
 # Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
 ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
-RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
+RUN uv pip install --system --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 ARG EXTRA_PIP_PACKAGES=${EXTRA_PIP_PACKAGES:-""}
-RUN [ -z "${EXTRA_PIP_PACKAGES}" ] || pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
+RUN [ -z "${EXTRA_PIP_PACKAGES}" ] || uv pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
 RUN prefect version
