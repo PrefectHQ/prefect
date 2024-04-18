@@ -67,6 +67,10 @@ class TaskRunEngine(Generic[P, R]):
         with get_client() as client:
             self._client = client
             self._is_started = True
+
+            if not self.task_run:
+                self.task_run = self.create_task_run(client)
+
             with EngineContext(
                 flow=None,
                 flow_run=None,
@@ -76,6 +80,9 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=await ResultFactory.from_autonomous_task(self.task),
             ):
                 yield self
+
+        self._is_started = False
+        self._client = None
 
     async def get_client(self):
         if not self._is_started:
@@ -87,13 +94,6 @@ class TaskRunEngine(Generic[P, R]):
         if self.task_run is None:
             return False
         return getattr(self.task_run, "state", None) == StateType.RUNNING
-
-    async def __aenter__(self: "Self") -> "Self":
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        self._is_started = False
-        self._client = None
 
 
 async def run_task(
