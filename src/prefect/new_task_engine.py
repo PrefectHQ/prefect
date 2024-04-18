@@ -20,7 +20,7 @@ from prefect.client.schemas import TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import StateType
+from prefect.server.schemas.states import StateType, State
 from prefect.states import Completed, Failed, Retrying, Running
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import _resolve_custom_task_run_name, propose_state
@@ -38,10 +38,16 @@ class TaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
 
+    async def set_state(self, state: State) -> State:
+        state = await propose_state(
+            self._client, state, task_run_id=self.task_run.id
+        )
+        return state
+
     async def handle_success(self, result: R) -> R:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
-        await propose_state(self._client, Completed(), task_run_id=self.task_run.id)
+        await self.set_state(Completed())
         return result
 
     async def handle_exception(self, exc: Exception):
@@ -53,9 +59,7 @@ class TaskRunEngine(Generic[P, R]):
     async def handle_failure(self, exc: Exception) -> None:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
-        state = await propose_state(
-            self._client, Failed(), task_run_id=self.task_run.id
-        )
+        state = await self.set_state(Failed())
         self.task_run.state = state
         self.task_run.state_name = state.name
         self.task_run.state_type = state.type
@@ -74,9 +78,7 @@ class TaskRunEngine(Generic[P, R]):
             if not self.task.retry_condition_fn or self.task.retry_condition_fn(
                 self.task, self.task_run, self.task_run.state
             ):
-                state = await propose_state(
-                    self._client, Retrying(), task_run_id=self.task_run.id
-                )
+                state = await self.set_state(Retrying())
                 self.task_run.state = state
                 self.task_run.state_name = state.name
                 self.task_run.state_type = state.type
