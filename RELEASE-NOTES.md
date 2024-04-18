@@ -74,9 +74,10 @@
 * @hboehmer-IW made their first contribution in https://github.com/PrefectHQ/prefect/pull/12721
 * @avriiil made their first contribution in https://github.com/PrefectHQ/prefect/pull/12748
 * @takashimakazuki made their first contribution in https://github.com/PrefectHQ/prefect/pull/12761
+  
 ### Integrations
 - Update date-fns and date-fns-tz — https://github.com/PrefectHQ/prefect-ui-library/pull/2319
-
+- Support for capacity provider — https://github.com/PrefectHQ/prefect-aws/pull/407
 
 
 ### Contributors
