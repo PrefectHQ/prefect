@@ -4,6 +4,7 @@ import pytest
 from prefect import task, Task, get_run_logger
 from prefect.client.orchestration import PrefectClient
 from prefect.new_task_engine import run_task, TaskRunEngine
+from prefect.utilities.callables import get_call_parameters
 
 
 @task
@@ -42,6 +43,16 @@ class TestTaskRuns:
 
         assert result == 42
 
+    async def test_with_params(self):
+        @task
+        async def bar(x: int, y: str = None):
+            return x, y
+
+        parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
+        result = await run_task(bar, parameters=parameters)
+
+        assert result == (42, "nate")
+
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)
 
@@ -52,4 +63,3 @@ class TestTaskRuns:
         result = await run_task(foo)
 
         assert result is None
-
