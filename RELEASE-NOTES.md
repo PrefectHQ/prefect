@@ -50,7 +50,6 @@
 
 ### Documentation
 - Update example to `prefect.yaml` in  work-pools concepts page — https://github.com/PrefectHQ/prefect/pull/12695
-- Remove duplicative resilient — https://github.com/PrefectHQ/prefect/pull/12723
 - Fix typo in Quickstart — https://github.com/PrefectHQ/prefect/pull/12729
 - Simplify-api-connection — https://github.com/PrefectHQ/prefect/pull/12725
 - Add `.serve`, `.deploy`, and composite trigger examples to deployment triggers docs — https://github.com/PrefectHQ/prefect/pull/12743
