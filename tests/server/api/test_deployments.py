@@ -5,8 +5,8 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 from prefect._vendor.starlette import status
-from pydantic import ValidationError
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import DeploymentCreate, DeploymentUpdate
@@ -16,6 +16,11 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
 
 
 class TestCreateDeployment:
