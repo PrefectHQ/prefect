@@ -12,7 +12,7 @@
 - Allow returning to account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
 
 ### Fixes
-- Better flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
+- Raise clearer flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
 - Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
 - Exclude job_variables when exclude=None — https://github.com/PrefectHQ/prefect/pull/12712
 - Remove all infra overrides-related flags — https://github.com/PrefectHQ/prefect/pull/12742
