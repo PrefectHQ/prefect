@@ -9,7 +9,6 @@
 - Remove deprecated `--ci` option from `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12740
 
 ### Enhancements
-- Introduce self-validating types — https://github.com/PrefectHQ/prefect/pull/12707
 - Allow returning to account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
 - Add default posture to `EventTrigger` schema — https://github.com/PrefectHQ/prefect/pull/12764
 
@@ -28,6 +27,7 @@
 ### Experimental
 
 #### Pydantic V2 Compatibility
+- Introduce self-validating types — https://github.com/PrefectHQ/prefect/pull/12707
 - Refactor `field_validator` and `model_validator` to map Pydantic kwargs between versions — https://github.com/PrefectHQ/prefect/pull/12676
 - Fix type-hinting for self-validating fields — https://github.com/PrefectHQ/prefect/pull/12710
  
