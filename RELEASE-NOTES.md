@@ -15,7 +15,7 @@
 - Raise clearer flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
 - Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
 - Exclude job_variables when exclude=None — https://github.com/PrefectHQ/prefect/pull/12712
-- Remove all infra overrides-related flags — https://github.com/PrefectHQ/prefect/pull/12742
+- Remove experimental flags on infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/12742
 
 ### Experimental
 
