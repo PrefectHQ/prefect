@@ -24,9 +24,14 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          python scripts/generate_integration_package_tests_matrix.py > matrix.json
+          if [[ $GITHUB_EVENT_NAME == 'pull_request' ]]; then
+            COMMIT_RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            COMMIT_RANGE="${{ github.event.before }}..${{ github.event.after }}"
+          fi
+          python scripts/generate_integration_package_tests_matrix.py "$COMMIT_RANGE" > matrix.json
           cat matrix.json
-          run: echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
   run-tests:
     name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python }}
