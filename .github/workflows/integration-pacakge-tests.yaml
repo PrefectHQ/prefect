@@ -68,15 +68,16 @@ jobs:
           key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles(format('src/integrations/{0}/pyproject.toml', matrix.package)) }}
 
       - name: Install dependencies
+        working-directory: src/integrations/${{ matrix.package }}
         run: |
           python -m pip install -U uv
-          cd src/integrations/${{ matrix.package }}
           uv pip install --upgrade --system -e .[dev]
 
       - name: Run tests
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/${{ matrix.package }}
         run: |
-          cd src/integrations/${{ matrix.package }}
+          pytest --version
           which pytest
           pytest tests --numprocesses auto --maxprocesses 6 --dist loadscope
