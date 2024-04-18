@@ -13,7 +13,6 @@
 
 ### Fixes
 - Raise clearer flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
-- Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
 - Exclude job_variables when exclude=None — https://github.com/PrefectHQ/prefect/pull/12712
 - Remove experimental flags on infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/12742
 
@@ -23,6 +22,8 @@
 - Introduce self-validating types — https://github.com/PrefectHQ/prefect/pull/12707
 - Refactor `field_validator` and `model_validator` to map Pydantic kwargs between versions — https://github.com/PrefectHQ/prefect/pull/12676
 - Fix type-hinting for self-validating fields — https://github.com/PrefectHQ/prefect/pull/12710
+- Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
+
  
 #### Events and Automations
 - Implement the `run-deployment` automation action — https://github.com/PrefectHQ/prefect/pull/12677
