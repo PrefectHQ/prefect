@@ -58,6 +58,16 @@ class TestTaskRuns:
 
         assert result == (42, "nate")
 
+    async def test_task_run_name(self, prefect_client):
+        @task(task_run_name="name is {x}")
+        async def foo(x):
+            return TaskRunContext.get().task_run.id
+
+        result = await run_task(foo, parameters=dict(x="blue"))
+        run = await prefect_client.read_task_run(result)
+
+        assert run.name == "name is blue"
+
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)
 
@@ -95,6 +105,40 @@ class TestTaskRuns:
             return TaskRunContext.get().task_run.id
 
         result = await run_task(foo)
+        run = await prefect_client.read_task_run(result)
+
+        assert run.state_type == StateType.COMPLETED
+
+    async def test_task_ends_in_failed(self, prefect_client):
+        ID = None
+
+        @task
+        async def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            await run_task(foo)
+
+        run = await prefect_client.read_task_run(ID)
+
+        assert run.state_type == StateType.FAILED
+
+    async def test_task_ends_in_failed_after_retrying(self, prefect_client):
+        ID = None
+
+        @task(retries=1)
+        async def foo():
+            nonlocal ID
+            if ID is None:
+                ID = TaskRunContext.get().task_run.id
+                raise ValueError("xyz")
+            else:
+                return ID
+
+        result = await run_task(foo)
+
         run = await prefect_client.read_task_run(result)
 
         assert run.state_type == StateType.COMPLETED
