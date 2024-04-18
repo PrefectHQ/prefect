@@ -16,7 +16,7 @@ Thanks for considering contributing to Prefect!
 
 ## Setting up a development environment
 
-First, you'll need to download the source code and install an editable version of the Python package:
+First, download the source code and install an editable version of the Python package:
 
 <div class="terminal">
 ```bash
@@ -261,7 +261,7 @@ export PREFECT_API_URL=http://localhost:4200/api
 
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Prefect API running in Kubernetes when using local Prefect CLI commands.
 
-### Adding Database Migrations
+### Adding database migrations
 
 To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example,
 if you wanted to add a new column to the `flow_run` table, you would add a new column to the `FlowRun` model:
