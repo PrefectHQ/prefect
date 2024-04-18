@@ -29,6 +29,8 @@ class TaskRunEngine:
         self.flow_run_id = flow_run_id
 
     def is_running(self) -> bool:
+        if self.task_run is None:
+            return False
         return getattr(self.task_run, "state", None) == StateType.RUNNING
 
     async def handle_success(self, result):
