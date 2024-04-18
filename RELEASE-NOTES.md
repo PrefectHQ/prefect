@@ -50,9 +50,6 @@
 
 ### Documentation
 - Update example to `prefect.yaml` in  work-pools concepts page — https://github.com/PrefectHQ/prefect/pull/12695
-- Fix stray link — https://github.com/PrefectHQ/prefect/pull/12721
-- Add hyphen — https://github.com/PrefectHQ/prefect/pull/12724
-- Fix typo — https://github.com/PrefectHQ/prefect/pull/12722
 - Remove duplicative resilient — https://github.com/PrefectHQ/prefect/pull/12723
 - Fix typo in Quickstart — https://github.com/PrefectHQ/prefect/pull/12729
 - Simplify-api-connection — https://github.com/PrefectHQ/prefect/pull/12725
