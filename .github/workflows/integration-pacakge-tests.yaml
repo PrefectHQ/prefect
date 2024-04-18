@@ -24,7 +24,7 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          python generate_matrix.py > matrix.json
+          python scripts/generate_integration_package_tests_matrix.py > matrix.json
           echo "::set-output name=matrix::$(cat matrix.json)"
 
   run-tests:
