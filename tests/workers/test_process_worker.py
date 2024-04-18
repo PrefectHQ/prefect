@@ -11,8 +11,14 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.server import models
+from prefect.server.schemas.actions import (
+    DeploymentUpdate,
+    WorkPoolCreate,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel
@@ -24,12 +30,7 @@ from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
-from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
-    temporary_settings,
-)
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
     ProcessJobConfiguration,
@@ -41,14 +42,6 @@ from prefect.workers.process import (
 @flow
 def example_process_worker_flow():
     return 1
-
-
-@pytest.fixture
-def enable_infra_overrides():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
 
 
 @pytest.fixture
@@ -80,9 +73,9 @@ async def flow_run(prefect_client: PrefectClient):
 
 
 @pytest.fixture
-async def flow_run_with_overrides(prefect_client: PrefectClient):
-    flow_run = await prefect_client.create_flow_run(
-        flow=example_process_worker_flow,
+async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment.id,
         state=State(
             type=StateType.SCHEDULED,
             state_details=StateDetails(
@@ -95,8 +88,6 @@ async def flow_run_with_overrides(prefect_client: PrefectClient):
         job_variables={"working_dir": "/tmp/test"},
     )
     return await prefect_client.read_flow_run(flow_run.id)
-
-    return flow_run
 
 
 @pytest.fixture
@@ -146,26 +137,41 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
 
 
 @pytest.fixture
-def work_pool():
+async def work_pool(session: AsyncSession):
     job_template = ProcessWorker.get_default_base_job_template()
 
-    work_pool = MagicMock(spec=WorkPool)
-    work_pool.name = "test-worker-pool"
-    work_pool.base_job_template = job_template
-    return work_pool
+    wp = await models.workers.create_work_pool(
+        session=session,
+        work_pool=WorkPoolCreate.construct(
+            _fields_set=WorkPoolCreate.__fields_set__,
+            name="test-worker-pool",
+            type="test",
+            description="None",
+            base_job_template=job_template,
+        ),
+    )
+    await session.commit()
+    return wp
 
 
 @pytest.fixture
-def work_pool_with_default_env():
+async def work_pool_with_default_env(session: AsyncSession):
     job_template = ProcessWorker.get_default_base_job_template()
     job_template["variables"]["properties"]["env"]["default"] = {
         "CONFIG_ENV_VAR": "from_job_configuration"
     }
-
-    work_pool = MagicMock(spec=WorkPool)
-    work_pool.name = "test-worker-pool"
-    work_pool.base_job_template = job_template
-    return work_pool
+    wp = await models.workers.create_work_pool(
+        session=session,
+        work_pool=WorkPoolCreate.construct(
+            _fields_set=WorkPoolCreate.__fields_set__,
+            name="wp-1",
+            type="test",
+            description="None",
+            base_job_template=job_template,
+        ),
+    )
+    await session.commit()
+    return wp
 
 
 async def test_worker_process_run_flow_run(
@@ -266,7 +272,6 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
 async def test_flow_run_without_job_vars(
     flow_run,
     work_pool_with_default_env,
-    enable_infra_overrides,
     monkeypatch,
 ):
     deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
@@ -281,13 +286,19 @@ async def test_flow_run_without_job_vars(
 
 
 async def test_flow_run_vars_take_precedence(
+    deployment,
     flow_run_with_overrides,
     work_pool_with_default_env,
-    enable_infra_overrides,
-    monkeypatch,
+    session: AsyncSession,
 ):
-    deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
-    patch_client(monkeypatch, overrides=deployment_job_vars)
+    await models.deployments.update_deployment(
+        session=session,
+        deployment_id=deployment.id,
+        deployment=DeploymentUpdate(
+            job_variables={"working_dir": "/deployment/tmp/test"},
+        ),
+    )
+    await session.commit()
 
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
@@ -301,13 +312,19 @@ async def test_flow_run_vars_take_precedence(
 
 
 async def test_flow_run_vars_and_deployment_vars_get_merged(
+    deployment,
     flow_run_with_overrides,
     work_pool_with_default_env,
-    monkeypatch,
-    enable_infra_overrides,
+    session: AsyncSession,
 ):
-    deployment_job_vars = {"stream_output": False}
-    patch_client(monkeypatch, overrides=deployment_job_vars)
+    await models.deployments.update_deployment(
+        session=session,
+        deployment_id=deployment.id,
+        deployment=DeploymentUpdate(
+            job_variables={"stream_output": False},
+        ),
+    )
+    await session.commit()
 
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
@@ -318,7 +335,7 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
             str(config.working_dir)
             == flow_run_with_overrides.job_variables["working_dir"]
         )
-        assert config.stream_output == deployment_job_vars["stream_output"]
+        assert config.stream_output is False
 
 
 async def test_process_created_then_marked_as_started(
