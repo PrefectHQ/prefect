@@ -23,6 +23,7 @@ from prefect.results import ResultFactory
 from prefect.server.schemas.states import StateType
 from prefect.states import Retrying, Running
 from prefect.utilities.asyncutils import A, Async
+from prefect.utilities.engine import _resolve_custom_task_run_name
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -49,6 +50,10 @@ class TaskRunEngine(Generic[P, R]):
     def state(self) -> StateType:
         return self.task_run.state_type  # type: ignore
 
+    @property
+    def task_run_name(self) -> str:
+        return _resolve_custom_task_run_name(self.task, self.parameters or {})
+
     async def handle_retry(self, exc: Exception) -> None:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
@@ -67,6 +72,7 @@ class TaskRunEngine(Generic[P, R]):
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
         task_run = await client.create_task_run(
             task=self.task,
+            name=self.task_run_name,
             flow_run_id=self.flow_run_id,
             dynamic_key=uuid4().hex,
             state=Running(),

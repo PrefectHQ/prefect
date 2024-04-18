@@ -1,10 +1,11 @@
 import logging
-import pytest
 from uuid import UUID
 
-from prefect import task, Task, get_run_logger
+import pytest
+
+from prefect import Task, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
-from prefect.new_task_engine import run_task, TaskRunEngine
+from prefect.new_task_engine import TaskRunEngine, run_task
 from prefect.utilities.callables import get_call_parameters
 
 
@@ -67,7 +68,7 @@ class TestTaskRuns:
         record = caplog.records[0]
 
         assert record.task_name == "my_log_task"
-        # assert record.task_run_name == "test-run"
+        assert record.task_run_name == "test-run"
         assert UUID(record.task_run_id)
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
