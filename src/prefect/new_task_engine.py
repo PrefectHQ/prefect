@@ -11,7 +11,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from typing_extensions import ParamSpec, Self
+from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
 from prefect.client.orchestration import PrefectClient
@@ -64,7 +64,7 @@ class TaskRunEngine(Generic[P, R]):
         - initialize task run logger
         - update task run name
         """
-        with get_client() as client:
+        async with get_client() as client:
             self._client = client
             self._is_started = True
 
