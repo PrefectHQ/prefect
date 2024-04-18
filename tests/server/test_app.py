@@ -43,7 +43,6 @@ def test_app_exposes_ui_settings():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "flow_run_infra_overrides",
     }
 
 
@@ -66,7 +65,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "flow_run_infra_overrides",
     }
 
 

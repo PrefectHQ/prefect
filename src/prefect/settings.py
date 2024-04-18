@@ -109,6 +109,8 @@ REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
     "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
     "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
+    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
 }
 
 
@@ -1540,16 +1542,6 @@ PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
 How long before a PENDING task are made available to another task server.  In practice,
 a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
 PENDING for a while is a sign that the task server may have crashed.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=True)
-"""
-Whether or not to enable infrastructure overrides made on flow runs.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
-"""
-Whether or not to warn infrastructure when experimental flow runs overrides are used.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
