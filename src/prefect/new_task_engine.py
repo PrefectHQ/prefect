@@ -1,15 +1,19 @@
-import asyncio
-import random
-from typing import Any, Coroutine, Dict, Iterable, List, Optional, TypeVar, cast
-from uuid import uuid4
+from typing import (
+    Any,
+    Coroutine,
+    Dict,
+    Generic,
+    Iterable,
+    Optional,
+    TypeVar,
+    cast,
+)
 
-from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec, Self
 
 from prefect import Task
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
-from prefect.context import EngineContext
 from prefect.futures import PrefectFuture
 from prefect.utilities.asyncutils import A, Async
 
@@ -17,8 +21,13 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-class TaskRunEngine:
-    def __init__(self, task: Task, parameters: Dict[str, Any], task_run: TaskRun):
+class TaskRunEngine(Generic[P, R]):
+    def __init__(
+        self,
+        task: Task[P, Coroutine[Any, Any, R]],
+        parameters: Optional[Dict[str, Any]],
+        task_run: TaskRun,
+    ):
         self.task = task
         self.parameters = parameters
         self.task_run = task_run
@@ -27,7 +36,7 @@ class TaskRunEngine:
         self._is_started = False
         self._client = None
 
-    async def start(self):
+    async def start(self) -> "TaskRunEngine[P, R]":
         """
         - check for a cached state
         - sets state to running
@@ -46,13 +55,13 @@ class TaskRunEngine:
         else:
             return self._client
 
-    async def is_running(self):
+    async def is_running(self) -> bool:
+        return False
+
+    async def handle_success(self, result: R):
         pass
 
-    async def handle_success(self, result):
-        pass
-
-    async def handle_exception(self, exc):
+    async def handle_exception(self, exc: Exception):
         pass
 
     async def __aenter__(self: "Self") -> "Self":
@@ -76,14 +85,14 @@ async def run_task(
 
     engine = TaskRunEngine(task, parameters, task_run)
 
-    result = cast(R, None)  # Ask me about this sync.
+    result = cast(R, None)
 
-    async with engine.start() as state:
+    async with await engine.start() as state:
         # This is a context manager that keeps track of the state of the task run.
-        while state.is_running():
+        while await state.is_running():
             try:
                 # This is where the task is actually run.
-                result = await task.fn(**parameters)  # type: ignore
+                result = cast(R, await task.fn(**parameters))
 
                 # If the task run is successful, finalize it.
                 await state.handle_success(result)
@@ -92,4 +101,4 @@ async def run_task(
                 # If the task fails, and we have retries left, set the task to retrying.
                 await state.handle_exception(exc)
 
-    return result  # type: ignore
+    return result
