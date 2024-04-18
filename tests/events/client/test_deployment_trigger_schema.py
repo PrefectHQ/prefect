@@ -201,8 +201,8 @@ def test_compound_deployment_trigger_as_automation():
             "require": "all",
             "within": "42",
             "triggers": [
-                {"posture": "Reactive", "expect": ["foo.bar"]},
-                {"posture": "Reactive", "expect": ["buz.baz"]},
+                {"expect": ["foo.bar"]},
+                {"expect": ["buz.baz"]},
             ],
         },
     )
@@ -258,15 +258,15 @@ def test_deeply_nested_compound_deployment_trigger_as_automation():
                     "type": "compound",
                     "require": "any",
                     "triggers": [
-                        {"posture": "Reactive", "expect": ["foo.bar"]},
-                        {"posture": "Reactive", "expect": ["buz.baz"]},
+                        {"expect": ["foo.bar"]},
+                        {"expect": ["buz.baz"]},
                     ],
                 },
                 {
                     "type": "sequence",
                     "triggers": [
-                        {"posture": "Reactive", "expect": ["flibbdy.jibbidy"]},
-                        {"posture": "Reactive", "expect": ["floobity.bop"]},
+                        {"expect": ["flibbdy.jibbidy"]},
+                        {"expect": ["floobity.bop"]},
                     ],
                 },
             ],

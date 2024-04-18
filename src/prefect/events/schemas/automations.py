@@ -106,7 +106,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
     posture: Literal[Posture.Reactive, Posture.Proactive] = Field(  # type: ignore[valid-type]
-        ...,
+        Posture.Reactive,
         description=(
             "The posture of this trigger, either Reactive or Proactive.  Reactive "
             "triggers respond to the _presence_ of the expected events, while "
