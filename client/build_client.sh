@@ -31,7 +31,7 @@ rm -rf server/utilities
 
 # replace old build files with client build files
 cd $TMPDIR
-cp client/setup.py .
+cp client/pyproject.toml .
 cp client/README.md .
 
 # if running in GH Actions, this happens in external workflow steps
@@ -45,8 +45,8 @@ if [ -z ${CI} ];
         fi
         python -m venv venv;
         source venv/bin/activate;
-        pip install wheel versioneer;
-        python setup.py sdist bdist_wheel;
+        pip install -U build;
+        python -m build;
         pip install dist/*.tar.gz;
         python client/client_flow.py;
         echo "Build and smoke test completed successfully. Final results:";

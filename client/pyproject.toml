@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prefect-client"
+description = "Workflow orchestration and management."
+authors = [
+    {name = "Prefect Technologies, Inc.", email = "help@prefect.io"},
+]
+version = "0.0.0"
+readme = "README.md"
+
+requires-python = ">=3.8"
+classifiers = [
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Changelog = "https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md"
+Documentation = "https://docs.prefect.io"
+Source = "https://github.com/PrefectHQ/prefect"
+Tracker = "https://github.com/PrefectHQ/prefect/issues"
+
+[project.optional-dependencies]
+notifications = ["apprise>=1.1.0, <2.0.0"]
+
+[tool.setuptools]
+packages = ["prefect_client"]
+package-dir = {"" = "src"}
+include-package-data = true

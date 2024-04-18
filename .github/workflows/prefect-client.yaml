@@ -39,6 +39,14 @@ jobs:
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
 
+      - name: Get latest tag for repo
+        id: get_latest_tag
+        run: |
+          tag=$(git describe --tags --abbrev=0)
+          sed -i "s/version = .*/version = \"$tag\"/" client/pyproject.toml
+          cat client/pyproject.toml | grep version
+
+
       - name: Prepare files for prefect-client build (omit the local build)
         run: sh client/build_client.sh   
         env:
