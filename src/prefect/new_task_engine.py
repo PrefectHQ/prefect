@@ -95,9 +95,11 @@ class TaskRunEngine(Generic[P, R]):
         task_run = await client.create_task_run(
             task=self.task,
             name=task_run_name,
-            flow_run_id=getattr(flow_run_ctx.flow_run, "id", None)
-            if flow_run_ctx and flow_run_ctx.flow_run
-            else None,
+            flow_run_id=(
+                getattr(flow_run_ctx.flow_run, "id", None)
+                if flow_run_ctx and flow_run_ctx.flow_run
+                else None
+            ),
             dynamic_key=uuid4().hex,
             state=Running(),
         )
