@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import (
     Any,
     Coroutine,
@@ -27,27 +28,19 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+@dataclass
 class TaskRunEngine(Generic[P, R]):
-    def __init__(
-        self,
-        task: Task,
-        parameters: Optional[Dict[str, Any]] = None,
-        task_run: Optional[TaskRun] = None,
-        flow_run_id: Optional[UUID] = None,
-    ):
-        self.task = task
-        self.parameters = parameters
-        self.task_run = task_run
-        self.flow_run_id = flow_run_id
+    task: Task[P, Coroutine[Any, Any, R]]
+    parameters: Optional[Dict[str, Any]] = None
+    task_run: Optional[TaskRun] = None
+    flow_run_id: Optional[UUID] = None
+    _is_started: bool = False
+    _client: Optional[PrefectClient] = None
 
-        # bookkeeping fields
-        self._is_started = False
-        self._client = None
-
-    async def handle_success(self, result):
+    async def handle_success(self, result: R):
         pass
 
-    async def handle_exception(self, exc):
+    async def handle_exception(self, exc: Exception):
         pass
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
