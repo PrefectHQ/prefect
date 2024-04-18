@@ -36,10 +36,10 @@ class TaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
 
-    async def handle_success(self, result):
+    async def handle_success(self, result: R):
         pass
 
-    async def handle_exception(self, exc):
+    async def handle_exception(self, exc: Exception):
         pass
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
