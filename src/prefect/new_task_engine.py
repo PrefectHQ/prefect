@@ -135,7 +135,6 @@ class TaskRunEngine(Generic[P, R]):
             state=Pending(),
             task_inputs=task_inputs,
         )
-        print("MY FIRST STATE", task_run.state)
         return task_run
 
     @asynccontextmanager
@@ -200,7 +199,6 @@ async def run_task(
         # This is a context manager that keeps track of the state of the task run.
 
         while state.is_pending():
-            print('I"M PENDING')
             await state.set_state(Running())
             await asyncio.sleep(1)
         while state.is_running():
