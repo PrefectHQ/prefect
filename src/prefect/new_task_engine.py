@@ -14,6 +14,7 @@ from typing_extensions import ParamSpec, Self
 from prefect import Task
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
+from prefect.context import EngineContext
 from prefect.futures import PrefectFuture
 from prefect.utilities.asyncutils import A, Async
 
@@ -46,7 +47,15 @@ class TaskRunEngine(Generic[P, R]):
         with get_client() as client:
             self._client = client
             self._is_started = True
-            return self
+            with EngineContext(
+                flow=None,
+                flow_run=None,
+                autonomous_task_run=self.task_run,
+                client=client,
+                parameters=self.parameters,
+                result_factory=await ResultFactory.from_autonomous_task(self.task),
+            ):
+                return self
 
     async def get_client(self):
         if not self._is_started:
