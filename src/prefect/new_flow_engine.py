@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
@@ -20,7 +21,7 @@ from prefect.client.schemas import FlowRun
 from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import State, StateType
+from prefect.server.schemas.states import State
 from prefect.states import Completed, Failed, Running
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
@@ -53,6 +54,10 @@ class FlowRunEngine(Generic[P, R]):
     @property
     def state(self) -> State:
         return self.flow_run.state  # type: ignore
+
+    async def begin_run(self) -> State:
+        state = Running()
+        return await self.set_state(state)
 
     async def set_state(self, state: State) -> State:
         """ """
@@ -125,12 +130,14 @@ class FlowRunEngine(Generic[P, R]):
             return self._client
 
     def is_running(self) -> bool:
-        if self.flow_run is None:
+        if getattr(self, "flow_run", None) is None:
             return False
-        return (
-            getattr(getattr(self.flow_run, "state", None), "type", None)
-            == StateType.RUNNING
-        )
+        return getattr(self, "flow_run").state.is_running()
+
+    def is_pending(self) -> bool:
+        if getattr(self, "flow_run", None) is None:
+            return False  # TODO: handle this differently?
+        return getattr(self, "flow_run").state.is_pending()
 
 
 async def run_flow(
@@ -147,15 +154,23 @@ async def run_flow(
 
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
     async with engine.start() as state:
-        # This is a context manager that keeps track of the state of the task run.
+        # This is a context manager that keeps track of the state of the flow run.
+        await state.begin_run()
+
+        while state.is_pending():
+            await asyncio.sleep(1)
+            await state.begin_run()
+
         while state.is_running():
             try:
-                # This is where the task is actually run.
+                # This is where the flow is actually run.
                 result = cast(R, await flow.fn(**(parameters or {})))  # type: ignore
-                # If the task run is successful, finalize it.
+                # If the flow run is successful, finalize it.
                 await state.handle_success(result)
                 return result
 
             except Exception as exc:
-                # If the task fails, and we have retries left, set the task to retrying.
+                # If the flow fails, and we have retries left, set the flow to retrying.
                 await state.handle_exception(exc)
+
+        return await state.result()
