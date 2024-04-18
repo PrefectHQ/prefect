@@ -12,7 +12,6 @@ import yaml
 from httpx import Response
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
@@ -1097,7 +1096,7 @@ class TestDeploymentApply:
                     return_value=httpx.Response(201, json={"id": str(uuid4())})
                 )
 
-            await deployment.apply()
+                await deployment.apply()
 
             assert delete_route.called
             assert create_route.called
@@ -1297,25 +1296,6 @@ class TestRunDeployment:
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
 
-    async def test_run_deployment_emits_warning(
-        self,
-        test_deployment,
-        prefect_client,
-    ):
-        # This can be removed once the flow run infra overrides is no longer an experiment
-        _, deployment_id = test_deployment
-
-        with pytest.warns(
-            ExperimentalFeature,
-            match="To use this feature, update your workers to Prefect 2.16.4 or later.",
-        ):
-            await run_deployment(
-                deployment_id,
-                timeout=0,
-                job_variables={"foo": "bar"},
-                client=prefect_client,
-            )
-
     async def test_run_deployment_with_job_vars_creates_run_with_job_vars(
         self,
         test_deployment,
@@ -1325,16 +1305,12 @@ class TestRunDeployment:
         _, deployment_id = test_deployment
 
         job_vars = {"foo": "bar"}
-        with pytest.warns(
-            ExperimentalFeature,
-            match="To use this feature, update your workers to Prefect 2.16.4 or later.",
-        ):
-            flow_run = await run_deployment(
-                deployment_id,
-                timeout=0,
-                job_variables=job_vars,
-                client=prefect_client,
-            )
+        flow_run = await run_deployment(
+            deployment_id,
+            timeout=0,
+            job_variables=job_vars,
+            client=prefect_client,
+        )
         assert flow_run.job_variables == job_vars
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.job_variables == job_vars

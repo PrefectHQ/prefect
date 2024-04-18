@@ -105,6 +105,11 @@ async def update_flow_run(
                 raise HTTPException(
                     status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
+            if not this_run.state:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail="Flow run state is required to update job variables but none exists",
+                )
             if this_run.state.type != schemas.states.StateType.SCHEDULED:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

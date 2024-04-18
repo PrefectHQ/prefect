@@ -29,7 +29,6 @@ import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.actions import (
@@ -1046,20 +1045,6 @@ async def test_create_flow_run_from_deployment_with_options(prefect_client, depl
     assert flow_run.job_variables == job_variables
 
 
-async def test_create_flow_run_from_deployment_with_options_emits_warning(
-    prefect_client, deployment
-):
-    with pytest.warns(
-        ExperimentalFeature,
-        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
-    ):
-        await prefect_client.create_flow_run_from_deployment(
-            deployment.id,
-            name="test-run-name",
-            job_variables={"foo": "bar"},
-        )
-
-
 async def test_update_flow_run(prefect_client):
     @flow
     def foo():
@@ -1115,22 +1100,6 @@ async def test_update_flow_run_overrides_tags(prefect_client):
     )
     updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert updated_flow_run.tags == ["hello", "world"]
-
-
-async def test_update_flow_run_with_job_vars_emits_warning(prefect_client, deployment):
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        deployment.id,
-        name="test-run-name",
-    )
-
-    with pytest.warns(
-        ExperimentalFeature,
-        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
-    ):
-        await prefect_client.update_flow_run(
-            flow_run.id,
-            job_variables={"foo": "bar"},
-        )
 
 
 async def test_create_then_read_task_run(prefect_client):
