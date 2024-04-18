@@ -1,6 +1,7 @@
 from .schemas.events import Event, ReceivedEvent
 from .schemas.events import Resource, RelatedResource, ResourceSpecification
 from .schemas.automations import (
+    Automation,
     AutomationCore,
     Posture,
     Trigger,
@@ -20,6 +21,7 @@ from .schemas.deployment_triggers import (
     DeploymentCompoundTrigger,
     DeploymentSequenceTrigger,
 )
+from .clients import get_events_client, get_events_subscriber
 from .utilities import emit_event
 
 __all__ = [
@@ -28,6 +30,7 @@ __all__ = [
     "Resource",
     "RelatedResource",
     "ResourceSpecification",
+    "Automation",
     "AutomationCore",
     "Posture",
     "Trigger",
@@ -45,4 +48,6 @@ __all__ = [
     "DeploymentCompoundTrigger",
     "DeploymentSequenceTrigger",
     "emit_event",
+    "get_events_client",
+    "get_events_subscriber",
 ]

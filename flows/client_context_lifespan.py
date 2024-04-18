@@ -1,12 +1,10 @@
-import sys
-
 from packaging.version import Version
 
 import prefect
 
 # Only run these tests if the version is at least 2.13.0
 if Version(prefect.__version__) < Version("2.13.0"):
-    sys.exit(0)
+    raise NotImplementedError()
 
 import asyncio
 import random
