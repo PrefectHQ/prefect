@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
     Any,
+    Callable,
     Coroutine,
     Dict,
     Generic,
@@ -20,7 +21,7 @@ from prefect.client.schemas import TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import StateType, State
+from prefect.server.schemas.states import State, StateType
 from prefect.states import Completed, Failed, Retrying, Running
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import _resolve_custom_task_run_name, propose_state
@@ -38,15 +39,34 @@ class TaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
 
+    @property
+    def client(self) -> PrefectClient:
+        if not self._is_started or self._client is None:
+            raise RuntimeError("Engine has not started.")
+        return self._client
+
+    @property
+    def state(self) -> State:
+        return self.task_run.state  # type: ignore
+
+    @property
+    def can_retry(self) -> bool:
+        retry_condition: Optional[  # type: ignore
+            Callable[[Task[P, Coroutine[Any, Any, R]], TaskRun, State], bool]
+        ] = self.task.retry_condition_fn  # type: ignore
+        return not retry_condition or retry_condition(
+            self.task, self.task_run, self.state
+        )  # type: ignore
+
     async def set_state(self, state: State) -> State:
-        state = await propose_state(
-            self._client, state, task_run_id=self.task_run.id
-        )
+        """ """
+        state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
+        self.task.run.state = state  # type: ignore
+        self.task_run.state_name = state.name  # type: ignore
+        self.task_run.state_type = state.type  # type: ignore
         return state
 
     async def handle_success(self, result: R) -> R:
-        if not self._is_started or self._client is None:
-            raise RuntimeError("Engine has not started.")
         await self.set_state(Completed())
         return result
 
@@ -57,13 +77,7 @@ class TaskRunEngine(Generic[P, R]):
             await self.handle_failure(exc)
 
     async def handle_failure(self, exc: Exception) -> None:
-        if not self._is_started or self._client is None:
-            raise RuntimeError("Engine has not started.")
-        state = await self.set_state(Failed())
-        self.task_run.state = state
-        self.task_run.state_name = state.name
-        self.task_run.state_type = state.type
-        self.retries = self.retries + 1
+        await self.set_state(Failed())
         raise exc
 
     async def handle_retry(self, exc: Exception) -> bool:
@@ -72,18 +86,10 @@ class TaskRunEngine(Generic[P, R]):
         - If the task has no retries left, or the retry condition is not met, return False.
         - If the task has retries left, and the retry condition is met, return True.
         """
-        if not self._is_started or self._client is None:
-            raise RuntimeError("Engine has not started.")
-        if self.retries < self.task.retries:
-            if not self.task.retry_condition_fn or self.task.retry_condition_fn(
-                self.task, self.task_run, self.task_run.state
-            ):
-                state = await self.set_state(Retrying())
-                self.task_run.state = state
-                self.task_run.state_name = state.name
-                self.task_run.state_type = state.type
-                self.retries = self.retries + 1
-                return True
+        if self.retries < self.task.retries and self.can_retry:
+            await self.set_state(Retrying())
+            self.retries = self.retries + 1
+            return True
         return False
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
