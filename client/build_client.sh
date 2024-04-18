@@ -45,7 +45,7 @@ if [ -z ${CI} ];
         fi
         python -m venv venv;
         source venv/bin/activate;
-        pip install wheel;
+        pip install wheel versioneer;
         python setup.py sdist bdist_wheel;
         pip install dist/*.tar.gz;
         python client/client_flow.py;

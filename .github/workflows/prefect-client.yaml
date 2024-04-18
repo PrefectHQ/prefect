@@ -46,7 +46,7 @@ jobs:
 
       - name: Build a binary wheel and a source tarball
         run: |
-          pip install -U build
+          pip install -U build versioneer
           python -m build --wheel --sdist .
         working-directory: ${{ env.TMPDIR }}
 
