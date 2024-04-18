@@ -24,7 +24,11 @@ from prefect.results import ResultFactory
 from prefect.server.schemas.states import State, StateType
 from prefect.states import Completed, Failed, Retrying, Running
 from prefect.utilities.asyncutils import A, Async
-from prefect.utilities.engine import _resolve_custom_task_run_name, propose_state
+from prefect.utilities.engine import (
+    _resolve_custom_task_run_name,
+    collect_task_run_inputs,
+    propose_state,
+)
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -100,6 +104,14 @@ class TaskRunEngine(Generic[P, R]):
             )
         except TypeError:
             task_run_name = None
+
+        # prep input tracking
+        task_inputs = {
+            k: await collect_task_run_inputs(v) for k, v in self.parameters.items()
+        }
+        #        if wait_for:
+        #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+
         task_run = await client.create_task_run(
             task=self.task,
             name=task_run_name,
@@ -110,6 +122,7 @@ class TaskRunEngine(Generic[P, R]):
             ),
             dynamic_key=uuid4().hex,
             state=Running(),
+            task_inputs=task_inputs,
         )
         return task_run
 
