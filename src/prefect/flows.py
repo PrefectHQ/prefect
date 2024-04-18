@@ -87,6 +87,7 @@ from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_UI_URL,
@@ -1224,6 +1225,11 @@ class Flow(Generic[P, R]):
             # this is a subflow, for now return a single task and do not go further
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
+
+        if self.isasync and PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+            from prefect.new_flow_engine import run_flow
+
+            return run_flow(flow=self, parameters=parameters, wait_for=wait_for)
 
         return enter_flow_run_engine_from_flow_call(
             self,
