@@ -9,65 +9,65 @@
 - Remove deprecated `--ci` option from `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12740
 
 ### Enhancements
-- introduce self-validating types — https://github.com/PrefectHQ/prefect/pull/12707
+- Introduce self-validating types — https://github.com/PrefectHQ/prefect/pull/12707
 - Allow returning to account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
 - Add default posture to `EventTrigger` schema — https://github.com/PrefectHQ/prefect/pull/12764
 
 ### Fixes
-- better flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
+- Better flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
 - Fix import syntax in `variables.Variable` example — https://github.com/PrefectHQ/prefect/pull/12727
 - Fix typo in How-to Guide document — https://github.com/PrefectHQ/prefect/pull/12761
 
 ### Experimental
 - Refactor `field_validator` and `model_validator` to map Pydantic kwargs between versions — https://github.com/PrefectHQ/prefect/pull/12676
-- Implementing the `run-deployment` automation action — https://github.com/PrefectHQ/prefect/pull/12677
-- Implements the `send-notification` action — https://github.com/PrefectHQ/prefect/pull/12693
-- Making `TriggeredAction.firing` required — https://github.com/PrefectHQ/prefect/pull/12697
-- Actions service — https://github.com/PrefectHQ/prefect/pull/12699
-- Implements the `call-webhook` action and adds all Action client-side schemata — https://github.com/PrefectHQ/prefect/pull/12728
-- Implements `change-flow-run-state`, `cancel-flow-run`, and `suspend-flow-run` — https://github.com/PrefectHQ/prefect/pull/12730
+- Implement the `run-deployment` automation action — https://github.com/PrefectHQ/prefect/pull/12677
+- Implement the `send-notification` action — https://github.com/PrefectHQ/prefect/pull/12693
+- Make `TriggeredAction.firing` required — https://github.com/PrefectHQ/prefect/pull/12697
+- Add an Actions service — https://github.com/PrefectHQ/prefect/pull/12699
+- Implement the `call-webhook` action and adds all Action client-side schemata — https://github.com/PrefectHQ/prefect/pull/12728
+- Implement `change-flow-run-state`, `cancel-flow-run`, and `suspend-flow-run` — https://github.com/PrefectHQ/prefect/pull/12730
 - Add functions for querying and counting events — https://github.com/PrefectHQ/prefect/pull/12696
-- Implements the `pause-deployment` and `resume-deployment` actions — https://github.com/PrefectHQ/prefect/pull/12733
+- Implement the `pause-deployment` and `resume-deployment` actions — https://github.com/PrefectHQ/prefect/pull/12733
 - Add `/events/filter` and `/events/count-by` route trees — https://github.com/PrefectHQ/prefect/pull/12736
 - Allow for creating automations via deployments when experimental events is on — https://github.com/PrefectHQ/prefect/pull/12701
-- Adds ability to stream out events via websocket — https://github.com/PrefectHQ/prefect/pull/12744
+- Add ability to stream out events via websocket — https://github.com/PrefectHQ/prefect/pull/12744
 - Implementing the `pause-automation` and `resume-automation` actions — https://github.com/PrefectHQ/prefect/pull/12738
-- Adding an Automations CLI — https://github.com/PrefectHQ/prefect/pull/12754
-- Renaming `prefect-cloud.*` events and labels to `prefect.*` — https://github.com/PrefectHQ/prefect/pull/12755
-- Adds ability to emit events to an ephemeral Prefect server — https://github.com/PrefectHQ/prefect/pull/12762
+- Add an Automations CLI — https://github.com/PrefectHQ/prefect/pull/12754
+- Rename `prefect-cloud.*` events and labels to `prefect.*` — https://github.com/PrefectHQ/prefect/pull/12755
+- Add ability to emit events to an ephemeral Prefect server — https://github.com/PrefectHQ/prefect/pull/12762
 - Disable `events` and `automations` API routes when experimental events setting is not enabled — https://github.com/PrefectHQ/prefect/pull/12777
-- Adding compatibility tests for client and server triggers and actions — https://github.com/PrefectHQ/prefect/pull/12778
+- Add compatibility tests for client and server triggers and actions — https://github.com/PrefectHQ/prefect/pull/12778
 - Disable the automations integration flows for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12784
 
 ### Documentation
 - Update example to `prefect.yaml` in  work-pools concepts page — https://github.com/PrefectHQ/prefect/pull/12695
-- fixed stray link — https://github.com/PrefectHQ/prefect/pull/12721
-- add hyphen — https://github.com/PrefectHQ/prefect/pull/12724
+- Fix stray link — https://github.com/PrefectHQ/prefect/pull/12721
+- Add hyphen — https://github.com/PrefectHQ/prefect/pull/12724
 - Fix typo — https://github.com/PrefectHQ/prefect/pull/12722
-- remove duplicative resilient — https://github.com/PrefectHQ/prefect/pull/12723
+- Remove duplicative resilient — https://github.com/PrefectHQ/prefect/pull/12723
 - Fix typo in Quickstart — https://github.com/PrefectHQ/prefect/pull/12729
 - Simplify-api-connection — https://github.com/PrefectHQ/prefect/pull/12725
 - Add `.serve`, `.deploy`, and composite trigger examples to deployment triggers docs — https://github.com/PrefectHQ/prefect/pull/12743
-- updating automations images — https://github.com/PrefectHQ/prefect/pull/12752
-- Simplify-tutorial — https://github.com/PrefectHQ/prefect/pull/12765
+- Update automations images — https://github.com/PrefectHQ/prefect/pull/12752
+- Simplify tutorial — https://github.com/PrefectHQ/prefect/pull/12765
 - Remove disclaimer for Python 3.12 experimental support — https://github.com/PrefectHQ/prefect/pull/12771
 - Clarify deployment trigger examples — https://github.com/PrefectHQ/prefect/pull/12782
 - Remove Prefect-managed integration libraries to be archived from the integrations catalog — https://github.com/PrefectHQ/prefect/pull/12781
 
 ### Uncategorized
 - Fix writing events for SQLite + SQLAlchemy<2 — https://github.com/PrefectHQ/prefect/pull/12679
-- Fixing a flake with the SQLite version check test — https://github.com/PrefectHQ/prefect/pull/12690
-- Fixing a test flake in flow run lateness — https://github.com/PrefectHQ/prefect/pull/12698
+- Fix a flake with the SQLite version check test — https://github.com/PrefectHQ/prefect/pull/12690
+- Fix a test flake in flow run lateness — https://github.com/PrefectHQ/prefect/pull/12698
 - Remove `version` from `docker-compose.yml`, as it is now deprecated — https://github.com/PrefectHQ/prefect/pull/12706
-- fix: type-hinting for self-validating fields — https://github.com/PrefectHQ/prefect/pull/12710
-- [types] NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
-- exclude job_variables when exclude=None — https://github.com/PrefectHQ/prefect/pull/12712
-- Implementing the work pool and work queue actions — https://github.com/PrefectHQ/prefect/pull/12735
+- Fix type-hinting for self-validating fields — https://github.com/PrefectHQ/prefect/pull/12710
+- Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
+- Exclude job_variables when exclude=None — https://github.com/PrefectHQ/prefect/pull/12712
+- Implement the work pool and work queue actions — https://github.com/PrefectHQ/prefect/pull/12735
 - Fix broken link to Push Work Pool Guide — https://github.com/PrefectHQ/prefect/pull/12748
 - Fix minor restructure to improve legibility of `work pools` tutorial — https://github.com/PrefectHQ/prefect/pull/12747
 - Fix `typing` import and dtype typos in Tasks tutorial — https://github.com/PrefectHQ/prefect/pull/12746
-- simplify-installation — https://github.com/PrefectHQ/prefect/pull/12772
-- Adding helper functions for creating an events client or subscriber — https://github.com/PrefectHQ/prefect/pull/12759
+- Simplify installation — https://github.com/PrefectHQ/prefect/pull/12772
+- Add helper functions for creating an events client or subscriber — https://github.com/PrefectHQ/prefect/pull/12759
 - Remove all infra overrides-related flags — https://github.com/PrefectHQ/prefect/pull/12742
 
 ## New Contributors
@@ -76,8 +76,8 @@
 * @takashimakazuki made their first contribution in https://github.com/PrefectHQ/prefect/pull/12761
   
 ### Integrations
-- Update date-fns and date-fns-tz — https://github.com/PrefectHQ/prefect-ui-library/pull/2319
-- Support for capacity provider — https://github.com/PrefectHQ/prefect-aws/pull/407
+- Add support for a capacity provider — https://github.com/PrefectHQ/prefect-aws/pull/407
+- Improve error handling for task creation — https://github.com/PrefectHQ/prefect-aws/pull/406
 
 
 ### Contributors
