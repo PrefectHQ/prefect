@@ -9,7 +9,7 @@
 - Remove deprecated `--ci` option from `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12740
 
 ### Enhancements
-- Allow returning to account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
+- Improve account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
 
 ### Fixes
 - Raise clearer flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
@@ -36,14 +36,14 @@
 - Add `/events/filter` and `/events/count-by` route trees — https://github.com/PrefectHQ/prefect/pull/12736
 - Allow for creating automations via deployments when experimental events is on — https://github.com/PrefectHQ/prefect/pull/12701
 - Add ability to stream out events via websocket — https://github.com/PrefectHQ/prefect/pull/12744
-- Implementing the `pause-automation` and `resume-automation` actions — https://github.com/PrefectHQ/prefect/pull/12738
+- Implement the `pause-automation` and `resume-automation` actions — https://github.com/PrefectHQ/prefect/pull/12738
 - Add automations CLI — https://github.com/PrefectHQ/prefect/pull/12754
 - Rename `prefect-cloud.*` events and labels to `prefect.*` — https://github.com/PrefectHQ/prefect/pull/12755
 - Add ability to emit events to an ephemeral Prefect server — https://github.com/PrefectHQ/prefect/pull/12762
 - Disable `events` and `automations` API routes when experimental events setting is not enabled — https://github.com/PrefectHQ/prefect/pull/12777
 - Add compatibility tests for client and server triggers and actions — https://github.com/PrefectHQ/prefect/pull/12778
 - Disable the automations integration flows for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12784
-- Implement the work pool and work queue actions — https://github.com/PrefectHQ/prefect/pull/12735
+- Add pause and resume the work pool and work queue actions — https://github.com/PrefectHQ/prefect/pull/12735
 - Add helper functions for creating an events client or subscriber — https://github.com/PrefectHQ/prefect/pull/12759
 - Add default posture to `EventTrigger` schema — https://github.com/PrefectHQ/prefect/pull/12764
  - Fix writing events for SQLite + SQLAlchemy<2 — https://github.com/PrefectHQ/prefect/pull/12679
@@ -58,15 +58,13 @@
 - Remove disclaimer for Python 3.12 experimental support — https://github.com/PrefectHQ/prefect/pull/12771
 - Clarify deployment trigger examples — https://github.com/PrefectHQ/prefect/pull/12782
 - Remove Prefect-managed integration libraries to be archived from the integrations catalog — https://github.com/PrefectHQ/prefect/pull/12781
-- Fix broken link to Push Work Pool Guide — https://github.com/PrefectHQ/prefect/pull/12748
-- Fix minor restructure to improve legibility of `work pools` tutorial — https://github.com/PrefectHQ/prefect/pull/12747
-- Fix `typing` import and typos in Tasks tutorial — https://github.com/PrefectHQ/prefect/pull/12746
+- Fix broken link to push work pool guide — https://github.com/PrefectHQ/prefect/pull/12748
+- Fix minor restructure to improve legibility of work pools tutorial — https://github.com/PrefectHQ/prefect/pull/12747
+- Fix `typing` import and typos in tasks tutorial — https://github.com/PrefectHQ/prefect/pull/12746
 - Simplify installation — https://github.com/PrefectHQ/prefect/pull/12772
 - Fix import syntax in `variables.Variable` example — https://github.com/PrefectHQ/prefect/pull/12727
 - Fix typo in How-to Guide document — https://github.com/PrefectHQ/prefect/pull/12761
 
-
-### Uncategorized
 
 ## New Contributors
 * @hboehmer-IW made their first contribution in https://github.com/PrefectHQ/prefect/pull/12721
@@ -77,13 +75,8 @@
 - Add support for a capacity provider — https://github.com/PrefectHQ/prefect-aws/pull/407
 - Improve error handling for task creation — https://github.com/PrefectHQ/prefect-aws/pull/406
 
-### Contributors
-- @avriiil
-- @hboehmer-IW
-- @takashimakazuki
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.17.1...2.18.0
-
 
 ## Release 2.17.1
 
