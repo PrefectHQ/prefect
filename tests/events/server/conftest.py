@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any, Dict, Generator, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -11,10 +11,6 @@ from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
-    temporary_settings,
-)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -419,14 +415,6 @@ async def some_workspace_automations(
     automations_session.add_all(automations)
     await automations_session.commit()
     return pydantic.parse_obj_as(List[Automation], automations)
-
-
-@pytest.fixture
-def enable_infra_overrides() -> Generator[None, None, None]:
-    with temporary_settings(
-        updates={PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
 
 
 @pytest.fixture
