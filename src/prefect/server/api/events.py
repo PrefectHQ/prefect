@@ -29,11 +29,24 @@ from prefect.server.events.storage import (
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS
 
 logger = get_logger(__name__)
 
 
-router = PrefectRouter(prefix="/events", tags=["Events"])
+def events_enabled() -> bool:
+    if not PREFECT_EXPERIMENTAL_EVENTS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Events are not enabled. Please enable the PREFECT_EXPERIMENTAL_EVENTS setting.",
+        )
+
+
+router = PrefectRouter(
+    prefix="/events",
+    tags=["Events"],
+    dependencies=[Depends(events_enabled)],
+)
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
