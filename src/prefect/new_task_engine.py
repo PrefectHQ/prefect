@@ -19,7 +19,8 @@ from prefect.client.schemas import TaskRun
 from prefect.context import EngineContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.states import StateType
+from prefect.server.schemas.states import StateType
+from prefect.states import Running
 from prefect.utilities.asyncutils import A, Async
 
 P = ParamSpec("P")
@@ -54,6 +55,7 @@ class TaskRunEngine(Generic[P, R]):
             task=self.task,
             flow_run_id=self.flow_run_id,
             dynamic_key=uuid4().hex,
+            state=Running(),
         )
 
     @asynccontextmanager
@@ -93,7 +95,10 @@ class TaskRunEngine(Generic[P, R]):
     def is_running(self) -> bool:
         if self.task_run is None:
             return False
-        return getattr(self.task_run, "state", None) == StateType.RUNNING
+        return (
+            getattr(getattr(self.task_run, "state", None), "state_type", None)
+            == StateType.RUNNING
+        )
 
 
 async def run_task(
@@ -112,6 +117,7 @@ async def run_task(
 
     async with engine.start() as state:
         # This is a context manager that keeps track of the state of the task run.
+        breakpoint()
         while state.is_running():
             try:
                 # This is where the task is actually run.
