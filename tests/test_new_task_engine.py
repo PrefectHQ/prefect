@@ -161,3 +161,19 @@ class TestTaskRuns:
         # assertions on outer
         outer_run = await prefect_client.read_task_run(b)
         assert outer_run.task_inputs
+
+    @pytest.mark.skip(reason="This wont work until caching is wired up")
+    async def test_task_tracks_nested_parent_as_dependency(self, prefect_client):
+        @task(cache_key_fn="key")
+        async def first():
+            return 42
+
+        @task(cache_key_fn="key")
+        async def second():
+            return 500
+
+        one = await run_task(first)
+        two = await run_task(second)
+
+        assert one == 42
+        assert two == 42
