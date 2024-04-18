@@ -72,3 +72,6 @@ class TestTaskRuns:
         assert UUID(record.task_run_id)
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
+
+    async def test_flow_run_id_is_set(self, flow_run, prefect_client):
+        pass

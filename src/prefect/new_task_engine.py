@@ -10,20 +10,20 @@ from typing import (
     TypeVar,
     cast,
 )
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
-from prefect.context import TaskRunContext
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import StateType
-from prefect.states import Retrying, Running
+from prefect.states import Failed, Retrying, Running
 from prefect.utilities.asyncutils import A, Async
-from prefect.utilities.engine import _resolve_custom_task_run_name
+from prefect.utilities.engine import _resolve_custom_task_run_name, propose_state
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -34,7 +34,6 @@ class TaskRunEngine(Generic[P, R]):
     task: Task[P, Coroutine[Any, Any, R]]
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
-    flow_run_id: Optional[UUID] = None
     retries: int = 0
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
@@ -43,37 +42,58 @@ class TaskRunEngine(Generic[P, R]):
         pass
 
     async def handle_exception(self, exc: Exception):
-        # If
-        pass
+        # If the task has retries left, and the retry condition is met, set the task to retrying.
+        if not await self.handle_retry(exc):
+            # If the task has no retries left, or the retry condition is not met, set the task to failed.
+            await self.handle_failure(exc)
 
-    @property
-    def state(self) -> StateType:
-        return self.task_run.state_type  # type: ignore
+    async def handle_failure(self, exc: Exception) -> None:
+        if not self._is_started or self._client is None:
+            raise RuntimeError("Engine has not started.")
+        state = await propose_state(
+            self._client, Failed(), task_run_id=self.task_run.id
+        )
+        self.task_run.state = state
+        self.task_run.state_name = state.name
+        self.task_run.state_type = state.type
+        self.retries = self.retries + 1
 
-    @property
-    def task_run_name(self) -> str:
-        return _resolve_custom_task_run_name(self.task, self.parameters or {})
-
-    async def handle_retry(self, exc: Exception) -> None:
+    async def handle_retry(self, exc: Exception) -> bool:
+        """
+        If the task has retries left, and the retry condition is met, set the task to retrying.
+        - If the task has no retries left, or the retry condition is not met, return False.
+        - If the task has retries left, and the retry condition is met, return True.
+        """
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         if self.retries < self.task.retries:
             if not self.task.retry_condition_fn or self.task.retry_condition_fn(
                 self.task, self.task_run, self.task_run.state
             ):
-                self.task_run = await self._client.create_task_run(
-                    task=self.task,
-                    flow_run_id=self.flow_run_id,
-                    dynamic_key=uuid4().hex,
-                    state=Retrying(),
+                state = await propose_state(
+                    self._client, Retrying(), task_run_id=self.task_run.id
                 )
+                self.task_run.state = state
+                self.task_run.state_name = state.name
+                self.task_run.state_type = state.type
                 self.retries = self.retries + 1
+                return True
+        return False
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
+        flow_run_ctx = FlowRunContext.get()
+        try:
+            task_run_name = _resolve_custom_task_run_name(
+                self.task, self.parameters or {}
+            )
+        except TypeError:
+            task_run_name = None
         task_run = await client.create_task_run(
             task=self.task,
-            name=self.task_run_name,
-            flow_run_id=self.flow_run_id,
+            name=task_run_name,
+            flow_run_id=getattr(flow_run_ctx.flow_run, "id", None)
+            if flow_run_ctx and flow_run_ctx.flow_run
+            else None,
             dynamic_key=uuid4().hex,
             state=Running(),
         )
