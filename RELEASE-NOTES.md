@@ -37,7 +37,7 @@
 - Allow for creating automations via deployments when experimental events is on — https://github.com/PrefectHQ/prefect/pull/12701
 - Add ability to stream out events via websocket — https://github.com/PrefectHQ/prefect/pull/12744
 - Implementing the `pause-automation` and `resume-automation` actions — https://github.com/PrefectHQ/prefect/pull/12738
-- Add an Automations CLI — https://github.com/PrefectHQ/prefect/pull/12754
+- Add automations CLI — https://github.com/PrefectHQ/prefect/pull/12754
 - Rename `prefect-cloud.*` events and labels to `prefect.*` — https://github.com/PrefectHQ/prefect/pull/12755
 - Add ability to emit events to an ephemeral Prefect server — https://github.com/PrefectHQ/prefect/pull/12762
 - Disable `events` and `automations` API routes when experimental events setting is not enabled — https://github.com/PrefectHQ/prefect/pull/12777
