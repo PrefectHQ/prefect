@@ -1,6 +1,7 @@
+import logging
 import pytest
 
-from prefect import task, Task
+from prefect import task, Task, get_run_logger
 from prefect.client.orchestration import PrefectClient
 from prefect.new_task_engine import run_task, TaskRunEngine
 
@@ -31,11 +32,24 @@ class TestTaskRunEngine:
             await engine.get_client()
 
 
-async def test_basic():
-    @task
-    async def foo():
-        return 42
+class TestTaskRuns:
+    async def test_basic(self):
+        @task
+        async def foo():
+            return 42
 
-    result = await run_task(foo)
+        result = await run_task(foo)
 
-    assert result == 42
+        assert result == 42
+
+    async def test_get_run_logger(self, caplog):
+        caplog.set_level(logging.CRITICAL)
+
+        @task
+        async def my_log_task():
+            get_run_logger().critical("hey yall")
+
+        result = await run_task(foo)
+
+        assert result is None
+
