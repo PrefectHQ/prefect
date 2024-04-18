@@ -36,6 +36,7 @@ from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
@@ -581,6 +582,12 @@ class Task(Generic[P, R]):
             return track_viz_task(
                 self.isasync, self.name, parameters, self.viz_return_value
             )
+
+        # new engine currently only compatible with async tasks
+        if self.isasync and PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+            from prefect.new_task_engine import run_task
+
+            return run_task(task=self, parameters=parameters, wait_for=wait_for)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()

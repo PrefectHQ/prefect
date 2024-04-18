@@ -9,13 +9,23 @@ from prefect.client.schemas.objects import StateType
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.new_task_engine import TaskRunEngine, run_task
 from prefect.results import ResultFactory
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
+
+
+@pytest.fixture(autouse=True)
+def set_new_engine_setting():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: True}):
+        yield
 
 
 @task
 async def foo():
     return 42
 
+
+async def test_setting_is_set():
+    assert PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value() is True
 
 class TestTaskRunEngine:
     async def test_basic_init(self):
@@ -144,7 +154,7 @@ class TestTaskRuns:
 
         assert run.state_type == StateType.COMPLETED
 
-    @pytest.mark.skip(reason="This wont work until both task runs use run_task")
+    @pytest.mark.skip(reason="Still iterating on this.")
     async def test_task_tracks_nested_parent_as_dependency(self, prefect_client):
         @task
         async def inner():
@@ -152,7 +162,7 @@ class TestTaskRuns:
 
         @task
         async def outer():
-            id1 = inner()
+            id1 = await inner()
             return (id1, TaskRunContext.get().task_run.id)
 
         a, b = await run_task(outer)
@@ -163,7 +173,7 @@ class TestTaskRuns:
         assert outer_run.task_inputs
 
     @pytest.mark.skip(reason="This wont work until caching is wired up")
-    async def test_task_tracks_nested_parent_as_dependency(self, prefect_client):
+    async def test_task_runs_respect_cache_key(self, prefect_client):
         @task(cache_key_fn="key")
         async def first():
             return 42
