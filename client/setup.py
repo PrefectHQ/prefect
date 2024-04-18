@@ -1,11 +1,25 @@
-import versioneer
+import tomli
 from setuptools import find_packages, setup
 
-install_requires = open("requirements-client.txt").read().strip().split("\n")
+from prefect import __version__ as PREFECT_CORE_VERSION
+
+
+def get_optional_requires(extra):
+    with open("pyproject.toml", "rb") as f:
+        pyproject_data = tomli.load(f)  # noqa
+
+    client_requires = (
+        pyproject_data.get("project", {})
+        .get("optional-dependencies", {})
+        .get(extra, {})
+    )
+    return client_requires
+
+
+install_requires = get_optional_requires("client")
 
 # grab and use the first three version digits (the generated tag)
-_version = versioneer.get_version().split(".")
-client_version = ".".join(_version[:3]).split("+")[0]
+client_version = ".".join(PREFECT_CORE_VERSION.split(".")[:3])
 
 setup(
     # Package metadata
@@ -42,6 +56,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Software Development :: Libraries",
     ],
 )

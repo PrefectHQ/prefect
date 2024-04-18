@@ -29,10 +29,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.12"
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
 
@@ -45,7 +45,7 @@ jobs:
           TMPDIR: ${{ env.TMPDIR }}
 
       - name: Build a binary wheel and a source tarball
-        run: pip install wheel versioneer && python setup.py sdist bdist_wheel
+        run: pip install tomli wheel && python setup.py sdist bdist_wheel
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
