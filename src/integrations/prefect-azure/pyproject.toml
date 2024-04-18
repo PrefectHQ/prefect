@@ -26,11 +26,11 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=2.14.10",
-  "azure_mgmt_containerinstance>=10.0",
-  "azure_identity>=1.10",
-  "azure-mgmt-resource>=21.2",
   "aiohttp",
+  "azure_identity>=1.10",
+  "azure_mgmt_containerinstance>=10.0",
+  "azure-mgmt-resource>=21.2",
+  "prefect>=2.14.10",
 ]
 dynamic = ["version"]
 
@@ -39,30 +39,31 @@ blob_storage = ["azure-storage-blob"]
 cosmos_db = ["azure-cosmos"]
 ml_datastore = ["azureml-core"]
 all_extras = [
-  "azure-storage-blob",
   "azure-cosmos",
+  "azure-storage-blob",
   "azureml-core",
 ]
 dev = [
-  "pytest",
+  "aiohttp",
+  "azure-cosmos",
+  "azure-storage-blob",
+  "azureml-core",
   "black",
+  "coverage",
   "flake8",
-  "mypy",
-  "mkdocs",
-  "mkdocs-material",
-  "mkdocstrings[python]",
+  "interrogate",
   "isort",
+  "mkdocs-gen-files",
+  "mkdocs-material",
+  "mkdocs",
+  "mkdocstrings[python]",
+  "mock; python_version < '3.8'",
+  "mypy",
+  "pillow",
   "pre-commit",
   "pytest-asyncio",
-  "mock; python_version < '3.8'",
-  "mkdocs-gen-files",
-  "interrogate",
-  "coverage",
-  "aiohttp",
-  "pillow",
-  "azure-storage-blob",
-  "azure-cosmos",
-  "azureml-core",
+  "pytest",
+  "pytest-xdist",
 ]
 
 [project.urls]

@@ -79,3 +79,6 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           pytest tests
+          --numprocesses auto
+          --maxprocesses 6
+          --dist loadscope
