@@ -66,6 +66,8 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
         return [
             RunDeployment(
                 deployment_id=self._deployment_id,
+                parameters=getattr(self, "parameters", None),
+                job_variables=getattr(self, "job_variables", None),
             )
         ]
 
