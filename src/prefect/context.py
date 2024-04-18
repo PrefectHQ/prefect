@@ -51,7 +51,6 @@ from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
@@ -224,7 +223,6 @@ class EngineContext(RunContext):
     Attributes:
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
-        task_runner: The task runner instance being used for the flow run
         task_run_futures: A list of futures for task runs submitted within this flow run
         task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
@@ -236,7 +234,6 @@ class EngineContext(RunContext):
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
     autonomous_task_run: Optional[TaskRun] = None
-    task_runner: BaseTaskRunner
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
@@ -259,9 +256,6 @@ class EngineContext(RunContext):
     # from synchronous task and subflow calls
     sync_portal: Optional[anyio.abc.BlockingPortal] = None
     timeout_scope: Optional[anyio.abc.CancelScope] = None
-
-    # Task group that can be used for background tasks during the flow run
-    background_tasks: anyio.abc.TaskGroup
 
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
