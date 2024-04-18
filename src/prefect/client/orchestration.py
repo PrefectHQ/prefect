@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    TypeVar,
     Union,
 )
 from uuid import UUID, uuid4
@@ -19,6 +20,7 @@ import certifi
 import httpcore
 import httpx
 import pendulum
+from typing_extensions import ParamSpec
 
 from prefect._internal.compatibility.deprecated import (
     handle_deprecated_infra_overrides_parameter,
@@ -155,6 +157,9 @@ if TYPE_CHECKING:
     from prefect.tasks import Task as TaskObject
 
 from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class ServerType(AutoEnum):
@@ -2171,21 +2176,23 @@ class PrefectClient:
 
     async def create_task_run(
         self,
-        task: "TaskObject",
+        task: "TaskObject[P, R]",
         flow_run_id: Optional[UUID],
         dynamic_key: str,
-        name: str = None,
-        extra_tags: Iterable[str] = None,
-        state: prefect.states.State = None,
-        task_inputs: Dict[
-            str,
-            List[
-                Union[
-                    TaskRunResult,
-                    Parameter,
-                    Constant,
-                ]
-            ],
+        name: Optional[str] = None,
+        extra_tags: Optional[Iterable[str]] = None,
+        state: Optional[prefect.states.State[object]] = None,
+        task_inputs: Optional[
+            Dict[
+                str,
+                List[
+                    Union[
+                        TaskRunResult,
+                        Parameter,
+                        Constant,
+                    ]
+                ],
+            ]
         ] = None,
     ) -> TaskRun:
         """

@@ -486,8 +486,10 @@ class StateGroup:
 
 
 def Scheduled(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
+    cls: Type[State[object]] = State,
+    scheduled_time: Optional[datetime.datetime] = None,
+    **kwargs: Any,
+) -> State[object]:
     """Convenience function for creating `Scheduled` states.
 
     Returns:
@@ -503,7 +505,7 @@ def Scheduled(
     return cls(type=StateType.SCHEDULED, state_details=state_details, **kwargs)
 
 
-def Completed(cls: Type[State] = State, **kwargs) -> State:
+def Completed(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Completed` states.
 
     Returns:
@@ -512,7 +514,7 @@ def Completed(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.COMPLETED, **kwargs)
 
 
-def Running(cls: Type[State] = State, **kwargs) -> State:
+def Running(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Running` states.
 
     Returns:
@@ -521,7 +523,7 @@ def Running(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.RUNNING, **kwargs)
 
 
-def Failed(cls: Type[State] = State, **kwargs) -> State:
+def Failed(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Failed` states.
 
     Returns:
@@ -530,7 +532,7 @@ def Failed(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.FAILED, **kwargs)
 
 
-def Crashed(cls: Type[State] = State, **kwargs) -> State:
+def Crashed(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Crashed` states.
 
     Returns:
@@ -539,7 +541,7 @@ def Crashed(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.CRASHED, **kwargs)
 
 
-def Cancelling(cls: Type[State] = State, **kwargs) -> State:
+def Cancelling(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Cancelling` states.
 
     Returns:
@@ -548,7 +550,7 @@ def Cancelling(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.CANCELLING, **kwargs)
 
 
-def Cancelled(cls: Type[State] = State, **kwargs) -> State:
+def Cancelled(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Cancelled` states.
 
     Returns:
@@ -557,7 +559,7 @@ def Cancelled(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.CANCELLED, **kwargs)
 
 
-def Pending(cls: Type[State] = State, **kwargs) -> State:
+def Pending(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Pending` states.
 
     Returns:
@@ -567,13 +569,13 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
 
 
 def Paused(
-    cls: Type[State] = State,
+    cls: Type[State[object]] = State,
     timeout_seconds: Optional[int] = None,
     pause_expiration_time: Optional[datetime.datetime] = None,
     reschedule: bool = False,
     pause_key: Optional[str] = None,
-    **kwargs,
-) -> State:
+    **kwargs: Any,
+) -> State[object]:
     """Convenience function for creating `Paused` states.
 
     Returns:
@@ -603,11 +605,11 @@ def Paused(
 
 
 def Suspended(
-    cls: Type[State] = State,
+    cls: Type[State[object]] = State,
     timeout_seconds: Optional[int] = None,
     pause_expiration_time: Optional[datetime.datetime] = None,
     pause_key: Optional[str] = None,
-    **kwargs,
+    **kwargs: Any,
 ):
     """Convenience function for creating `Suspended` states.
 
@@ -626,8 +628,10 @@ def Suspended(
 
 
 def AwaitingRetry(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
+    cls: Type[State[object]] = State,
+    scheduled_time: Optional[datetime.datetime] = None,
+    **kwargs: Any,
+) -> State[object]:
     """Convenience function for creating `AwaitingRetry` states.
 
     Returns:
@@ -638,7 +642,7 @@ def AwaitingRetry(
     )
 
 
-def Retrying(cls: Type[State] = State, **kwargs) -> State:
+def Retrying(cls: Type[State[object]] = State, **kwargs: Any) -> State[object]:
     """Convenience function for creating `Retrying` states.
 
     Returns:
@@ -648,8 +652,10 @@ def Retrying(cls: Type[State] = State, **kwargs) -> State:
 
 
 def Late(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
+    cls: Type[State[object]] = State,
+    scheduled_time: Optional[datetime.datetime] = None,
+    **kwargs: Any,
+) -> State[object]:
     """Convenience function for creating `Late` states.
 
     Returns:
