@@ -6,18 +6,6 @@ import pytest
 from prefect.infrastructure import KubernetesClusterConfig
 from prefect.server import models, schemas
 from prefect.server.models import deployments
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
-    temporary_settings,
-)
-
-
-@pytest.fixture
-def enable_infra_overrides():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
 
 
 @pytest.fixture
@@ -93,7 +81,6 @@ class TestInfraOverrides:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         *_, deployment = await create_objects_for_pool(
             session,
@@ -108,6 +95,7 @@ class TestInfraOverrides:
                         "expected_variable_2": {},
                     },
                     "required": ["expected_variable_1", "expected_variable_2"],
+                    "additionalProperties": False,
                 },
             },
         )
@@ -126,7 +114,6 @@ class TestInfraOverrides:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         *_, deployment = await create_objects_for_pool(
             session,
@@ -188,7 +175,6 @@ class TestInfraOverrides:
         self,
         session,
         client,
-        enable_infra_overrides,
         template,
     ):
         # create a pool with a lax schema
@@ -215,7 +201,6 @@ class TestInfraOverrides:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema and a deployment with variables
         *_, deployment = await create_objects_for_pool(
@@ -263,7 +248,6 @@ class TestInfraOverrides:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema and a deployment with overrides
         deployment_vars = {"expected_variable_2": 2}
@@ -312,7 +296,6 @@ class TestInfraOverrides:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema and a deployment with variables
         *_, deployment = await create_objects_for_pool(
@@ -350,7 +333,6 @@ class TestInfraOverrides:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema that has a default value
         *_, deployment = await create_objects_for_pool(
@@ -387,7 +369,6 @@ class TestInfraOverrides:
         session,
         client,
         job_variables,
-        enable_infra_overrides,
     ):
         """
         This test simulates a scenario where the deployment being run is a Runner's deployment
@@ -416,7 +397,6 @@ class TestInfraOverrides:
         session,
         client,
         k8s_credentials,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema that has a default value referencing a block
         *_, deployment = await create_objects_for_pool(
@@ -483,7 +463,6 @@ class TestInfraOverridesUpdates:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema that has a default value
         *_, deployment = await create_objects_for_pool(
@@ -529,7 +508,6 @@ class TestInfraOverridesUpdates:
         self,
         session,
         client,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema that has a default value
         *_, deployment = await create_objects_for_pool(
@@ -581,7 +559,6 @@ class TestInfraOverridesUpdates:
         session,
         client,
         db,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema that has a default value
         *_, deployment = await create_objects_for_pool(
@@ -641,7 +618,6 @@ class TestInfraOverridesUpdates:
     async def test_updating_non_existant_flow_run(
         self,
         client,
-        enable_infra_overrides,
     ):
         # update a non-existent flow run
         response = await client.patch(
@@ -658,7 +634,6 @@ class TestInfraOverridesUpdates:
         session,
         client,
         job_variables,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema that has a default value
         _, pool, deployment = await create_objects_for_pool(session)
@@ -688,7 +663,6 @@ class TestInfraOverridesUpdates:
         session,
         client,
         k8s_credentials,
-        enable_infra_overrides,
     ):
         # create a pool with a pool schema that has a default value referencing a block
         *_, deployment = await create_objects_for_pool(

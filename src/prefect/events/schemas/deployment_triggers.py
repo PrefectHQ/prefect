@@ -11,7 +11,6 @@ create them from YAML.
 
 import abc
 import textwrap
-import warnings
 from datetime import timedelta
 from typing import (
     Any,
@@ -37,17 +36,8 @@ else:
     from pydantic import Field, PrivateAttr, root_validator, validator
     from pydantic.fields import ModelField
 
-from prefect._internal.compatibility.experimental import (
-    EXPERIMENTAL_WARNING,
-    PREFECT_EXPERIMENTAL_WARN,
-    ExperimentalFeature,
-    experiment_enabled,
-)
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import RunDeployment
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
-)
 
 from .automations import (
     AutomationCore,
@@ -106,26 +96,6 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
         return f"prefect.deployment.{self._deployment_id}"
 
     def actions(self) -> List[RunDeployment]:
-        if self.job_variables is not None and experiment_enabled(
-            "flow_run_infra_overrides"
-        ):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Flow run job variables",
-                        group="flow_run_infra_overrides",
-                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-        if not experiment_enabled("flow_run_infra_overrides"):
-            # nullify job_variables if the flag is disabled
-            self.job_variables = None
-
         assert self._deployment_id
         return [
             RunDeployment(
@@ -175,6 +145,8 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
     A trigger that fires based on the presence or absence of events within a given
     period of time.
     """
+
+    trigger_type = EventTrigger
 
     type: Literal["event"] = "event"
 
@@ -256,7 +228,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
         return values
 
     def as_trigger(self) -> Trigger:
-        return EventTrigger(
+        return self.trigger_type(
             match=self.match,
             match_related=self.match_related,
             after=self.after,
@@ -273,6 +245,8 @@ class DeploymentMetricTrigger(DeploymentResourceTrigger):
     A trigger that fires based on the results of a metric query.
     """
 
+    trigger_type = MetricTrigger
+
     type: Literal["metric"] = "metric"
 
     posture: Literal[Posture.Metric] = Field(  # type: ignore[valid-type]
@@ -286,7 +260,7 @@ class DeploymentMetricTrigger(DeploymentResourceTrigger):
     )
 
     def as_trigger(self) -> Trigger:
-        return MetricTrigger(
+        return self.trigger_type(
             match=self.match,
             match_related=self.match_related,
             posture=self.posture,
@@ -309,6 +283,8 @@ class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
     """A composite trigger that requires some number of triggers to have
     fired within the given time period"""
 
+    trigger_type = CompoundTrigger
+
     type: Literal["compound"] = "compound"
     require: Union[int, Literal["any", "all"]]
 
@@ -327,7 +303,7 @@ class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
         return values
 
     def as_trigger(self) -> Trigger:
-        return CompoundTrigger(
+        return self.trigger_type(
             require=self.require,
             triggers=self.triggers,
             within=self.within,
@@ -339,10 +315,12 @@ class DeploymentSequenceTrigger(DeploymentCompositeTrigger):
     """A composite trigger that requires some number of triggers to have fired
     within the given time period in a specific order"""
 
+    trigger_type = SequenceTrigger
+
     type: Literal["sequence"] = "sequence"
 
     def as_trigger(self) -> Trigger:
-        return SequenceTrigger(
+        return self.trigger_type(
             triggers=self.triggers,
             within=self.within,
             job_variables=self.job_variables,
@@ -519,26 +497,6 @@ class DeploymentTrigger(PrefectBaseModel):
         return f"prefect.deployment.{self._deployment_id}"
 
     def actions(self) -> List[RunDeployment]:
-        if self.job_variables is not None and experiment_enabled(
-            "flow_run_infra_overrides"
-        ):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Flow run job variables",
-                        group="flow_run_infra_overrides",
-                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-        if not experiment_enabled("flow_run_infra_overrides"):
-            # nullify job_variables if the flag is disabled
-            self.job_variables = None
-
         assert self._deployment_id
         return [
             RunDeployment(

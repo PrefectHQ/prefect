@@ -639,7 +639,7 @@ As with prior examples, composite triggers must be supplied with a list of under
 
 ```python
 from prefect import flow
-from prefect.events import DeploymentEventTrigger, DeploymentCompoundTrigger
+from prefect.events import DeploymentCompoundTrigger
 
 
 @flow(log_prints=True)
@@ -650,20 +650,23 @@ def decorated_fn(param_1: str):
 if __name__=="__main__":
     decorated_fn.deploy(
         name="my-deployment",
-        image="prefecthq/prefect:2-latest"
+        image="my-image-registry/my-image:my-tag"
         triggers=[
             DeploymentCompoundTrigger(
+                enabled=True,
                 name="my-compound-trigger",
                 require="all",
                 triggers=[
-                    DeploymentEventTrigger(
-                      match={"prefect.resource.id": "my.external.resource"},
-                      expect=["external.resource.pinged"],
-                    ),
-                    DeploymentEventTrigger(
-                      match={"prefect.resource.id": "my.external.resource"},
-                      expect=["external.resource.replied"],
-                    ),
+                    {
+                      "type": "event",
+                      "match": {"prefect.resource.id": "my.external.resource"},
+                      "expect": ["external.resource.pinged"],
+                    },
+                    {
+                      "type": "event",
+                      "match": {"prefect.resource.id": "my.external.resource"},
+                      "expect": ["external.resource.replied"],
+                    },
                 ],
                 parameters={
                     "param_1": "{{ event }}",
