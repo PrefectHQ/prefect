@@ -17,7 +17,7 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
-from prefect.context import TaskRunContext
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import StateType
@@ -33,7 +33,6 @@ class TaskRunEngine(Generic[P, R]):
     task: Task[P, Coroutine[Any, Any, R]]
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
-    flow_run_id: Optional[UUID] = None
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
 
@@ -44,9 +43,10 @@ class TaskRunEngine(Generic[P, R]):
         pass
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
+        flow_run_ctx = FlowRunContext.get()
         return await client.create_task_run(
             task=self.task,
-            flow_run_id=self.flow_run_id,
+            flow_run_id=flow_run_ctx.flow_run.id if flow_run_ctx else None,
             dynamic_key=uuid4().hex,
             state=Running(),
         )

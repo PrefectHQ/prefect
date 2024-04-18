@@ -4,7 +4,9 @@ from uuid import UUID
 
 from prefect import task, Task, get_run_logger
 from prefect.client.orchestration import PrefectClient
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.new_task_engine import run_task, TaskRunEngine
+from prefect.results import ResultFactory
 from prefect.utilities.callables import get_call_parameters
 
 
@@ -71,3 +73,6 @@ class TestTaskRuns:
         assert UUID(record.task_run_id)
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
+
+    async def test_flow_run_id_is_set(self, flow_run, prefect_client):
+        pass
