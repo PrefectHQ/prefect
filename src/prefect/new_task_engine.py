@@ -89,7 +89,7 @@ class TaskRunEngine(Generic[P, R]):
         if self.task_run is None:
             return False
         return (
-            getattr(getattr(self.task_run, "state", None), "state_type", None)
+            getattr(getattr(self.task_run, "state", None), "type", None)
             == StateType.RUNNING
         )
 
@@ -110,7 +110,6 @@ async def run_task(
 
     async with engine.start() as state:
         # This is a context manager that keeps track of the state of the task run.
-        breakpoint()
         while state.is_running():
             try:
                 # This is where the task is actually run.
