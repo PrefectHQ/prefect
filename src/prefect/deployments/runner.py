@@ -42,26 +42,19 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
 
-from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import (
-    reconcile_paused_deployment,
-    reconcile_schedules_runner,
-    validate_automation_names,
-)
-from prefect.runner.storage import RunnerStorage
-from prefect.settings import (
-    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
-    PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_UI_URL,
-)
-from prefect.utilities.collections import get_from_dict, isiterable
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
 else:
     from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
+from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.schemas.validators import (
+    reconcile_paused_deployment,
+    reconcile_schedules_runner,
+    validate_automation_names,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import (
@@ -72,13 +65,20 @@ from prefect.deployments.schedules import (
     FlexibleScheduleList,
     create_minimal_deployment_schedule,
 )
-from prefect.events import DeploymentTriggerTypes
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
+from prefect.runner.storage import RunnerStorage
+from prefect.settings import (
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+)
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
+from prefect.utilities.collections import get_from_dict, isiterable
 from prefect.utilities.dockerutils import (
     PushError,
     build_image,
@@ -179,7 +179,7 @@ class RunnerDeployment(BaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    triggers: List[DeploymentTriggerTypes] = Field(
+    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -446,7 +446,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -582,7 +582,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -680,7 +680,7 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,

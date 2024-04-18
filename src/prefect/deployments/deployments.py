@@ -16,6 +16,13 @@ import anyio
 import pendulum
 import yaml
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
+else:
+    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
+
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
     deprecated_callable,
@@ -23,7 +30,6 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_parameter,
     handle_deprecated_infra_overrides_parameter,
 )
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
     handle_openapi_schema,
     infrastructure_must_have_capabilities,
@@ -32,16 +38,10 @@ from prefect._internal.schemas.validators import (
     validate_automation_names,
     validate_deprecated_schedule_fields,
 )
-from prefect.client.schemas.actions import DeploymentScheduleCreate
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
-
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
     FlowRun,
     MinimalDeploymentSchedule,
@@ -53,7 +53,7 @@ from prefect.deployments.schedules import (
     FlexibleScheduleList,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events import DeploymentTriggerTypes
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
@@ -609,7 +609,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
-    triggers: List[DeploymentTriggerTypes] = Field(
+    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
