@@ -71,14 +71,12 @@ jobs:
         run: |
           python -m pip install -U uv
           cd src/integrations/${{ matrix.package }}
-          uv venv
-          . .venv/bin/activate
-          uv pip install --upgrade -e .[dev]
-          echo PATH=$PATH >> $GITHUB_ENV
+          uv pip install --upgrade --system -e .[dev]
 
       - name: Run tests
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
           cd src/integrations/${{ matrix.package }}
+          which pytest
           pytest tests --numprocesses auto --maxprocesses 6 --dist loadscope
