@@ -74,6 +74,8 @@ jobs:
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          prefect server database reset -y
-          coverage run --branch -m pytest tests -vv
-          coverage report
+          cd src/integrations/${{ matrix.package }}
+          pytest tests
+          --numprocesses auto
+          --maxprocesses 6
+          --dist loadscope
