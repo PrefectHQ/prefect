@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec, Self
 
 from prefect import Task
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.context import EngineContext
 from prefect.futures import PrefectFuture
@@ -22,6 +23,10 @@ class TaskRunEngine:
         self.parameters = parameters
         self.task_run = task_run
 
+        # bookkeeping fields
+        self._is_started = False
+        self._client = None
+
     async def start(self):
         """
         - check for a cached state
@@ -29,7 +34,17 @@ class TaskRunEngine:
         - initialize task run logger
         - update task run name
         """
+        with get_client() as client:
+            self._client = client
+            self._is_started = True
+        self._client = None
         return self
+
+    async def get_client(self):
+        if not self._is_started:
+            raise RuntimeError("Engine has not started.")
+        else:
+            return self._client
 
     async def is_running(self):
         pass
@@ -44,7 +59,7 @@ class TaskRunEngine:
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        pass
+        self._is_started = False
 
 
 async def run_task(
