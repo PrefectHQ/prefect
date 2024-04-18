@@ -1,4 +1,4 @@
-name: Tests
+name: Integrations Packages Tests
 
 on:
   pull_request:
@@ -38,6 +38,7 @@ jobs:
 
   run-tests:
     name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python }}
+    needs: prepare-matrix
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
