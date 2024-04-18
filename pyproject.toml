@@ -240,14 +240,3 @@ ignore_errors = true
 
 [tool.coverage.run]
 branch = true
-
-[tool.vermin]
-make_paths_absolute = false
-backports = [
-    "typing_extensions",
-]
-format = "parsable"
-eval_annotations = true
-only_show_violations = true
-targets = "3.8-"
-exclusion_regex = "^src/prefect/_vendor/.*$|^src/prefect/utilities/compat\\.py$"
