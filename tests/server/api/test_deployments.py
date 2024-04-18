@@ -5,6 +5,7 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 from prefect._vendor.starlette import status
+from pydantic import ValidationError
 
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
@@ -1077,6 +1078,67 @@ class TestCreateDeployment:
         )
         assert response.status_code == 201
 
+    async def test_create_deployment_parameter_enforcement_raises_validation_error_on_invalid_param_size(
+        self,
+        flow,
+        work_pool,
+    ):
+        with pytest.raises(ValidationError) as exc:
+            DeploymentCreate(
+                name="My Deployment",
+                flow_id=flow.id,
+                work_pool_name=work_pool.name,
+                enforce_parameter_schema=True,
+                parameter_openapi_schema={
+                    "type": "object",
+                    "title": "Parameters",
+                    "properties": {
+                        "n_late": {
+                            "type": "integer",
+                            "title": "n_late",
+                            "default": 2,
+                            "position": 0,
+                        },
+                        "backfill": {
+                            "type": "integer",
+                            "title": "backfill",
+                            "default": 20,
+                            "position": 3,
+                        },
+                        "receivers": {
+                            "type": "array",
+                            "items": {},
+                            "title": "receivers",
+                            "default": ["chonk@prefect.io"],
+                            "position": 1,
+                        },
+                        "exception_ids": {
+                            "type": "array",
+                            "items": {},
+                            "title": "exception_ids",
+                            "default": [],
+                            "position": 2,
+                        },
+                    },
+                },
+                parameters={
+                    "n_late": 1,
+                    "backfill": 19,
+                    "receivers": [
+                        "chonk@prefect.io",
+                    ],
+                    "exception_ids": [
+                        "202012224815161112121",
+                        "202401213115161161616",
+                        "202401223115166111194",
+                        202312144819166111119,
+                        202312144819161111141,
+                    ],
+                },
+            ).dict(json_compatible=True)
+
+        assert "Flow run parameters must be serializable to JSON" in str(exc)
+
     async def test_can_pause_deployment_by_upserting_is_schedule_active_legacy_client_support(
         self,
         client,
@@ -1776,6 +1838,83 @@ class TestUpdateDeployment:
         assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
         assert schedules[0].schedule.interval == new_schedule.interval
         assert schedules[0].active is True
+
+    async def test_update_deployment_parameter_enforcement_raises_validation_error_on_invalid_param_size(
+        self,
+        flow,
+        work_pool,
+        client,
+    ):
+        deployment = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "title": "Parameters",
+                "properties": {
+                    "n_late": {
+                        "type": "integer",
+                        "title": "n_late",
+                        "default": 2,
+                        "position": 0,
+                    },
+                    "backfill": {
+                        "type": "integer",
+                        "title": "backfill",
+                        "default": 20,
+                        "position": 3,
+                    },
+                    "receivers": {
+                        "type": "array",
+                        "items": {},
+                        "title": "receivers",
+                        "default": ["chonk@prefect.io"],
+                        "position": 1,
+                    },
+                    "exception_ids": {
+                        "type": "array",
+                        "items": {},
+                        "title": "exception_ids",
+                        "default": [],
+                        "position": 2,
+                    },
+                },
+            },
+            parameters={
+                "n_late": 1,
+                "backfill": 19,
+                "receivers": [
+                    "chonk@prefect.io",
+                ],
+                "exception_ids": [
+                    "202012224815161112121",
+                    "202401213115161161616",
+                    "202401223115166111194",
+                    "202312144819166111119",
+                    "202312144819161111141",
+                ],
+            },
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=deployment,
+        )
+
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {"exception_ids": [202402144809161001040]}},
+        )
+
+        assert response.status_code == 422
+
+        assert "Flow run parameters must be serializable to JSON" in response.text
 
 
 class TestGetScheduledFlowRuns:

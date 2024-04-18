@@ -8,6 +8,7 @@ from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID, uuid4
 
 import jsonschema
+import orjson
 
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -235,6 +236,19 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     def _validate_parameter_openapi_schema(cls, value, values):
         return validate_parameter_openapi_schema(value, values)
 
+    @validator("parameters")
+    def validate_parameters_for_json_compliance_and_size(cls, parameters: dict):
+        try:
+            serialized_parameters = orjson.dumps(parameters)
+        except Exception as e:
+            raise ValueError("Flow run parameters must be serializable to JSON.") from e
+
+        if len(serialized_parameters) > 512_000:
+            raise ValueError(
+                "Flow run parameters must be less than 512KB when serialized."
+            )
+        return parameters
+
 
 class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
@@ -311,6 +325,19 @@ class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
 
         if variables_schema is not None:
             jsonschema.validate(self.job_variables, variables_schema)
+
+    @validator("parameters")
+    def validate_parameters_for_json_compliance_and_size(cls, parameters: dict):
+        try:
+            serialized_parameters = orjson.dumps(parameters)
+        except Exception as e:
+            raise ValueError("Flow run parameters must be serializable to JSON.") from e
+
+        if len(serialized_parameters) > 512_000:
+            raise ValueError(
+                "Flow run parameters must be less than 512KB when serialized."
+            )
+        return parameters
 
 
 class FlowRunUpdate(ActionBaseModel):
