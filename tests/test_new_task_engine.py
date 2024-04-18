@@ -5,7 +5,10 @@ import pytest
 
 from prefect import Task, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import StateType
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.new_task_engine import TaskRunEngine, run_task
+from prefect.results import ResultFactory
 from prefect.utilities.callables import get_call_parameters
 
 
@@ -74,4 +77,24 @@ class TestTaskRuns:
         assert record.levelname == "CRITICAL"
 
     async def test_flow_run_id_is_set(self, flow_run, prefect_client):
-        pass
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.flow_run_id
+
+        factory = await ResultFactory.from_autonomous_task(foo)
+        with FlowRunContext(
+            flow_run=flow_run, client=prefect_client, result_factory=factory
+        ):
+            result = await run_task(foo)
+
+        assert result == flow_run.id
+
+    async def test_task_ends_in_completed(self, prefect_client):
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.id
+
+        result = await run_task(foo)
+        run = await prefect_client.read_task_run(result)
+
+        assert run.state_type == StateType.COMPLETED
