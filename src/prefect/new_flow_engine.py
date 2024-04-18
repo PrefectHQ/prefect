@@ -17,7 +17,7 @@ from typing_extensions import ParamSpec
 
 from prefect import Flow, Task, get_client
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas import FlowRun
+from prefect.client.schemas import FlowRun, TaskRun
 from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
@@ -59,12 +59,16 @@ class FlowRunEngine(Generic[P, R]):
         state = Running()
         return await self.set_state(state)
 
+    async def set_subflow_state(self, state: State) -> State:
+        pass
+
     async def set_state(self, state: State) -> State:
         """ """
         state = await propose_state(self.client, state, flow_run_id=self.flow_run.id)  # type: ignore
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
+        await self.set_subflow_state(state)
         return state
 
     async def handle_success(self, result: R) -> R:
@@ -78,8 +82,17 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_state(Failed())
         raise exc
 
+    async def create_subflow_task_run(self, client: PrefectClient) -> TaskRun:
+        pass
+
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
+
+        # this is a subflow run
+        parent_task_run = None
+        if flow_run_ctx:
+            parent_task_run = await self.create_subflow_task_run()
+
         try:
             flow_run_name = _resolve_custom_flow_run_name(
                 flow=self.flow, parameters=self.parameters
@@ -114,7 +127,7 @@ class FlowRunEngine(Generic[P, R]):
                 flow_run=self.flow_run,
                 parameters=self.parameters,
                 client=client,
-                background_tasks = anyio.create_task_group(),
+                background_tasks=anyio.create_task_group(),
                 result_factory=await ResultFactory.from_flow(self.flow),
                 task_runner=self.flow.task_runner,
             ):
