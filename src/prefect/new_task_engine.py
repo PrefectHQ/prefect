@@ -52,7 +52,7 @@ class TaskRunEngine(Generic[P, R]):
     async def handle_retry(self, exc: Exception) -> None:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
-        if self.retries >= self.task.retries:
+        if self.retries < self.task.retries:
             if not self.task.retry_condition_fn or self.task.retry_condition_fn(
                 self.task, self.task_run, self.task_run.state
             ):
