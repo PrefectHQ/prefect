@@ -10,7 +10,7 @@ from typing import (
     TypeVar,
     cast,
 )
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from typing_extensions import ParamSpec
 
@@ -21,7 +21,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import StateType
-from prefect.states import Failed, Retrying, Running
+from prefect.states import Completed, Failed, Retrying, Running
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import propose_state
 
@@ -38,8 +38,11 @@ class TaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
 
-    async def handle_success(self, result: R):
-        pass
+    async def handle_success(self, result: R) -> R:
+        if not self._is_started or self._client is None:
+            raise RuntimeError("Engine has not started.")
+        await propose_state(self._client, Completed(), task_run_id=self.task_run.id)
+        return result
 
     async def handle_exception(self, exc: Exception):
         # If the task has retries left, and the retry condition is met, set the task to retrying.
