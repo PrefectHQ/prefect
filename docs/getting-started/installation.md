@@ -216,7 +216,7 @@ pip3 install prefect
 
 ## Installing unreleased code
 
-If you'd like to use the most up-to-date, unreleased Prefect code, you can install directly off the `main` GitHub branch:
+To use the most up-to-date, unreleased Prefect code, you can install directly off the `main` GitHub branch:
 
 <div class="terminal">
 ```bash
