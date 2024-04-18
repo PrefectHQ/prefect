@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: "3.8"
           cache: "pip"
-          cache-dependency-path: "requirements-client.txt"
+          cache-dependency-path: "pyproject.toml"
 
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
@@ -46,8 +46,9 @@ jobs:
 
       - name: Build a binary wheel and a source tarball
         run: |
-          pip install -U build versioneer
-          python -m build --wheel --sdist .
+          pip install -U build uv
+          uv venv
+          python -m build --wheel --sdist --installer uv .
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
