@@ -46,8 +46,7 @@ class TaskRunEngine(Generic[P, R]):
         with get_client() as client:
             self._client = client
             self._is_started = True
-        self._client = None
-        return self
+            return self
 
     async def get_client(self):
         if not self._is_started:
@@ -69,6 +68,7 @@ class TaskRunEngine(Generic[P, R]):
 
     async def __aexit__(self, *args: Any) -> None:
         self._is_started = False
+        self._client = None
 
 
 async def run_task(
