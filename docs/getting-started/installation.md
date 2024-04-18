@@ -161,7 +161,13 @@ You may also use the `NO_PROXY` environment variable to specify which hosts shou
 
 For more information about these environment variables, see the [cURL documentation](https://everything.curl.dev/usingcurl/proxies/env).
 
-## Additional requirements
+## `prefect-client` library
+
+The `prefect-client` library is a minimal installation of Prefect designed for interacting with Prefect Cloud or a remote self-hosted server instance.
+`prefect-client` contains a subset of functionality with a smaller installation size, making it ideal for use in lightweight, resource-constrained, or ephemeral environments.
+It omits all CLI and server components found in the `prefect` library.
+
+## Additional Prefect requirements
 
 ### SQLite
 
@@ -172,10 +178,10 @@ Most systems will already have SQLite installed, because it is typically bundled
 !!! note
     Note that in production we recommend using [Prefect Cloud](/ui/cloud/) as your API server or [hosting your own Prefect server instance](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database).
 
-!!! note
-    If you install the [`prefect-client`](https://pypi.org/project/prefect-client/) library that provides a limited set of the full Prefect library's functionality, you do not need SQLite.
+!!! info
+    If you install the [`prefect-client`](https://pypi.org/project/prefect-client/) library that provides a limited set of the full Prefect library's functionality, you do not need SQLite installed.
 
-### Install SQLite on RHEL
+#### Install SQLite on RHEL
 
 To install an appropriate version of SQLite on Red Hat Custom Linux (RHEL), follow the instruction below:
 
@@ -232,4 +238,4 @@ pip3 install prefect
 
 ## Next steps
 
-Now that you have Prefect installed and your environment configured, you may want to check out the [Tutorial](/tutorial/) to get more familiar with Prefect.
+Now that you have Prefect installed and your environment configured, check out the [Tutorial](/tutorial/) to get more familiar with Prefect.
