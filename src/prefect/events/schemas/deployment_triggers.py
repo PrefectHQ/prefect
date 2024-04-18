@@ -176,6 +176,8 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
     period of time.
     """
 
+    trigger_type = EventTrigger
+
     type: Literal["event"] = "event"
 
     after: Set[str] = Field(
@@ -256,7 +258,7 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
         return values
 
     def as_trigger(self) -> Trigger:
-        return EventTrigger(
+        return self.trigger_type(
             match=self.match,
             match_related=self.match_related,
             after=self.after,
@@ -273,6 +275,8 @@ class DeploymentMetricTrigger(DeploymentResourceTrigger):
     A trigger that fires based on the results of a metric query.
     """
 
+    trigger_type = MetricTrigger
+
     type: Literal["metric"] = "metric"
 
     posture: Literal[Posture.Metric] = Field(  # type: ignore[valid-type]
@@ -286,7 +290,7 @@ class DeploymentMetricTrigger(DeploymentResourceTrigger):
     )
 
     def as_trigger(self) -> Trigger:
-        return MetricTrigger(
+        return self.trigger_type(
             match=self.match,
             match_related=self.match_related,
             posture=self.posture,
@@ -309,6 +313,8 @@ class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
     """A composite trigger that requires some number of triggers to have
     fired within the given time period"""
 
+    trigger_type = CompoundTrigger
+
     type: Literal["compound"] = "compound"
     require: Union[int, Literal["any", "all"]]
 
@@ -327,7 +333,7 @@ class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
         return values
 
     def as_trigger(self) -> Trigger:
-        return CompoundTrigger(
+        return self.trigger_type(
             require=self.require,
             triggers=self.triggers,
             within=self.within,
@@ -339,10 +345,12 @@ class DeploymentSequenceTrigger(DeploymentCompositeTrigger):
     """A composite trigger that requires some number of triggers to have fired
     within the given time period in a specific order"""
 
+    trigger_type = SequenceTrigger
+
     type: Literal["sequence"] = "sequence"
 
     def as_trigger(self) -> Trigger:
-        return SequenceTrigger(
+        return self.trigger_type(
             triggers=self.triggers,
             within=self.within,
             job_variables=self.job_variables,
