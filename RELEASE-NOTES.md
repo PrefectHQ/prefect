@@ -51,7 +51,7 @@
 ### Documentation
 - Update `prefect.yaml` example in work pools concepts page — https://github.com/PrefectHQ/prefect/pull/12695
 - Fix typo in Quickstart — https://github.com/PrefectHQ/prefect/pull/12729
-- Simplify-api-connection — https://github.com/PrefectHQ/prefect/pull/12725
+- Simplify quickstart — https://github.com/PrefectHQ/prefect/pull/12725
 - Add `.serve`, `.deploy`, and composite trigger examples to deployment triggers docs — https://github.com/PrefectHQ/prefect/pull/12743
 - Update automations images — https://github.com/PrefectHQ/prefect/pull/12752
 - Simplify tutorial — https://github.com/PrefectHQ/prefect/pull/12765
