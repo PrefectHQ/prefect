@@ -4,6 +4,7 @@ from uuid import UUID
 
 from prefect import task, Task, get_run_logger
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import StateType
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.new_task_engine import run_task, TaskRunEngine
 from prefect.results import ResultFactory
@@ -86,3 +87,13 @@ class TestTaskRuns:
             result = await run_task(foo)
 
         assert result == flow_run.id
+
+    async def test_task_ends_in_completed(self, prefect_client):
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.id
+
+        result = await run_task(foo)
+        run = await prefect_client.read_task_run(result)
+
+        assert run.state_type == StateType.COMPLETED
