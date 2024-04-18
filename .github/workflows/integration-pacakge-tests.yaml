@@ -37,7 +37,7 @@ jobs:
           echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
   run-tests:
-    name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python }}
+    name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}
     needs: prepare-matrix
     runs-on: ubuntu-latest
     strategy:
@@ -50,6 +50,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: UV Cache
         # Manually cache the uv cache directory
