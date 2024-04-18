@@ -1,21 +1,97 @@
+from typing import Type
 from unittest import mock
 
 import pytest
 from websockets.exceptions import ConnectionClosed
 
 from prefect.client.base import PrefectHttpxClient
-from prefect.events import Event
+from prefect.events import Event, get_events_client
 from prefect.events.clients import (
     PrefectCloudEventsClient,
     PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_EVENTS,
+    temporary_settings,
+)
 from prefect.testing.fixtures import Puppeteer, Recorder
 
 
+@pytest.fixture
+def no_viable_settings():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: "https://locally/api",
+            PREFECT_API_KEY: None,
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_EXPERIMENTAL_EVENTS: False,
+        }
+    ):
+        yield
+
+
+async def test_raises_when_no_viable_client(no_viable_settings):
+    with pytest.raises(RuntimeError, match="does not support events"):
+        get_events_client()
+
+
+@pytest.fixture
+def ephemeral_settings():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: None,
+            PREFECT_API_KEY: None,
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_EXPERIMENTAL_EVENTS: True,
+        }
+    ):
+        yield
+
+
+async def test_constructs_ephemeral_client(ephemeral_settings):
+    assert isinstance(get_events_client(), PrefectEphemeralEventsClient)
+
+
+@pytest.fixture
+def server_settings():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: "https://locally/api",
+            PREFECT_API_KEY: None,
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_EXPERIMENTAL_EVENTS: True,
+        }
+    ):
+        yield
+
+
+async def test_constructs_server_client(server_settings):
+    assert isinstance(get_events_client(), PrefectEventsClient)
+
+
+@pytest.fixture
+def cloud_settings():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: "https://cloudy/api/accounts/1/workspaces/2",
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_API_KEY: "howdy-doody",
+            PREFECT_EXPERIMENTAL_EVENTS: False,
+        }
+    ):
+        yield
+
+
+async def test_constructs_cloud_client(cloud_settings):
+    assert isinstance(get_events_client(), PrefectCloudEventsClient)
+
+
 async def test_ephemeral_events_client_can_emit(
-    example_event_1: Event, monkeypatch: pytest.MonkeyPatch
+    example_event_1: Event, monkeypatch: pytest.MonkeyPatch, ephemeral_settings
 ):
     mock_http_client = mock.MagicMock(
         spec=PrefectHttpxClient, name="PrefectHttpxClient"
@@ -25,14 +101,38 @@ async def test_ephemeral_events_client_can_emit(
     )
     mock_http_client.return_value.post = mock.AsyncMock()
     monkeypatch.setattr("prefect.events.clients.PrefectHttpxClient", mock_http_client)
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
-        async with PrefectEphemeralEventsClient() as client:
-            await client.emit(example_event_1)
+
+    assert not PREFECT_API_URL.value()
+    assert not PREFECT_API_KEY.value()
+
+    async with PrefectEphemeralEventsClient() as client:
+        await client.emit(example_event_1)
 
     mock_http_client().post.assert_called_once_with(
         "/events",
         json=[example_event_1.dict(json_compatible=True)],
     )
+
+
+def pytest_generate_tests(metafunc: pytest.Metafunc):
+    fixtures = set(metafunc.fixturenames)
+
+    if "Client" in fixtures:
+        metafunc.parametrize(
+            "Client",
+            [PrefectEventsClient, PrefectCloudEventsClient],
+        )
+
+
+@pytest.fixture(autouse=True)
+def api_setup(events_cloud_api_url: str):
+    with temporary_settings(
+        updates={
+            PREFECT_API_URL: events_cloud_api_url,
+            PREFECT_API_KEY: "my-token",
+        }
+    ):
+        yield
 
 
 async def test_events_client_can_connect_and_emit(
@@ -58,7 +158,7 @@ async def test_cloud_client_can_connect_and_emit(
 
 
 async def test_reconnects_and_resends_after_hard_disconnect(
-    events_cloud_api_url: str,
+    Client: Type[PrefectEventsClient],
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -67,7 +167,7 @@ async def test_reconnects_and_resends_after_hard_disconnect(
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    client = PrefectEventsClient(events_cloud_api_url, checkpoint_every=1)
+    client = Client(checkpoint_every=1)
     async with client:
         assert recorder.connections == 1
 
@@ -93,7 +193,7 @@ async def test_reconnects_and_resends_after_hard_disconnect(
 
 @pytest.mark.parametrize("attempts", [4, 1, 0])
 async def test_gives_up_after_a_certain_amount_of_tries(
-    events_cloud_api_url: str,
+    Client: Type[PrefectEventsClient],
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -101,8 +201,7 @@ async def test_gives_up_after_a_certain_amount_of_tries(
     puppeteer: Puppeteer,
     attempts: int,
 ):
-    client = PrefectEventsClient(
-        events_cloud_api_url,
+    client = Client(
         checkpoint_every=1,
         reconnection_attempts=attempts,
     )
@@ -126,7 +225,7 @@ async def test_gives_up_after_a_certain_amount_of_tries(
 
 
 async def test_giving_up_after_negative_one_tries_is_a_noop(
-    events_cloud_api_url: str,
+    Client: Type[PrefectEventsClient],
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -135,9 +234,7 @@ async def test_giving_up_after_negative_one_tries_is_a_noop(
 ):
     """This is a nonsensical configuration, but covers a branch of client.emit where
     the primary reconnection loop does nothing (not even sending events)"""
-    client = PrefectEventsClient(
-        events_cloud_api_url, checkpoint_every=1, reconnection_attempts=-1
-    )
+    client = Client(checkpoint_every=1, reconnection_attempts=-1)
     async with client:
         assert recorder.connections == 1
 
@@ -171,7 +268,7 @@ async def test_handles_api_url_with_trailing_slash(
 
 
 async def test_recovers_from_temporary_error_reconnecting(
-    events_cloud_api_url: str,
+    Client: Type[PrefectEventsClient],
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -180,9 +277,7 @@ async def test_recovers_from_temporary_error_reconnecting(
 ):
     """Regression test for an error where the client encountered assertion errors in
     PrefectEventsClient._emit because the websocket was None"""
-    client = PrefectEventsClient(
-        events_cloud_api_url, checkpoint_every=1, reconnection_attempts=3
-    )
+    client = Client(checkpoint_every=1, reconnection_attempts=3)
     async with client:
         assert recorder.connections == 1
 
@@ -219,7 +314,7 @@ async def test_recovers_from_temporary_error_reconnecting(
 
 
 async def test_recovers_from_long_lasting_error_reconnecting(
-    events_cloud_api_url: str,
+    Client: Type[PrefectEventsClient],
     example_event_1: Event,
     example_event_2: Event,
     example_event_3: Event,
@@ -228,9 +323,7 @@ async def test_recovers_from_long_lasting_error_reconnecting(
 ):
     """Regression test for an error where the client encountered assertion errors in
     PrefectEventsClient._emit because the websocket was None"""
-    client = PrefectEventsClient(
-        events_cloud_api_url, checkpoint_every=1, reconnection_attempts=3
-    )
+    client = Client(checkpoint_every=1, reconnection_attempts=3)
     async with client:
         assert recorder.connections == 1
 
