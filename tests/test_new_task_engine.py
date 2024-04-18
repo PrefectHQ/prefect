@@ -60,6 +60,8 @@ class TestTaskRuns:
         async def my_log_task():
             get_run_logger().critical("hey yall")
 
-        result = await run_task(foo)
+        result = await run_task(my_log_task)
 
         assert result is None
+        assert 'hey yall' in caplog.text
+

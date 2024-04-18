@@ -17,7 +17,7 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
-from prefect.context import EngineContext
+from prefect.context import TaskRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import StateType
@@ -66,13 +66,13 @@ class TaskRunEngine(Generic[P, R]):
             if not self.task_run:
                 self.task_run = await self.create_task_run(client)
 
-            with EngineContext(
-                flow=None,
-                flow_run=None,
-                autonomous_task_run=self.task_run,
-                client=client,
-                parameters=self.parameters,
+            with TaskRunContext(
+                task=self.task,
+                log_prints=self.task.log_prints or False,
+                task_run=self.task_run,
+                parameters=self.parameters or {},
                 result_factory=await ResultFactory.from_autonomous_task(self.task),
+                client=client,
             ):
                 yield self
 
