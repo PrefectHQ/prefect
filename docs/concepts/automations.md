@@ -635,7 +635,7 @@ if __name__=="__main__":
     )
 ```
 
-As with prior examples, composite triggers must be supplied with a list of underlying triggers. Note that only the outer trigger type needs to be prefixed with `Deployment` since the underlying triggers don't interface directly with the linked deployment or create separate automations:
+As with prior examples, composite triggers must be supplied with a list of underlying triggers:
 
 ```python
 from prefect import flow
@@ -653,17 +653,20 @@ if __name__=="__main__":
         image="my-image-registry/my-image:my-tag"
         triggers=[
             DeploymentCompoundTrigger(
+                enabled=True,
                 name="my-compound-trigger",
                 require="all",
                 triggers=[
-                    EventTrigger(
-                      match={"prefect.resource.id": "my.external.resource"},
-                      expect=["external.resource.pinged"],
-                    ),
-                    EventTrigger(
-                      match={"prefect.resource.id": "my.external.resource"},
-                      expect=["external.resource.replied"],
-                    ),
+                    {
+                      "type": "event",
+                      "match": {"prefect.resource.id": "my.external.resource"},
+                      "expect": ["external.resource.pinged"],
+                    },
+                    {
+                      "type": "event",
+                      "match": {"prefect.resource.id": "my.external.resource"},
+                      "expect": ["external.resource.replied"],
+                    },
                 ],
                 parameters={
                     "param_1": "{{ event }}",
