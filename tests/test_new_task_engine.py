@@ -1,5 +1,6 @@
 import logging
 import pytest
+from uuid import UUID
 
 from prefect import task, Task, get_run_logger
 from prefect.client.orchestration import PrefectClient
@@ -56,12 +57,17 @@ class TestTaskRuns:
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)
 
-        @task
+        @task(task_run_name="test-run")
         async def my_log_task():
             get_run_logger().critical("hey yall")
 
         result = await run_task(my_log_task)
 
         assert result is None
-        assert 'hey yall' in caplog.text
+        record = caplog.records[0]
 
+        assert record.task_name == "my_log_task"
+        # assert record.task_run_name == "test-run"
+        assert UUID(record.task_run_id)
+        assert record.message == "hey yall"
+        assert record.levelname == "CRITICAL"
