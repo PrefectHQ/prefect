@@ -10,13 +10,11 @@
 
 ### Enhancements
 - Allow returning to account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
-- Add default posture to `EventTrigger` schema — https://github.com/PrefectHQ/prefect/pull/12764
 
 ### Fixes
 - Better flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
 - Fix import syntax in `variables.Variable` example — https://github.com/PrefectHQ/prefect/pull/12727
 - Fix typo in How-to Guide document — https://github.com/PrefectHQ/prefect/pull/12761
-- Fix writing events for SQLite + SQLAlchemy<2 — https://github.com/PrefectHQ/prefect/pull/12679
 - Fix a flake with the SQLite version check test — https://github.com/PrefectHQ/prefect/pull/12690
 - Fix a test flake in flow run lateness — https://github.com/PrefectHQ/prefect/pull/12698
 - Remove `version` from `docker-compose.yml`, as it is now deprecated — https://github.com/PrefectHQ/prefect/pull/12706
@@ -52,6 +50,8 @@
 - Disable the automations integration flows for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12784
 - Implement the work pool and work queue actions — https://github.com/PrefectHQ/prefect/pull/12735
 - Add helper functions for creating an events client or subscriber — https://github.com/PrefectHQ/prefect/pull/12759
+- Add default posture to `EventTrigger` schema — https://github.com/PrefectHQ/prefect/pull/12764
+ - Fix writing events for SQLite + SQLAlchemy<2 — https://github.com/PrefectHQ/prefect/pull/12679
 
 ### Documentation
 - Update example to `prefect.yaml` in  work-pools concepts page — https://github.com/PrefectHQ/prefect/pull/12695
