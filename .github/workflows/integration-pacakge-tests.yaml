@@ -75,7 +75,4 @@ jobs:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
           cd src/integrations/${{ matrix.package }}
-          pytest tests \
-          --numprocesses auto \
-          --maxprocesses 6 \
-          --dist loadscope
+          pytest tests --numprocesses auto --maxprocesses 6 --dist loadscope
