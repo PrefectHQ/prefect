@@ -27,6 +27,7 @@ async def foo():
 async def test_setting_is_set():
     assert PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value() is True
 
+
 class TestTaskRunEngine:
     async def test_basic_init(self):
         engine = TaskRunEngine(task=foo)
@@ -154,7 +155,6 @@ class TestTaskRuns:
 
         assert run.state_type == StateType.COMPLETED
 
-    @pytest.mark.skip(reason="Still iterating on this.")
     async def test_task_tracks_nested_parent_as_dependency(self, prefect_client):
         @task
         async def inner():
@@ -170,7 +170,12 @@ class TestTaskRuns:
 
         # assertions on outer
         outer_run = await prefect_client.read_task_run(b)
-        assert outer_run.task_inputs
+        assert outer_run.task_inputs == {}
+
+        # assertions on inner
+        inner_run = await prefect_client.read_task_run(a)
+        assert "wait_for" in inner_run.task_inputs
+        assert inner_run.task_inputs["wait_for"][0].id == b
 
     @pytest.mark.skip(reason="This wont work until caching is wired up")
     async def test_task_runs_respect_cache_key(self, prefect_client):
