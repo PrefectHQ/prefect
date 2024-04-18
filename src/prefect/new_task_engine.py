@@ -21,10 +21,16 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
-from prefect.states import Completed, Failed, Pending, Retrying, Running
+from prefect.states import (
+    Failed,
+    Pending,
+    Retrying,
+    Running,
+    return_value_to_state,
+)
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
     _resolve_custom_task_run_name,
@@ -70,15 +76,18 @@ class TaskRunEngine(Generic[P, R]):
 
     async def set_state(self, state: State) -> State:
         """ """
-        print("WHAT IS STATE", state)
         state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
         self.task_run.state = state  # type: ignore
         self.task_run.state_name = state.name  # type: ignore
         self.task_run.state_type = state.type  # type: ignore
         return state
 
-    async def handle_success(self, result: R) -> R:
-        await self.set_state(Completed())
+    async def handle_success(self, result: R, result_factory) -> R:
+        terminal_state = await return_value_to_state(
+            await resolve_futures_to_states(result),
+            result_factory=result_factory,
+        )
+        await self.set_state(terminal_state)
         return result
 
     async def handle_exception(self, exc: Exception):
@@ -206,7 +215,8 @@ async def run_task(
                 # This is where the task is actually run.
                 result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
-                await state.handle_success(result)
+                factory = getattr(TaskRunContext.get(), "result_factory")
+                await state.handle_success(result, result_factory=factory)
                 return result
 
             except Exception as exc:

@@ -7,6 +7,7 @@ from prefect import Task, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.exceptions import MissingResult
 from prefect.new_task_engine import TaskRunEngine, run_task
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
@@ -176,6 +177,30 @@ class TestTaskRuns:
         inner_run = await prefect_client.read_task_run(a)
         assert "wait_for" in inner_run.task_inputs
         assert inner_run.task_inputs["wait_for"][0].id == b
+
+    async def test_task_runs_respect_result_persistence(self, prefect_client):
+        @task(persist_result=False)
+        async def no_persist():
+            return TaskRunContext.get().task_run.id
+
+        @task(persist_result=True)
+        async def persist():
+            return TaskRunContext.get().task_run.id
+
+        # assert no persistence
+        run_id = await run_task(no_persist)
+        task_run = await prefect_client.read_task_run(run_id)
+        api_state = task_run.state
+
+        with pytest.raises(MissingResult):
+            await api_state.result()
+
+        # assert persistence
+        run_id = await run_task(persist)
+        task_run = await prefect_client.read_task_run(run_id)
+        api_state = task_run.state
+
+        assert await api_state.result() == str(run_id)
 
     @pytest.mark.skip(reason="This wont work until caching is wired up")
     async def test_task_runs_respect_cache_key(self, prefect_client):
