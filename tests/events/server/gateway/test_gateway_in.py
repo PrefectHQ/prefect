@@ -3,11 +3,13 @@ from unittest import mock
 
 import pendulum
 import pytest
+from httpx import AsyncClient
 from prefect._vendor.fastapi.testclient import TestClient
 from prefect._vendor.starlette.testclient import WebSocketTestSession
 
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import Event
+from prefect.server.events.storage import database
 
 
 @pytest.fixture(autouse=True)
@@ -32,6 +34,14 @@ async def stream_publish(
     )
 
     return mock_publish
+
+
+@pytest.fixture
+async def write_events(monkeypatch: pytest.MonkeyPatch):
+    mock_write_events = mock.AsyncMock(spec=database.write_events)
+    monkeypatch.setattr(database, "write_events", mock_write_events)
+
+    return mock_write_events
 
 
 def test_stream_events_in(
@@ -73,3 +83,26 @@ def test_post_events(
         event2.receive(received=frozen_time),
     ]
     publish.assert_awaited_once_with(server_events)
+
+
+async def test_post_events_ephemeral(
+    client: AsyncClient,
+    frozen_time: pendulum.DateTime,
+    event1: Event,
+    event2: Event,
+    write_events: mock.AsyncMock,
+):
+    response = await client.post(
+        # need to use the same base_url as the events client
+        "http://ephemeral-prefect/api/events",
+        json=[
+            event1.dict(json_compatible=True),
+            event2.dict(json_compatible=True),
+        ],
+    )
+    assert response.status_code == 204
+    server_events = [
+        event1.receive(received=frozen_time),
+        event2.receive(received=frozen_time),
+    ]
+    write_events.assert_awaited_once_with(session=mock.ANY, events=server_events)

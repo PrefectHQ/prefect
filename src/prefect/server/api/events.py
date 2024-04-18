@@ -10,6 +10,7 @@ from prefect._vendor.starlette.status import WS_1002_PROTOCOL_ERROR
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
+from prefect.server.api.dependencies import is_ephemeral_request
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import messaging, stream
@@ -19,12 +20,12 @@ from prefect.server.events.counting import (
     TimeUnit,
 )
 from prefect.server.events.filters import EventFilter
+from prefect.server.events.models.automations import automations_session
 from prefect.server.events.schemas.events import Event, EventCount, EventPage
-from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
-from prefect.server.events.storage.database import (
-    count_events,
-    query_events,
-    query_next_page,
+from prefect.server.events.storage import (
+    INTERACTIVE_PAGE_SIZE,
+    InvalidTokenError,
+    database,
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
@@ -36,9 +37,18 @@ router = PrefectRouter(prefix="/events", tags=["Events"])
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
-async def create_events(events: List[Event]):
+async def create_events(
+    events: List[Event],
+    ephemeral_request: bool = Depends(is_ephemeral_request),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
     """Record a batch of Events"""
-    await messaging.publish([event.receive() for event in events])
+    received_events = [event.receive() for event in events]
+    if ephemeral_request:
+        async with db.session_context() as session:
+            await database.write_events(session, received_events)
+    else:
+        await messaging.publish(received_events)
 
 
 @router.websocket("/in")
@@ -93,10 +103,12 @@ async def stream_workspace_events_out(
         async with stream.events(filter) as event_stream:
             # ...then if the user wants, backfill up to the last 1k events...
             if wants_backfill:
-                backfill, _, _ = await query_events(
-                    filter=filter,
-                    page_size=1000,
-                )
+                async with automations_session() as session:
+                    backfill, _, _ = await database.query_events(
+                        session=session,
+                        filter=filter,
+                        page_size=1000,
+                    )
 
                 backfilled_ids = set()
 
@@ -163,7 +175,7 @@ async def read_events(
     """
     filter = filter or EventFilter()
     async with db.session_context() as session:
-        events, total, next_token = await query_events(
+        events, total, next_token = await database.query_events(
             session=session,
             filter=filter,
             page_size=limit,
@@ -190,7 +202,7 @@ async def read_account_events_page(
     """
     async with db.session_context() as session:
         try:
-            events, total, next_token = await query_next_page(
+            events, total, next_token = await database.query_next_page(
                 session=session, page_token=page_token
             )
         except InvalidTokenError:
@@ -258,7 +270,7 @@ async def handle_event_count_request(
     )
 
     try:
-        return await count_events(
+        return await database.count_events(
             session=session,
             filter=filter,
             countable=countable,
