@@ -69,7 +69,7 @@ class TaskRunEngine(Generic[P, R]):
             self._is_started = True
 
             if not self.task_run:
-                self.task_run = self.create_task_run(client)
+                self.task_run = await self.create_task_run(client)
 
             with EngineContext(
                 flow=None,
