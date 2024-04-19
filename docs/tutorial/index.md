@@ -34,11 +34,12 @@ These four topics will get most users to their first production deployment.
 
 Advanced users that need more governance and control of their workflow infrastructure can go one step further by:
 
-5. [Using a worker-based deployment](/tutorial/workers/)
+5.[Using a worker-based deployment](/tutorial/workers/)
 
-If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/kubernetes/)), check out Prefect's [guides](/guides/).
+If you're looking for examples of more advanced operations (such as [deploying on Kubernetes](/guides/deployment/kubernetes/)), check out Prefect's [guides](/guides/).
 
 Compared to the [Quickstart](/getting-started/quickstart/), this tutorial is a more in-depth guide to Prefect's functionality.
+You will also see how to customize the Docker image where your flow runs and learn how to run flows on your own infrastructure.
 
 ## Prerequisites
 
@@ -47,7 +48,7 @@ Then install Prefect:
 
 <div class="terminal">
 ```bash
-`pip install -U prefect`
+pip install -U prefect
 ```
 </div>
 
@@ -59,11 +60,9 @@ To get the most out of Prefect, you need to connect to a forever-free [Prefect C
 1. Use the `prefect cloud login` CLI command to [authenticate to Prefect Cloud](/cloud/users/api-keys/) from your environment.
 
 <div class="terminal">
-
 ```bash
 prefect cloud login
 ```
-
 </div>
 
 Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
