@@ -1,7 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
 from typing import (
     Any,
     Callable,
@@ -51,15 +50,12 @@ class TaskRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
-    _start_time: Optional[datetime] = None
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
 
     def __post_init__(self):
         if self.parameters is None:
             self.parameters = {}
-        if self._start_time is None:
-            self._start_time = datetime.utcnow()
 
     @property
     def client(self) -> PrefectClient:
@@ -71,16 +67,7 @@ class TaskRunEngine(Generic[P, R]):
     def state(self) -> State:
         return self.task_run.state  # type: ignore
 
-    def start_time(self) -> datetime:
-        return self.task_run.start_time or self._start_time
-
-    def has_exceeded_timeout(self) -> bool:
-        return (
-            self.task.timeout_seconds is not None
-            and (datetime.utcnow() - self.start_time()).total_seconds()
-            > self.task.timeout_seconds
-        )
-
+    @property
     def can_retry(self) -> bool:
         retry_condition: Optional[  # type: ignore
             Callable[[Task[P, Coroutine[Any, Any, R]], TaskRun, State], bool]
@@ -115,21 +102,14 @@ class TaskRunEngine(Generic[P, R]):
         return await self.set_state(state)
 
     async def set_state(self, state: State) -> State:
-        has_timed_out = self.has_exceeded_timeout()
-        if has_timed_out:
-            state = Failed(message="Task timed out", result=state.result)
-        new_state = await propose_state(
-            self.client, state, task_run_id=self.task_run.id
-        )  # type: ignore
+        new_state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
         self.task_run.state = new_state  # type: ignore
         self.task_run.state_name = new_state.name  # type: ignore
         self.task_run.state_type = new_state.type  # type: ignore
-        if has_timed_out:
-            raise asyncio.TimeoutError("Task timed out")
         return new_state
 
     async def result(self) -> R:
-        return self.state.result()
+        return await self.state.result()
 
     async def handle_success(self, result: R) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
@@ -157,7 +137,7 @@ class TaskRunEngine(Generic[P, R]):
         - If the task has no retries left, or the retry condition is not met, return False.
         - If the task has retries left, and the retry condition is met, return True.
         """
-        if self.retries < self.task.retries and self.can_retry():
+        if self.retries < self.task.retries and self.can_retry:
             await self.set_state(Retrying())
             self.retries = self.retries + 1
             return True
@@ -182,6 +162,7 @@ class TaskRunEngine(Generic[P, R]):
 
         #        if wait_for:
         #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+
         task_run = await client.create_task_run(
             task=self.task,
             name=task_run_name,
@@ -259,11 +240,11 @@ async def run_task(
 
         await state.begin_run()
 
-        while state.is_pending() and not state.has_exceeded_timeout():
+        while state.is_pending():
             await asyncio.sleep(1)
             await state.begin_run()
 
-        while state.is_running() and not state.has_exceeded_timeout():
+        while state.is_running():
             try:
                 # This is where the task is actually run.
                 if task.isasync:
