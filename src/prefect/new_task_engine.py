@@ -1,4 +1,5 @@
 import asyncio
+import pendulum
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
@@ -98,7 +99,9 @@ class TaskRunEngine(Generic[P, R]):
             self.task, self.task_run, self.state
         )  # type: ignore
 
-    def _compute_state_details(self) -> StateDetails:
+    def _compute_state_details(
+        self, include_cache_expiration: bool = False
+    ) -> StateDetails:
         ## setup cache metadata
         task_run_context = TaskRunContext.get()
         cache_key = (
@@ -117,7 +120,19 @@ class TaskRunEngine(Generic[P, R]):
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
 
-        return StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
+        if include_cache_expiration:
+            cache_expiration = (
+                (pendulum.now("utc") + self.task.cache_expiration)
+                if self.task.cache_expiration
+                else None
+            )
+        else:
+            cache_expiration = None
+        return StateDetails(
+            cache_key=cache_key,
+            refresh_cache=refresh_cache,
+            cache_expiration=cache_expiration,
+        )
 
     async def begin_run(self) -> State:
         state = Running(state_details=self._compute_state_details())
@@ -141,7 +156,9 @@ class TaskRunEngine(Generic[P, R]):
             await resolve_futures_to_states(result),
             result_factory=result_factory,
         )
-        terminal_state.state_details = self._compute_state_details()
+        terminal_state.state_details = self._compute_state_details(
+            include_cache_expiration=True
+        )
         await self.set_state(terminal_state)
         return result
 
@@ -189,6 +206,12 @@ class TaskRunEngine(Generic[P, R]):
         #        if wait_for:
         #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
+        if flow_run_ctx:
+            dynamic_key = _dynamic_key_for_task_run(
+                context=flow_run_ctx, task=self.task
+            )
+        else:
+            dynamic_key = uuid4().hex
         task_run = await client.create_task_run(
             task=self.task,
             name=task_run_name,
@@ -197,7 +220,7 @@ class TaskRunEngine(Generic[P, R]):
                 if flow_run_ctx and flow_run_ctx.flow_run
                 else None
             ),
-            dynamic_key=_dynamic_key_for_task_run(context=flow_run_ctx, task=self.task),
+            dynamic_key=dynamic_key,
             state=Pending(),
             task_inputs=task_inputs,
         )
