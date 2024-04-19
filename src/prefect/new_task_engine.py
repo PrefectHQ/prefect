@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
@@ -40,6 +41,25 @@ from prefect.utilities.engine import (
     collect_task_run_inputs,
     propose_state,
 )
+
+
+@asynccontextmanager
+async def timeout(
+    delay: Optional[float], *, loop: Optional[asyncio.AbstractEventLoop] = None
+) -> AsyncGenerator[None, None]:
+    loop = loop or asyncio.get_running_loop()
+    task = asyncio.current_task(loop=loop)
+    timer_handle: Optional[asyncio.TimerHandle] = None
+
+    if delay is not None and task is not None:
+        timer_handle = loop.call_later(delay, task.cancel)
+
+    try:
+        yield
+    finally:
+        if timer_handle is not None:
+            timer_handle.cancel()
+
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -251,10 +271,11 @@ async def run_task(
         while state.is_running():
             try:
                 # This is where the task is actually run.
-                if task.isasync:
-                    result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
-                else:
-                    result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+                async with timeout(state.task.timeout_seconds):
+                    if task.isasync:
+                        result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                    else:
+                        result = cast(R, task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
                 await state.handle_success(result)
                 break

@@ -3,14 +3,17 @@ from uuid import UUID
 
 import pytest
 
-from prefect import Task, get_run_logger, task
+from prefect import Task, flow, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
-from prefect.context import FlowRunContext, TaskRunContext
+from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import FailedRun, MissingResult
+from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task
-from prefect.results import ResultFactory
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+    temporary_settings,
+)
 from prefect.utilities.callables import get_call_parameters
 
 
@@ -99,18 +102,20 @@ class TestTaskRuns:
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
 
-    async def test_flow_run_id_is_set(self, flow_run, prefect_client):
+    async def test_flow_run_id_is_set(self, prefect_client):
+        flow_run_id = None
+
         @task
         async def foo():
             return TaskRunContext.get().task_run.flow_run_id
 
-        factory = await ResultFactory.from_autonomous_task(foo)
-        with FlowRunContext(
-            flow_run=flow_run, client=prefect_client, result_factory=factory
-        ):
-            result = await run_task(foo)
+        @flow
+        async def workflow():
+            nonlocal flow_run_id
+            flow_run_id = get_run_context().flow_run.id
+            return await run_task(foo)
 
-        assert result == flow_run.id
+        assert await workflow() == flow_run_id
 
     async def test_task_ends_in_completed(self, prefect_client):
         @task
@@ -202,7 +207,7 @@ class TestTaskRuns:
 
         assert await api_state.result() == str(run_id)
 
-    async def test_task_runs_respect_cache_key(self, prefect_client):
+    async def test_task_runs_respect_cache_key(self):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
         async def first():
             return 42
@@ -211,8 +216,10 @@ class TestTaskRuns:
         async def second():
             return 500
 
-        one = await run_task(first)
-        two = await run_task(second)
+        fs = LocalFileSystem(base_url="/tmp/prefect")
+
+        one = await run_task(first.with_options(result_storage=fs))
+        two = await run_task(second.with_options(result_storage=fs))
 
         assert one == 42
         assert two == 42
