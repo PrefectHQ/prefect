@@ -37,6 +37,7 @@ from prefect.states import (
 )
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
+    _dynamic_key_for_task_run,
     _resolve_custom_task_run_name,
     collect_task_run_inputs,
     propose_state,
@@ -196,7 +197,7 @@ class TaskRunEngine(Generic[P, R]):
                 if flow_run_ctx and flow_run_ctx.flow_run
                 else None
             ),
-            dynamic_key=uuid4().hex,
+            dynamic_key=_dynamic_key_for_task_run(context=flow_run_ctx, task=self.task),
             state=Pending(),
             task_inputs=task_inputs,
         )
