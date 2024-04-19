@@ -7,8 +7,15 @@ from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
+
+import typer
+import yaml
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from yaml.error import YAMLError
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -17,12 +24,6 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-import typer
-import yaml
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from yaml.error import YAMLError
 
 import prefect
 from prefect._internal.compatibility.deprecated import (
@@ -62,7 +63,7 @@ from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events import DeploymentTriggerTypes
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
@@ -1602,7 +1603,9 @@ def _initialize_deployment_triggers(
 
 
 async def _create_deployment_triggers(
-    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTriggerTypes]
+    client: PrefectClient,
+    deployment_id: UUID,
+    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]],
 ):
     if client.server_type.supports_automations():
         try:
