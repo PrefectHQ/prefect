@@ -571,3 +571,31 @@ class PrefectCloudEventSubscriber(PrefectEventSubscriber):
         )
 
         self._api_key = api_key
+
+
+class PrefectCloudAccountEventSubscriber(PrefectCloudEventSubscriber):
+    def __init__(
+        self,
+        api_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        filter: Optional["EventFilter"] = None,
+        reconnection_attempts: int = 10,
+    ):
+        """
+        Args:
+            api_url: The base URL for a Prefect Cloud workspace
+            api_key: The API of an actor with the manage_events scope
+            reconnection_attempts: When the client is disconnected, how many times
+                the client should attempt to reconnect
+        """
+        api_url, api_key = _get_api_url_and_key(api_url, api_key)
+
+        account_api_url, _, _ = api_url.partition("/workspaces/")
+
+        super().__init__(
+            api_url=account_api_url,
+            filter=filter,
+            reconnection_attempts=reconnection_attempts,
+        )
+
+        self._api_key = api_key
