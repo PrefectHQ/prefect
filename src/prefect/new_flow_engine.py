@@ -80,6 +80,9 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_subflow_state(state)
         return state
 
+    def result(self, raise_on_failure: bool = True) -> R | State | None:
+        return self.state.result(raise_on_failure=raise_on_failure)
+
     async def handle_success(self, result: R) -> R:
         await self.set_state(Completed())
         return result
@@ -215,7 +218,8 @@ async def run_flow(
                     result = cast(R, flow.fn(**(parameters or {})))  # type: ignore
                 # If the flow run is successful, finalize it.
                 await state.handle_success(result)
-                return result
+                if return_type == "result":
+                    return result
 
             except Exception as exc:
                 # If the flow fails, and we have retries left, set the flow to retrying.
@@ -223,4 +227,4 @@ async def run_flow(
 
         if return_type == "state":
             return state.state  # maybe engine.start() -> `run` instead of `state`?
-        return await state.result()
+        return state.result()

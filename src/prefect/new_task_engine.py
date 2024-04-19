@@ -131,8 +131,8 @@ class TaskRunEngine(Generic[P, R]):
         self.task_run.state_type = new_state.type  # type: ignore
         return new_state
 
-    async def result(self, raise_on_failure: bool = True) -> R | State | None:
-        return await self.state.result(raise_on_failure=raise_on_failure)
+    def result(self, raise_on_failure: bool = True) -> R | State | None:
+        return self.state.result(raise_on_failure=raise_on_failure)
 
     async def handle_success(self, result: R) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
@@ -279,10 +279,12 @@ async def run_task(
                         result = cast(R, task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
                 await state.handle_success(result)
+                if return_type == "result":
+                    return result
 
             except Exception as exc:
                 await state.handle_exception(exc)
 
         if return_type == "state":
             return state.state  # maybe engine.start() -> `run` instead of `state`?
-        return await state.result()
+        return state.result()
