@@ -1,5 +1,4 @@
 import asyncio
-import pendulum
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
@@ -17,6 +16,7 @@ from typing import (
 )
 from uuid import uuid4
 
+import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
@@ -147,8 +147,8 @@ class TaskRunEngine(Generic[P, R]):
         self.task_run.state_type = new_state.type  # type: ignore
         return new_state
 
-    def result(self, raise_on_failure: bool = True) -> R | State | None:
-        return self.state.result(raise_on_failure=raise_on_failure)
+    async def result(self, raise_on_failure: bool = True) -> R | State | None:
+        return await self.state.result(raise_on_failure=raise_on_failure)
 
     async def handle_success(self, result: R) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
@@ -311,4 +311,4 @@ async def run_task(
 
         if return_type == "state":
             return state.state  # maybe engine.start() -> `run` instead of `state`?
-        return state.result()
+        return await state.result()
