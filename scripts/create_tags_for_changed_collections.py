@@ -39,7 +39,7 @@ async def get_changed_integrations(
         path = Path(file_path)
         integration_name = path.parent.name
         current_version = await fetch_latest_repo_tag(
-            OWNER, REPO, f"*-{integration_name}"
+            OWNER, REPO, f"{integration_name}-*"
         )
         changed_integrations[integration_name] = increment_patch_version(
             current_version
