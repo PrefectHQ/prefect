@@ -67,7 +67,7 @@ jobs:
 
       - name: Create OSS OpenAPI JSON
         working-directory: compat-tests
-        run: python scripts/generate_oss_openapi_schema.py
+        run: python ../scripts/generate_oss_openapi_schema.py
 
       - name: Run API compatibility tests
         working-directory: compat-tests
