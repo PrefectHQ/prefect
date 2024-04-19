@@ -1,9 +1,8 @@
 name: Create tags for changed integrations
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
