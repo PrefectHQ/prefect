@@ -62,14 +62,13 @@ jobs:
           uv pip install --upgrade --system -e .[dev] 'pydantic>=2.4,<3'
 
       - name: Create Cloud OpenAPI JSON
-        run: |
-          curl https://api.prefect.cloud/api/openapi.json > cloud_schema.json
+        working-directory: compat-tests
+        run: curl https://api.prefect.cloud/api/openapi.json > cloud_schema.json
 
       - name: Create OSS OpenAPI JSON
-        run: |
-          python scripts/generate_oss_openapi_schema.py
+        working-directory: compat-tests
+        run: python scripts/generate_oss_openapi_schema.py
 
       - name: Run API compatibility tests
-        run: |
-          cd compat-tests
-          pytest -vv
+        working-directory: compat-tests
+        run: pytest -vv
