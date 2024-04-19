@@ -10,7 +10,7 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install src/integrations/*
+&& pip install src/integrations/* \
 && pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@1471e7595c14a067031600ec18e3cc8d7964e4aa\
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
