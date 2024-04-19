@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from contextvars import Context, copy_context
 from typing import Any, Dict, Optional, Tuple, Type
+from uuid import UUID
 
 from typing_extensions import Self
 
@@ -56,7 +57,7 @@ class EventsWorker(QueueService[Event]):
         self.client_type = client_type
         self.client_options = client_options
         self._client: EventsClient
-        self._context_cache: Dict[Event, Context] = {}
+        self._context_cache: Dict[UUID, Context] = {}
 
     @asynccontextmanager
     async def _lifespan(self):
@@ -66,11 +67,11 @@ class EventsWorker(QueueService[Event]):
             yield
 
     def _prepare_item(self, event: Event) -> Event:
-        self._context_cache[event] = copy_context()
+        self._context_cache[event.id] = copy_context()
         return event
 
     async def _handle(self, event: Event):
-        context = self._context_cache.pop(event)
+        context = self._context_cache.pop(event.id)
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
 
