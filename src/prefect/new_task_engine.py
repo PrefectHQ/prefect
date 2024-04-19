@@ -151,12 +151,6 @@ class TaskRunEngine(Generic[P, R]):
         await self.set_state(Failed())
         raise exc
 
-    async def handle_timeout(self, exc: Exception) -> None:
-        await self.set_state(Failed())
-        raise TimeoutError(
-            f"Task exceeded its timeout_seconds of {self.task.timeout_seconds} seconds."
-        )
-
     async def handle_retry(self, exc: Exception) -> bool:
         """
         If the task has retries left, and the retry condition is met, set the task to retrying.
@@ -266,27 +260,23 @@ async def run_task(
 
         await state.begin_run()
 
-        try:
-            async with timeout(state.task.timeout_seconds):
-                while state.is_pending():
-                    await asyncio.sleep(1)
-                    await state.begin_run()
+        while state.is_pending():
+            await asyncio.sleep(1)
+            await state.begin_run()
 
-                while state.is_running():
-                    try:
-                        # This is where the task is actually run.
-                        if task.isasync:
-                            result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
-                        else:
-                            result = cast(R, task.fn(**(parameters or {})))  # type: ignore
-                        # If the task run is successful, finalize it.
-                        await state.handle_success(result)
-                        return result
-
-                    except Exception as exc:
-                        # If the task fails, and we have retries left, set the task to retrying.
-                        await state.handle_exception(exc)
-        except asyncio.TimeoutError as exc:
-            await state.handle_timeout(exc)
+        while state.is_running():
+            try:
+                # This is where the task is actually run.
+                async with timeout(state.task.timeout_seconds):
+                    if task.isasync:
+                        result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                    else:
+                        result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+                # If the task run is successful, finalize it.
+                await state.handle_success(result)
+                return result
+            except Exception as exc:
+                # If the task fails, and we have retries left, set the task to retrying.
+                await state.handle_exception(exc)
 
         return await state.result()
