@@ -51,7 +51,8 @@ Within your account, on the **Service Accounts** page, select the **+** icon to 
 
 Select **Create** to create the new service account.
 
-Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
+!!! warning
+    Note that an API key cannot be revealed again in the UI after it is generated, so copy the key to a secure location.
 
 You can change the API key and expiration for a service account by rotating the API key.
 Select **Rotate API Key** from the menu on the left side of the service account's information on this page. Optionally, you can set a period of time for your old service account key to remain active.

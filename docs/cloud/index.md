@@ -14,7 +14,7 @@ search:
   boost: 2
 ---
 
-# Welcome to Prefect Cloud <span class="badge cloud"></span>
+# Welcome to Prefect Cloud
 
 Prefect Cloud is a hosted workflow application framework that provides all the capabilities of Prefect server plus additional features, such as:
 
