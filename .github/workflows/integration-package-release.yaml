@@ -1,0 +1,69 @@
+name: Publish integration package to PyPI
+
+on:
+  push:
+    tags:
+      - "prefect-\\w+-[0-9]+.*"
+
+jobs:
+  build-pypi-dists:
+    name: Build Python package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Extract package name
+        id: package_name
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          PACKAGE_NAME=$(echo "$TAG_NAME" | grep -oP '^prefect-\w+')
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade build
+        working-directory: ${{ steps.package_name.outputs.PACKAGE_NAME }}
+
+      - name: Build a binary wheel and a source tarball
+        run: |
+          python -m build --wheel
+          python -m build --sdist
+        working-directory: ${{ steps.package_name.outputs.PACKAGE_NAME }}
+
+      - name: Publish build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package_name.outputs.PACKAGE_NAME }}-pypi-dists
+          path: "./src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}/dist"
+
+  publish-pypi-dists:
+    name: Publish ${{ needs.build-pypi-dists.PACKAGE_NAME}} to PyPI
+    environment: "prod"
+    needs: [build-pypi-dists]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-pypi-dists.PACKAGE_NAME}}-pypi-dists
+          path: "./dist"
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          name: ci
