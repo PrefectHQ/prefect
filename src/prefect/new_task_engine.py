@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Literal,
     Optional,
     TypeVar,
     cast,
@@ -52,6 +53,7 @@ class TaskRunEngine(Generic[P, R]):
     retries: int = 0
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
+    _return_type: Literal["state", "result"] = "result"
 
     def __post_init__(self):
         if self.parameters is None:
@@ -102,14 +104,16 @@ class TaskRunEngine(Generic[P, R]):
         return await self.set_state(state)
 
     async def set_state(self, state: State) -> State:
-        new_state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
+        new_state = await propose_state(
+            self.client, state, task_run_id=self.task_run.id
+        )  # type: ignore
         self.task_run.state = new_state  # type: ignore
         self.task_run.state_name = new_state.name  # type: ignore
         self.task_run.state_type = new_state.type  # type: ignore
         return new_state
 
-    async def result(self) -> R:
-        return await self.state.result()
+    async def result(self, raise_on_failure: bool = True) -> R | State | None:
+        return await self.state.result(raise_on_failure=raise_on_failure)
 
     async def handle_success(self, result: R) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
@@ -120,16 +124,6 @@ class TaskRunEngine(Generic[P, R]):
         terminal_state.state_details = self._compute_state_details()
         await self.set_state(terminal_state)
         return result
-
-    async def handle_exception(self, exc: Exception):
-        # If the task has retries left, and the retry condition is met, set the task to retrying.
-        if not await self.handle_retry(exc):
-            # If the task has no retries left, or the retry condition is not met, set the task to failed.
-            await self.handle_failure(exc)
-
-    async def handle_failure(self, exc: Exception) -> None:
-        await self.set_state(Failed())
-        raise exc
 
     async def handle_retry(self, exc: Exception) -> bool:
         """
@@ -142,6 +136,16 @@ class TaskRunEngine(Generic[P, R]):
             self.retries = self.retries + 1
             return True
         return False
+
+    async def handle_exception(
+        self, exc: Exception, return_type: Literal["state", "result"] = "result"
+    ) -> None:
+        # If the task fails, and we have retries left, set the task to retrying.
+        if not await self.handle_retry(exc):
+            # If the task has no retries left, or the retry condition is not met, set the task to failed.
+            await self.set_state(Failed())
+            if return_type == "result":
+                raise exc
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
         flow_run_ctx = FlowRunContext.get()
@@ -227,7 +231,8 @@ async def run_task(
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
-) -> R | None:
+    return_type: Literal["state", "result"] = "result",
+) -> R | State | None:
     """
     Runs a task against the API.
 
@@ -237,7 +242,6 @@ async def run_task(
     engine = TaskRunEngine[P, R](task, parameters, task_run)
     async with engine.start() as state:
         # This is a context manager that keeps track of the state of the task run.
-
         await state.begin_run()
 
         while state.is_pending():
@@ -253,10 +257,11 @@ async def run_task(
                     result = cast(R, task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
                 await state.handle_success(result)
-                return result
+                break
 
             except Exception as exc:
-                # If the task fails, and we have retries left, set the task to retrying.
-                await state.handle_exception(exc)
+                await state.handle_exception(exc, return_type=return_type)
 
+        if return_type == "state":
+            return state.state
         return await state.result()

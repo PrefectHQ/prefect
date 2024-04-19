@@ -7,7 +7,7 @@ from prefect import Task, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.exceptions import MissingResult
+from prefect.exceptions import FailedRun, MissingResult
 from prefect.new_task_engine import TaskRunEngine, run_task
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
@@ -216,3 +216,28 @@ class TestTaskRuns:
 
         assert one == 42
         assert two == 42
+
+
+class TestReturnState:
+    async def test_return_state(self, prefect_client):
+        @task
+        async def foo():
+            return 42
+
+        state = await run_task(foo, return_type="state")
+
+        assert state.is_completed()
+
+        assert await state.result() == 42
+
+    async def test_return_state_even_on_failure(self, prefect_client):
+        @task
+        async def foo():
+            raise ValueError("xyz")
+
+        state = await run_task(foo, return_type="state")
+
+        assert state.is_failed()
+
+        with pytest.raises(FailedRun, match="Run failed"):
+            await state.result()
