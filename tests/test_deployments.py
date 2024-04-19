@@ -34,6 +34,7 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
 from prefect.events import DeploymentTriggerTypes
+from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
@@ -1066,6 +1067,7 @@ class TestDeploymentApply:
         trigger = pydantic.parse_obj_as(
             DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
         )
+        assert isinstance(trigger, DeploymentEventTrigger)
 
         deployment = Deployment(
             name="TEST",
