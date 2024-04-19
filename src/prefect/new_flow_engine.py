@@ -200,7 +200,10 @@ async def run_flow(
         while state.is_running():
             try:
                 # This is where the flow is actually run.
-                result = cast(R, await flow.fn(**(parameters or {})))  # type: ignore
+                if flow.isasync:
+                    result = cast(R, await flow.fn(**(parameters or {})))  # type: ignore
+                else:
+                    result = cast(R, flow.fn(**(parameters or {})))  # type: ignore
                 # If the flow run is successful, finalize it.
                 await state.handle_success(result)
                 return result

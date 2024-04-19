@@ -247,7 +247,10 @@ async def run_task(
         while state.is_running():
             try:
                 # This is where the task is actually run.
-                result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                if task.isasync:
+                    result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                else:
+                    result = cast(R, task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
                 await state.handle_success(result)
                 return result

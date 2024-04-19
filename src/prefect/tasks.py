@@ -584,10 +584,15 @@ class Task(Generic[P, R]):
             )
 
         # new engine currently only compatible with async tasks
-        if self.isasync and PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
             from prefect.new_task_engine import run_task
+            from prefect.utilities.engine import run_sync
 
-            return run_task(task=self, parameters=parameters, wait_for=wait_for)
+            awaitable = run_task(task=self, parameters=parameters, wait_for=wait_for)
+            if self.isasync:
+                return awaitable
+            else:
+                return run_sync(awaitable)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()

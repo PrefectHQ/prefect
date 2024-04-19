@@ -1226,10 +1226,15 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        if self.isasync and PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
             from prefect.new_flow_engine import run_flow
+            from prefect.utilities.engine import run_sync
 
-            return run_flow(flow=self, parameters=parameters, wait_for=wait_for)
+            awaitable = run_flow(flow=self, parameters=parameters, wait_for=wait_for)
+            if self.isasync:
+                return awaitable
+            else:
+                return run_sync(awaitable)
 
         return enter_flow_run_engine_from_flow_call(
             self,
