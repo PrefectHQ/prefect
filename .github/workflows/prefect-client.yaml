@@ -53,7 +53,7 @@ jobs:
           TMPDIR: ${{ env.TMPDIR }}
 
       - name: Build a binary wheel and a source tarball
-        run: python -m build --wheel --sdist .
+        run: python -m pip install -U build && python -m build --wheel --sdist .
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
