@@ -7,7 +7,7 @@ from typing import (
     ClassVar,
     Dict,
     List,
-    Mapping,
+    MutableMapping,
     Optional,
     Tuple,
     Type,
@@ -19,6 +19,7 @@ import orjson
 import pendulum
 from cachetools import TTLCache
 from typing_extensions import Self
+from websockets import Subprotocol
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
     ConnectionClosed,
@@ -69,7 +70,7 @@ def get_events_client(
 
 
 def get_events_subscriber(
-    filter: "EventFilter" = None,
+    filter: Optional["EventFilter"] = None,
     reconnection_attempts: int = 10,
 ) -> "PrefectEventSubscriber":
     api_url = PREFECT_API_URL.value()
@@ -105,7 +106,7 @@ class EventsClient(abc.ABC):
     async def _emit(self, event: Event) -> None:  # pragma: no cover
         ...
 
-    async def __aenter__(self) -> "EventsClient":
+    async def __aenter__(self) -> Self:
         self._in_context = True
         return self
 
@@ -153,7 +154,7 @@ class AssertingEventsClient(EventsClient):
     async def _emit(self, event: Event) -> None:
         self.events.append(event)
 
-    async def __aenter__(self) -> "AssertingEventsClient":
+    async def __aenter__(self) -> Self:
         await super().__aenter__()
         self.events = []
         return self
@@ -227,7 +228,7 @@ class PrefectEventsClient(EventsClient):
 
     def __init__(
         self,
-        api_url: str = None,
+        api_url: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 20,
     ):
@@ -343,8 +344,8 @@ class PrefectCloudEventsClient(PrefectEventsClient):
 
     def __init__(
         self,
-        api_url: str = None,
-        api_key: str = None,
+        api_url: Optional[str] = None,
+        api_key: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 20,
     ):
@@ -393,12 +394,14 @@ class PrefectEventSubscriber:
 
     _websocket: Optional[WebSocketClientProtocol]
     _filter: "EventFilter"
-    _seen_events: Mapping[UUID, bool]
+    _seen_events: MutableMapping[UUID, bool]
+
+    _api_key: Optional[str]
 
     def __init__(
         self,
-        api_url: str = None,
-        filter: "EventFilter" = None,
+        api_url: Optional[str] = None,
+        filter: Optional["EventFilter"] = None,
         reconnection_attempts: int = 10,
     ):
         """
@@ -414,7 +417,7 @@ class PrefectEventSubscriber:
 
         from prefect.events.filters import EventFilter
 
-        self._filter = filter or EventFilter()
+        self._filter = filter or EventFilter()  # type: ignore[call-arg]
         self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
 
         socket_url = (
@@ -427,14 +430,14 @@ class PrefectEventSubscriber:
 
         self._connect = connect(
             socket_url,
-            subprotocols=["prefect"],
+            subprotocols=[Subprotocol("prefect")],
         )
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         if self._reconnection_attempts < 0:
             raise ValueError("reconnection_attempts must be a non-negative integer")
 
-    async def __aenter__(self) -> "PrefectCloudEventSubscriber":
+    async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
         await self._reconnect()
@@ -498,7 +501,7 @@ class PrefectEventSubscriber:
         self._websocket = None
         await self._connect.__aexit__(exc_type, exc_val, exc_tb)
 
-    def __aiter__(self) -> "PrefectCloudEventSubscriber":
+    def __aiter__(self) -> Self:
         return self
 
     async def __anext__(self) -> Event:
@@ -516,7 +519,7 @@ class PrefectEventSubscriber:
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
-                    event = Event.parse_obj(message["event"])
+                    event: Event = Event.parse_obj(message["event"])
 
                     if event.id in self._seen_events:
                         continue
@@ -541,14 +544,15 @@ class PrefectEventSubscriber:
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.
                     await asyncio.sleep(1)
+        raise StopAsyncIteration
 
 
 class PrefectCloudEventSubscriber(PrefectEventSubscriber):
     def __init__(
         self,
-        api_url: str = None,
-        api_key: str = None,
-        filter: "EventFilter" = None,
+        api_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        filter: Optional["EventFilter"] = None,
         reconnection_attempts: int = 10,
     ):
         """
