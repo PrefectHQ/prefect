@@ -284,5 +284,5 @@ async def run_task(
                 await state.handle_exception(exc, return_type=return_type)
 
         if return_type == "state":
-            return state.state
+            return state.state  # maybe engine.start() -> engine instead of state?
         return await state.result()
