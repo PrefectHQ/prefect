@@ -80,8 +80,8 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_subflow_state(state)
         return state
 
-    def result(self, raise_on_failure: bool = True) -> R | State | None:
-        return self.state.result(raise_on_failure=raise_on_failure)
+    async def result(self, raise_on_failure: bool = True) -> R | State | None:
+        return await self.state.result(raise_on_failure=raise_on_failure)
 
     async def handle_success(self, result: R) -> R:
         await self.set_state(Completed())
@@ -227,4 +227,4 @@ async def run_flow(
 
         if return_type == "state":
             return state.state  # maybe engine.start() -> `run` instead of `state`?
-        return state.result()
+        return await state.result()

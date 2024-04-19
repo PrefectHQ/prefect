@@ -16,6 +16,7 @@ from typing import (
 )
 from uuid import uuid4
 
+import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
@@ -37,6 +38,7 @@ from prefect.states import (
 )
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
+    _dynamic_key_for_task_run,
     _resolve_custom_task_run_name,
     collect_task_run_inputs,
     propose_state,
@@ -97,7 +99,9 @@ class TaskRunEngine(Generic[P, R]):
             self.task, self.task_run, self.state
         )  # type: ignore
 
-    def _compute_state_details(self) -> StateDetails:
+    def _compute_state_details(
+        self, include_cache_expiration: bool = False
+    ) -> StateDetails:
         ## setup cache metadata
         task_run_context = TaskRunContext.get()
         cache_key = (
@@ -116,7 +120,19 @@ class TaskRunEngine(Generic[P, R]):
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
 
-        return StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
+        if include_cache_expiration:
+            cache_expiration = (
+                (pendulum.now("utc") + self.task.cache_expiration)
+                if self.task.cache_expiration
+                else None
+            )
+        else:
+            cache_expiration = None
+        return StateDetails(
+            cache_key=cache_key,
+            refresh_cache=refresh_cache,
+            cache_expiration=cache_expiration,
+        )
 
     async def begin_run(self) -> State:
         state = Running(state_details=self._compute_state_details())
@@ -131,8 +147,8 @@ class TaskRunEngine(Generic[P, R]):
         self.task_run.state_type = new_state.type  # type: ignore
         return new_state
 
-    def result(self, raise_on_failure: bool = True) -> R | State | None:
-        return self.state.result(raise_on_failure=raise_on_failure)
+    async def result(self, raise_on_failure: bool = True) -> R | State | None:
+        return await self.state.result(raise_on_failure=raise_on_failure)
 
     async def handle_success(self, result: R) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
@@ -140,7 +156,9 @@ class TaskRunEngine(Generic[P, R]):
             await resolve_futures_to_states(result),
             result_factory=result_factory,
         )
-        terminal_state.state_details = self._compute_state_details()
+        terminal_state.state_details = self._compute_state_details(
+            include_cache_expiration=True
+        )
         await self.set_state(terminal_state)
         return result
 
@@ -188,6 +206,12 @@ class TaskRunEngine(Generic[P, R]):
         #        if wait_for:
         #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
+        if flow_run_ctx:
+            dynamic_key = _dynamic_key_for_task_run(
+                context=flow_run_ctx, task=self.task
+            )
+        else:
+            dynamic_key = uuid4().hex
         task_run = await client.create_task_run(
             task=self.task,
             name=task_run_name,
@@ -196,7 +220,7 @@ class TaskRunEngine(Generic[P, R]):
                 if flow_run_ctx and flow_run_ctx.flow_run
                 else None
             ),
-            dynamic_key=uuid4().hex,
+            dynamic_key=dynamic_key,
             state=Pending(),
             task_inputs=task_inputs,
         )
@@ -287,4 +311,4 @@ async def run_task(
 
         if return_type == "state":
             return state.state  # maybe engine.start() -> `run` instead of `state`?
-        return state.result()
+        return await state.result()
