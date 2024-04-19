@@ -38,3 +38,4 @@ respx
 
 # type stubs
 types-cachetools
+types-PyYAML
