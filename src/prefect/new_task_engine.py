@@ -28,11 +28,11 @@ from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
-    Failed,
     Pending,
     Retrying,
     Running,
     StateDetails,
+    exception_to_failed_state,
     return_value_to_state,
 )
 from prefect.utilities.asyncutils import A, Async
@@ -73,7 +73,6 @@ class TaskRunEngine(Generic[P, R]):
     retries: int = 0
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
-    _return_type: Literal["state", "result"] = "result"
 
     def __post_init__(self):
         if self.parameters is None:
@@ -157,17 +156,17 @@ class TaskRunEngine(Generic[P, R]):
             return True
         return False
 
-    async def handle_exception(
-        self, exc: Exception, return_type: Literal["state", "result"] = "result"
-    ) -> None:
+    async def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
         if not await self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
-            await self.set_state(Failed())
-            if (
-                return_type == "result"
-            ):  # we want to return the result but can't so raise the exception
-                raise exc
+            context = TaskRunContext.get()
+            state = await exception_to_failed_state(
+                exc,
+                message="Task run encountered an exception",
+                result_factory=getattr(context, "result_factory", None),
+            )
+            await self.set_state(state)
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
         flow_run_ctx = FlowRunContext.get()
@@ -282,7 +281,7 @@ async def run_task(
                 await state.handle_success(result)
 
             except Exception as exc:
-                await state.handle_exception(exc, return_type=return_type)
+                await state.handle_exception(exc)
 
         if return_type == "state":
             return state.state  # maybe engine.start() -> `run` instead of `state`?

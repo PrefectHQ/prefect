@@ -7,7 +7,7 @@ from prefect import Task, flow, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import TaskRunContext, get_run_context
-from prefect.exceptions import FailedRun, MissingResult
+from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task
 from prefect.settings import (
@@ -246,5 +246,5 @@ class TestReturnState:
 
         assert state.is_failed()
 
-        with pytest.raises(FailedRun, match="Run failed"):
+        with pytest.raises(ValueError, match="xyz"):
             await state.result()
