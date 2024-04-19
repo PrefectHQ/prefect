@@ -42,7 +42,14 @@ Compared to the [Quickstart](/getting-started/quickstart/), this tutorial is a m
 
 ## Prerequisites
 
-Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
+Before you start, make sure you have Python installed in a virtual environment.
+Then install Prefect:
+
+<div class="terminal">
+```bash
+`pip install -U prefect`
+```
+</div>
 
 See the [install guide](/getting-started/installation/) for more detailed instructions.
 
