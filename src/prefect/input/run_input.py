@@ -58,7 +58,7 @@ async def receiver_flow():
 ```
 """
 
-
+from inspect import isclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -96,7 +96,7 @@ if HAS_PYDANTIC_V2:
     from prefect._internal.pydantic.v2_schema import create_v2_schema
 
 R = TypeVar("R", bound="RunInput")
-T = TypeVar("T")
+T = TypeVar("T", bound="object")
 
 Keyset = Dict[
     Union[Literal["description"], Literal["response"], Literal["schema"]], str
@@ -114,7 +114,8 @@ def keyset_from_paused_state(state: "State") -> Keyset:
     if not state.is_paused():
         raise RuntimeError(f"{state.type.value!r} is unsupported.")
 
-    base_key = f"{state.name.lower()}-{str(state.state_details.pause_key)}"
+    state_name = state.name or ""
+    base_key = f"{state_name.lower()}-{str(state.state_details.pause_key)}"
     return keyset_from_base_key(base_key)
 
 
@@ -234,7 +235,7 @@ class RunInput(pydantic.BaseModel):
                 a flow run that requires input
             - kwargs (Any): the initial data to populate the subclass
         """
-        fields = {}
+        fields: Dict[str, Any] = {}
         for key, value in kwargs.items():
             fields[key] = (type(value), value)
         model = pydantic.create_model(cls.__name__, **fields, __base__=cls)
@@ -340,31 +341,34 @@ class AutomaticRunInput(RunInput, Generic[T]):
     def subclass_from_type(cls, _type: Type[T]) -> Type["AutomaticRunInput[T]"]:
         """
         Create a new `AutomaticRunInput` subclass from the given type.
-        """
-        fields = {"value": (_type, ...)}
 
-        # Sending a value to a flow run that relies on an AutomaticRunInput will
-        # produce a key prefix that includes the type name. For example, if the
-        # value is a list, the key will include "list" as the type. If the user
-        # then tries to receive the value with a type annotation like List[int],
-        # we need to find the key we saved with "list" as the type (not
-        # "List[int]"). Calling __name__.lower() on a type annotation like
-        # List[int] produces the string "list", which is what we need.
-        if hasattr(_type, "__name__"):
-            type_prefix = _type.__name__.lower()
-        elif hasattr(_type, "_name"):
-            # On Python 3.9 and earlier, type annotation values don't have a
-            # __name__ attribute, but they do have a _name.
-            type_prefix = _type._name.lower()
-        else:
-            # If we can't identify a type name that we can use as a key
-            # prefix that will match an input, we'll have to use
-            # "AutomaticRunInput" as the generic name. This will match all
-            # automatic inputs sent to the flow run, rather than a specific
-            # type.
-            type_prefix = ""
+        This method uses the type's name as a key prefix to identify related
+        flow run inputs. This helps in ensuring that values saved under a type
+        (like List[int]) are retrievable under the generic type name (like "list").
+        """
+        fields: Dict[str, Any] = {"value": (_type, ...)}
+
+        # Explanation for using getattr for type name extraction:
+        # - "__name__": This is the usual attribute for getting the name of
+        #   most types.
+        # - "_name": Used as a fallback, some type annotations in Python 3.9
+        #   and earlier might only have this attribute instead of __name__.
+        # - If neither is available, defaults to an empty string to prevent
+        #   errors, but typically we should find at least one valid name
+        #   attribute. This will match all automatic inputs sent to the flow
+        #   run, rather than a specific type.
+        #
+        # This approach ensures compatibility across Python versions and
+        # handles various edge cases in type annotations.
+
+        type_prefix: str = getattr(
+            _type, "__name__", getattr(_type, "_name", "")
+        ).lower()
+
         class_name = f"{type_prefix}AutomaticRunInput"
 
+        # Creating a new Pydantic model class dynamically with the name based
+        # on the type prefix.
         new_cls: Type["AutomaticRunInput"] = pydantic.create_model(
             class_name, **fields, __base__=AutomaticRunInput
         )
@@ -384,18 +388,19 @@ def run_input_subclass_from_type(
     """
     Create a new `RunInput` subclass from the given type.
     """
-    try:
+    if isclass(_type):
         if issubclass(_type, RunInput):
             return cast(Type[R], _type)
         elif issubclass(_type, pydantic.BaseModel):
             return cast(Type[R], RunInput.subclass_from_base_model_type(_type))
-    except TypeError:
-        pass
 
     # Could be something like a typing._GenericAlias or any other type that
     # isn't a `RunInput` subclass or `pydantic.BaseModel` subclass. Try passing
     # it to AutomaticRunInput to see if we can create a model from it.
-    return cast(Type[AutomaticRunInput[T]], AutomaticRunInput.subclass_from_type(_type))
+    return cast(
+        Type[AutomaticRunInput[T]],
+        AutomaticRunInput.subclass_from_type(cast(Type[T], _type)),
+    )
 
 
 class GetInputHandler(Generic[R]):
@@ -425,7 +430,7 @@ class GetInputHandler(Generic[R]):
 
     def __next__(self) -> R:
         try:
-            return self.next()
+            return cast(R, self.next())
         except TimeoutError:
             if self.raise_timeout_error:
                 raise
@@ -502,9 +507,11 @@ async def _send_input(
     key_prefix: Optional[str] = None,
 ):
     if isinstance(run_input, RunInput):
-        _run_input = run_input
+        _run_input: RunInput = run_input
     else:
-        input_cls = run_input_subclass_from_type(type(run_input))
+        input_cls: Type[AutomaticRunInput] = run_input_subclass_from_type(
+            type(run_input)
+        )
         _run_input = input_cls(value=run_input)
 
     if key_prefix is None:
@@ -533,8 +540,8 @@ async def send_input(
 
 
 @overload
-def receive_input(
-    input_type: Type[R],
+def receive_input(  # type: ignore[overload-overlap]
+    input_type: Union[Type[R], pydantic.BaseModel],
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
@@ -561,7 +568,7 @@ def receive_input(
 
 
 def receive_input(
-    input_type: Union[Type[R], Type[T]],
+    input_type: Union[Type[R], Type[T], pydantic.BaseModel],
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
@@ -570,7 +577,12 @@ def receive_input(
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
 ) -> Union[GetAutomaticInputHandler[T], GetInputHandler[R]]:
-    input_cls = run_input_subclass_from_type(input_type)
+    # The typing in this module is a bit complex, and at this point `mypy`
+    # thinks that `run_input_subclass_from_type` accepts a `Type[Never]` but
+    # the signature is the same as here:
+    #   Union[Type[R], Type[T], pydantic.BaseModel],
+    # Seems like a possible mypy bug, so we'll ignore the type check here.
+    input_cls = run_input_subclass_from_type(input_type)  # type: ignore[arg-type]
 
     if issubclass(input_cls, AutomaticRunInput):
         return input_cls.receive(
