@@ -237,8 +237,8 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
-          - Packages:
-                - prefect-azure:
+          - Libraries:
+                - Azure:
                       - integrations/prefect-azure/index.md
                       - Credentials: integrations/prefect-azure/credentials.md
                       - Blob Storage: integrations/prefect-azure/blob_storage.md
