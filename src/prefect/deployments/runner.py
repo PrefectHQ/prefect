@@ -326,14 +326,22 @@ class RunnerDeployment(BaseModel):
                 ) from exc
 
             if client.server_type.supports_automations():
-                # The triggers defined in the deployment spec are, essentially,
-                # anonymous and attempting truly sync them with cloud is not
-                # feasible. Instead, we remove all automations that are owned
-                # by the deployment, meaning that they were created via this
-                # mechanism below, and then recreate them.
-                await client.delete_resource_owned_automations(
-                    f"prefect.deployment.{deployment_id}"
-                )
+                try:
+                    # The triggers defined in the deployment spec are, essentially,
+                    # anonymous and attempting truly sync them with cloud is not
+                    # feasible. Instead, we remove all automations that are owned
+                    # by the deployment, meaning that they were created via this
+                    # mechanism below, and then recreate them.
+                    await client.delete_resource_owned_automations(
+                        f"prefect.deployment.{deployment_id}"
+                    )
+                except PrefectHTTPStatusError as e:
+                    if e.response.status_code == 404:
+                        # This Prefect server does not support automations, so we can safely
+                        # ignore this 404 and move on.
+                        return deployment_id
+                    raise e
+
                 for trigger in self.triggers:
                     trigger.set_deployment_id(deployment_id)
                     await client.create_automation(trigger.as_automation())

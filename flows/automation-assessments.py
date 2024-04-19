@@ -64,8 +64,8 @@ async def create_or_replace_automation(
         automation = response.json()
         logger.info("Created automation %s (%s)", automation["name"], automation["id"])
 
-        logger.info("Waiting 5s for the automation to be loaded the triggers services")
-        await asyncio.sleep(5)
+        logger.info("Waiting 1s for the automation to be loaded the triggers services")
+        await asyncio.sleep(1)
 
         try:
             yield automation

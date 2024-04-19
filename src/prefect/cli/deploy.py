@@ -64,7 +64,7 @@ from prefect.deployments.base import (
 )
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -1608,14 +1608,21 @@ async def _create_deployment_triggers(
     triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]],
 ):
     if client.server_type.supports_automations():
-        # The triggers defined in the deployment spec are, essentially,
-        # anonymous and attempting truly sync them with cloud is not
-        # feasible. Instead, we remove all automations that are owned
-        # by the deployment, meaning that they were created via this
-        # mechanism below, and then recreate them.
-        await client.delete_resource_owned_automations(
-            f"prefect.deployment.{deployment_id}"
-        )
+        try:
+            # The triggers defined in the deployment spec are, essentially,
+            # anonymous and attempting truly sync them with cloud is not
+            # feasible. Instead, we remove all automations that are owned
+            # by the deployment, meaning that they were created via this
+            # mechanism below, and then recreate them.
+            await client.delete_resource_owned_automations(
+                f"prefect.deployment.{deployment_id}"
+            )
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                # This Prefect server does not support automations, so we can safely
+                # ignore this 404 and move on.
+                return
+            raise e
 
         for trigger in triggers:
             trigger.set_deployment_id(deployment_id)
