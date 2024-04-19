@@ -5,7 +5,7 @@ import orjson
 import pydantic
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.utilities import inject_client
+from prefect.client.utilities import client_injector
 from prefect.context import FlowRunContext
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
@@ -52,13 +52,13 @@ async def create_flow_run_input_from_model(
 
 
 @sync_compatible
-@inject_client
+@client_injector
 async def create_flow_run_input(
+    client: "PrefectClient",
     key: str,
     value: Any,
     flow_run_id: Optional[UUID] = None,
     sender: Optional[str] = None,
-    client: "PrefectClient" = None,
 ):
     """
     Create a new flow run input. The given `value` will be serialized to JSON
@@ -81,13 +81,13 @@ async def create_flow_run_input(
 
 
 @sync_compatible
-@inject_client
+@client_injector
 async def filter_flow_run_input(
+    client: "PrefectClient",
     key_prefix: str,
     limit: int = 1,
     exclude_keys: Optional[Set[str]] = None,
     flow_run_id: Optional[UUID] = None,
-    client: "PrefectClient" = None,
 ):
     if exclude_keys is None:
         exclude_keys = set()
@@ -103,9 +103,9 @@ async def filter_flow_run_input(
 
 
 @sync_compatible
-@inject_client
+@client_injector
 async def read_flow_run_input(
-    key: str, flow_run_id: Optional[UUID] = None, client: "PrefectClient" = None
+    client: "PrefectClient", key: str, flow_run_id: Optional[UUID] = None
 ) -> Any:
     """Read a flow run input.
 
@@ -126,9 +126,9 @@ async def read_flow_run_input(
 
 
 @sync_compatible
-@inject_client
+@client_injector
 async def delete_flow_run_input(
-    key: str, flow_run_id: Optional[UUID] = None, client: "PrefectClient" = None
+    client: "PrefectClient", key: str, flow_run_id: Optional[UUID] = None
 ):
     """Delete a flow run input.
 
