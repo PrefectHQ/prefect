@@ -1230,7 +1230,12 @@ class Flow(Generic[P, R]):
             from prefect.new_flow_engine import run_flow
             from prefect.utilities.engine import run_sync
 
-            awaitable = run_flow(flow=self, parameters=parameters, wait_for=wait_for)
+            awaitable = run_flow(
+                flow=self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+            )
             if self.isasync:
                 return awaitable
             else:

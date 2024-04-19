@@ -7,6 +7,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Literal,
     Optional,
     TypeVar,
     cast,
@@ -22,7 +23,12 @@ from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
-from prefect.states import Completed, Failed, Pending, Running
+from prefect.states import (
+    Completed,
+    Pending,
+    Running,
+    exception_to_failed_state,
+)
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
     _dynamic_key_for_task_run,
@@ -78,12 +84,14 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_state(Completed())
         return result
 
-    async def handle_exception(self, exc: Exception):
-        await self.handle_failure(exc)
-
-    async def handle_failure(self, exc: Exception) -> None:
-        await self.set_state(Failed())
-        raise exc
+    async def handle_exception(self, exc: Exception) -> State:
+        context = FlowRunContext.get()
+        state = await exception_to_failed_state(
+            exc,
+            message="Flow run encountered an exception",
+            result_factory=getattr(context, "result_factory", None),
+        )
+        return await self.set_state(state)
 
     async def create_subflow_task_run(
         self, client: PrefectClient, context: FlowRunContext
@@ -181,6 +189,7 @@ async def run_flow(
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
 ) -> R | None:
     """
     Runs a flow against the API.
@@ -212,4 +221,6 @@ async def run_flow(
                 # If the flow fails, and we have retries left, set the flow to retrying.
                 await state.handle_exception(exc)
 
+        if return_type == "state":
+            return state.state  # maybe engine.start() -> `run` instead of `state`?
         return await state.result()
