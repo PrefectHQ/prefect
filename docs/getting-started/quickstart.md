@@ -211,26 +211,23 @@ python create_deployment.py
 You should see a message that your deployment was created, similar to the one below.
 
 <div class="terminal">
-
-```bash
+```
 Successfully created/updated all deployments!
-
-                     Deployments                     
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
-┃ Name                          ┃ Status  ┃ Details ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ repo-info/my-first-deployment │ applied │         │
-└───────────────────────────────┴─────────┴─────────┘
+______________________________________________________
+|                    Deployments                     |  
+______________________________________________________
+|    Name                       |  Status  | Details |
+______________________________________________________
+| repo-info/my-first-deployment | applied  |         |
+______________________________________________________
 
 To schedule a run for this deployment, use the following command:
 
-        $ prefect deployment run 'repo-info/my-first-deployment'
-
+       $ prefect deployment run 'repo-info/my-first-deployment'
 
 You can also run your flow via the Prefect UI: <https://app.prefect.cloud/account/abc/workspace/123/deployments/deployment/xyz>
 
 ```
-
 </div>
 
 Head to the **Deployments** page of the UI to check it out.
@@ -239,7 +236,7 @@ Head to the **Deployments** page of the UI to check it out.
     You can store your flow code in nearly any location.
     You just need to tell Prefect where to find it.
     In this example, we use a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage.
-    Read more [here](/guides/prefect-deploy/#creating-work-pool-based-deployments).
+    Read more in [this guide](/guides/prefect-deploy/#creating-work-pool-based-deployments).
 
 !!! caution "Push your code to GitHub"
     In the example above, we use an existing GitHub repository.
