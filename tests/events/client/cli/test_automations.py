@@ -12,8 +12,10 @@ from prefect.events.schemas.automations import (
     Automation,
     EventTrigger,
     MetricTrigger,
+    MetricTriggerOperator,
     MetricTriggerQuery,
     Posture,
+    PrefectMetric,
 )
 from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
@@ -81,7 +83,9 @@ def various_automations(read_automations: mock.AsyncMock) -> List[Automation]:
             name="A Metric one",
             trigger=MetricTrigger(
                 metric=MetricTriggerQuery(
-                    name="successes", operator="<", threshold=0.78
+                    name=PrefectMetric.successes,
+                    operator=MetricTriggerOperator.LT,
+                    threshold=0.78,
                 )
             ),
             actions=[CancelFlowRun()],
