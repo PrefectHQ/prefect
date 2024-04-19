@@ -119,17 +119,17 @@ def instrument_method_calls_on_class_instances(cls: Type) -> Type:
     """
 
     required_events_methods = ["_event_kind", "_event_method_called_resources"]
-    for method in required_events_methods:
-        if not hasattr(cls, method):
+    for method_name in required_events_methods:
+        if not hasattr(cls, method_name):
             raise RuntimeError(
-                f"Unable to instrument class {cls}. Class must define {method!r}."
+                f"Unable to instrument class {cls}. Class must define {method_name!r}."
             )
 
     decorator = instrument_instance_method_call()
 
-    for name, method in instrumentable_methods(
+    for method_name, method in instrumentable_methods(
         cls,
         exclude_methods=getattr(cls, "_events_excluded_methods", []),
     ):
-        setattr(cls, name, decorator(method))
+        setattr(cls, method_name, decorator(method))
     return cls
