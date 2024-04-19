@@ -41,7 +41,7 @@ Get up and running quickly with the [quickstart guide](/getting-started/quicksta
 
 Want more hands on practice to productionize your workflows? Follow our [tutorial](/tutorial/).
 
-For deeper dives on common use cases, explore our [guides](/guides/index/).
+For deeper dives into common use cases, explore our [guides](/guides/index/).
 
 Take your understanding even further with Prefect's [concepts](/concepts/index/) and [API reference](/api-ref/).
 

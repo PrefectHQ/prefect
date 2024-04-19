@@ -107,7 +107,6 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
     Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
 
-
 === "Azure Container Instances"
 
     Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticate with your Azure account](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli).
@@ -158,7 +157,6 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
     modal token new
     ```
     </div>
-
 
 ### Automatically creating a new push work pool and provisioning infrastructure
 
@@ -423,7 +421,6 @@ Here's the command to create a new push work pool and configure the necessary in
     </div>
 
     Using the `--provision-infra` flag will trigger the creation of a `ModalCredentials` block in your Prefect Cloud workspace. This block will store your Modal API token, which is used to authenticate with Modal's API. By default, the token for your current Modal profile will be used for the new `ModalCredentials` block. If Prefect is unable to discover a Modal API token for your current profile, you will be prompted to create a new one.
-
 
 That's it!
 You're ready to create and schedule deployments that use your new push work pool.
