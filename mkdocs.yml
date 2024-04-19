@@ -237,6 +237,17 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
+          - Packages:
+                - prefect-azure:
+                      - integrations/prefect-azure/index.md
+                      - Credentials: integrations/prefect-azure/credentials.md
+                      - Blob Storage: integrations/prefect-azure/blob_storage.md
+                      - Cosmos DB: integrations/prefect-azure/cosmos_db.md
+                      - ML Datastore: integrations/prefect-azure/ml_datastore.md
+                      - Container Instance Block: integrations/prefect-azure/container_instance.md
+                      - Container Instance Worker: integrations/prefect-azure/container_instance_worker.md
+                      - Deployments:
+                            - Steps: integrations/prefect-azure/deployments/steps.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:

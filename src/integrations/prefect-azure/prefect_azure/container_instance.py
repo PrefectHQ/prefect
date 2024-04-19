@@ -1,5 +1,4 @@
 """
-<span class="badge-api experimental"/>
 Integrations with the Azure Container Instances service.
 Note this module is experimental. The interfaces within may change without notice.
 
