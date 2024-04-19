@@ -129,6 +129,25 @@ def get_latest_and_previous_tags(
     return latest_tag, previous_tag
 
 
+def clean_integrations_changelog(release_notes: str) -> str:
+    # we won't include the full changelog and integrations contributors
+    search_strings = [
+        "## New Contributors",
+        "## Contributors",
+        "**Full Changelog**",
+    ]
+    indices = [release_notes.find(s) for s in search_strings]
+    indices = [i for i in indices if i != -1]
+
+    if indices:
+        split_index = min(indices)
+        changelog = release_notes[:split_index].strip()
+    else:
+        changelog = release_notes.strip()
+
+    return changelog
+
+
 def generate_release_notes(
     repo_org: str,
     repo_names: List[str],
@@ -225,21 +244,7 @@ def generate_release_notes(
                 release_notes,
             )
 
-            # we won't include the full changelog and integrations contributors
-            search_strings = [
-                "## New Contributors",
-                "## Contributors",
-                "**Full Changelog**",
-            ]
-            indices = [release_notes.find(s) for s in search_strings]
-            indices = [i for i in indices if i != -1]
-
-            if indices:
-                split_index = min(indices)
-                changelog = release_notes[:split_index].strip()
-            else:
-                changelog = release_notes.strip()
-
+            changelog = clean_integrations_changelog(release_notes)
             integrations_section.append(changelog)
 
     if integrations_section != [""]:
