@@ -3260,7 +3260,7 @@ class PrefectClient:
 
 class SyncPrefectClient:
     """
-    An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
+    A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
     Args:
         api: the REST API URL or FastAPI application to connect to
