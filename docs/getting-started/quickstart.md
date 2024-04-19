@@ -266,9 +266,9 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect.
 
-To learn how to run flows on your own infrastructure, see how to customize the Docker image where your flow runs, and see how to gain lots of orchestration and observation benefits check out the [tutorial](/tutorial/).
+To learn how to run flows on your own infrastructure, customize the Docker image where your flow runs, and gain more orchestration and observation benefits check out the [tutorial](/tutorial/).
 
 !!! tip "Need help?"
-    Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
+    Get your questions answered by a Prefect Product Advocate! [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
 
 Happy building!
