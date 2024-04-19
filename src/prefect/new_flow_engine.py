@@ -22,10 +22,12 @@ from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
-from prefect.states import Completed, Failed, Running
+from prefect.states import Completed, Failed, Pending, Running
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
+    _dynamic_key_for_task_run,
     _resolve_custom_flow_run_name,
+    collect_task_run_inputs,
     propose_state,
 )
 
@@ -60,6 +62,7 @@ class FlowRunEngine(Generic[P, R]):
         return await self.set_state(state)
 
     async def set_subflow_state(self, state: State) -> State:
+        """This appears to not be necessary"""
         pass
 
     async def set_state(self, state: State) -> State:
@@ -82,8 +85,25 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_state(Failed())
         raise exc
 
-    async def create_subflow_task_run(self, client: PrefectClient) -> TaskRun:
-        pass
+    async def create_subflow_task_run(
+        self, client: PrefectClient, context: FlowRunContext
+    ) -> TaskRun:
+        dummy_task = Task(
+            name=self.flow.name, fn=self.flow.fn, version=self.flow.version
+        )
+        task_inputs = {
+            k: await collect_task_run_inputs(v) for k, v in self.parameters.items()
+        }
+        parent_task_run = await client.create_task_run(
+            task=dummy_task,
+            flow_run_id=(
+                context.flow_run.id if getattr(context, "flow_run", None) else None
+            ),
+            dynamic_key=_dynamic_key_for_task_run(context, dummy_task),
+            task_inputs=task_inputs,
+            state=Pending(),
+        )
+        return parent_task_run
 
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
@@ -91,7 +111,9 @@ class FlowRunEngine(Generic[P, R]):
         # this is a subflow run
         parent_task_run = None
         if flow_run_ctx:
-            parent_task_run = await self.create_subflow_task_run()
+            parent_task_run = await self.create_subflow_task_run(
+                client=client, context=flow_run_ctx
+            )
 
         try:
             flow_run_name = _resolve_custom_flow_run_name(
@@ -104,7 +126,8 @@ class FlowRunEngine(Generic[P, R]):
             flow=self.flow,
             name=flow_run_name,
             parameters=self.parameters,
-            state=Running(),
+            state=Pending(),
+            parent_task_run_id=getattr(parent_task_run, "id", None),
         )
         return flow_run
 
