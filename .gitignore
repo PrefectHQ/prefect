@@ -73,3 +73,6 @@ prefect.yaml
 
 # For development doc server if link
 libcairo.2.dylib
+
+# setuptools-scm generated files
+src/integrations/*/**/_version.py
