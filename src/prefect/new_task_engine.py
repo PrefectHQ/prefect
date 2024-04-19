@@ -47,15 +47,17 @@ async def timeout(
     delay: Optional[float], *, loop: Optional[asyncio.AbstractEventLoop] = None
 ) -> AsyncGenerator[None, None]:
     loop = loop or asyncio.get_running_loop()
-    deadline = None if delay is None else loop.time() + delay
+    task = asyncio.current_task(loop=loop)
+    timer_handle: Optional[asyncio.TimerHandle] = None
+
+    if delay is not None and task is not None:
+        timer_handle = loop.call_later(delay, task.cancel)
+
     try:
         yield
-    except asyncio.CancelledError:
-        raise TimeoutError from None
-    if deadline is not None:
-        now = loop.time()
-        if now >= deadline:
-            raise TimeoutError
+    finally:
+        if timer_handle is not None:
+            timer_handle.cancel()
 
 
 P = ParamSpec("P")
