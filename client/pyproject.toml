@@ -33,8 +33,3 @@ Tracker = "https://github.com/PrefectHQ/prefect/issues"
 
 [project.optional-dependencies]
 notifications = ["apprise>=1.1.0, <2.0.0"]
-
-[tool.setuptools]
-packages = ["prefect_client"]
-package-dir = {"" = "src"}
-include-package-data = true
