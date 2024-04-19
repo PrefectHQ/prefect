@@ -164,7 +164,9 @@ class TaskRunEngine(Generic[P, R]):
         if not await self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             await self.set_state(Failed())
-            if return_type == "result":
+            if (
+                return_type == "result"
+            ):  # we want to return the result but can't so raise the exception
                 raise exc
 
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
@@ -283,5 +285,5 @@ async def run_task(
                 await state.handle_exception(exc, return_type=return_type)
 
         if return_type == "state":
-            return state.state  # maybe engine.start() -> engine instead of state?
+            return state.state  # maybe engine.start() -> `run` instead of `state`?
         return await state.result()
