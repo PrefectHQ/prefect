@@ -24,16 +24,16 @@ from uuid import UUID
 
 from typing_extensions import TypeAlias
 
-from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr
 else:
-    from pydantic import Field, PrivateAttr
+    from pydantic import Field, PrivateAttr  # type: ignore
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.events.actions import RunDeployment
+from prefect.events.actions import ActionTypes, RunDeployment
 
 from .automations import (
     AutomationCore,
@@ -43,6 +43,7 @@ from .automations import (
     MetricTriggerQuery,
     Posture,
     SequenceTrigger,
+    TriggerTypes,
 )
 from .events import ResourceSpecification
 
@@ -244,7 +245,10 @@ class DeploymentTrigger(PrefectBaseModel):
     def as_automation(self) -> AutomationCore:
         assert self.name
 
+        trigger: TriggerTypes
+
         if self.posture == Posture.Metric:
+            assert self.metric
             trigger = MetricTrigger(
                 type="metric",
                 match=self.match,
@@ -279,12 +283,13 @@ class DeploymentTrigger(PrefectBaseModel):
     def owner_resource(self) -> Optional[str]:
         return f"prefect.deployment.{self._deployment_id}"
 
-    def actions(self) -> List[RunDeployment]:
+    def actions(self) -> List[ActionTypes]:
         assert self._deployment_id
         return [
             RunDeployment(
-                parameters=self.parameters,
+                source="selected",
                 deployment_id=self._deployment_id,
+                parameters=self.parameters,
                 job_variables=self.job_variables,
             )
         ]

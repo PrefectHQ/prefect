@@ -10,7 +10,9 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeVar,
     Union,
+    cast,
 )
 
 from prefect.events import emit_event
@@ -41,45 +43,45 @@ def emit_instance_method_called_event(
     )
 
 
-def instrument_instance_method_call():
-    def instrument(function):
-        if is_instrumented(function):
-            return function
+F = TypeVar("F", bound=Callable)
 
-        if inspect.iscoroutinefunction(function):
 
-            @functools.wraps(function)
-            async def inner(self, *args, **kwargs):
-                success = True
-                try:
-                    return await function(self, *args, **kwargs)
-                except Exception as exc:
-                    success = False
-                    raise exc
-                finally:
-                    emit_instance_method_called_event(
-                        instance=self, method_name=function.__name__, successful=success
-                    )
+def instrument_instance_method_call(function: F) -> F:
+    if is_instrumented(function):
+        return function
 
-        else:
+    if inspect.iscoroutinefunction(function):
 
-            @functools.wraps(function)
-            def inner(self, *args, **kwargs):
-                success = True
-                try:
-                    return function(self, *args, **kwargs)
-                except Exception as exc:
-                    success = False
-                    raise exc
-                finally:
-                    emit_instance_method_called_event(
-                        instance=self, method_name=function.__name__, successful=success
-                    )
+        @functools.wraps(function)
+        async def inner(self, *args, **kwargs):
+            success = True
+            try:
+                return await function(self, *args, **kwargs)
+            except Exception as exc:
+                success = False
+                raise exc
+            finally:
+                emit_instance_method_called_event(
+                    instance=self, method_name=function.__name__, successful=success
+                )
 
-        setattr(inner, "__events_instrumented__", True)
-        return inner
+    else:
 
-    return instrument
+        @functools.wraps(function)
+        def inner(self, *args, **kwargs):
+            success = True
+            try:
+                return function(self, *args, **kwargs)
+            except Exception as exc:
+                success = False
+                raise exc
+            finally:
+                emit_instance_method_called_event(
+                    instance=self, method_name=function.__name__, successful=success
+                )
+
+    setattr(inner, "__events_instrumented__", True)
+    return cast(F, inner)
 
 
 def is_instrumented(function: Callable) -> bool:
@@ -125,11 +127,9 @@ def instrument_method_calls_on_class_instances(cls: Type) -> Type:
                 f"Unable to instrument class {cls}. Class must define {method_name!r}."
             )
 
-    decorator = instrument_instance_method_call()
-
     for method_name, method in instrumentable_methods(
         cls,
         exclude_methods=getattr(cls, "_events_excluded_methods", []),
     ):
-        setattr(cls, method_name, decorator(method))
+        setattr(cls, method_name, instrument_instance_method_call(method))
     return cls
