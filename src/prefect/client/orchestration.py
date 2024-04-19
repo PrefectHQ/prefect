@@ -2697,6 +2697,41 @@ class PrefectClient:
             else:
                 raise
 
+    async def read_work_pool_workers(
+        self,
+        work_pool_name: str,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[Worker]:
+        """
+        Lists workers in a work pool.
+        """
+        try:
+            response = await self._client.post(
+                f"/work_pools/{work_pool_name}/workers/filter",
+                json={"limit": limit, "offset": offset},
+            )
+            return pydantic.parse_obj_as(List[Worker], response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def delete_work_pool_worker(self, work_pool_name: str, worker_name: str):
+        """
+        Deletes a worker from a work pool.
+        """
+        try:
+            await self._client.delete(
+                f"/work_pools/{work_pool_name}/workers/{worker_name}"
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_work_queues(
         self,
         work_pool_name: Optional[str] = None,

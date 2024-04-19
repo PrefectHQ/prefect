@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+
 import json
 
 import pendulum
@@ -32,6 +33,12 @@ from prefect.workers.utilities import (
 work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."
 )
+work_pool_worker_app = PrefectTyper(
+    name="worker", help="Commands for interacting with a work pool's workers."
+)
+
+work_pool_app.add_typer(work_pool_worker_app, aliases=["workers"])
+
 app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
@@ -641,3 +648,58 @@ async def preview(
             ),
             style="yellow",
         )
+
+
+@work_pool_worker_app.command(aliases=["ls"])
+async def _ls(
+    name: str = typer.Argument(
+        ..., help="The name of the work pool to list workers for."
+    ),
+):
+    """
+    List workers in a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool worker ls "my-pool"
+    """
+    async with get_client() as client:
+        try:
+            workers = await client.read_work_pool_workers(work_pool_name=name)
+        except ObjectNotFound as exc:
+            exit_with_error(exc)
+
+    table = Table(title=f"Workers for work pool {name!r}")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("Status", style="blue", no_wrap=True)
+
+    for worker in workers:
+        table.add_row(str(worker.id), worker.name, worker.status)
+
+    app.console.print(table)
+
+
+@work_pool_worker_app.command(aliases=["delete"])
+async def _delete(
+    name: str = typer.Argument(
+        ..., help="The name of the work pool to delete workers from."
+    ),
+    worker_name: str = typer.Argument(..., help="The ID of the worker to delete."),
+):
+    """
+    Delete a worker from a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool worker delete "my-pool" "my-worker"
+    """
+    async with get_client() as client:
+        try:
+            await client.delete_work_pool_worker(
+                work_pool_name=name, worker_name=worker_name
+            )
+        except ObjectNotFound as exc:
+            exit_with_error(exc)
+
+    exit_with_success(f"Deleted worker {worker_name!r} from work pool {name!r}")
