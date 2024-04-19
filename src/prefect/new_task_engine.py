@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
@@ -39,6 +40,23 @@ from prefect.utilities.engine import (
     collect_task_run_inputs,
     propose_state,
 )
+
+
+@asynccontextmanager
+async def timeout(
+    delay: Optional[float], *, loop: Optional[asyncio.AbstractEventLoop] = None
+) -> AsyncGenerator[None, None]:
+    loop = loop or asyncio.get_running_loop()
+    deadline = None if delay is None else loop.time() + delay
+    try:
+        yield
+    except asyncio.CancelledError:
+        raise TimeoutError from None
+    if deadline is not None:
+        now = loop.time()
+        if now >= deadline:
+            raise TimeoutError
+
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -102,7 +120,9 @@ class TaskRunEngine(Generic[P, R]):
         return await self.set_state(state)
 
     async def set_state(self, state: State) -> State:
-        new_state = await propose_state(self.client, state, task_run_id=self.task_run.id)  # type: ignore
+        new_state = await propose_state(
+            self.client, state, task_run_id=self.task_run.id
+        )  # type: ignore
         self.task_run.state = new_state  # type: ignore
         self.task_run.state_name = new_state.name  # type: ignore
         self.task_run.state_type = new_state.type  # type: ignore
@@ -130,6 +150,12 @@ class TaskRunEngine(Generic[P, R]):
     async def handle_failure(self, exc: Exception) -> None:
         await self.set_state(Failed())
         raise exc
+
+    async def handle_timeout(self, exc: Exception) -> None:
+        await self.set_state(Failed())
+        raise TimeoutError(
+            f"Task exceeded its timeout_seconds of {self.task.timeout_seconds} seconds."
+        )
 
     async def handle_retry(self, exc: Exception) -> bool:
         """
@@ -240,23 +266,27 @@ async def run_task(
 
         await state.begin_run()
 
-        while state.is_pending():
-            await asyncio.sleep(1)
-            await state.begin_run()
+        try:
+            async with timeout(state.task.timeout_seconds):
+                while state.is_pending():
+                    await asyncio.sleep(1)
+                    await state.begin_run()
 
-        while state.is_running():
-            try:
-                # This is where the task is actually run.
-                if task.isasync:
-                    result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
-                else:
-                    result = cast(R, task.fn(**(parameters or {})))  # type: ignore
-                # If the task run is successful, finalize it.
-                await state.handle_success(result)
-                return result
+                while state.is_running():
+                    try:
+                        # This is where the task is actually run.
+                        if task.isasync:
+                            result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                        else:
+                            result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+                        # If the task run is successful, finalize it.
+                        await state.handle_success(result)
+                        return result
 
-            except Exception as exc:
-                # If the task fails, and we have retries left, set the task to retrying.
-                await state.handle_exception(exc)
+                    except Exception as exc:
+                        # If the task fails, and we have retries left, set the task to retrying.
+                        await state.handle_exception(exc)
+        except asyncio.TimeoutError as exc:
+            await state.handle_timeout(exc)
 
         return await state.result()
