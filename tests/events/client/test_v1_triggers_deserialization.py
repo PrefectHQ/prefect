@@ -20,8 +20,8 @@ if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
     from pydantic.v1 import Field
 else:
-    import pydantic
-    from pydantic import Field
+    import pydantic  # type: ignore
+    from pydantic import Field  # type: ignore
 
 from prefect.events.schemas.automations import (
     EventTrigger,

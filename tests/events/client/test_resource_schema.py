@@ -15,7 +15,7 @@ from prefect.settings import (
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import ValidationError
 else:
-    from pydantic import ValidationError
+    from pydantic import ValidationError  # type: ignore
 
 from prefect.events import Event, RelatedResource, Resource, ResourceSpecification
 from prefect.events.schemas.labelling import LabelDiver

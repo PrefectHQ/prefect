@@ -996,7 +996,7 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
-    @instrument_instance_method_call()
+    @instrument_instance_method_call
     async def save(
         self,
         name: Optional[str] = None,

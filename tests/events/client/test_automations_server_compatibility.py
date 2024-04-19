@@ -33,6 +33,7 @@ from prefect.events.schemas.automations import (
     CompoundTrigger,
     EventTrigger,
     MetricTrigger,
+    Posture,
     SequenceTrigger,
 )
 from prefect.events.schemas.deployment_triggers import (
@@ -42,17 +43,16 @@ from prefect.events.schemas.deployment_triggers import (
     DeploymentSequenceTrigger,
     DeploymentTriggerTypes,
 )
-from prefect.server.events.schemas.automations import Posture
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 
-CLIENT_TRIGGER_TYPES: List[Type[Trigger]] = list(TriggerTypes.__args__)
+CLIENT_TRIGGER_TYPES: List[Type[Trigger]] = list(TriggerTypes.__args__)  # type: ignore[attr-defined]
 CLOUD_ONLY_TRIGGER_TYPES: Set[Type[Trigger]] = {MetricTrigger}
 
-EXAMPLE_TRIGGERS: List[Trigger] = [
+EXAMPLE_TRIGGERS: List[TriggerTypes] = [
     EventTrigger(),
     EventTrigger(posture=Posture.Reactive),
     EventTrigger(posture=Posture.Proactive),
@@ -147,7 +147,7 @@ def test_all_triggers_represented():
 
 
 @pytest.mark.parametrize("trigger", EXAMPLE_TRIGGERS)
-async def test_trigger_round_tripping(trigger: Trigger):
+async def test_trigger_round_tripping(trigger: TriggerTypes):
     """Tests that any of the example client triggers can be round-tripped to the
     Prefect server"""
     async with get_client() as client:
@@ -166,11 +166,11 @@ async def test_trigger_round_tripping(trigger: Trigger):
     assert sent == returned
 
 
-DEPLOYMENT_TRIGGER_TYPES: List[Type[Trigger]] = list(DeploymentTriggerTypes.__args__)
+DEPLOYMENT_TRIGGER_TYPES: List[Type[Trigger]] = list(DeploymentTriggerTypes.__args__)  # type: ignore[attr-defined]
 CLOUD_ONLY_DEPLOYMENT_TRIGGER_TYPES: Set[Type[Trigger]] = {DeploymentMetricTrigger}
 
 
-EXAMPLE_DEPLOYMENT_TRIGGERS = [
+EXAMPLE_DEPLOYMENT_TRIGGERS: List[DeploymentTriggerTypes] = [
     DeploymentEventTrigger(),
     DeploymentEventTrigger(posture=Posture.Reactive),
     DeploymentEventTrigger(posture=Posture.Proactive),
@@ -274,11 +274,11 @@ def test_trigger_serialization(deployment_trigger: DeploymentTriggerTypes):
     assert trigger.dict() == serialized
 
 
-CLIENT_ACTION_TYPES: List[Type[Action]] = list(ActionTypes.__args__)
+CLIENT_ACTION_TYPES: List[Type[Action]] = list(ActionTypes.__args__)  # type: ignore[attr-defined]
 CLOUD_ONLY_ACTION_TYPES: Set[Type[Action]] = {DeclareIncident}
 
 
-EXAMPLE_ACTIONS = [
+EXAMPLE_ACTIONS: List[ActionTypes] = [
     DoNothing(),
     RunDeployment(source="inferred"),
     RunDeployment(source="selected", deployment_id=uuid4()),
@@ -315,7 +315,7 @@ def test_all_actions_represented():
 
 
 @pytest.mark.parametrize("action", EXAMPLE_ACTIONS)
-async def test_action_round_tripping(action: Action):
+async def test_action_round_tripping(action: ActionTypes):
     """Tests that any of the example client triggers can be round-tripped to the
     Prefect server"""
     async with get_client() as client:

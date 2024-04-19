@@ -1,6 +1,8 @@
 import pytest
 
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import State
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
@@ -19,8 +21,8 @@ def enable_task_scheduling():
 
 async def test_task_state_change_happy_path(
     asserting_events_worker: EventsWorker,
-    reset_worker_events,
-    prefect_client,
+    reset_worker_events: None,
+    prefect_client: PrefectClient,
 ):
     @task
     def happy_little_tree():
@@ -30,9 +32,9 @@ async def test_task_state_change_happy_path(
     def happy_path():
         return happy_little_tree._run()
 
-    flow_state = happy_path._run()
+    flow_state: State[State[str]] = happy_path._run()
 
-    task_state = await flow_state.result()
+    task_state: State[str] = await flow_state.result()
     task_run_id = task_state.state_details.task_run_id
     task_run = await prefect_client.read_task_run(task_run_id)
     task_run_states = await prefect_client.read_task_run_states(task_run_id)

@@ -15,9 +15,14 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import Field, root_validator, validator
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator  # type: ignore
+
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.logging import get_logger
@@ -25,11 +30,6 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
 
 from .labelling import Labelled
 
@@ -128,7 +128,7 @@ class Event(PrefectBaseModel):
         description="The client-provided identifier of this event",
     )
     follows: Optional[UUID] = Field(
-        None,
+        default=None,
         description=(
             "The ID of an event that is known to have occurred prior to this one. "
             "If set, this may be used to establish a more precise ordering of causally-"
