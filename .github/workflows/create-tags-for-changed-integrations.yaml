@@ -1,0 +1,38 @@
+name: Create tags for changed integrations
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-integrations-tags:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -U packaging gh-util tomli
+
+      - name: Get previous tag
+        id: get-previous-tag
+        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+
+      - name: Push tags for changed integrations
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIOUS_TAG: ${{ steps.get-previous-tag.outputs.tag }}
+          CURRENT_COMMIT: ${{ github.sha }}
+
+        run: python scripts/create_tags_for_changed_collections.py
