@@ -77,6 +77,7 @@ version_file = "prefect_azure/_version.py"
 root = "../../.."
 tag_regex = "^prefect-azure-(?P<version>\\d+\\.\\d+\\.\\d+)$"
 fallback_version = "0.0.0"
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-azure-*[0-9]*"'
 
 [tool.flake8]
 exclude = [".git", "__pycache__", "build", "dist"]
