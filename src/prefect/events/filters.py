@@ -13,7 +13,7 @@ from .schemas.events import Event, Resource, ResourceSpecification
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr
 else:
-    from pydantic import Field, PrivateAttr
+    from pydantic import Field, PrivateAttr  # type: ignore
 
 
 class EventDataFilter(PrefectBaseModel, extra="forbid"):
@@ -219,9 +219,8 @@ class EventFilter(EventDataFilter):
     related: Optional[EventRelatedFilter] = Field(
         None, description="Filter criteria for the related resources of the event"
     )
-    id: EventIDFilter = Field(
-        default_factory=EventIDFilter,
-        description="Filter criteria for the events' ID",
+    id: Optional[EventIDFilter] = Field(
+        None, description="Filter criteria for the events' ID"
     )
 
     order: EventOrder = Field(

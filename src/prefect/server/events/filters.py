@@ -533,10 +533,7 @@ class EventFilter(EventDataFilter):
     related: Optional[EventRelatedFilter] = Field(
         None, description="Filter criteria for the related resources of the event"
     )
-    id: EventIDFilter = Field(
-        default_factory=EventIDFilter,
-        description="Filter criteria for the events' ID",
-    )
+    id: EventIDFilter = Field(None, description="Filter criteria for the events' ID")
 
     order: EventOrder = Field(
         EventOrder.DESC,

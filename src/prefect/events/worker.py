@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from contextvars import Context, copy_context
-from typing import Any, Optional, Tuple, Type
+from typing import Any, Dict, Optional, Tuple, Type
 
 from typing_extensions import Self
 
@@ -41,11 +41,11 @@ def emit_events_to_cloud() -> bool:
 
 def should_emit_events_to_running_server() -> bool:
     api_url = PREFECT_API_URL.value()
-    return isinstance(api_url, str) and PREFECT_EXPERIMENTAL_EVENTS
+    return isinstance(api_url, str) and PREFECT_EXPERIMENTAL_EVENTS.value()
 
 
 def should_emit_events_to_ephemeral_server() -> bool:
-    return PREFECT_API_KEY.value() is None and PREFECT_EXPERIMENTAL_EVENTS
+    return PREFECT_API_KEY.value() is None and PREFECT_EXPERIMENTAL_EVENTS.value()
 
 
 class EventsWorker(QueueService[Event]):
@@ -56,6 +56,7 @@ class EventsWorker(QueueService[Event]):
         self.client_type = client_type
         self.client_options = client_options
         self._client: EventsClient
+        self._context_cache: Dict[Event, Context]
 
     @asynccontextmanager
     async def _lifespan(self):
@@ -64,11 +65,12 @@ class EventsWorker(QueueService[Event]):
         async with self._client:
             yield
 
-    def _prepare_item(self, event: Event) -> Tuple[Event, Context]:
-        return (event, copy_context())
+    def _prepare_item(self, event: Event) -> Event:
+        self._context_cache[event] = copy_context()
+        return event
 
-    async def _handle(self, event_and_context: Tuple[Event, Context]):
-        event, context = event_and_context
+    async def _handle(self, event: Event):
+        context = self._context_cache.pop(event)
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
 
