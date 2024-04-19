@@ -1,0 +1,95 @@
+site_name: prefect-azure
+site_url: https://PrefectHQ.github.io/prefect-azure
+repo_url: https://github.com/PrefectHQ/prefect-azure
+edit_uri: edit/main/docs/
+theme:
+  name: material
+  favicon: img/favicon.ico
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      accent: blue
+      primary: blue
+      scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      accent: blue
+      primary: blue
+      scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+  logo: img/prefect-logo-mark.png
+  font:
+    text: Inter
+    code: Source Code Pro
+extra_css:
+  - stylesheets/extra.css
+markdown_extensions:
+  - admonition
+  - attr_list
+  - codehilite
+  - md_in_html
+  - meta
+  - pymdownx.highlight:
+      use_pygments: true
+  - pymdownx.superfences
+  - pymdownx.tabbed
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/gen_ref_pages.py
+  - mkdocstrings:
+      handlers:
+        python:
+          rendering:
+            show_root_heading: True
+            show_object_full_path: False
+            show_category_heading: True
+            show_bases: True
+            heading_level: 1
+watch:
+  - prefect_azure/
+  - README.md
+nav:
+  - Home: index.md
+  - Credentials: credentials.md
+  - Blob Storage: blob_storage.md
+  - Cosmos DB: cosmos_db.md
+  - ML Datastore: ml_datastore.md
+  - Container Instance Block: container_instance.md
+  - Container Instance Worker: container_instance_worker.md
+  - Deployments:
+      - Steps: deployments/steps.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/slack
+      link: https://www.prefect.io/slack/
+    - icon: fontawesome/brands/discourse
+      link: https://discourse.prefect.io/
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/c/PrefectIO/videos
+    - icon: fontawesome/regular/newspaper
+      link: https://prefect.io/guide/
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/PrefectIO
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/prefect/
+    - icon: fontawesome/brands/github
+      link: https://github.com/PrefectHQ/prefect
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/prefecthq/prefect/
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/prefect/
+  analytics:
+    provider: google
+    property: G-8CSMBCQDKN

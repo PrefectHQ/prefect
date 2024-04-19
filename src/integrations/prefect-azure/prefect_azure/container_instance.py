@@ -62,6 +62,7 @@ Examples:
     )
     ```
 """
+
 import datetime
 import json
 import random
@@ -179,7 +180,6 @@ class AzureContainerInstanceJobResult(InfrastructureResult):
 
 class AzureContainerInstanceJob(Infrastructure):
     """
-    <span class="badge-api experimental"/>
     Run a command using a container on Azure Container Instances.
     Note this block is experimental. The interface may change without notice.
     """
