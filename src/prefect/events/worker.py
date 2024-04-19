@@ -56,7 +56,7 @@ class EventsWorker(QueueService[Event]):
         self.client_type = client_type
         self.client_options = client_options
         self._client: EventsClient
-        self._context_cache: Dict[Event, Context]
+        self._context_cache: Dict[Event, Context] = {}
 
     @asynccontextmanager
     async def _lifespan(self):
