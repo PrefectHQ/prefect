@@ -1,12 +1,11 @@
 import asyncio
-import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List
 
-from gh_util.functions import create_repo_tag
+from gh_util.functions import create_repo_tag, fetch_latest_repo_tag
 from packaging.version import Version
 
 INTEGRATIONS_BASEPATH = "src/integrations"
@@ -25,20 +24,7 @@ def increment_patch_version(version: str) -> str:
     return f"{v.major}.{v.minor}.{v.micro + 1}"
 
 
-def get_latest_tag_version(integration_name: str) -> str:
-    cmd = (
-        f"git tag --list '*-{integration_name}' "
-        "--sort=-v:refname --format='%(refname:short)' | head -n1"
-    )
-    output = subprocess.check_output(cmd, shell=True, text=True)
-    tag_name = output.strip()
-    if tag_name:
-        return tag_name.split("-")[-1]
-
-    raise ValueError(f"Tag not found for {integration_name}")
-
-
-def get_changed_integrations(
+async def get_changed_integrations(
     changed_files: List[str], glob_pattern: str
 ) -> Dict[str, str]:
     integrations_base_path = Path(INTEGRATIONS_BASEPATH)
@@ -52,7 +38,9 @@ def get_changed_integrations(
     for file_path in modified_integrations_files:
         path = Path(file_path)
         integration_name = path.parent.name
-        current_version = get_latest_tag_version(integration_name)
+        current_version = await fetch_latest_repo_tag(
+            OWNER, REPO, f"*-{integration_name}"
+        )
         changed_integrations[integration_name] = increment_patch_version(
             current_version
         )
@@ -75,16 +63,15 @@ async def main(glob_pattern: str = "**/*.py"):
     current_commit = os.environ.get("CURRENT_COMMIT", "")
 
     if not previous_tag or not current_commit:
-        print(
+        raise ValueError(
             "Error: `PREVIOUS_TAG` or `CURRENT_COMMIT` environment variable is missing."
         )
-        return
 
     changed_files = get_changed_files(previous_tag, current_commit)
-    changed_integrations = get_changed_integrations(changed_files, glob_pattern)
-    print(json.dumps(changed_integrations))
 
-    if changed_integrations:
+    if changed_integrations := await get_changed_integrations(
+        changed_files, glob_pattern
+    ):
         await create_tags(changed_integrations)
 
 
