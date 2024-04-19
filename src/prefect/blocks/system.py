@@ -1,7 +1,5 @@
 from typing import Any
 
-import pendulum
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -9,6 +7,7 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, SecretStr
 
+from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.blocks.core import Block
 
 
@@ -76,7 +75,7 @@ class DateTime(Block):
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/8b3da9a6621e92108b8e6a75b82e15374e170ff7-48x48.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime"
 
-    value: pendulum.DateTime = Field(
+    value: DateTimeTZ = Field(
         default=...,
         description="An ISO 8601-compatible datetime value.",
     )

@@ -57,6 +57,7 @@ async def related_resources_from_run_context(
     exclude: Optional[Set[str]] = None,
 ) -> List[RelatedResource]:
     from prefect.client.orchestration import get_client
+    from prefect.client.schemas.objects import FlowRun
     from prefect.context import FlowRunContext, TaskRunContext
 
     if exclude is None:
@@ -111,7 +112,7 @@ async def related_resources_from_run_context(
 
         flow_run = related_objects[0]["object"]
 
-        if flow_run:
+        if isinstance(flow_run, FlowRun):
             related_objects += list(
                 await asyncio.gather(
                     _get_and_cache_related_object(
