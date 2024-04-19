@@ -29,6 +29,7 @@ Example:
     ```
 
 """
+
 import asyncio
 import datetime
 import inspect
@@ -80,7 +81,7 @@ from prefect.deployments.runner import (
 )
 from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.engine import propose_state
-from prefect.events import DeploymentTriggerTypes
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     Abort,
 )
@@ -232,7 +233,7 @@ class Runner:
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
