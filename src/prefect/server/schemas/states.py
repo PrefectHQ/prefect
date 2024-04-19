@@ -16,6 +16,10 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, root_validator, validator
 
+from prefect._internal.schemas.validators import (
+    get_or_create_state_name,
+    set_default_scheduled_time,
+)
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
     PrefectBaseModel,
@@ -43,6 +47,25 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
+class CountByState(PrefectBaseModel):
+    COMPLETED: int = Field(default=0)
+    PENDING: int = Field(default=0)
+    RUNNING: int = Field(default=0)
+    FAILED: int = Field(default=0)
+    CANCELLED: int = Field(default=0)
+    CRASHED: int = Field(default=0)
+    PAUSED: int = Field(default=0)
+    CANCELLING: int = Field(default=0)
+    SCHEDULED: int = Field(default=0)
+
+    @validator("*")
+    @classmethod
+    def check_key(cls, value, field):
+        if field.name not in StateType.__members__:
+            raise ValueError(f"{field.name} is not a valid StateType")
+        return value
+
+
 TERMINAL_STATES = {
     StateType.COMPLETED,
     StateType.CANCELLED,
@@ -67,6 +90,7 @@ class StateDetails(PrefectBaseModel):
     refresh_cache: bool = None
     retriable: bool = None
     transition_id: Optional[UUID] = None
+    task_parameters_id: Optional[UUID] = None
 
 
 class StateBaseModel(IDBaseModel):
@@ -98,7 +122,7 @@ class State(StateBaseModel, Generic[R]):
     type: StateType
     name: Optional[str] = Field(default=None)
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
-    message: Optional[str] = Field(default=None, example="Run started")
+    message: Optional[str] = Field(default=None, examples=["Run started"])
     data: Optional[Any] = Field(
         default=None,
         description=(
@@ -139,28 +163,11 @@ class State(StateBaseModel, Generic[R]):
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
-        """If a name is not provided, use the type"""
-
-        # if `type` is not in `values` it means the `type` didn't pass its own
-        # validation check and an error will be raised after this function is called
-        if v is None and values.get("type"):
-            v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
-        return v
+        return get_or_create_state_name(v, values)
 
     @root_validator
     def default_scheduled_start_time(cls, values):
-        """
-        TODO: This should throw an error instead of setting a default but is out of
-              scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
-              into work refactoring state initialization
-        """
-        if values.get("type") == StateType.SCHEDULED:
-            state_details = values.setdefault(
-                "state_details", cls.__fields__["state_details"].get_default()
-            )
-            if not state_details.scheduled_time:
-                state_details.scheduled_time = pendulum.now("utc")
-        return values
+        return set_default_scheduled_time(cls, values)
 
     def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED
@@ -192,7 +199,13 @@ class State(StateBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
+    def copy(
+        self,
+        *,
+        update: Optional[Dict[str, Any]] = None,
+        reset_fields: bool = False,
+        **kwargs,
+    ):
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
@@ -402,6 +415,29 @@ def Paused(
     state_details.pause_key = pause_key
 
     return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
+
+
+def Suspended(
+    cls: Type[State] = State,
+    timeout_seconds: Optional[int] = None,
+    pause_expiration_time: Optional[datetime.datetime] = None,
+    pause_key: Optional[str] = None,
+    **kwargs,
+):
+    """Convenience function for creating `Suspended` states.
+
+    Returns:
+        State: a Suspended state
+    """
+    return Paused(
+        cls=cls,
+        name="Suspended",
+        reschedule=True,
+        timeout_seconds=timeout_seconds,
+        pause_expiration_time=pause_expiration_time,
+        pause_key=pause_key,
+        **kwargs,
+    )
 
 
 def AwaitingRetry(

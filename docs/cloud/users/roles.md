@@ -14,13 +14,13 @@ search:
   boost: 2
 ---
 
-# User and Service Account Roles <span class="badge cloud"></span> <span class="badge pro"> </span><span class="badge enterprise"></span>
+# User and Service Account Roles <span class="badge cloud"></span> <span class="badge pro"> </span><span class="badge custom"></span>
 
-Prefect Cloud's [Pro and Enterprise tiers](https://www.prefect.io/pricing) allow you to set team member access to the appropriate level within specific workspaces.
+Prefect Cloud's [Pro and Custom tiers](https://www.prefect.io/pricing) allow you to set team member access to the appropriate level within specific workspaces.
 
 Role-based access controls (RBAC) enable you to assign users granular permissions to perform certain activities.
 
-To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, Enterprise account Admins can create custom roles for users.
+To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, Custom account Admins can create custom roles for users.
 
 ## Built-in roles
 
@@ -37,7 +37,8 @@ The following built-in roles have permissions across an account in Prefect Cloud
 
 | Role   | Abilities                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Admin  | &bull; Set/change all account profile settings allowed to be set/changed by a Prefect user. <br> &bull; Add and remove account members, and their account roles. <br> &bull; Create and delete service accounts in the account. <br> &bull; Create workspaces in the account. <br> &bull; Implicit workspace owner access on all workspaces in the account. |
+| Owner  | &bull; Set/change all account profile settings allowed to be set/changed by a Prefect user. <br> &bull; Add and remove account members, and their account roles. <br> &bull; Create and delete service accounts in the account. <br> &bull; Create workspaces in the account. <br> &bull; Implicit workspace owner access on all workspaces in the account. <br> &bull; Bypass SSO. |
+| Admin  | &bull; Set/change all account profile settings allowed to be set/changed by a Prefect user. <br> &bull; Add and remove account members, and their account roles. <br> &bull; Create and delete service accounts in the account. <br> &bull; Create workspaces in the account. <br> &bull; Implicit workspace owner access on all workspaces in the account. <br> &bull; Cannot bypass SSO.  |
 | Member | &bull; View account profile settings. <br> &bull; View workspaces I have access to in the account. <br> &bull; View account members and their roles. <br> &bull; View service accounts in the account.                                                                                                                                                                |
 
 ### Workspace-level roles

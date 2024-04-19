@@ -1,6 +1,7 @@
 """
 Utilities for extensions of and operations on Python collections.
 """
+
 import io
 import itertools
 from collections import OrderedDict, defaultdict
@@ -106,7 +107,7 @@ def dict_to_flatdict(
 
 
 def flatdict_to_dict(
-    dct: Dict[Tuple[KT, ...], VT]
+    dct: Dict[Tuple[KT, ...], VT],
 ) -> Dict[KT, Union[VT, Dict[KT, VT]]]:
     """Converts a flattened dictionary back to a nested dictionary.
 
@@ -158,7 +159,7 @@ def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
     return [obj]
 
 
-def listrepr(objs: Iterable, sep=" ") -> str:
+def listrepr(objs: Iterable[Any], sep: str = " ") -> str:
     return sep.join(repr(obj) for obj in objs)
 
 

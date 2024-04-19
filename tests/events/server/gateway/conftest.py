@@ -1,0 +1,76 @@
+from uuid import uuid4
+
+import pendulum
+import pytest
+from prefect._vendor.fastapi import FastAPI
+from prefect._vendor.fastapi.testclient import TestClient
+
+from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
+
+
+@pytest.fixture
+def events_app(app: FastAPI) -> FastAPI:
+    return app
+
+
+@pytest.fixture
+def test_client(events_app: FastAPI) -> TestClient:
+    # We typically use the httpx.AsyncClient with an async ASGI transport for testing,
+    # but for tests that involve websockets, we need to use the FastAPI TestClient
+    return TestClient(events_app)
+
+
+@pytest.fixture
+def event1() -> Event:
+    return Event(
+        occurred=pendulum.now("UTC"),
+        event="was.radical",
+        resource=Resource.parse_obj({"prefect.resource.id": "my.resources"}),
+        payload={"hello": "world"},
+        id=uuid4(),
+    )
+
+
+@pytest.fixture
+def event2() -> Event:
+    return Event(
+        occurred=pendulum.now("UTC"),
+        event="was.super.awesome",
+        resource=Resource.parse_obj({"prefect.resource.id": "my.resources"}),
+        payload={"goodbye": "moon"},
+        id=uuid4(),
+    )
+
+
+@pytest.fixture
+def received_event1(event1: Event) -> ReceivedEvent:
+    return event1.receive()
+
+
+@pytest.fixture
+def received_event2(
+    event2: Event,
+) -> ReceivedEvent:
+    return event2.receive()
+
+
+@pytest.fixture
+def old_event1() -> ReceivedEvent:
+    return Event(
+        occurred=pendulum.now("UTC").subtract(seconds=30),
+        event="was.radical",
+        resource=Resource.parse_obj({"prefect.resource.id": "my.resources"}),
+        payload={"hello": "world"},
+        id=uuid4(),
+    ).receive()
+
+
+@pytest.fixture
+def old_event2() -> ReceivedEvent:
+    return Event(
+        occurred=pendulum.now("UTC").subtract(seconds=15),
+        event="was.super.awesome",
+        resource=Resource.parse_obj({"prefect.resource.id": "my.resources"}),
+        payload={"goodbye": "moon"},
+        id=uuid4(),
+    ).receive()

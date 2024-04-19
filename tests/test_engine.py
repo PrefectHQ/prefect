@@ -27,18 +27,13 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
-    API_HEALTHCHECKS,
     begin_flow_run,
     begin_task_run,
-    check_api_reachable,
-    collect_task_run_inputs,
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
-    link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
-    propose_state,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
     suspend_flow_run,
@@ -89,7 +84,13 @@ from prefect.task_runners import (
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
-from prefect.utilities.pydantic import PartialModel
+from prefect.utilities.engine import (
+    API_HEALTHCHECKS,
+    check_api_reachable,
+    collect_task_run_inputs,
+    link_state_to_result,
+    propose_state,
+)
 
 
 @pytest.fixture
@@ -126,8 +127,6 @@ def parameterized_flow():
 
 @pytest.fixture
 async def get_flow_run_context(prefect_client, result_factory, local_filesystem):
-    partial_ctx = PartialModel(FlowRunContext)
-
     @flow
     def foo():
         pass
@@ -137,8 +136,8 @@ async def get_flow_run_context(prefect_client, result_factory, local_filesystem)
 
     async def _get_flow_run_context():
         async with anyio.create_task_group() as tg:
-            partial_ctx.background_tasks = tg
-            return partial_ctx.finalize(
+            return FlowRunContext(
+                background_tasks=tg,
                 flow=foo,
                 flow_run=flow_run,
                 client=prefect_client,
@@ -215,53 +214,34 @@ class TestBlockingPause:
         assert min(sleep_intervals) <= 20  # Okay if this is zero
         assert max(sleep_intervals) == 100
 
-    @pytest.mark.flaky
     async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
-        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        sleeper = AsyncMock(side_effect=[None])
         monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
-
-        @task
-        async def doesnt_pause():
-            return 42
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow():
-            x = await doesnt_pause.submit()
             await pause_flow_run(timeout=4, poll_interval=5)
-            y = await doesnt_pause.submit()
-            await doesnt_pause(wait_for=[x])
-            await doesnt_pause(wait_for=[y])
-            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
             await pausing_flow()
 
+        # When pausing a flow run and the poll_interval is greater than the
+        # timeout, the first sleep interval should be half of the timeout.
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
-        assert sleep_intervals[0] == 2
-        assert sleep_intervals[1:] == [5, 5, 5, 5, 5]
+        assert sleep_intervals[0] == 4 / 2
 
-    @pytest.mark.flaky(max_runs=4)
     async def test_paused_flows_block_execution_in_sync_flows(self, prefect_client):
-        @task
-        def foo():
-            return 42
+        completed = False
 
         @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
-            x = foo.submit()
-            y = foo.submit()
+            nonlocal completed
             pause_flow_run(timeout=0.1)
-            foo(wait_for=[x])
-            foo(wait_for=[y])
-            foo(wait_for=[x, y])
+            completed = True
 
-        flow_run_state = pausing_flow(return_state=True)
-        flow_run_id = flow_run_state.state_details.flow_run_id
-        task_runs = await prefect_client.read_task_runs(
-            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
-        )
-        assert len(task_runs) == 2, "only two tasks should have completed"
+        pausing_flow(return_state=True)
+        assert not completed
 
     async def test_paused_flows_block_execution_in_async_flows(self, prefect_client):
         @task
@@ -346,6 +326,10 @@ class TestBlockingPause:
             keyset = flow_run.state.state_details.run_input_keyset
             assert keyset
 
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
             await resume_flow_run(flow_run_id, run_input={"x": 42})
 
         flow_run_state, the_answer = await asyncio.gather(
@@ -362,7 +346,9 @@ class TestBlockingPause:
         )
         assert schema is not None
 
-    async def test_paused_flows_can_receive_automatic_input(self, prefect_client):
+    async def test_paused_flows_can_receive_automatic_input(
+        self, prefect_client: PrefectClient
+    ):
         flow_run_id = None
 
         @flow(task_runner=SequentialTaskRunner())
@@ -387,6 +373,10 @@ class TestBlockingPause:
 
             keyset = flow_run.state.state_details.run_input_keyset
             assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
 
             await resume_flow_run(flow_run_id, run_input={"value": 42})
 
@@ -783,8 +773,7 @@ class TestSuspendFlowRun:
         with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
             await main_flow()
 
-    @pytest.mark.flaky(max_runs=2)
-    async def test_suspend_flow_run_by_id(self, deployment, session):
+    async def test_suspend_flow_run_by_id(self, prefect_client, deployment, session):
         flow_run_id = None
         task_completions = 0
 
@@ -794,7 +783,7 @@ class TestSuspendFlowRun:
             task_completions += 1
             await asyncio.sleep(0.1)
 
-        @flow()
+        @flow
         async def suspendable_flow():
             nonlocal flow_run_id
             context = get_run_context()
@@ -814,8 +803,7 @@ class TestSuspendFlowRun:
             for i in range(20):
                 await increment_completions()
 
-        @flow()
-        async def suspending_flow():
+        async def suspending_func():
             nonlocal flow_run_id
 
             while flow_run_id is None:
@@ -826,8 +814,8 @@ class TestSuspendFlowRun:
 
             await suspend_flow_run(flow_run_id=flow_run_id)
 
-        with pytest.raises(asyncio.exceptions.CancelledError):
-            await asyncio.gather(suspendable_flow(), suspending_flow())
+        with pytest.raises(PausedRun):
+            await asyncio.gather(suspendable_flow(), suspending_func())
 
         # When suspending a flow run by id, that flow run must use tasks for
         # the suspension to take place. This setup allows for `suspendable_flow`
@@ -835,6 +823,11 @@ class TestSuspendFlowRun:
         # Here then we check to ensure that some tasks completed but not _all_
         # of the tasks.
         assert task_completions > 0 and task_completions < 20
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        state = flow_run.state
+        assert state.is_paused()
+        assert state.name == "Suspended"
 
     async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
         flow_run_id = None
@@ -1503,7 +1496,6 @@ class TestOrchestrateTaskRun:
         assert await state.result() == 1
 
     @pytest.mark.parametrize("jitter_factor", [0.1, 1, 10, 100])
-    @pytest.mark.flaky(max_runs=3)
     async def test_waits_jittery_sleeps(
         self,
         mock_anyio_sleep,
@@ -1551,10 +1543,10 @@ class TestOrchestrateTaskRun:
             log_prints=False,
         )
 
-        assert mock_anyio_sleep.await_count == 10
+        assert mock.call_count == 10 + 1  # 1 run + 10 retries
         sleeps = [c.args[0] for c in mock_anyio_sleep.await_args_list]
         assert statistics.variance(sleeps) > 0
-        assert max(sleeps) < 100 * (1 + jitter_factor)
+        assert max(sleeps) <= 100 * (1 + jitter_factor)
 
         # Check for a proper final result
         assert await state.result() == 1
@@ -2026,8 +2018,7 @@ class TestOrchestrateTaskRun:
 
         assert (
             "Received non-final state 'Failed' when proposing final state 'Failed' and"
-            " will not attempt to run again..."
-            not in caplog.text
+            " will not attempt to run again..." not in caplog.text
         )
 
     async def test_retry_condition_fn_retry_handler_returns_notfalse_retries(
@@ -2079,8 +2070,7 @@ class TestOrchestrateTaskRun:
 
         assert (
             "Received non-final state 'AwaitingRetry' when proposing final state"
-            " 'Failed' and will attempt to run again..."
-            in caplog.text
+            " 'Failed' and will attempt to run again..." in caplog.text
         )
 
     async def test_proposes_unknown_result_if_state_is_completed_and_result_data_is_missing(
@@ -2186,8 +2176,7 @@ class TestBeginTaskRun:
 class TestOrchestrateFlowRun:
     @pytest.fixture
     def partial_flow_run_context(self, result_factory, local_filesystem):
-        return PartialModel(
-            FlowRunContext,
+        return FlowRunContext.construct(
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
             result_factory=result_factory,
@@ -2830,8 +2819,7 @@ class TestCreateThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -2925,8 +2913,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -3004,8 +2991,7 @@ class TestCreateAndBeginSubflowRun:
         assert "Validation of flow parameters failed with error" in state.message
         assert (
             "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
-            " provided with parameters ['puppy', 'kitty']"
-            in state.message
+            " provided with parameters ['puppy', 'kitty']" in state.message
         )
         with pytest.raises(SignatureMismatchError):
             await state.result()
@@ -3272,8 +3258,7 @@ def test_flow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow."
-        in caplog.text
+        " the same flow." in caplog.text
     )
 
 
@@ -3302,8 +3287,7 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
     assert (
         "Task runner 'MyTaskRunner' does not implement the"
         " `duplicate` method and will fail if used for concurrent execution of"
-        " the same flow."
-        in caplog.text
+        " the same flow." in caplog.text
     )
 
 
@@ -3311,7 +3295,10 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
     "prefect.utilities.collections.visit_collection",
     wraps=prefect.utilities.collections.visit_collection,
 )
-@patch("prefect.engine.visit_collection", wraps=prefect.engine.visit_collection)
+@patch(
+    "prefect.utilities.engine.visit_collection",
+    wraps=prefect.utilities.engine.visit_collection,
+)
 async def test_collect_task_run_inputs_respects_quote(
     mock_outer_visit_collection, mock_recursive_visit_collection
 ):

@@ -381,10 +381,13 @@ def test_add_event_loop_shutdown_callback_is_not_called_with_loop_run_until_comp
         await add_event_loop_shutdown_callback(set_event)
 
     loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=loop.run_until_complete(run_test()))
-    thread.start()
-    assert not callback_called.wait(timeout=1)
-    thread.join(timeout=1)
+    try:
+        thread = threading.Thread(target=loop.run_until_complete(run_test()))
+        thread.start()
+        assert not callback_called.wait(timeout=1)
+        thread.join(timeout=1)
+    finally:
+        loop.close()
 
 
 async def test_gather():

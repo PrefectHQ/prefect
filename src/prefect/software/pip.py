@@ -68,7 +68,7 @@ def _is_editable_install(dist: "importlib_metadata.Distribution") -> bool:
 
 
 def _remove_distributions_required_by_others(
-    dists: Dict[str, "importlib_metadata.Distribution"]
+    dists: Dict[str, "importlib_metadata.Distribution"],
 ) -> Dict[str, "importlib_metadata.Distribution"]:
     # Collect all child requirements
     child_requirement_names = set()

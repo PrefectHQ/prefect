@@ -107,7 +107,8 @@ async def update_agent(
     """
 
     update_stmt = (
-        sa.update(db.Agent).where(db.Agent.id == agent_id)
+        sa.update(db.Agent)
+        .where(db.Agent.id == agent_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**agent.dict(shallow=True, exclude_unset=True))
@@ -142,7 +143,7 @@ async def record_agent_poll(
         id=agent_id, work_queue_id=work_queue_id, last_activity_time=pendulum.now("UTC")
     )
     insert_stmt = (
-        (await db.insert(db.Agent))
+        db.insert(db.Agent)
         .values(
             **agent_data.dict(
                 include={"id", "name", "work_queue_id", "last_activity_time"}

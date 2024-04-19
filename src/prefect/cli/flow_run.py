@@ -1,6 +1,7 @@
 """
 Command line interface for working with flow runs
 """
+
 import logging
 import os
 from typing import List, Optional
@@ -9,9 +10,9 @@ from uuid import UUID
 import httpx
 import pendulum
 import typer
+from prefect._vendor.starlette import status
 from rich.pretty import Pretty
 from rich.table import Table
-from starlette import status
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -267,7 +268,7 @@ async def logs(
 
 @flow_run_app.command()
 async def execute(
-    id: Optional[UUID] = typer.Argument(None, help="ID of the flow run to execute")
+    id: Optional[UUID] = typer.Argument(None, help="ID of the flow run to execute"),
 ):
     if id is None:
         environ_flow_id = os.environ.get("PREFECT__FLOW_RUN_ID")

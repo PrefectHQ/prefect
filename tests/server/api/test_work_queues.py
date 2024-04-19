@@ -1,3 +1,4 @@
+import uuid
 from typing import List
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ else:
     import pydantic
 
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
@@ -114,6 +115,12 @@ class TestCreateWorkQueue:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert b"contains an invalid character" in response.content
 
+    async def test_create_work_queue_initially_is_not_ready(self, client):
+        response = await client.post("/work_queues/", json=dict(name=str(uuid.uuid4())))
+        assert response.status_code == status.HTTP_201_CREATED
+        assert "status" in response.json()
+        assert response.json()["status"] == "NOT_READY"
+
 
 class TestUpdateWorkQueue:
     async def test_update_work_queue(
@@ -153,7 +160,7 @@ class TestReadWorkQueue:
         response = await client.get(f"/work_queues/{work_queue.id}")
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
-        assert response.json()["name"] == "wq-1"
+        assert response.json()["name"] == work_queue.name
         assert response.json()["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
@@ -267,6 +274,25 @@ class TestReadWorkQueues:
         response = await client.post("/work_queues/filter")
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
+
+    async def test_work_queue_old_last_polled_is_in_not_ready_status(
+        self,
+        client,
+        work_queue,
+        session,
+    ):
+        # Update the queue with an old last_polled time
+        new_data = WorkQueueUpdate(
+            last_polled=pendulum.now("UTC").subtract(days=1)
+        ).dict(json_compatible=True, exclude_unset=True)
+        response = await client.patch(f"/work_queues/{work_queue.id}", json=new_data)
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify the work queue status is changed
+        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        assert wq_response.status_code == status.HTTP_200_OK
+        assert wq_response.json()["status"] == "NOT_READY"
+        assert wq_response.json()["is_paused"] is False
 
 
 class TestGetRunsInWorkQueue:
@@ -494,6 +520,60 @@ class TestGetRunsInWorkQueue:
         updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
         assert updated_deployment_response.status_code == status.HTTP_200_OK
         assert updated_deployment_response.json()["status"] == "READY"
+
+    async def test_read_work_queue_runs_updates_work_queue_status(
+        self,
+        client,
+        work_queue,
+        session,
+    ):
+        # Verify the work queue is initially not ready
+        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        assert wq_response.status_code == status.HTTP_200_OK
+        assert wq_response.json()["status"] == "NOT_READY"
+
+        # Trigger a polling operation
+        response = await client.post(
+            f"/work_queues/{work_queue.id}/get_runs",
+            json=dict(agent_id=str(uuid.uuid4())),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify the work queue is now ready
+        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        assert wq_response.status_code == status.HTTP_200_OK
+        assert wq_response.json()["status"] == "READY"
+
+    async def test_read_work_queue_runs_does_not_update_a_paused_work_queues_status(
+        self,
+        client,
+        work_queue,
+        session,
+    ):
+        # Move the queue into a PAUSED state
+        new_data = WorkQueueUpdate(is_paused=True).dict(
+            json_compatible=True, exclude_unset=True
+        )
+        response = await client.patch(f"/work_queues/{work_queue.id}", json=new_data)
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify the work queue is PAUSED
+        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        assert wq_response.status_code == status.HTTP_200_OK
+        assert wq_response.json()["status"] == "PAUSED"
+        assert wq_response.json()["is_paused"] is True
+
+        # Trigger a polling operation
+        response = await client.post(
+            f"/work_queues/{work_queue.id}/get_runs",
+            json=dict(agent_id=str(uuid.uuid4())),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify the work queue status is still PAUSED
+        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        assert wq_response.status_code == status.HTTP_200_OK
+        assert wq_response.json()["status"] == "PAUSED"
 
 
 class TestDeleteWorkQueue:

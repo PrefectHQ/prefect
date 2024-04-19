@@ -7,6 +7,22 @@ on:
   # On each commit merged into main, push sha and branch patterns to prefect-dev
   push:
     branches: main
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "setup.py"
+      - "src/**"
+      - "tests/**"
+      - "requirements.txt"
+      - "requirements-client.txt"
+      - "MANIFEST.in"
+      - "setup.cfg"
+      - "versioneer.py"
+      - ".gitingore"
+      - ".gitattributes"
+      - ".github/workflows/docker-images.yaml"
+      - "ui/**"
+
   # On workflow_dispatch, push sha and branch patterns to prefect-dev
   workflow_dispatch:
 
@@ -34,6 +50,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:v0.12.5
 
       - name: Login to DockerHub
         uses: docker/login-action@v3

@@ -6,7 +6,6 @@ import pendulum
 import pytest
 
 from prefect.server.services.loop_service import LoopService
-from prefect.testing.utilities import flaky_on_windows
 
 
 async def test_asyncio_sleep_accepts_negative_numbers():
@@ -105,12 +104,13 @@ async def test_loop_service_calls_on_start_on_stop_once():
     assert service.state == ["_on_start", "_on_stop"]
 
 
-@flaky_on_windows
 async def test_early_stop():
     """Test that stop criterion is evaluated without waiting for loop_seconds"""
 
+    LOOP_INTERVAL = 120
+
     class Service(LoopService):
-        def __init__(self, loop_seconds: float = 1000):
+        def __init__(self, loop_seconds: float = LOOP_INTERVAL):
             super().__init__(loop_seconds)
 
         async def run_once(self):
@@ -129,15 +129,16 @@ async def test_early_stop():
 
     assert service._should_stop is True
     assert service._is_running is False
-    assert dt2 - dt < pendulum.duration(seconds=1)
+    assert dt2 - dt < pendulum.duration(seconds=LOOP_INTERVAL)
 
 
-@flaky_on_windows
 async def test_stop_block_escapes_deadlock(caplog):
     """Test that calling a blocking stop inside the service eventually returns"""
 
+    LOOP_INTERVAL = 0.1
+
     class Service(LoopService):
-        def __init__(self, loop_seconds: float = 0.1):
+        def __init__(self, loop_seconds: float = LOOP_INTERVAL):
             super().__init__(loop_seconds)
 
         async def run_once(self):
@@ -148,7 +149,7 @@ async def test_stop_block_escapes_deadlock(caplog):
     asyncio.create_task(service.start())
 
     # sleep for longer than one loop interval
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(LOOP_INTERVAL * 5)
 
     assert service._is_running is False
     assert "`stop(block=True)` was called on Service but" in caplog.text

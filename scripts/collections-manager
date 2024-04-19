@@ -159,8 +159,12 @@ def commit(message: str, root: Path = DEFAULT_ROOT):
 
 
 @app.command()
-def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False):
+def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False, draft: bool = False):
     """Creates a pull request on all repositories"""
+
+    if dry_run:
+        print("THIS IS A DRY RUN")
+
     with tempfile.NamedTemporaryFile("w+t") as pr_body_file:
         pr_body_file.write("The title\n\nThe body\n")
         pr_body_file.flush()
@@ -186,7 +190,7 @@ def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False):
         pr_body_file.write(body)
         pr_body_file.flush()
 
-        DELAY = 10
+        DELAY = 10 if not dry_run else 0
         print(
             (
                 "Note: there is an intentional delay between each repo to avoid"
@@ -218,6 +222,7 @@ def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False):
                 title,
                 "--body-file",
                 pr_body_file.name,
+                *(["--draft"] if draft else []),
             ]
             if dry_run:
                 print(" ".join(arguments))
@@ -368,6 +373,65 @@ def run_function(function_path: str, root: Path = DEFAULT_ROOT):
 
     for repo in repositories(root):
         function(repo)
+
+
+@app.command()
+def merge_latest_pr(
+    branch_name: str,
+    root: Path = DEFAULT_ROOT,
+    dry_run: bool = False,
+):
+    """Merges the latest open pull request for the specified branch across all repositories."""
+    DELAY = 10 if not dry_run else 0
+    for repo in repositories(root):
+        gh_repo = f"PrefectHQ/{repo.name}"
+
+        try:
+            output = subprocess.check_output(
+                [
+                    "gh",
+                    "pr",
+                    "list",
+                    "--repo",
+                    gh_repo,
+                    "--head",
+                    branch_name,
+                    "--state",
+                    "open",
+                    "--limit",
+                    "1",
+                    "--json",
+                    "number",
+                ],
+                text=True,
+            )
+
+            if output:
+                pr_number = json.loads(output)[0]["number"]
+
+                merge_command = [
+                    "gh",
+                    "pr",
+                    "merge",
+                    str(pr_number),
+                    "--repo",
+                    gh_repo,
+                    "--squash",
+                    "--delete-branch",
+                ]
+
+                if dry_run:
+                    print(f"DRY RUN: Would execute {' '.join(merge_command)}")
+                else:
+                    subprocess.check_output(merge_command, text=True)
+                    print(f"Merged PR {pr_number} in {gh_repo}")
+                    time.sleep(DELAY)
+        except subprocess.CalledProcessError as e:
+            print(f"Error processing {gh_repo}: {e} - skipping")
+        except IndexError:
+            print(f"No open PR found for {branch_name} in {gh_repo}")
+        except json.JSONDecodeError:
+            print(f"Failed to decode JSON response for {gh_repo}")
 
 
 if __name__ == "__main__":

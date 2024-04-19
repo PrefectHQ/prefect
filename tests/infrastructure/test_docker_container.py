@@ -8,6 +8,7 @@ import anyio.abc
 import docker
 import pytest
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.container import (
     CONTAINER_LABELS,
@@ -499,7 +500,7 @@ def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
 ):
     monkeypatch.setattr("sys.platform", "darwin")
 
-    with assert_does_not_warn():
+    with assert_does_not_warn(ignore_warnings=[PrefectDeprecationWarning]):
         runner = DockerContainer(
             command=["echo", "hello"],
             network_mode="host",
@@ -697,7 +698,7 @@ def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url(
     monkeypatch.setattr("sys.platform", "linux")
     mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-    with assert_does_not_warn():
+    with assert_does_not_warn(ignore_warnings=[PrefectDeprecationWarning]):
         DockerContainer(
             command=["echo", "hello"],
             env={"PREFECT_API_URL": "http://my-domain.test/api"},
@@ -736,7 +737,7 @@ def test_does_not_warn_about_gateway_if_not_using_linux(
     monkeypatch.setattr("sys.platform", platform)
     mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-    with assert_does_not_warn():
+    with assert_does_not_warn(ignore_warnings=[PrefectDeprecationWarning]):
         DockerContainer(
             command=["echo", "hello"],
         ).run()
@@ -774,15 +775,16 @@ def test_container_auto_remove(docker: "DockerClient"):
 
 @pytest.mark.service("docker")
 def test_container_metadata(docker: "DockerClient"):
+    name = f"test-name-{uuid.uuid4()}"
     result = DockerContainer(
         command=["echo", "hello"],
-        name="test-name",
+        name=name,
         labels={"test.foo": "a", "test.bar": "b"},
     ).run()
 
     _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
     container: "Container" = docker.containers.get(container_id)
-    assert container.name == "test-name"
+    assert container.name == name
     assert container.labels["test.foo"] == "a"
     assert container.labels["test.bar"] == "b"
     assert container.image.tags[0] == get_prefect_image_name()
@@ -863,8 +865,7 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
 
     assert (
         "An unexpected Docker API error occurred while streaming output from container"
-        " fake-name."
-        in caplog.text
+        " fake-name." in caplog.text
     )
 
 
@@ -933,7 +934,6 @@ def base_job_template_with_defaults(docker_default_base_job_template):
     return base_job_template_with_defaults
 
 
-@pytest.mark.flaky
 @pytest.mark.usefixtures("mock_collection_registry")
 @pytest.mark.parametrize(
     "container_config",

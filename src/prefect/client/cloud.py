@@ -11,7 +11,7 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from starlette import status
+from prefect._vendor.starlette import status
 
 import prefect.context
 import prefect.settings
@@ -63,7 +63,7 @@ class CloudClient:
         self,
         host: str,
         api_key: str,
-        httpx_settings: dict = None,
+        httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings or dict()
         httpx_settings.setdefault("headers", dict())
@@ -72,7 +72,7 @@ class CloudClient:
         httpx_settings.setdefault("base_url", host)
         if not PREFECT_UNIT_TEST_MODE.value():
             httpx_settings.setdefault("follow_redirects", True)
-        self._client = PrefectHttpxClient(**httpx_settings)
+        self._client = PrefectHttpxClient(**httpx_settings, enable_csrf_support=False)
 
     async def api_healthcheck(self):
         """
@@ -85,7 +85,10 @@ class CloudClient:
             await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Workspace]:
-        return pydantic.parse_obj_as(List[Workspace], await self.get("/me/workspaces"))
+        workspaces = pydantic.parse_obj_as(
+            List[Workspace], await self.get("/me/workspaces")
+        )
+        return workspaces
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
         configured_url = prefect.settings.PREFECT_API_URL.value()

@@ -92,7 +92,6 @@ async def test_tolerates_majority_errors():
     assert workload.await_count == 6
 
 
-@pytest.mark.flaky(max_runs=3)
 async def test_quits_after_3_consecutive_errors(capsys: pytest.CaptureFixture):
     workload = AsyncMock(
         side_effect=[

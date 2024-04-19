@@ -3,6 +3,7 @@ import socket
 import sys
 import uuid
 from pathlib import Path
+from typing import Any, Dict, Optional
 from unittest.mock import call
 from uuid import UUID
 
@@ -10,8 +11,14 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.server import models
+from prefect.server.schemas.actions import (
+    DeploymentUpdate,
+    WorkPoolCreate,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel
@@ -23,7 +30,6 @@ from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
-from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
@@ -67,6 +73,24 @@ async def flow_run(prefect_client: PrefectClient):
 
 
 @pytest.fixture
+async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment.id,
+        state=State(
+            type=StateType.SCHEDULED,
+            state_details=StateDetails(
+                scheduled_time=pendulum.now("utc").subtract(minutes=5)
+            ),
+        ),
+    )
+    await prefect_client.update_flow_run(
+        flow_run_id=flow_run.id,
+        job_variables={"working_dir": "/tmp/test"},
+    )
+    return await prefect_client.read_flow_run(flow_run.id)
+
+
+@pytest.fixture
 def mock_open_process(monkeypatch):
     if sys.platform == "win32":
         monkeypatch.setattr(
@@ -84,12 +108,12 @@ def mock_open_process(monkeypatch):
         yield anyio.open_process
 
 
-def patch_client(monkeypatch, overrides: dict = None):
+def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
     """Patches client to return a mock deployment and mock flow with the specified overrides"""
 
     class MockDeployment(BaseModel):
         id: UUID = uuid.uuid4()
-        infra_overrides: dict = overrides or {}
+        job_variables: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
         updated: pendulum.DateTime = pendulum.now("utc")
 
@@ -113,26 +137,41 @@ def patch_client(monkeypatch, overrides: dict = None):
 
 
 @pytest.fixture
-def work_pool():
+async def work_pool(session: AsyncSession):
     job_template = ProcessWorker.get_default_base_job_template()
 
-    work_pool = MagicMock(spec=WorkPool)
-    work_pool.name = "test-worker-pool"
-    work_pool.base_job_template = job_template
-    return work_pool
+    wp = await models.workers.create_work_pool(
+        session=session,
+        work_pool=WorkPoolCreate.construct(
+            _fields_set=WorkPoolCreate.__fields_set__,
+            name="test-worker-pool",
+            type="test",
+            description="None",
+            base_job_template=job_template,
+        ),
+    )
+    await session.commit()
+    return wp
 
 
 @pytest.fixture
-def work_pool_with_default_env():
+async def work_pool_with_default_env(session: AsyncSession):
     job_template = ProcessWorker.get_default_base_job_template()
     job_template["variables"]["properties"]["env"]["default"] = {
         "CONFIG_ENV_VAR": "from_job_configuration"
     }
-
-    work_pool = MagicMock(spec=WorkPool)
-    work_pool.name = "test-worker-pool"
-    work_pool.base_job_template = job_template
-    return work_pool
+    wp = await models.workers.create_work_pool(
+        session=session,
+        work_pool=WorkPoolCreate.construct(
+            _fields_set=WorkPoolCreate.__fields_set__,
+            name="wp-1",
+            type="test",
+            description="None",
+            base_job_template=job_template,
+        ),
+    )
+    await session.commit()
+    return wp
 
 
 async def test_worker_process_run_flow_run(
@@ -228,6 +267,75 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
         assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
         assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
         assert mock.call_args.kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
+
+
+async def test_flow_run_without_job_vars(
+    flow_run,
+    work_pool_with_default_env,
+    monkeypatch,
+):
+    deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
+    patch_client(monkeypatch, overrides=deployment_job_vars)
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        config = await worker._get_configuration(flow_run)
+        assert str(config.working_dir) == deployment_job_vars["working_dir"]
+
+
+async def test_flow_run_vars_take_precedence(
+    deployment,
+    flow_run_with_overrides,
+    work_pool_with_default_env,
+    session: AsyncSession,
+):
+    await models.deployments.update_deployment(
+        session=session,
+        deployment_id=deployment.id,
+        deployment=DeploymentUpdate(
+            job_variables={"working_dir": "/deployment/tmp/test"},
+        ),
+    )
+    await session.commit()
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        config = await worker._get_configuration(flow_run_with_overrides)
+        assert (
+            str(config.working_dir)
+            == flow_run_with_overrides.job_variables["working_dir"]
+        )
+
+
+async def test_flow_run_vars_and_deployment_vars_get_merged(
+    deployment,
+    flow_run_with_overrides,
+    work_pool_with_default_env,
+    session: AsyncSession,
+):
+    await models.deployments.update_deployment(
+        session=session,
+        deployment_id=deployment.id,
+        deployment=DeploymentUpdate(
+            job_variables={"stream_output": False},
+        ),
+    )
+    await session.commit()
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        config = await worker._get_configuration(flow_run_with_overrides)
+        assert (
+            str(config.working_dir)
+            == flow_run_with_overrides.job_variables["working_dir"]
+        )
+        assert config.stream_output is False
 
 
 async def test_process_created_then_marked_as_started(

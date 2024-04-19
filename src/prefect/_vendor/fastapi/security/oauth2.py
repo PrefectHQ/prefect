@@ -6,8 +6,8 @@ from prefect._vendor.fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from prefect._vendor.fastapi.param_functions import Form
 from prefect._vendor.fastapi.security.base import SecurityBase
 from prefect._vendor.fastapi.security.utils import get_authorization_scheme_param
-from starlette.requests import Request
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 
 class OAuth2PasswordRequestForm:

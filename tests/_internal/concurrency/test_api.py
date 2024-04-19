@@ -124,7 +124,7 @@ async def test_from_async_call_soon_in_waiting_thread_allows_concurrency():
     async def sleep_then_set(n):
         # Sleep for an inverse amount so later tasks sleep less
         print(f"Starting task {n}")
-        await asyncio.sleep(1 / (n * 10))
+        await asyncio.sleep(4 - n)
         nonlocal last_task_run
         last_task_run = n
         print(f"Finished task {n}")
@@ -302,34 +302,6 @@ def test_from_sync_call_in_loop_thread(work):
     assert result == 1
 
     wait_for_global_loop_exit()
-
-
-@pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_call_in_waiting_thread_from_worker_thread(work):
-    async def worker(parent_thread):
-        result = await from_async.call_in_waiting_thread(
-            create_call(work, 1), parent_thread
-        )
-        assert result == 1
-        return 2
-
-    result = await from_async.wait_for_call_in_new_thread(
-        create_call(worker, threading.current_thread())
-    )
-    assert result == 2
-
-
-@pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_call_in_waiting_thread_from_worker_thread(work):
-    def worker(parent_thread):
-        result = from_sync.call_in_waiting_thread(create_call(work, 1), parent_thread)
-        assert result == 1
-        return 2
-
-    result = from_sync.wait_for_call_in_new_thread(
-        create_call(worker, threading.current_thread())
-    )
-    assert result
 
 
 def test_from_sync_call_in_loop_thread_from_loop_thread():

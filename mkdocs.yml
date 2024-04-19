@@ -33,8 +33,8 @@ markdown_extensions:
           permalink: true
     - pymdownx.snippets
     - pymdownx.emoji:
-          emoji_index: !!python/name:materialx.emoji.twemoji
-          emoji_generator: !!python/name:materialx.emoji.to_svg
+          emoji_index: !!python/name:material.extensions.emoji.twemoji
+          emoji_generator: !!python/name:material.extensions.emoji.to_svg
 theme:
     name: material
     custom_dir: docs/overrides
@@ -130,6 +130,25 @@ extra:
                       Thank you for your feedback! Feel free to
                       <a href="https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=docs%2Cstatus%3Atriage&projects=&template=4_docs_change.yaml"
                       target="_blank"> open an issue </a> with more detail.
+    # social:
+    #     - icon: fontawesome/brands/slack
+    #       link: https://www.prefect.io/slack/
+    #     - icon: fontawesome/brands/discourse
+    #       link: https://discourse.prefect.io/
+    #     - icon: fontawesome/brands/youtube
+    #       link: https://www.youtube.com/c/PrefectIO/videos
+    #     - icon: fontawesome/regular/newspaper
+    #       link: https://prefect.io/guide/
+    #     - icon: fontawesome/brands/twitter
+    #       link: https://twitter.com/PrefectIO
+    #     - icon: fontawesome/brands/linkedin
+    #       link: https://www.linkedin.com/company/prefect/
+    #     - icon: fontawesome/brands/github
+    #       link: https://github.com/PrefectHQ/prefect
+    #     - icon: fontawesome/brands/docker
+    #       link: https://hub.docker.com/r/prefecthq/prefect/
+    #     - icon: fontawesome/brands/python
+    #       link: https://pypi.org/project/prefect/
 
 nav:
     - Getting Started:
@@ -158,6 +177,7 @@ nav:
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - CI/CD: guides/ci-cd.md
+                - Specifying Upstream Dependencies: guides/specifying-upstream-dependencies.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
@@ -168,6 +188,7 @@ nav:
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
                 - Managed Execution: guides/managed-execution.md
+                - Shell Commands: guides/cli-shell.md
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
@@ -177,6 +198,7 @@ nav:
                 - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
                 - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
+                - Job Variable Overrides: guides/deployment/overriding-job-variables.md
     - Concepts:
           - concepts/index.md
           - Flows: concepts/flows.md
@@ -231,8 +253,6 @@ nav:
                 - "prefect.client":
                       - "base": api-ref/prefect/client/base.md
                       - "cloud": api-ref/prefect/client/cloud.md
-                      - "collections": api-ref/prefect/client/collections.md
-                      - "constants": api-ref/prefect/client/constants.md
                       - "orchestration": api-ref/prefect/client/orchestration.md
                       - "schemas": api-ref/prefect/client/schemas.md
                       - "utilities": api-ref/prefect/client/utilities.md
@@ -241,6 +261,7 @@ nav:
                       - "artifact": api-ref/prefect/cli/artifact.md
                       - "block": api-ref/prefect/cli/block.md
                       - "cloud": api-ref/prefect/cli/cloud.md
+                      - "cloud": api-ref/prefect/cli/cloud.webhook.md
                       - "concurrency_limit": api-ref/prefect/cli/concurrency_limit.md
                       - "config": api-ref/prefect/cli/config.md
                       - "deploy": api-ref/prefect/cli/deploy.md
@@ -253,6 +274,7 @@ nav:
                       - "project": api-ref/prefect/cli/project.md
                       - "root": api-ref/prefect/cli/root.md
                       - "server": api-ref/prefect/cli/server.md
+                      - "shell": api-ref/prefect/cli/shell.md
                       - "variable": api-ref/prefect/cli/variable.md
                       - "work_pool": api-ref/prefect/cli/work_pool.md
                       - "work_queue": api-ref/prefect/cli/work_queue.md
@@ -268,6 +290,7 @@ nav:
                       - "deployments": api-ref/prefect/deployments/deployments.md
                       - "base": api-ref/prefect/deployments/base.md
                       - "runner": api-ref/prefect/deployments/runner.md
+                      - "schedules": api-ref/prefect/deployments/schedules.md
                       - "steps.core": api-ref/prefect/deployments/steps/core.md
                       - "steps.pull": api-ref/prefect/deployments/steps/pull.md
                       - "steps.utility": api-ref/prefect/deployments/steps/utility.md
@@ -289,11 +312,6 @@ nav:
                       - "highlighters": api-ref/prefect/logging/highlighters.md
                       - "loggers": api-ref/prefect/logging/loggers.md
                 - "prefect.manifests": api-ref/prefect/manifests.md
-                - "prefect.packaging":
-                      - "base": api-ref/prefect/packaging/base.md
-                      - "docker": api-ref/prefect/packaging/docker.md
-                      - "file": api-ref/prefect/packaging/file.md
-                      - "serializers": api-ref/prefect/packaging/serializers.md
                 - "prefect.runner":
                       - "runner": api-ref/prefect/runner/runner.md
                       - "server": api-ref/prefect/runner/server.md
@@ -331,7 +349,6 @@ nav:
                       - "slugify": api-ref/prefect/utilities/slugify.md
                       - "templating": api-ref/prefect/utilities/templating.md
                       - "text": api-ref/prefect/utilities/text.md
-                      - "validation": api-ref/prefect/utilities/validation.md
                       - "visualization": api-ref/prefect/utilities/visualization.md
                 - "prefect.variables": api-ref/prefect/variables.md
                 - "prefect.workers":
@@ -348,17 +365,20 @@ nav:
                 - api-ref/server/index.md
                 - "API":
                       - "server.api.admin": api-ref/server/api/admin.md
+                      - "server.api.csrf_token": api-ref/server/api/csrf_token.md
                       - "server.api.dependencies": api-ref/server/api/dependencies.md
                       - "server.api.deployments": api-ref/server/api/deployments.md
                       - "server.api.flows": api-ref/server/api/flows.md
                       - "server.api.flow_runs": api-ref/server/api/flow_runs.md
                       - "server.api.flow_run_states": api-ref/server/api/flow_run_states.md
+                      - "server.api.middleware": api-ref/server/api/middleware.md
                       - "server.api.run_history": api-ref/server/api/run_history.md
                       - "server.api.saved_searches": api-ref/server/api/saved_searches.md
                       - "server.api.server": api-ref/server/api/server.md
                       - "server.api.task_runs": api-ref/server/api/task_runs.md
                       - "server.api.task_run_states": api-ref/server/api/task_run_states.md
                 - "Models":
+                      - "server.models.csrf_token": api-ref/server/models/csrf_token.md
                       - "server.models.flows": api-ref/server/models/flows.md
                       - "server.models.flow_runs": api-ref/server/models/flow_runs.md
                       - "server.models.flow_run_states": api-ref/server/models/flow_run_states.md
@@ -392,22 +412,3 @@ nav:
           - Contributing: contributing/overview.md
           - Style: contributing/style.md
           - Versioning: contributing/versioning.md
-social:
-    - icon: fontawesome/brands/slack
-      link: https://www.prefect.io/slack/
-    - icon: fontawesome/brands/discourse
-      link: https://discourse.prefect.io/
-    - icon: fontawesome/brands/youtube
-      link: https://www.youtube.com/c/PrefectIO/videos
-    - icon: fontawesome/regular/newspaper
-      link: https://prefect.io/guide/
-    - icon: fontawesome/brands/twitter
-      link: https://twitter.com/PrefectIO
-    - icon: fontawesome/brands/linkedin
-      link: https://www.linkedin.com/company/prefect/
-    - icon: fontawesome/brands/github
-      link: https://github.com/PrefectHQ/prefect
-    - icon: fontawesome/brands/docker
-      link: https://hub.docker.com/r/prefecthq/prefect/
-    - icon: fontawesome/brands/python
-      link: https://pypi.org/project/prefect/

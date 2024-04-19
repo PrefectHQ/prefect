@@ -38,7 +38,7 @@ Deployments elevate workflows from functions that you call manually to API-manag
 Attributes of a deployment include (but are not limited to):
 
 - __Flow entrypoint__: path to your flow function
-- __Schedule__ or __Trigger__: optional schedule or triggering rule for this deployment
+- __Schedule__ or __Trigger__: optional schedule or triggering rules for this deployment
 - __Tags__: optional text labels for organizing your deployments
 
 ## Create a deployment
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     serve(slow_deploy, fast_deploy)
 ```
 
-A few observations are in order:
+A few observations:
 
 - the `flow.to_deployment` interface exposes the *exact same* options as `flow.serve`; this method produces a deployment object
 - the deployments are only registered with the API once `serve(...)` is called

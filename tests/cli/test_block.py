@@ -7,7 +7,6 @@ from prefect.client import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
-    PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -199,32 +198,31 @@ def test_listing_blocks_after_saving_a_block():
     )
 
 
-def test_listing_system_block_types():
-    with temporary_settings({PREFECT_API_BLOCKS_REGISTER_ON_START: True}):
-        expected_output = (
-            "Block Types",
-            "Slug",
-            "Description",
-            "slack",
-            "date-time",
-            "docker-container",
-            "gcs",
-            "json",
-            "kubernetes-cluster-config",
-            "kubernetes-job",
-            "local-file-system",
-            "process",
-            "remote-file-system",
-            "s3",
-            "secret",
-            "slack-webhook",
-        )
+def test_listing_system_block_types(register_block_types):
+    expected_output = (
+        "Block Types",
+        "Slug",
+        "Description",
+        "slack",
+        "date-time",
+        "docker-container",
+        "gcs",
+        "json",
+        "kubernetes-cluster-config",
+        "kubernetes-job",
+        "local-file-system",
+        "process",
+        "remote-file-system",
+        "s3",
+        "secret",
+        "slack-webhook",
+    )
 
-        invoke_and_assert(
-            ["block", "type", "ls"],
-            expected_code=0,
-            expected_output_contains=expected_output,
-        )
+    invoke_and_assert(
+        ["block", "type", "ls"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
 
 
 def test_inspecting_a_block():

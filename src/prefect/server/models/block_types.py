@@ -2,6 +2,7 @@
 Functions for interacting with block type ORM objects.
 Intended for internal use by the Prefect REST API.
 """
+
 import html
 from typing import Optional
 from uuid import UUID
@@ -42,7 +43,7 @@ async def create_block_type(
         insert_values["code_example"] = html.escape(
             insert_values["code_example"], quote=False
         )
-    insert_stmt = (await db.insert(db.BlockType)).values(**insert_values)
+    insert_stmt = db.insert(db.BlockType).values(**insert_values)
     if override:
         insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=db.block_type_unique_upsert_columns,

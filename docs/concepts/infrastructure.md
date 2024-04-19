@@ -94,8 +94,8 @@ work_pool_name: default-agent-pool
 tags:
 - test
 parameters: {}
-schedule: null
-is_schedule_active: true
+schedules: []
+paused: true
 infra_overrides:
   env.EXTRA_PIP_PACKAGES: s3fs
 infrastructure:

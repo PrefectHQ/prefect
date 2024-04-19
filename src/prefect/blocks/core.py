@@ -257,9 +257,9 @@ class Block(BaseModel, ABC):
                                     type_._to_block_schema_reference_dict(),
                                 ]
                             else:
-                                refs[field.name] = (
-                                    type_._to_block_schema_reference_dict()
-                                )
+                                refs[
+                                    field.name
+                                ] = type_._to_block_schema_reference_dict()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

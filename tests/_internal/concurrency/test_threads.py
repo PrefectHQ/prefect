@@ -66,6 +66,18 @@ def test_event_loop_thread_with_on_shutdown_hooks():
     mock.assert_has_awaits(call(i) for i in range(5))
 
 
+def test_event_loop_thread_clears_shutdown_hooks_after_shutdown():
+    event_loop_thread = EventLoopThread()
+
+    event_loop_thread.start()
+    for i in range(5):
+        event_loop_thread.add_shutdown_call(Call.new(AsyncMock(), i))
+    event_loop_thread.shutdown()
+    event_loop_thread.thread.join()
+
+    assert not event_loop_thread._on_shutdown
+
+
 @pytest.mark.parametrize("thread_cls", [WorkerThread, EventLoopThread])
 @pytest.mark.parametrize("daemon", [True, False])
 def test_thread_daemon(daemon, thread_cls):

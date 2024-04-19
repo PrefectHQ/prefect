@@ -10,7 +10,7 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@706cb730a2efbc1032226af3937207223cb07e05 \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@1471e7595c14a067031600ec18e3cc8d7964e4aa\
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 """
@@ -18,32 +18,8 @@ publish = "site"
 
 # Redirects 
 
-[[redirects]]
-from = "/concepts/incidents/"
-to = "/cloud/incidents/"
-status = 301
-
-[[redirects]]
-from = "/tutorial/first-steps/"
-to = "/#prefect-quickstart"
-status = 301
-
-[[redirects]]
-from = "/collections/overview/"
-to = "/integrations/catalog/"
-status = 301
-
-[[redirects]]
-from = "/api-ref/orion/*"
-to = "/api-ref/server/:splat"
-status = 301
-
-[[redirects]]
-from = "/tutorials/*"
-to = "/tutorial/:splat"
-status = 301
-
 # redirect v1 traffic to docs-v1.prefect.io
+
 [[redirects]]
 from = "/core/*"
 to = "https://docs-v1.prefect.io/core/:splat"
@@ -64,14 +40,26 @@ from = "https://orion-docs.prefect.io/*"
 to = "https://docs.prefect.io/:splat"
 status = 301
 
+# Netlify redirect rules match on the first rule, 
+# so to have /latest/ version 
+# also redirect. So need to explicitly catch /latest/...
+# Each of the rules below for a Prefect 2 URL redirect 
+# has a counterpart further below with /latest/ prefix
+
+
 [[redirects]]
-from = "/migration_guide/"
-to = "/guides/migration-guide/"
+from = "/api-ref/orion/*"
+to = "/api-ref/server/:splat"
 status = 301
 
 [[redirects]]
-from = "https://orion-docs.prefect.io/migration_guide/"
-to = "https://docs.prefect.io/migration-guide/"
+from = "/tutorials/*"
+to = "/tutorial/:splat"
+status = 301
+
+[[redirects]]
+from = "/migration_guide/"
+to = "/guides/migration-guide/"
 status = 301
 
 [[redirects]]
@@ -200,11 +188,6 @@ to = "/cloud/connecting/"
 status = 301
 
 [[redirects]]
-from = "/cloud/cloud-local-environment/"
-to = "/cloud/connecting/"
-status = 301
-
-[[redirects]]
 from = "/ui/organizations/"
 to = "/cloud/"
 status = 301
@@ -236,7 +219,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/automations/"
-to = "/cloud/automations/"
+to = "/concepts/automations/"
 status = 301
 
 [[redirects]]
@@ -348,7 +331,7 @@ status = 301
 
 [[redirects]]
 from = "/concepts/projects/"
-to = "/concepts/deployments-ux/"
+to = "/concepts/deployments/"
 status = 301
 
 [[redirects]]
@@ -445,6 +428,425 @@ status = 301
 from = "/contributing/common-mistakes/"
 to = "/guides/troubleshooting/"
 status = 301
+
+[[redirects]]
+from = "/concepts/incidents"
+to = "/cloud/incidents"
+status = 301
+
+[[redirects]]
+from = "/tutorial/first-steps/"
+to = "/#prefect-quickstart/"
+status = 301
+
+[[redirects]]
+from = "/collections/overview/"
+to = "/integrations/catalog/"
+status = 301
+
+# Netlify redirect rules match on the first rule, 
+# so to have /latest/ version 
+# also redirect. So need to explicitly catch /latest/...
+# Each of the above rules for a Prefect 2 URL redirect 
+# is below with /latest/ prefix
+
+[[redirects]]
+from = "/latest/api-ref/orion/*"
+to = "/api-ref/server/:splat"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorials/*"
+to = "/tutorial/:splat"
+status = 301
+
+[[redirects]]
+from = "/latest/migration_guide/"
+to = "/guides/migration-guide/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/work-queues/"
+to = "/cloud/work-pools/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/work-queues/"
+to = "/concepts/work-pools/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/cloud-getting-started/"
+to = "/getting-started/quickstart/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/overview/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/latest/api-ref/overview"
+to = "/api-ref/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/overview/"
+to = "/concepts/"
+status = 301
+
+[[redirects]]
+from = "/latest/collections/catalog/"
+to = "/integrations/"
+status = 301
+
+[[redirects]]
+from = "/latest/collections/usage/"
+to = "/integrations/usage/"
+status = 301
+
+[[redirects]]
+from = "/latest/collections/contribute/"
+to = "/integrations/contribute/"
+status = 301
+
+[[redirects]]
+from = "/latest/migration-guide/"
+to = "/guides/migration-guide/"
+status = 301
+
+[[redirects]]
+from = "/latest/recipes/contribute-recipes/"
+to = "/recipes/recipes/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorials/docker/"
+to = "/guides/deployment/docker/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorials/cloud-agent/"
+to = "/guides/deployment/aci/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorials/testing/"
+to = "/guides/testing/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorials/dask-ray-task-runners/"
+to = "/guides/dask-ray-task-runners/"
+status = 301
+
+[[redirects]]
+from = "/latest/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/filesystems/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorials/flow-task/"
+to = "/tutorials/first-steps/"
+status = 301
+
+[[redirects]]
+from = "/latest/integrations/catalog/"
+to = "/integrations/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/flows-and-tasks/"
+to = "/concepts/flows/"
+status = 301
+
+[[redirects]]
+from = "/latest/getting-started/overview/"
+to = "/"
+status = 301
+ 
+[[redirects]]
+from = "/latest/ui/index/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/cloud/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/cloud-quickstart/" 
+to = "/getting-started/quickstart/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/cloud-api-keys/"
+to = "/cloud/users/api-keys/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/cloud-local-environment/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/organizations/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/workspaces/"
+to = "/cloud/workspaces/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/service-accounts/"
+to = "/cloud/users/service-accounts/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/roles/"
+to = "/cloud/users/roles/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/sso/"
+to = "/cloud/users/sso/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/audit-log/"
+to = "/cloud/users/audit-log/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/automations/"
+to = "/concepts/automations/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/events/"
+to = "/cloud/events/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/troubleshooting/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/rate-limits/"
+to = "/cloud/rate-limits/"
+status = 301
+
+[[redirects]]
+from = "/latest/cloud/overview/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/latest/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/"
+status = 301
+
+[[redirects]]
+from = "/latest/api-ref/prefect/deployments/"
+to = "/api-ref/prefect/deployments/deployments/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorial/deployments-ux/"
+to = "/tutorial/deployments/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/blocks/"
+to = "/concepts/blocks/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+
+[[redirects]]
+from = "/latest/concepts/server/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/latest/concepts/database/"
+to = "/host/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/notifications/"
+to = "/host/#notifications"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/notifications/"
+to = "/host/#notifications"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/task-concurrency"
+to = "/concepts/tasks/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/flow-runs"
+to = "/concepts/flows/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/deployments"
+to = "/concepts/deployments/"
+status = 301
+
+[[redirects]]
+from = "/latest/ui/cloud-quickstart/"
+to = "/getting-started/quickstart/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorials/developing-a-new-worker-type/"
+to = "/guides/deployment/developing-a-new-worker-type/"
+status = 301
+
+[[redirects]]
+from = "/latest/api-ref/rest-api-overview/"
+to = "/api-ref/rest-api/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/projects/"
+to = "/concepts/deployments/"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorial/projects/"
+to = "/tutorial/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/latest/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/latest/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/latest/guides/cloud-run-push-work-pools/"
+to = "/guides/deployment/push-work-pools/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/logs/"
+to = "/guides/logs/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/runtime-context/"
+to = "/guides/runtime-context/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/settings/"
+to = "/guides/settings/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/variables/"
+to = "/guides/variables/"
+status = 301
+
+[[redirects]]
+from = "/latest/cloud/webhooks/"
+to = "/guides/webhooks/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/events/"
+to = "/cloud/events/"
+status = 301
+
+[[redirects]]
+from = "/latest/cloud/automations/"
+to = "/concepts/automations/"
+status = 301
+
+[[redirects]]
+from = "/latest/host/"
+to = "/guides/host/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/deployments-ux/"
+to = "/concepts/deployments/"
+status = 301
+
+[[redirects]]
+from = "/latest/guides/deployment/helm-worker/"
+to = "/guides/deployment/kubernetes/"
+status = 301
+
+[[redirects]]
+from = "/latest/guides/deployment/docker/"
+to = "/guides/docker/"
+status = 301
+
+[[redirects]]
+from = "/latest/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
+status = 301
+
+[[redirects]]
+from = "/latest/cloud/organizations/*"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/latest/guides/deployment/aci/"
+to = "/guides/deployment/serverless-workers/"
+status = 301
+
+[[redirects]]
+from = "/latest/contributing/common-mistakes/"
+to = "/guides/troubleshooting/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/incidents"
+to = "/cloud/incidents"
+status = 301
+
+[[redirects]]
+from = "/latest/tutorial/first-steps/"
+to = "/#prefect-quickstart/"
+status = 301
+
+[[redirects]]
+from = "/latest/collections/overview/"
+to = "/integrations/catalog/"
+status = 301
+
 
 
 [[headers]]

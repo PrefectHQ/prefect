@@ -32,7 +32,7 @@ When a flow runs, the execution environment needs access to its code.
 Flow code is not stored in a Prefect server database instance or Prefect Cloud. 
 When deploying a flow, you have several flow code storage options.
 
-This guide discusses storage options with a focus on deployments created with a the interactive CLI experience or a `prefect.yaml` file. 
+This guide discusses storage options with a focus on deployments created with the interactive CLI experience or a `prefect.yaml` file. 
 If you'd like to create your deployments using Python code, see the discussion of flow code storage on the `.deploy` tab of [Deploying Flows to Work pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments).
 
 ## Option 1: Local storage
@@ -317,7 +317,7 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
     1. Create a GCP Credentials block via code or the Prefect UI. Enter a name for the block and paste the entire contents of the JSON key file into the *Service Account Info* field.
     1. Reference the block as shown in the push and pull steps above. 
 
-Another option for authentication is for the [worker](/concepts/work-pools/#worker-overview) to have access to the the storage location at runtime via SSH keys.
+Another option for authentication is for the [worker](/concepts/work-pools/#worker-overview) to have access to the storage location at runtime via SSH keys.
 
 Alternatively, you can inject environment variables into your deployment like this example that uses an environment variable named `CUSTOM_FOLDER`:
 
@@ -336,6 +336,7 @@ Alternatively, you can inject environment variables into your deployment like th
 By default, Prefect uploads all files in the current folder to the configured storage location when you create a deployment.
 
 When using a git repository, Docker image, or cloud-provider storage location, you may want to exclude certain files or directories.
+
 - If you are familiar with git you are likely familiar with the [`.gitignore`](https://git-scm.com/docs/gitignore) file. 
 - If you are familiar with Docker you are likely familiar with the [`.dockerignore`](https://docs.docker.com/engine/reference/builder/#dockerignore-file) file. 
 - For cloud-provider storage the `.prefectignore` file serves the same purpose and follows a similar syntax as those files. So an entry of `*.pyc` will exclude all `.pyc` files from upload.

@@ -34,7 +34,7 @@ async def create_saved_search(
     """
 
     insert_stmt = (
-        (await db.insert(db.SavedSearch))
+        db.insert(db.SavedSearch)
         .values(**saved_search.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
             index_elements=db.saved_search_unique_upsert_columns,

@@ -16,6 +16,7 @@ WARNING: Prefect settings cannot be modified in async fixtures.
     fixture, a sync fixture must be defined that consumes the async fixture to perform
     the settings context change. See `test_database_connection_url` for example.
 """
+
 import asyncio
 import logging
 import pathlib
@@ -23,7 +24,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Generator, Optional
+from typing import AsyncGenerator, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
@@ -61,6 +62,8 @@ from prefect.settings import (
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
+    PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_UNIT_TEST_LOOP_DEBUG,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
@@ -75,9 +78,12 @@ from .fixtures.api import *
 from .fixtures.client import *
 from .fixtures.collections_registry import *
 from .fixtures.database import *
+from .fixtures.deprecation import *
 from .fixtures.docker import *
+from .fixtures.events import *
 from .fixtures.logging import *
 from .fixtures.storage import *
+from .fixtures.time import *
 
 
 def pytest_addoption(parser):
@@ -121,6 +127,9 @@ def pytest_addoption(parser):
     )
 
 
+EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = ["tests/utilities", "tests/agent"]
+
+
 def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
@@ -138,16 +147,17 @@ def pytest_collection_modifyitems(session, config, items):
                 )
 
     exclude_services = set(config.getoption("--exclude-service"))
-    for item in items:
-        item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
-        excluded_services = item_services.intersection(exclude_services)
-        if excluded_services:
-            item.add_marker(
-                pytest.mark.skip(
-                    "Excluding tests for service(s): "
-                    f"{', '.join(repr(s) for s in excluded_services)}."
+    if exclude_services:
+        for item in items:
+            item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
+            excluded_services = item_services.intersection(exclude_services)
+            if excluded_services:
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Excluding tests for service(s): "
+                        f"{', '.join(repr(s) for s in excluded_services)}."
+                    )
                 )
-            )
 
     only_run_service_tests = config.getoption("--only-services")
     if only_run_service_tests:
@@ -186,6 +196,14 @@ def pytest_collection_modifyitems(session, config, items):
                 )
         return
 
+    for item in items:
+        # Check if the test file is not in the excluded list
+        if not any(
+            excluded in item.nodeid for excluded in EXCLUDE_FROM_CLEAR_DB_AUTO_MARK
+        ):
+            # Apply the custom mark to clear the database prior to the test
+            item.add_marker(pytest.mark.clear_db)
+
 
 @pytest.fixture(scope="session")
 def event_loop(request):
@@ -214,7 +232,10 @@ def event_loop(request):
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
-    loop.set_debug(True)
+
+    if PREFECT_UNIT_TEST_LOOP_DEBUG.value():
+        loop.set_debug(True)
+
     loop.slow_callback_duration = 0.25
 
     try:
@@ -359,7 +380,7 @@ def safety_check_settings():
 @pytest.fixture(scope="session", autouse=True)
 async def generate_test_database_connection_url(
     worker_id: str,
-) -> Generator[Optional[str], None, None]:
+) -> AsyncGenerator[Optional[str], None]:
     """Prepares an alternative test database URL, if necessary, for the current
     connection URL.
 
@@ -496,6 +517,12 @@ def caplog(caplog):
     yield caplog
 
 
+@pytest.fixture(autouse=True)
+def disable_csrf_protection():
+    with temporary_settings({PREFECT_SERVER_CSRF_PROTECTION_ENABLED: False}):
+        yield
+
+
 @pytest.fixture
 def enable_workers():
     with temporary_settings(
@@ -537,3 +564,25 @@ def disable_enhanced_cancellation():
 @pytest.fixture
 def start_of_test() -> pendulum.DateTime:
     return pendulum.now("UTC")
+
+
+@pytest.fixture(autouse=True)
+def reset_sys_modules():
+    import importlib
+
+    original_modules = sys.modules.copy()
+
+    # Workaround for weird behavior on Linux where some of our "expected
+    # failure" tests succeed because '.' is in the path.
+    if sys.platform == "linux" and "." in sys.path:
+        sys.path.remove(".")
+
+    yield
+
+    # Delete all of the module objects that were introduced so they are not
+    # cached.
+    for module in set(sys.modules.keys()):
+        if module not in original_modules:
+            del sys.modules[module]
+
+    importlib.invalidate_caches()

@@ -2,7 +2,7 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Hashable, List, Tuple, Union
+from typing import Dict, Hashable, List, Tuple, Union, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -12,11 +12,20 @@ from sqlalchemy.orm import (
     as_declarative,
     declarative_mixin,
     declared_attr,
+    synonym,
 )
+from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.functions import coalesce
 
 import prefect
 import prefect.server.schemas as schemas
+from prefect.server.events.actions import ActionTypes
+from prefect.server.events.schemas.automations import (
+    AutomationSort,
+    Firing,
+    TriggerTypes,
+)
+from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.database import (
     JSON,
     UUID,
@@ -435,7 +444,8 @@ class ORMRun:
             )
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls).label("estimated_run_time")
+            .correlate(cls)
+            .label("estimated_run_time")
         )
 
     @hybrid_property
@@ -492,6 +502,7 @@ class ORMFlowRun(ORMRun):
     deployment_id = sa.Column(UUID(), nullable=True)
     work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
+    deployment_version = sa.Column(sa.String, index=True)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = sa.Column(sa.String)
     context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -510,6 +521,7 @@ class ORMFlowRun(ORMRun):
     )
 
     infrastructure_pid = sa.Column(sa.String)
+    job_variables = sa.Column(JSON, server_default="{}", default=dict, nullable=True)
 
     @declared_attr
     def infrastructure_document_id(cls):
@@ -834,6 +846,21 @@ class ORMTaskRun(ORMRun):
 
 
 @declarative_mixin
+class ORMDeploymentSchedule:
+    @declared_attr
+    def deployment_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("deployment.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+
+    schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES), nullable=False)
+    active = sa.Column(sa.Boolean, nullable=False, default=True)
+
+
+@declarative_mixin
 class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
@@ -849,6 +876,10 @@ class ORMDeployment:
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)
     entrypoint = sa.Column(sa.String, nullable=True)
+
+    @declared_attr
+    def job_variables(self):
+        return synonym("infra_overrides")
 
     @declared_attr
     def flow_id(cls):
@@ -872,6 +903,18 @@ class ORMDeployment:
     is_schedule_active = sa.Column(
         sa.Boolean, nullable=False, server_default="1", default=True
     )
+    paused = sa.Column(
+        sa.Boolean, nullable=False, server_default="0", default=False, index=True
+    )
+
+    @declared_attr
+    def schedules(cls):
+        return sa.orm.relationship(
+            "DeploymentSchedule",
+            lazy="selectin",
+            order_by=sa.desc(sa.text("updated")),
+        )
+
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)
@@ -1354,6 +1397,218 @@ class ORMFlowRunInput:
     __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
 
 
+@declarative_mixin
+class ORMCsrfToken:
+    token = sa.Column(sa.String, nullable=False)
+    client = sa.Column(sa.String, nullable=False, unique=True)
+    expiration = sa.Column(Timestamp(), nullable=False)
+
+
+@declarative_mixin
+class ORMAutomation:
+    name = sa.Column(sa.String, nullable=False)
+    description = sa.Column(sa.String, nullable=False, default="")
+
+    enabled = sa.Column(sa.Boolean, nullable=False, server_default="1", default=True)
+
+    trigger = sa.Column(Pydantic(TriggerTypes), nullable=False)
+
+    actions = sa.Column(Pydantic(List[ActionTypes]), nullable=False)
+    actions_on_trigger = sa.Column(
+        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+    )
+    actions_on_resolve = sa.Column(
+        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+    )
+
+    @declared_attr
+    def related_resources(cls):
+        return sa.orm.relationship(
+            "AutomationRelatedResource", back_populates="automation", lazy="raise"
+        )
+
+    @classmethod
+    def sort_expression(cls, value: AutomationSort) -> ColumnElement:
+        """Return an expression used to sort Automations"""
+        sort_mapping = {
+            AutomationSort.CREATED_DESC: cls.created.desc(),
+            AutomationSort.UPDATED_DESC: cls.updated.desc(),
+            AutomationSort.NAME_ASC: cast(sa.Column, cls.name).asc(),
+            AutomationSort.NAME_DESC: cast(sa.Column, cls.name).desc(),
+        }
+        return sort_mapping[value]
+
+
+@declarative_mixin
+class ORMAutomationBucket:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_automation_bucket__automation_id__trigger_id__bucketing_key",
+                "automation_id",
+                "trigger_id",
+                "bucketing_key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_automation_bucket__automation_id__end",
+                "automation_id",
+                "end",
+            ),
+        )
+
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
+
+    trigger_id = sa.Column(UUID, nullable=False)
+
+    bucketing_key = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    last_event = sa.Column(Pydantic(ReceivedEvent), nullable=True)
+
+    start = sa.Column(Timestamp(), nullable=False)
+    end = sa.Column(Timestamp(), nullable=False)
+
+    count = sa.Column(sa.Integer, nullable=False)
+
+    last_operation = sa.Column(sa.String, nullable=True)
+
+    triggered_at = sa.Column(Timestamp(), nullable=True)
+
+
+@declarative_mixin
+class ORMAutomationRelatedResource:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_automation_related_resource__automation_id__resource_id",
+                "automation_id",
+                "resource_id",
+                unique=True,
+            ),
+        )
+
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
+
+    resource_id = sa.Column(sa.String, index=True)
+    automation_owned_by_resource = sa.Column(
+        sa.Boolean, nullable=False, default=False, server_default="0"
+    )
+
+    @declared_attr
+    def automation(cls):
+        return sa.orm.relationship(
+            "Automation", back_populates="related_resources", lazy="raise"
+        )
+
+
+@declarative_mixin
+class ORMCompositeTriggerChildFiring:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_composite_trigger_child_firing__a_id__pt_id__ct__id",
+                "automation_id",
+                "parent_trigger_id",
+                "child_trigger_id",
+                unique=True,
+            ),
+        )
+
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
+
+    parent_trigger_id = sa.Column(UUID(), nullable=False)
+
+    child_trigger_id = sa.Column(UUID(), nullable=False)
+    child_firing_id = sa.Column(UUID(), nullable=False)
+    child_fired_at = sa.Column(Timestamp())
+    child_firing = sa.Column(Pydantic(Firing), nullable=False)
+
+
+@declarative_mixin
+class ORMAutomationEventFollower:
+    leader_event_id = sa.Column(UUID(), nullable=False, index=True)
+    follower_event_id = sa.Column(UUID(), nullable=False, unique=True)
+    received = sa.Column(Timestamp(), nullable=False, index=True)
+    follower = sa.Column(Pydantic(ReceivedEvent), nullable=False)
+
+
+@declarative_mixin
+class ORMEvent:
+    @declared_attr
+    def __tablename__(cls):
+        return "events"
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_events__related_resource_ids", "related_resource_ids"),
+            sa.Index("ix_events__occurred", "occurred"),
+            sa.Index("ix_events__event__id", "event", "id"),
+            sa.Index(
+                "ix_events__event_resource_id_occurred",
+                "event",
+                "resource_id",
+                "occurred",
+            ),
+            sa.Index("ix_events__occurred_id", "occurred", "id"),
+            sa.Index("ix_events__event_occurred_id", "event", "occurred", "id"),
+            sa.Index(
+                "ix_events__event_related_occurred", "event", "related", "occurred"
+            ),
+        )
+
+    occurred = sa.Column(Timestamp(), nullable=False)
+    event = sa.Column(sa.Text(), nullable=False)
+    resource_id = sa.Column(sa.Text(), nullable=False)
+    resource = sa.Column(JSON(), nullable=False)
+    related_resource_ids = sa.Column(
+        JSON(), server_default="[]", default=list, nullable=False
+    )
+    related = sa.Column(JSON(), server_default="[]", default=list, nullable=False)
+    payload = sa.Column(JSON(), nullable=False)
+    received = sa.Column(Timestamp(), nullable=False)
+    recorded = sa.Column(Timestamp(), nullable=False)
+    follows = sa.Column(UUID(), nullable=True)
+
+
+@declarative_mixin
+class ORMEventResource:
+    @declared_attr
+    def __tablename__(cls):
+        return "event_resources"
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_event_resources__resource_id__occurred",
+                "resource_id",
+                "occurred",
+            ),
+        )
+
+    occurred = sa.Column("occurred", Timestamp(), nullable=False)
+    resource_id = sa.Column("resource_id", sa.Text(), nullable=False)
+    resource_role = sa.Column("resource_role", sa.Text(), nullable=False)
+    resource = sa.Column("resource", sa.JSON(), nullable=False)
+    event_id = sa.Column("event_id", UUID(), nullable=False)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1398,6 +1653,7 @@ class BaseORMConfiguration(ABC):
         artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
+        deployment_schedule_mixin=ORMDeploymentSchedule,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
@@ -1413,7 +1669,15 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        csrf_token_mixin=ORMCsrfToken,
         flow_run_input_mixin=ORMFlowRunInput,
+        automation_mixin=ORMAutomation,
+        automation_bucket_mixin=ORMAutomationBucket,
+        automation_related_resource_mixin=ORMAutomationRelatedResource,
+        composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
+        event_follower_mixin=ORMAutomationEventFollower,
+        event_mixin=ORMEvent,
+        event_resource_mixin=ORMEventResource,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1452,6 +1716,7 @@ class BaseORMConfiguration(ABC):
             artifact_collection_mixin=artifact_collection_mixin,
             task_run_state_cache_mixin=task_run_state_cache_mixin,
             deployment_mixin=deployment_mixin,
+            deployment_schedule_mixin=deployment_schedule_mixin,
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
@@ -1468,6 +1733,14 @@ class BaseORMConfiguration(ABC):
             configuration_mixin=configuration_mixin,
             variable_mixin=variable_mixin,
             flow_run_input_mixin=flow_run_input_mixin,
+            csrf_token_mixin=csrf_token_mixin,
+            automation_mixin=automation_mixin,
+            automation_bucket_mixin=automation_bucket_mixin,
+            automation_related_resource_mixin=automation_related_resource_mixin,
+            composite_trigger_child_firing_mixin=composite_trigger_child_firing_mixin,
+            event_follower_mixin=event_follower_mixin,
+            event_mixin=event_mixin,
+            event_resource_mixin=event_resource_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1500,6 +1773,7 @@ class BaseORMConfiguration(ABC):
         artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
+        deployment_schedule_mixin=ORMDeploymentSchedule,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
@@ -1517,7 +1791,15 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
         variable_mixin=ORMVariable,
+        csrf_token_mixin=ORMCsrfToken,
         flow_run_input_mixin=ORMFlowRunInput,
+        automation_mixin=ORMAutomation,
+        automation_bucket_mixin=ORMAutomationBucket,
+        automation_related_resource_mixin=ORMAutomationRelatedResource,
+        composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
+        event_follower_mixin=ORMAutomationEventFollower,
+        event_mixin=ORMEvent,
+        event_resource_mixin=ORMEventResource,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1549,6 +1831,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class Deployment(deployment_mixin, self.Base):
+            pass
+
+        class DeploymentSchedule(deployment_schedule_mixin, self.Base):
             pass
 
         class SavedSearch(saved_search_mixin, self.Base):
@@ -1590,6 +1875,9 @@ class BaseORMConfiguration(ABC):
         class BlockDocumentReference(block_document_reference_mixin, self.Base):
             pass
 
+        class CsrfToken(csrf_token_mixin, self.Base):
+            pass
+
         class FlowRunNotificationPolicy(flow_run_notification_policy_mixin, self.Base):
             pass
 
@@ -1605,6 +1893,29 @@ class BaseORMConfiguration(ABC):
         class FlowRunInput(flow_run_input_mixin, self.Base):
             pass
 
+        class Automation(automation_mixin, self.Base):
+            pass
+
+        class AutomationBucket(automation_bucket_mixin, self.Base):
+            pass
+
+        class AutomationRelatedResource(automation_related_resource_mixin, self.Base):
+            pass
+
+        class CompositeTriggerChildFiring(
+            composite_trigger_child_firing_mixin, self.Base
+        ):
+            pass
+
+        class AutomationEventFollower(event_follower_mixin, self.Base):
+            pass
+
+        class Event(event_mixin, self.Base):
+            pass
+
+        class EventResource(event_resource_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1614,6 +1925,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRun = FlowRun
         self.TaskRun = TaskRun
         self.Deployment = Deployment
+        self.DeploymentSchedule = DeploymentSchedule
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
@@ -1632,6 +1944,14 @@ class BaseORMConfiguration(ABC):
         self.Configuration = Configuration
         self.Variable = Variable
         self.FlowRunInput = FlowRunInput
+        self.CsrfToken = CsrfToken
+        self.Automation = Automation
+        self.AutomationBucket = AutomationBucket
+        self.AutomationRelatedResource = AutomationRelatedResource
+        self.CompositeTriggerChildFiring = CompositeTriggerChildFiring
+        self.AutomationEventFollower = AutomationEventFollower
+        self.Event = Event
+        self.EventResource = EventResource
 
     @property
     @abstractmethod

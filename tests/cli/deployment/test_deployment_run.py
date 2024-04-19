@@ -1,9 +1,16 @@
+import uuid
+from functools import partial
+from unittest.mock import ANY, AsyncMock
+
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
 from pendulum.duration import Duration
 
 import prefect
+from prefect.client.schemas.objects import FlowRun
+from prefect.exceptions import FlowRunWaitTimeout
+from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -19,6 +26,14 @@ def frozen_now(monkeypatch):
     now = pendulum.now("UTC")
     monkeypatch.setattr("pendulum.now", lambda *_: now)
     yield now
+
+
+def completed_flow_run():
+    return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Completed())
+
+
+def failed_flow_run():
+    return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Failed())
 
 
 async def test_run_deployment_only_creates_one_flow_run(
@@ -422,3 +437,105 @@ async def test_print_parameter_validation_error(deployment_with_parameter_schema
             "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
         ),
     )
+
+
+@pytest.mark.parametrize(
+    "test_case, mock_wait_for_flow_run, timeout, expected_output, expected_code",
+    [
+        (
+            "pass",
+            AsyncMock(return_value=completed_flow_run()),
+            None,
+            "Flow run finished successfully",
+            0,
+        ),
+        (
+            "fail",
+            AsyncMock(return_value=failed_flow_run()),
+            None,
+            "Flow run finished in state 'Failed'",
+            1,
+        ),
+        (
+            "timeout",
+            AsyncMock(side_effect=FlowRunWaitTimeout("Timeout occurred")),
+            10,
+            "Timeout occurred",
+            1,
+        ),
+    ],
+    ids=["watch-pass", "watch-fail", "watch-timeout"],
+)
+async def test_run_deployment_watch(
+    monkeypatch,
+    deployment,
+    deployment_name,
+    prefect_client,
+    test_case,
+    mock_wait_for_flow_run,
+    timeout,
+    expected_output,
+    expected_code,
+):
+    monkeypatch.setattr(
+        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
+    )
+
+    deployment_run_with_watch_command = partial(
+        invoke_and_assert,
+        command=["deployment", "run", deployment_name, "--watch"]
+        + (["--watch-timeout", str(timeout)] if timeout else [])
+        + ["--tag", "cool-tag"],
+        expected_output_contains=expected_output,
+        expected_code=expected_code,
+    )
+
+    if test_case == "timeout":
+        with pytest.raises(FlowRunWaitTimeout):
+            await run_sync_in_worker_thread(deployment_run_with_watch_command)
+    else:
+        await run_sync_in_worker_thread(deployment_run_with_watch_command)
+
+    assert len(flow_runs := await prefect_client.read_flow_runs()) == 1
+    flow_run = flow_runs[0]
+    assert flow_run.deployment_id == deployment.id
+
+    assert flow_run.state.is_scheduled()
+
+    assert set(flow_run.tags) == set(["cool-tag", "test"])
+    mock_wait_for_flow_run.assert_awaited_once_with(
+        flow_run.id,
+        timeout=timeout,
+        poll_interval=ANY,
+        log_states=ANY,
+    )
+
+
+@pytest.mark.parametrize("arg_name", ["-jv", "--job-variable"])
+async def test_deployment_runs_with_job_variables(
+    deployment_name: str,
+    prefect_client: prefect.PrefectClient,
+    arg_name: str,
+):
+    """
+    Verify that job variables created on the CLI are passed onto the flow run.
+    """
+    job_vars = {"foo": "bar", "1": 2, "baz": "qux"}
+
+    # assemble the command string from the job_vars
+    job_vars_command = ""
+    for k, v in job_vars.items():
+        job_vars_command += f"{arg_name} {k}={v} "
+
+    command = ["deployment", "run", deployment_name]
+    command.extend(job_vars_command.split())
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=command,
+        expected_output_contains=f"Job Variables: {job_vars}",
+    )
+
+    flow_runs = await prefect_client.read_flow_runs()
+    this_run = flow_runs[0]
+    assert this_run.job_variables == job_vars

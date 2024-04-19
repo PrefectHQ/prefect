@@ -1,18 +1,17 @@
 repos:
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.0.262"
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: "v0.2.1"
     hooks:
       - id: ruff
         language_version: python3
         args: [--fix, --exit-non-zero-on-fix, --show-fixes]
-  - repo: https://github.com/psf/black
-    rev: 23.1.0
-    hooks:
-      - id: black
-        language_version: python3
-        args: ['--preview']
+      - id: ruff-format
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.5
+    rev: v2.2.6
     hooks:
-    - id: codespell
-      exclude: package-lock.json|_vendor/.*
+      - id: codespell
+        exclude: package-lock.json|_vendor/.*
+  - repo: https://github.com/netromdk/vermin
+    rev: v1.6.0
+    hooks:
+      - id: vermin

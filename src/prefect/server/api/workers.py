@@ -1,6 +1,7 @@
 """
 Routes for interacting with work queue objects.
 """
+
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
@@ -152,7 +153,7 @@ async def create_work_pool(
     try:
         async with db.session_context(begin_transaction=True) as session:
             model = await models.workers.create_work_pool(
-                session=session, work_pool=work_pool, db=db
+                session=session, work_pool=work_pool
             )
             return await schemas.responses.WorkPoolResponse.from_orm(model, session)
 
@@ -178,7 +179,7 @@ async def read_work_pool(
             session=session, work_pool_name=work_pool_name
         )
         orm_work_pool = await models.workers.read_work_pool(
-            session=session, work_pool_id=work_pool_id, db=db
+            session=session, work_pool_id=work_pool_id
         )
         return await schemas.responses.WorkPoolResponse.from_orm(orm_work_pool, session)
 
@@ -196,7 +197,6 @@ async def read_work_pools(
     """
     async with db.session_context() as session:
         orm_work_pools = await models.workers.read_work_pools(
-            db=db,
             session=session,
             work_pool_filter=work_pools,
             offset=offset,
@@ -254,7 +254,6 @@ async def update_work_pool(
             session=session,
             work_pool_id=work_pool_id,
             work_pool=work_pool,
-            db=db,
         )
 
 
@@ -283,7 +282,7 @@ async def delete_work_pool(
         )
 
         await models.workers.delete_work_pool(
-            session=session, work_pool_id=work_pool_id, db=db
+            session=session, work_pool_id=work_pool_id
         )
 
 
@@ -327,7 +326,6 @@ async def get_scheduled_flow_runs(
 
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
-            db=db,
             work_pool_ids=[work_pool_id],
             work_queue_ids=work_queue_ids,
             scheduled_before=scheduled_before,
@@ -413,7 +411,6 @@ async def create_work_queue(
                 session=session,
                 work_pool_id=work_pool_id,
                 work_queue=work_queue,
-                db=db,
             )
     except sa.exc.IntegrityError:
         raise HTTPException(
@@ -448,7 +445,7 @@ async def read_work_queue(
         )
 
         model = await models.workers.read_work_queue(
-            session=session, work_queue_id=work_queue_id, db=db
+            session=session, work_queue_id=work_queue_id
         )
 
     return schemas.responses.WorkQueueResponse.from_orm(model)
@@ -477,7 +474,6 @@ async def read_work_queues(
             work_queue_filter=work_queues,
             limit=limit,
             offset=offset,
-            db=db,
         )
 
     return [schemas.responses.WorkQueueResponse.from_orm(wq) for wq in wqs]
@@ -508,7 +504,6 @@ async def update_work_queue(
             session=session,
             work_queue_id=work_queue_id,
             work_queue=work_queue,
-            db=db,
         )
 
 
@@ -535,7 +530,7 @@ async def delete_work_queue(
         )
 
         await models.workers.delete_work_queue(
-            session=session, work_queue_id=work_queue_id, db=db
+            session=session, work_queue_id=work_queue_id
         )
 
 
@@ -571,7 +566,6 @@ async def worker_heartbeat(
             work_pool_id=work_pool_id,
             worker_name=name,
             heartbeat_interval_seconds=heartbeat_interval_seconds,
-            db=db,
         )
 
 
@@ -597,5 +591,32 @@ async def read_workers(
             worker_filter=workers,
             limit=limit,
             offset=offset,
-            db=db,
         )
+
+
+@router.delete(
+    "/{work_pool_name}/workers/{name}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_worker(
+    work_pool_name: str = Path(..., description="The work pool name"),
+    worker_name: str = Path(
+        ..., description="The work pool's worker name", alias="name"
+    ),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    """
+    Delete a work pool's worker
+    """
+
+    async with db.session_context(begin_transaction=True) as session:
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
+        )
+        deleted = await models.workers.delete_worker(
+            session=session, work_pool_id=work_pool_id, worker_name=worker_name
+        )
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Worker not found."
+            )

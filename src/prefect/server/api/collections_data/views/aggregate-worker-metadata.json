@@ -122,7 +122,8 @@
           "auto_deregister_task_definition": "{{ auto_deregister_task_definition }}",
           "vpc_id": "{{ vpc_id }}",
           "container_name": "{{ container_name }}",
-          "cluster": "{{ cluster }}"
+          "cluster": "{{ cluster }}",
+          "match_latest_revision_in_family": "{{ match_latest_revision_in_family }}"
         },
         "variables": {
           "description": "Variables for templating an ECS job.",
@@ -263,6 +264,12 @@
             "auto_deregister_task_definition": {
               "title": "Auto Deregister Task Definition",
               "description": "If enabled, any task definitions that are created by this block will be deregistered. Existing task definitions linked by ARN will never be deregistered. Deregistering a task definition does not remove it from your AWS account, instead it will be marked as INACTIVE.",
+              "default": false,
+              "type": "boolean"
+            },
+            "match_latest_revision_in_family": {
+              "title": "Match Latest Revision In Family",
+              "description": "If enabled, the most recent active revision in the task definition family will be compared against the desired ECS task configuration. If they are equal, the existing task definition will be used instead of registering a new one. If no family is specified the default family \"prefect\" will be used.",
               "default": false,
               "type": "boolean"
             }
@@ -905,8 +912,7 @@
             "metadata": {
               "name": "{{ name }}",
               "annotations": {
-                "run.googleapis.com/launch-stage": "BETA",
-                "run.googleapis.com/vpc-access-connector": "{{ vpc_connector_name }}"
+                "run.googleapis.com/launch-stage": "BETA"
               }
             },
             "spec": {
@@ -933,6 +939,11 @@
                       "timeoutSeconds": "{{ timeout }}",
                       "serviceAccountName": "{{ service_account_name }}"
                     }
+                  }
+                },
+                "metadata": {
+                  "annotations": {
+                    "run.googleapis.com/vpc-access-connector": "{{ vpc_connector_name }}"
                   }
                 }
               }
@@ -1086,8 +1097,10 @@
             "launchStage": "{{ launch_stage }}",
             "template": {
               "template": {
+                "serviceAccount": "{{ service_account_name }}",
                 "maxRetries": "{{ max_retries }}",
                 "timeout": "{{ timeout }}",
+                "vpcAccess": "{{ vpc_connector_name }}",
                 "containers": [
                   {
                     "env": [],
@@ -1221,6 +1234,12 @@
             "vpc_connector_name": {
               "title": "VPC Connector Name",
               "description": "The name of the VPC connector to use for the Cloud Run job.",
+              "type": "string"
+            },
+            "service_account_name": {
+              "title": "Service Account Name",
+              "description": "The name of the service account to use for the task execution of Cloud Run Job. By default Cloud Run jobs run as the default Compute Engine Service Account.",
+              "example": "service-account@example.iam.gserviceaccount.com",
               "type": "string"
             }
           },

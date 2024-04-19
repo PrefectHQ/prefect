@@ -1,6 +1,7 @@
 """
 Base `prefect` command-line application
 """
+
 import asyncio
 import platform
 import sys
@@ -8,7 +9,6 @@ import sys
 import pendulum
 import rich.console
 import typer
-import typer.core
 from rich.theme import Theme
 
 import prefect

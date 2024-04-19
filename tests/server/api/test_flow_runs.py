@@ -16,7 +16,7 @@ else:
 
 import pytest
 import sqlalchemy as sa
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
@@ -48,6 +48,24 @@ class TestCreateFlowRun:
             session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.flow_id == flow.id
+
+    async def test_create_flow_run_witout_job_vars_defaults_to_empty(
+        self, flow, client, session
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id,
+                name="",
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["job_variables"] == {}
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=response.json()["id"]
+        )
+        assert flow_run.job_variables == {}
 
     async def test_create_flow_run_with_infrastructure_document_id(
         self, flow, client, infrastructure_document_id
@@ -235,6 +253,132 @@ class TestUpdateFlowRun:
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
 
+    async def test_update_flow_run_with_job_vars_but_no_state(
+        self, flow, session, client
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            "Flow run state is required to update job variables but none exists"
+            in response.json()["detail"]
+        )
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            schemas.states.Pending(),
+            schemas.states.Running(),
+            schemas.states.Failed(),
+            schemas.states.Cancelled(),
+        ],
+    )
+    async def test_update_flow_run_with_job_vars_wrong_state(
+        self, flow, session, client, state
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=state,
+            ),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            f"Job variables for a flow run in state {state.type.name} cannot be updated"
+            in response.json()["detail"]
+        )
+
+    async def test_update_flow_run_with_job_vars_no_deployment(
+        self, flow, session, client
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC").add(days=1)
+                ),
+            ),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            "A deployment for the flow run could not be found"
+            in response.json()["detail"]
+        )
+
+    async def test_update_flow_run_with_job_vars_deployment_and_scheduled_state(
+        self, flow, session, client
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                manifest_path="file.json",
+                flow_id=flow.id,
+                parameters={"foo": "bar"},
+                tags=["foo", "bar"],
+            ),
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC").add(days=1)
+                ),
+                deployment_id=deployment.id,
+            ),
+        )
+        await session.commit()
+
+        job_vars = {"key": "value"}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.get(f"flow_runs/{flow_run.id}")
+        updated_flow_run = pydantic.parse_obj_as(
+            schemas.responses.FlowRunResponse, response.json()
+        )
+        assert updated_flow_run.job_variables == job_vars
+
     async def test_update_flow_run_does_not_update_if_fields_not_set(
         self, flow, session, client
     ):
@@ -271,6 +415,31 @@ class TestReadFlowRun:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(flow_run.id)
         assert response.json()["flow_id"] == str(flow.id)
+        assert response.json()["deployment_version"] is None
+
+    @pytest.fixture
+    async def flow_run_with_deployment_version(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                deployment_version="Deployment Version 1.0",
+                state=schemas.states.Pending(),
+            ),
+        )
+        await session.commit()
+        return flow_run
+
+    async def test_read_flow_run_with_deployment_version(
+        self, flow, flow_run_with_deployment_version, client
+    ):
+        # make sure we we can read the flow run correctly
+        response = await client.get(f"/flow_runs/{flow_run_with_deployment_version.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == str(flow_run_with_deployment_version.id)
+        assert response.json()["flow_id"] == str(flow.id)
+        assert response.json()["deployment_version"] == "Deployment Version 1.0"
 
     async def test_read_flow_run_like_the_engine_does(self, flow, flow_run, client):
         """Regression test for the hex format of UUIDs in `PREFECT__FLOW_RUN_ID`
@@ -953,6 +1122,7 @@ class TestResumeFlowrun:
         flow,
     ):
         class SimpleInput(RunInput):
+            how_many: Optional[str] = "5"
             approved: Optional[bool] = True
 
         state = schemas.states.Paused(pause_key="1")
@@ -1065,8 +1235,7 @@ class TestResumeFlowrun:
         assert response.status_code == 200
         assert response.json()["status"] == "REJECT"
         assert (
-            response.json()["details"]["reason"]
-            == "Run input validation failed: 'approved' is a required property"
+            "'approved' is a required property" in response.json()["details"]["reason"]
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1140,8 +1309,8 @@ class TestResumeFlowrun:
         assert response.status_code == 200
         assert response.json()["status"] == "REJECT"
         assert (
-            response.json()["details"]["reason"]
-            == "Run input validation failed: 'not a bool!' is not of type 'boolean'"
+            "'not a bool!' is not of type 'boolean'"
+            in response.json()["details"]["reason"]
         )
         assert response.json()["state"]["id"] == str(
             paused_flow_run_waiting_for_input.state_id
@@ -1169,6 +1338,55 @@ class TestResumeFlowrun:
 
         assert flow_run_input
         assert orjson.loads(flow_run_input.value) == {"approved": True}
+
+    async def test_resume_flow_run_waiting_for_input_with_hydrated_input(
+        self,
+        session,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {"how_many": {"__prefect_kind": "json", "value": '"3"'}}
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input_with_default.id,
+            key="paused-1-response",
+        )
+
+        assert flow_run_input
+        assert orjson.loads(flow_run_input.value) == {"how_many": "3"}
+        assert response.json()["state"]["id"] != str(
+            paused_flow_run_waiting_for_input_with_default.state_id
+        )
+
+    async def test_resume_flow_run_waiting_for_input_with_malformed_dehydrated_input(
+        self,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {
+                    "how_many": {
+                        "__prefect_kind": "json",
+                        "value": '{"invalid": json}',
+                    },
+                }
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "REJECT"
+        assert response.json()["details"]["reason"].startswith(
+            "Error hydrating run input: Invalid JSON"
+        )
 
 
 class TestSetFlowRunState:

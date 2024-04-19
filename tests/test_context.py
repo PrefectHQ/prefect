@@ -361,8 +361,7 @@ class TestSettingsContext:
         _, err = capsys.readouterr()
         assert (
             "profile 'bar' set by command line argument not found. The default profile"
-            " will be used instead."
-            in err
+            " will be used instead." in err
         )
 
     def test_root_settings_context_missing_environment_variables(
@@ -375,8 +374,7 @@ class TestSettingsContext:
         _, err = capsys.readouterr()
         assert (
             "profile 'bar' set by environment variable not found. The default profile"
-            " will be used instead."
-            in err
+            " will be used instead." in err
         )
 
     @pytest.mark.usefixtures("remove_existing_settings_context")

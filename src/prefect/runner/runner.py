@@ -29,6 +29,7 @@ Example:
     ```
 
 """
+
 import asyncio
 import datetime
 import inspect
@@ -44,7 +45,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Dict, Iterable, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -52,7 +53,6 @@ import anyio.abc
 import pendulum
 import sniffio
 from rich.console import Console, Group
-from rich.panel import Panel
 from rich.table import Table
 
 from prefect._internal.concurrency.api import (
@@ -68,12 +68,20 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
-from prefect.client.schemas.objects import FlowRun, State, StateType
+from prefect.client.schemas.objects import (
+    FlowRun,
+    State,
+    StateType,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.deployments.deployments import load_flow_from_flow_run
-from prefect.deployments.runner import RunnerDeployment
+from prefect.deployments.runner import (
+    EntrypointType,
+    RunnerDeployment,
+)
+from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.engine import propose_state
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     Abort,
 )
@@ -210,17 +218,27 @@ class Runner:
         self,
         flow: Flow,
         name: str = None,
-        interval: Optional[Union[int, float, datetime.timedelta]] = None,
-        cron: Optional[str] = None,
-        rrule: Optional[str] = None,
+        interval: Optional[
+            Union[
+                Iterable[Union[int, float, datetime.timedelta]],
+                int,
+                float,
+                datetime.timedelta,
+            ]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedules: Optional[FlexibleScheduleList] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTrigger]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -248,6 +266,8 @@ class Runner:
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
         """
         api = PREFECT_API_URL.value()
         if any([interval, cron, rrule]) and not api:
@@ -262,7 +282,9 @@ class Runner:
             interval=interval,
             cron=cron,
             rrule=rrule,
+            schedules=schedules,
             schedule=schedule,
+            paused=paused,
             is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
@@ -270,6 +292,7 @@ class Runner:
             tags=tags,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
         )
         return await self.add_deployment(deployment)
 
@@ -675,11 +698,11 @@ class Runner:
         """
         Pauses all deployment schedules.
         """
-        self._logger.info("Pausing schedules for all deployments...")
+        self._logger.info("Pausing all deployments...")
         for deployment_id in self._deployment_ids:
-            self._logger.debug(f"Pausing schedule for deployment '{deployment_id}'")
-            await self._client.update_schedule(deployment_id, active=False)
-        self._logger.info("All deployment schedules have been paused!")
+            self._logger.debug(f"Pausing deployment '{deployment_id}'")
+            await self._client.set_deployment_paused_state(deployment_id, True)
+        self._logger.info("All deployments have been paused!")
 
     async def _get_and_submit_flow_runs(self):
         if self.stopping:
@@ -1260,7 +1283,9 @@ async def serve(
             )
 
         console = Console()
-        console.print(Panel(Group(help_message_top, table, help_message_bottom)))
+        console.print(
+            Group(help_message_top, table, help_message_bottom), soft_wrap=True
+        )
 
     await runner.start()
 

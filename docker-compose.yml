@@ -1,7 +1,6 @@
-version: "3.8"
 services:
   test-db:
-    image: postgres:13
+    image: postgres:14
     ports:
       - 15432:5432
     environment:
@@ -14,3 +13,7 @@ services:
       LC_COLLATE: 'C.UTF-8'
       LC_CTYPE: 'C.UTF-8'
     tmpfs: /var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - max_connections=250

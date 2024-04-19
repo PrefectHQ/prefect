@@ -8,6 +8,26 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `events` and `event_resources` tables
+SQLite: `824e9edafa60`
+Postgres: `15768c2ec702`
+
+# Add `trigger_id` to the unique index for `automation_bucket`
+SQLite: `2b6c2b548f95`
+Postgres: `954db7517015`
+
+# Create `csrf_token` table
+SQLite: `bacc60edce16`
+Postgres: `7a653837d9ba`
+
+# Add `job_variables` to `flow_runs`
+SQLite: `342220764f0b`
+Postgres: `121699507574`
+
+# Create `deployment_schedule` and add `Deployment.paused`
+SQLite: `265eb1a2da4c`
+Postgres: `8cf4d4933848`
+
 # Add `sender` to `FlowRunInput`
 SQLite: `c63a0a6dc787`
 Postgres: `6b63c51c31b4`

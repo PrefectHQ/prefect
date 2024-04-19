@@ -75,12 +75,17 @@ else:
     from pydantic.typing import evaluate_forwardref, get_args, get_origin
     from pydantic.utils import lenient_issubclass
 
-from starlette.background import BackgroundTasks
-from starlette.concurrency import run_in_threadpool
-from starlette.datastructures import FormData, Headers, QueryParams, UploadFile
-from starlette.requests import HTTPConnection, Request
-from starlette.responses import Response
-from starlette.websockets import WebSocket
+from prefect._vendor.starlette.background import BackgroundTasks
+from prefect._vendor.starlette.concurrency import run_in_threadpool
+from prefect._vendor.starlette.datastructures import (
+    FormData,
+    Headers,
+    QueryParams,
+    UploadFile,
+)
+from prefect._vendor.starlette.requests import HTTPConnection, Request
+from prefect._vendor.starlette.responses import Response
+from prefect._vendor.starlette.websockets import WebSocket
 from typing_extensions import Annotated
 
 sequence_shapes = {
@@ -798,7 +803,7 @@ async def request_body_to_args(
                 results: List[Union[bytes, str]] = []
 
                 async def process_fn(
-                    fn: Callable[[], Coroutine[Any, Any, Any]]
+                    fn: Callable[[], Coroutine[Any, Any, Any]],
                 ) -> None:
                     result = await fn()
                     results.append(result)  # noqa: B023

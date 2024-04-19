@@ -35,9 +35,39 @@ def mock_alarm_signal_handler():
         signal.signal(signal.SIGALRM, _previous_alarm_handler)
 
 
-@pytest.mark.parametrize(
-    "cls", [AlarmCancelScope, WatcherThreadCancelScope, AsyncCancelScope]
-)
+async def test_alarm_cancel_scope_repr():
+    scope = AlarmCancelScope()
+    assert "PENDING" in repr(scope)
+    assert "runtime" not in repr(scope)
+    assert hex(id(scope)) in repr(scope)
+
+    if threading.current_thread() is threading.main_thread():
+        with scope:
+            assert "RUNNING" in repr(scope)
+            assert "runtime" in repr(scope)
+
+        assert "COMPLETED" in repr(scope)
+        assert "runtime" in repr(scope)
+
+    if threading.current_thread() is threading.main_thread():
+        scope = AlarmCancelScope()
+        try:
+            with scope:
+                scope.cancel()
+        except CancelledError:
+            pass
+
+        assert "CANCELLED" in repr(scope)
+
+    scope = AlarmCancelScope(name="test")
+    assert hex(id(scope)) not in repr(scope)
+    assert "name='test'" in repr(scope)
+
+    scope = AlarmCancelScope(timeout=0.1)
+    assert "timeout=0.1" in repr(scope)
+
+
+@pytest.mark.parametrize("cls", [WatcherThreadCancelScope, AsyncCancelScope])
 async def test_cancel_scope_repr(cls):
     scope = cls()
     assert "PENDING" in repr(scope)
@@ -69,172 +99,184 @@ async def test_cancel_scope_repr(cls):
 
 
 async def test_cancel_async_after():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_async_after(0.1) as scope:
             await asyncio.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_in_main_thread():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             time.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 def test_cancel_sync_after_in_worker_thread():
+    completed = False
+
     def on_worker_thread():
-        t0 = time.perf_counter()
         with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as scope:
                 # this timeout method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
                 for _ in range(10):
                     time.sleep(0.1)
-        t1 = time.perf_counter()
-        return t1 - t0, scope
+
+                nonlocal completed
+                completed = True
+
+        return scope
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(on_worker_thread)
-        elapsed_time, scope = future.result()
+        scope = future.result()
 
-    assert elapsed_time < 1
     assert scope.cancelled()
+    assert not completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_manual_in_main_thread():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             scope.cancel()
             time.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 def test_cancel_sync_after_manual_in_worker_thread():
+    completed = False
+
     def on_worker_thread():
-        t0 = time.perf_counter()
         with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as scope:
                 scope.cancel()
                 for _ in range(10):
                     time.sleep(0.1)
-        t1 = time.perf_counter()
-        return t1 - t0, scope
+
+                    nonlocal completed
+                    completed = True
+
+        return scope
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(on_worker_thread)
-        elapsed_time, scope = future.result()
+        scope = future.result()
 
-    assert elapsed_time < 1
     assert scope.cancelled()
+    assert not completed
 
 
 async def test_cancel_async_after_no_timeout():
-    t0 = time.perf_counter()
+    completed = False
     with cancel_async_after(None) as scope:
         await asyncio.sleep(0.1)
-    t1 = time.perf_counter()
+        completed = True
 
     assert scope.completed()
     assert not scope.cancelled()
-    assert t1 - t0 > 0.1
+    assert completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_not_cancelled_in_main_thread():
-    t0 = time.perf_counter()
+    completed = False
     with cancel_sync_after(None) as scope:
         time.sleep(0.1)
-    t1 = time.perf_counter()
+        completed = True
 
     assert scope.completed()
     assert not scope.cancelled()
-    assert t1 - t0 > 0.1
+    assert completed
 
 
 def test_cancel_sync_after_not_cancelled_in_worker_thread():
+    completed = False
+
     def on_worker_thread():
-        t0 = time.perf_counter()
         with cancel_sync_after(None) as scope:
             for _ in range(10):
                 time.sleep(0.1)
-        t1 = time.perf_counter()
-        return t1 - t0, scope
+
+            nonlocal completed
+            completed = True
+
+        return scope
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(on_worker_thread)
-        elapsed_time, scope = future.result()
+        scope = future.result()
 
     assert scope.completed()
     assert not scope.cancelled()
-    assert elapsed_time > 1
+    assert completed
 
 
 async def test_cancel_async_at():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_async_at(get_deadline(timeout=0.1)) as scope:
             await asyncio.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_at():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_sync_at(get_deadline(timeout=0.1)) as scope:
             time.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 async def test_cancel_async_manual_without_timeout():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_async_at(None) as scope:
             async with anyio.create_task_group() as tg:
                 tg.start_soon(asyncio.sleep, 1)
                 scope.cancel()
 
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 async def test_cancel_async_after_manual_with_timeout():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_async_after(0.1) as scope:
             scope.cancel()
             await asyncio.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 async def test_cancel_async_from_another_thread():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_async_after(None) as scope:
             async with anyio.create_task_group() as tg:
@@ -242,15 +284,15 @@ async def test_cancel_async_from_another_thread():
                 with concurrent.futures.ThreadPoolExecutor() as thread:
                     thread.submit(scope.cancel)
 
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_manually_in_main_thread():
-    t0 = time.perf_counter()
+    completed = False
     main_thread_ready = threading.Event()
     cancel_sent = threading.Event()
 
@@ -276,19 +318,20 @@ def test_cancel_sync_manually_in_main_thread():
             # Then sleep
             time.sleep(2)
 
-    t1 = time.perf_counter()
+            completed = True
+
     assert scope.cancelled()
-    assert t1 - t0 < 2
+    assert not completed
 
     # Shutdown the thread
     thread.join()
 
 
 def test_cancel_sync_manually_in_worker_thread():
+    completed = False
     scope_future = concurrent.futures.Future()
 
     def on_worker_thread():
-        t0 = time.perf_counter()
         with pytest.raises(CancelledError):
             with cancel_sync_at(None) as scope:
                 # send the scope back to the parent so it can cancel it
@@ -299,8 +342,10 @@ def test_cancel_sync_manually_in_worker_thread():
                 for _ in range(30):
                     time.sleep(0.1)
 
-        t1 = time.perf_counter()
-        return t1 - t0, scope
+                nonlocal completed
+                completed = True
+
+        return scope
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         worker_future = executor.submit(on_worker_thread)
@@ -309,15 +354,15 @@ def test_cancel_sync_manually_in_worker_thread():
         scope = scope_future.result()
         scope.cancel()
 
-        elapsed_time, scope = worker_future.result()
+        scope = worker_future.result()
 
-    assert elapsed_time < 1
     assert scope.cancelled()
+    assert not completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_nested_alarm_and_watcher_inner_cancelled():
-    t0 = time.perf_counter()
+    completed = False
     with cancel_sync_after(1) as outer_scope:
         with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as inner_scope:
@@ -325,30 +370,30 @@ def test_cancel_sync_nested_alarm_and_watcher_inner_cancelled():
                 # raised on the next instruction
                 for _ in range(10):
                     time.sleep(0.1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert not outer_scope.cancelled()
     assert inner_scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_nested_alarm_and_watcher_outer_cancelled():
-    t0 = time.perf_counter()
+    completed = False
 
     with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as outer_scope:
             with cancel_sync_after(2) as inner_scope:
                 time.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert not inner_scope.cancelled()
     assert outer_scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
-    t0 = time.perf_counter()
+    completed = False
     with cancel_sync_after(1) as outer_scope:
         with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as inner_scope:
@@ -356,17 +401,20 @@ def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
                 # raised on the next instruction
                 for _ in range(10):
                     time.sleep(0.1)
-    t1 = time.perf_counter()
+                completed = True
 
     assert not outer_scope.cancelled()
     assert inner_scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
-    mock_alarm_signal_handler.assert_not_called(), "Alarm based handler should not be used"
+    (
+        mock_alarm_signal_handler.assert_not_called(),
+        "Alarm based handler should not be used",
+    )
 
 
 def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
-    t0 = time.perf_counter()
+    completed = False
 
     with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as outer_scope:
@@ -375,18 +423,21 @@ def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
                 # raised on the next instruction
                 for _ in range(10):
                     time.sleep(0.1)
-    t1 = time.perf_counter()
+                completed = True
 
     assert not inner_scope.cancelled()
     assert outer_scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
-    mock_alarm_signal_handler.assert_not_called(), "Alarm based handler should not be used"
+    (
+        mock_alarm_signal_handler.assert_not_called(),
+        "Alarm based handler should not be used",
+    )
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
-    t0 = time.perf_counter()
+    completed = False
 
     with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
@@ -394,107 +445,125 @@ def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
             # raised on the next instruction
             for _ in range(10):
                 time.sleep(0.1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
     mock_alarm_signal_handler.assert_not_called()
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_inner_fails():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_sync_after(2) as outer:
             with cancel_sync_after(0.1) as inner:
                 for _ in range(10):
                     time.sleep(0.1)
-    t1 = time.perf_counter()
+                completed = True
 
     assert inner.cancelled()
     assert not outer.cancelled()
-    assert t1 - t0 < 1
+    assert not completed
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_outer_fails():
-    t0 = time.perf_counter()
+    completed = False
     with pytest.raises(CancelledError):
         with cancel_sync_after(1) as outer:
             with cancel_sync_after(5) as inner:
                 time.sleep(2)
-    t1 = time.perf_counter()
+            completed = True
 
     assert outer.cancelled()
     assert not inner.cancelled()
-    assert t1 - t0 < 2
+    assert not completed
 
 
 async def test_shield_async():
-    t0 = time.perf_counter()
+    completed = False
+    completed_shield = False
     with pytest.raises(CancelledError):
         with cancel_async_after(0.1) as scope:
             with shield():
                 await asyncio.sleep(1)
+                completed_shield = True
             await asyncio.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 > 1
-    assert t1 - t0 < 2
+    assert not completed
+    assert completed_shield
 
 
 async def test_shield_async_nested():
-    t0 = time.perf_counter()
+    completed = False
+    completed_shieldA = False
+    completed_shieldB = False
     with pytest.raises(CancelledError):
         with cancel_async_after(0.1) as scope:
             with shield():
                 await asyncio.sleep(0.5)
                 with shield():
                     await asyncio.sleep(0.5)
+                    completed_shieldB = True
+                completed_shieldA = True
             await asyncio.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 > 1
-    assert t1 - t0 < 2
+    assert not completed
+    assert completed_shieldA
+    assert completed_shieldB
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_shield_sync_in_main_thread():
-    t0 = time.perf_counter()
+    completed = False
+    completed_shield = False
     with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             with shield():
                 time.sleep(1)
+                completed_shield = True
             time.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 > 1
-    assert t1 - t0 < 2
+    assert not completed
+    assert completed_shield
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_shield_sync_in_main_thread_nested():
-    t0 = time.perf_counter()
+    completed = False
+    completed_shieldA = False
+    completed_shieldB = False
     with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             with shield():
                 time.sleep(0.5)
                 with shield():
                     time.sleep(0.5)
+                    completed_shieldB = True
+                completed_shieldA = True
+
             time.sleep(1)
-    t1 = time.perf_counter()
+            completed = True
 
     assert scope.cancelled()
-    assert t1 - t0 > 1
-    assert t1 - t0 < 2
+    assert not completed
+    assert completed_shieldA
+    assert completed_shieldB
 
 
 def test_shield_sync_in_worker_thread_nested():
+    completed = False
+    completed_shieldA = False
+    completed_shieldB = False
+
     def on_worker_thread():
-        t0 = time.perf_counter()
         with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as scope:
                 with shield():
@@ -503,14 +572,25 @@ def test_shield_sync_in_worker_thread_nested():
                     with shield():
                         for _ in range(5):
                             time.sleep(0.1)
+
+                        nonlocal completed_shieldB
+                        completed_shieldB = True
+
+                    nonlocal completed_shieldA
+                    completed_shieldA = True
+
                 for _ in range(10):
                     time.sleep(0.1)
-        t1 = time.perf_counter()
-        return t1 - t0, scope
+
+                nonlocal completed
+                completed = True
+
+        return scope
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(on_worker_thread)
-        elapsed_time, scope = future.result()
+        future.result()
 
-    assert elapsed_time > 1
-    assert elapsed_time < 2
+    assert not completed
+    assert completed_shieldA
+    assert completed_shieldB

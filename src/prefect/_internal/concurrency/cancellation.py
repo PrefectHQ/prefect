@@ -230,7 +230,9 @@ class CancelScope(abc.ABC):
                 else (
                     "cancelled"
                     if self._cancelled
-                    else "running" if self._started else "pending"
+                    else "running"
+                    if self._started
+                    else "pending"
                 )
             ).upper()
             timeout = f", timeout={self._timeout:.2f}" if self._timeout else ""
@@ -267,6 +269,11 @@ class AsyncCancelScope(CancelScope):
         if self._anyio_scope.cancel_called:
             # Mark as cancelled
             self.cancel(throw=False)
+
+        # TODO: Can we also delete the scope?
+        # We have to exit this scope to prevent leaking memory. A fix for
+        # issue #10952.
+        self._anyio_scope.__exit__(exc_type, exc_val, exc_tb)
 
         super().__exit__(exc_type, exc_val, exc_tb)
 

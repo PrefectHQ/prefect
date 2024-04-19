@@ -1,5 +1,3 @@
-import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -12,46 +10,26 @@ from prefect.deployments.base import (
     _find_flow_functions_in_file,
     _search_for_flow_functions,
     configure_project_by_recipe,
-    find_prefect_directory,
     initialize_project,
-    register_flow,
 )
 from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture(autouse=True)
 def project_dir(tmp_path):
-    original_dir = os.getcwd()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path)
-        yield tmp_path
-    else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-        os.chdir(tmp_path / "three-seven")
-        yield tmp_path / "three-seven"
-    os.chdir(original_dir)
-
-
-class TestFindProject:
-    async def test_find_project_works_in_root(self, tmp_path):
-        # make hidden .prefect/ directory in tmp_path
-        (tmp_path / ".prefect").mkdir(exist_ok=True)
-        assert find_prefect_directory(tmp_path) == tmp_path / ".prefect"
-
-    async def test_find_project_works_in_subdir(self, tmp_path):
-        # make hidden .prefect/ directory in tmp_path
-        (tmp_path / ".prefect").mkdir(exist_ok=True)
-        (tmp_path / "subdir" / "subsubdir").mkdir(parents=True)
-        assert (
-            find_prefect_directory(tmp_path / "subdir" / "subsubdir")
-            == tmp_path / ".prefect"
-        )
+    with tmpchdir(tmp_path):
+        if sys.version_info >= (3, 8):
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+            (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            yield tmp_path
+        else:
+            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+            (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+            yield tmp_path / "three-seven"
 
 
 class TestRecipes:
@@ -173,50 +151,6 @@ class TestInitProject:
             contents["deployments"][0]["work_pool"]["job_variables"]["image"]
             == "{{ build_image.image }}"
         )
-
-
-class TestRegisterFlow:
-    async def test_register_flow_works_in_root(self, project_dir):
-        f = await register_flow(
-            str(project_dir / "import-project" / "my_module" / "flow.py") + ":test_flow"
-        )
-        assert f.name == "test"
-
-        flows_file = project_dir / ".prefect" / "flows.json"
-        with flows_file.open(mode="r") as f:
-            flows = json.load(f)
-
-        assert flows["test"] == "import-project/my_module/flow.py:test_flow"
-
-    async def test_register_flow_allows_identical_calls(self, project_dir):
-        f = await register_flow(
-            str(project_dir / "import-project" / "my_module" / "flow.py") + ":test_flow"
-        )
-        assert f.name == "test"
-
-        f = await register_flow(
-            str(project_dir / "import-project" / "my_module" / "flow.py") + ":test_flow"
-        )
-        assert f.name == "test"
-
-    async def test_register_flow_disallows_overwrites(self, project_dir):
-        f = await register_flow(
-            str(project_dir / "import-project" / "my_module" / "flow.py") + ":test_flow"
-        )
-        assert f.name == "test"
-
-        with pytest.raises(ValueError, match="Conflicting entry found"):
-            await register_flow(
-                str(project_dir / "import-project" / "my_module" / "flow.py")
-                + ":prod_flow"
-            )
-
-        f = await register_flow(
-            str(project_dir / "import-project" / "my_module" / "flow.py")
-            + ":prod_flow",
-            force=True,
-        )
-        assert f.name == "test"
 
 
 class TestDiscoverFlows:

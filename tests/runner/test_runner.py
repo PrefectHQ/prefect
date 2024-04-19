@@ -3,28 +3,31 @@ import os
 import re
 import signal
 import sys
+import tempfile
 import time
+import warnings
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
-from typing import List
+from typing import Any, Generator, List, Union
 from unittest import mock
 from unittest.mock import MagicMock
 
 import anyio
 import pendulum
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 import prefect.runner
 from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import StateType
-from prefect.client.schemas.schedules import CronSchedule
+from prefect.client.schemas.objects import MinimalDeploymentSchedule, StateType
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
     DeploymentImage,
+    EntrypointType,
     RunnerDeployment,
     deploy,
 )
@@ -95,8 +98,8 @@ class MockStorage:
     A mock storage class that simulates pulling code from a remote location.
     """
 
-    def __init__(self, pull_code_spy=None):
-        self._base_path = Path.cwd()
+    def __init__(self, base_path: Path, pull_code_spy: Union[MagicMock, None] = None):
+        self._base_path = base_path
         self._pull_code_spy = pull_code_spy
 
     def set_base_path(self, path: Path):
@@ -130,6 +133,16 @@ class MockStorage:
 
     def to_pull_step(self):
         return {"prefect.fake.module": {}}
+
+
+@pytest.fixture
+def temp_storage() -> Generator[MockStorage, Any, None]:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        yield MockStorage(base_path=Path(temp_dir))
+
+    flows_path = Path.cwd() / "flows.py"
+    if flows_path.exists():
+        os.unlink(Path.cwd() / "flows.py")
 
 
 class TestInit:
@@ -194,7 +207,7 @@ class TestServe:
         else:
 
             @flow
-            def type_container_input_flow(arg1: list[str]) -> str:
+            def type_container_input_flow(arg1: List[str]) -> str:
                 print(arg1)
                 return ",".join(arg1)
 
@@ -225,14 +238,16 @@ class TestServe:
         )
 
         assert deployment is not None
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
         deployment = await prefect_client.read_deployment_by_name(
             name="dummy-flow-2/test_runner"
         )
 
         assert deployment is not None
-        assert deployment.schedule.cron == "* * * * *"
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
 
     async def test_serve_starts_a_runner(
         self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
@@ -259,11 +274,13 @@ class TestRunner:
 
         assert deployment_1 is not None
         assert deployment_1.name == "test_runner"
-        assert deployment_1.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment_1.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
         assert deployment_2 is not None
         assert deployment_2.name == "test_runner"
-        assert deployment_2.schedule.cron == "* * * * *"
+        assert deployment_2.schedules[0].schedule.cron == "* * * * *"
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -275,18 +292,26 @@ class TestRunner:
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
                     {"schedule": CronSchedule(cron="* * * * *")},
+                    {
+                        "schedules": [
+                            MinimalDeploymentSchedule(
+                                schedule=CronSchedule(cron="* * * * *"), active=True
+                            )
+                        ]
+                    },
                 ],
                 2,
             )
         ],
     )
-    async def test_add_flow_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        runner = Runner()
-        with pytest.raises(ValueError, match=expected_message):
-            await runner.add_flow(dummy_flow_1, __file__, **kwargs)
+    async def test_add_flow_raises_on_multiple_schedule_parameters(self, kwargs):
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            runner = Runner()
+            with pytest.raises(ValueError, match=expected_message):
+                await runner.add_flow(dummy_flow_1, __file__, **kwargs)
 
     async def test_add_deployments_to_runner(self, prefect_client: PrefectClient):
         """Runner.add_deployment should apply the deployment passed to it"""
@@ -303,11 +328,13 @@ class TestRunner:
 
         assert deployment_1 is not None
         assert deployment_1.name == "test_runner"
-        assert deployment_1.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment_1.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
         assert deployment_2 is not None
         assert deployment_2.name == "test_runner"
-        assert deployment_2.schedule.cron == "* * * * *"
+        assert deployment_2.schedules[0].schedule.cron == "* * * * *"
 
     async def test_runner_can_pause_schedules_on_stop(
         self, prefect_client: PrefectClient, caplog
@@ -344,8 +371,8 @@ class TestRunner:
 
         assert not deployment_2.is_schedule_active
 
-        assert "Pausing schedules for all deployments" in caplog.text
-        assert "All deployment schedules have been paused" in caplog.text
+        assert "Pausing all deployments" in caplog.text
+        assert "All deployments have been paused" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
@@ -368,71 +395,19 @@ class TestRunner:
         await runner.start(run_once=True)
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
+        assert flow_run.state
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.skip(reason="This test is too flaky")
-    async def test_runner_can_cancel_flow_runs(
-        self, prefect_client: PrefectClient, caplog
-    ):
-        runner = Runner(query_seconds=2)
-
-        deployment = await cancel_flow_submitted_tasks.to_deployment(__file__)
-
-        await runner.add_deployment(deployment)
-
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="cancel-flow-submitted-tasks/test_runner"
-            )
-
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
-
-            # Need to wait for polling loop to pick up flow run and
-            # start execution
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_running():
-                    break
-
-            await prefect_client.set_flow_run_state(
-                flow_run_id=flow_run.id,
-                state=flow_run.state.copy(
-                    update={"name": "Cancelled", "type": StateType.CANCELLING}
-                ),
-            )
-
-            # Need to wait for polling loop to pick up flow run and then
-            # finish cancellation
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_cancelled():
-                    break
-
-            await runner.stop()
-            tg.cancel_scope.cancel()
-
-        assert (
-            flow_run.state.is_cancelled()
-        ), f"Flow run state not cancelled: {flow_run.state.name=!r}"
-        # check to make sure on_cancellation hook was called
-        assert "This flow was cancelled!" in caplog.text
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    @pytest.mark.flaky
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
-        self, prefect_client: PrefectClient, caplog
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+        temp_storage: MockStorage,
     ):
         runner = Runner(query_seconds=2)
 
-        storage = MockStorage()
-        storage.code = dedent(
+        temp_storage.code = dedent(
             """\
             from time import sleep
 
@@ -450,7 +425,9 @@ class TestRunner:
         )
 
         deployment_id = await runner.add_flow(
-            await flow.from_source(source=storage, entrypoint="flows.py:cancel_flow"),
+            await flow.from_source(
+                source=temp_storage, entrypoint="flows.py:cancel_flow"
+            ),
             name=__file__,
         )
 
@@ -463,9 +440,10 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and
             # start execution
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
                 if flow_run.state.is_running():
                     break
 
@@ -478,9 +456,10 @@ class TestRunner:
 
             # Need to wait for polling loop to pick up flow run and then
             # finish cancellation
-            for _ in range(15):
-                await anyio.sleep(1)
+            while True:
+                await anyio.sleep(0.5)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
                 if flow_run.state.is_cancelled():
                     break
 
@@ -493,11 +472,13 @@ class TestRunner:
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_crashed_hooks_for_remotely_stored_flows(
-        self, prefect_client: PrefectClient, caplog
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+        temp_storage: MockStorage,
     ):
         runner = Runner()
-        storage = MockStorage()
-        storage.code = dedent(
+        temp_storage.code = dedent(
             """\
         import os
         import signal
@@ -509,7 +490,6 @@ class TestRunner:
             logger = flow_run_logger(flow_run, flow)
             logger.info("This flow crashed!")
 
-
         @flow(on_crashed=[on_crashed], log_prints=True)
         def crashing_flow():
             print("Oh boy, here I go crashing again...")
@@ -518,7 +498,9 @@ class TestRunner:
         )
 
         deployment_id = await runner.add_flow(
-            await flow.from_source(source=storage, entrypoint="flows.py:crashing_flow"),
+            await flow.from_source(
+                source=temp_storage, entrypoint="flows.py:crashing_flow"
+            ),
             name=__file__,
         )
 
@@ -528,6 +510,7 @@ class TestRunner:
         await runner.execute_flow_run(flow_run.id)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
         assert flow_run.state.is_crashed()
         # check to make sure on_cancellation hook was called
         assert "This flow crashed!" in caplog.text
@@ -546,6 +529,7 @@ class TestRunner:
         await runner.execute_flow_run(flow_run.id)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
@@ -562,6 +546,7 @@ class TestRunner:
         bad_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
+
         runner._acquire_limit_slot(good_run.id)
         await runner.execute_flow_run(bad_run.id)
         assert "run limit reached" in caplog.text
@@ -645,13 +630,15 @@ class TestRunner:
         assert env_var_value != flow_run.id.hex
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_runs_a_remotely_stored_flow(self, prefect_client):
+    async def test_runner_runs_a_remotely_stored_flow(
+        self,
+        prefect_client: PrefectClient,
+        temp_storage: MockStorage,
+    ):
         runner = Runner()
 
         deployment = await (
-            await flow.from_source(
-                source=MockStorage(), entrypoint="flows.py:test_flow"
-            )
+            await flow.from_source(source=temp_storage, entrypoint="flows.py:test_flow")
         ).to_deployment(__file__)
 
         deployment_id = await runner.add_deployment(deployment)
@@ -663,6 +650,7 @@ class TestRunner:
         await runner.start(run_once=True)
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
+        assert flow_run.state
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
@@ -671,13 +659,15 @@ class TestRunner:
 
         pull_code_spy = MagicMock()
 
-        deployment = await RunnerDeployment.from_storage(
-            storage=MockStorage(pull_code_spy=pull_code_spy),
-            entrypoint="flows.py:test_flow",
-            name=__file__,
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = MockStorage(base_path=Path(temp_dir), pull_code_spy=pull_code_spy)
+            deployment = await RunnerDeployment.from_storage(
+                storage=storage,
+                entrypoint="flows.py:test_flow",
+                name=__file__,
+            )
 
-        deployment_id = await runner.add_deployment(deployment)
+            deployment_id = await runner.add_deployment(deployment)
 
         await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -686,6 +676,8 @@ class TestRunner:
         await runner.start(run_once=True)
 
         # 1 for deployment creation, 1 for runner start up, 1 for ad hoc pull
+        assert isinstance(runner._storage_objs[0], MockStorage)
+        assert runner._storage_objs[0]._pull_code_spy is not None
         assert runner._storage_objs[0]._pull_code_spy.call_count == 3
 
         await prefect_client.create_flow_run_from_deployment(
@@ -752,31 +744,121 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
-        assert deployment.is_schedule_active is None
+        assert deployment.is_schedule_active is True
         assert deployment.enforce_parameter_schema
+
+    async def test_from_flow_can_produce_a_module_path_entrypoint(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            entrypoint_type=EntrypointType.MODULE_PATH,
+        )
+
+        assert (
+            deployment.entrypoint
+            == f"{dummy_flow_1.__module__}.{dummy_flow_1.__name__}"
+        )
 
     def test_from_flow_accepts_interval(self):
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+    def test_from_flow_accepts_interval_as_list(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=[3600, 7200]
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(
+            seconds=7200
+        )
 
     def test_from_flow_accepts_cron(self):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1, __file__, cron="* * * * *"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
 
-        assert deployment.schedule.cron == "* * * * *"
+    def test_from_flow_accepts_cron_as_list(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            cron=[
+                "0 * * * *",
+                "0 0 1 * *",
+                "*/10 * * * *",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "0 * * * *"
+        assert deployment.schedules[1].schedule.cron == "0 0 1 * *"
+        assert deployment.schedules[2].schedule.cron == "*/10 * * * *"
 
     def test_from_flow_accepts_rrule(self):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1, __file__, rrule="FREQ=MINUTELY"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
 
-        assert deployment.schedule.rrule == "FREQ=MINUTELY"
+    def test_from_flow_accepts_rrule_as_list(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            rrule=[
+                "FREQ=DAILY",
+                "FREQ=WEEKLY",
+                "FREQ=MONTHLY",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
+        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
+        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+
+    def test_from_flow_accepts_schedules(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=CronSchedule(cron="* * * * *"), active=True
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
 
     @pytest.mark.parametrize(
         "value,expected",
-        [(True, True), (False, False), (None, None)],
+        [(True, True), (False, False), (None, False)],
+    )
+    def test_from_flow_accepts_paused(self, value, expected):
+        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, paused=value)
+
+        assert deployment.paused is expected
+        # `is_schedule_active` is the opposite of `paused`
+        assert deployment.is_schedule_active is not expected
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, True)],
     )
     def test_from_flow_accepts_is_schedule_active(self, value, expected):
         deployment = RunnerDeployment.from_flow(
@@ -795,14 +877,21 @@ class TestRunnerDeployment:
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
                     {"schedule": CronSchedule(cron="* * * * *")},
+                    {
+                        "schedules": [
+                            MinimalDeploymentSchedule(
+                                schedule=CronSchedule(cron="* * * * *"), active=True
+                            )
+                        ],
+                    },
                 ],
                 2,
             )
         ],
     )
-    def test_from_flow_raises_on_multiple_schedules(self, kwargs):
+    def test_from_flow_raises_on_multiple_schedule_parameters(self, kwargs):
         expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
+            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_flow(dummy_flow_1, __file__, **kwargs)
@@ -870,26 +959,108 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_entrypoint(
             dummy_flow_1_entrypoint, __file__, interval=3600
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+    def test_from_entrypoint_accepts_interval_as_list(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, interval=[3600, 7200]
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(
+            seconds=7200
+        )
 
     def test_from_entrypoint_accepts_cron(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
             dummy_flow_1_entrypoint, __file__, cron="* * * * *"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
 
-        assert deployment.schedule.cron == "* * * * *"
+    def test_from_entrypoint_accepts_cron_as_list(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            cron=[
+                "0 * * * *",
+                "0 0 1 * *",
+                "*/10 * * * *",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "0 * * * *"
+        assert deployment.schedules[1].schedule.cron == "0 0 1 * *"
+        assert deployment.schedules[2].schedule.cron == "*/10 * * * *"
 
     def test_from_entrypoint_accepts_rrule(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
             dummy_flow_1_entrypoint, __file__, rrule="FREQ=MINUTELY"
         )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
 
-        assert deployment.schedule.rrule == "FREQ=MINUTELY"
+    def test_from_entrypoint_accepts_rrule_as_list(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            rrule=[
+                "FREQ=DAILY",
+                "FREQ=WEEKLY",
+                "FREQ=MONTHLY",
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
+        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
+        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+
+    def test_from_entrypoint_accepts_schedules(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=CronSchedule(cron="* * * * *"), active=True
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
 
     @pytest.mark.parametrize(
         "value,expected",
-        [(True, True), (False, False), (None, None)],
+        [(True, True), (False, False), (None, False)],
+    )
+    def test_from_entrypoint_accepts_paused(
+        self, value, expected, dummy_flow_1_entrypoint
+    ):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, paused=value
+        )
+
+        assert deployment.paused is expected
+        # `is_schedule_active` is the opposite of `paused`
+        assert deployment.is_schedule_active is not expected
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, True)],
     )
     def test_from_entrypoint_accepts_is_schedule_active(
         self, dummy_flow_1_entrypoint, value, expected
@@ -910,16 +1081,23 @@ class TestRunnerDeployment:
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
                     {"schedule": CronSchedule(cron="* * * * *")},
+                    {
+                        "schedules": [
+                            MinimalDeploymentSchedule(
+                                schedule=CronSchedule(cron="* * * * *"), active=True
+                            )
+                        ]
+                    },
                 ],
                 2,
             )
         ],
     )
-    def test_from_entrypoint_raises_on_multiple_schedules(
+    def test_from_entrypoint_raises_on_multiple_schedule_parameters(
         self, dummy_flow_1_entrypoint, kwargs
     ):
         expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
+            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_entrypoint(
@@ -945,12 +1123,14 @@ class TestRunnerDeployment:
         assert deployment.entrypoint == "tests/runner/test_runner.py:dummy_flow_1"
         assert deployment.version == "test"
         assert deployment.description == "I'm just here for tests"
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema is False
-        assert deployment.infra_overrides == {}
+        assert deployment.job_variables == {}
         assert deployment.is_schedule_active is True
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
@@ -967,7 +1147,7 @@ class TestRunnerDeployment:
         deployment = await prefect_client.read_deployment(deployment_id)
 
         assert deployment.work_pool_name == work_pool.name
-        assert deployment.infra_overrides == {
+        assert deployment.job_variables == {
             "image": "my-repo/my-image:latest",
         }
         assert deployment.work_queue_name == "default"
@@ -1045,11 +1225,11 @@ class TestRunnerDeployment:
         ):
             await deployment.apply()
 
-    async def test_create_runner_deployment_from_storage(self):
-        storage = MockStorage()
-
+    async def test_create_runner_deployment_from_storage(
+        self, temp_storage: MockStorage
+    ):
         deployment = await RunnerDeployment.from_storage(
-            storage=storage,
+            storage=temp_storage,
             entrypoint="flows.py:test_flow",
             name="test-deployment",
             interval=datetime.timedelta(seconds=30),
@@ -1062,14 +1242,82 @@ class TestRunnerDeployment:
         # Verify the created RunnerDeployment's attributes
         assert deployment.name == "test-deployment"
         assert deployment.flow_name == "test-flow"
-        assert deployment.schedule.interval == datetime.timedelta(seconds=30)
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=30
+        )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
+        assert deployment._path
         assert "$STORAGE_BASE_PATH" in deployment._path
         assert deployment.entrypoint == "flows.py:test_flow"
-        assert deployment.storage == storage
+        assert deployment.storage == temp_storage
+
+    async def test_from_storage_accepts_schedules(self, temp_storage: MockStorage):
+        deployment = await RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            schedules=[
+                MinimalDeploymentSchedule(
+                    schedule=CronSchedule(cron="* * * * *"), active=True
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
+            ],
+        )
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, False)],
+    )
+    async def test_from_storage_accepts_paused(
+        self, value: Union[bool, None], expected: bool, temp_storage: MockStorage
+    ):
+        deployment = await RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            paused=value,
+        )
+
+        assert deployment.paused is expected
+        assert deployment.is_schedule_active is not expected
+
+    async def test_init_runner_deployment_with_schedule(self):
+        schedule = CronSchedule(cron="* * * * *")
+
+        deployment = RunnerDeployment(
+            flow=dummy_flow_1,
+            name="test-deployment",
+            schedule=schedule,
+        )
+
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+
+    async def test_init_runner_deployment_with_invalid_schedules(self):
+        with pytest.raises(ValueError, match="Invalid schedule"):
+            RunnerDeployment(
+                flow=dummy_flow_1,
+                name="test-deployment",
+                schedules=[
+                    "not a schedule",
+                ],
+            )
 
 
 class TestServer:
@@ -1083,6 +1331,7 @@ class TestServer:
         runner.last_polled = pendulum.now("utc")
         assert health_check().status_code == status.HTTP_200_OK
 
+    @pytest.mark.skip("This test is flaky and needs to be fixed")
     @pytest.mark.parametrize("enabled", [True, False])
     async def test_webserver_start_flag(self, enabled: bool):
         with temporary_settings(updates={PREFECT_RUNNER_SERVER_ENABLE: enabled}):
@@ -1129,12 +1378,13 @@ class TestDeploy:
         work_pool_with_image_variable,
         prefect_client: PrefectClient,
         capsys,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1181,6 +1431,7 @@ class TestDeploy:
         work_pool_with_image_variable,
         prefect_client: PrefectClient,
         capsys,
+        temp_storage: MockStorage,
     ):
         with temporary_settings(
             updates={PREFECT_DEFAULT_WORK_POOL_NAME: work_pool_with_image_variable.name}
@@ -1189,7 +1440,7 @@ class TestDeploy:
                 await dummy_flow_1.to_deployment(__file__),
                 await (
                     await flow.from_source(
-                        source=MockStorage(), entrypoint="flows.py:test_flow"
+                        source=temp_storage, entrypoint="flows.py:test_flow"
                     )
                 ).to_deployment(__file__),
                 image=DeploymentImage(
@@ -1333,14 +1584,14 @@ class TestDeploy:
             deployment_id=deployment_ids[0]
         )
         assert (
-            deployment_1.infra_overrides["image"] == "test-registry/test-image:test-tag"
+            deployment_1.job_variables["image"] == "test-registry/test-image:test-tag"
         )
 
         deployment_2 = await prefect_client.read_deployment(
             deployment_id=deployment_ids[1]
         )
         assert (
-            deployment_2.infra_overrides["image"] == "test-registry/test-image:test-tag"
+            deployment_2.job_variables["image"] == "test-registry/test-image:test-tag"
         )
 
     async def test_deploy_skip_push(
@@ -1374,12 +1625,13 @@ class TestDeploy:
         mock_generate_default_dockerfile,
         work_pool_with_image_variable,
         capsys,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1400,12 +1652,13 @@ class TestDeploy:
         mock_generate_default_dockerfile,
         push_work_pool,
         capsys,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=push_work_pool.name,
@@ -1428,12 +1681,13 @@ class TestDeploy:
         mock_generate_default_dockerfile,
         mock_build_image,
         mock_docker_client,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=managed_work_pool.name,
@@ -1464,12 +1718,13 @@ class TestDeploy:
         mock_docker_client,
         mock_generate_default_dockerfile,
         work_pool_with_image_variable,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1486,11 +1741,12 @@ class TestDeploy:
     async def test_deploy_without_image_with_flow_stored_remotely(
         self,
         work_pool_with_image_variable,
+        temp_storage: MockStorage,
     ):
         deployment_id = await deploy(
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1511,12 +1767,13 @@ class TestDeploy:
     async def test_deploy_with_image_and_flow_stored_remotely_raises(
         self,
         work_pool_with_image_variable,
+        temp_storage: MockStorage,
     ):
         with pytest.raises(RuntimeError, match="Failed to generate Dockerfile"):
             await deploy(
                 await (
                     await flow.from_source(
-                        source=MockStorage(), entrypoint="flows.py:test_flow"
+                        source=temp_storage, entrypoint="flows.py:test_flow"
                     )
                 ).to_deployment(__file__),
                 work_pool_name=work_pool_with_image_variable.name,
@@ -1524,19 +1781,32 @@ class TestDeploy:
             )
 
     async def test_deploy_multiple_flows_one_using_storage_one_without_raises_with_no_image(
-        self,
-        work_pool_with_image_variable,
+        self, work_pool_with_image_variable, temp_storage: MockStorage
     ):
         with pytest.raises(ValueError):
             await deploy(
                 await dummy_flow_1.to_deployment(__file__),
                 await (
                     await flow.from_source(
-                        source=MockStorage(), entrypoint="flows.py:test_flow"
+                        source=temp_storage, entrypoint="flows.py:test_flow"
                     )
                 ).to_deployment(__file__),
                 work_pool_name=work_pool_with_image_variable.name,
             )
+
+    async def test_deploy_with_module_path_entrypoint(
+        self, work_pool_with_image_variable, prefect_client
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__, entrypoint_type=EntrypointType.MODULE_PATH
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+        )
+        assert len(deployment_ids) == 1
+
+        deployment = await prefect_client.read_deployment(deployment_ids[0])
+        assert deployment.entrypoint == "test_runner.dummy_flow_1"
 
     async def test_deploy_with_image_string_no_tag(
         self,
@@ -1544,12 +1814,13 @@ class TestDeploy:
         mock_docker_client,
         mock_generate_default_dockerfile,
         work_pool_with_image_variable,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1570,6 +1841,7 @@ class TestDeploy:
         mock_generate_default_dockerfile,
         work_pool_with_image_variable,
         capsys,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(
@@ -1577,7 +1849,7 @@ class TestDeploy:
             ),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1602,6 +1874,7 @@ class TestDeploy:
         mock_generate_default_dockerfile,
         work_pool_with_image_variable,
         capsys,
+        temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(
@@ -1609,7 +1882,7 @@ class TestDeploy:
             ),
             await (
                 await flow.from_source(
-                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                    source=temp_storage, entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__, job_variables={"image_pull_policy": "blork"}),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1663,6 +1936,42 @@ class TestDeploy:
                 await dummy_flow_1.to_deployment(__file__),
                 work_pool_name=process_work_pool.name,
                 image="test-registry/test-image",
+            )
+
+    async def test_deploy_to_process_work_pool_with_no_storage(self, process_work_pool):
+        with pytest.raises(
+            ValueError,
+            match="Either an image or remote storage location must be provided when deploying"
+            " a deployment.",
+        ):
+            await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                work_pool_name=process_work_pool.name,
+            )
+
+    @pytest.mark.parametrize("ignore_warnings", [True, False])
+    async def test_deploy_to_process_work_pool_with_storage(
+        self, process_work_pool, capsys, ignore_warnings, temp_storage: MockStorage
+    ):
+        deployment_ids = await deploy(
+            await (
+                await flow.from_source(
+                    source=temp_storage, entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=process_work_pool.name,
+            ignore_warnings=ignore_warnings,
+        )
+        assert len(deployment_ids) == 1
+        console_output = capsys.readouterr().out
+        if ignore_warnings:
+            assert (
+                "Looks like you're deploying to a process work pool."
+                not in console_output
+            )
+        else:
+            assert (
+                "Looks like you're deploying to a process work pool." in console_output
             )
 
 

@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
+from prefect.client.schemas.objects import TaskRun
 from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
@@ -31,7 +32,11 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.server.task_queue import TaskQueue
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
+    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
+)
 from prefect.utilities.math import clamped_poisson_interval
 
 
@@ -45,8 +50,9 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             PreventDuplicateTransitions,
             HandleFlowTerminalStateTransitions,
             EnforceCancellingToCancelledTransition,
-            BypassCancellingScheduledFlowRuns,
+            BypassCancellingFlowRunsWithNoInfra,
             PreventPendingTransitions,
+            EnsureOnlyScheduledFlowsMarkedLate,
             HandlePausingFlows,
             HandleResumingPausedFlows,
             CopyScheduledTime,
@@ -76,10 +82,40 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
+class AutonomousTaskPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against task-run-state transitions in priority order.
+    """
+
+    def priority():
+        return [
+            PreventPendingTransitions,
+            CacheRetrieval,
+            HandleTaskTerminalStateTransitions,
+            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+            CopyScheduledTime,
+            WaitForScheduledTime,
+            RetryFailedTasks,
+            RenameReruns,
+            UpdateFlowRunTrackerOnTasks,
+            CacheInsertion,
+            ReleaseTaskConcurrencySlots,
+            EnqueueScheduledTasks,
+        ]
+
+
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             AddUnknownResult,  # mark forced completions with an unknown result
+            BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
+        ]
+
+
+class MarkLateRunsPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return [
+            EnsureOnlyScheduledFlowsMarkedLate,
         ]
 
 
@@ -429,6 +465,41 @@ class RetryFailedTasks(BaseOrchestrationRule):
                 data=proposed_state.data,
             )
             await self.reject_transition(state=retry_state, reason="Retrying")
+
+
+class EnqueueScheduledTasks(BaseOrchestrationRule):
+    """
+    Enqueues autonomous task runs when they are scheduled
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [StateType.SCHEDULED]
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+            # Only if task scheduling is enabled
+            return
+
+        if not validated_state:
+            # Only if the transition was valid
+            return
+
+        if context.run.flow_run_id:
+            # Only for autonomous tasks
+            return
+
+        task_run: TaskRun = TaskRun.from_orm(context.run)
+        queue = TaskQueue.for_key(task_run.task_key)
+
+        if validated_state.name == "AwaitingRetry":
+            await queue.retry(task_run)
+        else:
+            await queue.enqueue(task_run)
 
 
 class RenameReruns(BaseOrchestrationRule):
@@ -840,6 +911,25 @@ class PreventPendingTransitions(BaseOrchestrationRule):
         )
 
 
+class EnsureOnlyScheduledFlowsMarkedLate(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [StateType.SCHEDULED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        marking_flow_late = (
+            proposed_state.is_scheduled() and proposed_state.name == "Late"
+        )
+        if marking_flow_late and not initial_state.is_scheduled():
+            await self.reject_transition(
+                state=None, reason="Only scheduled flows can be marked late."
+            )
+
+
 class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
     """
     Prevents running tasks from stopped flows.
@@ -911,16 +1001,18 @@ class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
         return
 
 
-class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
+class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
     """Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
-    if the flow run has no associated infrastructure process ID.
+    if the flow run has no associated infrastructure process ID. Also Rejects transitions from
+    Paused to Cancelling if the Paused state's details indicates the flow run has been suspended,
+    exiting the flow and tearing down infra.
 
     The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
     to clean up, we can transition directly to `Cancelled`. Runs that are `AwaitingRetry` are
     a `Scheduled` state that may have associated infrastructure.
     """
 
-    FROM_STATES = {StateType.SCHEDULED}
+    FROM_STATES = {StateType.SCHEDULED, StateType.PAUSED}
     TO_STATES = {StateType.CANCELLING}
 
     async def before_transition(
@@ -929,10 +1021,21 @@ class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        if not context.run.infrastructure_pid:
+        if (
+            initial_state.type == states.StateType.SCHEDULED
+            and not context.run.infrastructure_pid
+        ):
             await self.reject_transition(
                 state=states.Cancelled(),
                 reason="Scheduled flow run has no infrastructure to terminate.",
+            )
+        elif (
+            initial_state.type == states.StateType.PAUSED
+            and initial_state.state_details.pause_reschedule
+        ):
+            await self.reject_transition(
+                state=states.Cancelled(),
+                reason="Suspended flow run has no infrastructure to terminate.",
             )
 
 

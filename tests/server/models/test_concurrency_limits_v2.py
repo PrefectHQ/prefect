@@ -286,7 +286,6 @@ async def test_increment_active_slots_with_decay_success(
     assert refreshed.active_slots == 1
 
 
-@pytest.mark.flaky
 async def test_increment_active_slots_with_decay_slots_decay_over_time(
     db: PrefectDBInterface,
     concurrency_limit_with_decay: ConcurrencyLimitV2,

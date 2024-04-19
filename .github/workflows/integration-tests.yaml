@@ -5,6 +5,7 @@ on:
       - .github/workflows/integration-tests.yaml
       - "**/*.py"
       - requirements.txt
+      - requirements-client.txt
       - requirements-dev.txt
       - ui/**
       - .nvmrc
@@ -12,13 +13,23 @@ on:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/integration-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-client.txt
+      - requirements-dev.txt
+      - ui/**
+      - .nvmrc
+      - Dockerfile
 
 jobs:
   compatibility-tests:
     name: "Check compatibility with Prefect ${{ matrix.prefect-version }}"
     timeout-minutes: 10
-
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: true
       matrix:
         prefect-version:
           # These versions correspond to Prefect image tags, the patch version is
@@ -38,6 +49,10 @@ jobs:
           - "2.12"
           - "2.13"
           - "2.14"
+          - "2.15"
+          - "2.16"
+          - "2.17"
+          - "2.18"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -50,31 +65,65 @@ jobs:
           # incompatibilities are allowed.
 
           # All servers prior to 2.6.0 will not accept 2.6.0+ result types
+          # All servers prior to 2.16.0 will not accept `Deployment.schedules`
+
           - prefect-version: "2.0"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.1"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.2"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.3"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.4"
             server-incompatible: true
+            server-disable-csrf: true
           - prefect-version: "2.5"
             server-incompatible: true
-
-          # 2.6 containers have a bad version of httpcore installed
+            server-disable-csrf: true
           - prefect-version: "2.6"
+            server-incompatible: true
+            server-disable-csrf: true
+            # 2.6 containers have a bad version of httpcore installed
             extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
-            server_command: "prefect orion start"
-          
-          # 2.6/2.7 require `prefect orion start` instead of prefect server start
           - prefect-version: "2.7"
-            server_command: "prefect orion start"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.8"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.9"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.10"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.11"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.12"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.13"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.14"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.15"
+            server-incompatible: true
+            server-disable-csrf: true
+          - prefect-version: "2.16"
+            server-incompatible: false
+          - prefect-version: "2.17"
+            server-incompatible: false
+          - prefect-version: "2.18"
+            server-incompatible: false
 
-      fail-fast: false
-
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -83,28 +132,40 @@ jobs:
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
+        id: setup_python
         with:
           python-version: "3.10"
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
       - name: Install python packages
         run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m pip install -U uv
+          uv pip install --upgrade --system .
 
       - name: Start server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
+        env:
+          PREFECT_EXPERIMENTAL_EVENTS: True
+          PREFECT_API_URL: http://127.0.0.1:4200/api
         run: >
           docker run
           --name "prefect-server-${{ matrix.prefect-version }}"
           --detach
           --publish 4200:4200
           ${{ matrix.extra_docker_run_options }}
+          --env PREFECT_EXPERIMENTAL_EVENTS=True
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          ${{ matrix.server_command || 'prefect server start' }} --host 0.0.0.0
+          ${{ matrix.server_command || 'prefect server start --analytics-off' }} --host 0.0.0.0
 
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command
@@ -112,13 +173,23 @@ jobs:
 
       - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_EXPERIMENTAL_EVENTS: True
         run: >
           TEST_SERVER_VERSION=${{ matrix.prefect-version }}
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
           TEST_CLIENT_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
-          ./scripts/run-integration-flows.py
+          ./scripts/run-integration-flows.py flows/
+
+      - name: Turn off CSRF protection for older clients.
+        if: ${{ matrix.server-disable-csrf }}
+        run: |
+          echo "PREFECT_SERVER_CSRF_PROTECTION_ENABLED=0" >> $GITHUB_ENV
 
       - name: Start server@dev
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_EXPERIMENTAL_EVENTS: True
         run: |
           # First, we must stop the server container if it exists
           # TODO: Once we have `prefect server stop` we can run these tests first and the
@@ -126,15 +197,16 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6989
           docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
-          prefect server start&
-          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+          prefect server start --analytics-off&
+          ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
         run: >
           docker run
-          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
           --env TEST_SERVER_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           --env TEST_CLIENT_VERSION=${{ matrix.client_version }}
+          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
+          --env PREFECT_EXPERIMENTAL_EVENTS=True
           --volume $(pwd)/flows:/opt/prefect/integration/flows
           --volume $(pwd)/scripts:/opt/prefect/integration/scripts
           --network host

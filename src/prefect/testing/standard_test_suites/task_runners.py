@@ -121,16 +121,14 @@ class TaskRunnerStandardTestSuite(ABC):
         assert c.name == "NotReady"
         assert (
             f"Upstream task run '{b.state_details.task_run_id}' did not reach a"
-            " 'COMPLETED' state"
-            in c.message
+            " 'COMPLETED' state" in c.message
         )
 
         assert d.is_pending()
         assert d.name == "NotReady"
         assert (
             f"Upstream task run '{c.state_details.task_run_id}' did not reach a"
-            " 'COMPLETED' state"
-            in d.message
+            " 'COMPLETED' state" in d.message
         )
 
     def test_sync_tasks_run_sequentially_with_sequential_concurrency_type(
@@ -160,7 +158,6 @@ class TaskRunnerStandardTestSuite(ABC):
 
         assert tmp_file.read_text() == "bar"
 
-    @pytest.mark.flaky(max_runs=4)  # Threads do not consistently yield
     def test_sync_tasks_run_concurrently_with_nonsequential_concurrency_type(
         self, task_runner, tmp_file
     ):

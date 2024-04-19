@@ -1,8 +1,10 @@
 import contextlib
+import re
 import textwrap
-from typing import Iterable, List, Union
+from typing import Iterable, List, Tuple, Union
 
-from typer.testing import CliRunner, Result
+import readchar
+from typer.testing import CliRunner, Result  # type: ignore
 
 from prefect.cli import app
 from prefect.utilities.asyncutils import in_async_main_thread
@@ -44,15 +46,16 @@ def check_contains(cli_result: Result, content: str, should_contain: bool):
 
 
 def invoke_and_assert(
-    command: List[str],
-    user_input: str = None,
-    expected_output: str = None,
-    expected_output_contains: Union[str, Iterable[str]] = None,
-    expected_output_does_not_contain: Union[str, Iterable[str]] = None,
-    expected_line_count: int = None,
+    command: Union[str, List[str]],
+    user_input: Union[str, None] = None,
+    prompts_and_responses: List[Union[Tuple[str, str], Tuple[str, str, str]]] = [],
+    expected_output: Union[str, None] = None,
+    expected_output_contains: Union[str, Iterable[str], None] = None,
+    expected_output_does_not_contain: Union[str, Iterable[str], None] = None,
+    expected_line_count: Union[int, None] = None,
     expected_code: int = 0,
     echo: bool = True,
-    temp_dir: str = None,
+    temp_dir: Union[str, None] = None,
 ) -> Result:
     """
     Test utility for the Prefect CLI application, asserts exact match with CLI output.
@@ -76,13 +79,13 @@ def invoke_and_assert(
         raise RuntimeError(
             textwrap.dedent(
                 """
-                You cannot run `invoke_and_assert` directly from an async 
-                function. If you need to run `invoke_and_assert` in an async 
-                function, run it with `run_sync_in_worker_thread`. 
+                You cannot run `invoke_and_assert` directly from an async
+                function. If you need to run `invoke_and_assert` in an async
+                function, run it with `run_sync_in_worker_thread`.
 
-                Example: 
+                Example:
                     run_sync_in_worker_thread(
-                        invoke_and_assert, 
+                        invoke_and_assert,
                         command=['my', 'command'],
                         expected_code=0,
                     )
@@ -94,6 +97,16 @@ def invoke_and_assert(
         ctx = runner.isolated_filesystem(temp_dir=temp_dir)
     else:
         ctx = contextlib.nullcontext()
+
+    if user_input and prompts_and_responses:
+        raise ValueError("Cannot provide both user_input and prompts_and_responses")
+
+    if prompts_and_responses:
+        user_input = (
+            ("\n".join(response for (_, response, *_) in prompts_and_responses) + "\n")
+            .replace("↓", readchar.key.DOWN)
+            .replace("↑", readchar.key.UP)
+        )
 
     with ctx:
         result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
@@ -123,6 +136,34 @@ def invoke_and_assert(
             "------ end ------\n"
         )
         assert output == expected_output, compare_string
+
+    if prompts_and_responses:
+        output = result.stdout.strip()
+        cursor = 0
+
+        for item in prompts_and_responses:
+            prompt = item[0]
+            selected_option = item[2] if len(item) == 3 else None
+
+            prompt_re = rf"{re.escape(prompt)}.*?"
+            if not selected_option:
+                # If we're not prompting for a table, then expect that the
+                # prompt ends with a colon.
+                prompt_re += ":"
+
+            match = re.search(prompt_re, output[cursor:])
+            if not match:
+                raise AssertionError(f"Prompt '{prompt}' not found in CLI output")
+            cursor = cursor + match.end()
+
+            if selected_option:
+                option_re = re.escape(f"│ >  │ {selected_option}")
+                match = re.search(option_re, output[cursor:])
+                if not match:
+                    raise AssertionError(
+                        f"Option '{selected_option}' not found after prompt '{prompt}'"
+                    )
+                cursor = cursor + match.end()
 
     if expected_output_contains is not None:
         if isinstance(expected_output_contains, str):

@@ -6,7 +6,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 
 import boto3
 import pytest
-from moto import mock_ec2, mock_ecr, mock_ecs, mock_iam
+from moto import mock_aws
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
@@ -24,53 +24,21 @@ from prefect.infrastructure.provisioners.ecs import (
     IamUserResource,
     VpcResource,
 )
-from prefect.settings import PREFECT_API_BLOCKS_REGISTER_ON_START, temporary_settings
+
+
+@pytest.fixture(autouse=True)
+def start_mocking_aws(monkeypatch):
+    monkeypatch.setenv(
+        "MOTO_IAM_LOAD_MANAGED_POLICIES", "true"
+    )  # tell moto to explicitly load managed policies
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    with mock_aws():
+        yield
 
 
 @pytest.fixture
-def iam_policy_resource():
+def iam_policy_resource() -> IamPolicyResource:
     return IamPolicyResource(policy_name="prefect-ecs-policy")
-
-
-@pytest.fixture(autouse=True)
-def iam_mock():
-    mock = mock_iam()
-    mock.start()
-
-    yield
-
-    mock.stop()
-
-
-@pytest.fixture(autouse=True)
-def ecs_mock(monkeypatch):
-    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-    mock = mock_ecs()
-    mock.start()
-
-    yield
-
-    mock.stop()
-
-
-@pytest.fixture(autouse=True)
-def ec2_mock():
-    mock = mock_ecr()
-    mock.start()
-
-    yield
-
-    mock.stop()
-
-
-@pytest.fixture(autouse=True)
-def ecr_mock():
-    mock = mock_ec2()
-    mock.start()
-
-    yield
-
-    mock.stop()
 
 
 @pytest.fixture
@@ -298,12 +266,6 @@ def credentials_block_resource():
 
 
 @pytest.fixture
-def register_block_types():
-    with temporary_settings({PREFECT_API_BLOCKS_REGISTER_ON_START: True}):
-        yield
-
-
-@pytest.fixture
 async def existing_credentials_block(
     register_block_types, prefect_client: PrefectClient
 ):
@@ -474,8 +436,7 @@ class TestAuthenticationResource:
         )
         assert (
             "Creating and attaching an IAM policy for managing ECS tasks:"
-            " [blue]prefect-ecs-policy[/]"
-            in actions
+            " [blue]prefect-ecs-policy[/]" in actions
         )
         assert "Storing generated AWS credentials in a block" in actions
 

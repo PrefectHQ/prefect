@@ -1,9 +1,10 @@
 import copy
 import sys
 import threading
+import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from functools import partial
+from datetime import datetime, timezone
 from typing import (
     Any,
     AsyncGenerator,
@@ -11,6 +12,7 @@ from typing import (
     Callable,
     Dict,
     MutableMapping,
+    Optional,
     Protocol,
     Set,
     Tuple,
@@ -21,10 +23,13 @@ from typing import (
 import anyio
 import httpx
 from asgi_lifespan import LifespanManager
-from httpx import HTTPStatusError, Response
-from starlette import status
+from httpx import HTTPStatusError, Request, Response
+from prefect._vendor.starlette import status
 from typing_extensions import Self
 
+import prefect
+from prefect.client import constants
+from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -188,9 +193,32 @@ class PrefectHttpxClient(httpx.AsyncClient):
     [Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
     """
 
+    def __init__(
+        self,
+        *args,
+        enable_csrf_support: bool = False,
+        raise_on_all_errors: bool = True,
+        **kwargs,
+    ):
+        self.enable_csrf_support: bool = enable_csrf_support
+        self.csrf_token: Optional[str] = None
+        self.csrf_token_expiration: Optional[datetime] = None
+        self.csrf_client_id: uuid.UUID = uuid.uuid4()
+        self.raise_on_all_errors: bool = raise_on_all_errors
+
+        super().__init__(*args, **kwargs)
+
+        user_agent = (
+            f"prefect/{prefect.__version__} (API {constants.SERVER_API_VERSION})"
+        )
+        self.headers["User-Agent"] = user_agent
+
     async def _send_with_retry(
         self,
-        request: Callable,
+        request: Request,
+        send: Callable[[Request], Awaitable[Response]],
+        send_args: Tuple,
+        send_kwargs: Dict,
         retry_codes: Set[int] = set(),
         retry_exceptions: Tuple[Exception, ...] = tuple(),
     ):
@@ -207,21 +235,34 @@ class PrefectHttpxClient(httpx.AsyncClient):
         try_count = 0
         response = None
 
+        is_change_request = request.method.lower() in {"post", "put", "patch", "delete"}
+
+        if self.enable_csrf_support and is_change_request:
+            await self._add_csrf_headers(request=request)
+
         while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
             try_count += 1
             retry_seconds = None
             exc_info = None
 
             try:
-                response = await request()
+                response = await send(request, *send_args, **send_kwargs)
             except retry_exceptions:  # type: ignore
                 if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
             else:
-                # We got a response; return immediately if it is not retryable
-                if response.status_code not in retry_codes:
+                # We got a response; check if it's a CSRF error, otherwise
+                # return immediately if it is not retryable
+                if (
+                    response.status_code == status.HTTP_403_FORBIDDEN
+                    and "Invalid CSRF token" in response.text
+                ):
+                    # We got a CSRF error, clear the token and try again
+                    self.csrf_token = None
+                    await self._add_csrf_headers(request)
+                elif response.status_code not in retry_codes:
                     return response
 
                 if "Retry-After" in response.headers:
@@ -268,19 +309,24 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # We ran out of retries, return the failed response
         return response
 
-    async def send(self, *args, **kwargs) -> Response:
+    async def send(self, request: Request, *args, **kwargs) -> Response:
         """
         Send a request with automatic retry behavior for the following status codes:
 
+        - 403 Forbidden, if the request failed due to CSRF protection
+        - 408 Request Timeout
         - 429 CloudFlare-style rate limiting
         - 502 Bad Gateway
         - 503 Service unavailable
+        - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
         """
 
-        api_request = partial(super().send, *args, **kwargs)
-
+        super_send = super().send
         response = await self._send_with_retry(
-            request=api_request,
+            request=request,
+            send=super_send,
+            send_args=args,
+            send_kwargs=kwargs,
             retry_codes={
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -306,9 +352,45 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # Convert to a Prefect response to add nicer errors messages
         response = PrefectResponse.from_httpx_response(response)
 
-        # Always raise bad responses
-        # NOTE: We may want to remove this and handle responses per route in the
-        #       `PrefectClient`
-        response.raise_for_status()
+        if self.raise_on_all_errors:
+            response.raise_for_status()
 
         return response
+
+    async def _add_csrf_headers(self, request: Request):
+        now = datetime.now(timezone.utc)
+
+        if not self.enable_csrf_support:
+            return
+
+        if not self.csrf_token or (
+            self.csrf_token_expiration and now > self.csrf_token_expiration
+        ):
+            token_request = self.build_request(
+                "GET", f"/csrf-token?client={self.csrf_client_id}"
+            )
+
+            try:
+                token_response = await self.send(token_request)
+            except PrefectHTTPStatusError as exc:
+                old_server = exc.response.status_code == status.HTTP_404_NOT_FOUND
+                unconfigured_server = (
+                    exc.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+                    and "CSRF protection is disabled." in exc.response.text
+                )
+
+                if old_server or unconfigured_server:
+                    # The token endpoint is either unavailable, suggesting an
+                    # older server, or CSRF protection is disabled. In either
+                    # case we should disable CSRF support.
+                    self.enable_csrf_support = False
+                    return
+
+                raise
+
+            token: CsrfToken = CsrfToken.parse_obj(token_response.json())
+            self.csrf_token = token.token
+            self.csrf_token_expiration = token.expiration
+
+        request.headers["Prefect-Csrf-Token"] = self.csrf_token
+        request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)

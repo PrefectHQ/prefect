@@ -95,6 +95,7 @@ if __name__ == "__main__":
 The next file we'll add to the `prefect-docker-guide` directory is a `requirements.txt`. We'll include all dependencies required for our `prefect-docker-guide-flow.py` script in the Docker image we'll build.
 
 ```bash
+# ensure you run this line from the top level of the `prefect-docker-guide` directory
 touch requirements.txt
 ```
 
@@ -349,7 +350,7 @@ Prefect is installed into a conda environment named `prefect`.
 
 If your flow relies on dependencies not found in the default `prefecthq/prefect` images, you may want to build your own image. You can either
 base it off of one of the provided `prefecthq/prefect` images, or build your own image.
-See the [Work pool deployment guide](/guides/prefect-deploy/) for discussion of how Prefect can help you build custom images with dependencies specifiied in a `requirements.txt` file.
+See the [Work pool deployment guide](/guides/prefect-deploy/) for discussion of how Prefect can help you build custom images with dependencies specified in a `requirements.txt` file.
 
 By default, Prefect [work pools](/concepts/work-pools) that use containers refer to the `2-latest` image.
 You can specify another image at work pool creation.

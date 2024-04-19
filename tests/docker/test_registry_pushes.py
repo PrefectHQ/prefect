@@ -1,6 +1,7 @@
 import io
 import sys
 from pathlib import Path
+from unittest import mock
 from uuid import uuid4
 
 import pendulum
@@ -28,7 +29,14 @@ def contexts() -> Path:
 
 
 @pytest.fixture(scope="module")
-def howdy(docker: DockerClient, worker_id: str) -> str:
+def frozen_now():
+    now = pendulum.now("UTC")
+    with mock.patch("pendulum.now", return_value=now):
+        yield now
+
+
+@pytest.fixture(scope="module")
+def howdy(docker: DockerClient, worker_id: str, frozen_now: pendulum.DateTime) -> str:
     # Give the image something completely unique so that we know it will generate a
     # new image each time
     message = f"hello from the registry, {str(uuid4())}!"
@@ -48,8 +56,10 @@ def howdy(docker: DockerClient, worker_id: str) -> str:
     return image_id
 
 
-def test_pushing_to_registry(docker: DockerClient, registry: str, howdy: str):
-    tag_prefix = slugify(pendulum.now("utc").isoformat())[:20]
+def test_pushing_to_registry(
+    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
+):
+    tag_prefix = slugify(frozen_now.isoformat())[:20]
 
     registry_tag = push_image(howdy, registry, "howdy")
     assert registry_tag.startswith(f"localhost:5555/howdy:{tag_prefix}")
@@ -66,8 +76,10 @@ def test_pushing_to_registry_with_tag(docker: DockerClient, registry: str, howdy
     assert greeting.startswith("hello from the registry")
 
 
-def test_pushing_with_owner(docker: DockerClient, registry: str, howdy: str):
-    tag_prefix = slugify(pendulum.now("utc").isoformat())[:20]
+def test_pushing_with_owner(
+    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
+):
+    tag_prefix = slugify(frozen_now.isoformat())[:20]
 
     registry_tag = push_image(howdy, registry, "prefecthq/howdy")
     assert registry_tag.startswith(f"localhost:5555/prefecthq/howdy:{tag_prefix}")
@@ -77,9 +89,9 @@ def test_pushing_with_owner(docker: DockerClient, registry: str, howdy: str):
 
 
 def test_does_not_leave_registry_tag_locally(
-    docker: DockerClient, registry: str, howdy: str
+    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
 ):
-    tag_prefix = slugify(pendulum.now("utc").isoformat())[:20]
+    tag_prefix = slugify(frozen_now.isoformat())[:20]
 
     registry_tag = push_image(howdy, registry, "howdy")
     assert registry_tag.startswith(f"localhost:5555/howdy:{tag_prefix}")

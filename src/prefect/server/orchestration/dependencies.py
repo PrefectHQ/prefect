@@ -93,14 +93,14 @@ def temporary_task_orchestration_parameters(tmp_orchestration_parameters):
         return tmp_orchestration_parameters
 
     try:
-        ORCHESTRATION_DEPENDENCIES["task_orchestration_parameters_provider"] = (
-            parameter_lambda
-        )
+        ORCHESTRATION_DEPENDENCIES[
+            "task_orchestration_parameters_provider"
+        ] = parameter_lambda
         yield
     finally:
-        ORCHESTRATION_DEPENDENCIES["task_orchestration_parameters_provider"] = (
-            starting_task_orchestration_parameters
-        )
+        ORCHESTRATION_DEPENDENCIES[
+            "task_orchestration_parameters_provider"
+        ] = starting_task_orchestration_parameters
 
 
 @contextmanager
@@ -113,11 +113,11 @@ def temporary_flow_orchestration_parameters(tmp_orchestration_parameters):
         return tmp_orchestration_parameters
 
     try:
-        ORCHESTRATION_DEPENDENCIES["flow_orchestration_parameters_provider"] = (
-            parameter_lambda
-        )
+        ORCHESTRATION_DEPENDENCIES[
+            "flow_orchestration_parameters_provider"
+        ] = parameter_lambda
         yield
     finally:
-        ORCHESTRATION_DEPENDENCIES["flow_orchestration_parameters_provider"] = (
-            starting_flow_orchestration_parameters
-        )
+        ORCHESTRATION_DEPENDENCIES[
+            "flow_orchestration_parameters_provider"
+        ] = starting_flow_orchestration_parameters

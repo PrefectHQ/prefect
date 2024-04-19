@@ -5,10 +5,14 @@ import warnings
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from logging import LogRecord
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from typing_extensions import Self
 
 import prefect
 from prefect.exceptions import MissingContextError
+from prefect.logging.filters import ObfuscateApiKeyFilter
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
@@ -73,7 +77,6 @@ def get_logger(name: str = None) -> logging.Logger:
     See `get_run_logger` for retrieving loggers for use within task or flow runs.
     By default, only run-related loggers are connected to the `APILogHandler`.
     """
-
     parent_logger = logging.getLogger("prefect")
 
     if name:
@@ -85,6 +88,10 @@ def get_logger(name: str = None) -> logging.Logger:
             logger = logging.getLogger(name)
     else:
         logger = parent_logger
+
+    # Prevent the current API key from being logged in plain text
+    obfuscate_api_key_filter = ObfuscateApiKeyFilter()
+    logger.addFilter(obfuscate_api_key_filter)
 
     return logger
 
@@ -291,3 +298,63 @@ def patch_print():
         yield
     finally:
         builtins.print = original
+
+
+class LogEavesdropper(logging.Handler):
+    """A context manager that collects logs for the duration of the context
+
+    Example:
+
+        ```python
+        import logging
+        from prefect.logging import LogEavesdropper
+
+        with LogEavesdropper("my_logger") as eavesdropper:
+            logging.getLogger("my_logger").info("Hello, world!")
+            logging.getLogger("my_logger.child_module").info("Another one!")
+
+        print(eavesdropper.text())
+
+        # Outputs: "Hello, world!\nAnother one!"
+    """
+
+    _target_logger: logging.Logger
+    _lines: List[str]
+
+    def __init__(self, eavesdrop_on: str, level: int = logging.NOTSET):
+        """
+        Args:
+            eavesdrop_on (str): the name of the logger to eavesdrop on
+            level (int): the minimum log level to eavesdrop on; if omitted, all levels
+                are captured
+        """
+
+        super().__init__(level=level)
+        self.eavesdrop_on = eavesdrop_on
+        self._target_logger = None
+
+        # It's important that we use a very minimalistic formatter for use cases where
+        # we may present these logs back to the user.  We shouldn't leak filenames,
+        # versions, or other environmental information.
+        self.formatter = logging.Formatter("[%(levelname)s]: %(message)s")
+
+    def __enter__(self) -> Self:
+        self._target_logger = logging.getLogger(self.eavesdrop_on)
+        self._original_level = self._target_logger.level
+        self._target_logger.level = self.level
+        self._target_logger.addHandler(self)
+        self._lines = []
+        return self
+
+    def __exit__(self, *_):
+        if self._target_logger:
+            self._target_logger.removeHandler(self)
+            self._target_logger.level = self._original_level
+
+    def emit(self, record: LogRecord) -> None:
+        """The logging.Handler implementation, not intended to be called directly."""
+        self._lines.append(self.format(record))
+
+    def text(self) -> str:
+        """Return the collected logs as a single newline-delimited string"""
+        return "\n".join(self._lines)

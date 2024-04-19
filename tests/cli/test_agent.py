@@ -1,25 +1,45 @@
+import warnings
 from unittest.mock import ANY
 
 import pytest
 
 import prefect.cli.agent
 from prefect import PrefectClient
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
-# All tests that invoke invoke_and_assert() can end up running our CLI command
-# coroutines off the main thread. If the CLI command calls
-# forward_signal_handler(), which prefect.cli.agent.start does, the test run
-# will fail because only the main thread can attach signal handlers.
-pytestmark = pytest.mark.flaky(max_runs=2)
+
+@pytest.fixture(autouse=True)
+def ignore_agent_deprecation_warnings():
+    """
+    Ignore deprecation warnings from the agent module to avoid
+    test failures.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=PrefectDeprecationWarning)
+        yield
+
+
+def test_start_agent_emits_deprecation_warning():
+    invoke_and_assert(
+        command=["agent", "start", "--run-once", "-q", "test"],
+        expected_code=0,
+        expected_output_contains=[
+            "The 'agent' command group has been deprecated.",
+            "It will not be available after Sep 2024.",
+            " Use `prefect worker start` instead.",
+            " Refer to the upgrade guide for more information",
+        ],
+    )
 
 
 def test_start_agent_with_no_args():
     invoke_and_assert(
         command=["agent", "start"],
-        expected_output="No work queues provided!",
+        expected_output_contains="No work queues provided!",
         expected_code=1,
     )
 
@@ -119,7 +139,7 @@ def test_start_agent_respects_work_queue_names(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=["a", "b"],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name=None,
         prefetch_seconds=ANY,
         limit=None,
@@ -151,7 +171,7 @@ def test_start_agent_respects_limit(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=["test"],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name=None,
         prefetch_seconds=ANY,
         limit=10,
@@ -167,7 +187,7 @@ def test_start_agent_respects_work_pool_name(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=["test"],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name="test-pool",
         prefetch_seconds=ANY,
         limit=None,
@@ -201,7 +221,7 @@ def test_start_agent_with_just_work_pool(monkeypatch):
     )
     mock_agent.assert_called_once_with(
         work_queues=[],
-        work_queue_prefix=[],
+        work_queue_prefix=None,
         work_pool_name="test-pool",
         prefetch_seconds=ANY,
         limit=None,

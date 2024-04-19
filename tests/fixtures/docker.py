@@ -2,6 +2,7 @@ import sys
 from contextlib import contextmanager
 from typing import Generator
 
+import docker.errors as docker_errors
 import pytest
 from typer.testing import CliRunner
 
@@ -68,11 +69,10 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
             for image in docker.images.list(filters=filters):
                 for tag in image.tags:
                     docker.images.remove(tag, force=True)
-        except docker.errors.NotFound:
+        except docker_errors.NotFound:
             logger.warning("Failed to clean up Docker objects")
 
 
-@pytest.mark.timeout(120)
 @pytest.fixture(scope="session")
 def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     """Ensure that the prefect dev image is available and up-to-date"""

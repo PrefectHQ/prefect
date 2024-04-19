@@ -2,6 +2,7 @@ import datetime
 from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from prefect.server.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.server.database.configurations import BaseDatabaseConfiguration
@@ -78,7 +79,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         except Exception:
             return False
 
-    async def engine(self):
+    async def engine(self) -> AsyncEngine:
         """
         Provides a SqlAlchemy engine against a specific database.
         """
@@ -174,6 +175,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.Deployment
 
     @property
+    def DeploymentSchedule(self):
+        """A deployment schedule orm model"""
+        return self.orm.DeploymentSchedule
+
+    @property
     def SavedSearch(self):
         """A saved search orm model"""
         return self.orm.SavedSearch
@@ -202,6 +208,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
     def ConcurrencyLimitV2(self):
         """A v2 concurrency model"""
         return self.orm.ConcurrencyLimitV2
+
+    @property
+    def CsrfToken(self):
+        """A csrf token model"""
+        return self.orm.CsrfToken
 
     @property
     def WorkQueue(self):
@@ -264,6 +275,41 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.FlowRunInput
 
     @property
+    def Automation(self):
+        """An automation model"""
+        return self.orm.Automation
+
+    @property
+    def AutomationBucket(self):
+        """An automation bucket model"""
+        return self.orm.AutomationBucket
+
+    @property
+    def AutomationRelatedResource(self):
+        """An automation related resource model"""
+        return self.orm.AutomationRelatedResource
+
+    @property
+    def CompositeTriggerChildFiring(self):
+        """A model capturing a composite trigger's child firing"""
+        return self.orm.CompositeTriggerChildFiring
+
+    @property
+    def AutomationEventFollower(self):
+        """A model capturing one event following another event"""
+        return self.orm.AutomationEventFollower
+
+    @property
+    def Event(self):
+        """An event model"""
+        return self.orm.Event
+
+    @property
+    def EventResource(self):
+        """An event resource model"""
+        return self.orm.EventResource
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
@@ -313,7 +359,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Unique columns for upserting a BlockDocument"""
         return self.orm.block_document_unique_upsert_columns
 
-    async def insert(self, model):
+    def insert(self, model):
         """INSERTs a model into the database"""
         return self.queries.insert(model)
 

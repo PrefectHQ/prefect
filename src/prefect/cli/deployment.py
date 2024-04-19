@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+
 import json
 import sys
 import textwrap
@@ -8,6 +9,7 @@ import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 import pendulum
 import typer
@@ -22,10 +24,10 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.filters import FlowFilter
+from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
-    NoSchedule,
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
@@ -38,6 +40,7 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
+from prefect.flow_runs import wait_for_flow_run
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
@@ -63,6 +66,11 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
 )
+schedule_app = PrefectTyper(
+    name="schedule", help="Commands for interacting with your deployment's schedules."
+)
+
+deployment_app.add_typer(schedule_app, aliases=["schedule"])
 app.add_typer(deployment_app, aliases=["deployments"])
 
 
@@ -242,8 +250,7 @@ async def inspect(name: str):
             'name': 'my-deployment',
             'description': None,
             'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
-            'schedule': None,
-            'is_schedule_active': True,
+            'schedules': None,
             'parameters': {'name': 'Marvin'},
             'tags': ['test'],
             'parameter_openapi_schema': {
@@ -287,7 +294,7 @@ async def inspect(name: str):
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
-        if client.server_type == ServerType.CLOUD:
+        if client.server_type.supports_automations():
             deployment_json["automations"] = [
                 a.dict()
                 for a in await client.read_resource_related_automations(
@@ -298,8 +305,333 @@ async def inspect(name: str):
     app.console.print(Pretty(deployment_json))
 
 
-@deployment_app.command("set-schedule")
-async def set_schedule(
+@schedule_app.command("create")
+async def create_schedule(
+    name: str,
+    interval: Optional[float] = typer.Option(
+        None,
+        "--interval",
+        help="An interval to schedule on, specified in seconds",
+        min=0.0001,
+    ),
+    interval_anchor: Optional[str] = typer.Option(
+        None,
+        "--anchor-date",
+        help="The anchor date for an interval schedule",
+    ),
+    rrule_string: Optional[str] = typer.Option(
+        None, "--rrule", help="Deployment schedule rrule string"
+    ),
+    cron_string: Optional[str] = typer.Option(
+        None, "--cron", help="Deployment schedule cron string"
+    ),
+    cron_day_or: Optional[str] = typer.Option(
+        None,
+        "--day_or",
+        help="Control how croniter handles `day` and `day_of_week` entries",
+    ),
+    timezone: Optional[str] = typer.Option(
+        None,
+        "--timezone",
+        help="Deployment schedule timezone string e.g. 'America/New_York'",
+    ),
+    active: Optional[bool] = typer.Option(
+        True,
+        "--active",
+        help="Whether the schedule is active. Defaults to True.",
+    ),
+    replace: Optional[bool] = typer.Option(
+        False,
+        "--replace",
+        help="Replace the deployment's current schedule(s) with this new schedule.",
+    ),
+    assume_yes: Optional[bool] = typer.Option(
+        False,
+        "--accept-yes",
+        "-y",
+        help="Accept the confirmation prompt without prompting",
+    ),
+):
+    """
+    Create a schedule for a given deployment.
+    """
+    assert_deployment_name_format(name)
+
+    if sum(option is not None for option in [interval, rrule_string, cron_string]) != 1:
+        exit_with_error(
+            "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided."
+        )
+
+    schedule = None
+
+    if interval_anchor and not interval:
+        exit_with_error("An anchor date can only be provided with an interval schedule")
+
+    if interval is not None:
+        if interval_anchor:
+            try:
+                pendulum.parse(interval_anchor)
+            except ValueError:
+                return exit_with_error("The anchor date must be a valid date string.")
+        interval_schedule = {
+            "interval": interval,
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        schedule = IntervalSchedule(
+            **{k: v for k, v in interval_schedule.items() if v is not None}
+        )
+
+    if cron_string is not None:
+        cron_schedule = {
+            "cron": cron_string,
+            "day_or": cron_day_or,
+            "timezone": timezone,
+        }
+        schedule = CronSchedule(
+            **{k: v for k, v in cron_schedule.items() if v is not None}
+        )
+
+    if rrule_string is not None:
+        # a timezone in the `rrule_string` gets ignored by the RRuleSchedule constructor
+        if "TZID" in rrule_string and not timezone:
+            exit_with_error(
+                "You can provide a timezone by providing a dict with a `timezone` key"
+                " to the --rrule option. E.g. {'rrule': 'FREQ=MINUTELY;INTERVAL=5',"
+                " 'timezone': 'America/New_York'}.\nAlternatively, you can provide a"
+                " timezone by passing in a --timezone argument."
+            )
+        try:
+            schedule = RRuleSchedule(**json.loads(rrule_string))
+            if timezone:
+                # override timezone if specified via CLI argument
+                schedule.timezone = timezone
+        except json.JSONDecodeError:
+            schedule = RRuleSchedule(rrule=rrule_string, timezone=timezone)
+
+    if schedule is None:
+        return exit_with_success(
+            "Could not create a valid schedule from the provided options."
+        )
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            return exit_with_error(f"Deployment {name!r} not found!")
+
+        num_schedules = len(deployment.schedules)
+        noun = "schedule" if num_schedules == 1 else "schedules"
+
+        if replace and num_schedules > 0:
+            if not assume_yes and not typer.confirm(
+                f"Are you sure you want to replace {num_schedules} {noun} for {name}?"
+            ):
+                return exit_with_error("Schedule replacement cancelled.")
+
+            for existing_schedule in deployment.schedules:
+                try:
+                    await client.delete_deployment_schedule(
+                        deployment.id, existing_schedule.id
+                    )
+                except ObjectNotFound:
+                    pass
+
+        await client.create_deployment_schedules(deployment.id, [(schedule, active)])
+
+        if replace and num_schedules > 0:
+            exit_with_success(f"Replaced existing deployment {noun} with new schedule!")
+        else:
+            exit_with_success("Created deployment schedule!")
+
+
+@schedule_app.command("delete")
+async def delete_schedule(
+    deployment_name: str,
+    schedule_id: UUID,
+    assume_yes: Optional[bool] = typer.Option(
+        False,
+        "--accept-yes",
+        "-y",
+        help="Accept the confirmation prompt without prompting",
+    ),
+):
+    """
+    Delete a deployment schedule.
+    """
+    assert_deployment_name_format(deployment_name)
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(deployment_name)
+        except ObjectNotFound:
+            return exit_with_error(f"Deployment {deployment_name} not found!")
+
+        try:
+            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
+        except IndexError:
+            return exit_with_error("Deployment schedule not found!")
+
+        if not assume_yes and not typer.confirm(
+            f"Are you sure you want to delete this schedule: {schedule.schedule}",
+        ):
+            return exit_with_error("Deletion cancelled.")
+
+        try:
+            await client.delete_deployment_schedule(deployment.id, schedule_id)
+        except ObjectNotFound:
+            exit_with_error("Deployment schedule not found!")
+
+        exit_with_success(f"Deleted deployment schedule {schedule_id}")
+
+
+@schedule_app.command("pause")
+async def pause_schedule(deployment_name: str, schedule_id: UUID):
+    """
+    Pause a deployment schedule.
+    """
+    assert_deployment_name_format(deployment_name)
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(deployment_name)
+        except ObjectNotFound:
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+        try:
+            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
+        except IndexError:
+            return exit_with_error("Deployment schedule not found!")
+
+        if not schedule.active:
+            return exit_with_error(
+                f"Deployment schedule {schedule_id} is already inactive"
+            )
+
+        await client.update_deployment_schedule(
+            deployment.id, schedule_id, active=False
+        )
+        exit_with_success(
+            f"Paused schedule {schedule.schedule} for deployment {deployment_name}"
+        )
+
+
+@schedule_app.command("resume")
+async def resume_schedule(deployment_name: str, schedule_id: UUID):
+    """
+    Resume a deployment schedule.
+    """
+    assert_deployment_name_format(deployment_name)
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(deployment_name)
+        except ObjectNotFound:
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+        try:
+            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
+        except IndexError:
+            return exit_with_error("Deployment schedule not found!")
+
+        if schedule.active:
+            return exit_with_error(
+                f"Deployment schedule {schedule_id} is already active"
+            )
+
+        await client.update_deployment_schedule(deployment.id, schedule_id, active=True)
+        exit_with_success(
+            f"Resumed schedule {schedule.schedule} for deployment {deployment_name}"
+        )
+
+
+@schedule_app.command("ls")
+async def list_schedules(deployment_name: str):
+    """
+    View all schedules for a deployment.
+    """
+    assert_deployment_name_format(deployment_name)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(deployment_name)
+        except ObjectNotFound:
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+    def sort_by_created_key(schedule: DeploymentSchedule):  # noqa
+        return pendulum.now("utc") - schedule.created
+
+    def schedule_details(schedule: DeploymentSchedule):
+        if isinstance(schedule.schedule, IntervalSchedule):
+            return f"interval: {schedule.schedule.interval}s"
+        elif isinstance(schedule.schedule, CronSchedule):
+            return f"cron: {schedule.schedule.cron}"
+        elif isinstance(schedule.schedule, RRuleSchedule):
+            return f"rrule: {schedule.schedule.rrule}"
+        else:
+            return "unknown"
+
+    table = Table(
+        title="Deployment Schedules",
+    )
+    table.add_column("ID", style="blue", no_wrap=True)
+    table.add_column("Schedule", style="cyan", no_wrap=False)
+    table.add_column("Active", style="purple", no_wrap=True)
+
+    for schedule in sorted(deployment.schedules, key=sort_by_created_key):
+        table.add_row(
+            str(schedule.id),
+            schedule_details(schedule),
+            str(schedule.active),
+        )
+
+    app.console.print(table)
+
+
+@schedule_app.command("clear")
+async def clear_schedules(
+    deployment_name: str,
+    assume_yes: Optional[bool] = typer.Option(
+        False,
+        "--accept-yes",
+        "-y",
+        help="Accept the confirmation prompt without prompting",
+    ),
+):
+    """
+    Clear all schedules for a deployment.
+    """
+    assert_deployment_name_format(deployment_name)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(deployment_name)
+        except ObjectNotFound:
+            return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+        await client.read_flow(deployment.flow_id)
+
+        # Get input from user: confirm removal of all schedules
+        if not assume_yes and not typer.confirm(
+            "Are you sure you want to clear all schedules for this deployment?",
+        ):
+            exit_with_error("Clearing schedules cancelled.")
+
+        for schedule in deployment.schedules:
+            try:
+                await client.delete_deployment_schedule(deployment.id, schedule.id)
+            except ObjectNotFound:
+                pass
+
+        exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
+
+
+@deployment_app.command(
+    "set-schedule",
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use 'prefect deployment schedule create' instead.",
+    deprecated_name="deployment set-schedule",
+)
+async def _set_schedule(
     name: str,
     interval: Optional[float] = typer.Option(
         None,
@@ -333,114 +665,129 @@ async def set_schedule(
         "--no-schedule",
         help="An optional flag to disable scheduling for this deployment.",
     ),
+    deprecated=True,
 ):
     """
     Set schedule for a given deployment.
+
+    This command is deprecated. Use 'prefect deployment schedule create' instead.
     """
     assert_deployment_name_format(name)
 
-    if (
-        sum(option is not None for option in [interval, rrule_string, cron_string])
-        + (1 if no_schedule else 0)
-        != 1
-    ):
+    exclusive_options = sum(
+        option is not None
+        for option in [interval, rrule_string, cron_string] + [no_schedule or None]
+    )
+
+    if exclusive_options != 1:
         exit_with_error(
             "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule` must"
             " be provided."
         )
 
-    if interval_anchor and not interval:
-        exit_with_error("An anchor date can only be provided with an interval schedule")
-
-    if interval is not None:
-        if interval_anchor:
-            try:
-                pendulum.parse(interval_anchor)
-            except ValueError:
-                exit_with_error("The anchor date must be a valid date string.")
-        interval_schedule = {
-            "interval": interval,
-            "anchor_date": interval_anchor,
-            "timezone": timezone,
-        }
-        updated_schedule = IntervalSchedule(
-            **{k: v for k, v in interval_schedule.items() if v is not None}
-        )
-
-    if cron_string is not None:
-        cron_schedule = {
-            "cron": cron_string,
-            "day_or": cron_day_or,
-            "timezone": timezone,
-        }
-        updated_schedule = CronSchedule(
-            **{k: v for k, v in cron_schedule.items() if v is not None}
-        )
-
-    if rrule_string is not None:
-        # a timezone in the `rrule_string` gets ignored by the RRuleSchedule constructor
-        if "TZID" in rrule_string and not timezone:
-            exit_with_error(
-                "You can provide a timezone by providing a dict with a `timezone` key"
-                " to the --rrule option. E.g. {'rrule': 'FREQ=MINUTELY;INTERVAL=5',"
-                " 'timezone': 'America/New_York'}.\nAlternatively, you can provide a"
-                " timezone by passing in a --timezone argument."
-            )
-        try:
-            updated_schedule = RRuleSchedule(**json.loads(rrule_string))
-            if timezone:
-                # override timezone if specified via CLI argument
-                updated_schedule.timezone = timezone
-        except json.JSONDecodeError:
-            updated_schedule = RRuleSchedule(rrule=rrule_string, timezone=timezone)
-
     if no_schedule:
-        updated_schedule = NoSchedule()
+        return await clear_schedules(name)
+    else:
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment_by_name(name)
+            except ObjectNotFound:
+                return exit_with_error(f"Deployment {name!r} not found!")
 
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(name)
-        except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
+            if len(deployment.schedules) > 1:
+                return exit_with_error(
+                    f"Deployment {name!r} has multiple schedules. "
+                    "Use `prefect deployment schedules create` instead."
+                )
 
-        await client.update_deployment(deployment, schedule=updated_schedule)
-        exit_with_success("Updated deployment schedule!")
+            if deployment.schedules:
+                try:
+                    await client.delete_deployment_schedule(
+                        deployment.id, deployment.schedules[0].id
+                    )
+                except ObjectNotFound:
+                    pass
+
+            await create_schedule(
+                name=name,
+                interval=interval,
+                interval_anchor=interval_anchor,
+                rrule_string=rrule_string,
+                cron_string=cron_string,
+                cron_day_or=cron_day_or,
+                timezone=timezone,
+                active=True,
+            )
 
 
-@deployment_app.command("pause-schedule")
-async def pause_schedule(
+@deployment_app.command(
+    "pause-schedule",
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use 'prefect deployment schedule pause' instead.",
+    deprecated_name="deployment pause-schedule",
+)
+async def _pause_schedule(
     name: str,
 ):
     """
     Pause schedule of a given deployment.
+
+    This command is deprecated. Use `prefect deployment schedule pause` instead.
     """
     assert_deployment_name_format(name)
+
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(name)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {name!r} not found!")
 
-        await client.update_deployment(deployment, is_schedule_active=False)
-        exit_with_success(f"Paused schedule for deployment {name}")
+        if not deployment.schedules:
+            return exit_with_error(f"Deployment {name!r} has no schedules.")
+
+        if len(deployment.schedules) > 1:
+            return exit_with_error(
+                f"Deployment {name!r} has multiple schedules. Use `prefect deployment"
+                " schedule pause <deployment_name> <schedule_id>`"
+            )
+
+        return await pause_schedule(name, deployment.schedules[0].id)
 
 
-@deployment_app.command("resume-schedule")
-async def resume_schedule(
+@deployment_app.command(
+    "resume-schedule",
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use 'prefect deployment schedule resume' instead.",
+    deprecated_name="deployment resume-schedule",
+)
+async def _resume_schedule(
     name: str,
 ):
     """
     Resume schedule of a given deployment.
+
+    This command is deprecated. Use `prefect deployment schedule resume` instead.
     """
+    # TODO only work if there is one schedule, otherwise error
     assert_deployment_name_format(name)
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(name)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
+            return exit_with_error(f"Deployment {name!r} not found!")
 
-        await client.update_deployment(deployment, is_schedule_active=True)
-        exit_with_success(f"Resumed schedule for deployment {name}")
+        if not deployment.schedules:
+            return exit_with_error(f"Deployment {name!r} has no schedules.")
+
+        if len(deployment.schedules) > 1:
+            return exit_with_error(
+                f"Deployment {name!r} has multiple schedules. "
+                "Use `prefect deployment schedule pause <deployment_name> <schedule_id>"
+            )
+
+        return await resume_schedule(name, deployment.schedules[0].id)
 
 
 @deployment_app.command()
@@ -488,7 +835,19 @@ async def run(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
     ),
     deployment_id: Optional[str] = typer.Option(
-        None, "--id", help="A deployment id to search for if no name is given"
+        None,
+        "--id",
+        help=("A deployment id to search for if no name is given"),
+    ),
+    job_variables: List[str] = typer.Option(
+        None,
+        "-jv",
+        "--job-variable",
+        help=(
+            "A key, value pair (key=value) specifying a flow run job variable. The value will"
+            " be interpreted as JSON. May be passed multiple times to specify multiple"
+            " job variable values."
+        ),
     ),
     params: List[str] = typer.Option(
         None,
@@ -511,17 +870,46 @@ async def run(
     start_in: Optional[str] = typer.Option(
         None,
         "--start-in",
+        help=(
+            "A human-readable string specifying a time interval to wait before starting"
+            " the flow run. E.g. 'in 5 minutes', 'in 1 hour', 'in 2 days'."
+        ),
     ),
     start_at: Optional[str] = typer.Option(
         None,
         "--start-at",
+        help=(
+            "A human-readable string specifying a time to start the flow run. E.g."
+            " 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'."
+        ),
+    ),
+    tags: List[str] = typer.Option(
+        None,
+        "--tag",
+        help=("Tag(s) to be applied to flow run."),
+    ),
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        help=("Whether to poll the flow run until a terminal state is reached."),
+    ),
+    watch_interval: Optional[int] = typer.Option(
+        None,
+        "--watch-interval",
+        help=("How often to poll the flow run for state changes (in seconds)."),
+    ),
+    watch_timeout: Optional[int] = typer.Option(
+        None,
+        "--watch-timeout",
+        help=("Timeout for --watch."),
     ),
 ):
     """
     Create a flow run for the given flow and deployment.
 
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
-    The flow run will not execute until an agent starts.
+    The flow run will not execute until a worker starts.
+    To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
 
@@ -538,8 +926,11 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-
-    cli_params = _load_json_key_values(params, "parameter")
+        if watch_interval and not watch:
+            exit_with_error(
+                "`--watch-interval` can only be used with `--watch`.",
+            )
+    cli_params = _load_json_key_values(params or [], "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
         app.console.print(
@@ -548,6 +939,7 @@ async def run(
         )
     parameters = {**multi_params, **cli_params}
 
+    job_vars = _load_json_key_values(job_variables or [], "job variable")
     if start_in and start_at:
         exit_with_error(
             "Only one of `--start-in` or `--start-at` can be set, not both."
@@ -621,6 +1013,8 @@ async def run(
                 deployment.id,
                 parameters=parameters,
                 state=Scheduled(scheduled_time=scheduled_start_time),
+                tags=tags,
+                job_variables=job_vars,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")
@@ -650,11 +1044,31 @@ async def run(
             f"""
         └── UUID: {flow_run.id}
         └── Parameters: {flow_run.parameters}
+        └── Job Variables: {flow_run.job_variables}
         └── Scheduled start time: {scheduled_display}
         └── URL: {run_url}
         """
-        ).strip()
+        ).strip(),
+        soft_wrap=True,
     )
+    if watch:
+        watch_interval = 5 if watch_interval is None else watch_interval
+        app.console.print(f"Watching flow run '{flow_run.name!r}'...")
+        finished_flow_run = await wait_for_flow_run(
+            flow_run.id,
+            timeout=watch_timeout,
+            poll_interval=watch_interval,
+            log_states=True,
+        )
+        finished_flow_run_state = finished_flow_run.state
+        if finished_flow_run_state.is_completed():
+            exit_with_success(
+                f"Flow run finished successfully in {finished_flow_run_state.name!r}."
+            )
+        exit_with_error(
+            f"Flow run finished in state {finished_flow_run_state.name!r}.",
+            code=1,
+        )
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
@@ -690,7 +1104,12 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
     return specs
 
 
-@deployment_app.command()
+@deployment_app.command(
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_name="deployment apply",
+    deprecated_help="Use 'prefect deploy' to deploy flows via YAML instead.",
+)
 async def apply(
     paths: List[str] = typer.Argument(
         ...,
@@ -857,7 +1276,12 @@ builtin_infrastructure_types = [
 ]
 
 
-@deployment_app.command()
+@deployment_app.command(
+    deprecated=True,
+    deprecated_start_date="Mar 2024",
+    deprecated_name="deployment build",
+    deprecated_help="Use 'prefect deploy' to deploy flows via YAML instead.",
+)
 async def build(
     entrypoint: str = typer.Argument(
         ...,
@@ -1075,10 +1499,10 @@ async def build(
     except Exception as exc:
         exit_with_error(exc)
     app.console.print(f"Found flow {flow.name!r}", style="green")
-    infra_overrides = {}
+    job_variables = {}
     for override in overrides or []:
         key, value = override.split("=", 1)
-        infra_overrides[key] = value
+        job_variables[key] = value
 
     if infra_block:
         infrastructure = await Block.load(infra_block)
@@ -1171,7 +1595,7 @@ async def build(
         entrypoint=entrypoint,
         version=version,
         storage=storage,
-        infra_overrides=infra_overrides or {},
+        job_variables=job_variables or {},
     )
 
     if parameters:

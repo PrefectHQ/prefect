@@ -6,7 +6,7 @@ search:
   boost: 2
 ---
 
-# Incidents <span class="badge cloud"></span>  <span class="badge pro"></span> <span class="badge enterprise"></span> <span class="badge beta"/>
+# Incidents <span class="badge cloud"></span> </span> <span class="badge custom"></span>
 
 ## Overview
 

@@ -31,7 +31,8 @@ def test_response_scoped_dependency_is_resolved():
     app.include_router(router)
 
     client = TestClient(app)
-    response = client.get("/")
+    with client:
+        response = client.get("/")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == "test"
 
@@ -112,7 +113,7 @@ async def test_response_scoped_dependency_is_closed_before_request_scoped():
 
     app.include_router(router)
 
-    async with httpx.AsyncClient(app=app) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app)) as client:
         response = await client.get("http://localhost/")
 
     assert response.status_code == status.HTTP_200_OK
@@ -145,7 +146,7 @@ async def test_response_scoped_dependency_is_closed_before_response_is_returned(
 
     app.include_router(router)
 
-    async with httpx.AsyncClient(app=app) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app)) as client:
         order.append("request sent")
         response = await client.get("http://localhost/")
         order.append("response received")

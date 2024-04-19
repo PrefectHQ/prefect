@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 
 For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
+
 import os
 import sys
 import warnings
@@ -18,6 +19,7 @@ from typing import (
     Any,
     ContextManager,
     Dict,
+    Generator,
     List,
     Optional,
     Set,
@@ -75,7 +77,7 @@ class ContextModel(BaseModel):
     _token: Token = PrivateAttr(None)
 
     class Config:
-        allow_mutation = False
+        # allow_mutation = False
         arbitrary_types_allowed = True
         extra = "forbid"
 
@@ -137,9 +139,9 @@ class PrefectObjectRegistry(ContextModel):
     )
 
     # Failures will be a tuple of (exception, instance, args, kwargs)
-    _instance_init_failures: Dict[Type[T], List[Tuple[Exception, T, Tuple, Dict]]] = (
-        PrivateAttr(default_factory=lambda: defaultdict(list))
-    )
+    _instance_init_failures: Dict[
+        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
+    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
 
     block_code_execution: bool = False
     capture_failures: bool = False
@@ -214,7 +216,7 @@ class RunContext(ContextModel):
     client: PrefectClient
 
 
-class FlowRunContext(RunContext):
+class EngineContext(RunContext):
     """
     The context for a flow run. Data in this context is only available from within a
     flow run function.
@@ -233,9 +235,10 @@ class FlowRunContext(RunContext):
 
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
+    autonomous_task_run: Optional[TaskRun] = None
     task_runner: BaseTaskRunner
     log_prints: bool = False
-    parameters: Dict[str, Any]
+    parameters: Optional[Dict[str, Any]] = None
 
     # Result handling
     result_factory: ResultFactory
@@ -264,6 +267,9 @@ class FlowRunContext(RunContext):
     events: Optional[EventsWorker] = None
 
     __var__ = ContextVar("flow_run")
+
+
+FlowRunContext = EngineContext  # for backwards compatibility
 
 
 class TaskRunContext(RunContext):
@@ -390,7 +396,7 @@ def get_settings_context() -> SettingsContext:
 
 
 @contextmanager
-def tags(*new_tags: str) -> Set[str]:
+def tags(*new_tags: str) -> Generator[Set[str], None, None]:
     """
     Context manager to add tags to flow and task run calls.
 

@@ -14,12 +14,16 @@ search:
 
 # Automations <span class="badge cloud"></span>
 
-Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work pools.
+Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions.
 
-Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
+Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can even define your own custom trigger to fire based on an [event](/cloud/events/) created from a webhook or a custom event defined in Python code.
+
+Potential actions include kicking off flow runs, pausing schedules, and sending custom notifications.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
     [Notifications](/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
+
+Automations provide a flexible and powerful framework for automatically taking action in response to events.
 
 ## Automations overview
 
@@ -43,38 +47,42 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 
 ### Triggers
 
-Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on:
+Triggers specify the conditions under which your action should be performed. The Prefect UI includes templates for many common conditions, such as:
 
 - Flow run state change
   - Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work pool status
+- Work queue status
 - Deployment status
 - Metric thresholds, such as average duration, lateness, or completion percentage
+- Incident declarations (available on Pro and Custom plans)
 - Custom event triggers
 
 !!! note "Automations API"
     The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
 
-Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
+Importantly, triggers can be configured not only in reaction to events, but also proactively: to fire in the absence of an expected event.
 
 ![Configuring a trigger for an automation in Prefect Cloud.](/img/ui/automations-trigger.png)
 
-For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
-
+For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be taken on the flow itself, such as canceling or restarting it. Or the action could take the form of a notification so someone can take manual remediation steps. Or you could set both actions to to take place when the trigger occurs.
 
 ### Actions
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include:
 
 - Cancel a flow run
-- Pause a flow run
+- Pause or resume a schedule
 - Run a deployment
 - Pause or resume a deployment schedule
+- Pause or resume a work pool
 - Pause or resume a work queue
 - Pause or resume an automation
 - Send a [notification](#automation-notifications)
 - Call a webhook
-- Open an incident
+- Suspend a flow run
+- Declare an incident (available on Pro and Custom plans)
+- Change the state of a flow run
 
 ![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
 
@@ -96,28 +104,32 @@ Specify a name and, optionally, a description for the automation.
 
 ## Custom triggers
 
-Custom triggers allow advanced configuration of the conditions on which an automation executes its actions. Several custom trigger fields accept values that end with trailing wildcards, like `"prefect.flow-run.*"`.
+When you need a trigger that doesn't quite fit the templates in UI trigger builder, you can define a custom trigger in JSON.  With custom triggers, you have access to the full capabilities of Prefect's automation system - allowing you to react to many kinds of events and metrics in your workspace.
+
+Each automation has a single trigger that, when fired, will cause all of its associated actions to run.  That single trigger may be a reactive or proactive event trigger, a trigger monitoring the value of a metric, or a composite trigger that combines several underlying triggers.
+
+### Event triggers
+
+Event triggers are the most common types of trigger, and they are intended to react to the presence or absence of an event happening in your workspace.  Event triggers are indicated with `{"type": "event"}`.
 
 ![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/img/ui/automations-custom.png)
 
-The schema that defines a trigger is as follows:
+The schema that defines an event trigger is as follows:
 
-| Name               | Type               | Supports trailing wildcards | Description |
-| ------------------ | ------------------ | --------------------------- | ----------- |
-| **match**          | object             | :material-check:            | Labels for resources which this Automation will match. |
-| **match_related**  | object             | :material-check:            | Labels for related resources which this Automation will match. |
-| **after**          | array of strings   | :material-check:            | Event(s), one of which must have first been seen to start this automation. |
-| **expect**         | array of strings   | :material-check:            | The event(s) this automation is expecting to see. If empty, this automation will evaluate any matched event. |
-| **for_each**       | array of strings   | :material-close:            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
-| **posture**        | string enum        | N/A                         | The posture of this Automation, either Reactive or Proactive. Reactive automations respond to the presence of the expected events, while Proactive automations respond to the absence of those expected events. |
-| **threshold**      | integer            | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations) |
-| **within**         | number             | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers |
-
-
+| Name              | Type             | Supports trailing wildcards | Description                                                                                                                                                                                                                                                                                                                                          |
+| ----------------- | ---------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **match**         | object           | :material-check:            | Labels for resources which this Automation will match.                                                                                                                                                                                                                                                                                               |
+| **match_related** | object           | :material-check:            | Labels for related resources which this Automation will match.                                                                                                                                                                                                                                                                                       |
+| **posture**       | string enum      | N/A                         | The posture of this Automation, either Reactive or Proactive. Reactive automations respond to the presence of the expected events, while Proactive automations respond to the absence of those expected events.                                                                                                                                      |
+| **after**         | array of strings | :material-check:            | Event(s), one of which must have first been seen to start this automation.                                                                                                                                                                                                                                                                           |
+| **expect**        | array of strings | :material-check:            | The event(s) this automation is expecting to see. If empty, this automation will evaluate any matched event.                                                                                                                                                                                                                                         |
+| **for_each**      | array of strings | :material-close:            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
+| **threshold**     | integer          | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations)                                                                                                                                                                                                |
+| **within**        | number           | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers                                                                                                                                                                                     |
 
 ### Resource matching
 
-`match` and `match_related` control which events a trigger considers for evaluation by filtering on the contents of their `resource` and `related` fields, respectively. Each label added to a `match` filter is `AND`ed with the other labels, and can accept a single value or a list of multiple values that are `OR`ed together.
+Both the `event` and `metric` triggers support matching events for specific resources in your workspace, including most Prefect objects (like flows, deployment, blocks, work pools, tags, etc) as well as resources you have defined in any events you emit yourself.  The `match` and `match_related` fields control which events a trigger considers for evaluation by filtering on the contents of their `resource` and `related` fields, respectively. Each label added to a `match` filter is `AND`ed with the other labels, and can accept a single value or a list of multiple values that are `OR`ed together.
 
 Consider the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for the sake of example. Its primary resource is a flow run, and since that flow run was started via a deployment, it is related to both its flow and its deployment:
 
@@ -257,7 +269,7 @@ The following configuration uses `after` to prevent this automation from firing 
 
 ### Evaluation strategy
 
-All of the previous examples were designed around a reactive `posture` - that is, count up events toward the `threshold` until it is met, then execute actions. To respond to the absence of events, use a proactive `posture`. A proactive trigger will fire when its `threshold` has _not_ been met by the end of the window of time defined by `within`. Proactive triggers must have a `within` of at least 10 seconds. 
+All of the previous examples were designed around a reactive `posture` - that is, count up events toward the `threshold` until it is met, then execute actions. To respond to the absence of events, use a proactive `posture`. A proactive trigger will fire when its `threshold` has _not_ been met by the end of the window of time defined by `within`. Proactive triggers must have a `within` value of at least 10 seconds.
 
 The following trigger will fire if a `prefect.flow-run.Completed` event is not seen within 60 seconds after a `prefect.flow-run.Running` event is seen.
 
@@ -279,6 +291,7 @@ The following trigger will fire if a `prefect.flow-run.Completed` event is not s
   "within": 60
 }
 ```
+
 However, without `for_each`, a `prefect.flow-run.Completed` event from a _different_ flow run than the one that started this trigger with its `prefect.flow-run.Running` event could satisfy the condition. Adding a `for_each` of `prefect.resource.id` will cause this trigger to be evaluated separately for each flow run id associated with these events.
 
 ```json
@@ -302,19 +315,262 @@ However, without `for_each`, a `prefect.flow-run.Completed` event from a _differ
 }
 ```
 
+### Metric triggers
+
+Metric triggers (`{"type": "metric"}`) fire when the value of a metric in your workspace crosses a threshold you've defined.  For example, you can trigger an automation when the success rate of flows in your workspace drops below 95% over the course of an hour.
+
+Prefect's metrics are all derived by examining your workspace's events, and if applicable, use the `occurred` times of those events as the basis for their calculations.
+
+Prefect defines three metrics today:
+
+- **Successes** (`{"name": "successes"}`), defined as the number of flow runs that went `Pending` and then the latest state we saw was not a failure (`Failed` or `Crashed`).  This metric accounts for retries if the ultimate state was successful.
+- **Duration** (`{"name": "duration"}`), defined as the _length of time_ that a flow remains in a `Running` state before transitioning to a terminal state such as `Completed`, `Failed`, or `Crashed`.  Because this time is derived in terms of flow run state change events, it may be greater than the runtime of your function.
+- **Lateness** (`{"name": "lateness"}`), defined as the _length of time_ that a `Scheduled` flow remains in a `Late` state before transitioning to a `Running` and/or `Crashed` state.  Only flow runs that the system marks `Late` are included.
+
+The schema of a metric trigger is as follows:
+
+| Name              | Type                 | Supports trailing wildcards | Description                                                    |
+| ----------------- | -------------------- | --------------------------- | -------------------------------------------------------------- |
+| **match**         | object               | :material-check:            | Labels for resources which this Automation will match.         |
+| **match_related** | object               | :material-check:            | Labels for related resources which this Automation will match. |
+| **metric**        | `MetricTriggerQuery` | N/A                         | The definition of the metric query to run                      |
+
+And the `MetricTriggerQuery` query is defined as:
+
+| Name           | Type                                  | Description                                                            |
+| -------------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| **name**       | string                                | The name of the Prefect metric to evaluate (see above).                |
+| **threshold**  | number                                | The threshold to which the current metric value is compared            |
+| **operator**   | string (`"<"`, `"<="`, `">"`, `">="`) | The comparison operator to use to decide if the threshold value is met |
+| **range**      | duration in seconds                   | How far back to evaluate the metric                                    |
+| **firing_for** | duration in seconds                   | How long the value must exceed the threshold before this trigger fires |
+
+For example, to fire when flow runs tagged `production` in your workspace are failing at a rate of 10% or worse for the last hour (in other words, your success rate is below 90%), create this trigger:
+
+```json
+{
+  "type": "metric",
+  "match": {
+    "prefect.resource.id": "prefect.flow-run.*"
+  },
+  "match_related": {
+    "prefect.resource.id": "prefect.tag.production",
+    "prefect.resource.role": "tag"
+  },
+  "metric": {
+    "name": "successes",
+    "threshold": 0.9,
+    "operator": "<",
+    "range": 3600,
+    "firing_for": 0
+  }
+}
+```
+
+To detect when the average lateness of your Kubernetes workloads (running on a work pool named `kubernetes`) in the last day exceeds 5 minutes late, and that number hasn't gotten better for the last 10 minutes, use a trigger like this:
+
+```json
+{
+  "type": "metric",
+  "match": {
+    "prefect.resource.id": "prefect.flow-run.*"
+  },
+  "match_related": {
+    "prefect.resource.id": "prefect.work-pool.kubernetes",
+    "prefect.resource.role": "work-pool"
+  },
+  "metric": {
+    "name": "lateness",
+    "threshold": 300,
+    "operator": ">",
+    "range": 86400,
+    "firing_for": 600
+  }
+}
+```
+
+### Composite triggers
+
+To create a trigger from multiple kinds of events and metrics, use a `compound` or `sequence` trigger.  These higher-order triggers are composed from a set of underlying `event` and `metric` triggers.
+
+For example, if you want to run a deployment only after three different flows in your workspace have written their results to a remote filesystem, combine them with a 'compound' trigger:
+
+```json
+{
+  "type": "compound",
+  "require": "all",
+  "within": 3600,
+  "triggers": [
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.block.remote-file-system.write_path.called"],
+      "match_related": {
+        "prefect.resource.name": "daily-customer-export",
+        "prefect.resource.role": "flow"
+      }
+    },
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.block.remote-file-system.write_path.called"],
+      "match_related": {
+        "prefect.resource.name": "daily-revenue-export",
+        "prefect.resource.role": "flow"
+      }
+    },
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.block.remote-file-system.write_path.called"],
+      "match_related": {
+        "prefect.resource.name": "daily-expenses-export",
+        "prefect.resource.role": "flow"
+      }
+    }
+  ]
+}
+```
+
+This trigger will fire once it sees at least one of each of the underlying event triggers fire within the time frame specified. Then the trigger will reset its state and fire the next time these three events all happen.  The order the events occur doesn't matter, just that all of the events occur within one hour.
+
+If you want a flow run to complete prior to starting to watch for those three events,  you can combine the entire previous trigger as the second part of a sequence of two triggers:
+
+```json
+{
+  // the outer trigger is now a "sequence" trigger
+  "type": "sequence",
+  "within": 7200,
+  "triggers": [
+    // with the first child trigger expecting a Completed event
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.flow-run.Completed"],
+      "match_related": {
+        "prefect.resource.name": "daily-export-initiator",
+        "prefect.resource.role": "flow"
+      }
+    },
+    // and the second child trigger being the compound trigger from the prior example
+    {
+      "type": "compound",
+      "require": "all",
+      "within": 3600,
+      "triggers": [
+        {
+          "type": "event",
+          "posture": "Reactive",
+          "expect": ["prefect.block.remote-file-system.write_path.called"],
+          "match_related": {
+            "prefect.resource.name": "daily-customer-export",
+            "prefect.resource.role": "flow"
+          }
+        },
+        {
+          "type": "event",
+          "posture": "Reactive",
+          "expect": ["prefect.block.remote-file-system.write_path.called"],
+          "match_related": {
+            "prefect.resource.name": "daily-revenue-export",
+            "prefect.resource.role": "flow"
+          }
+        },
+        {
+          "type": "event",
+          "posture": "Reactive",
+          "expect": ["prefect.block.remote-file-system.write_path.called"],
+          "match_related": {
+            "prefect.resource.name": "daily-expenses-export",
+            "prefect.resource.role": "flow"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+In this case, the trigger will only fire if it sees the `daily-export-initiator` flow complete, and then the three files written by the other flows.
+
+The `within` parameter for compound and sequence triggers constrains how close in time (in seconds) the child triggers must fire to satisfy the composite trigger.  For example, if the `daily-export-initiator` flow runs, but the other three flows don't write their result files until three hours later, this trigger won't fire.  Placing these time constraints on the triggers can prevent a misfire if you know that the events will generally happen within a specific timeframe, and you don't want a stray older event to be included in the evaluation of the trigger.  If this isn't a concern for you, you may omit the `within` period, in which case there is no limit to how far apart in time the child triggers occur.
+
+Any type of trigger may be composed into higher-order composite triggers, including proactive event triggers and metric triggers.  In the following example, the compound trigger will fire if any of the following events occur: a flow run stuck in `Pending`, a work pool becoming unready, or the average amount of `Late` work in your workspace going over 10 minutes:
+
+```json
+{
+  "type": "compound",
+  "require": "any",
+  "triggers": [
+    {
+      "type": "event",
+      "posture": "Proactive",
+      "after": ["prefect.flow-run.Pending"],
+      "expect": ["prefect.flow-run.Running", "prefect.flow-run.Crashed"],
+      "for_each": ["prefect.resource.id"],
+      "match_related": {
+        "prefect.resource.name": "daily-customer-export",
+        "prefect.resource.role": "flow"
+      }
+    },
+    {
+      "type": "event",
+      "posture": "Reactive",
+      "expect": ["prefect.work-pool.not_ready"],
+      "match": {
+        "prefect.resource.name": "kubernetes-workers",
+      }
+    },
+    {
+      "type": "metric",
+      "metric": {
+        "name": "lateness",
+        "operator": ">",
+        "threshold": 600,
+        "range": 3600,
+        "firing_for": 300
+      }
+    }
+  ]
+}
+```
+
+For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of child triggers.  In the example above, if you feel that you are receiving too many spurious notifications for issues that resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order for the compound trigger to fire.  Sequence triggers, on the other hand, always require all of their child triggers to fire before they fire.
+
+Compound triggers are defined as:
+
+| Name         | Type                        | Description                                                             |
+| ------------ | --------------------------- | ----------------------------------------------------------------------- |
+| **require**  | number, `"any"`, or `"all"` | How many of the child triggers must fire for this trigger to fire       |
+| **within**   | time, in seconds            | How close in time the child triggers must fire for this trigger to fire |
+| **triggers** | array of other triggers     |                                                                         |
+
+Sequence triggers are defined as:
+
+| Name         | Type                    | Description                                                             |
+| ------------ | ----------------------- | ----------------------------------------------------------------------- |
+| **within**   | time, in seconds        | How close in time the child triggers must fire for this trigger to fire |
+| **triggers** | array of other triggers |                                                                         |
+
 ## Create an automation via deployment triggers
 
 To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
+Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, specified trigger definitions will create linked automations that are triggered by events matching your chosen [grammar](/concepts/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) to render the triggering `event` as the `parameters` of your  deployment's flow run.
+
+### Defining triggers in `prefect.yaml`
+
+A list of triggers can be included directly on any deployment in a `prefect.yaml` file:
+
 ```yaml
-# prefect.yaml
 deployments:
   - name: my-deployment
     entrypoint: path/to/flow.py:decorated_fn
     work_pool:
-      name: my-process-pool
+      name: my-work-pool
     triggers:
-      - enabled: true
+      - type: event
+        enabled: true
         match:
           prefect.resource.id: my.external.resource
         expect:
@@ -323,19 +579,117 @@ deployments:
           param_1: "{{ event }}"
 ```
 
-At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](/concepts/events/#event-grammar), which will pass the templatable `event` as a parameter to the deployment's flow run.
+This deployment will create a flow run when an `external.resource.pinged` event _and_ an `external.resource.replied` event have been seen from `my.external.resource`:
+
+```yaml
+deployments:
+  - name: my-deployment
+    entrypoint: path/to/flow.py:decorated_fn
+    work_pool:
+      name: my-work-pool
+    triggers:
+      - type: compound
+        require: all
+        parameters:
+          param_1: "{{ event }}"
+        triggers:
+          - type: event
+            match:
+              prefect.resource.id: my.external.resource
+            expect:
+              - external.resource.pinged
+          - type: event
+            match:
+              prefect.resource.id: my.external.resource
+            expect:
+              - external.resource.replied
+```
+
+### Defining triggers in `.serve` and `.deploy`
+
+For creating deployments with triggers in Python, the trigger types `DeploymentEventTrigger`, `DeploymentMetricTrigger`, `DeploymentCompoundTrigger`, and `DeploymentSequenceTrigger` can be imported from `prefect.events`:
+
+```python
+from prefect import flow
+from prefect.events import DeploymentEventTrigger 
+
+
+@flow(log_prints=True)
+def decorated_fn(param_1: str):
+    print(param_1)
+
+
+if __name__=="__main__":
+    decorated_fn.serve(
+        name="my-deployment",
+        triggers=[
+            DeploymentEventTrigger(
+                enabled=True,
+                match={"prefect.resource.id": "my.external.resource"},
+                expect=["external.resource.pinged"],
+                parameters={
+                    "param_1": "{{ event }}",
+                },
+            )
+        ],
+    )
+```
+
+As with prior examples, composite triggers must be supplied with a list of underlying triggers:
+
+```python
+from prefect import flow
+from prefect.events import DeploymentCompoundTrigger
+
+
+@flow(log_prints=True)
+def decorated_fn(param_1: str):
+    print(param_1)
+
+
+if __name__=="__main__":
+    decorated_fn.deploy(
+        name="my-deployment",
+        image="my-image-registry/my-image:my-tag"
+        triggers=[
+            DeploymentCompoundTrigger(
+                enabled=True,
+                name="my-compound-trigger",
+                require="all",
+                triggers=[
+                    {
+                      "type": "event",
+                      "match": {"prefect.resource.id": "my.external.resource"},
+                      "expect": ["external.resource.pinged"],
+                    },
+                    {
+                      "type": "event",
+                      "match": {"prefect.resource.id": "my.external.resource"},
+                      "expect": ["external.resource.replied"],
+                    },
+                ],
+                parameters={
+                    "param_1": "{{ event }}",
+                },
+            )
+        ],
+        work_pool_name="my-work-pool",
+    )
+```
+
 
 ### Pass triggers to `prefect deploy`
+
 You can pass one or more `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
 
 ```bash
 # Pass a trigger as a JSON string
 prefect deploy -n test-deployment \
   --trigger '{
-    "enabled": true, 
+    "enabled": true,
     "match": {
       "prefect.resource.id": "prefect.flow-run.*"
-    }, 
+    },
     "expect": ["prefect.flow-run.Completed"]
   }'
 
@@ -363,8 +717,8 @@ triggers:
     parameters:
       param_1: "{{ event }}"
 ```
-Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
+Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
 !!! warning "Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`"
     While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will
@@ -405,7 +759,7 @@ The `flow_run|ui_url` token returns the URL for viewing the flow run in Prefect 
 Here’s an example for something that would be relevant to a flow run state-based notification:
 
 ```
-Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}. 
+Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 
     Timestamp: {{ flow_run.state.timestamp }}
     Flow ID: {{ flow_run.flow_id }}

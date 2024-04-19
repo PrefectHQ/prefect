@@ -38,6 +38,18 @@ async def late_run_2(session, flow):
 
 
 @pytest.fixture
+async def pending_run(session, flow):
+    async with session.begin():
+        return await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+            ),
+        )
+
+
+@pytest.fixture
 async def future_run(session, flow):
     async with session.begin():
         return await models.flow_runs.create_flow_run(
@@ -178,3 +190,25 @@ async def test_mark_late_runs_marks_multiple_runs_as_late(
 
     assert late_run.state_name == "Late"
     assert late_run_2.state_name == "Late"
+
+
+async def test_only_scheduled_runs_marked_late(
+    session,
+    late_run,
+    pending_run,
+):
+    # late scheduled run is correctly marked late
+    assert late_run.state.name == "Scheduled"
+
+    await MarkLateRuns(handle_signals=False)._mark_flow_run_as_late(session, late_run)
+    await session.refresh(late_run)
+    assert late_run.state_name == "Late"
+
+    # pending run cannot be marked late
+    assert pending_run.state.name == "Pending"
+
+    await MarkLateRuns(handle_signals=False)._mark_flow_run_as_late(
+        session, pending_run
+    )
+    await session.refresh(pending_run)
+    assert pending_run.state_name == "Pending"

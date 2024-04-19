@@ -214,6 +214,9 @@ class EventLoopThread(Portal):
         for call in self._on_shutdown:
             await self._run_call(call)
 
+        # Empty the list to allow calls to be garbage collected. Issue #10338.
+        self._on_shutdown = []
+
     async def _run_call(self, call: Call) -> None:
         task = call.run()
         if task is not None:

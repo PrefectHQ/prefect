@@ -6,6 +6,7 @@ since crashes are always reraised and no state is returned by the run. Crashes m
 be reraised to prevent Prefect from swallowing important signals like keyboard
 interrupts.
 """
+
 import asyncio
 import os
 import signal

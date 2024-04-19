@@ -17,8 +17,6 @@
       permissions:
         # required to write to the repo
         contents: write
-        # required to open a pr with prefect ui changes
-        pull-requests: write
       steps:
         - uses: actions/checkout@v4
   
@@ -64,5 +62,5 @@
             --label maintenance \
             --label ui
           env:
-            GITHUB_TOKEN: ${{ github.token }}
+            GITHUB_TOKEN: ${{ secrets.PREFECT_CONTENTS_PR_RW }}
   

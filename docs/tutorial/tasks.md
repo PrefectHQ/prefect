@@ -36,10 +36,11 @@ Let's take our flow from before and move the request into a task:
 ```python hl_lines="2 5-9 15" title="repo_info.py"
 import httpx
 from prefect import flow, task
+from typing import Optional
 
 
 @task
-def get_url(url: str, params: dict = None):
+def get_url(url: str, params: Optional[dict[str, any]] = None):
     response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -86,12 +87,13 @@ import httpx
 from datetime import timedelta
 from prefect import flow, task, get_run_logger
 from prefect.tasks import task_input_hash
+from typing import Optional
 
 
 @task(cache_key_fn=task_input_hash, 
       cache_expiration=timedelta(hours=1),
       )
-def get_url(url: str, params: dict = None):
+def get_url(url: str, params: Optional[dict[str, any]] = None):
     response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -115,10 +117,11 @@ import httpx
 from datetime import timedelta
 from prefect import flow, task
 from prefect.tasks import task_input_hash
+from typing import Optional
 
 
 @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
-def get_url(url: str, params: dict = None):
+def get_url(url: str, params: Optional[dict[str, any]] = None):
     response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()

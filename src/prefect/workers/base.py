@@ -9,6 +9,7 @@ import anyio.abc
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import return_v_or_none
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
@@ -37,9 +38,8 @@ from prefect.client.schemas.filters import (
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
 from prefect.engine import propose_state
-from prefect.events import Event, emit_event
+from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
-from prefect.events.schemas import RelatedResource
 from prefect.exceptions import (
     Abort,
     InfrastructureNotAvailable,
@@ -109,10 +109,7 @@ class BaseJobConfiguration(BaseModel):
 
     @validator("command")
     def _coerce_command(cls, v):
-        """Make sure that empty strings are treated as None"""
-        if not v:
-            return None
-        return v
+        return return_v_or_none(v)
 
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
@@ -633,6 +630,22 @@ class BaseWorker(abc.ABC):
 
         try:
             configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": (
+                        "This flow run is missing infrastructure configuration information"
+                        " and cancellation cannot be guaranteed."
+                    )
+                },
+            )
+            return
+        else:
             if configuration.is_using_a_runner:
                 self._logger.info(
                     f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
@@ -640,11 +653,6 @@ class BaseWorker(abc.ABC):
                     " cancellation."
                 )
                 return
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
 
         if not flow_run.infrastructure_pid:
             run_logger.error(
@@ -966,9 +974,14 @@ class BaseWorker(abc.ABC):
     ) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         flow = await self._client.read_flow(flow_run.flow_id)
+
+        deployment_vars = deployment.job_variables or {}
+        flow_run_vars = flow_run.job_variables or {}
+        job_variables = {**deployment_vars, **flow_run_vars}
+
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            values=deployment.infra_overrides or {},
+            values=job_variables,
             client=self._client,
         )
         configuration.prepare_for_flow_run(
@@ -1138,7 +1151,7 @@ class BaseWorker(abc.ABC):
         if include_self:
             worker_resource = self._event_resource()
             worker_resource["prefect.resource.role"] = "worker"
-            related.append(RelatedResource(__root__=worker_resource))
+            related.append(RelatedResource.parse_obj(worker_resource))
 
         return related
 

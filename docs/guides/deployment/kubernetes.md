@@ -26,6 +26,8 @@ Before we begin, there are a few pre-requisites:
 4. Install [Helm](https://helm.sh/docs/intro/install/)
 5. Install the [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
+Prefect is tested against Kubernetes 1.26.0 and newer minor versions.
+
 !!! Note "Administrator Access"
     Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider.
     Admin access is only necessary during the initial setup and can be downgraded after.

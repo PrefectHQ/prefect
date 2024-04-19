@@ -14,9 +14,9 @@ search:
   boost: 2
 ---
 
-# Audit Log <span class="badge cloud"></span> <span class="badge pro"></span> <span class="badge enterprise"></span>
+# Audit Log <span class="badge cloud"></span> <span class="badge pro"></span> <span class="badge custom"></span>
 
-Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer enhanced compliance and transparency tools with Audit Log.
+Prefect Cloud's [Pro and Custom plans](https://www.prefect.io/pricing) offer enhanced compliance and transparency tools with Audit Log.
 Audit logs provide a chronological record of activities performed by members in your account, allowing you to monitor detailed Prefect Cloud actions for security and compliance purposes.
 
 Audit logs enable you to identify who took what action, when, and using what resources within your Prefect Cloud account.
@@ -36,11 +36,11 @@ See the [Prefect Cloud plan information](https://www.prefect.io/pricing) to lear
 
 ## Viewing audit logs
 
-From your Pro or Enterprise account settings page, select the **Audit Log** page to view audit logs.
+From your Pro or Custom account settings page, select the **Audit Log** page to view audit logs.
 
 ![Viewing audit logs for an account in the Prefect Cloud UI.](/img/ui/audit-log.png)
 
-Pro and Enterprise account tier admins can view audit logs for:
+Pro and Custom account tier admins can view audit logs for:
 
 - Account-level events in Prefect Cloud, such as:
   - Member invites

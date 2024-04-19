@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import readchar
-from starlette import status
+from prefect._vendor.starlette import status
 from typer import Exit
 
 from prefect.cli.cloud import LoginFailed, LoginSuccess
@@ -425,7 +425,6 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-@pytest.mark.flaky(max_runs=2)
 def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
@@ -777,17 +776,14 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
         ["cloud", "login"],
         expected_code=0,
         user_input=(
-            # No, do not reauth
-            "n"
-            + readchar.key.ENTER
             # Yes, switch profiles
-            + "y"
+            "y"
             + readchar.key.ENTER
             # Use the first profile
             + readchar.key.ENTER
         ),
         expected_output_contains=[
-            "? Would you like to switch to an authenticated profile? [Y/n]:",
+            "? Would you like to switch profiles? [Y/n]:",
             "? Which authenticated profile would you like to switch to?",
             "logged-in-profile",
             "Switched to authenticated profile 'logged-in-profile'.",
@@ -838,17 +834,14 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_m
         ["cloud", "login"],
         expected_code=1,
         user_input=(
-            # No, do not reauth
-            "n"
-            + readchar.key.ENTER
             # Yes, switch profiles
-            + "y"
+            "y"
             + readchar.key.ENTER
             # Abort!
             + readchar.key.CTRL_C
         ),
         expected_output_contains=[
-            "? Would you like to switch to an authenticated profile? [Y/n]:",
+            "? Would you like to switch profiles? [Y/n]:",
             "? Which authenticated profile would you like to switch to?",
             "logged-in-profile",
             "Aborted",
@@ -969,6 +962,121 @@ def test_set_workspace_updates_profile(respx_mock):
                 f"Successfully set workspace to {bar_workspace.handle!r} "
                 f"in profile {cloud_profile!r}."
             ),
+        )
+
+    profiles = load_profiles()
+    assert profiles[cloud_profile].settings == {
+        PREFECT_API_URL: bar_workspace.api_url(),
+        PREFECT_API_KEY: "fake-key",
+    }
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_set_workspace_with_account_selection(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test1", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
+        )
+    )
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/accounts").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                {"account_handle": "test1", "account_id": "account1"},
+                {"account_handle": "test2", "account_id": "account2"},
+            ],
+        )
+    )
+
+    respx_mock.get(
+        PREFECT_CLOUD_API_URL.value() + "/me/workspaces?account_id=account2"
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[bar_workspace.dict(json_compatible=True)],
+        )
+    )
+
+    cloud_profile = "cloud-foo"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=cloud_profile,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "fake-key",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "workspace", "set"],
+            expected_code=0,
+            user_input=readchar.key.DOWN + readchar.key.ENTER + readchar.key.ENTER,
+            expected_output_contains=[
+                f"Successfully set workspace to {bar_workspace.handle!r} in profile {cloud_profile!r}.",
+            ],
+        )
+
+    profiles = load_profiles()
+    assert profiles[cloud_profile].settings == {
+        PREFECT_API_URL: bar_workspace.api_url(),
+        PREFECT_API_KEY: "fake-key",
+    }
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_set_workspace_with_less_than_10_workspaces(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test1", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
+        )
+    )
+
+    cloud_profile = "cloud-foo"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=cloud_profile,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "fake-key",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "workspace", "set"],
+            expected_code=0,
+            user_input=readchar.key.DOWN + readchar.key.ENTER,
+            expected_output_contains=[
+                f"Successfully set workspace to {bar_workspace.handle!r} in profile {cloud_profile!r}.",
+            ],
         )
 
     profiles = load_profiles()

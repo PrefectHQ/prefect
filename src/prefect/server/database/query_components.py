@@ -1,5 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
+from collections import defaultdict
 from typing import (
     TYPE_CHECKING,
     Dict,
@@ -21,9 +22,10 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server import schemas
+from prefect._internal.compatibility.experimental import experiment_enabled
+from prefect.server import models, schemas
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
-from prefect.server.schemas.graph import Edge, Graph, Node
+from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.database import Timestamp, json_has_any_key
 
@@ -56,7 +58,7 @@ class BaseQueryComponents(ABC):
     # --- dialect-specific SqlAlchemy bindings
 
     @abstractmethod
-    def insert(self, obj):
+    def insert(self, obj) -> Union[postgresql.Insert, sqlite.Insert]:
         """dialect-specific insert statement"""
 
     @abstractmethod
@@ -120,7 +122,7 @@ class BaseQueryComponents(ABC):
     ):
         """Database-specific implementation of queueing notifications for a flow run"""
         # insert a <policy, state> pair into the notification queue
-        stmt = (await db.insert(db.FlowRunNotificationQueue)).from_select(
+        stmt = db.insert(db.FlowRunNotificationQueue).from_select(
             [
                 db.FlowRunNotificationQueue.flow_run_notification_policy_id,
                 db.FlowRunNotificationQueue.flow_run_state_id,
@@ -366,7 +368,8 @@ class BaseQueryComponents(ABC):
                 sa.column("run_work_pool_id"),
                 sa.column("run_work_queue_id"),
                 db.FlowRun,
-            ).from_statement(query)
+            )
+            .from_statement(query)
             # indicate that the state relationship isn't being loaded
             .options(sa.orm.noload(db.FlowRun.state))
         )
@@ -534,15 +537,89 @@ class BaseQueryComponents(ABC):
         flow_run_id: UUID,
         since: datetime.datetime,
         max_nodes: int,
+        max_artifacts: int,
     ) -> Graph:
         """Returns the query that selects all of the nodes and edges for a flow run graph (version 2)."""
         ...
+
+    async def _get_flow_run_graph_artifacts(
+        self,
+        db: "PrefectDBInterface",
+        session: AsyncSession,
+        flow_run_id: UUID,
+        max_artifacts: int,
+    ):
+        """Get the artifacts for a flow run grouped by task run id.
+
+        Does not recurse into subflows.
+        Artifacts for the flow run without a task run id are grouped under None.
+        """
+        if not experiment_enabled("artifacts_on_flow_run_graph"):
+            return defaultdict(list)
+
+        query = (
+            sa.select(
+                db.Artifact, db.ArtifactCollection.id.label("latest_in_collection_id")
+            )
+            .where(
+                db.Artifact.flow_run_id == flow_run_id,
+                db.Artifact.type != "result",
+            )
+            .join(
+                db.ArtifactCollection,
+                (db.ArtifactCollection.key == db.Artifact.key)
+                & (db.ArtifactCollection.latest_id == db.Artifact.id),
+                isouter=True,
+            )
+            .order_by(db.Artifact.created.asc())
+            .limit(max_artifacts)
+        )
+
+        results = await session.execute(query)
+
+        artifacts_by_task = defaultdict(list)
+        for artifact, latest_in_collection_id in results:
+            artifacts_by_task[artifact.task_run_id].append(
+                GraphArtifact(
+                    id=artifact.id,
+                    created=artifact.created,
+                    key=artifact.key,
+                    type=artifact.type,
+                    is_latest=artifact.key is None
+                    or latest_in_collection_id is not None,
+                )
+            )
+
+        return artifacts_by_task
+
+    async def _get_flow_run_graph_states(
+        self,
+        session: AsyncSession,
+        flow_run_id: UUID,
+    ):
+        """Get the flow run states for a flow run graph."""
+        if not experiment_enabled("states_on_flow_run_graph"):
+            return []
+
+        flow_run_states = await models.flow_run_states.read_flow_run_states(
+            session=session, flow_run_id=flow_run_id
+        )
+
+        return [
+            GraphState(
+                id=state.id,
+                timestamp=state.timestamp,
+                type=state.type,
+                name=state.name,
+            )
+            for state in flow_run_states
+        ]
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
 
-    def insert(self, obj):
+    def insert(self, obj) -> postgresql.Insert:
         return postgresql.insert(obj)
 
     def greatest(self, *values):
@@ -700,6 +777,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         flow_run_id: UUID,
         since: datetime.datetime,
         max_nodes: int,
+        max_artifacts: int,
     ) -> Graph:
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
@@ -819,6 +897,11 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
         results = await session.execute(query)
 
+        graph_artifacts = await self._get_flow_run_graph_artifacts(
+            db, session, flow_run_id, max_artifacts
+        )
+        graph_states = await self._get_flow_run_graph_states(session, flow_run_id)
+
         nodes: List[Tuple[UUID, Node]] = []
         root_node_ids: List[UUID] = []
 
@@ -838,6 +921,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         end_time=row.end_time,
                         parents=[Edge(id=id) for id in row.parent_ids or []],
                         children=[Edge(id=id) for id in row.child_ids or []],
+                        artifacts=graph_artifacts.get(row.id, []),
                     ),
                 )
             )
@@ -853,13 +937,15 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             end_time=end_time,
             root_node_ids=root_node_ids,
             nodes=nodes,
+            artifacts=graph_artifacts.get(None, []),
+            states=graph_states,
         )
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
     # --- Sqlite-specific SqlAlchemy bindings
 
-    def insert(self, obj):
+    def insert(self, obj) -> sqlite.Insert:
         return sqlite.insert(obj)
 
     def greatest(self, *values):
@@ -1111,6 +1197,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         flow_run_id: UUID,
         since: datetime.datetime,
         max_nodes: int,
+        max_artifacts: int,
     ) -> Graph:
         """Returns the query that selects all of the nodes and edges for a flow run
         graph (version 2)."""
@@ -1243,6 +1330,11 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
         results = await session.execute(query)
 
+        graph_artifacts = await self._get_flow_run_graph_artifacts(
+            db, session, flow_run_id, max_artifacts
+        )
+        graph_states = await self._get_flow_run_graph_states(session, flow_run_id)
+
         nodes: List[Tuple[UUID, Node]] = []
         root_node_ids: List[UUID] = []
 
@@ -1255,7 +1347,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             # help smooth over those differences.
 
             def edges(
-                value: Union[str, Sequence[UUID], Sequence[str], None]
+                value: Union[str, Sequence[UUID], Sequence[str], None],
             ) -> List[UUID]:
                 if not value:
                     return []
@@ -1264,7 +1356,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 return [Edge(id=id) for id in value]
 
             def time(
-                value: Union[str, datetime.datetime, None]
+                value: Union[str, datetime.datetime, None],
             ) -> Optional[pendulum.DateTime]:
                 if not value:
                     return None
@@ -1284,6 +1376,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         end_time=time(row.end_time),
                         parents=edges(row.parent_ids),
                         children=edges(row.child_ids),
+                        artifacts=graph_artifacts.get(UUID(row.id), []),
                     ),
                 )
             )
@@ -1299,4 +1392,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             end_time=end_time,
             root_node_ids=root_node_ids,
             nodes=nodes,
+            artifacts=graph_artifacts.get(None, []),
+            states=graph_states,
         )

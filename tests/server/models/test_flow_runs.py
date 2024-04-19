@@ -211,6 +211,7 @@ class TestUpdateFlowRun:
         flow,
         session,
     ):
+        job_vars = {"foo": "bar"}
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
@@ -223,6 +224,7 @@ class TestUpdateFlowRun:
             flow_run_id=flow_run_id,
             flow_run=schemas.actions.FlowRunUpdate(
                 flow_version="The next one",
+                job_variables=job_vars,
             ),
         )
         assert update_result
@@ -232,6 +234,7 @@ class TestUpdateFlowRun:
         )
         assert flow_run_id == updated_flow_run.id == flow_run.id
         assert updated_flow_run.flow_version == "The next one"
+        assert updated_flow_run.job_variables == job_vars
 
     async def test_update_flow_run_does_not_update_if_nothing_set(self, flow, session):
         flow_run = await models.flow_runs.create_flow_run(
@@ -278,6 +281,18 @@ class TestReadFlowRun:
             session=session, flow_run_id=flow_run.id
         )
         assert flow_run == read_flow_run
+
+    async def test_read_flow_run_with_job_variables(self, flow, session):
+        job_vars = {"foo": "bar"}
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, job_variables=job_vars),
+        )
+
+        read_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+        assert read_flow_run.job_variables == job_vars
 
     async def test_read_flow_run_returns_none_if_does_not_exist(self, session):
         result = await models.flow_runs.read_flow_run(

@@ -17,9 +17,9 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import ValidationError
 
+from prefect._internal.schemas.validators import MAX_RRULE_LENGTH
 from prefect.server.schemas.schedules import (
     MAX_ITERATIONS,
-    MAX_RRULE_LENGTH,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -36,7 +36,10 @@ class TestCreateIntervalSchedule:
 
     @pytest.mark.parametrize("minutes", [-1, 0])
     def test_interval_must_be_positive(self, minutes):
-        with pytest.raises(ValidationError, match="(interval must be positive)"):
+        with pytest.raises(
+            ValidationError,
+            match="(interval must be positive|should be greater than 0 seconds)",
+        ):
             IntervalSchedule(interval=timedelta(minutes=minutes))
 
     def test_default_anchor(self):

@@ -51,13 +51,6 @@ def interactive_console(monkeypatch):
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
-@pytest.fixture(autouse=True)
-def reset_cache():
-    from prefect.server.api.collections import GLOBAL_COLLECTIONS_VIEW_CACHE
-
-    GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
-
-
 class TestCreate:
     @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_work_pool(self, prefect_client, mock_collection_registry):
@@ -337,8 +330,7 @@ class TestCreate:
         assert res.exit_code == 0
         assert (
             "Automatic infrastructure provisioning is not supported for 'fake' work"
-            " pools."
-            in res.output
+            " pools." in res.output
         )
 
     @pytest.mark.usefixtures("interactive_console", "mock_collection_registry")
@@ -484,6 +476,18 @@ class TestLS:
             "work-pool ls --verbose",
         )
         assert res.exit_code == 0
+
+    async def test_ls_with_zero_concurrency_limit(self, prefect_client, work_pool):
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool set-concurrency-limit {work_pool.name} 0",
+        )
+        assert res.exit_code == 0
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool ls",
+        )
+        assert "None" not in res.output
 
 
 class TestUpdate:
@@ -758,6 +762,5 @@ class TestProvisionInfrastructure:
         assert res.exit_code == 0
         assert (
             "Automatic infrastructure provisioning is not supported for"
-            " 'push-work-pool:push' work pools."
-            in res.output
+            " 'push-work-pool:push' work pools." in res.output
         )

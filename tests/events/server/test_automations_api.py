@@ -1,0 +1,1154 @@
+import json
+import textwrap
+from datetime import timedelta
+from typing import Any, Dict, List, Optional
+from unittest import mock
+from uuid import UUID, uuid4
+
+import httpx
+import pendulum
+import pytest
+import sqlalchemy as sa
+from httpx import ASGITransport, AsyncClient
+from pendulum.datetime import DateTime
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
+from prefect._vendor.fastapi.applications import FastAPI
+
+from prefect.server import models as server_models
+from prefect.server import schemas as server_schemas
+from prefect.server.api.automations import FlowRunInfrastructureMissing
+from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events import actions
+from prefect.server.events.models.automations import (
+    create_automation,
+    read_automations_related_to_resource,
+    relate_automation_to_resource,
+)
+from prefect.server.events.schemas.automations import (
+    Automation,
+    AutomationCore,
+    AutomationCreate,
+    AutomationPartialUpdate,
+    AutomationSort,
+    AutomationUpdate,
+    CompoundTrigger,
+    EventTrigger,
+    Posture,
+)
+from prefect.server.models import deployments
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    PREFECT_EXPERIMENTAL_EVENTS,
+    temporary_settings,
+)
+
+
+@pytest.fixture(autouse=True)
+def enable_automations():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
+    ):
+        yield
+
+
+@pytest.fixture
+async def client(app: FastAPI):
+    # The automations tests assume that the client will not raise exceptions and will
+    # serve any server-side errors as HTTP responses.  This is different than some other
+    # parts of the general test suite, so we'll override the fixture here.
+
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+
+    async with httpx.AsyncClient(
+        transport=transport, base_url="https://test/api"
+    ) as async_client:
+        yield async_client
+
+
+@pytest.fixture
+def workspace_url() -> str:
+    return "https://test/api"
+
+
+@pytest.fixture
+def automations_url(workspace_url: str) -> str:
+    return f"{workspace_url}/automations"
+
+
+@pytest.fixture
+def automation_to_create() -> AutomationCreate:
+    return AutomationCreate(
+        name="hello",
+        description="world",
+        enabled=True,
+        trigger=EventTrigger(
+            match={"prefect.resource.name": "howdy!"},
+            match_related={"prefect.resource.role": "something-cool"},
+            after={"this.one", "or.that.one"},
+            expect={"surely.this", "but.also.this"},
+            for_each=["prefect.resource.name", "prefect.handle"],
+            posture=Posture.Reactive,
+            threshold=42,
+            within=timedelta(minutes=2),
+        ),
+        actions=[actions.DoNothing()],
+    )
+
+
+async def create_work_pool(
+    session,
+    pool_schema: dict,
+    type: str = "None",
+):
+    work_pool = await server_models.workers.create_work_pool(
+        session=session,
+        work_pool=server_schemas.actions.WorkPoolCreate.construct(
+            _fields_set=server_schemas.actions.WorkPoolCreate.__fields_set__,
+            name="wp-1",
+            type=type,
+            description="None",
+            base_job_template=pool_schema,
+        ),
+    )
+    await session.commit()
+    return work_pool
+
+
+async def create_deployment(session, work_pool, job_vars: dict) -> UUID:
+    flow = await server_models.flows.create_flow(
+        session=session, flow=server_schemas.core.Flow(name="my-flow")
+    )
+
+    deployment = await deployments.create_deployment(
+        session=session,
+        deployment=server_schemas.core.Deployment(
+            name="My Deployment X",
+            flow_id=flow.id,
+            paused=False,
+            work_queue_id=work_pool.default_queue_id,
+            infra_overrides=job_vars,
+        ),
+    )
+    return deployment.id
+
+
+async def create_run_deployment_automation_payload(deployment_id: UUID, job_vars: dict):
+    return AutomationCreate(
+        name="hello",
+        description="world",
+        enabled=True,
+        trigger=EventTrigger(
+            match={"prefect.resource.name": "howdy!"},
+            match_related={"prefect.resource.role": "something-cool"},
+            after={"this.one", "or.that.one"},
+            expect={"surely.this", "but.also.this"},
+            for_each=["prefect.resource.name", "prefect.handle"],
+            posture=Posture.Reactive,
+            threshold=42,
+            within=timedelta(minutes=2),
+        ),
+        actions=[
+            actions.RunDeployment(job_variables=job_vars, deployment_id=deployment_id)
+        ],
+    )
+
+
+async def create_objects_for_automation(
+    session: AsyncSession,
+    *,
+    pool_job_config: Optional[dict] = None,
+    deployment_vars: Optional[dict] = None,
+    run_vars: Optional[dict] = None,
+    pool_type: str = "None",
+):
+    pool_job_config = pool_job_config or {}
+    deployment_vars = deployment_vars or {}
+    run_vars = run_vars or {}
+
+    wp = await create_work_pool(session, pool_job_config, type=pool_type)
+    deployment = await create_deployment(session, wp, deployment_vars)
+    automation = await create_run_deployment_automation_payload(deployment, run_vars)
+
+    await session.commit()
+
+    return wp, deployment, automation
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {
+            PREFECT_EXPERIMENTAL_EVENTS: False,
+        },
+        {
+            PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
+        },
+    ],
+)
+async def test_returns_404_when_automations_are_disabled(
+    client: AsyncClient,
+    settings: Dict,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+):
+    with temporary_settings(settings):
+        response = await client.post(
+            f"{automations_url}/",
+            json=automation_to_create.dict(json_compatible=True),
+        )
+
+    assert response.status_code == 404, response.content
+
+
+@pytest.mark.parametrize(
+    "invalid_time",
+    [
+        timedelta(seconds=-10),
+        timedelta(seconds=-1),
+        timedelta(seconds=-0.001),
+    ],
+)
+def test_negative_within_not_allowed(invalid_time: timedelta):
+    with pytest.raises(pydantic.ValidationError, match="is 0 seconds"):
+        EventTrigger(posture=Posture.Reactive, threshold=1, within=invalid_time)
+
+    with pytest.raises(pydantic.ValidationError, match="is 0 seconds"):
+        EventTrigger(posture=Posture.Proactive, threshold=1, within=invalid_time)
+
+
+def test_minimum_reactive_within_is_required_but_defaulted():
+    with pytest.raises(pydantic.ValidationError, match="none is not an allowed value"):
+        EventTrigger(posture=Posture.Reactive, threshold=1, within=None)
+
+    trigger = EventTrigger(posture=Posture.Reactive, threshold=1)
+    assert trigger.within == timedelta(seconds=0)
+
+
+@pytest.mark.parametrize(
+    "invalid_time",
+    [
+        timedelta(seconds=1),
+        timedelta(seconds=9),
+        timedelta(seconds=9, microseconds=999999),
+    ],
+)
+def test_minimum_proactive_within_is_enforced(invalid_time: timedelta):
+    with pytest.raises(pydantic.ValidationError, match="is 10 seconds"):
+        EventTrigger(posture=Posture.Proactive, threshold=1, within=invalid_time)
+
+
+def test_minimum_proactive_within_is_required_but_defaulted():
+    with pytest.raises(pydantic.ValidationError, match="none is not an allowed value"):
+        EventTrigger(posture=Posture.Proactive, threshold=1, within=None)
+
+    trigger = EventTrigger(posture=Posture.Proactive, threshold=1, within=0)
+    assert trigger.within == timedelta(seconds=10)
+
+    trigger = EventTrigger(posture=Posture.Proactive, threshold=1)
+    assert trigger.within == timedelta(seconds=10)
+
+
+async def test_minimum_within_is_described_on_api():
+    schema = json.loads(EventTrigger.schema_json())
+    assert schema["properties"]["within"]["default"] == 0.0
+    assert schema["properties"]["within"]["minimum"] == 0.0
+    assert not schema["properties"]["within"]["exclusiveMinimum"]
+
+
+async def test_create_automation_allows_specifying_just_owner_resource(
+    client: AsyncClient,
+    automations_session: AsyncSession,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    deployment_id = uuid4()
+    automation_to_create.owner_resource = f"prefect.deployment.{deployment_id}"
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.parse_raw(response.content)
+
+    related_automations = await read_automations_related_to_resource(
+        session=automations_session,
+        resource_id=automation_to_create.owner_resource,
+        owned_by_resource=True,
+    )
+
+    assert {automation.id for automation in related_automations} == {
+        created_automation.id
+    }
+
+
+async def test_create_automation_allows_specifying_owner_resource_and_actions(
+    client: AsyncClient,
+    automations_session: AsyncSession,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    """Regression test for an issue where the owner_resource was being ignored on the
+    creation of automations when they actually have the RunDeployment actions, because
+    we'd already created a relationship to the deployment where it was False"""
+    deployment_id = uuid4()
+    other_one = uuid4()
+    automation_to_create.owner_resource = f"prefect.deployment.{deployment_id}"
+    automation_to_create.actions += [
+        actions.RunDeployment(source="selected", deployment_id=deployment_id),
+        actions.RunDeployment(source="selected", deployment_id=other_one),
+    ]
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.parse_raw(response.content)
+
+    related_automations = await read_automations_related_to_resource(
+        session=automations_session,
+        resource_id=automation_to_create.owner_resource,
+        owned_by_resource=True,
+    )
+    assert {automation.id for automation in related_automations} == {
+        created_automation.id
+    }
+
+    # The other deployment should _not_ be marked as an owner...
+    related_automations = await read_automations_related_to_resource(
+        session=automations_session,
+        resource_id=f"prefect.deployment.{other_one}",
+        owned_by_resource=True,
+    )
+    assert not related_automations
+
+    # ...but it should have been created as related
+    related_automations = await read_automations_related_to_resource(
+        session=automations_session,
+        resource_id=f"prefect.deployment.{other_one}",
+        owned_by_resource=False,
+    )
+    assert {automation.id for automation in related_automations} == {
+        created_automation.id
+    }
+
+
+async def test_create_automation_overrides_client_provided_trigger_ids(
+    client: AsyncClient,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    # replace the trigger with a compound one with a nested trigger
+    inner_trigger = automation_to_create.trigger
+    outer_trigger = automation_to_create.trigger = CompoundTrigger(
+        within=timedelta(seconds=60),
+        require="any",
+        triggers=[inner_trigger],
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.parse_raw(response.content)
+
+    assert isinstance(created_automation.trigger, CompoundTrigger)
+
+    assert created_automation.trigger.id != outer_trigger.id
+    assert created_automation.trigger.triggers[0].id != inner_trigger.id
+
+
+@pytest.fixture
+async def existing_automation(
+    automations_session: AsyncSession,
+    automation_to_create: AutomationCreate,
+) -> Automation:
+    existing = await create_automation(
+        automations_session,
+        Automation(
+            **automation_to_create.dict(),
+        ),
+    )
+    await automations_session.commit()
+
+    assert existing.id
+    assert existing.created
+
+    return existing
+
+
+@pytest.fixture
+async def existing_disabled_invalid_automation(
+    automations_session: AsyncSession,
+    automation_to_create: AutomationCreate,
+) -> Automation:
+    automation_to_create.enabled = False
+    automation_to_create.trigger = EventTrigger(
+        match={"prefect.resource.id": "prefect.flow-run.*"},
+        for_each={"prefect.resource.id"},
+        expect={"prefect.flow-run.*"},
+        posture=Posture.Reactive,
+        threshold=1,
+        within=timedelta(seconds=0),
+    )
+    automation_to_create.actions = [actions.RunDeployment(source="inferred")]
+
+    existing = await create_automation(
+        automations_session,
+        Automation(
+            **automation_to_create.dict(),
+        ),
+    )
+    await automations_session.commit()
+
+    assert existing.id
+    assert existing.created
+
+    # it should be valid while it's disabled
+    Automation.from_orm(existing)
+
+    # But not while it's enabled
+    existing.enabled = True
+    with pytest.raises(pydantic.ValidationError):
+        Automation.from_orm(existing)
+
+    return existing
+
+
+@pytest.fixture
+def automation_update(existing_automation: Automation) -> AutomationUpdate:
+    as_core = AutomationCore(**existing_automation.dict())
+    assert as_core.enabled
+
+    update = AutomationUpdate(**as_core.dict())
+    update.enabled = False
+
+    assert isinstance(update.trigger, EventTrigger)
+    update.trigger.expect = {"things.definitely.did.not.happen", "or.maybe.not"}
+    update.trigger.threshold = 3
+    update.trigger.within = timedelta(seconds=42)
+
+    return update
+
+
+async def test_update_automation(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+    automation_update: AutomationUpdate,
+) -> None:
+    response = await client.put(
+        f"{automations_url}/{existing_automation.id}",
+        json=automation_update.dict(json_compatible=True),
+    )
+    assert response.status_code == 204, response.content
+
+    response = await client.get(
+        f"{automations_url}/{existing_automation.id}",
+    )
+    assert response.status_code == 200, response.content
+
+    updated_automation = Automation.parse_raw(response.content)
+    assert updated_automation.enabled is False
+
+    assert isinstance(updated_automation.trigger, EventTrigger)
+    assert updated_automation.trigger.expect == {
+        "things.definitely.did.not.happen",
+        "or.maybe.not",
+    }
+    assert updated_automation.trigger.threshold == 3
+    assert updated_automation.trigger.within == timedelta(seconds=42)
+
+
+async def test_update_automation_404s_on_unknown_id(
+    client: AsyncClient,
+    automations_url: str,
+    automation_update: AutomationUpdate,
+) -> None:
+    response = await client.put(
+        f"{automations_url}/{uuid4()}",
+        json=automation_update.dict(json_compatible=True),
+    )
+    assert response.status_code == 404, response.content
+    assert "Automation not found" in response.content.decode()
+
+
+async def test_update_automation_cannot_change_id(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+    automation_update: AutomationUpdate,
+) -> None:
+    update = automation_update.dict(json_compatible=True)
+
+    # try to set an alternative id manually in the payload
+    update["id"] = str(uuid4())
+
+    response = await client.put(
+        f"{automations_url}/{existing_automation.id}",
+        json=update,
+    )
+    assert response.status_code == 422, response.content
+    assert "extra fields" in response.content.decode()
+
+
+async def test_update_automation_overrides_client_provided_trigger_ids(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+    automation_update: AutomationUpdate,
+) -> None:
+    # replace the trigger with a compound one with a nested trigger
+    inner_trigger = automation_update.trigger
+    outer_trigger = automation_update.trigger = CompoundTrigger(
+        within=timedelta(seconds=60),
+        require="any",
+        triggers=[inner_trigger],
+    )
+
+    response = await client.put(
+        f"{automations_url}/{existing_automation.id}",
+        json=automation_update.dict(json_compatible=True),
+    )
+    assert response.status_code == 204, response.content
+
+    response = await client.get(
+        f"{automations_url}/{existing_automation.id}",
+    )
+    assert response.status_code == 200, response.content
+
+    updated_automation = Automation.parse_raw(response.content)
+
+    assert isinstance(updated_automation.trigger, CompoundTrigger)
+
+    assert updated_automation.trigger.id != outer_trigger.id
+    assert updated_automation.trigger.triggers[0].id != inner_trigger.id
+
+
+@pytest.fixture
+def automation_patch(existing_automation: Automation) -> AutomationPartialUpdate:
+    as_core = AutomationCore(**existing_automation.dict())
+    assert as_core.enabled
+    return AutomationPartialUpdate(enabled=False)
+
+
+async def test_patch_automation(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+    automation_patch: AutomationPartialUpdate,
+) -> None:
+    response = await client.patch(
+        f"{automations_url}/{existing_automation.id}",
+        json=automation_patch.dict(json_compatible=True),
+    )
+    assert response.status_code == 204, response.content
+
+    response = await client.get(
+        f"{automations_url}/{existing_automation.id}",
+    )
+    assert response.status_code == 200, response.content
+
+    updated_automation = Automation.parse_raw(response.content)
+    assert updated_automation.enabled is False
+
+
+async def test_patch_automation_404s_on_unknown_id(
+    client: AsyncClient,
+    automations_url: str,
+    automation_patch: AutomationPartialUpdate,
+) -> None:
+    response = await client.patch(
+        f"{automations_url}/{uuid4()}",
+        json=automation_patch.dict(json_compatible=True),
+    )
+    assert response.status_code == 404, response.content
+    assert "Automation not found" in response.content.decode()
+
+
+async def test_patch_automation_cannot_change_id(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+    automation_patch: AutomationPartialUpdate,
+) -> None:
+    update = automation_patch.dict(json_compatible=True)
+
+    # try to set an alternative id manually in the payload
+    update["id"] = str(uuid4())
+
+    response = await client.patch(
+        f"{automations_url}/{existing_automation.id}",
+        json=update,
+    )
+    assert response.status_code == 422, response.content
+    assert "extra fields" in response.content.decode()
+
+
+async def test_patch_automation_cannot_enable_invalid_automation(
+    client: AsyncClient,
+    automations_url: str,
+    existing_disabled_invalid_automation: Automation,
+) -> None:
+    """Regression test for an issue where we were not checking that an automation will
+    be valid once it is enabled, like in the case of the infinitely recursive
+    automations.  See tests/events/actions_tests/test_infinite_loops.py for more
+    info and examples."""
+    response = await client.patch(
+        f"{automations_url}/{existing_disabled_invalid_automation.id}",
+        json=AutomationPartialUpdate(enabled=True).dict(json_compatible=True),
+    )
+    assert response.status_code == 422, response.content
+
+    # Ensure the error looks like a normal validation response from pydantic
+    error = response.json()
+    assert error["exception_message"] == "Invalid request received."
+
+    details: List[Dict[str, Any]] = error["exception_detail"]
+    assert len(details) == 1
+    (detail,) = details
+
+    assert "__root__" in detail["loc"]
+    assert detail["type"] == "value_error"
+    assert detail["msg"].startswith("Running an inferred deployment")
+
+
+async def test_delete_automation(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+) -> None:
+    response = await client.delete(
+        f"{automations_url}/{existing_automation.id}",
+    )
+    assert response.status_code == 204, response.content
+
+    response = await client.get(
+        f"{automations_url}/{existing_automation.id}",
+    )
+    assert response.status_code == 404, response.content
+
+
+async def test_delete_automation_404s_on_unknown_id(
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.delete(
+        f"{automations_url}/{uuid4()}",
+    )
+    assert response.status_code == 404, response.content
+    assert "Automation not found" in response.content.decode()
+
+
+async def test_read_automation(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+) -> None:
+    response = await client.get(f"{automations_url}/{existing_automation.id}")
+    assert response.status_code == 200, response.content
+
+    read_automation = Automation.parse_raw(response.content)
+    assert read_automation.id
+    assert read_automation.name == "hello"
+    assert read_automation.description == "world"
+    assert read_automation.enabled
+    assert read_automation.trigger == existing_automation.trigger
+
+
+async def test_read_automation_that_does_not_exist(
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.get(f"{automations_url}/{uuid4()}")
+    assert response.status_code == 404, response.content
+    assert "Automation not found" in response.content.decode()
+
+
+async def test_read_automations(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.post(f"{automations_url}/filter")
+    assert response.status_code == 200, response.content
+
+    automations = pydantic.parse_obj_as(List[Automation], response.json())
+
+    expected = sorted(some_workspace_automations, key=lambda a: a.name)
+
+    assert automations == expected
+
+
+async def test_read_automations_page(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.post(
+        f"{automations_url}/filter",
+        json={"limit": 2, "offset": 1, "sort": AutomationSort.UPDATED_DESC},
+    )
+    assert response.status_code == 200, response.content
+
+    automations = pydantic.parse_obj_as(List[Automation], response.json())
+
+    # updated is technically Optional, so assert it here to satisfy the type system
+    def by_updated(automation: Automation) -> DateTime:
+        assert automation.updated
+        return automation.updated
+
+    expected = sorted(some_workspace_automations, key=by_updated, reverse=True)
+    expected = expected[1:3]
+
+    assert automations == expected
+
+
+async def test_count_automations(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.post(f"{automations_url}/count")
+    assert response.status_code == 200, response.content
+
+    count: int = response.json()
+
+    expected = sorted(some_workspace_automations, key=lambda a: a.name)
+
+    assert count == len(expected)
+
+
+@pytest.fixture
+def templates_url(workspace_url: str) -> str:
+    return f"{workspace_url}/templates"
+
+
+async def test_validate_good_template(
+    client: AsyncClient,
+    templates_url: str,
+):
+    response = await client.post(
+        f"{templates_url}/validate",
+        headers={"Content-Type": "text/plain"},
+        content="""
+        {{ hello }} world!
+        """,
+    )
+    assert response.status_code == 204
+    assert response.text == ""
+
+
+async def test_validate_bad_template(
+    client: AsyncClient,
+    templates_url: str,
+):
+    template = textwrap.dedent(
+        """
+        1 - {{ hello }} world!
+        2 - oops, this {{ ain't } gonna work
+        3 - this is fine
+        """
+    ).strip()
+
+    response = await client.post(
+        f"{templates_url}/validate",
+        headers={"Content-Type": "text/plain"},
+        content=template,
+    )
+    assert response.status_code == 422
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == {
+        "error": {
+            "line": 2,
+            "message": 'unexpected char "\'" at 44',
+            "source": template,
+        }
+    }
+
+
+async def test_validate_bad_template_loop_constraints(
+    client: AsyncClient,
+    templates_url: str,
+):
+    template = textwrap.dedent(
+        """
+        {% for i in range(100) %}
+            {% for j in range(100) %}
+                {% for l in range(100) %}
+                {% endfor %}"
+            {% endfor %}"
+        {% endfor %}"
+        """
+    ).strip()
+
+    response = await client.post(
+        f"{templates_url}/validate",
+        headers={
+            "Content-Type": "text/plain",
+        },
+        content=template,
+    )
+    assert response.status_code == 422
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == {
+        "error": {
+            "line": 0,
+            "message": "Contains nested for loops at a depth of 3. Templates can nest for loops no more than 2 loops deep.",
+            "source": template,
+        }
+    }
+
+
+async def test_read_automations_related_to_resource(
+    client: AsyncClient,
+    automations_session: AsyncSession,
+    automations_url: str,
+    some_workspace_automations: List[Automation],
+):
+    # This test relates the first three automations to this resource, so confirm
+    # that there are other related and non-related, automations in the test setup too
+    owned = some_workspace_automations[0]
+    related = some_workspace_automations[1]
+    non_related = some_workspace_automations[2]
+
+    assert owned.id != related.id != non_related.id
+
+    deployment_resource_id = f"prefect.deployment.{uuid4()}"
+    for automation in [owned, related]:
+        await relate_automation_to_resource(
+            session=automations_session,
+            automation_id=automation.id,
+            resource_id=deployment_resource_id,
+            owned_by_resource=(automation == owned),
+        )
+
+    await automations_session.commit()
+
+    response = await client.get(
+        f"{automations_url}/related-to/{deployment_resource_id}",
+    )
+    assert response.status_code == 200, response.content
+
+    returned = pydantic.parse_obj_as(List[Automation], response.json())
+    assert returned == [owned, related]
+
+
+async def test_delete_automations_owned_by_resource(
+    db: PrefectDBInterface,
+    client: AsyncClient,
+    automations_session: AsyncSession,
+    automations_url: str,
+    some_workspace_automations: List[Automation],
+):
+    # This test relates the first three automations to this resource, so confirm
+    # that there are other related and non-related, automations in the test setup too
+    old_owned = some_workspace_automations[0]
+    new_owned = some_workspace_automations[1]
+    related = some_workspace_automations[2]
+    non_related = some_workspace_automations[3]
+
+    assert old_owned.id != new_owned.id != related.id != non_related.id
+
+    deployment_resource_id = f"prefect.deployment.{uuid4()}"
+
+    for automation in [old_owned, new_owned, related]:
+        await relate_automation_to_resource(
+            session=automations_session,
+            automation_id=automation.id,
+            resource_id=deployment_resource_id,
+            owned_by_resource=(automation in [old_owned, new_owned]),
+        )
+
+    now = pendulum.now("UTC")
+
+    # Make sure the old owned automation is older than the horizon
+    await automations_session.execute(
+        sa.update(db.Automation)
+        .where(db.Automation.id == old_owned.id)
+        .values(created=now - timedelta(days=1))
+    )
+
+    # Make sure the new owned automation is newer than the horizon
+    new_owned = some_workspace_automations[1]
+    await automations_session.execute(
+        sa.update(db.Automation)
+        .where(db.Automation.id == new_owned.id)
+        .values(created=now + timedelta(days=1))
+    )
+
+    await automations_session.commit()
+
+    for automation in [old_owned, new_owned, related, non_related]:
+        response = await client.get(
+            f"{automations_url}/{automation.id}",
+        )
+        assert response.status_code == 200, response.content
+
+    response = await client.delete(
+        f"{automations_url}/owned-by/{deployment_resource_id}",
+    )
+    assert response.status_code == 202, response.content
+
+    response = await client.get(
+        f"{automations_url}/related-to/{deployment_resource_id}",
+    )
+    assert response.status_code == 200, response.content
+
+    returned = pydantic.parse_obj_as(List[Automation], response.json())
+    assert {a.id for a in returned} == {related.id, new_owned.id}
+
+    for automation in [old_owned, new_owned, related, non_related]:
+        response = await client.get(
+            f"{automations_url}/{automation.id}",
+        )
+        expected = 404 if automation == old_owned else 200
+        assert response.status_code == expected, response.content
+
+
+async def test_create_run_deployment_automation_with_job_variables_and_no_schema(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    run_vars = {"this": "that"}
+    *_, run_deployment_with_no_schema = await create_objects_for_automation(
+        session,
+        pool_job_config={},
+        run_vars=run_vars,
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_no_schema.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.parse_raw(response.content)
+    assert isinstance(created_automation.actions[0], actions.RunDeployment)
+    assert created_automation.actions[0].job_variables == run_vars
+
+
+async def test_create_run_deployment_automation_with_job_variables_that_match_schema(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    run_vars = {"this": "is a string"}
+    *_, run_deployment_with_schema = await create_objects_for_automation(
+        session,
+        pool_job_config={
+            "job_configuration": {
+                "thing_one": "{{ this }}",
+            },
+            "variables": {
+                "properties": {
+                    "this": {"title": "this_one", "default": "0", "type": "string"}
+                },
+            },
+        },
+        run_vars=run_vars,
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_schema.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.parse_raw(response.content)
+    assert isinstance(created_automation.actions[0], actions.RunDeployment)
+    assert created_automation.actions[0].job_variables == run_vars
+
+
+async def test_create_run_deployment_automation_with_job_variables_that_dont_match_schema(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    run_vars = {"this": 100}
+    *_, run_deployment_with_bad_vars = await create_objects_for_automation(
+        session,
+        pool_job_config={
+            "job_configuration": {
+                "thing_one": "{{ this }}",
+            },
+            "variables": {
+                "properties": {
+                    "this": {"title": "this_one", "default": "0", "type": "string"}
+                },
+            },
+        },
+        run_vars=run_vars,
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_bad_vars.dict(json_compatible=True),
+    )
+    assert response.status_code == 409, response.content
+    assert (
+        "Error creating automation: Validation failed for field 'this'" in response.text
+    )
+
+
+async def test_multiple_run_deployment_actions_with_job_variables_that_dont_match_schema(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    run_vars = {"this": 100}
+    *_, run_deployment_with_bad_vars = await create_objects_for_automation(
+        session,
+        pool_job_config={
+            "job_configuration": {
+                "thing_one": "{{ this }}",
+            },
+            "variables": {
+                "properties": {
+                    "this": {"title": "this_one", "default": "0", "type": "string"}
+                },
+            },
+        },
+        run_vars=run_vars,
+    )
+
+    # Copy the same action
+    for _ in range(3):
+        run_deployment_with_bad_vars.actions.append(
+            run_deployment_with_bad_vars.actions[0]
+        )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_bad_vars.dict(json_compatible=True),
+    )
+    assert response.status_code == 409, response.content
+    assert (
+        "Error creating automation: Validation failed for field 'this'" in response.text
+    )
+
+
+async def test_updating_run_deployment_automation_with_bad_job_variables(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    run_vars = {"this": "that"}
+    *_, run_deployment_with_str_schema = await create_objects_for_automation(
+        session,
+        pool_job_config={
+            "job_configuration": {
+                "thing_one": "{{ this }}",
+            },
+            "variables": {
+                "properties": {
+                    "this": {"title": "this_one", "default": "0", "type": "string"}
+                },
+            },
+        },
+        run_vars=run_vars,
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_str_schema.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    automation_id = response.json()["id"]
+    as_core = AutomationCore(**response.json())
+    update = AutomationUpdate(**as_core.dict())
+    assert isinstance(update.actions[0], actions.RunDeployment)
+
+    update.actions[0].job_variables = {"this": 100}
+
+    response = await client.put(
+        f"{automations_url}/{automation_id}",
+        json=update.dict(json_compatible=True),
+    )
+    assert response.status_code == 409
+    assert (
+        "Error creating automation: Validation failed for field 'this'" in response.text
+    )
+
+
+async def test_updating_run_deployment_automation_with_valid_job_variables(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    run_vars = {"this": "that"}
+    *_, run_deployment_with_str_schema = await create_objects_for_automation(
+        session,
+        pool_job_config={
+            "job_configuration": {
+                "thing_one": "{{ this }}",
+            },
+            "variables": {
+                "properties": {
+                    "this": {"title": "this_one", "default": "0", "type": "string"}
+                },
+            },
+        },
+        run_vars=run_vars,
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_str_schema.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    automation_id = response.json()["id"]
+    as_core = AutomationCore(**response.json())
+    update = AutomationUpdate(**as_core.dict())
+    assert isinstance(update.actions[0], actions.RunDeployment)
+    update.actions[0].job_variables = {"this": "something else!!"}
+
+    response = await client.put(
+        f"{automations_url}/{automation_id}",
+        json=update.dict(json_compatible=True),
+    )
+    assert response.status_code == 204
+
+    response = await client.get(f"{automations_url}/{automation_id}")
+    updated_automation = Automation.parse_raw(response.content)
+    assert isinstance(updated_automation.actions[0], actions.RunDeployment)
+    assert updated_automation.actions[0].job_variables == {"this": "something else!!"}
+
+
+async def test_infrastructure_error_inside_create(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    *_, run_deployment_with_str_schema = await create_objects_for_automation(
+        session,
+        pool_job_config={},
+        run_vars={"this": "that"},
+    )
+
+    with mock.patch(
+        "prefect.server.api.automations._validate_run_deployment_action_against_pool_schema",
+        side_effect=FlowRunInfrastructureMissing("Something is wrong"),
+    ):
+        response = await client.post(
+            f"{automations_url}/",
+            json=run_deployment_with_str_schema.dict(json_compatible=True),
+        )
+        assert response.status_code == 409, response.content
+        assert "Error creating automation: Something is wrong" in response.text

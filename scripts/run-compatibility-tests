@@ -1,0 +1,5 @@
+#!/bin/bash
+cd compat-tests
+curl https://api.prefect.cloud/api/openapi.json > cloud_schema.json
+python ../scripts/generate_oss_openapi_schema.py
+pytest -vv test_oss_cloud_api_compatibility.py

@@ -23,7 +23,7 @@ with silence_docker_warnings():
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
 
-pytestmark = pytest.mark.service("docker")
+pytestmark = [pytest.mark.service("docker"), pytest.mark.timeout(120.0)]
 
 
 @pytest.fixture
@@ -129,11 +129,14 @@ def test_requires_real_dockerfile(contexts: Path):
         ("missing-file", "COPY failed"),
     ],
 )
-@pytest.mark.flaky(max_runs=3)
 def test_raises_exception_on_bad_base_image(
     contexts: Path, example_context: str, expected_error: str
 ):
-    with pytest.raises(BuildError, match=expected_error):
+    # Occasionally, Dockerhub will rate limit us and return a 429
+    # so we will allow this as an acceptable error since we know that
+    # the image pull attempt occurred. For this same reason we also
+    # allow 500 errors to be acceptable.
+    with pytest.raises(BuildError, match=expected_error + "|429" + "|500"):
         build_image(contexts / example_context, stream_progress_to=sys.stdout)
 
 

@@ -6,9 +6,14 @@ import pendulum
 
 from prefect._internal.schemas.fields import DateTimeTZ
 
-from .clients import AssertingEventsClient, PrefectCloudEventsClient
-from .schemas import Event, RelatedResource
-from .worker import EventsWorker
+from .clients import (
+    AssertingEventsClient,
+    PrefectCloudEventsClient,
+    PrefectEphemeralEventsClient,
+    PrefectEventsClient,
+)
+from .schemas.events import Event, RelatedResource
+from .worker import EventsWorker, should_emit_events
 
 TIGHT_TIMING = timedelta(minutes=5)
 
@@ -40,9 +45,17 @@ def emit_event(
 
     Returns:
         The event that was emitted if worker is using a client that emit
-        events, otherwise None.
+        events, otherwise None
     """
-    operational_clients = [AssertingEventsClient, PrefectCloudEventsClient]
+    if not should_emit_events():
+        return None
+
+    operational_clients = [
+        AssertingEventsClient,
+        PrefectCloudEventsClient,
+        PrefectEventsClient,
+        PrefectEphemeralEventsClient,
+    ]
     worker_instance = EventsWorker.instance()
 
     if worker_instance.client_type not in operational_clients:

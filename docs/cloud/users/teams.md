@@ -15,9 +15,9 @@ search:
   boost: 2
 ---
 
-# Teams <span class="badge cloud"></span></span> <span class="badge enterprise"></span>
+# Teams <span class="badge cloud"></span></span> <span class="badge custom"></span>
 
-Prefect Cloud's [Enterprise plan](https://www.prefect.io/pricing) offers team management to simplify access control governance.
+Prefect Cloud's [Custom plan](https://www.prefect.io/pricing) offers team management to simplify access control governance.
 
 Account Admins can configure teams and team membership from the account settings menu by clicking **Teams**.
 Teams are composed of users and service accounts.

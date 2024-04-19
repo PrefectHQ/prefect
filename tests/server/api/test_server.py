@@ -169,7 +169,8 @@ class TestCreateOrionAPI:
         routes = method_paths_from_routes(app.router.routes)
         assert all("/logs" not in route for route in routes)
         client = testclient.TestClient(app)
-        assert client.post("/logs").status_code == status.HTTP_404_NOT_FOUND
+        with client:
+            assert client.post("/logs").status_code == status.HTTP_404_NOT_FOUND
 
     def test_checks_for_router_paths_during_override(self):
         router = APIRouter(prefix="/logs")

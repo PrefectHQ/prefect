@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 import time
+import warnings
 from functools import partial
 from itertools import combinations
 from pathlib import Path
@@ -37,8 +38,8 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, RunnerDeployment
-from prefect.events.schemas import DeploymentTrigger
+from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
+from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
@@ -67,13 +68,15 @@ from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     AsyncMock,
     exceptions_equal,
-    flaky_on_windows,
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
+
+# Give an ample amount of sleep time in order to test flow timeouts
+SLEEP_TIME = 10
 
 
 @flow
@@ -376,6 +379,33 @@ class TestFlowWithOptions:
 
         flow_with_options = initial_flow.with_options(timeout_seconds=0)
         assert flow_with_options.timeout_seconds is None
+
+    def test_with_options_can_unset_retries_with_zero(self):
+        @flow(retries=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retries=0)
+        assert flow_with_options.retries == 0
+
+    def test_with_options_can_unset_retry_delay_seconds_with_zero(self):
+        @flow(retry_delay_seconds=3)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(retry_delay_seconds=0)
+        assert flow_with_options.retry_delay_seconds == 0
+
+    def test_with_options_uses_parent_flow_run_name_if_not_provided(self):
+        def generate_flow_run_name():
+            return "new-name"
+
+        @flow(retry_delay_seconds=3, flow_run_name=generate_flow_run_name)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options()
+        assert flow_with_options.flow_run_name is generate_flow_run_name
 
     def test_with_options_can_unset_result_options_with_none(self):
         @flow(
@@ -881,7 +911,6 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
-    @pytest.mark.flaky(max_runs=2)
     async def test_concurrent_async_subflow(self):
         @task
         async def test_task():
@@ -1061,6 +1090,30 @@ class TestSubflowCalls:
             child_flow_run.id == child_flow_run_id
         ), "The server subflow run id matches the client"
 
+    async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
+        we discovered that a sync flow running an async flow that awaits `.result()`
+        on a submitted task's future can hang indefinitely.
+        """
+
+        @task
+        async def some_async_task():
+            return 42
+
+        @flow
+        async def integrations_flow():
+            future = await some_async_task.submit()
+            return await future.result()
+
+        @flow
+        def sync_flow():
+            return integrations_flow()
+
+        result = sync_flow()
+
+        assert result == 42
+
 
 class TestFlowRunTags:
     async def test_flow_run_tags_added_at_call(self, prefect_client):
@@ -1097,7 +1150,7 @@ class TestFlowTimeouts:
     def test_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(1)
+            time.sleep(SLEEP_TIME)
 
         state = my_flow._run()
         assert state.is_failed()
@@ -1109,7 +1162,7 @@ class TestFlowTimeouts:
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         async def my_flow():
-            await anyio.sleep(1)
+            await anyio.sleep(SLEEP_TIME)
 
         state = await my_flow._run()
         assert state.is_failed()
@@ -1119,7 +1172,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
-        @flow(timeout_seconds=1)
+        @flow(timeout_seconds=10)
         def my_flow():
             time.sleep(0.1)
 
@@ -1138,124 +1191,99 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
-    @pytest.mark.flaky(max_runs=2)
     @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
-        if sys.version_info[1] == 11:
-            pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
-
-        canary_file = tmp_path / "canary"
+        completed = False
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(3)
-            canary_file.touch()
+            time.sleep(SLEEP_TIME)
+            nonlocal completed
+            completed = True
 
-        t0 = time.perf_counter()
         state = my_flow(return_state=True)
-        t1 = time.perf_counter()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-        assert t1 - t0 < 3, f"The engine returns without waiting; took {t1-t0}s"
-
-        time.sleep(3)
-        assert not canary_file.exists()
+        assert not completed
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
         Sync flow runs tasks will fail after a timeout which will cause the flow to exit
         """
-        canary_file = tmp_path / "canary"
-        task_canary_file = tmp_path / "task_canary"
+        completed = False
+        task_completed = False
 
         @task
         def my_task():
-            task_canary_file.touch()
+            nonlocal task_completed
+            task_completed = True
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(0.25)
+            time.sleep(SLEEP_TIME)
             my_task()
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
         state = my_flow._run()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
-        # Wait in case the flow is just sleeping
-        time.sleep(0.5)
+        assert not completed
+        assert not task_completed
 
-        assert not canary_file.exists()
-        assert not task_canary_file.exists()
-
-    @flaky_on_windows
     async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
         """
-        canary_file = tmp_path / "canary"
-        sleep_time = 5
+        completed = False
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
             # Sleep in intervals to give more chances for interrupt
-            for _ in range(sleep_time * 10):
+            for _ in range(100):
                 await anyio.sleep(0.1)
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
-        t0 = anyio.current_time()
         state = await my_flow._run()
-        t1 = anyio.current_time()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-
-        # Wait in case the flow is just sleeping
-        await anyio.sleep(sleep_time)
-
-        assert not canary_file.exists()
-        assert (
-            t1 - t0 < sleep_time
-        ), f"The engine returns without waiting; took {t1-t0}s"
+        assert not completed
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
         """
-        canary_file = tmp_path / "canary"
-        sleep_time = 5
+        completed = False
 
         @flow(timeout_seconds=0.1)
         async def my_subflow():
             # Sleep in intervals to give more chances for interrupt
-            for _ in range(sleep_time * 10):
+            for _ in range(SLEEP_TIME * 10):
                 await anyio.sleep(0.1)
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
         @flow
         async def my_flow():
-            t0 = anyio.current_time()
             subflow_state = await my_subflow._run()
-            t1 = anyio.current_time()
-            return t1 - t0, subflow_state
+            return None, subflow_state
 
         state = await my_flow._run()
 
-        runtime, subflow_state = await state.result()
+        (_, subflow_state) = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
-
-        assert not canary_file.exists()
-        assert (
-            runtime < sleep_time
-        ), f"The engine returns without waiting; took {runtime}s"
+        assert not completed
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
         Sync flow runs can be cancelled after a timeout once a task is called
         """
-        canary_file = tmp_path / "canary"
+        completed = False
 
         @task
         def timeout_noticing_task():
@@ -1266,25 +1294,20 @@ class TestFlowTimeouts:
             time.sleep(0.5)
             timeout_noticing_task()
             time.sleep(10)
-            canary_file.touch()  # Should not run
+            nonlocal completed
+            completed = True
 
         @flow
         def my_flow():
-            t0 = time.perf_counter()
             subflow_state = my_subflow._run()
-            t1 = time.perf_counter()
-            return t1 - t0, subflow_state
+            return None, subflow_state
 
         state = my_flow._run()
 
-        runtime, subflow_state = await state.result()
+        (_, subflow_state) = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
-        # Wait in case the flow is just sleeping and will still create the canary
-        time.sleep(1)
-
-        assert not canary_file.exists()
-        assert runtime < 5, f"The engine returns without waiting; took {runtime}s"
+        assert not completed
 
     async def test_subflow_timeout_waits_until_execution_starts(self, tmp_path):
         """
@@ -1292,11 +1315,12 @@ class TestFlowTimeouts:
         Fixes: https://github.com/PrefectHQ/prefect/issues/7903.
         """
 
-        canary_file = tmp_path / "canary"
+        completed = False
 
         @flow(timeout_seconds=1)
         async def downstream_flow():
-            canary_file.touch()
+            nonlocal completed
+            completed = True
 
         @task
         async def sleep_task(n):
@@ -1307,15 +1331,12 @@ class TestFlowTimeouts:
             upstream_sleepers = await sleep_task.map([0.5, 1.0])
             await downstream_flow(wait_for=upstream_sleepers)
 
-        t0 = anyio.current_time()
         state = await my_flow._run()
-        t1 = anyio.current_time()
 
         assert state.is_completed()
 
         # Validate the sleep tasks have ran
-        assert t1 - t0 >= 1
-        assert canary_file.exists()  # Validate subflow has ran
+        assert completed
 
 
 class ParameterTestModel(pydantic.BaseModel):
@@ -1370,7 +1391,7 @@ class TestFlowParameterTypes:
         else:
 
             @flow
-            def type_container_input_flow(arg1: list[str]) -> str:
+            def type_container_input_flow(arg1: List[str]) -> str:
                 print(arg1)
                 return ",".join(arg1)
 
@@ -1660,10 +1681,10 @@ class TestFlowRunLogs:
         my_flow()
 
         logs = await prefect_client.read_logs()
-        error_log = [log.message for log in logs if log.level == 40].pop()
-        assert "Traceback" in error_log
-        assert "NameError" in error_log, "Should reference the exception type"
-        assert "x + y" in error_log, "Should reference the line of code"
+        error_logs = "\n".join([log.message for log in logs if log.level == 40])
+        assert "Traceback" in error_logs
+        assert "NameError" in error_logs, "Should reference the exception type"
+        assert "x + y" in error_logs, "Should reference the line of code"
 
     async def test_raised_exceptions_include_tracebacks(self, prefect_client):
         @flow
@@ -1674,13 +1695,15 @@ class TestFlowRunLogs:
             my_flow()
 
         logs = await prefect_client.read_logs()
-        error_log = [
-            log.message
-            for log in logs
-            if log.level == 40 and "Encountered exception" in log.message
-        ].pop()
-        assert "Traceback" in error_log
-        assert "ValueError: Hello!" in error_log, "References the exception"
+        error_logs = "\n".join(
+            [
+                log.message
+                for log in logs
+                if log.level == 40 and "Encountered exception" in log.message
+            ]
+        )
+        assert "Traceback" in error_logs
+        assert "ValueError: Hello!" in error_logs, "References the exception"
 
     async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @flow
@@ -2250,6 +2273,22 @@ def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
     assert flow.fn() == "woof!"
 
 
+def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
+    @flow
+    def pretend_flow():
+        pass
+
+    import_object_mock = MagicMock(return_value=pretend_flow)
+    monkeypatch.setattr(
+        "prefect.flows.import_object",
+        import_object_mock,
+    )
+    result = load_flow_from_entrypoint("my.module.pretend_flow")
+
+    assert result == pretend_flow
+    import_object_mock.assert_called_with("my.module.pretend_flow")
+
+
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
@@ -2273,8 +2312,7 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
         # Make sure that warning is raised
         assert (
             "Script loading is in progress, flow 'dog' will not be executed. "
-            "Consider updating the script to only call the flow"
-            in caplog.text
+            "Consider updating the script to only call the flow" in caplog.text
         )
 
     flow_runs = await prefect_client.read_flows()
@@ -3135,7 +3173,6 @@ class TestFlowHooksOnCrashed:
         my_flow._run()
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3153,7 +3190,6 @@ class TestFlowHooksOnCrashed:
             await my_flow._run()
         assert my_mock.mock_calls == [call("crashed")]
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3199,6 +3235,139 @@ class TestFlowHooksOnCrashed:
         my_mock.assert_not_called()
 
 
+class TestFlowHooksOnRunning:
+    def test_noniterable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_running'; got function instead. Please"
+                " provide a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=running_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_running'"):
+
+            @flow(on_running=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@flow(on_running=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_running=[running_hook, "test"])
+            def flow2():
+                pass
+
+    def test_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, running2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_on_running_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, running2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_other_running_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        def exception_hook(flow, flow_run, state):
+            raise Exception("oops")
+
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        @flow(on_running=[running1, exception_hook, running2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_running_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_running=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+
 class TestFlowToDeployment:
     async def test_to_deployment_returns_runner_deployment(self):
         deployment = await test_flow.to_deployment(
@@ -3230,9 +3399,10 @@ class TestFlowToDeployment:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.triggers == [
-            DeploymentTrigger(
+            DeploymentEventTrigger(
                 name="Happiness",
                 enabled=True,
+                posture=Posture.Reactive,
                 match={"prefect.resource.id": "prefect.flow-run.*"},
                 expect=["prefect.flow-run.Completed"],
                 match_related={
@@ -3245,18 +3415,30 @@ class TestFlowToDeployment:
     async def test_to_deployment_accepts_interval(self):
         deployment = await test_flow.to_deployment(name="test", interval=3600)
 
-        assert isinstance(deployment.schedule, IntervalSchedule)
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.schedules
+        assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+
+    async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
+        deployment = await test_flow.to_deployment(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_to_deployment_accepts_cron(self):
         deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
-        assert deployment.schedule == CronSchedule(cron="* * * * *")
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self):
         deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
-        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
     async def test_to_deployment_invalid_name_raises(self):
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
@@ -3277,12 +3459,13 @@ class TestFlowToDeployment:
             )
         ],
     )
-    def test_to_deployment_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        with pytest.raises(ValueError, match=expected_message):
-            test_flow.to_deployment(__file__, **kwargs)
+    def test_to_deployment_raises_on_multiple_schedule_parameters(self, kwargs):
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            with pytest.raises(ValueError, match=expected_message):
+                test_flow.to_deployment(__file__, **kwargs)
 
 
 class TestFlowServe:
@@ -3311,7 +3494,7 @@ class TestFlowServe:
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -3326,7 +3509,16 @@ class TestFlowServe:
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
+        assert deployment.paused
         assert not deployment.is_schedule_active
+
+    async def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+        deployment = await test_flow.serve(
+            name="test", entrypoint_type=EntrypointType.MODULE_PATH
+        )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)
@@ -3387,11 +3579,12 @@ class TestFlowServe:
         ],
     )
     async def test_serve_raises_on_multiple_schedules(self, kwargs):
-        expected_message = (
-            "Only one of interval, cron, rrule, or schedule can be provided."
-        )
-        with pytest.raises(ValueError, match=expected_message):
-            await test_flow.serve(__file__, **kwargs)
+        with warnings.catch_warnings():
+            # `schedule` parameter is deprecated and will raise a warning
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            with pytest.raises(ValueError, match=expected_message):
+                await test_flow.serve(__file__, **kwargs)
 
     async def test_serve_starts_a_runner(self, mock_runner_start):
         """
@@ -3579,7 +3772,7 @@ class TestFlowDeploy:
             build=False,
             push=False,
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3592,17 +3785,19 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
-                is_schedule_active=False,
+                paused=True,
             ),
             work_pool_name=work_pool.name,
             image=image,
             build=False,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
         )
 
         console_output = capsys.readouterr().out
-        assert f"prefect worker start --pool {work_pool.name!r}" in console_output
+        assert "prefect worker start --pool" in console_output
+        assert work_pool.name in console_output
         assert "prefect deployment run 'local-flow-deploy/test'" in console_output
 
     async def test_calls_deploy_with_expected_args_remote_flow(
@@ -3626,7 +3821,7 @@ class TestFlowDeploy:
             image=image,
             push=False,
             enforce_parameter_schema=True,
-            is_schedule_active=False,
+            paused=True,
         )
 
         mock_deploy.assert_called_once_with(
@@ -3639,13 +3834,14 @@ class TestFlowDeploy:
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
-                is_schedule_active=False,
+                paused=True,
             ),
             work_pool_name=work_pool.name,
             image=image,
             build=True,
             push=False,
             print_next_steps_message=False,
+            ignore_warnings=False,
         )
 
     async def test_deploy_non_existent_work_pool(

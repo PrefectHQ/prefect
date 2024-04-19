@@ -12,7 +12,7 @@ else:
     from pydantic import SecretBytes, SecretStr
 
 import pytest
-from starlette import status
+from prefect._vendor.starlette import status
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
@@ -504,7 +504,6 @@ class TestReadBlockDocuments:
         # sorted by block document name
         assert [b.id for b in read_block_documents] == [b.id for b in block_documents]
 
-    @pytest.mark.flaky
     async def test_read_block_documents_limit_offset(self, client, block_documents):
         # sorted by block document name
         response = await client.post("/block_documents/filter", json=dict(limit=2))

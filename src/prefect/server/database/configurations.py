@@ -1,4 +1,5 @@
 import sqlite3
+import traceback
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_running_loop
 from contextlib import asynccontextmanager
@@ -7,6 +8,15 @@ from functools import partial
 from typing import Dict, Hashable, Optional, Tuple
 
 import sqlalchemy as sa
+
+try:
+    from sqlalchemy import AdaptedConnection
+    from sqlalchemy.pool import ConnectionPoolEntry
+except ImportError:
+    # SQLAlchemy 1.4 equivalents
+    from sqlalchemy.pool import _ConnectionFairy as AdaptedConnection
+    from sqlalchemy.pool.base import _ConnectionRecord as ConnectionPoolEntry
+
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from typing_extensions import Literal
 
@@ -16,12 +26,80 @@ from prefect.settings import (
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_SQLALCHEMY_POOL_SIZE,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
-SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
+SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
 )
+
+ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
+
+
+class ConnectionTracker:
+    """A test utility which tracks the connections given out by a connection pool, to
+    make it easy to see which connections are currently checked out and open."""
+
+    all_connections: Dict[AdaptedConnection, str]
+    open_connections: Dict[AdaptedConnection, str]
+    left_field_closes: Dict[AdaptedConnection, str]
+    connects: int
+    closes: int
+    active: bool
+
+    def __init__(self) -> None:
+        self.active = False
+        self.all_connections = {}
+        self.open_connections = {}
+        self.left_field_closes = {}
+        self.connects = 0
+        self.closes = 0
+
+    def track_pool(self, pool: sa.pool.Pool):
+        sa.event.listen(pool, "connect", self.on_connect)
+        sa.event.listen(pool, "close", self.on_close)
+        sa.event.listen(pool, "close_detached", self.on_close_detached)
+
+    def on_connect(
+        self,
+        adapted_connection: AdaptedConnection,
+        connection_record: ConnectionPoolEntry,
+    ):
+        self.all_connections[adapted_connection] = traceback.format_stack()
+        self.open_connections[adapted_connection] = traceback.format_stack()
+        self.connects += 1
+
+    def on_close(
+        self,
+        adapted_connection: AdaptedConnection,
+        connection_record: ConnectionPoolEntry,
+    ):
+        try:
+            del self.open_connections[adapted_connection]
+        except KeyError:
+            self.left_field_closes[adapted_connection] = traceback.format_stack()
+        self.closes += 1
+
+    def on_close_detached(
+        self,
+        adapted_connection: AdaptedConnection,
+    ):
+        try:
+            del self.open_connections[adapted_connection]
+        except KeyError:
+            self.left_field_closes[adapted_connection] = traceback.format_stack()
+        self.closes += 1
+
+    def clear(self):
+        self.all_connections.clear()
+        self.open_connections.clear()
+        self.left_field_closes.clear()
+        self.connects = 0
+        self.closes = 0
+
+
+TRACKER: ConnectionTracker = ConnectionTracker()
 
 
 class BaseDatabaseConfiguration(ABC):
@@ -91,8 +169,6 @@ class BaseDatabaseConfiguration(ABC):
 
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
-    ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
-
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
 
@@ -116,7 +192,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             self.echo,
             self.timeout,
         )
-        if cache_key not in self.ENGINES:
+        if cache_key not in ENGINES:
             # apply database timeout
             kwargs = dict()
             connect_args = dict()
@@ -137,11 +213,26 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if self.sqlalchemy_max_overflow is not None:
                 kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
-            engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
+            engine = create_async_engine(
+                self.connection_url,
+                echo=self.echo,
+                # "pre-ping" connections upon checkout to ensure they have not been
+                # closed on the server side
+                pool_pre_ping=True,
+                # Use connections in LIFO order to help reduce connections
+                # after spiky load and in general increase the likelihood
+                # that a given connection pulled from the pool will be
+                # usable.
+                pool_use_lifo=True,
+                **kwargs,
+            )
 
-            self.ENGINES[cache_key] = engine
+            if TRACKER.active:
+                TRACKER.track_pool(engine.pool)
+
+            ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
-        return self.ENGINES[cache_key]
+        return ENGINES[cache_key]
 
     async def schedule_engine_disposal(self, cache_key):
         """
@@ -161,7 +252,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         """
 
         async def dispose_engine(cache_key):
-            engine = self.ENGINES.pop(cache_key, None)
+            engine = ENGINES.pop(cache_key, None)
             if engine:
                 await engine.dispose()
 
@@ -202,7 +293,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
-    ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
     MIN_SQLITE_VERSION = (3, 24, 0)
 
     async def engine(self) -> AsyncEngine:
@@ -237,7 +327,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             self.echo,
             self.timeout,
         )
-        if cache_key not in self.ENGINES:
+        if cache_key not in ENGINES:
             # apply database timeout
             if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
@@ -257,9 +347,12 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
             sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
 
-            self.ENGINES[cache_key] = engine
+            if TRACKER.active:
+                TRACKER.track_pool(engine.pool)
+
+            ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
-        return self.ENGINES[cache_key]
+        return ENGINES[cache_key]
 
     async def schedule_engine_disposal(self, cache_key):
         """
@@ -279,7 +372,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         """
 
         async def dispose_engine(cache_key):
-            engine = self.ENGINES.pop(cache_key, None)
+            engine = ENGINES.pop(cache_key, None)
             if engine:
                 await engine.dispose()
 
@@ -323,7 +416,10 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+        if PREFECT_UNIT_TEST_MODE.value() is True:
+            cursor.execute("PRAGMA busy_timeout = 5000;")  # 5s
+        else:
+            cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
         cursor.close()
 

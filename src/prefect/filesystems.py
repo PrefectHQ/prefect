@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import anyio
 import fsspec
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -17,8 +18,12 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field, SecretStr, validator
 
+from prefect._internal.schemas.validators import (
+    stringify_path,
+    validate_basepath,
+    validate_github_access_token,
+)
 from prefect.blocks.core import Block
-from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
@@ -96,9 +101,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
-        if isinstance(value, Path):
-            return str(value)
-        return value
+        return stringify_path(value)
 
     def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
@@ -267,7 +270,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     basepath: str = Field(
         default=...,
         description="Default path for this block to write to.",
-        example="s3://my-bucket/my-folder/",
+        examples=["s3://my-bucket/my-folder/"],
     )
     settings: Dict[str, Any] = Field(
         default_factory=dict,
@@ -279,23 +282,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @validator("basepath")
     def check_basepath(cls, value):
-        scheme, netloc, _, _, _ = urllib.parse.urlsplit(value)
-
-        if not scheme:
-            raise ValueError(f"Base path must start with a scheme. Got {value!r}.")
-
-        if not netloc:
-            raise ValueError(
-                f"Base path must include a location after the scheme. Got {value!r}."
-            )
-
-        if scheme == "file":
-            raise ValueError(
-                "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for"
-                " local file access."
-            )
-
-        return value
+        return validate_basepath(value)
 
     def _resolve_path(self, path: str) -> str:
         base_scheme, base_netloc, base_urlpath, _, _ = urllib.parse.urlsplit(
@@ -435,8 +422,17 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         return self._filesystem
 
 
+@deprecated_class(
+    start_date="Mar 2024", help="Use the `S3Bucket` block from prefect-aws instead."
+)
 class S3(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `S3Bucket` from the `prefect-aws` package, which offers enhanced functionality
+    and better a better user experience.
+
     Store data as a file on AWS S3.
 
     Example:
@@ -455,19 +451,19 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     bucket_path: str = Field(
         default=...,
         description="An S3 bucket path.",
-        example="my-bucket/a-directory-within",
+        examples=["my-bucket/a-directory-within"],
     )
     aws_access_key_id: Optional[SecretStr] = Field(
         default=None,
         title="AWS Access Key ID",
         description="Equivalent to the AWS_ACCESS_KEY_ID environment variable.",
-        example="AKIAIOSFODNN7EXAMPLE",
+        examples=["AKIAIOSFODNN7EXAMPLE"],
     )
     aws_secret_access_key: Optional[SecretStr] = Field(
         default=None,
         title="AWS Secret Access Key",
         description="Equivalent to the AWS_SECRET_ACCESS_KEY environment variable.",
-        example="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        examples=["wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"],
     )
 
     _remote_file_system: RemoteFileSystem = None
@@ -526,8 +522,16 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024", help="Use the `GcsBucket` block from prefect-gcp instead."
+)
 class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `GcsBucket` from the `prefect-gcp` package, which offers enhanced functionality
+    and better a better user experience.
     Store data as a file on Google Cloud Storage.
 
     Example:
@@ -545,7 +549,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     bucket_path: str = Field(
         default=...,
         description="A GCS bucket path.",
-        example="my-bucket/a-directory-within",
+        examples=["my-bucket/a-directory-within"],
     )
     service_account_info: Optional[SecretStr] = Field(
         default=None,
@@ -619,8 +623,18 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `AzureBlobStorageContainer` block from prefect-azure instead.",
+)
 class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `AzureBlobStorageContainer` from the `prefect-azure` package, which
+    offers enhanced functionality and better a better user experience.
+
     Store data as a file on Azure Datalake and Azure Blob Storage.
 
     Example:
@@ -639,7 +653,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     bucket_path: str = Field(
         default=...,
         description="An Azure storage bucket path.",
-        example="my-bucket/a-directory-within",
+        examples=["my-bucket/a-directory-within"],
     )
     azure_storage_connection_string: Optional[SecretStr] = Field(
         default=None,
@@ -683,24 +697,39 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             " require ADLFS to use DefaultAzureCredentials."
         ),
     )
-
+    azure_storage_container: Optional[SecretStr] = Field(
+        default=None,
+        title="Azure storage container",
+        description=(
+            "Blob Container in Azure Storage Account. If set the 'bucket_path' will"
+            " be interpreted using the following URL format:"
+            "'az://<container>@<storage_account>.dfs.core.windows.net/<bucket_path>'."
+        ),
+    )
     _remote_file_system: RemoteFileSystem = None
 
     @property
     def basepath(self) -> str:
-        return f"az://{self.bucket_path}"
+        if self.azure_storage_container:
+            return (
+                f"az://{self.azure_storage_container.get_secret_value()}"
+                f"@{self.azure_storage_account_name.get_secret_value()}"
+                f".dfs.core.windows.net/{self.bucket_path}"
+            )
+        else:
+            return f"az://{self.bucket_path}"
 
     @property
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.azure_storage_connection_string:
-            settings["connection_string"] = (
-                self.azure_storage_connection_string.get_secret_value()
-            )
+            settings[
+                "connection_string"
+            ] = self.azure_storage_connection_string.get_secret_value()
         if self.azure_storage_account_name:
-            settings["account_name"] = (
-                self.azure_storage_account_name.get_secret_value()
-            )
+            settings[
+                "account_name"
+            ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
         if self.azure_storage_tenant_id:
@@ -708,12 +737,12 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         if self.azure_storage_client_id:
             settings["client_id"] = self.azure_storage_client_id.get_secret_value()
         if self.azure_storage_client_secret:
-            settings["client_secret"] = (
-                self.azure_storage_client_secret.get_secret_value()
-            )
+            settings[
+                "client_secret"
+            ] = self.azure_storage_client_secret.get_secret_value()
         settings["anon"] = self.azure_storage_anon
         self._remote_file_system = RemoteFileSystem(
-            basepath=f"az://{self.bucket_path}", settings=settings
+            basepath=self.basepath, settings=settings
         )
         return self._remote_file_system
 
@@ -775,7 +804,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     share_path: str = Field(
         default=...,
         description="SMB target (requires <SHARE>, followed by <PATH>).",
-        example="/SHARE/dir/subdir",
+        examples=["/SHARE/dir/subdir"],
     )
     smb_username: Optional[SecretStr] = Field(
         default=None,
@@ -854,9 +883,19 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the `GitHubRepository` block from prefect-github instead.",
+)
 class GitHub(ReadableDeploymentStorage):
     """
-    Interact with files stored on GitHub repositories.
+        DEPRECATION WARNING:
+
+        This class is deprecated as of March 2024 and will not be available after September 2024.
+        It has been replaced by `GitHubRepository` from the `prefect-github` package, which offers
+        enhanced functionality and better a better user experience.
+    q
+        Interact with files stored on GitHub repositories.
     """
 
     _block_type_name = "GitHub"
@@ -892,22 +931,7 @@ class GitHub(ReadableDeploymentStorage):
 
     @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
-        """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs.
-
-        Note: validates `access_token` specifically so that it only fires when
-        private repositories are used.
-        """
-        if v is not None:
-            if urllib.parse.urlparse(values["repository"]).scheme != "https":
-                raise InvalidRepositoryURLError(
-                    "Crendentials can only be used with GitHub repositories "
-                    "using the 'HTTPS' format. You must either remove the "
-                    "credential if you wish to use the 'SSH' format and are not "
-                    "using a private repository, or you must change the repository "
-                    "URL to the 'HTTPS' format. "
-                )
-
-        return v
+        return validate_github_access_token(v, values)
 
     def _create_repo_url(self) -> str:
         """Format the URL provided to the `git clone` command.

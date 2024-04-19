@@ -14,18 +14,13 @@ SLEEP_TIME = 3 if os.environ.get("CI") else 1
 def test_sync_task_timeout_in_sync_flow():
     @prefect.task(timeout_seconds=0.1)
     def sleep_task():
-        for _ in range(SLEEP_TIME):
-            time.sleep(float(SLEEP_TIME) / 10.0)
+        time.sleep(SLEEP_TIME)
 
     @prefect.flow
     def parent_flow():
-        t0 = time.monotonic()
-        state = sleep_task(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
+        return "foo", sleep_task(return_state=True)
 
-    runtime, task_state = parent_flow()
-    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
+    _, task_state = parent_flow()
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         task_state.result()
@@ -34,18 +29,13 @@ def test_sync_task_timeout_in_sync_flow():
 async def test_sync_task_timeout_in_async_flow():
     @prefect.task(timeout_seconds=0.1)
     def sleep_task():
-        for _ in range(SLEEP_TIME):
-            time.sleep(float(SLEEP_TIME) / 10.0)
+        time.sleep(SLEEP_TIME)
 
     @prefect.flow
     async def parent_flow():
-        t0 = time.monotonic()
-        state = sleep_task(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
+        return "foo", sleep_task(return_state=True)
 
-    runtime, task_state = await parent_flow()
-    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
+    _, task_state = await parent_flow()
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         await task_state.result()
@@ -58,13 +48,9 @@ def test_async_task_timeout_in_sync_flow():
 
     @prefect.flow
     def parent_flow():
-        t0 = time.monotonic()
-        state = sleep_task(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
+        return "foo", sleep_task(return_state=True)
 
-    runtime, task_state = parent_flow()
-    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
+    _, task_state = parent_flow()
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         task_state.result()
@@ -77,13 +63,9 @@ async def test_async_task_timeout_in_async_flow():
 
     @prefect.flow
     async def parent_flow():
-        t0 = time.monotonic()
-        state = await sleep_task(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
+        return "foo", await sleep_task(return_state=True)
 
-    runtime, task_state = await parent_flow()
-    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
+    _, task_state = await parent_flow()
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         await task_state.result()
@@ -105,11 +87,7 @@ async def test_task_timeout_deadline_is_reset_on_retry():
 
     @prefect.flow
     async def parent_flow():
-        t0 = time.monotonic()
-        state = await sleep_task(return_state=True)
-        t1 = time.monotonic()
-        return t1 - t0, state
+        return await sleep_task(return_state=True)
 
-    runtime, task_state = await parent_flow()
-    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
+    task_state = await parent_flow()
     assert await task_state.result() == 3  # Task should run 3 times

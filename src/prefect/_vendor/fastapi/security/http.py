@@ -15,8 +15,8 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel
 
-from starlette.requests import Request
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
+from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 
 class HTTPBasicCredentials(BaseModel):
