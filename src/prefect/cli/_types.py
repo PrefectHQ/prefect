@@ -12,7 +12,7 @@ from rich.theme import Theme
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
-from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES, Setting
+from prefect.settings import Setting
 from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 
 
@@ -86,10 +86,7 @@ class PrefectTyper(typer.Typer):
 
         self.console = Console(
             highlight=False,
-            color_system="auto" if PREFECT_CLI_COLORS else None,
             theme=Theme({"prompt.choices": "bold blue"}),
-            # `soft_wrap` disables wrapping when `True`
-            soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
         )
 
     def add_typer(
