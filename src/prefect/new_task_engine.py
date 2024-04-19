@@ -278,7 +278,6 @@ async def run_task(
                         result = cast(R, task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
                 await state.handle_success(result)
-                break
 
             except Exception as exc:
                 await state.handle_exception(exc, return_type=return_type)
