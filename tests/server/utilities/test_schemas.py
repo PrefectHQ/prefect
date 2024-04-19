@@ -245,7 +245,7 @@ class TestDatetimeTZ:
         )
 
         assert model.dt.tzinfo is None
-        assert model.dtp.tzinfo is None
+        assert model.dtp.tzinfo.name == "UTC"
         assert model.dttz.tzinfo.name == "UTC"
 
     async def test_tz_is_pydantic_object(self):
@@ -255,6 +255,5 @@ class TestDatetimeTZ:
             dttz=datetime.datetime(2022, 1, 1),
         )
         assert not isinstance(model.dt, pendulum.DateTime)
-        # typing as pendulum datetime doesn't result in pendulum datetime
-        assert not isinstance(model.dtp, pendulum.DateTime)
+        assert isinstance(model.dtp, pendulum.DateTime)
         assert isinstance(model.dttz, pendulum.DateTime)
