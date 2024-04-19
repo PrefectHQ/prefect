@@ -36,7 +36,7 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-How can we make this script schedulable, observable, resilient, and capable of running anywhere?
+Let's make this script schedulable, observable, resilient, and capable of running anywhere.
 
 ## Step 1: Install Prefect
 
@@ -48,7 +48,8 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 
 ## Step 2: Connect to Prefect's API
 
-Much of Prefect's functionality is backed by an API. The easiest way to get started is to use the API hosted by Prefect:
+Much of Prefect's functionality is backed by an API.
+The easiest way to get started is to use the API hosted by Prefect:
 
 1. Create a forever-free Prefect Cloud account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/)
 1. Use the `prefect cloud login` CLI command to log in to Prefect Cloud from your development environment
@@ -62,6 +63,9 @@ prefect cloud login
 </div>
 
 Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
+Your CLI is now authenticated with your Prefect Cloud account through a locally-stored API key that expires in 30 days.
+
+If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/cloud/users/api-keys/) to learn how to authenticate with a manually created API key.
 
 !!! note "Self-hosted Prefect server instance"
     If you would like to host a Prefect server instance on your own infrastructure, see the [tutorial](/tutorial/) and select the "Self-hosted" tab.
