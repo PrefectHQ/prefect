@@ -48,6 +48,7 @@ class FlowRunEngine(Generic[P, R]):
     flow_run: Optional[FlowRun] = None
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
+    short_circuit: bool = False
 
     def __post_init__(self):
         if self.parameters is None:
@@ -73,6 +74,10 @@ class FlowRunEngine(Generic[P, R]):
 
     async def set_state(self, state: State) -> State:
         """ """
+        # prevents any state-setting activity
+        if self.short_circuit:
+            return self.state
+
         state = await propose_state(self.client, state, flow_run_id=self.flow_run.id)  # type: ignore
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
@@ -87,12 +92,14 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_state(Completed())
         return result
 
-    async def handle_exception(self, exc: Exception) -> State:
+    async def handle_exception(
+        self, exc: Exception, msg: str = None, result_factory: ResultFactory = None
+    ) -> State:
         context = FlowRunContext.get()
         state = await exception_to_failed_state(
             exc,
-            message="Flow run encountered an exception",
-            result_factory=getattr(context, "result_factory", None),
+            message=msg or "Flow run encountered an exception",
+            result_factory=result_factory or getattr(context, "result_factory", None),
         )
         return await self.set_state(state)
 
@@ -136,7 +143,7 @@ class FlowRunEngine(Generic[P, R]):
         flow_run = await client.create_flow_run(
             flow=self.flow,
             name=flow_run_name,
-            parameters=self.parameters,
+            parameters=self.flow.serialize_parameters(self.parameters),
             state=Pending(),
             parent_task_run_id=getattr(parent_task_run, "id", None),
         )
@@ -154,6 +161,18 @@ class FlowRunEngine(Generic[P, R]):
 
             if not self.flow_run:
                 self.flow_run = await self.create_flow_run(client)
+
+            # validate prior to context so that context receives validated params
+            if self.flow.should_validate_parameters:
+                try:
+                    self.parameters = self.flow.validate_parameters(self.parameters)
+                except Exception as exc:
+                    await self.handle_exception(
+                        exc,
+                        msg="Validation of flow parameters failed with error",
+                        result_factory=await ResultFactory.from_flow(self.flow),
+                    )
+                    self.short_circuit = True
 
             with FlowRunContext(
                 flow=self.flow,
@@ -201,30 +220,30 @@ async def run_flow(
     """
 
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
-    async with engine.start() as state:
+    async with engine.start() as run:
         # This is a context manager that keeps track of the state of the flow run.
-        await state.begin_run()
+        await run.begin_run()
 
-        while state.is_pending():
+        while run.is_pending():
             await asyncio.sleep(1)
-            await state.begin_run()
+            await run.begin_run()
 
-        while state.is_running():
+        while run.is_running():
             try:
                 # This is where the flow is actually run.
                 if flow.isasync:
-                    result = cast(R, await flow.fn(**(parameters or {})))  # type: ignore
+                    result = cast(R, await flow.fn(**(run.parameters or {})))  # type: ignore
                 else:
-                    result = cast(R, flow.fn(**(parameters or {})))  # type: ignore
+                    result = cast(R, flow.fn(**(run.parameters or {})))  # type: ignore
                 # If the flow run is successful, finalize it.
-                await state.handle_success(result)
+                await run.handle_success(result)
                 if return_type == "result":
                     return result
 
             except Exception as exc:
                 # If the flow fails, and we have retries left, set the flow to retrying.
-                await state.handle_exception(exc)
+                await run.handle_exception(exc)
 
         if return_type == "state":
-            return state.state  # maybe engine.start() -> `run` instead of `state`?
-        return await state.result()
+            return run.state
+        return await run.result()

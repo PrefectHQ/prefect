@@ -7,6 +7,7 @@ from prefect import Flow, flow, get_run_logger
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import FlowRunContext
+from prefect.exceptions import ParameterTypeError
 from prefect.new_flow_engine import FlowRunEngine, run_flow
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
@@ -68,6 +69,28 @@ class TestFlowRuns:
         result = await run_flow(bar, parameters=parameters)
 
         assert result == (42, "nate")
+
+    async def test_with_param_validation(self):
+        @flow
+        async def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="42"))
+        result = await run_flow(bar, parameters=parameters)
+
+        assert result == 42
+
+    async def test_with_param_validation_failure(self):
+        @flow
+        async def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = await run_flow(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        with pytest.raises(ParameterTypeError, match="is not a valid integer"):
+            await state.result()
 
     async def test_flow_run_name(self, prefect_client):
         @flow(flow_run_name="name is {x}")
