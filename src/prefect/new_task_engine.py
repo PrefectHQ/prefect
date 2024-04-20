@@ -138,9 +138,9 @@ class TaskRunEngine(Generic[P, R]):
         state = Running(state_details=self._compute_state_details())
         return await self.set_state(state)
 
-    async def set_state(self, state: State) -> State:
+    async def set_state(self, state: State, force: bool = False) -> State:
         new_state = await propose_state(
-            self.client, state, task_run_id=self.task_run.id
+            self.client, state, task_run_id=self.task_run.id, force=force
         )  # type: ignore
         self.task_run.state = new_state  # type: ignore
         self.task_run.state_name = new_state.name  # type: ignore
@@ -169,7 +169,7 @@ class TaskRunEngine(Generic[P, R]):
         - If the task has retries left, and the retry condition is met, return True.
         """
         if self.retries < self.task.retries and self.can_retry:
-            await self.set_state(Retrying())
+            await self.set_state(Retrying(), force=True)
             self.retries = self.retries + 1
             return True
         return False

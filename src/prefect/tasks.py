@@ -588,7 +588,9 @@ class Task(Generic[P, R]):
             from prefect.new_task_engine import run_task
             from prefect.utilities.asyncutils import run_sync
 
-            awaitable = run_task(task=self, parameters=parameters, wait_for=wait_for)
+            awaitable = run_task(
+                task=self, parameters=parameters, wait_for=wait_for, return_type="state"
+            )
             if self.isasync:
                 return awaitable
             else:

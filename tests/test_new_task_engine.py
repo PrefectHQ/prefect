@@ -1,4 +1,5 @@
 import logging
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -14,6 +15,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     temporary_settings,
 )
+from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
 
 
@@ -248,3 +250,134 @@ class TestReturnState:
 
         with pytest.raises(ValueError, match="xyz"):
             await state.result()
+
+
+class TestTaskRetries:
+    @pytest.mark.parametrize("always_fail", [True, False])
+    async def test_task_respects_retry_count(self, always_fail, prefect_client):
+        mock = MagicMock()
+        exc = ValueError()
+
+        @task(retries=3)
+        async def flaky_function():
+            mock()
+
+            # 3 retries means 4 attempts
+            # Succeed on the final retry unless we're ending in a failure
+            if not always_fail and mock.call_count == 4:
+                return True
+
+            raise exc
+
+        @flow
+        async def test_flow():
+            return await flaky_function(return_state=True)
+
+        task_run_state = await test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
+
+        if always_fail:
+            assert task_run_state.is_failed()
+            assert exceptions_equal(
+                await task_run_state.result(raise_on_failure=False), exc
+            )
+            assert mock.call_count == 4
+        else:
+            assert task_run_state.is_completed()
+            assert await task_run_state.result() is True
+            assert mock.call_count == 4
+
+        states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+            "Failed" if always_fail else "Completed",
+        ]
+
+    async def test_task_only_uses_necessary_retries(self, prefect_client):
+        mock = MagicMock()
+        exc = ValueError()
+
+        @task(retries=3)
+        async def flaky_function():
+            mock()
+            if mock.call_count == 2:
+                return True
+            raise exc
+
+        @flow
+        async def test_flow():
+            return await flaky_function(return_state=True)
+
+        task_run_state = await test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_completed()
+        assert await task_run_state.result() is True
+        assert mock.call_count == 2
+
+        states = await prefect_client.read_task_run_states(task_run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Completed",
+        ]
+
+    async def test_task_retries_receive_latest_task_run_in_context(self):
+        contexts: List[TaskRunContext] = []
+
+        @task(retries=3)
+        async def flaky_function():
+            contexts.append(get_run_context())
+            raise ValueError()
+
+        @flow
+        async def test_flow():
+            await flaky_function()
+
+        with pytest.raises(ValueError):
+            await test_flow()
+
+        expected_state_names = [
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+        ]
+        assert len(contexts) == len(expected_state_names)
+        for i, context in enumerate(contexts):
+            assert context.task_run.run_count == i + 1
+            assert context.task_run.state_name == expected_state_names[i]
+
+            if i > 0:
+                last_context = contexts[i - 1]
+                assert (
+                    last_context.start_time < context.start_time
+                ), "Timestamps should be increasing"
+
+    async def test_global_task_retry_config(self):
+        with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
+            mock = MagicMock()
+            exc = ValueError()
+
+            @task()
+            def flaky_function():
+                mock()
+                if mock.call_count == 2:
+                    return True
+                raise exc
+
+            @flow
+            def test_flow():
+                future = flaky_function.submit()
+                return future.wait()
+
+            test_flow()
+            assert mock.call_count == 2

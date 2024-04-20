@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 
-from prefect import Flow, flow, get_run_logger
+from prefect import Flow, flow, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import FlowRunContext
