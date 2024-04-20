@@ -1228,7 +1228,7 @@ class Flow(Generic[P, R]):
 
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
             from prefect.new_flow_engine import run_flow
-            from prefect.utilities.engine import run_sync
+            from prefect.utilities.asyncutils import run_sync
 
             awaitable = run_flow(
                 flow=self,
