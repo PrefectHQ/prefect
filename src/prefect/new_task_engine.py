@@ -135,16 +135,22 @@ class TaskRunEngine(Generic[P, R]):
         )
 
     async def begin_run(self) -> State:
-        state = Running(state_details=self._compute_state_details())
-        return await self.set_state(state)
+        state_details = self._compute_state_details()
+        new_state = Running(state_details=state_details)
+        state = await self.set_state(new_state)
+        while state.is_pending():
+            await asyncio.sleep(1)
+            state = await self.set_state(new_state)
 
     async def set_state(self, state: State, force: bool = False) -> State:
         new_state = await propose_state(
             self.client, state, task_run_id=self.task_run.id, force=force
         )  # type: ignore
-        self.task_run.state = new_state  # type: ignore
-        self.task_run.state_name = new_state.name  # type: ignore
-        self.task_run.state_type = new_state.type  # type: ignore
+
+        # currently this is a hack to keep a reference to the state object
+        # that has an in-memory result attached to it; using the API state
+        # could result in losing that reference
+        self.task_run.state = new_state
         return new_state
 
     async def result(self, raise_on_failure: bool = True) -> R | State | None:
@@ -227,6 +233,23 @@ class TaskRunEngine(Generic[P, R]):
         return task_run
 
     @asynccontextmanager
+    async def enter_run_context(self, client: PrefectClient = None):
+        if client is None:
+            client = await self.get_client()
+
+        self.task_run = await client.read_task_run(self.task_run.id)
+
+        with TaskRunContext(
+            task=self.task,
+            log_prints=self.task.log_prints or False,
+            task_run=self.task_run,
+            parameters=self.parameters,
+            result_factory=await ResultFactory.from_autonomous_task(self.task),
+            client=client,
+        ):
+            yield
+
+    @asynccontextmanager
     async def start(self):
         """
         - check for a cached state
@@ -241,15 +264,7 @@ class TaskRunEngine(Generic[P, R]):
             if not self.task_run:
                 self.task_run = await self.create_task_run(client)
 
-            with TaskRunContext(
-                task=self.task,
-                log_prints=self.task.log_prints or False,
-                task_run=self.task_run,
-                parameters=self.parameters,
-                result_factory=await ResultFactory.from_autonomous_task(self.task),
-                client=client,
-            ):
-                yield self
+            yield self
 
         self._is_started = False
         self._client = None
@@ -289,25 +304,22 @@ async def run_task(
         # This is a context manager that keeps track of the run of the task run.
         await run.begin_run()
 
-        while run.is_pending():
-            await asyncio.sleep(1)
-            await run.begin_run()
-
         while run.is_running():
-            try:
-                # This is where the task is actually run.
-                async with timeout(run.task.timeout_seconds):
-                    if task.isasync:
-                        result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
-                    else:
-                        result = cast(R, task.fn(**(parameters or {})))  # type: ignore
-                # If the task run is successful, finalize it.
-                await run.handle_success(result)
-                if return_type == "result":
-                    return result
+            async with run.enter_run_context():
+                try:
+                    # This is where the task is actually run.
+                    async with timeout(run.task.timeout_seconds):
+                        if task.isasync:
+                            result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                        else:
+                            result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+                    # If the task run is successful, finalize it.
+                    await run.handle_success(result)
+                    if return_type == "result":
+                        return result
 
-            except Exception as exc:
-                await run.handle_exception(exc)
+                except Exception as exc:
+                    await run.handle_exception(exc)
 
         if return_type == "state":
             return run.state

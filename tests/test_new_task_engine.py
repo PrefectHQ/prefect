@@ -13,6 +13,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+    PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
 from prefect.testing.utilities import exceptions_equal
@@ -368,16 +369,15 @@ class TestTaskRetries:
             exc = ValueError()
 
             @task()
-            def flaky_function():
+            async def flaky_function():
                 mock()
                 if mock.call_count == 2:
                     return True
                 raise exc
 
             @flow
-            def test_flow():
-                future = flaky_function.submit()
-                return future.wait()
+            async def test_flow():
+                return await flaky_function()
 
-            test_flow()
+            await test_flow()
             assert mock.call_count == 2
