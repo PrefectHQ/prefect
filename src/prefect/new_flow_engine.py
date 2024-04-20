@@ -98,7 +98,7 @@ class FlowRunEngine(Generic[P, R]):
         context = FlowRunContext.get()
         state = await exception_to_failed_state(
             exc,
-            message=msg or "Flow run encountered an exception",
+            message=msg or "Flow run encountered an exception:",
             result_factory=result_factory or getattr(context, "result_factory", None),
         )
         return await self.set_state(state)
