@@ -285,30 +285,30 @@ async def run_task(
     """
 
     engine = TaskRunEngine[P, R](task, parameters, task_run)
-    async with engine.start() as state:
-        # This is a context manager that keeps track of the state of the task run.
-        await state.begin_run()
+    async with engine.start() as run:
+        # This is a context manager that keeps track of the run of the task run.
+        await run.begin_run()
 
-        while state.is_pending():
+        while run.is_pending():
             await asyncio.sleep(1)
-            await state.begin_run()
+            await run.begin_run()
 
-        while state.is_running():
+        while run.is_running():
             try:
                 # This is where the task is actually run.
-                async with timeout(state.task.timeout_seconds):
+                async with timeout(run.task.timeout_seconds):
                     if task.isasync:
                         result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
                     else:
                         result = cast(R, task.fn(**(parameters or {})))  # type: ignore
                 # If the task run is successful, finalize it.
-                await state.handle_success(result)
+                await run.handle_success(result)
                 if return_type == "result":
                     return result
 
             except Exception as exc:
-                await state.handle_exception(exc)
+                await run.handle_exception(exc)
 
         if return_type == "state":
-            return state.state  # maybe engine.start() -> `run` instead of `state`?
-        return await state.result()
+            return run.state
+        return await run.result()
