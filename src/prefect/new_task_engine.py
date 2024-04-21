@@ -1,6 +1,7 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     Any,
     AsyncGenerator,
@@ -25,6 +26,7 @@ from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures_to_states
+from prefect.logging.loggers import get_logger, task_run_logger
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
@@ -36,9 +38,10 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import A, Async
+from prefect.utilities.asyncutils import A, Async, is_async_fn
 from prefect.utilities.engine import (
     _dynamic_key_for_task_run,
+    _get_hook_name,
     _resolve_custom_task_run_name,
     collect_task_run_inputs,
     propose_state,
@@ -70,6 +73,7 @@ R = TypeVar("R")
 @dataclass
 class TaskRunEngine(Generic[P, R]):
     task: Task[P, Coroutine[Any, Any, R]]
+    logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
@@ -98,6 +102,41 @@ class TaskRunEngine(Generic[P, R]):
         return not retry_condition or retry_condition(
             self.task, self.task_run, self.state
         )  # type: ignore
+
+    async def _run_hooks(self, state: State) -> None:
+        """Run the on_failure and on_completion hooks for a task, making sure to
+        catch and log any errors that occur.
+        """
+        task = self.task
+        task_run = self.task_run
+
+        hooks = None
+        if state.is_failed() and task.on_failure:
+            hooks = task.on_failure
+        elif state.is_completed() and task.on_completion:
+            hooks = task.on_completion
+
+        if hooks:
+            for hook in hooks:
+                hook_name = _get_hook_name(hook)
+                try:
+                    self.logger.info(
+                        f"Running hook {hook_name!r} in response to entering state"
+                        f" {state.name!r}"
+                    )
+                    if is_async_fn(hook):
+                        await hook(task=task, task_run=task_run, state=state)
+                    else:
+                        hook(task=task, task_run=task_run, state=state)
+                except Exception:
+                    self.logger.error(
+                        f"An error was encountered while running hook {hook_name!r}",
+                        exc_info=True,
+                    )
+                else:
+                    self.logger.info(
+                        f"Hook {hook_name!r} finished running successfully"
+                    )
 
     def _compute_state_details(
         self, include_cache_expiration: bool = False
@@ -151,6 +190,8 @@ class TaskRunEngine(Generic[P, R]):
         # that has an in-memory result attached to it; using the API state
         # could result in losing that reference
         self.task_run.state = new_state
+        if new_state.is_final():
+            await self._run_hooks(new_state)
         return new_state
 
     async def result(self, raise_on_failure: bool = True) -> R | State | None:
@@ -247,6 +288,7 @@ class TaskRunEngine(Generic[P, R]):
             result_factory=await ResultFactory.from_autonomous_task(self.task),
             client=client,
         ):
+            self.logger = task_run_logger(task_run=self.task_run, task=self.task)
             yield
 
     @asynccontextmanager
@@ -299,7 +341,7 @@ async def run_task(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
 
-    engine = TaskRunEngine[P, R](task, parameters, task_run)
+    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
     async with engine.start() as run:
         # This is a context manager that keeps track of the run of the task run.
         await run.begin_run()
