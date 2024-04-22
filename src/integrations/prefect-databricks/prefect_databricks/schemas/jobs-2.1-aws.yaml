@@ -1,0 +1,4199 @@
+components:
+  responses:
+    BadRequest:
+      content:
+        application/json:
+          example:
+            error_code: INVALID_PARAMETER_VALUE
+            message: Invalid value for parameter job_id
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: The request was malformed. See JSON response for error details.
+    InternalError:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: The request was not handled correctly due to a server error.
+    NotFound:
+      content:
+        application/json:
+          examples:
+            resource_does_not_exist:
+              value:
+                error_code: ENDPOINT_NOT_FOUND
+                message: No API endpoint found
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: The requested resource does not exist.
+    Unauthorized:
+      content:
+        application/json:
+          example:
+            error_code: PERMISSION_DENIED
+            message: Unauthorized access.
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: The request was unauthorized.
+  schemas:
+    AccessControlList:
+      properties:
+        access_control_list:
+          description: List of permissions to set on the job.
+          items:
+            $ref: '#/components/schemas/AccessControlRequest'
+          type: array
+      type: object
+    AccessControlRequest:
+      oneOf:
+      - $ref: '#/components/schemas/AccessControlRequestForUser'
+      - $ref: '#/components/schemas/AccessControlRequestForGroup'
+    AccessControlRequestForGroup:
+      properties:
+        group_name:
+          $ref: '#/components/schemas/GroupName'
+        permission_level:
+          $ref: '#/components/schemas/PermissionLevelForGroup'
+      type: object
+    AccessControlRequestForServicePrincipal:
+      properties:
+        permission_level:
+          $ref: '#/components/schemas/PermissionLevel'
+        service_principal_name:
+          $ref: '#/components/schemas/ServicePrincipalName'
+      type: object
+    AccessControlRequestForUser:
+      properties:
+        permission_level:
+          $ref: '#/components/schemas/PermissionLevel'
+        user_name:
+          $ref: '#/components/schemas/UserName'
+      type: object
+    AutoScale:
+      properties:
+        max_workers:
+          description: The maximum number of workers to which the cluster can scale
+            up when overloaded. max_workers must be strictly greater than min_workers.
+          format: int32
+          type: integer
+        min_workers:
+          description: The minimum number of workers to which the cluster can scale
+            down when underutilized. It is also the initial number of workers the
+            cluster has after creation.
+          format: int32
+          type: integer
+    AwsAttributes:
+      properties:
+        availability:
+          description: 'Availability type used for all subsequent nodes past the `first_on_demand`
+            ones. **Note:** If `first_on_demand` is zero, this availability type is
+            used for the entire cluster.
+
+
+            `SPOT`: use spot instances.
+
+            `ON_DEMAND`: use on-demand instances.
+
+            `SPOT_WITH_FALLBACK`: preferably use spot instances, but fall back to
+            on-demand instances if spot instances cannot be acquired (for example,
+            if AWS spot prices are too high).'
+          enum:
+          - SPOT
+          - ON_DEMAND
+          - SPOT_WITH_FALLBACK
+          type: string
+        ebs_volume_count:
+          description: 'The number of volumes launched for each instance. You can
+            choose up to 10 volumes. This feature is only enabled for supported node
+            types. Legacy node types cannot specify custom EBS volumes. For node types
+            with no instance store, at least one EBS volume needs to be specified;
+            otherwise, cluster creation fails.
+
+
+            These EBS volumes are mounted at `/ebs0`, `/ebs1`, and etc. Instance store
+            volumes are mounted at `/local_disk0`, `/local_disk1`, and etc.
+
+
+            If EBS volumes are attached, Databricks configures Spark to use only the
+            EBS volumes for scratch storage because heterogeneously sized scratch
+            devices can lead to inefficient disk utilization. If no EBS volumes are
+            attached, Databricks configures Spark to use instance store volumes.
+
+
+            If EBS volumes are specified, then the Spark configuration `spark.local.dir`
+            is overridden.'
+          format: int32
+          type: integer
+        ebs_volume_iops:
+          description: 'The number of IOPS per EBS gp3 volume.
+
+
+            This value must be between 3000 and 16000.
+
+
+            The value of IOPS and throughput is calculated based on AWS documentation
+            to match the maximum performance of a gp2 volume with the same volume
+            size.
+
+
+            For more information, see the [EBS volume limit calculator](https://github.com/awslabs/aws-support-tools/tree/master/EBS/VolumeLimitCalculator).'
+          format: int32
+          type: integer
+        ebs_volume_size:
+          description: The size of each EBS volume (in GiB) launched for each instance.
+            For general purpose SSD, this value must be within the range 100 - 4096\.
+            For throughput optimized HDD, this value must be within the range 500
+            - 4096\. Custom EBS volumes cannot be specified for the legacy node types
+            (_memory-optimized_ and _compute-optimized_).
+          format: int32
+          type: integer
+        ebs_volume_throughput:
+          description: 'The throughput per EBS gp3 volume, in MiB per second.
+
+
+            This value must be between 125 and 1000.'
+          format: int32
+          type: integer
+        ebs_volume_type:
+          description: 'The type of EBS volume that is launched with this cluster.
+
+
+            `GENERAL_PURPOSE_SSD`: provision extra storage using AWS gp2 EBS volumes.
+
+            `THROUGHPUT_OPTIMIZED_HDD`: provision extra storage using AWS st1 volumes.'
+          enum:
+          - GENERAL_PURPOSE_SSD
+          - THROUGHPUT_OPTIMIZED_HDD
+          type: string
+        first_on_demand:
+          description: The first first_on_demand nodes of the cluster are placed on
+            on-demand instances. If this value is greater than 0, the cluster driver
+            node is placed on an on-demand instance. If this value is greater than
+            or equal to the current cluster size, all nodes are placed on on-demand
+            instances. If this value is less than the current cluster size, first_on_demand
+            nodes are placed on on-demand instances and the remainder are placed on
+            `availability` instances. This value does not affect cluster size and
+            cannot be mutated over the lifetime of a cluster.
+          format: int32
+          type: integer
+        instance_profile_arn:
+          description: 'Nodes for this cluster are only be placed on AWS instances
+            with this instance profile. If omitted, nodes are placed on instances
+            without an instance profile. The instance profile must have previously
+            been added to the Databricks environment by an account administrator.
+
+
+            This feature may only be available to certain customer plans.'
+          type: string
+        spot_bid_price_percent:
+          description: "The max price for AWS spot instances, as a percentage of the\
+            \ corresponding instance type\u2019s on-demand price. For example, if\
+            \ this field is set to 50, and the cluster needs a new `i3.xlarge` spot\
+            \ instance, then the max price is half of the price of on-demand `i3.xlarge`\
+            \ instances. Similarly, if this field is set to 200, the max price is\
+            \ twice the price of on-demand `i3.xlarge` instances. If not specified,\
+            \ the default value is 100\\. When spot instances are requested for this\
+            \ cluster, only spot instances whose max price percentage matches this\
+            \ field is considered. For safety, we enforce this field to be no more\
+            \ than 10000."
+          format: int32
+          type: integer
+        zone_id:
+          description: "Identifier for the availability zone/datacenter in which the\
+            \ cluster resides. You have three options:\n\n**Specify an availability\
+            \ zone as a string**, for example: \u201Cus-west-2a\u201D. The provided\
+            \ availability zone must be in the same region as the Databricks deployment.\
+            \ For example, \u201Cus-west-2a\u201D is not a valid zone ID if the Databricks\
+            \ deployment resides in the \u201Cus-east-1\u201D region.\n\n**Enable\
+            \ automatic availability zone selection (\u201CAuto-AZ\u201D)**, by setting\
+            \ the value \u201Cauto\u201D. Databricks selects the AZ based on available\
+            \ IPs in the workspace subnets and retries in other availability zones\
+            \ if AWS returns insufficient capacity errors.\n\n**Do not specify a value**.\
+            \ If not specified, a default zone is used.\n\nThe list of available zones\
+            \ as well as the default value can be found by using the [List zones](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-zones)\
+            \ API."
+          type: string
+    CanManage:
+      description: Permission to manage the job.
+      enum:
+      - CAN_MANAGE
+      type: string
+    CanManageRun:
+      description: Permission to run and/or manage runs for the job.
+      enum:
+      - CAN_MANAGE_RUN
+      type: string
+    CanView:
+      description: Permission to view the settings of the job.
+      enum:
+      - CAN_VIEW
+      type: string
+    ClusterAttributes:
+      properties:
+        autotermination_minutes:
+          description: Automatically terminates the cluster after it is inactive for
+            this time in minutes. If not set, this cluster is not be automatically
+            terminated. If specified, the threshold must be between 10 and 10000 minutes.
+            You can also set this value to 0 to explicitly disable automatic termination.
+          format: int32
+          type: integer
+        aws_attributes:
+          $ref: '#/components/schemas/AwsAttributes'
+          description: Attributes related to clusters running on Amazon Web Services.
+            If not specified at cluster creation, a set of default values are used.
+        cluster_log_conf:
+          $ref: '#/components/schemas/ClusterLogConf'
+          description: The configuration for delivering Spark logs to a long-term
+            storage destination. Only one destination can be specified for one cluster.
+            If the conf is given, the logs is delivered to the destination every `5
+            mins`. The destination of driver logs is `<destination>/<cluster-ID>/driver`,
+            while the destination of executor logs is `<destination>/<cluster-ID>/executor`.
+        cluster_name:
+          description: "Cluster name requested by the user. This doesn\u2019t have\
+            \ to be unique. If not specified at creation, the cluster name is an empty\
+            \ string."
+          type: string
+        cluster_source:
+          $ref: '#/components/schemas/ClusterSource'
+          description: Determines whether the cluster was created by a user through
+            the UI, created by the Databricks Jobs scheduler, or through an API request.
+        custom_tags:
+          $ref: '#/components/schemas/ClusterTag'
+          description: 'An object containing a set of tags for cluster resources.
+            Databricks tags all cluster resources (such as AWS instances and EBS volumes)
+            with these tags in addition to default_tags.
+
+
+            **Note**:
+
+
+            * Tags are not supported on legacy node types such as compute-optimized
+            and memory-optimized
+
+            * Databricks allows at most 45 custom tags'
+        docker_image:
+          $ref: '#/components/schemas/DockerImage'
+          description: Docker image for a [custom container](https://docs.databricks.com/clusters/custom-containers.html).
+        driver_node_type_id:
+          description: The node type of the Spark driver. This field is optional;
+            if unset, the driver node type is set as the same value as `node_type_id`
+            defined above.
+          type: string
+        enable_elastic_disk:
+          description: 'Autoscaling Local Storage: when enabled, this cluster dynamically
+            acquires additional disk space when its Spark workers are running low
+            on disk space. This feature requires specific AWS permissions to function
+            correctly. Refer to [Autoscaling local storage](https://docs.databricks.com/clusters/configure.html#autoscaling-local-storage)
+            for details.'
+          type: boolean
+        enable_local_disk_encryption:
+          description: Determines whether encryption of the disks attached to the
+            cluster locally is enabled.
+          type: boolean
+        init_scripts:
+          description: The configuration for storing init scripts. Any number of destinations
+            can be specified. The scripts are executed sequentially in the order provided.
+            If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-ID>/init_scripts`.
+          items:
+            $ref: '#/components/schemas/InitScriptInfo'
+          type: array
+        instance_pool_id:
+          description: The optional ID of the instance pool to which the cluster belongs.
+            Refer to [Pools](https://docs.databricks.com/clusters/instance-pools/index.html)
+            for details.
+          type: string
+        node_type_id:
+          description: This field encodes, through a single value, the resources available
+            to each of the Spark nodes in this cluster. For example, the Spark nodes
+            can be provisioned and optimized for memory or compute intensive workloads
+            A list of available node types can be retrieved by using the [List node
+            types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types)
+            API call.
+          type: string
+        policy_id:
+          description: A [cluster policy](https://docs.databricks.com/dev-tools/api/latest/policies.html)
+            ID.
+          type: string
+        spark_conf:
+          $ref: '#/components/schemas/SparkConfPair'
+          description: 'An object containing a set of optional, user-specified Spark
+            configuration key-value pairs. You can also pass in a string of extra
+            JVM options to the driver and the executors via `spark.driver.extraJavaOptions`
+            and `spark.executor.extraJavaOptions` respectively.
+
+
+            Example Spark confs: `{"spark.speculation": true, "spark.streaming.ui.retainedBatches":
+            5}` or `{"spark.driver.extraJavaOptions": "-verbose:gc -XX:+PrintGCDetails"}`'
+        spark_env_vars:
+          $ref: '#/components/schemas/SparkEnvPair'
+          description: 'An object containing a set of optional, user-specified environment
+            variable key-value pairs. Key-value pairs of the form (X,Y) are exported
+            as is (that is, `export X=''Y''`) while launching the driver and workers.
+
+
+            In order to specify an additional set of `SPARK_DAEMON_JAVA_OPTS`, we
+            recommend appending them to `$SPARK_DAEMON_JAVA_OPTS` as shown in the
+            following example. This ensures that all default databricks managed environmental
+            variables are included as well.
+
+
+            Example Spark environment variables: `{"SPARK_WORKER_MEMORY": "28000m",
+            "SPARK_LOCAL_DIRS": "/local_disk0"}` or `{"SPARK_DAEMON_JAVA_OPTS": "$SPARK_DAEMON_JAVA_OPTS
+            -Dspark.shuffle.service.enabled=true"}`'
+        spark_version:
+          description: "The runtime version of the cluster, for example \u201C5.0.x-scala2.11\u201D\
+            . You can retrieve a list of available runtime versions by using the [Runtime\
+            \ versions](https://docs.databricks.com/dev-tools/api/latest/clusters.html#runtime-versions)\
+            \ API call."
+          type: string
+        ssh_public_keys:
+          description: SSH public key contents that is added to each Spark node in
+            this cluster. The corresponding private keys can be used to login with
+            the user name `ubuntu` on port `2200`. Up to 10 keys can be specified.
+          items:
+            type: string
+          type: array
+    ClusterCloudProviderNodeInfo:
+      properties:
+        available_core_quota:
+          description: Available CPU core quota.
+          format: int32
+          type: integer
+        status:
+          $ref: '#/components/schemas/ClusterCloudProviderNodeStatus'
+          description: Status as reported by the cloud provider.
+        total_core_quota:
+          description: Total CPU core quota.
+          format: int32
+          type: integer
+    ClusterCloudProviderNodeStatus:
+      description: '* NotEnabledOnSubscription: Node type not available for subscription.
+
+        * NotAvailableInRegion: Node type not available in region.
+
+        '
+      enum:
+      - NotEnabledOnSubscription
+      - NotAvailableInRegion
+      type: string
+    ClusterEvent:
+      properties:
+        cluster_id:
+          description: Canonical identifier for the cluster. This field is required.
+          type: string
+        details:
+          $ref: '#/components/schemas/EventDetails'
+          description: The event details. This field is required.
+        timestamp:
+          description: The timestamp when the event occurred, stored as the number
+            of milliseconds since the unix epoch. Assigned by the Timeline service.
+          format: int64
+          type: integer
+        type:
+          $ref: '#/components/schemas/ClusterEventType'
+          description: The event type. This field is required.
+      required:
+      - cluster_id
+      - type
+      - details
+    ClusterEventType:
+      description: '* `CREATING`: Indicates that the cluster is being created.
+
+        * `DID_NOT_EXPAND_DISK`: Indicates that a disk is low on space, but adding
+        disks would put it over the max capacity.
+
+        * `EXPANDED_DISK`: Indicates that a disk was low on space and the disks were
+        expanded.
+
+        * `FAILED_TO_EXPAND_DISK`: Indicates that a disk was low on space and disk
+        space could not be expanded.
+
+        * `INIT_SCRIPTS_STARTING`: Indicates that the cluster scoped init script has
+        started.
+
+        * `INIT_SCRIPTS_FINISHED`: Indicates that the cluster scoped init script has
+        finished.
+
+        * `STARTING`: Indicates that the cluster is being started.
+
+        * `RESTARTING`: Indicates that the cluster is being started.
+
+        * `TERMINATING`: Indicates that the cluster is being terminated.
+
+        * `EDITED`: Indicates that the cluster has been edited.
+
+        * `RUNNING`: Indicates the cluster has finished being created. Includes the
+        number of nodes in the cluster and a failure reason if some nodes could not
+        be acquired.
+
+        * `RESIZING`: Indicates a change in the target size of the cluster (upsize
+        or downsize).
+
+        * `UPSIZE_COMPLETED`: Indicates that nodes finished being added to the cluster.
+        Includes the number of nodes in the cluster and a failure reason if some nodes
+        could not be acquired.
+
+        * `NODES_LOST`: Indicates that some nodes were lost from the cluster.
+
+        * `DRIVER_HEALTHY`: Indicates that the driver is healthy and the cluster is
+        ready for use.
+
+        * `DRIVER_UNAVAILABLE`: Indicates that the driver is unavailable.
+
+        * `SPARK_EXCEPTION`: Indicates that a Spark exception was thrown from the
+        driver.
+
+        * `DRIVER_NOT_RESPONDING`: Indicates that the driver is up but is not responsive,
+        likely due to GC.
+
+        * `DBFS_DOWN`: Indicates that the driver is up but DBFS is down.
+
+        * `METASTORE_DOWN`: Indicates that the driver is up but the metastore is down.
+
+        * `NODE_BLACKLISTED`: Indicates that a node is not allowed by Spark.
+
+        * `PINNED`: Indicates that the cluster was pinned.
+
+        * `UNPINNED`: Indicates that the cluster was unpinned.'
+      enum:
+      - CREATING
+      - DID_NOT_EXPAND_DISK
+      - EXPANDED_DISK
+      - FAILED_TO_EXPAND_DISK
+      - INIT_SCRIPTS_STARTING
+      - INIT_SCRIPTS_FINISHED
+      - STARTING
+      - RESTARTING
+      - TERMINATING
+      - EDITED
+      - RUNNING
+      - RESIZING
+      - UPSIZE_COMPLETED
+      - NODES_LOST
+      - DRIVER_HEALTHY
+      - DRIVER_UNAVAILABLE
+      - SPARK_EXCEPTION
+      - DRIVER_NOT_RESPONDING
+      - DBFS_DOWN
+      - METASTORE_DOWN
+      - NODE_BLACKLISTED
+      - PINNED
+      - UNPINNED
+      type: string
+    ClusterInfo:
+      properties:
+        autoscale:
+          $ref: '#/components/schemas/AutoScale'
+          description: If autoscale, parameters needed in order to automatically scale
+            clusters up and down based on load.
+        autotermination_minutes:
+          description: Automatically terminates the cluster after it is inactive for
+            this time in minutes. If not set, this cluster is not be automatically
+            terminated. If specified, the threshold must be between 10 and 10000 minutes.
+            You can also set this value to 0 to explicitly disable automatic termination.
+          format: int32
+          type: integer
+        aws_attributes:
+          $ref: '#/components/schemas/AwsAttributes'
+          description: Attributes related to clusters running on Amazon Web Services.
+            If not specified at cluster creation, a set of default values is used.
+        cluster_cores:
+          description: Number of CPU cores available for this cluster. This can be
+            fractional since certain node types are configured to share cores between
+            Spark nodes on the same instance.
+          format: float
+          type: number
+        cluster_id:
+          description: Canonical identifier for the cluster. This ID is retained during
+            cluster restarts and resizes, while each new cluster has a globally unique
+            ID.
+          type: string
+        cluster_log_conf:
+          $ref: '#/components/schemas/ClusterLogConf'
+          description: The configuration for delivering Spark logs to a long-term
+            storage destination. Only one destination can be specified for one cluster.
+            If the conf is given, the logs are delivered to the destination every
+            `5 mins`. The destination of driver logs is `<destination>/<cluster-ID>/driver`,
+            while the destination of executor logs is `<destination>/<cluster-ID>/executor`.
+        cluster_log_status:
+          $ref: '#/components/schemas/LogSyncStatus'
+          description: Cluster log delivery status.
+        cluster_memory_mb:
+          description: Total amount of cluster memory, in megabytes.
+          format: int64
+          type: integer
+        cluster_name:
+          description: "Cluster name requested by the user. This doesn\u2019t have\
+            \ to be unique. If not specified at creation, the cluster name is an empty\
+            \ string."
+          type: string
+        cluster_source:
+          $ref: '#/components/schemas/ClusterSource'
+          description: Determines whether the cluster was created by a user through
+            the UI, by the Databricks Jobs scheduler, or through an API request.
+        creator_user_name:
+          description: "Creator user name. The field won\u2019t be included in the\
+            \ response if the user has already been deleted."
+          type: string
+        custom_tags:
+          description: 'An object containing a set of tags for cluster resources.
+            Databricks tags all cluster resources (such as AWS instances and EBS volumes)
+            with these tags in addition to default_tags.
+
+
+            **Note**:
+
+
+            * Tags are not supported on legacy node types such as compute-optimized
+            and memory-optimized
+
+            * Databricks allows at most 45 custom tags'
+          items:
+            $ref: '#/components/schemas/ClusterTag'
+          type: array
+        default_tags:
+          $ref: '#/components/schemas/ClusterTag'
+          description: "An object containing a set of tags that are added by Databricks\
+            \ regardless of any custom_tags, including:\n\n* Vendor: Databricks\n\
+            * Creator: <username-of-creator>\n* ClusterName: <name-of-cluster>\n*\
+            \ ClusterId: <id-of-cluster>\n* Name: <Databricks internal use>  \nOn\
+            \ job clusters:\n* RunName: <name-of-job>\n* JobId: <id-of-job>  \nOn\
+            \ resources used by Databricks SQL:\n* SqlEndpointId: <id-of-endpoint>"
+        docker_image:
+          $ref: '#/components/schemas/DockerImage'
+          description: Docker image for a [custom container](https://docs.databricks.com/clusters/custom-containers.html).
+        driver:
+          $ref: '#/components/schemas/SparkNode'
+          description: Node on which the Spark driver resides. The driver node contains
+            the Spark master and the Databricks application that manages the per-notebook
+            Spark REPLs.
+        driver_node_type_id:
+          description: The node type of the Spark driver. This field is optional;
+            if unset, the driver node type is set as the same value as `node_type_id`
+            defined above.
+          type: string
+        enable_elastic_disk:
+          description: 'Autoscaling Local Storage: when enabled, this cluster dynamically
+            acquires additional disk space when its Spark workers are running low
+            on disk space. This feature requires specific AWS permissions to function
+            correctly - refer to [Autoscaling local storage](https://docs.databricks.com/clusters/configure.html#autoscaling-local-storage)
+            for details.'
+          type: boolean
+        executors:
+          description: Nodes on which the Spark executors reside.
+          items:
+            $ref: '#/components/schemas/SparkNode'
+          type: array
+        init_scripts:
+          description: The configuration for storing init scripts. Any number of destinations
+            can be specified. The scripts are executed sequentially in the order provided.
+            If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-ID>/init_scripts`.
+          items:
+            $ref: '#/components/schemas/InitScriptInfo'
+          type: array
+        instance_pool_id:
+          description: The optional ID of the instance pool to which the cluster belongs.
+            Refer to [Pools](https://docs.databricks.com/clusters/instance-pools/index.html)
+            for details.
+          type: string
+        jdbc_port:
+          description: Port on which Spark JDBC server is listening in the driver
+            node. No service listens on this port in executor nodes.
+          format: int32
+          type: integer
+        last_activity_time:
+          description: Time (in epoch milliseconds) when the cluster was last active.
+            A cluster is active if there is at least one command that has not finished
+            on the cluster. This field is available after the cluster has reached
+            a `RUNNING` state. Updates to this field are made as best-effort attempts.
+            Certain versions of Spark do not support reporting of cluster activity.
+            Refer to [Automatic termination](https://docs.databricks.com/clusters/clusters-manage.html#automatic-termination)
+            for details.
+          format: int64
+          type: integer
+        last_state_loss_time:
+          description: Time when the cluster driver last lost its state (due to a
+            restart or driver failure).
+          format: int64
+          type: integer
+        node_type_id:
+          description: This field encodes, through a single value, the resources available
+            to each of the Spark nodes in this cluster. For example, the Spark nodes
+            can be provisioned and optimized for memory or compute intensive workloads.
+            A list of available node types can be retrieved by using the [List node
+            types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types)
+            API call.
+          type: string
+        num_workers:
+          description: If num_workers, number of worker nodes that this cluster must
+            have. A cluster has one Spark driver and num_workers executors for a total
+            of num_workers + 1 Spark nodes. **Note:** When reading the properties
+            of a cluster, this field reflects the desired number of workers rather
+            than the actual number of workers. For instance, if a cluster is resized
+            from 5 to 10 workers, this field is immediately updated to reflect the
+            target size of 10 workers, whereas the workers listed in `executors` gradually
+            increase from 5 to 10 as the new nodes are provisioned.
+          format: int32
+          type: integer
+        spark_conf:
+          $ref: '#/components/schemas/SparkConfPair'
+          description: 'An object containing a set of optional, user-specified Spark
+            configuration key-value pairs. You can also pass in a string of extra
+            JVM options to the driver and the executors via `spark.driver.extraJavaOptions`
+            and `spark.executor.extraJavaOptions` respectively.
+
+
+            Example Spark confs: `{"spark.speculation": true, "spark.streaming.ui.retainedBatches":
+            5}` or `{"spark.driver.extraJavaOptions": "-verbose:gc -XX:+PrintGCDetails"}`'
+        spark_context_id:
+          description: A canonical SparkContext identifier. This value _does_ change
+            when the Spark driver restarts. The pair `(cluster_id, spark_context_id)`
+            is a globally unique identifier over all Spark contexts.
+          format: int64
+          type: integer
+        spark_env_vars:
+          $ref: '#/components/schemas/SparkEnvPair'
+          description: 'An object containing a set of optional, user-specified environment
+            variable key-value pairs. Key-value pairs of the form (X,Y) are exported
+            as is (that is, `export X=''Y''`) while launching the driver and workers.
+
+
+            To specify an additional set of `SPARK_DAEMON_JAVA_OPTS`, we recommend
+            appending them to `$SPARK_DAEMON_JAVA_OPTS` as shown in the following
+            example. This ensures that all default databricks managed environmental
+            variables are included as well.
+
+
+            Example Spark environment variables: `{"SPARK_WORKER_MEMORY": "28000m",
+            "SPARK_LOCAL_DIRS": "/local_disk0"}` or `{"SPARK_DAEMON_JAVA_OPTS": "$SPARK_DAEMON_JAVA_OPTS
+            -Dspark.shuffle.service.enabled=true"}`'
+        spark_version:
+          description: The runtime version of the cluster. You can retrieve a list
+            of available runtime versions by using the [Runtime versions](https://docs.databricks.com/dev-tools/api/latest/clusters.html#runtime-versions)
+            API call.
+          type: string
+        ssh_public_keys:
+          description: SSH public key contents that are added to each Spark node in
+            this cluster. The corresponding private keys can be used to login with
+            the user name `ubuntu` on port `2200`. Up to 10 keys can be specified.
+          items:
+            type: string
+          type: array
+        start_time:
+          description: Time (in epoch milliseconds) when the cluster creation request
+            was received (when the cluster entered a `PENDING` state).
+          format: int64
+          type: integer
+        state:
+          $ref: '#/components/schemas/ClusterState'
+          description: State of the cluster.
+        state_message:
+          description: A message associated with the most recent state transition
+            (for example, the reason why the cluster entered a `TERMINATED` state).
+            This field is unstructured, and its exact format is subject to change.
+          type: string
+        terminated_time:
+          description: Time (in epoch milliseconds) when the cluster was terminated,
+            if applicable.
+          format: int64
+          type: integer
+        termination_reason:
+          $ref: '#/components/schemas/TerminationReason'
+          description: Information about why the cluster was terminated. This field
+            only appears when the cluster is in a `TERMINATING` or `TERMINATED` state.
+    ClusterInstance:
+      properties:
+        cluster_id:
+          description: "The canonical identifier for the cluster used by a run. This\
+            \ field is always available for runs on existing clusters. For runs on\
+            \ new clusters, it becomes available once the cluster is created. This\
+            \ value can be used to view logs by browsing to `/#setting/sparkui/$cluster_id/driver-logs`.\
+            \ The logs continue to be available after the run completes.\n\nThe response\
+            \ won\u2019t include this field if the identifier is not available yet."
+          example: 0923-164208-meows279
+          type: string
+        spark_context_id:
+          description: "The canonical identifier for the Spark context used by a run.\
+            \ This field is filled in once the run begins execution. This value can\
+            \ be used to view the Spark UI by browsing to `/#setting/sparkui/$cluster_id/$spark_context_id`.\
+            \ The Spark UI continues to be available after the run has completed.\n\
+            \nThe response won\u2019t include this field if the identifier is not\
+            \ available yet."
+          type: string
+    ClusterLibraryStatuses:
+      properties:
+        cluster_id:
+          description: Unique identifier for the cluster.
+          type: string
+        library_statuses:
+          description: Status of all libraries on the cluster.
+          items:
+            $ref: '#/components/schemas/LibraryFullStatus'
+          type: array
+    ClusterLogConf:
+      properties:
+        dbfs:
+          $ref: '#/components/schemas/DbfsStorageInfo'
+          description: 'DBFS location of cluster log. Destination must be provided.
+            For example, `{ "dbfs" : { "destination" : "dbfs:/home/cluster_log" }
+            }`'
+        s3:
+          $ref: '#/components/schemas/S3StorageInfo'
+          description: 'S3 location of cluster log. `destination` and either `region`
+            or `endpoint` must be provided. For example, `{ "s3": { "destination"
+            : "s3://cluster_log_bucket/prefix", "region" : "us-west-2" } }`'
+    ClusterSize:
+      properties:
+        autoscale:
+          $ref: '#/components/schemas/AutoScale'
+          description: If autoscale, parameters needed in order to automatically scale
+            clusters up and down based on load.
+        num_workers:
+          description: If num_workers, number of worker nodes that this cluster must
+            have. A cluster has one Spark driver and num_workers executors for a total
+            of num_workers + 1 Spark nodes. When reading the properties of a cluster,
+            this field reflects the desired number of workers rather than the actual
+            number of workers. For instance, if a cluster is resized from 5 to 10
+            workers, this field is updated to reflect the target size of 10 workers,
+            whereas the workers listed in executors gradually increase from 5 to 10
+            as the new nodes are provisioned.
+          format: int32
+          type: integer
+    ClusterSource:
+      description: '* UI: Cluster created through the UI.
+
+        * JOB: Cluster created by the Databricks job scheduler.
+
+        * API: Cluster created through an API call.
+
+        '
+      enum:
+      - UI
+      - JOB
+      - API
+      type: string
+    ClusterSpec:
+      properties:
+        existing_cluster_id:
+          description: If existing_cluster_id, the ID of an existing cluster that
+            is used for all runs of this job. When running jobs on an existing cluster,
+            you may need to manually restart the cluster if it stops responding. We
+            suggest running jobs on new clusters for greater reliability.
+          example: 0923-164208-meows279
+          type: string
+        libraries:
+          description: An optional list of libraries to be installed on the cluster
+            that executes the job. The default value is an empty list.
+          items:
+            $ref: '#/components/schemas/Library'
+          type: array
+        new_cluster:
+          $ref: '#/components/schemas/NewCluster'
+          description: If new_cluster, a description of a cluster that is created
+            for each run.
+          example: null
+    ClusterState:
+      description: '* PENDING: Indicates that a cluster is in the process of being
+        created.
+
+        * RUNNING: Indicates that a cluster has been started and is ready for use.
+
+        * RESTARTING: Indicates that a cluster is in the process of restarting.
+
+        * RESIZING: Indicates that a cluster is in the process of adding or removing
+        nodes.
+
+        * TERMINATING: Indicates that a cluster is in the process of being destroyed.
+
+        * TERMINATED: Indicates that a cluster has been successfully destroyed.
+
+        * ERROR: This state is no longer used. It was used to indicate a cluster that
+        failed to be created. `TERMINATING` and `TERMINATED` are used instead.
+
+        * UNKNOWN: Indicates that a cluster is in an unknown state. A cluster should
+        never be in this state.
+
+        '
+      enum:
+      - PENDING
+      - RUNNING
+      - RESTARTING
+      - RESIZING
+      - TERMINATING
+      - TERMINATED
+      - ERROR
+      - UNKNOWN
+      type: string
+    ClusterTag:
+      additionalProperties:
+        type: string
+      description: 'An object with key value pairs. The key length must be between
+        1 and 127 UTF-8 characters, inclusive. The value length must be less than
+        or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS
+        Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>'
+      type: object
+    CronSchedule:
+      properties:
+        pause_status:
+          description: Indicate whether this schedule is paused or not.
+          enum:
+          - PAUSED
+          - UNPAUSED
+          example: PAUSED
+          type: string
+        quartz_cron_expression:
+          description: A Cron expression using Quartz syntax that describes the schedule
+            for a job. See [Cron Trigger](http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html)
+            for details. This field is required.
+          example: 20 30 * * * ?
+          type: string
+        timezone_id:
+          description: A Java timezone ID. The schedule for a job is resolved with
+            respect to this timezone. See [Java TimeZone](https://docs.oracle.com/javase/7/docs/api/java/util/TimeZone.html)
+            for details. This field is required.
+          example: Europe/London
+          type: string
+      required:
+      - quartz_cron_expression
+      - timezone_id
+    DbfsStorageInfo:
+      properties:
+        destination:
+          description: 'DBFS destination. Example: `dbfs:/my/path`'
+          type: string
+    DbtOutput:
+      properties:
+        artifacts_headers:
+          description: An optional map of headers to send when retrieving the artifact
+            from the `artifacts_link`.
+          type: object
+        artifacts_link:
+          description: A pre-signed URL to download the (compressed) dbt artifacts.
+            This link is valid for a limited time (30 minutes). This information is
+            only available after the run has finished.
+          type: string
+    DbtTask:
+      properties:
+        catalog:
+          description: Optional name of the catalog to use. The value is the top level
+            in the 3-level namespace of Unity Catalog (catalog / schema / relation).
+            The catalog value can only be specified if a warehouse_id is specified.
+            Requires dbt-databricks >= 1.1.1.
+          example: main
+          type: string
+        commands:
+          description: A list of dbt commands to execute. All commands must start
+            with `dbt`. This parameter must not be empty. A maximum of up to 10 commands
+            can be provided.
+          example:
+          - dbt deps
+          - dbt seed
+          - dbt run --models 123
+          type: array
+        profiles_directory:
+          description: Optional (relative) path to the profiles directory. Can only
+            be specified if no warehouse_id is specified. If no warehouse_id is specified
+            and this folder is unset, the root directory is used.
+          type: string
+        project_directory:
+          description: Optional (relative) path to the project directory, if no value
+            is provided, the root of the git repository is used.
+          type: string
+        schema:
+          description: Optional schema to write to. This parameter is only used when
+            a warehouse_id is also provided. If not provided, the `default` schema
+            is used.
+          type: string
+        warehouse_id:
+          description: ID of the SQL warehouse to connect to. If provided, we automatically
+            generate and provide the profile and connection details to dbt. It can
+            be overridden on a per-command basis by using the `--profiles-dir` command
+            line argument.
+          example: 30dade0507d960d1
+          type: string
+      required:
+      - commands
+    DockerBasicAuth:
+      properties:
+        password:
+          description: Password for the Docker repository.
+          type: string
+        username:
+          description: User name for the Docker repository.
+          type: string
+    DockerImage:
+      properties:
+        basic_auth:
+          $ref: '#/components/schemas/DockerBasicAuth'
+          description: Basic authentication information for Docker repository.
+        url:
+          description: URL for the Docker image.
+          type: string
+    Error:
+      properties:
+        error_code:
+          description: Error code
+          example: INTERNAL_ERROR
+          type: string
+        message:
+          description: Human-readable error message that describes the cause of the
+            error.
+          example: Unexpected error.
+          type: string
+      type: object
+    EventDetails:
+      properties:
+        attributes:
+          $ref: '#/components/schemas/AwsAttributes'
+          description: '* For created clusters, the attributes of the cluster.
+
+            * For edited clusters, the new attributes of the cluster.'
+        cause:
+          $ref: '#/components/schemas/ResizeCause'
+          description: The cause of a change in target size.
+        cluster_size:
+          $ref: '#/components/schemas/ClusterSize'
+          description: The cluster size that was set in the cluster creation or edit.
+        current_num_workers:
+          description: The number of nodes in the cluster.
+          format: int32
+          type: integer
+        previous_attributes:
+          $ref: '#/components/schemas/AwsAttributes'
+          description: The cluster attributes before a cluster was edited.
+        previous_cluster_size:
+          $ref: '#/components/schemas/ClusterSize'
+          description: The size of the cluster before an edit or resize.
+        reason:
+          $ref: '#/components/schemas/TerminationReason'
+          description: 'A termination reason:
+
+
+            * On a `TERMINATED` event, the reason for the termination.
+
+            * On a `RESIZE_COMPLETE` event, indicates the reason that we failed to
+            acquire some nodes.'
+        target_num_workers:
+          description: The targeted number of nodes in the cluster.
+          format: int32
+          type: integer
+        user:
+          description: The user that caused the event to occur. (Empty if it was done
+            by Databricks.)
+          type: string
+    FileStorageInfo:
+      properties:
+        destination:
+          description: 'File destination. Example: `file:/my/file.sh`'
+          type: string
+    GitSnapshot:
+      description: Read-only state of the remote repository at the time the job was
+        run. This field is only included on job runs.
+      properties:
+        used_commit:
+          description: Commit that was used to execute the run. If git_branch was
+            specified, this points to the HEAD of the branch at the time of the run;
+            if git_tag was specified, this points to the commit the tag points to.
+          example: 4506fdf41e9fa98090570a34df7a5bce163ff15f
+          type: string
+      readOnly: true
+    GitSource:
+      description: 'This functionality is in Public Preview.
+
+
+        An optional specification for a remote repository containing the notebooks
+        used by this job''s notebook tasks.'
+      example:
+        git_branch: main
+        git_provider: gitHub
+        git_url: https://github.com/databricks/databricks-cli
+      oneOf:
+      - required:
+        - git_url
+        - git_provider
+        - git_branch
+      - required:
+        - git_url
+        - git_provider
+        - git_tag
+      - required:
+        - git_url
+        - git_provider
+        - git_commit
+      properties:
+        git_branch:
+          description: 'Name of the branch to be checked out and used by this job.
+            This field cannot be specified in conjunction with git_tag or git_commit.
+
+            The maximum length is 255 characters.'
+          example: main
+          type: string
+        git_commit:
+          description: 'Commit to be checked out and used by this job. This field
+            cannot be specified in conjunction with git_branch or git_tag.
+
+            The maximum length is 64 characters.'
+          example: e0056d01
+          type: string
+        git_provider:
+          description: Unique identifier of the service used to host the Git repository.
+            The value is case insensitive.
+          enum:
+          - gitHub
+          - bitbucketCloud
+          - azureDevOpsServices
+          - gitHubEnterprise
+          - bitbucketServer
+          - gitLab
+          - gitLabEnterpriseEdition
+          - awsCodeCommit
+          example: github
+          required:
+          - true
+          type: string
+        git_snapshot:
+          $ref: '#/components/schemas/GitSnapshot'
+        git_tag:
+          description: 'Name of the tag to be checked out and used by this job. This
+            field cannot be specified in conjunction with git_branch or git_commit.
+
+            The maximum length is 255 characters.'
+          example: release-1.0.0
+          type: string
+        git_url:
+          description: 'URL of the repository to be cloned by this job.
+
+            The maximum length is 300 characters.'
+          example: https://github.com/databricks/databricks-cli
+          required:
+          - true
+          type: string
+    GroupName:
+      description: 'Group name. There are two built-in groups: `users` for all users,
+        and `admins` for administrators.'
+      example: users
+      type: string
+    InitScriptInfo:
+      properties:
+        S3:
+          $ref: '#/components/schemas/S3StorageInfo'
+          description: 'S3 location of init script. Destination and either region
+            or endpoint must be provided. For example, `{ "s3": { "destination" :
+            "s3://init_script_bucket/prefix", "region" : "us-west-2" } }`'
+        dbfs:
+          $ref: '#/components/schemas/DbfsStorageInfo'
+          description: 'DBFS location of init script. Destination must be provided.
+            For example, `{ "dbfs" : { "destination" : "dbfs:/home/init_script" }
+            }`'
+        file:
+          $ref: '#/components/schemas/FileStorageInfo'
+          description: 'File location of init script. Destination must be provided.
+            For example, `{ "file" : { "destination" : "file:/my/local/file.sh" }
+            }`'
+    IsOwner:
+      description: Perimssion that represents ownership of the job.
+      enum:
+      - IS_OWNER
+      type: string
+    Job:
+      properties:
+        created_time:
+          description: The time at which this job was created in epoch milliseconds
+            (milliseconds since 1/1/1970 UTC).
+          example: 1601370337343
+          format: int64
+          type: integer
+        creator_user_name:
+          description: "The creator user name. This field won\u2019t be included in\
+            \ the response if the user has already been deleted."
+          example: user.name@databricks.com
+          type: string
+        job_id:
+          description: The canonical identifier for this job.
+          example: 11223344
+          format: int64
+          type: integer
+        settings:
+          $ref: '#/components/schemas/JobSettings'
+          description: Settings for this job and all of its runs. These settings can
+            be updated using the `resetJob` method.
+    JobCluster:
+      properties:
+        job_cluster_key:
+          description: 'A unique name for the job cluster. This field is required
+            and must be unique within the job.
+
+            `JobTaskSettings` may refer to this field to determine which cluster to
+            launch for the task execution.'
+          example: auto_scaling_cluster
+          maxLength: 100
+          minLength: 1
+          pattern: ^[\w\-]+$
+          type: string
+        new_cluster:
+          $ref: '#/components/schemas/NewCluster'
+      required:
+      - job_cluster_key
+    JobEmailNotifications:
+      properties:
+        no_alert_for_skipped_runs:
+          description: If true, do not send email to recipients specified in `on_failure`
+            if the run is skipped.
+          example: false
+          type: boolean
+        on_failure:
+          description: A list of email addresses to notify when a run completes unsuccessfully.
+            A run is considered unsuccessful if it ends with an `INTERNAL_ERROR` `life_cycle_state`
+            or a `SKIPPED`, `FAILED`, or `TIMED_OUT` `result_state`. If not specified
+            on job creation, reset, or update, or the list is empty, then notifications
+            are not sent. Job-level failure notifications are sent only once after
+            the entire job run (including all of its retries) has failed. Notifications
+            are not sent when failed job runs are retried. To receive a failure notification
+            after every failed task (including every failed retry), use task-level
+            notifications instead.
+          example:
+          - user.name@databricks.com
+          items:
+            type: string
+          type: array
+        on_start:
+          description: A list of email addresses to be notified when a run begins.
+            If not specified on job creation, reset, or update, the list is empty,
+            and notifications are not sent.
+          example:
+          - user.name@databricks.com
+          items:
+            type: string
+          type: array
+        on_success:
+          description: A list of email addresses to be notified when a run successfully
+            completes. A run is considered to have completed successfully if it ends
+            with a `TERMINATED` `life_cycle_state` and a `SUCCESSFUL` result_state.
+            If not specified on job creation, reset, or update, the list is empty,
+            and notifications are not sent.
+          example:
+          - user.name@databricks.com
+          items:
+            type: string
+          type: array
+    JobSettings:
+      properties:
+        email_notifications:
+          $ref: '#/components/schemas/JobEmailNotifications'
+          description: An optional set of email addresses that is notified when runs
+            of this job begin or complete as well as when this job is deleted. The
+            default behavior is to not send any emails.
+        format:
+          description: Used to tell what is the format of the job. This field is ignored
+            in Create/Update/Reset calls. When using the Jobs API 2.1 this value is
+            always set to `"MULTI_TASK"`.
+          enum:
+          - SINGLE_TASK
+          - MULTI_TASK
+          example: MULTI_TASK
+          type: string
+        git_source:
+          $ref: '#/components/schemas/GitSource'
+          description: 'This functionality is in Public Preview.
+
+
+            An optional specification for a remote repository containing the notebooks
+            used by this job''s notebook tasks.'
+          example:
+            git_branch: main
+            git_provider: gitHub
+            git_url: https://github.com/databricks/databricks-cli
+        job_clusters:
+          description: A list of job cluster specifications that can be shared and
+            reused by tasks of this job. Libraries cannot be declared in a shared
+            job cluster. You must declare dependent libraries in task settings.
+          example:
+          - job_cluster_key: auto_scaling_cluster
+            new_cluster:
+              autoscale:
+                max_workers: 16
+                min_workers: 2
+              aws_attributes:
+                availability: SPOT
+                zone_id: us-west-2a
+              node_type_id: i3.xlarge
+              spark_conf:
+                spark.speculation: true
+              spark_version: 7.3.x-scala2.12
+          items:
+            $ref: '#/components/schemas/JobCluster'
+          maxItems: 100
+          type: array
+        max_concurrent_runs:
+          description: "An optional maximum allowed number of concurrent runs of the\
+            \ job.\n\nSet this value if you want to be able to execute multiple runs\
+            \ of the same job concurrently. This is useful for example if you trigger\
+            \ your job on a frequent schedule and want to allow consecutive runs to\
+            \ overlap with each other, or if you want to trigger multiple runs which\
+            \ differ by their input parameters.\n\nThis setting affects only new runs.\
+            \ For example, suppose the job\u2019s concurrency is 4 and there are 4\
+            \ concurrent active runs. Then setting the concurrency to 3 won\u2019\
+            t kill any of the active runs. However, from then on, new runs are skipped\
+            \ unless there are fewer than 3 active runs.\n\nThis value cannot exceed\
+            \ 1000\\. Setting this value to 0 causes all new runs to be skipped. The\
+            \ default behavior is to allow only 1 concurrent run."
+          example: 10
+          format: int32
+          type: integer
+        name:
+          default: Untitled
+          description: An optional name for the job.
+          example: A multitask job
+          type: string
+        schedule:
+          $ref: '#/components/schemas/CronSchedule'
+          description: "An optional periodic schedule for this job. The default behavior\
+            \ is that the job only runs when triggered by clicking \u201CRun Now\u201D\
+            \ in the Jobs UI or sending an API request to `runNow`."
+        tags:
+          default: '{}'
+          description: A map of tags associated with the job. These are forwarded
+            to the cluster as cluster tags for jobs clusters, and are subject to the
+            same limitations as cluster tags. A maximum of 25 tags can be added to
+            the job.
+          example:
+            cost-center: engineering
+            team: jobs
+          type: object
+        tasks:
+          description: A list of task specifications to be executed by this job.
+          example:
+          - depends_on: []
+            description: Extracts session data from events
+            existing_cluster_id: 0923-164208-meows279
+            libraries:
+            - jar: dbfs:/mnt/databricks/Sessionize.jar
+            max_retries: 3
+            min_retry_interval_millis: 2000
+            retry_on_timeout: false
+            spark_jar_task:
+              main_class_name: com.databricks.Sessionize
+              parameters:
+              - --data
+              - dbfs:/path/to/data.json
+            task_key: Sessionize
+            timeout_seconds: 86400
+          - depends_on: []
+            description: Ingests order data
+            job_cluster_key: auto_scaling_cluster
+            libraries:
+            - jar: dbfs:/mnt/databricks/OrderIngest.jar
+            max_retries: 3
+            min_retry_interval_millis: 2000
+            retry_on_timeout: false
+            spark_jar_task:
+              main_class_name: com.databricks.OrdersIngest
+              parameters:
+              - --data
+              - dbfs:/path/to/order-data.json
+            task_key: Orders_Ingest
+            timeout_seconds: 86400
+          - depends_on:
+            - task_key: Orders_Ingest
+            - task_key: Sessionize
+            description: Matches orders with user sessions
+            max_retries: 3
+            min_retry_interval_millis: 2000
+            new_cluster:
+              autoscale:
+                max_workers: 16
+                min_workers: 2
+              aws_attributes:
+                availability: SPOT
+                zone_id: us-west-2a
+              node_type_id: i3.xlarge
+              spark_conf:
+                spark.speculation: true
+              spark_version: 7.3.x-scala2.12
+            notebook_task:
+              base_parameters:
+                age: '35'
+                name: John Doe
+              notebook_path: /Users/user.name@databricks.com/Match
+              source: WORKSPACE
+            retry_on_timeout: false
+            task_key: Match
+            timeout_seconds: 86400
+          items:
+            $ref: '#/components/schemas/JobTaskSettings'
+          maxItems: 100
+          type: array
+        timeout_seconds:
+          description: An optional timeout applied to each run of this job. The default
+            behavior is to have no timeout.
+          example: 86400
+          format: int32
+          type: integer
+        webhook_notifications:
+          $ref: '#/components/schemas/WebhookNotifications'
+          description: A collection of system notification IDs to notify when runs
+            of this job begin or complete. The default behavior is to not send any
+            system notifications.
+    JobTask:
+      properties:
+        dbt_task:
+          $ref: '#/components/schemas/DbtTask'
+          description: If dbt_task, indicates that this must execute a dbt task. It
+            requires both Databricks SQL and the ability to use a serverless or a
+            pro SQL warehouse.
+        notebook_task:
+          $ref: '#/components/schemas/NotebookTask'
+          description: If notebook_task, indicates that this job must run a notebook.
+            This field may not be specified in conjunction with spark_jar_task.
+        pipeline_task:
+          $ref: '#/components/schemas/PipelineTask'
+          description: If pipeline_task, indicates that this job must execute a Pipeline.
+        python_wheel_task:
+          $ref: '#/components/schemas/PythonWheelTask'
+          description: If python_wheel_task, indicates that this job must execute
+            a PythonWheel.
+        spark_jar_task:
+          $ref: '#/components/schemas/SparkJarTask'
+          description: If spark_jar_task, indicates that this job must run a JAR.
+          example: ''
+        spark_python_task:
+          $ref: '#/components/schemas/SparkPythonTask'
+          description: If spark_python_task, indicates that this job must run a Python
+            file.
+        spark_submit_task:
+          $ref: '#/components/schemas/SparkSubmitTask'
+          description: If spark_submit_task, indicates that this job must be launched
+            by the spark submit script.
+        sql_task:
+          $ref: '#/components/schemas/SqlTask'
+          description: If sql_task, indicates that this job must execute a SQL task.
+            It requires both Databricks SQL and a serverless or a pro SQL warehouse.
+    JobTaskSettings:
+      properties:
+        dbt_task:
+          $ref: '#/components/schemas/DbtTask'
+          description: If dbt_task, indicates that this must execute a dbt task. It
+            requires both Databricks SQL and the ability to use a serverless or a
+            pro SQL warehouse.
+        depends_on:
+          $ref: '#/components/schemas/TaskDependencies'
+        description:
+          $ref: '#/components/schemas/TaskDescription'
+        email_notifications:
+          $ref: '#/components/schemas/JobEmailNotifications'
+          description: An optional set of email addresses that is notified when runs
+            of this task begin or complete as well as when this task is deleted. The
+            default behavior is to not send any emails.
+        existing_cluster_id:
+          description: If existing_cluster_id, the ID of an existing cluster that
+            is used for all runs of this task. When running tasks on an existing cluster,
+            you may need to manually restart the cluster if it stops responding. We
+            suggest running jobs on new clusters for greater reliability.
+          example: 0923-164208-meows279
+          type: string
+        job_cluster_key:
+          description: If job_cluster_key, this task is executed reusing the cluster
+            specified in `job.settings.job_clusters`.
+          maxLength: 100
+          minLength: 1
+          pattern: ^[\w\-]+$
+          type: string
+        libraries:
+          description: An optional list of libraries to be installed on the cluster
+            that executes the task. The default value is an empty list.
+          items:
+            $ref: '#/components/schemas/Library'
+          type: array
+        max_retries:
+          description: An optional maximum number of times to retry an unsuccessful
+            run. A run is considered to be unsuccessful if it completes with the `FAILED`
+            result_state or `INTERNAL_ERROR` `life_cycle_state`. The value -1 means
+            to retry indefinitely and the value 0 means to never retry. The default
+            behavior is to never retry.
+          example: 10
+          format: int32
+          type: integer
+        min_retry_interval_millis:
+          description: An optional minimal interval in milliseconds between the start
+            of the failed run and the subsequent retry run. The default behavior is
+            that unsuccessful runs are immediately retried.
+          example: 2000
+          format: int32
+          type: integer
+        new_cluster:
+          $ref: '#/components/schemas/NewCluster'
+          description: If new_cluster, a description of a cluster that is created
+            for each run.
+          example: null
+        notebook_task:
+          $ref: '#/components/schemas/NotebookTask'
+          description: If notebook_task, indicates that this task must run a notebook.
+            This field may not be specified in conjunction with spark_jar_task.
+        pipeline_task:
+          $ref: '#/components/schemas/PipelineTask'
+          description: If pipeline_task, indicates that this task must execute a Pipeline.
+        python_wheel_task:
+          $ref: '#/components/schemas/PythonWheelTask'
+          description: If python_wheel_task, indicates that this job must execute
+            a PythonWheel.
+        retry_on_timeout:
+          description: An optional policy to specify whether to retry a task when
+            it times out. The default behavior is to not retry on timeout.
+          example: true
+          type: boolean
+        spark_jar_task:
+          $ref: '#/components/schemas/SparkJarTask'
+          description: If spark_jar_task, indicates that this task must run a JAR.
+        spark_python_task:
+          $ref: '#/components/schemas/SparkPythonTask'
+          description: If spark_python_task, indicates that this task must run a Python
+            file.
+        spark_submit_task:
+          $ref: '#/components/schemas/SparkSubmitTask'
+          description: If spark_submit_task, indicates that this task must be launched
+            by the spark submit script.
+        sql_task:
+          $ref: '#/components/schemas/SqlTask'
+          description: If sql_task, indicates that this job must execute a SQL task.
+            It requires both Databricks SQL and a serverless or a pro SQL warehouse.
+        task_key:
+          $ref: '#/components/schemas/TaskKey'
+        timeout_seconds:
+          description: An optional timeout applied to each run of this job task. The
+            default behavior is to have no timeout.
+          example: 86400
+          format: int32
+          type: integer
+        webhook_notifications:
+          $ref: '#/components/schemas/WebhookNotifications'
+          description: A collection of system notification IDs to notify when the
+            run begins or completes. The default behavior is to not send any system
+            notifications.
+      required:
+      - task_key
+    Library:
+      properties:
+        cran:
+          $ref: '#/components/schemas/RCranLibrary'
+          description: If cran, specification of a CRAN library to be installed.
+        egg:
+          description: 'If egg, URI of the egg to be installed. DBFS and S3 URIs are
+            supported. For example: `{ "egg": "dbfs:/my/egg" }` or `{ "egg": "s3://my-bucket/egg"
+            }`. If S3 is used, make sure the cluster has read access on the library.
+            You may need to launch the cluster with an instance profile to access
+            the S3 URI.'
+          example: dbfs:/my/egg
+          type: string
+        jar:
+          description: 'If jar, URI of the JAR to be installed. DBFS and S3 URIs are
+            supported. For example: `{ "jar": "dbfs:/mnt/databricks/library.jar" }`
+            or `{ "jar": "s3://my-bucket/library.jar" }`. If S3 is used, make sure
+            the cluster has read access on the library. You may need to launch the
+            cluster with an instance profile to access the S3 URI.'
+          example: dbfs:/my-jar.jar
+          type: string
+        maven:
+          $ref: '#/components/schemas/MavenLibrary'
+          description: 'If maven, specification of a Maven library to be installed.
+            For example: `{ "coordinates": "org.jsoup:jsoup:1.7.2" }`'
+        pypi:
+          $ref: '#/components/schemas/PythonPyPiLibrary'
+          description: 'If pypi, specification of a PyPI library to be installed.
+            Specifying the `repo` field is optional and if not specified, the default
+            pip index is used. For example: `{ "package": "simplejson", "repo": "https://my-repo.com"
+            }`'
+        whl:
+          description: 'If whl, URI of the wheel or zipped wheels to be installed.
+            DBFS and S3 URIs are supported. For example: `{ "whl": "dbfs:/my/whl"
+            }` or `{ "whl": "s3://my-bucket/whl" }`. If S3 is used, make sure the
+            cluster has read access on the library. You may need to launch the cluster
+            with an instance profile to access the S3 URI. Also the wheel file name
+            needs to use the [correct convention](https://www.python.org/dev/peps/pep-0427/#file-format).
+            If zipped wheels are to be installed, the file name suffix should be `.wheelhouse.zip`.'
+          example: dbfs:/my/whl
+          type: string
+    LibraryFullStatus:
+      properties:
+        is_library_for_all_clusters:
+          description: Whether the library was set to be installed on all clusters
+            via the libraries UI.
+          type: boolean
+        library:
+          $ref: '#/components/schemas/Library'
+          description: Unique identifier for the library.
+        messages:
+          description: All the info and warning messages that have occurred so far
+            for this library.
+          items:
+            type: string
+          type: array
+        status:
+          $ref: '#/components/schemas/LibraryInstallStatus'
+          description: Status of installing the library on the cluster.
+    LibraryInstallStatus:
+      description: '* `PENDING`: No action has yet been taken to install the library.
+        This state should be very short lived.
+
+        * `RESOLVING`: Metadata necessary to install the library is being retrieved
+        from the provided repository. For Jar, Egg, and Whl libraries, this step is
+        a no-op.
+
+        * `INSTALLING`: The library is actively being installed, either by adding
+        resources to Spark or executing system commands inside the Spark nodes.
+
+        * `INSTALLED`: The library has been successfully instally.
+
+        * `SKIPPED`: Installation on a Databricks Runtime 7.0 or above cluster was
+        skipped due to Scala version incompatibility.
+
+        * `FAILED`: Some step in installation failed. More information can be found
+        in the messages field.
+
+        * `UNINSTALL_ON_RESTART`: The library has been marked for removal. Libraries
+        can be removed only when clusters are restarted, so libraries that enter this
+        state remains until the cluster is restarted.'
+      enum:
+      - PENDING
+      - RESOLVING
+      - INSTALLING
+      - INSTALLED
+      - SKIPPED
+      - FAILED
+      - UNINSTALL_ON_RESTART
+      type: string
+    ListOrder:
+      description: '* `DESC`: Descending order.
+
+        * `ASC`: Ascending order.'
+      enum:
+      - DESC
+      - ASC
+      type: string
+    LogSyncStatus:
+      properties:
+        last_attempted:
+          description: The timestamp of last attempt. If the last attempt fails, last_exception
+            contains the exception in the last attempt.
+          format: int64
+          type: integer
+        last_exception:
+          description: The exception thrown in the last attempt, it would be null
+            (omitted in the response) if there is no exception in last attempted.
+          type: string
+    MavenLibrary:
+      properties:
+        coordinates:
+          description: 'Gradle-style Maven coordinates. For example: `org.jsoup:jsoup:1.7.2`.
+            This field is required.'
+          example: org.jsoup:jsoup:1.7.2
+          type: string
+        exclusions:
+          description: 'List of dependences to exclude. For example: `["slf4j:slf4j",
+            "*:hadoop-client"]`.
+
+
+            Maven dependency exclusions: <https://maven.apache.org/guides/introduction/introduction-to-optional-and-excludes-dependencies.html>.'
+          example:
+          - slf4j:slf4j
+          - '*:hadoop-client'
+          items:
+            type: string
+          type: array
+        repo:
+          description: Maven repo to install the Maven package from. If omitted, both
+            Maven Central Repository and Spark Packages are searched.
+          example: https://my-repo.com
+          type: string
+      required:
+      - coordinates
+    NewCluster:
+      properties:
+        autoscale:
+          $ref: '#/components/schemas/AutoScale'
+          description: If autoscale, the required parameters to automatically scale
+            clusters up and down based on load.
+        aws_attributes:
+          $ref: '#/components/schemas/AwsAttributes'
+          description: Attributes related to clusters running on Amazon Web Services.
+            If not specified at cluster creation, a set of default values is used.
+        cluster_log_conf:
+          $ref: '#/components/schemas/ClusterLogConf'
+          description: The configuration for delivering Spark logs to a long-term
+            storage destination. Only one destination can be specified for one cluster.
+            If the conf is given, the logs are delivered to the destination every
+            `5 mins`. The destination of driver logs is `<destination>/<cluster-id>/driver`,
+            while the destination of executor logs is `<destination>/<cluster-id>/executor`.
+        custom_tags:
+          $ref: '#/components/schemas/ClusterTag'
+          description: 'An object containing a set of tags for cluster resources.
+            Databricks tags all cluster resources (such as AWS instances and EBS volumes)
+            with these tags in addition to default_tags.
+
+
+            **Note**:
+
+
+            * Tags are not supported on legacy node types such as compute-optimized
+            and memory-optimized
+
+            * Databricks allows at most 45 custom tags'
+        driver_instance_pool_id:
+          description: The optional ID of the instance pool to use for the driver
+            node. You must also specify `instance_pool_id`. Refer to [Instance Pools
+            API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html)
+            for details.
+          type: string
+        driver_node_type_id:
+          description: The node type of the Spark driver. This field is optional;
+            if unset, the driver node type is set as the same value as `node_type_id`
+            defined above.
+          type: string
+        enable_elastic_disk:
+          description: 'Autoscaling Local Storage: when enabled, this cluster dynamically
+            acquires additional disk space when its Spark workers are running low
+            on disk space. This feature requires specific AWS permissions to function
+            correctly - refer to [Autoscaling local storage](https://docs.databricks.com/clusters/configure.html#autoscaling-local-storage)
+            for details.'
+          type: boolean
+        enable_local_disk_encryption:
+          description: Determines whether encryption of disks locally attached to
+            the cluster is enabled.
+          type: boolean
+        init_scripts:
+          description: The configuration for storing init scripts. Any number of scripts
+            can be specified. The scripts are executed sequentially in the order provided.
+            If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-id>/init_scripts`.
+          items:
+            $ref: '#/components/schemas/InitScriptInfo'
+          type: array
+        instance_pool_id:
+          description: The optional ID of the instance pool to use for cluster nodes.
+            If `driver_instance_pool_id` is present, `instance_pool_id` is used for
+            worker nodes only. Otherwise, it is used for both the driver node and
+            worker nodes. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html)
+            for details.
+          type: string
+        node_type_id:
+          description: This field encodes, through a single value, the resources available
+            to each of the Spark nodes in this cluster. For example, the Spark nodes
+            can be provisioned and optimized for memory or compute intensive workloads
+            A list of available node types can be retrieved by using the [List node
+            types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types)
+            API call.
+          type: string
+        num_workers:
+          description: If num_workers, number of worker nodes that this cluster must
+            have. A cluster has one Spark driver and num_workers executors for a total
+            of num_workers + 1 Spark nodes. When reading the properties of a cluster,
+            this field reflects the desired number of workers rather than the actual
+            current number of workers. For example, if a cluster is resized from 5
+            to 10 workers, this field immediately updates to reflect the target size
+            of 10 workers, whereas the workers listed in `spark_info` gradually increase
+            from 5 to 10 as the new nodes are provisioned.
+          format: int32
+          type: integer
+        policy_id:
+          description: A [cluster policy](https://docs.databricks.com/dev-tools/api/latest/policies.html)
+            ID. Either `node_type_id` or `instance_pool_id` must be specified in the
+            cluster policy if they are not specified in this job cluster object.
+          type: string
+        spark_conf:
+          $ref: '#/components/schemas/SparkConfPair'
+          description: 'An object containing a set of optional, user-specified Spark
+            configuration key-value pairs. You can also pass in a string of extra
+            JVM options to the driver and the executors via `spark.driver.extraJavaOptions`
+            and `spark.executor.extraJavaOptions` respectively.
+
+
+            Example Spark confs: `{"spark.speculation": true, "spark.streaming.ui.retainedBatches":
+            5}` or `{"spark.driver.extraJavaOptions": "-verbose:gc -XX:+PrintGCDetails"}`'
+        spark_env_vars:
+          $ref: '#/components/schemas/SparkEnvPair'
+          description: 'An object containing a set of optional, user-specified environment
+            variable key-value pairs. Key-value pair of the form (X,Y) are exported
+            as is (for example, `export X=''Y''`) while launching the driver and workers.
+
+
+            To specify an additional set of `SPARK_DAEMON_JAVA_OPTS`, we recommend
+            appending them to `$SPARK_DAEMON_JAVA_OPTS` as shown in the following
+            example. This ensures that all default databricks managed environmental
+            variables are included as well.
+
+
+            Example Spark environment variables: `{"SPARK_WORKER_MEMORY": "28000m",
+            "SPARK_LOCAL_DIRS": "/local_disk0"}` or `{"SPARK_DAEMON_JAVA_OPTS": "$SPARK_DAEMON_JAVA_OPTS
+            -Dspark.shuffle.service.enabled=true"}`'
+        spark_version:
+          description: The Spark version of the cluster. A list of available Spark
+            versions can be retrieved by using the [Runtime versions](https://docs.databricks.com/dev-tools/api/latest/clusters.html#runtime-versions)
+            API call.
+          type: string
+        ssh_public_keys:
+          description: SSH public key contents that are added to each Spark node in
+            this cluster. The corresponding private keys can be used to login with
+            the user name `ubuntu` on port `2200`. Up to 10 keys can be specified.
+          items:
+            type: string
+          type: array
+      required:
+      - spark_version
+    NodeType:
+      properties:
+        description:
+          description: A string description associated with this node type. This field
+            is required.
+          type: string
+        instance_type_id:
+          description: An identifier for the type of hardware that this node runs
+            on. This field is required.
+          type: string
+        is_deprecated:
+          description: Whether the node type is deprecated. Non-deprecated node types
+            offer greater performance.
+          type: boolean
+        memory_mb:
+          description: Memory (in MB) available for this node type. This field is
+            required.
+          format: int32
+          type: integer
+        node_info:
+          $ref: '#/components/schemas/ClusterCloudProviderNodeInfo'
+          description: Node type info reported by the cloud provider.
+        node_type_id:
+          description: Unique identifier for this node type. This field is required.
+          type: string
+        num_cores:
+          description: Number of CPU cores available for this node type. This can
+            be fractional if the number of cores on a machine instance is not divisible
+            by the number of Spark nodes on that machine. This field is required.
+          format: float
+          type: number
+      required:
+      - node_type_id
+      - memory_mb
+      - description
+      - instance_type_id
+    NotebookOutput:
+      properties:
+        result:
+          description: The value passed to [dbutils.notebook.exit()](https://docs.databricks.com/notebooks/notebook-workflows.html#notebook-workflows-exit).
+            Databricks restricts this API to return the first 5 MB of the value. For
+            a larger result, your job can store the results in a cloud storage service.
+            This field is absent if `dbutils.notebook.exit()` was never called.
+          example: An arbitrary string passed by calling dbutils.notebook.exit(...)
+          type: string
+        truncated:
+          description: Whether or not the result was truncated.
+          example: false
+          type: boolean
+    NotebookTask:
+      properties:
+        base_parameters:
+          additionalProperties: true
+          description: "Base parameters to be used for each run of this job. If the\
+            \ run is initiated by a call to [`run-now`](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow)\
+            \ with parameters specified, the two parameters maps are merged. If the\
+            \ same key is specified in `base_parameters` and in `run-now`, the value\
+            \ from `run-now` is used.\n\nUse [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)\
+            \ to set parameters containing information about job runs.\n\nIf the notebook\
+            \ takes a parameter that is not specified in the job\u2019s `base_parameters`\
+            \ or the `run-now` override parameters, the default value from the notebook\
+            \ is used.\n\nRetrieve these parameters in a notebook using [dbutils.widgets.get](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-widgets)."
+          example:
+            age: 35
+            name: John Doe
+          type: object
+        notebook_path:
+          description: The path of the notebook to be run in the Databricks workspace
+            or remote repository. For notebooks stored in the Databricks workspace,
+            the path must be absolute and begin with a slash. For notebooks stored
+            in a remote repository, the path must be relative. This field is required.
+          example: /Users/user.name@databricks.com/notebook_to_run
+          required:
+          - true
+          type: string
+        source:
+          description: Optional location type of the notebook. When set to `WORKSPACE`,
+            the notebook will be retrieved from the local Databricks workspace. When
+            set to `GIT`, the notebook will be retrieved from a Git repository defined
+            in `git_source`. If the value is empty, the task will use `GIT` if `git_source`
+            is defined and `WORKSPACE` otherwise.
+          enum:
+          - WORKSPACE
+          - GIT
+          example: WORKSPACE
+          required:
+          - false
+          type: string
+      required:
+      - notebook_path
+    ParameterPair:
+      additionalProperties: true
+      description: An object with additional information about why a cluster was terminated.
+        The object keys are one of `TerminationParameter` and the value is the termination
+        information.
+      type: object
+    PermissionLevel:
+      description: Permission level to grant.
+      oneOf:
+      - $ref: '#/components/schemas/CanManage'
+      - $ref: '#/components/schemas/CanManageRun'
+      - $ref: '#/components/schemas/CanView'
+      - $ref: '#/components/schemas/IsOwner'
+    PermissionLevelForGroup:
+      description: Permission level to grant.
+      oneOf:
+      - $ref: '#/components/schemas/CanManage'
+      - $ref: '#/components/schemas/CanManageRun'
+      - $ref: '#/components/schemas/CanView'
+    PipelineTask:
+      properties:
+        full_refresh:
+          default: false
+          description: If true, a full refresh will be triggered on the delta live
+            table.
+          type: boolean
+        pipeline_id:
+          description: The full name of the pipeline task to execute.
+          example: a12cd3e4-0ab1-1abc-1a2b-1a2bcd3e4fg5
+          type: string
+    PoolClusterTerminationCode:
+      description: "* INSTANCE_POOL_MAX_CAPACITY_FAILURE: The pool max capacity has\
+        \ been reached.\n* INSTANCE_POOL_NOT_FOUND_FAILURE: The pool specified by\
+        \ the cluster is no longer active or doesn\u2019t exist."
+      enum:
+      - INSTANCE_POOL_MAX_CAPACITY_FAILURE
+      - INSTANCE_POOL_NOT_FOUND_FAILURE
+      type: string
+    PythonPyPiLibrary:
+      properties:
+        package:
+          description: 'The name of the PyPI package to install. An optional exact
+            version specification is also supported. Examples: `simplejson` and `simplejson==3.8.0`.
+            This field is required.'
+          example: simplejson==3.8.0
+          type: string
+        repo:
+          description: The repository where the package can be found. If not specified,
+            the default pip index is used.
+          example: https://my-repo.com
+          type: string
+      required:
+      - package
+    PythonWheelTask:
+      properties:
+        entry_point:
+          description: Named entry point to use, if it does not exist in the metadata
+            of the package it executes the function from the package directly using
+            `$packageName.$entryPoint()`
+          type: string
+        named_parameters:
+          description: Command-line parameters passed to Python wheel task in the
+            form of `["--name=task", "--data=dbfs:/path/to/data.json"]`. Leave it
+            empty if `parameters` is not null.
+          example:
+            data: dbfs:/path/to/data.json
+            name: task
+          type: object
+        package_name:
+          description: Name of the package to execute
+          type: string
+        parameters:
+          description: Command-line parameters passed to Python wheel task. Leave
+            it empty if `named_parameters` is not null.
+          example:
+          - --name=task
+          - one
+          - two
+          items:
+            type: string
+          type: array
+    RCranLibrary:
+      properties:
+        package:
+          description: The name of the CRAN package to install. This field is required.
+          example: geojson
+          type: string
+        repo:
+          description: The repository where the package can be found. If not specified,
+            the default CRAN repo is used.
+          example: https://my-repo.com
+          type: string
+      required:
+      - package
+    RepairHistory:
+      properties:
+        repair_history:
+          description: The repair history of the run.
+          items:
+            $ref: '#/components/schemas/RepairHistoryItem'
+          type: array
+      type: object
+    RepairHistoryItem:
+      properties:
+        end_time:
+          description: The end time of the (repaired) run.
+          example: 1625060863413
+          format: int64
+          type: integer
+        id:
+          description: The ID of the repair. Only returned for the items that represent
+            a repair in `repair_history`.
+          example: 734650698524280
+          format: int64
+          type: integer
+        start_time:
+          description: The start time of the (repaired) run.
+          example: 1625060460483
+          format: int64
+          type: integer
+        state:
+          $ref: '#/components/schemas/RunState'
+        task_run_ids:
+          description: The run IDs of the task runs that ran as part of this repair
+            history item.
+          example:
+          - 1106460542112844
+          - 988297789683452
+          items:
+            format: int64
+            type: integer
+          type: array
+        type:
+          description: The repair history item type. Indicates whether a run is the
+            original run or a repair run.
+          enum:
+          - ORIGINAL
+          - REPAIR
+          type: string
+      type: object
+    RepairRunInput:
+      properties:
+        latest_repair_id:
+          description: The ID of the latest repair. This parameter is not required
+            when repairing a run for the first time, but must be provided on subsequent
+            requests to repair the same run.
+          example: 734650698524280
+          format: int64
+          type: integer
+        rerun_all_failed_tasks:
+          default: false
+          description: If true, repair all failed tasks. Only one of rerun_tasks or
+            rerun_all_failed_tasks can be used.
+          type: boolean
+        rerun_tasks:
+          description: The task keys of the task runs to repair.
+          example:
+          - task0
+          - task1
+          items:
+            type: string
+          type: array
+        run_id:
+          description: The job run ID of the run to repair. The run must not be in
+            progress.
+          example: 455644833
+          format: int64
+          type: integer
+      type: object
+    ResizeCause:
+      description: '* `AUTOSCALE`: Automatically resized based on load.
+
+        * `USER_REQUEST`: User requested a new size.
+
+        * `AUTORECOVERY`: Autorecovery monitor resized the cluster after it lost a
+        node.'
+      enum:
+      - AUTOSCALE
+      - USER_REQUEST
+      - AUTORECOVERY
+      type: string
+    Run:
+      properties:
+        attempt_number:
+          description: "The sequence number of this run attempt for a triggered job\
+            \ run. The initial attempt of a run has an attempt_number of 0\\. If the\
+            \ initial run attempt fails, and the job has a retry policy (`max_retries`\
+            \ \\> 0), subsequent runs are created with an `original_attempt_run_id`\
+            \ of the original attempt\u2019s ID and an incrementing `attempt_number`.\
+            \ Runs are retried only until they succeed, and the maximum `attempt_number`\
+            \ is the same as the `max_retries` value for the job."
+          example: 0
+          format: int32
+          type: integer
+        cleanup_duration:
+          description: The time in milliseconds it took to terminate the cluster and
+            clean up any associated artifacts. The total duration of the run is the
+            sum of the setup_duration, the execution_duration, and the cleanup_duration.
+          example: 0
+          format: int64
+          type: integer
+        cluster_instance:
+          $ref: '#/components/schemas/ClusterInstance'
+          description: The cluster used for this run. If the run is specified to use
+            a new cluster, this field is set once the Jobs service has requested a
+            cluster for the run.
+        cluster_spec:
+          $ref: '#/components/schemas/ClusterSpec'
+          description: "A snapshot of the job\u2019s cluster specification when this\
+            \ run was created."
+        creator_user_name:
+          description: "The creator user name. This field won\u2019t be included in\
+            \ the response if the user has already been deleted."
+          example: user.name@databricks.com
+          type: string
+        end_time:
+          description: The time at which this run ended in epoch milliseconds (milliseconds
+            since 1/1/1970 UTC). This field is set to 0 if the job is still running.
+          example: 1625060863413
+          format: int64
+          type: integer
+        execution_duration:
+          description: The time in milliseconds it took to execute the commands in
+            the JAR or notebook until they completed, failed, timed out, were cancelled,
+            or encountered an unexpected error.
+          example: 0
+          format: int64
+          type: integer
+        git_source:
+          $ref: '#/components/schemas/GitSource'
+          description: 'This functionality is in Public Preview.
+
+
+            An optional specification for a remote repository containing the notebooks
+            used by this job''s notebook tasks.'
+          example:
+            git_branch: main
+            git_provider: gitHub
+            git_url: https://github.com/databricks/databricks-cli
+        job_clusters:
+          description: A list of job cluster specifications that can be shared and
+            reused by tasks of this job. Libraries cannot be declared in a shared
+            job cluster. You must declare dependent libraries in task settings.
+          example:
+          - job_cluster_key: auto_scaling_cluster
+            new_cluster:
+              autoscale:
+                max_workers: 16
+                min_workers: 2
+              aws_attributes:
+                availability: SPOT
+                zone_id: us-west-2a
+              node_type_id: i3.xlarge
+              spark_conf:
+                spark.speculation: true
+              spark_version: 7.3.x-scala2.12
+          items:
+            $ref: '#/components/schemas/JobCluster'
+          maxItems: 100
+          type: array
+        job_id:
+          description: The canonical identifier of the job that contains this run.
+          example: 11223344
+          format: int64
+          type: integer
+        number_in_job:
+          deprecated: true
+          description: A unique identifier for this job run. This is set to the same
+            value as `run_id`.
+          example: 455644833
+          format: int64
+          type: integer
+        original_attempt_run_id:
+          description: If this run is a retry of a prior run attempt, this field contains
+            the run_id of the original attempt; otherwise, it is the same as the run_id.
+          example: 455644833
+          format: int64
+          type: integer
+        overriding_parameters:
+          $ref: '#/components/schemas/RunParameters'
+          description: The parameters used for this run.
+        run_id:
+          description: The canonical identifier of the run. This ID is unique across
+            all runs of all jobs.
+          example: 455644833
+          format: int64
+          type: integer
+        run_name:
+          default: Untitled
+          description: An optional name for the run. The maximum allowed length is
+            4096 bytes in UTF-8 encoding.
+          example: A multitask job run
+          type: string
+        run_page_url:
+          description: The URL to the detail page of the run.
+          example: https://my-workspace.cloud.databricks.com/#job/11223344/run/123
+          type: string
+        run_type:
+          $ref: '#/components/schemas/RunType'
+        schedule:
+          $ref: '#/components/schemas/CronSchedule'
+          description: The cron schedule that triggered this run if it was triggered
+            by the periodic scheduler.
+        setup_duration:
+          description: The time it took to set up the cluster in milliseconds. For
+            runs that run on new clusters this is the cluster creation time, for runs
+            that run on existing clusters this time should be very short.
+          example: 0
+          format: int64
+          type: integer
+        start_time:
+          description: The time at which this run was started in epoch milliseconds
+            (milliseconds since 1/1/1970 UTC). This may not be the time when the job
+            task starts executing, for example, if the job is scheduled to run on
+            a new cluster, this is the time the cluster creation call is issued.
+          example: 1625060460483
+          format: int64
+          type: integer
+        state:
+          $ref: '#/components/schemas/RunState'
+          description: The result and lifecycle states of the run.
+        tasks:
+          description: The list of tasks performed by the run. Each task has its own
+            `run_id` which you can use to call `JobsGetOutput` to retrieve the run
+            resutls.
+          example:
+          - attempt_number: 0
+            cleanup_duration: 0
+            cluster_instance:
+              cluster_id: 0923-164208-meows279
+              spark_context_id: '4348585301701786933'
+            description: Ingests order data
+            end_time: 1629989930171
+            execution_duration: 0
+            job_cluster_key: auto_scaling_cluster
+            libraries:
+            - jar: dbfs:/mnt/databricks/OrderIngest.jar
+            run_id: 2112892
+            run_page_url: https://my-workspace.cloud.databricks.com/#job/39832/run/20
+            setup_duration: 0
+            spark_jar_task:
+              main_class_name: com.databricks.OrdersIngest
+            start_time: 1629989929660
+            state:
+              life_cycle_state: INTERNAL_ERROR
+              result_state: FAILED
+              state_message: 'Library installation failed for library due to user
+                error. Error messages:
+
+                ''Manage'' permissions are required to install libraries on a cluster'
+              user_cancelled_or_timedout: false
+            task_key: Orders_Ingest
+          - attempt_number: 0
+            cleanup_duration: 0
+            cluster_instance:
+              cluster_id: 0923-164208-meows279
+            depends_on:
+            - task_key: Orders_Ingest
+            - task_key: Sessionize
+            description: Matches orders with user sessions
+            end_time: 1629989930238
+            execution_duration: 0
+            new_cluster:
+              autoscale:
+                max_workers: 16
+                min_workers: 2
+              aws_attributes:
+                availability: SPOT
+                zone_id: us-west-2a
+              node_type_id: i3.xlarge
+              spark_conf:
+                spark.speculation: true
+              spark_version: 7.3.x-scala2.12
+            notebook_task:
+              notebook_path: /Users/user.name@databricks.com/Match
+              source: WORKSPACE
+            run_id: 2112897
+            run_page_url: https://my-workspace.cloud.databricks.com/#job/39832/run/21
+            setup_duration: 0
+            start_time: 0
+            state:
+              life_cycle_state: SKIPPED
+              state_message: An upstream task failed.
+              user_cancelled_or_timedout: false
+            task_key: Match
+          - attempt_number: 0
+            cleanup_duration: 0
+            cluster_instance:
+              cluster_id: 0923-164208-meows279
+              spark_context_id: '4348585301701786933'
+            description: Extracts session data from events
+            end_time: 1629989930144
+            execution_duration: 0
+            existing_cluster_id: 0923-164208-meows279
+            libraries:
+            - jar: dbfs:/mnt/databricks/Sessionize.jar
+            run_id: 2112902
+            run_page_url: https://my-workspace.cloud.databricks.com/#job/39832/run/22
+            setup_duration: 0
+            spark_jar_task:
+              main_class_name: com.databricks.Sessionize
+            start_time: 1629989929668
+            state:
+              life_cycle_state: INTERNAL_ERROR
+              result_state: FAILED
+              state_message: 'Library installation failed for library due to user
+                error. Error messages:
+
+                ''Manage'' permissions are required to install libraries on a cluster'
+              user_cancelled_or_timedout: false
+            task_key: Sessionize
+          items:
+            $ref: '#/components/schemas/RunTask'
+          maxItems: 100
+          type: array
+        trigger:
+          $ref: '#/components/schemas/TriggerType'
+          description: The type of trigger that fired this run.
+    RunLifeCycleState:
+      description: '* `PENDING`: The run has been triggered. If there is not already
+        an active run of the same job, the cluster and execution context are being
+        prepared. If there is already an active run of the same job, the run immediately
+        transitions into the `SKIPPED` state without preparing any resources.
+
+        * `RUNNING`: The task of this run is being executed.
+
+        * `TERMINATING`: The task of this run has completed, and the cluster and execution
+        context are being cleaned up.
+
+        * `TERMINATED`: The task of this run has completed, and the cluster and execution
+        context have been cleaned up. This state is terminal.
+
+        * `SKIPPED`: This run was aborted because a previous run of the same job was
+        already active. This state is terminal.
+
+        * `INTERNAL_ERROR`: An exceptional state that indicates a failure in the Jobs
+        service, such as network failure over a long period. If a run on a new cluster
+        ends in the `INTERNAL_ERROR` state, the Jobs service terminates the cluster
+        as soon as possible. This state is terminal.
+
+        * `BLOCKED`: The run is blocked on an upstream dependency.
+
+        * `WAITING_FOR_RETRY`: The run is waiting for a retry.'
+      enum:
+      - TERMINATED
+      - PENDING
+      - RUNNING
+      - TERMINATING
+      - SKIPPED
+      - INTERNAL_ERROR
+      - BLOCKED
+      - WAITING_FOR_RETRY
+      type: string
+    RunNowInput:
+      properties:
+        idempotency_token:
+          description: 'An optional token to guarantee the idempotency of job run
+            requests. If a run with the provided token already exists, the request
+            does not create a new run but returns the ID of the existing run instead.
+            If a run with the provided token is deleted, an error is returned.
+
+
+            If you specify the idempotency token, upon failure you can retry until
+            the request succeeds. Databricks guarantees that exactly one run is launched
+            with that idempotency token.
+
+
+            This token must have at most 64 characters.
+
+
+            For more information, see [How to ensure idempotency for jobs](https://kb.databricks.com/jobs/jobs-idempotency.html).'
+          example: 8f018174-4792-40d5-bcbc-3e6a527352c8
+          type: string
+        job_id:
+          description: The ID of the job to be executed
+          example: 11223344
+          format: int64
+          type: integer
+      type: object
+    RunParameters:
+      properties:
+        dbt_commands:
+          description: 'An array of commands to execute for jobs with the dbt task,
+            for example `"dbt_commands": ["dbt deps", "dbt seed", "dbt run"]`'
+          example:
+          - dbt deps
+          - dbt seed
+          - dbt run
+          type: array
+        jar_params:
+          description: 'A list of parameters for jobs with Spark JAR tasks, for example
+            `"jar_params": ["john doe", "35"]`. The parameters are used to invoke
+            the main function of the main class specified in the Spark JAR task. If
+            not specified upon `run-now`, it defaults to an empty list. jar_params
+            cannot be specified in conjunction with notebook_params. The JSON representation
+            of this field (for example `{"jar_params":["john doe","35"]}`) cannot
+            exceed 10,000 bytes.
+
+
+            Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)
+            to set parameters containing information about job runs.'
+          example:
+          - john
+          - doe
+          - '35'
+          items:
+            type: string
+          type: array
+        notebook_params:
+          additionalProperties: true
+          description: "A map from keys to values for jobs with notebook task, for\
+            \ example `\"notebook_params\": {\"name\": \"john doe\", \"age\": \"35\"\
+            }`. The map is passed to the notebook and is accessible through the [dbutils.widgets.get](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-widgets)\
+            \ function.\n\nIf not specified upon `run-now`, the triggered run uses\
+            \ the job\u2019s base parameters.\n\nnotebook_params cannot be specified\
+            \ in conjunction with jar_params.\n\nUse [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)\
+            \ to set parameters containing information about job runs.\n\nThe JSON\
+            \ representation of this field (for example `{\"notebook_params\":{\"\
+            name\":\"john doe\",\"age\":\"35\"}}`) cannot exceed 10,000 bytes."
+          example:
+            age: '35'
+            name: john doe
+          type: object
+        pipeline_params:
+          properties:
+            full_refresh:
+              description: If true, triggers a full refresh on the delta live table.
+              type: boolean
+        python_named_params:
+          description: 'A map from keys to values for jobs with Python wheel task,
+            for example `"python_named_params": {"name": "task", "data": "dbfs:/path/to/data.json"}`.'
+          example:
+            data: dbfs:/path/to/data.json
+            name: task
+          type: object
+        python_params:
+          description: 'A list of parameters for jobs with Python tasks, for example
+            `"python_params": ["john doe", "35"]`. The parameters are passed to Python
+            file as command-line parameters. If specified upon `run-now`, it would
+            overwrite the parameters specified in job setting. The JSON representation
+            of this field (for example `{"python_params":["john doe","35"]}`) cannot
+            exceed 10,000 bytes.
+
+
+            Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)
+            to set parameters containing information about job runs.
+
+
+            Important
+
+
+            These parameters accept only Latin characters (ASCII character set). Using
+            non-ASCII characters returns an error. Examples of invalid, non-ASCII
+            characters are Chinese, Japanese kanjis, and emojis.'
+          example:
+          - john doe
+          - '35'
+          items:
+            type: string
+          type: array
+        spark_submit_params:
+          description: 'A list of parameters for jobs with spark submit task, for
+            example `"spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"]`.
+            The parameters are passed to spark-submit script as command-line parameters.
+            If specified upon `run-now`, it would overwrite the parameters specified
+            in job setting. The JSON representation of this field (for example `{"python_params":["john
+            doe","35"]}`) cannot exceed 10,000 bytes.
+
+
+            Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)
+            to set parameters containing information about job runs.
+
+
+            Important
+
+
+            These parameters accept only Latin characters (ASCII character set). Using
+            non-ASCII characters returns an error. Examples of invalid, non-ASCII
+            characters are Chinese, Japanese kanjis, and emojis.'
+          example:
+          - --class
+          - org.apache.spark.examples.SparkPi
+          items:
+            type: string
+          type: array
+        sql_params:
+          description: 'A map from keys to values for SQL tasks, for example `"sql_params":
+            {"name": "john doe", "age": "35"}`. The SQL alert task does not support
+            custom parameters.'
+          example:
+            age: '35'
+            name: john doe
+          type: object
+    RunResultState:
+      description: '* `SUCCESS`: The task completed successfully.
+
+        * `FAILED`: The task completed with an error.
+
+        * `TIMEDOUT`: The run was stopped after reaching the timeout.
+
+        * `CANCELED`: The run was canceled at user request.'
+      enum:
+      - SUCCESS
+      - FAILED
+      - TIMEDOUT
+      - CANCELED
+      type: string
+    RunState:
+      description: The result and lifecycle state of the run.
+      properties:
+        life_cycle_state:
+          $ref: '#/components/schemas/RunLifeCycleState'
+          description: "A description of a run\u2019s current location in the run\
+            \ lifecycle. This field is always available in the response."
+        result_state:
+          $ref: '#/components/schemas/RunResultState'
+        state_message:
+          description: A descriptive message for the current state. This field is
+            unstructured, and its exact format is subject to change.
+          example: ''
+          type: string
+        user_cancelled_or_timedout:
+          description: Whether a run was canceled manually by a user or by the scheduler
+            because the run timed out.
+          example: false
+          type: boolean
+    RunSubmitSettings:
+      properties:
+        git_source:
+          $ref: '#/components/schemas/GitSource'
+          description: 'This functionality is in Public Preview.
+
+
+            An optional specification for a remote repository containing the notebooks
+            used by this job''s notebook tasks.'
+          example:
+            git_branch: main
+            git_provider: gitHub
+            git_url: https://github.com/databricks/databricks-cli
+        idempotency_token:
+          description: 'An optional token that can be used to guarantee the idempotency
+            of job run requests. If a run with the provided token already exists,
+            the request does not create a new run but returns the ID of the existing
+            run instead. If a run with the provided token is deleted, an error is
+            returned.
+
+
+            If you specify the idempotency token, upon failure you can retry until
+            the request succeeds. Databricks guarantees that exactly one run is launched
+            with that idempotency token.
+
+
+            This token must have at most 64 characters.
+
+
+            For more information, see [How to ensure idempotency for jobs](https://kb.databricks.com/jobs/jobs-idempotency.html).'
+          example: 8f018174-4792-40d5-bcbc-3e6a527352c8
+          type: string
+        run_name:
+          description: An optional name for the run. The default value is `Untitled`.
+          example: A multitask job run
+          type: string
+        tasks:
+          example:
+          - depends_on: []
+            description: Extracts session data from events
+            existing_cluster_id: 0923-164208-meows279
+            libraries:
+            - jar: dbfs:/mnt/databricks/Sessionize.jar
+            spark_jar_task:
+              main_class_name: com.databricks.Sessionize
+              parameters:
+              - --data
+              - dbfs:/path/to/data.json
+            task_key: Sessionize
+            timeout_seconds: 86400
+          - depends_on: []
+            description: Ingests order data
+            existing_cluster_id: 0923-164208-meows279
+            libraries:
+            - jar: dbfs:/mnt/databricks/OrderIngest.jar
+            spark_jar_task:
+              main_class_name: com.databricks.OrdersIngest
+              parameters:
+              - --data
+              - dbfs:/path/to/order-data.json
+            task_key: Orders_Ingest
+            timeout_seconds: 86400
+          - depends_on:
+            - task_key: Orders_Ingest
+            - task_key: Sessionize
+            description: Matches orders with user sessions
+            new_cluster:
+              autoscale:
+                max_workers: 16
+                min_workers: 2
+              aws_attributes:
+                availability: SPOT
+                zone_id: us-west-2a
+              node_type_id: i3.xlarge
+              spark_conf:
+                spark.speculation: true
+              spark_version: 7.3.x-scala2.12
+            notebook_task:
+              base_parameters:
+                age: '35'
+                name: John Doe
+              notebook_path: /Users/user.name@databricks.com/Match
+              source: WORKSPACE
+            task_key: Match
+            timeout_seconds: 86400
+          items:
+            $ref: '#/components/schemas/RunSubmitTaskSettings'
+          maxItems: 100
+          type: array
+        timeout_seconds:
+          description: An optional timeout applied to each run of this job. The default
+            behavior is to have no timeout.
+          example: 86400
+          format: int32
+          type: integer
+        webhook_notifications:
+          $ref: '#/components/schemas/WebhookNotifications'
+          description: A collection of system notification IDs to notify when runs
+            of this job begin or complete. The default behavior is to not send any
+            system notifications.
+      type: object
+    RunSubmitTaskSettings:
+      properties:
+        dbt_task:
+          $ref: '#/components/schemas/DbtTask'
+          description: If dbt_task, indicates that this must execute a dbt task. It
+            requires both Databricks SQL and the ability to use a serverless or a
+            pro SQL warehouse.
+        depends_on:
+          $ref: '#/components/schemas/TaskDependencies'
+        existing_cluster_id:
+          description: If existing_cluster_id, the ID of an existing cluster that
+            is used for all runs of this task. When running tasks on an existing cluster,
+            you may need to manually restart the cluster if it stops responding. We
+            suggest running jobs on new clusters for greater reliability.
+          example: 0923-164208-meows279
+          type: string
+        libraries:
+          description: An optional list of libraries to be installed on the cluster
+            that executes the task. The default value is an empty list.
+          items:
+            $ref: '#/components/schemas/Library'
+          type: array
+        new_cluster:
+          $ref: '#/components/schemas/NewCluster'
+          description: If new_cluster, a description of a cluster that is created
+            for each run.
+          example: null
+        notebook_task:
+          $ref: '#/components/schemas/NotebookTask'
+          description: If notebook_task, indicates that this task must run a notebook.
+            This field may not be specified in conjunction with spark_jar_task.
+        pipeline_task:
+          $ref: '#/components/schemas/PipelineTask'
+          description: If pipeline_task, indicates that this task must execute a Pipeline.
+        python_wheel_task:
+          $ref: '#/components/schemas/PythonWheelTask'
+          description: If python_wheel_task, indicates that this job must execute
+            a PythonWheel.
+        spark_jar_task:
+          $ref: '#/components/schemas/SparkJarTask'
+          description: If spark_jar_task, indicates that this task must run a JAR.
+        spark_python_task:
+          $ref: '#/components/schemas/SparkPythonTask'
+          description: If spark_python_task, indicates that this task must run a Python
+            file.
+        spark_submit_task:
+          $ref: '#/components/schemas/SparkSubmitTask'
+          description: If spark_submit_task, indicates that this task must be launched
+            by the spark submit script.
+        sql_task:
+          $ref: '#/components/schemas/SqlTask'
+          description: If sql_task, indicates that this job must execute a SQL task.
+            It requires both Databricks SQL and a serverless or a pro SQL warehouse.
+        task_key:
+          $ref: '#/components/schemas/TaskKey'
+        timeout_seconds:
+          description: An optional timeout applied to each run of this job task. The
+            default behavior is to have no timeout.
+          example: 86400
+          format: int32
+          type: integer
+      required:
+      - task_key
+    RunTask:
+      properties:
+        attempt_number:
+          description: "The sequence number of this run attempt for a triggered job\
+            \ run. The initial attempt of a run has an attempt_number of 0\\. If the\
+            \ initial run attempt fails, and the job has a retry policy (`max_retries`\
+            \ \\> 0), subsequent runs are created with an `original_attempt_run_id`\
+            \ of the original attempt\u2019s ID and an incrementing `attempt_number`.\
+            \ Runs are retried only until they succeed, and the maximum `attempt_number`\
+            \ is the same as the `max_retries` value for the job."
+          example: 0
+          format: int32
+          type: integer
+        cleanup_duration:
+          description: The time in milliseconds it took to terminate the cluster and
+            clean up any associated artifacts. The total duration of the run is the
+            sum of the setup_duration, the execution_duration, and the cleanup_duration.
+          example: 0
+          format: int64
+          type: integer
+        cluster_instance:
+          $ref: '#/components/schemas/ClusterInstance'
+          description: The cluster used for this run. If the run is specified to use
+            a new cluster, this field is set once the Jobs service has requested a
+            cluster for the run.
+        dbt_task:
+          $ref: '#/components/schemas/DbtTask'
+          description: If dbt_task, indicates that this must execute a dbt task. It
+            requires both Databricks SQL and the ability to use a serverless or a
+            pro SQL warehouse.
+        depends_on:
+          $ref: '#/components/schemas/TaskDependencies'
+        description:
+          $ref: '#/components/schemas/TaskDescription'
+        end_time:
+          description: The time at which this run ended in epoch milliseconds (milliseconds
+            since 1/1/1970 UTC). This field is set to 0 if the job is still running.
+          example: 1625060863413
+          format: int64
+          type: integer
+        execution_duration:
+          description: The time in milliseconds it took to execute the commands in
+            the JAR or notebook until they completed, failed, timed out, were cancelled,
+            or encountered an unexpected error.
+          example: 0
+          format: int64
+          type: integer
+        existing_cluster_id:
+          description: If existing_cluster_id, the ID of an existing cluster that
+            is used for all runs of this job. When running jobs on an existing cluster,
+            you may need to manually restart the cluster if it stops responding. We
+            suggest running jobs on new clusters for greater reliability.
+          type: string
+        git_source:
+          $ref: '#/components/schemas/GitSource'
+          description: 'This functionality is in Public Preview.
+
+
+            An optional specification for a remote repository containing the notebooks
+            used by this job''s notebook tasks.'
+          example:
+            git_branch: main
+            git_provider: gitHub
+            git_url: https://github.com/databricks/databricks-cli
+        libraries:
+          description: An optional list of libraries to be installed on the cluster
+            that executes the job. The default value is an empty list.
+          items:
+            $ref: '#/components/schemas/Library'
+          type: array
+        new_cluster:
+          $ref: '#/components/schemas/NewCluster'
+          description: If new_cluster, a description of a cluster that is created
+            for each run.
+          example: null
+        notebook_task:
+          $ref: '#/components/schemas/NotebookTask'
+          description: If notebook_task, indicates that this job must run a notebook.
+            This field may not be specified in conjunction with spark_jar_task.
+        pipeline_task:
+          $ref: '#/components/schemas/PipelineTask'
+          description: If pipeline_task, indicates that this job must execute a Pipeline.
+        python_wheel_task:
+          $ref: '#/components/schemas/PythonWheelTask'
+          description: If python_wheel_task, indicates that this job must execute
+            a PythonWheel.
+        run_id:
+          description: The ID of the task run.
+          example: 99887766
+          format: int64
+          type: integer
+        setup_duration:
+          description: The time it took to set up the cluster in milliseconds. For
+            runs that run on new clusters this is the cluster creation time, for runs
+            that run on existing clusters this time should be very short.
+          example: 0
+          format: int64
+          type: integer
+        spark_jar_task:
+          $ref: '#/components/schemas/SparkJarTask'
+          description: If spark_jar_task, indicates that this job must run a JAR.
+        spark_python_task:
+          $ref: '#/components/schemas/SparkPythonTask'
+          description: If spark_python_task, indicates that this job must run a Python
+            file.
+        spark_submit_task:
+          $ref: '#/components/schemas/SparkSubmitTask'
+          description: If spark_submit_task, indicates that this job must be launched
+            by the spark submit script.
+        sql_task:
+          $ref: '#/components/schemas/SqlTask'
+          description: If sql_task, indicates that this job must execute a SQL task.
+            It requires both Databricks SQL and a serverless or a pro SQL warehouse.
+        start_time:
+          description: The time at which this run was started in epoch milliseconds
+            (milliseconds since 1/1/1970 UTC). This may not be the time when the job
+            task starts executing, for example, if the job is scheduled to run on
+            a new cluster, this is the time the cluster creation call is issued.
+          example: 1625060460483
+          format: int64
+          type: integer
+        state:
+          $ref: '#/components/schemas/RunState'
+          description: The result and lifecycle states of the run.
+        task_key:
+          $ref: '#/components/schemas/TaskKey'
+    RunType:
+      description: "The type of the run.\n* `JOB_RUN` \\- Normal job run. A run created\
+        \ with [Run now](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow).\
+        \  \n* `WORKFLOW_RUN` \\- Workflow run. A run created with [dbutils.notebook.run](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-workflow).\n\
+        * `SUBMIT_RUN` \\- Submit run. A run created with [Run Submit](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit)."
+      enum:
+      - JOB_RUN
+      - WORKFLOW_RUN
+      - SUBMIT_RUN
+      example: JOB_RUN
+      type: string
+    S3StorageInfo:
+      properties:
+        canned_acl:
+          description: '(Optional) Set canned access control list. For example: `bucket-owner-full-control`.
+            If canned_acl is set, the cluster instance profile must have `s3:PutObjectAcl`
+            permission on the destination bucket and prefix. The full list of possible
+            canned ACLs can be found at <https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl>.
+            By default only the object owner gets full control. If you are using cross
+            account role for writing data, you may want to set `bucket-owner-full-control`
+            to make bucket owner able to read the logs.'
+          type: string
+        destination:
+          description: 'S3 destination. For example: `s3://my-bucket/some-prefix`
+            You must configure the cluster with an instance profile and the instance
+            profile must have write access to the destination. You _cannot_ use AWS
+            keys.'
+          type: string
+        enable_encryption:
+          description: (Optional)Enable server side encryption, `false` by default.
+          type: boolean
+        encryption_type:
+          description: (Optional) The encryption type, it could be `sse-s3` or `sse-kms`.
+            It is used only when encryption is enabled and the default type is `sse-s3`.
+          type: string
+        endpoint:
+          description: 'S3 endpoint. For example: `https://s3-us-west-2.amazonaws.com`.
+            Either region or endpoint must be set. If both are set, endpoint is used.'
+          type: string
+        kms_key:
+          description: (Optional) KMS key used if encryption is enabled and encryption
+            type is set to `sse-kms`.
+          type: string
+        region:
+          description: 'S3 region. For example: `us-west-2`. Either region or endpoint
+            must be set. If both are set, endpoint is used.'
+          type: string
+    ServicePrincipalName:
+      description: Name of an Azure service principal.
+      example: 9f0621ee-b52b-11ea-b3de-0242ac130004
+      type: string
+    SparkConfPair:
+      additionalProperties: true
+      description: An arbitrary object where the object key is a configuration property
+        name and the value is a configuration property value.
+      type: object
+    SparkEnvPair:
+      additionalProperties: true
+      description: An arbitrary object where the object key is an environment variable
+        name and the value is an environment variable value.
+      type: object
+    SparkJarTask:
+      properties:
+        jar_uri:
+          deprecated: true
+          description: Deprecated since 04/2016\. Provide a `jar` through the `libraries`
+            field instead. For an example, see [Create](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate).
+          type: string
+        main_class_name:
+          description: 'The full name of the class containing the main method to be
+            executed. This class must be contained in a JAR provided as a library.
+
+
+            The code must use `SparkContext.getOrCreate` to obtain a Spark context;
+            otherwise, runs of the job fail.'
+          example: com.databricks.ComputeModels
+          type: string
+        parameters:
+          description: 'Parameters passed to the main method.
+
+
+            Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)
+            to set parameters containing information about job runs.'
+          example:
+          - --data
+          - dbfs:/path/to/data.json
+          items:
+            type: string
+          type: array
+    SparkNode:
+      properties:
+        host_private_ip:
+          description: The private IP address of the host instance.
+          type: string
+        instance_id:
+          description: Globally unique identifier for the host instance from the cloud
+            provider.
+          type: string
+        node_aws_attributes:
+          $ref: '#/components/schemas/SparkNodeAwsAttributes'
+          description: Attributes specific to AWS for a Spark node.
+        node_id:
+          description: Globally unique identifier for this node.
+          type: string
+        private_ip:
+          description: Private IP address (typically a 10.x.x.x address) of the Spark
+            node. This is different from the private IP address of the host instance.
+          type: string
+        public_dns:
+          description: "Public DNS address of this node. This address can be used\
+            \ to access the Spark JDBC server on the driver node. To communicate with\
+            \ the JDBC server, traffic must be manually authorized by adding security\
+            \ group rules to the \u201Cworker-unmanaged\u201D security group via the\
+            \ AWS console."
+          type: string
+        start_timestamp:
+          description: The timestamp (in millisecond) when the Spark node is launched.
+          format: int64
+          type: integer
+    SparkNodeAwsAttributes:
+      properties:
+        is_spot:
+          description: Whether this node is on an Amazon spot instance.
+          type: boolean
+    SparkPythonTask:
+      properties:
+        parameters:
+          description: 'Command line parameters passed to the Python file.
+
+
+            Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)
+            to set parameters containing information about job runs.'
+          example:
+          - --data
+          - dbfs:/path/to/data.json
+          items:
+            type: string
+          type: array
+        python_file:
+          description: The Python file to be executed. Cloud file URIs (such as dbfs:/,
+            s3:/, adls:/, gcs:/) and workspace paths are supported. For python files
+            stored in the Databricks workspace, the path must be absolute and begin
+            with `/Repos`. This field is required.
+          example: dbfs:/path/to/file.py
+          type: string
+      required:
+      - python_file
+    SparkSubmitTask:
+      properties:
+        parameters:
+          description: 'Command-line parameters passed to spark submit.
+
+
+            Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables)
+            to set parameters containing information about job runs.'
+          example:
+          - --class
+          - org.apache.spark.examples.SparkPi
+          - dbfs:/path/to/examples.jar
+          - '10'
+          items:
+            type: string
+          type: array
+    SparkVersion:
+      properties:
+        key:
+          description: "[Databricks Runtime version](https://docs.databricks.com/dev-tools/api/latest/index.html#programmatic-version)\
+            \ key, for example `7.3.x-scala2.12`. The value that must be provided\
+            \ as the `spark_version` when creating a new cluster. The exact runtime\
+            \ version may change over time for a \u201Cwildcard\u201D version (that\
+            \ is, `7.3.x-scala2.12` is a \u201Cwildcard\u201D version) with minor\
+            \ bug fixes."
+          type: string
+        name:
+          description: "A descriptive name for the runtime version, for example \u201C\
+            Databricks Runtime 7.3 LTS\u201D."
+          type: string
+    SqlAlertOutput:
+      properties:
+        output_link:
+          description: The link to find the output results.
+          type: string
+        query_text:
+          description: The text of the SQL query. Can Run permission of the SQL query
+            associated with the SQL alert is required to view this field.
+          type: string
+        sql_statements:
+          $ref: '#/components/schemas/SqlStatementOutput'
+          description: Information about SQL statements executed in the run.
+        warehouse_id:
+          description: The canonical identifier of the SQL warehouse.
+          type: string
+    SqlDashboardOutput:
+      properties:
+        widgets:
+          $ref: '#/components/schemas/SqlDashboardWidgetOutput'
+          description: Widgets executed in the run. Only SQL query based widgets are
+            listed.
+    SqlDashboardWidgetOutput:
+      properties:
+        end_time:
+          description: Time (in epoch milliseconds) when execution of the SQL widget
+            ends.
+          format: int64
+          type: integer
+        error:
+          $ref: '#/components/schemas/SqlOutputError'
+          description: The information about the error when execution fails.
+        output_link:
+          description: The link to find the output results.
+          type: string
+        start_time:
+          description: Time (in epoch milliseconds) when execution of the SQL widget
+            starts.
+          format: int64
+          type: integer
+        status:
+          description: The execution status of the SQL widget.
+          enum:
+          - PENDING
+          - RUNNING
+          - SUCCESS
+          - FAILED
+          - CANCELLED
+          type: string
+        widget_id:
+          description: The canonical identifier of the SQL widget.
+          type: string
+        widget_title:
+          description: The title of the SQL widget.
+          type: string
+    SqlOutput:
+      properties:
+        alert_output:
+          $ref: '#/components/schemas/SqlAlertOutput'
+          description: The output of a SQL alert task, if available.
+        dashboard_output:
+          $ref: '#/components/schemas/SqlDashboardOutput'
+          description: The output of a SQL dashboard task, if available.
+        query_output:
+          $ref: '#/components/schemas/SqlQueryOutput'
+          description: The output of a SQL query task, if available.
+    SqlOutputError:
+      properties:
+        message:
+          description: The error message when execution fails.
+          type: string
+    SqlQueryOutput:
+      properties:
+        output_link:
+          description: The link to find the output results.
+          type: string
+        query_text:
+          description: The text of the SQL query. Can Run permission of the SQL query
+            is required to view this field.
+          type: string
+        sql_statements:
+          $ref: '#/components/schemas/SqlStatementOutput'
+          description: Information about SQL statements executed in the run.
+        warehouse_id:
+          description: The canonical identifier of the SQL warehouse.
+          type: string
+    SqlStatementOutput:
+      properties:
+        lookup_key:
+          description: A key that can be used to look up query details.
+          type: string
+    SqlTask:
+      properties:
+        alert:
+          $ref: '#/components/schemas/SqlTaskAlert'
+          description: If alert, indicates that this job must refresh a SQL alert.
+        dashboard:
+          $ref: '#/components/schemas/SqlTaskDashboard'
+          description: If dashboard, indicates that this job must refresh a SQL dashboard.
+        parameters:
+          description: Parameters to be used for each run of this job. The SQL alert
+            task does not support custom parameters.
+          example:
+            age: 35
+            name: John Doe
+          type: object
+        query:
+          $ref: '#/components/schemas/SqlTaskQuery'
+          description: If query, indicates that this job must execute a SQL query.
+        warehouse_id:
+          description: The canonical identifier of the SQL warehouse. Only serverless
+            and pro SQL warehouses are supported.
+          type: string
+      required:
+      - warehouse_id
+    SqlTaskAlert:
+      properties:
+        alert_id:
+          description: The canonical identifier of the SQL alert.
+          type: string
+      required:
+      - alert_id
+    SqlTaskDashboard:
+      properties:
+        dashboard_id:
+          description: The canonical identifier of the SQL dashboard.
+          type: string
+      required:
+      - dashboard_id
+    SqlTaskQuery:
+      properties:
+        query_id:
+          description: The canonical identifier of the SQL query.
+          type: string
+      required:
+      - query_id
+    TaskDependencies:
+      description: 'An optional array of objects specifying the dependency graph of
+        the task. All tasks specified in this field must complete successfully before
+        executing this task.
+
+        The key is `task_key`, and the value is the name assigned to the dependent
+        task.
+
+        This field is required when a job consists of more than one task.'
+      example:
+      - task_key: Previous_Task_Key
+      - task_key: Other_Task_Key
+      items:
+        properties:
+          task_key:
+            type: string
+        type: object
+      type: array
+    TaskDescription:
+      description: 'An optional description for this task.
+
+        The maximum length is 4096 bytes.'
+      example: This is the description for this task.
+      maxLength: 4096
+      type: string
+    TaskKey:
+      description: 'A unique name for the task. This field is used to refer to this
+        task from other tasks.
+
+        This field is required and must be unique within its parent job.
+
+        On Update or Reset, this field is used to reference the tasks to be updated
+        or reset.
+
+        The maximum length is 100 characters.'
+      example: Task_Key
+      maxLength: 100
+      minLength: 1
+      pattern: ^[\w\-]+$
+      type: string
+    TerminationCode:
+      description: "* USER_REQUEST: A user terminated the cluster directly. Parameters\
+        \ should include a `username` field that indicates the specific user who terminated\
+        \ the cluster.\n* JOB_FINISHED: The cluster was launched by a job, and terminated\
+        \ when the job completed.\n* INACTIVITY: The cluster was terminated since\
+        \ it was idle.\n* CLOUD_PROVIDER_SHUTDOWN: The instance that hosted the Spark\
+        \ driver was terminated by the cloud provider. In AWS, for example, AWS may\
+        \ retire instances and directly shut them down. Parameters should include\
+        \ an `aws_instance_state_reason` field indicating the AWS-provided reason\
+        \ why the instance was terminated.\n* COMMUNICATION_LOST: Databricks lost\
+        \ connection to services on the driver instance. For example, this can happen\
+        \ when problems arise in cloud networking infrastructure, or when the instance\
+        \ itself becomes unhealthy.\n* CLOUD_PROVIDER_LAUNCH_FAILURE: Databricks experienced\
+        \ a cloud provider failure when requesting instances to launch clusters. For\
+        \ example, AWS limits the number of running instances and EBS volumes. If\
+        \ you ask Databricks to launch a cluster that requires instances or EBS volumes\
+        \ that exceed your AWS limit, the cluster fails with this status code. Parameters\
+        \ should include one of `aws_api_error_code`, `aws_instance_state_reason`,\
+        \ or `aws_spot_request_status` to indicate the AWS-provided reason why Databricks\
+        \ could not request the required instances for the cluster.\n* SPARK_STARTUP_FAILURE:\
+        \ The cluster failed to initialize. Possible reasons may include failure to\
+        \ create the environment for Spark or issues launching the Spark master and\
+        \ worker processes.\n* INVALID_ARGUMENT: Cannot launch the cluster because\
+        \ the user specified an invalid argument. For example, the user might specify\
+        \ an invalid runtime version for the cluster.\n* UNEXPECTED_LAUNCH_FAILURE:\
+        \ While launching this cluster, Databricks failed to complete critical setup\
+        \ steps, terminating the cluster.\n* INTERNAL_ERROR: Databricks encountered\
+        \ an unexpected error that forced the running cluster to be terminated. Contact\
+        \ Databricks support for additional details.\n* SPARK_ERROR: The Spark driver\
+        \ failed to start. Possible reasons may include incompatible libraries and\
+        \ initialization scripts that corrupted the Spark container.\n* METASTORE_COMPONENT_UNHEALTHY:\
+        \ The cluster failed to start because the external metastore could not be\
+        \ reached. Refer to [Troubleshooting](https://docs.databricks.com/data/metastores/external-hive-metastore.html#troubleshooting).\n\
+        * DBFS_COMPONENT_UNHEALTHY: The cluster failed to start because Databricks\
+        \ File System (DBFS) could not be reached. \n* DRIVER_UNREACHABLE: Databricks\
+        \ was not able to access the Spark driver, because it was not reachable.\n\
+        * DRIVER_UNRESPONSIVE: Databricks was not able to access the Spark driver,\
+        \ because it was unresponsive.\n* INSTANCE_UNREACHABLE: Databricks was not\
+        \ able to access instances in order to start the cluster. This can be a transient\
+        \ networking issue. If the problem persists, this usually indicates a networking\
+        \ environment misconfiguration.\n* CONTAINER_LAUNCH_FAILURE: Databricks was\
+        \ unable to launch containers on worker nodes for the cluster. Have your admin\
+        \ check your network configuration.\n* INSTANCE_POOL_CLUSTER_FAILURE: Pool\
+        \ backed cluster specific failure. Refer to [Pools](https://docs.databricks.com/clusters/instance-pools/index.html)\
+        \ for details.\n* REQUEST_REJECTED: Databricks cannot handle the request at\
+        \ this moment. Try again later and contact Databricks if the problem persists.\n\
+        * INIT_SCRIPT_FAILURE: Databricks cannot load and run a cluster-scoped init\
+        \ script on one of the cluster\u2019s nodes, or the init script terminates\
+        \ with a non-zero exit code. Refer to [Init script logs](https://docs.databricks.com/clusters/init-scripts.html#init-script-log).\n\
+        * TRIAL_EXPIRED: The Databricks trial subscription expired."
+      enum:
+      - USER_REQUEST
+      - JOB_FINISHED
+      - INACTIVITY
+      - CLOUD_PROVIDER_SHUTDOWN
+      - COMMUNICATION_LOST
+      - CLOUD_PROVIDER_LAUNCH_FAILURE
+      - SPARK_STARTUP_FAILURE
+      - INVALID_ARGUMENT
+      - UNEXPECTED_LAUNCH_FAILURE
+      - INTERNAL_ERROR
+      - SPARK_ERROR
+      - METASTORE_COMPONENT_UNHEALTHY
+      - DBFS_COMPONENT_UNHEALTHY
+      - DRIVER_UNREACHABLE
+      - DRIVER_UNRESPONSIVE
+      - INSTANCE_UNREACHABLE
+      - CONTAINER_LAUNCH_FAILURE
+      - INSTANCE_POOL_CLUSTER_FAILURE
+      - REQUEST_REJECTED
+      - INIT_SCRIPT_FAILURE
+      - TRIAL_EXPIRED
+      type: string
+    TerminationParameter:
+      properties:
+        aws_api_error_code:
+          description: 'The AWS provided error code describing why cluster nodes could
+            not be provisioned. For example, `InstanceLimitExceeded` indicates that
+            the limit of EC2 instances for a specific instance type has been exceeded.
+            For reference, see: <https://docs.aws.amazon.com/AWSEC2/latest/APIReference/query-api-troubleshooting.html>.'
+          type: string
+        aws_error_message:
+          description: Human-readable context of various failures from AWS. This field
+            is unstructured, and its exact format is subject to change.
+          type: string
+        aws_impaired_status_details:
+          description: The AWS provided status check which failed and induced a node
+            loss. This status may correspond to a failed instance or system check.
+            For reference, see <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-system-instance-status-check.html>.
+          type: string
+        aws_instance_state_reason:
+          description: The AWS provided state reason describing why the driver node
+            was terminated. For example, `Client.VolumeLimitExceeded` indicates that
+            the limit of EBS volumes or total EBS volume storage has been exceeded.
+            For reference, see <https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_StateReason.html>.
+          type: string
+        aws_instance_status_event:
+          description: The AWS provided scheduled event (for example reboot) which
+            induced a node loss. For reference, see <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-instances-status-check_sched.html>.
+          type: string
+        aws_spot_request_fault_code:
+          description: Provides additional details when a spot request fails. For
+            example `InsufficientFreeAddressesInSubnet` indicates the subnet does
+            not have free IP addresses to accommodate the new instance. For reference,
+            see <https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-spot-instance-requests.html>.
+          type: string
+        aws_spot_request_status:
+          description: 'Describes why a spot request could not be fulfilled. For example,
+            `price-too-low` indicates that the max price was lower than the current
+            spot price. For reference, see: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html#spot-instance-bid-status-understand>.'
+          type: string
+        databricks_error_message:
+          description: Additional context that may explain the reason for cluster
+            termination. This field is unstructured, and its exact format is subject
+            to change.
+          type: string
+        inactivity_duration_min:
+          description: An idle cluster was shut down after being inactive for this
+            duration.
+          type: string
+        instance_id:
+          description: The ID of the instance that was hosting the Spark driver.
+          type: string
+        instance_pool_error_code:
+          description: The [error code](https://docs.databricks.com/dev-tools/api/latest/clusters.html#clusterterminationreasonpoolclusterterminationcode)
+            for cluster failures specific to a pool.
+          type: string
+        instance_pool_id:
+          description: The ID of the instance pool the cluster is using.
+          type: string
+        username:
+          description: The username of the user who terminated the cluster.
+          type: string
+    TerminationReason:
+      properties:
+        code:
+          $ref: '#/components/schemas/TerminationCode'
+          description: Status code indicating why a cluster was terminated.
+        parameters:
+          $ref: '#/components/schemas/ParameterPair'
+          description: Object containing a set of parameters that provide information
+            about why a cluster was terminated.
+        type:
+          $ref: '#/components/schemas/TerminationType'
+          description: Reason indicating why a cluster was terminated.
+    TerminationType:
+      description: '* SUCCESS: Termination succeeded.
+
+        * CLIENT_ERROR: Non-retriable. Client must fix parameters before reattempting
+        the cluster creation.
+
+        * SERVICE_FAULT: Databricks service issue. Client can retry.
+
+        * CLOUD_FAILURECloud provider infrastructure issue. Client can retry after
+        the underlying issue is resolved.
+
+        '
+      enum:
+      - SUCCESS
+      - CLIENT_ERROR
+      - SERVICE_FAULT
+      - CLOUD_FAILURE
+      type: string
+    TriggerType:
+      description: '* `PERIODIC`: Schedules that periodically trigger runs, such as
+        a cron scheduler.
+
+        * `ONE_TIME`: One time triggers that fire a single run. This occurs you triggered
+        a single run on demand through the UI or the API.
+
+        * `RETRY`: Indicates a run that is triggered as a retry of a previously failed
+        run. This occurs when you request to re-run the job in case of failures.'
+      enum:
+      - PERIODIC
+      - ONE_TIME
+      - RETRY
+      type: string
+    UserName:
+      description: Email address for the user.
+      example: jsmith@example.com
+      type: string
+    ViewItem:
+      properties:
+        content:
+          description: Content of the view.
+          type: string
+        name:
+          description: "Name of the view item. In the case of code view, it would\
+            \ be the notebook\u2019s name. In the case of dashboard view, it would\
+            \ be the dashboard\u2019s name."
+          type: string
+        type:
+          $ref: '#/components/schemas/ViewType'
+          description: Type of the view item.
+    ViewType:
+      description: '* `NOTEBOOK`: Notebook view item.
+
+        * `DASHBOARD`: Dashboard view item.'
+      enum:
+      - NOTEBOOK
+      - DASHBOARD
+      type: string
+    ViewsToExport:
+      default: CODE
+      description: '* `CODE`: Code view of the notebook.
+
+        * `DASHBOARDS`: All dashboard views of the notebook.
+
+        * `ALL`: All views of the notebook.'
+      enum:
+      - CODE
+      - DASHBOARDS
+      - ALL
+      type: string
+    WebhookNotifications:
+      properties:
+        on_failure:
+          description: An optional list of notification IDs to call when the run fails.
+            A maximum of 3 destinations can be specified for the `on_failure` property.
+          example:
+          - id: 0481e838-0a59-4eff-9541-a4ca6f149574
+          items:
+            properties:
+              id:
+                type: string
+            type: object
+          type: array
+        on_start:
+          description: An optional list of notification IDs to call when the run starts.
+            A maximum of 3 destinations can be specified for the `on_start` property.
+          example:
+          - id: 03dd86e4-57ef-4818-a950-78e41a1d71ab
+          - id: 0481e838-0a59-4eff-9541-a4ca6f149574
+          items:
+            properties:
+              id:
+                type: string
+            type: object
+          type: array
+        on_success:
+          description: An optional list of notification IDs to call when the run completes
+            successfully. A maximum of 3 destinations can be specified for the `on_success`
+            property.
+          example:
+          - id: 03dd86e4-57ef-4818-a950-78e41a1d71ab
+          items:
+            properties:
+              id:
+                type: string
+            type: object
+          type: array
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: api_token
+      scheme: bearer
+      type: http
+info:
+  description: 'The Jobs API allows you to create, edit, and delete jobs.
+
+    You should never hard code secrets or store them in plain text. Use the [Secrets
+    API](https://docs.databricks.com/dev-tools/api/latest/secrets.html) to manage
+    secrets in the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/index.html).
+    Use the [Secrets utility](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-secrets)
+    to reference secrets in notebooks and jobs.'
+  title: Jobs API 2.1
+  version: '2.1'
+openapi: 3.0.0
+paths:
+  /2.0/jobs/runs/export:
+    get:
+      description: Export and retrieve the job run task.
+      operationId: JobsRunsExport
+      parameters:
+      - description: The canonical identifier for the run. This field is required.
+        in: query
+        name: run_id
+        required: true
+        schema:
+          example: 455644833
+          format: int64
+          type: integer
+      - description: Which views to export (CODE, DASHBOARDS, or ALL). Defaults to
+          CODE.
+        in: query
+        name: views_to_export
+        schema:
+          $ref: '#/components/schemas/ViewsToExport'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  views:
+                    description: The exported content in HTML format (one for every
+                      view item).
+                    items:
+                      $ref: '#/components/schemas/ViewItem'
+                    type: array
+                type: object
+          description: Run was exported successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Export and retrieve a job run
+  /2.1/jobs/create:
+    post:
+      description: Create a new job.
+      operationId: JobsCreate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: '#/components/schemas/JobSettings'
+              - $ref: '#/components/schemas/AccessControlList'
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  job_id:
+                    description: The canonical identifier for the newly created job.
+                    example: 11223344
+                    format: int64
+                    type: integer
+                type: object
+          description: Job was created successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Create a new job
+  /2.1/jobs/delete:
+    post:
+      description: Deletes a job.
+      operationId: JobsDelete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                job_id:
+                  description: The canonical identifier of the job to delete. This
+                    field is required.
+                  example: 11223344
+                  format: int64
+                  type: integer
+              required:
+              - job_id
+              type: object
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties: {}
+                type: object
+          description: Job was deleted successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Delete a job
+  /2.1/jobs/get:
+    get:
+      description: Retrieves the details for a single job.
+      operationId: JobsGet
+      parameters:
+      - description: The canonical identifier of the job to retrieve information about.
+          This field is required.
+        in: query
+        name: job_id
+        required: true
+        schema:
+          example: 11223344
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  created_time:
+                    description: The time at which this job was created in epoch milliseconds
+                      (milliseconds since 1/1/1970 UTC).
+                    example: 1601370337343
+                    format: int64
+                    type: integer
+                  creator_user_name:
+                    description: "The creator user name. This field won\u2019t be\
+                      \ included in the response if the user has been deleted."
+                    example: user.name@databricks.com
+                    type: string
+                  job_id:
+                    description: The canonical identifier for this job.
+                    example: 11223344
+                    format: int64
+                    type: integer
+                  run_as_user_name:
+                    description: The user name that the job runs as. `run_as_user_name`
+                      is based on the current job settings, and is set to the creator
+                      of the job if job access control is disabled, or the `is_owner`
+                      permission if job access control is enabled.
+                    example: user.name@databricks.com
+                    type: string
+                  settings:
+                    $ref: '#/components/schemas/JobSettings'
+                    description: Settings for this job and all of its runs. These
+                      settings can be updated using the [Reset](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsReset)
+                      or [Update](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsUpdate)
+                      endpoints.
+                type: object
+          description: Job was retrieved successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Get a single job
+  /2.1/jobs/list:
+    get:
+      description: Retrieves a list of jobs.
+      operationId: JobsList
+      parameters:
+      - description: The number of jobs to return. This value must be greater than
+          0 and less or equal to 25. The default value is 20.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 20
+          example: 25
+          maximum: 25
+          minimum: 1
+          type: integer
+      - description: The offset of the first job to return, relative to the most recently
+          created job.
+        in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          example: 0
+          minimum: 0
+          type: integer
+      - description: A filter on the list based on the exact (case insensitive) job
+          name.
+        in: query
+        name: name
+        required: false
+        schema:
+          example: A%20multitask%20job
+          type: string
+      - description: Whether to include task and cluster details in the response.
+        in: query
+        name: expand_tasks
+        required: false
+        schema:
+          default: false
+          example: false
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  has_more:
+                    example: false
+                    type: boolean
+                  jobs:
+                    description: The list of jobs.
+                    items:
+                      $ref: '#/components/schemas/Job'
+                    type: array
+                type: object
+          description: List of jobs was retrieved successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: List all jobs
+  /2.1/jobs/reset:
+    post:
+      description: Overwrites all the settings for a specific job. Use the Update
+        endpoint to update job settings partially.
+      operationId: JobsReset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                job_id:
+                  description: The canonical identifier of the job to reset. This
+                    field is required.
+                  example: 11223344
+                  format: int64
+                  type: integer
+                new_settings:
+                  $ref: '#/components/schemas/JobSettings'
+                  description: 'The new settings of the job. These settings completely
+                    replace the old settings.
+
+
+                    Changes to the field `JobSettings.timeout_seconds` are applied
+                    to active runs. Changes to other fields are applied to future
+                    runs only.'
+              required:
+              - job_id
+              type: object
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties: {}
+                type: object
+          description: Job was overwritten successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Overwrites all settings for a job
+  /2.1/jobs/run-now:
+    post:
+      description: Run a job and return the `run_id` of the triggered run.
+      operationId: JobsRunNow
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: '#/components/schemas/RunNowInput'
+              - $ref: '#/components/schemas/RunParameters'
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  number_in_job:
+                    deprecated: true
+                    description: A unique identifier for this job run. This is set
+                      to the same value as `run_id`.
+                    example: 455644833
+                    format: int64
+                    type: integer
+                  run_id:
+                    description: The globally unique ID of the newly triggered run.
+                    example: 455644833
+                    format: int64
+                    type: integer
+                type: object
+          description: Run was started successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Trigger a new job run
+  /2.1/jobs/runs/cancel:
+    post:
+      description: Cancels a job run. The run is canceled asynchronously, so it may
+        still be running when this request completes.
+      operationId: JobsRunsCancel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                run_id:
+                  description: This field is required.
+                  example: 455644833
+                  format: int64
+                  type: integer
+              required:
+              - run_id
+              type: object
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties: {}
+                type: object
+          description: Run was cancelled successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Cancel a job run
+  /2.1/jobs/runs/cancel-all:
+    post:
+      description: Cancels all active runs of a job. The runs are canceled asynchronously,
+        so it doesn't prevent new runs from being started.
+      operationId: JobsRunsCancelAll
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                job_id:
+                  description: The canonical identifier of the job to cancel all runs
+                    of. This field is required.
+                  example: 11223344
+                  format: int64
+                  type: integer
+              required:
+              - job_id
+              type: object
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties: {}
+                type: object
+          description: All runs were cancelled successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Cancel all runs of a job
+  /2.1/jobs/runs/delete:
+    post:
+      description: Deletes a non-active run. Returns an error if the run is active.
+      operationId: JobsRunsDelete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                run_id:
+                  description: The canonical identifier of the run for which to retrieve
+                    the metadata.
+                  example: 455644833
+                  format: int64
+                  type: integer
+              type: object
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties: {}
+                type: object
+          description: Run was deleted successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Delete a job run
+  /2.1/jobs/runs/get:
+    get:
+      description: Retrieve the metadata of a run.
+      operationId: JobsRunsGet
+      parameters:
+      - description: The canonical identifier of the run for which to retrieve the
+          metadata. This field is required.
+        in: query
+        name: run_id
+        required: true
+        schema:
+          example: 455644833
+          format: int64
+          type: integer
+      - description: Whether to include the repair history in the response.
+        in: query
+        name: include_history
+        required: false
+        schema:
+          example: true
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/Run'
+                - $ref: '#/components/schemas/RepairHistory'
+          description: Run was retrieved successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Get a single job run
+  /2.1/jobs/runs/get-output:
+    get:
+      description: 'Retrieve the output and metadata of a single task run. When a
+        notebook task returns a value through the dbutils.notebook.exit() call, you
+        can use this endpoint to retrieve that value. Databricks restricts this API
+        to return the first 5 MB of the output. To return a larger result, you can
+        store job results in a cloud storage service.
+
+        This endpoint validates that the run_id parameter is valid and returns an
+        HTTP status code 400 if the run_id parameter is invalid.
+
+        Runs are automatically removed after 60 days. If you to want to reference
+        them beyond 60 days, you must save old run results before they expire. To
+        export using the UI, see Export job run results. To export using the Jobs
+        API, see Runs export.'
+      operationId: JobsRunsGetOutput
+      parameters:
+      - description: The canonical identifier for the run. This field is required.
+        in: query
+        name: run_id
+        required: true
+        schema:
+          example: 455644833
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  dbt_output:
+                    $ref: '#/components/schemas/DbtOutput'
+                    description: The output of a dbt task, if available.
+                    example: ''
+                  error:
+                    description: An error message indicating why a task failed or
+                      why output is not available. The message is unstructured, and
+                      its exact format is subject to change.
+                    example: 'ZeroDivisionError: integer division or modulo by zero'
+                    type: string
+                  error_trace:
+                    description: If there was an error executing the run, this field
+                      contains any available stack traces.
+                    example: "---------------------------------------------------------------------------\n\
+                      Exception                                 Traceback (most recent\
+                      \ call last)\n      1 numerator = 42\n      2 denominator =\
+                      \ 0\n----> 3 return numerator / denominator\n\nZeroDivisionError:\
+                      \ integer division or modulo by zero"
+                    type: string
+                  logs:
+                    description: The output from tasks that write to standard streams
+                      (stdout/stderr) such as [SparkJarTask](https://docs.databricks.com/dev-tools/api/latest/jobs.html#/components/schemas/SparkJarTask),
+                      [SparkPythonTask](https://docs.databricks.com/dev-tools/api/latest/jobs.html#/components/schemas/SparkPythonTask,
+                      [PythonWheelTask](https://docs.databricks.com/dev-tools/api/latest/jobs.html#/components/schemas/PythonWheelTask.
+                      It's not supported for the [NotebookTask](https://docs.databricks.com/dev-tools/api/latest/jobs.html#/components/schemas/NotebookTask,
+                      [PipelineTask](https://docs.databricks.com/dev-tools/api/latest/jobs.html#/components/schemas/PipelineTask,
+                      or [SparkSubmitTask](https://docs.databricks.com/dev-tools/api/latest/jobs.html#/components/schemas/SparkSubmitTask.
+                      Databricks restricts this API to return the last 5 MB of these
+                      logs.
+                    example: Hello World!
+                    type: string
+                  logs_truncated:
+                    description: Whether the logs are truncated.
+                    example: true
+                    type: boolean
+                  metadata:
+                    $ref: '#/components/schemas/Run'
+                    description: All details of the run except for its output.
+                  notebook_output:
+                    $ref: '#/components/schemas/NotebookOutput'
+                    description: The output of a notebook task, if available. A notebook
+                      task that terminates (either successfully or with a failure)
+                      without calling `dbutils.notebook.exit()` is considered to have
+                      an empty output. This field is set but its result value is empty.
+                      Databricks restricts this API to return the first 5 MB of the
+                      output. To return a larger result, use the [ClusterLogConf](https://docs.databricks.com/dev-tools/api/latest/clusters.html#clusterlogconf)
+                      field to configure log storage for the job cluster.
+                    example: ''
+                  sql_output:
+                    $ref: '#/components/schemas/SqlOutput'
+                    description: The output of a SQL task, if available.
+                    example: ''
+                type: object
+          description: Run output was retrieved successfully.
+        '400':
+          content:
+            application/json:
+              example:
+                error_code: INVALID_PARAMETER_VALUE
+                message: Retrieving the output of runs with multiple tasks is not
+                  supported. You must retrieve the output of each individual task
+                  run instead.
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A job run with multiple tasks was provided.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Get the output for a single run
+  /2.1/jobs/runs/list:
+    get:
+      description: List runs in descending order by start time.
+      operationId: JobsRunsList
+      parameters:
+      - description: If active_only is `true`, only active runs are included in the
+          results; otherwise, lists both active and completed runs. An active run
+          is a run in the `PENDING`, `RUNNING`, or `TERMINATING`. This field cannot
+          be `true` when completed_only is `true`.
+        in: query
+        name: active_only
+        schema:
+          default: false
+          example: false
+          type: boolean
+      - description: If completed_only is `true`, only completed runs are included
+          in the results; otherwise, lists both active and completed runs. This field
+          cannot be `true` when active_only is `true`.
+        in: query
+        name: completed_only
+        schema:
+          default: false
+          example: false
+          type: boolean
+      - description: The job for which to list runs. If omitted, the Jobs service
+          lists runs from all jobs.
+        in: query
+        name: job_id
+        schema:
+          example: 11223344
+          format: int64
+          type: integer
+      - description: The offset of the first run to return, relative to the most recent
+          run.
+        in: query
+        name: offset
+        schema:
+          default: 0
+          example: 0
+          format: int32
+          type: integer
+      - description: The number of runs to return. This value must be greater than
+          0 and less than 25\. The default value is 25\. If a request specifies a
+          limit of 0, the service instead uses the maximum limit.
+        in: query
+        name: limit
+        schema:
+          default: 25
+          example: 25
+          format: int32
+          maximum: 25
+          minimum: 1
+          type: integer
+      - description: The type of runs to return. For a description of run types, see
+          [Run](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsGet).
+        in: query
+        name: run_type
+        schema:
+          enum:
+          - JOB_RUN
+          - WORKFLOW_RUN
+          - SUBMIT_RUN
+          example: JOB_RUN
+          type: string
+      - description: Whether to include task and cluster details in the response.
+        in: query
+        name: expand_tasks
+        required: false
+        schema:
+          default: false
+          example: false
+          type: boolean
+      - description: Show runs that started _at or after_ this value. The value must
+          be a UTC timestamp in milliseconds. Can be combined with _start_time_to_
+          to filter by a time range.
+        in: query
+        name: start_time_from
+        required: false
+        schema:
+          example: 1642521600000
+          type: integer
+      - description: Show runs that started _at or before_ this value. The value must
+          be a UTC timestamp in milliseconds. Can be combined with _start_time_from_
+          to filter by a time range.
+        in: query
+        name: start_time_to
+        required: false
+        schema:
+          example: 1642608000000
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  has_more:
+                    description: If true, additional runs matching the provided filter
+                      are available for listing.
+                    type: boolean
+                  runs:
+                    description: A list of runs, from most recently started to least.
+                    items:
+                      $ref: '#/components/schemas/Run'
+                    type: array
+                type: object
+          description: List of runs was retrieved successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: List runs for a job
+  /2.1/jobs/runs/repair:
+    post:
+      description: Re-run one or more tasks. Tasks are re-run as part of the original
+        job run, use the current job and task settings, and can be viewed in the history
+        for the original job run.
+      operationId: JobsRunsRepair
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: '#/components/schemas/RepairRunInput'
+              - $ref: '#/components/schemas/RunParameters'
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  repair_id:
+                    description: The ID of the repair.
+                    example: 734650698524280
+                    format: int64
+                    type: integer
+                type: object
+          description: Run repair was initiated.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Repair a job run
+  /2.1/jobs/runs/submit:
+    post:
+      description: Submit a one-time run. This endpoint allows you to submit a workload
+        directly without creating a job. Use the `jobs/runs/get` API to check the
+        run state after the job is submitted.
+      operationId: JobsRunsSubmit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: '#/components/schemas/RunSubmitSettings'
+              - $ref: '#/components/schemas/AccessControlList'
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  run_id:
+                    description: The canonical identifier for the newly submitted
+                      run.
+                    example: 455644833
+                    format: int64
+                    type: integer
+                type: object
+          description: Run was created and started successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Create and trigger a one-time run
+  /2.1/jobs/update:
+    post:
+      description: Add, update, or remove specific settings of an existing job. Use
+        the Reset endpoint to overwrite all job settings.
+      operationId: JobsUpdate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                fields_to_remove:
+                  description: Remove top-level fields in the job settings. Removing
+                    nested fields is not supported. This field is optional.
+                  example:
+                  - libraries
+                  - schedule
+                  items:
+                    type: string
+                  type: array
+                job_id:
+                  description: The canonical identifier of the job to update. This
+                    field is required.
+                  example: 11223344
+                  format: int64
+                  type: integer
+                new_settings:
+                  $ref: '#/components/schemas/JobSettings'
+                  description: 'The new settings for the job. Any top-level fields
+                    specified in `new_settings` are completely replaced. Partially
+                    updating nested fields is not supported.
+
+
+                    Changes to the field `JobSettings.timeout_seconds` are applied
+                    to active runs. Changes to other fields are applied to future
+                    runs only.'
+              required:
+              - job_id
+              type: object
+        required:
+        - true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties: {}
+                type: object
+          description: Job was updated successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+      - bearerAuth: []
+      summary: Partially updates a job
+servers:
+- description: In the URL, substitute `<databricks-instance>` with the domain name
+    of your deployment. Use the form `<account>.cloud.databricks.com`.
+  url: https://<databricks-instance>/api/
