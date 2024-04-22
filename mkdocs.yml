@@ -253,6 +253,7 @@ nav:
                       - Credentials: integrations/prefect-databricks/credentials.md
                       - Jobs: integrations/prefect-databricks/jobs.md
                       - Rest: integrations/prefect-databricks/rest.md
+                      - Flows: integrations/prefect-databricks/flows.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:
