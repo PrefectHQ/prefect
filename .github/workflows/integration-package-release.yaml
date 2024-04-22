@@ -35,13 +35,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade build
-        working-directory: ${{ steps.package_name.outputs.PACKAGE_NAME }}
+        working-directory: src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}
 
       - name: Build a binary wheel and a source tarball
         run: |
           python -m build --wheel
           python -m build --sdist
-        working-directory: ${{ steps.package_name.outputs.PACKAGE_NAME }}
+        working-directory: src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}
 
       - name: Publish build artifacts
         uses: actions/upload-artifact@v4
@@ -50,7 +50,7 @@ jobs:
           path: "./src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}/dist"
 
   publish-pypi-dists:
-    name: Publish ${{ needs.build-pypi-dists.PACKAGE_NAME}} to PyPI
+    name: Publish to TestPyPI
     environment: "prod"
     needs: [build-pypi-dists]
     runs-on: ubuntu-latest
@@ -59,7 +59,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.build-pypi-dists.PACKAGE_NAME}}-pypi-dists
+          name: ${{ needs.build-pypi-dists.outputs.PACKAGE_NAME}}-pypi-dists
           path: "./dist"
 
       - name: Publish distribution to PyPI
