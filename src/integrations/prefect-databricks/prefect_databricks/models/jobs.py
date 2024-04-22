@@ -7,7 +7,13 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Extra, Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Extra, Field
+else:
+    from pydantic import BaseModel, Extra, Field
+
 from typing_extensions import Literal
 
 
