@@ -195,11 +195,16 @@ def prompt_interval_schedule(console):
     """
     Prompt the user for an interval in seconds.
     """
+    default_seconds = 3600
+    default_duration = timedelta(seconds=default_seconds)
+
     interval = IntervalValuePrompt.ask(
-        "[bold][green]?[/] Seconds between scheduled runs",
+        f"[bold][green]?[/] Seconds between scheduled runs ({default_seconds})",
         console=console,
-        default="3600",
+        default=default_duration,
+        show_default=False,
     )
+
     return IntervalSchedule(interval=interval)
 
 
