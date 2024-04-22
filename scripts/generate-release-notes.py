@@ -34,6 +34,7 @@ import httpx
 REPO_ORG = "PrefectHQ"
 REPO_NAMES = [
     "prefect",
+    "prefect-ui-library",
     "prefect-azure",
     "prefect-aws",
     "prefect-gcp",
@@ -110,42 +111,27 @@ def get_latest_and_previous_tags(
     """
     Retrieves the latest and the previous release tags for the specified repository.
     """
+
     headers = {
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github.v3+json",
     }
     response = httpx.get(
-        f"https://api.github.com/repos/{repo_org}/{repo_name}/tags", headers=headers
+        f"https://api.github.com/repos/{repo_org}/{repo_name}/releases", headers=headers
     )
-    response.raise_for_status()
-    tags = response.json()
-    if not tags:
-        raise Exception(f"No tags found for {repo_name}")
+    releases = response.json()
+    if not releases:
+        raise Exception(f"No releases found for {repo_name}")
 
-    # Assuming tags are sorted in reverse chronological order, which GitHub usually does by default.
-    latest_tag = tags[0]["name"]
-    previous_tag = tags[1]["name"] if len(tags) > 1 else None
+    # sort releases by published date
+    releases = sorted(releases, key=lambda x: x["published_at"], reverse=True)
+
+    latest_tag = releases[0]["tag_name"]
+    previous_tag = releases[1]["tag_name"] if len(releases) > 1 else None
+
+    breakpoint()
 
     return latest_tag, previous_tag
-
-
-def clean_integrations_changelog(release_notes: str) -> str:
-    # we won't include the full changelog and integrations contributors
-    search_strings = [
-        "## New Contributors",
-        "## Contributors",
-        "**Full Changelog**",
-    ]
-    indices = [release_notes.find(s) for s in search_strings]
-    indices = [i for i in indices if i != -1]
-
-    if indices:
-        split_index = min(indices)
-        changelog = release_notes[:split_index].strip()
-    else:
-        changelog = release_notes.strip()
-
-    return changelog
 
 
 def generate_release_notes(
@@ -168,7 +154,7 @@ def generate_release_notes(
             latest_repo_release_date = get_latest_repo_release_date(repo_org, repo_name)
 
             repo_has_release_since_latest_prefect_release = (
-                latest_repo_release_date >= latest_prefect_release_date
+                latest_repo_release_date <= latest_prefect_release_date
             )
             if not repo_has_release_since_latest_prefect_release:
                 continue
@@ -244,7 +230,21 @@ def generate_release_notes(
                 release_notes,
             )
 
-            changelog = clean_integrations_changelog(release_notes)
+            # we won't include the full changelog and integrations contributors
+            search_strings = [
+                "## New Contributors",
+                "## Contributors",
+                "**Full Changelog**",
+            ]
+            indices = [release_notes.find(s) for s in search_strings]
+            indices = [i for i in indices if i != -1]
+
+            if indices:
+                split_index = min(indices)
+                changelog = release_notes[:split_index].strip()
+            else:
+                changelog = release_notes.strip()
+
             integrations_section.append(changelog)
 
     if integrations_section != [""]:
