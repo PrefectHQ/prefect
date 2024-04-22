@@ -439,15 +439,19 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
 
     @classmethod
     @sync_compatible
-    async def update(cls: Type[Self], id: UUID, automation: Type[Self]) -> UUID:
+    async def update(
+        cls: Type[Self], automation_id: UUID, automation: Type[Self]
+    ) -> UUID:
         client, _ = get_or_create_client()
         print(automation)
-        automation = await client.update_automation(id=id, automation=automation)
+        automation = await client.update_automation(
+            automation_id=automation_id, automation=automation
+        )
         return automation if automation else None
 
     @classmethod
     @sync_compatible
-    async def read(cls: Type[Self], id_or_name: str) -> Self:
+    async def read(cls: Type[Self], id_or_name: Union[str | UUID]) -> Self:
         client, _ = get_or_create_client()
         automation = await client.find_automation(id_or_name=str(id_or_name))
         return automation if automation else None

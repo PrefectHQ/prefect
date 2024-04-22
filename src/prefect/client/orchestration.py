@@ -3135,13 +3135,13 @@ class PrefectClient:
 
         return UUID(response.json()["id"])
 
-    async def update_automation(self, id: UUID, automation: AutomationCore):
+    async def update_automation(self, automation_id: UUID, automation: AutomationCore):
         """Creates an automation in Prefect Cloud."""
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
 
         response = await self._client.put(
-            f"/automations/{id}",
+            f"/automations/{automation_id}",
             json=automation.dict(json_compatible=True, exclude_unset=True),
         )
 
