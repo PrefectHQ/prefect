@@ -105,6 +105,35 @@ def get_latest_repo_release_date(repo_org: str, repo_name: str) -> datetime:
     )
 
 
+def get_latest_and_previous_releases(
+    repo_org: str, repo_name: str, github_token: str
+) -> tuple:
+    """
+    Retrieves the latest and the previous release tags for the specified repository.
+    """
+
+    headers = {
+        "Authorization": f"Bearer {github_token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+    response = httpx.get(
+        f"https://api.github.com/repos/{repo_org}/{repo_name}/releases", headers=headers
+    )
+    response.raise_for_status()
+    releases = response.json()
+
+    if not releases:
+        raise Exception(f"No releases found for {repo_name}")
+
+    # sort releases by published date
+    releases = sorted(releases, key=lambda x: x["published_at"], reverse=True)
+
+    latest_tag = releases[0]["tag_name"]
+    previous_tag = releases[1]["tag_name"] if len(releases) > 1 else None
+
+    return latest_tag, previous_tag
+
+
 def generate_release_notes(
     repo_org: str,
     repo_names: List[str],
@@ -129,6 +158,11 @@ def generate_release_notes(
             )
             if not repo_has_release_since_latest_prefect_release:
                 continue
+
+        if repo_name != "prefect":
+            tag_name, previous_tag = get_latest_and_previous_releases(
+                repo_org, repo_name, github_token
+            )
 
         request = {"tag_name": tag_name, "target_commitish": target_commit}
         if previous_tag:
@@ -184,7 +218,7 @@ def generate_release_notes(
         else:
             # Drop the first line of the release notes ("## What's Changed")
             # and drop the change preview and the contributors sections
-            release_notes = "\n".join(release_notes.splitlines()[1:-5])
+            release_notes = "\n".join(release_notes.splitlines()[1:])
             # Add newlines before all categories
             release_notes = release_notes.replace("\n###", "\n\n###")
             # Parse all entries
@@ -196,15 +230,28 @@ def generate_release_notes(
                 release_notes,
             )
 
-            integrations_section.append(release_notes)
+            # we won't include the full changelog and integrations contributors
+            search_strings = [
+                "## New Contributors",
+                "## Contributors",
+                "**Full Changelog**",
+            ]
+            indices = [release_notes.find(s) for s in search_strings]
+            indices = [i for i in indices if i != -1]
+
+            if indices:
+                split_index = min(indices)
+                changelog = release_notes[:split_index].strip()
+            else:
+                changelog = release_notes.strip()
+
+            integrations_section.append(changelog)
 
     if integrations_section != [""]:
         parts = prefect_release_notes.split("### Contributors")
         # ensure that Integrations section is before Contributors
         # Print all accumulated non-Prefect changes under "Integrations"
-        integrations_heading = (
-            "### Integrations" + "\n" + "\n\n".join(integrations_section)
-        )
+        integrations_heading = "### Integrations" + "\n".join(integrations_section)
 
         prefect_release_notes = (
             parts[0] + integrations_heading + "\n\n### Contributors" + parts[1]
