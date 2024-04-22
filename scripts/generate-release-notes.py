@@ -34,7 +34,6 @@ import httpx
 REPO_ORG = "PrefectHQ"
 REPO_NAMES = [
     "prefect",
-    "prefect-ui-library",
     "prefect-azure",
     "prefect-aws",
     "prefect-gcp",
