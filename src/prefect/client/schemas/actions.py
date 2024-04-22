@@ -735,11 +735,3 @@ class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     active: Optional[bool] = Field(None)
     active_slots: Optional[int] = Field(None)
     slot_decay_per_second: Optional[float] = Field(None)
-
-
-class AutomationCreate(ActionBaseModel):
-    pass
-
-
-class AutomationUpdate(ActionBaseModel):
-    pass
