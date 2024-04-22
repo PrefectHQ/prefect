@@ -245,7 +245,6 @@ Head to the **Deployments** page of the UI to check it out.
 You can trigger a manual run of this deployment by either clicking the **Run** button in the top right of the deployment page in the UI, or by running the following CLI command in your terminal:
 
 <div class="terminal">
-
 ```bash
 prefect deployment run 'repo-info/my-first-deployment'
 ```
@@ -259,8 +258,10 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 ![Managed flow run graph and logs](/img/ui/qs-flow-run.png)
 
-!!! warning "Remove the schedule"
-    Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
+!!! warning "Delete work pool or remove schedule"
+    Delete the work pool in the UI by selecting **Delete** from the three-dot menu on the **Work Pools** page.
+
+    Or remove the schedule for the deployment by clicking the **Remove** button in the top right of the **Deployment** page.
 
 ## Next steps
 
