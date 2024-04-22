@@ -141,7 +141,6 @@ Alternatively, you can create a Credentials block ahead of time and reference it
     1. Install the Prefect-Github library with `pip install -U prefect-github`
     1. Register the blocks in that library to make them available on the server with `prefect block register -m prefect_github`.
     1. Create a GitHub Credentials block via code or the Prefect UI and reference it as shown above.
-    1. In addition to the block name, most users will need to fill in the *GitHub Username* and *GitHub Personal Access Token* fields.
 
     ```yaml
 
@@ -156,7 +155,6 @@ Alternatively, you can create a Credentials block ahead of time and reference it
     1. Install the relevant library with `pip install -U prefect-bitbucket`
     1. Register the blocks in that library with `prefect block register -m prefect_bitbucket` 
     1. Create a Bitbucket credentials block via code or the Prefect UI and reference it as shown above.
-    1. In addition to the block name, most users will need to fill in the *Bitbucket Username* and *Bitbucket Personal Access Token* fields.
 
     ```yaml
 
@@ -171,7 +169,6 @@ Alternatively, you can create a Credentials block ahead of time and reference it
     1. Install the relevant library with `pip install -U prefect-gitlab`
     1. Register the blocks in that library with `prefect block register -m prefect_gitlab` 
     1. Create a GitLab credentials block via code or the Prefect UI and reference it as shown above.
-    1. In addition to the block name, most users will need to fill in the *GitLab Username* and *GitLab Personal Access Token* fields.
 
     ```yaml
 
