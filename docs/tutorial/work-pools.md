@@ -191,15 +191,15 @@ Now everything is set up for us to submit a flow-run to the work pool.
 Go ahead and run the deployment from the CLI or the UI.
 
 <div class="terminal">
-
 ```bash
 prefect deployment run 'get_repo_info/my-deployment'
 ```
-
 </div>
 
 Prefect Managed work pools are a great way to get started with Prefect.  
 See the [Managed Execution guide](/guides/managed-execution/) for more details.
+
+To delete the work pool via the UI, select **Delete** from the three-dot menu on the **Work Pools** page.
 
 Many users will find that they need more control over the infrastructure that their flows run on.
 Prefect Cloud's push work pools are a popular option in those cases.
@@ -238,11 +238,9 @@ You can install Docker [here](https://docs.docker.com/get-docker/).
 Run the following command to set up a work pool named `my-cloud-run-pool` of type `cloud-run:push`.
 
 <div class="terminal">
-
 ```bash
-prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
+prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool
 ```
-
 </div>
 
 Using the `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
@@ -252,7 +250,6 @@ In your Prefect workspace, this command will create a [`GCPCredentials` block](h
 Here's an abbreviated example output from running the command:
 
 <div class="terminal">
-
 ```bash
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                           │
@@ -287,7 +284,6 @@ Provisioning Infrastructure ━━━━━━━━━━━━━━━━━�
 Infrastructure successfully provisioned!
 Created work pool 'my-cloud-run-pool'!
 ```
-
 </div>
 
 After infrastructure provisioning completes, you will be logged into your new Artifact Registry repository and the default Docker build namespace will be set to the URL of the repository.
@@ -328,10 +324,14 @@ Running this script will build a Docker image with the tag `<region>-docker.pkg.
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
 Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
 
-Also note that the `cron` argument will schedule the deployment to run at 1am every day. 
+Also note that the `cron` argument will schedule the deployment to run at 1am every day.
 See the [schedules](/concepts/schedules/) docs for more information on scheduling options.
 
 See the [Push Work Pool guide](/guides/deployment/push-work-pools/) for more details and example commands for each cloud provider.
+
+To delete the work pool via the UI, select **Delete** from the three-dot menu on the **Work Pools** page.
+
+If you choose not to delete the work pool, make sure you remove the schedule for the deployment by clicking the **Remove** button in the top right of the **Deployment** page.
 
 ## Next step
 

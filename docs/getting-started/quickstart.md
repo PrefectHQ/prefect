@@ -258,7 +258,7 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 ![Managed flow run graph and logs](/img/ui/qs-flow-run.png)
 
-!!! warning "Delete work pool or remove schedule"
+!!! info "Delete work pool or remove schedule"
     Delete the work pool in the UI by selecting **Delete** from the three-dot menu on the **Work Pools** page.
 
     Or remove the schedule for the deployment by clicking the **Remove** button in the top right of the **Deployment** page.

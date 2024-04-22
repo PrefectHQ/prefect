@@ -71,21 +71,17 @@ Using the **Docker** work pool type means that all work sent to this work pool w
 In your terminal, run the following command to set up a **Docker** type work pool.
 
 <div class="terminal">
-
 ```bash
 prefect work-pool create --type docker my-docker-pool
 ```
-
 </div>
 
 Let’s confirm that the work pool was successfully created by running the following command in the same terminal.
 
 <div class="terminal">
-
 ```bash
 prefect work-pool ls
 ```
-
 </div>
 
 You should see your new `my-docker-pool` listed in the output.
@@ -106,12 +102,9 @@ To start a worker on your local machine, open a new terminal and confirm that yo
 Run the following command in this new terminal to start the worker:
 
 <div class="terminal">
-
 ```bash
 prefect worker start --pool my-docker-pool
-
 ```
-
 </div>
 
 You should see the worker start.
@@ -179,11 +172,9 @@ if __name__ == "__main__":
 Now that you've updated your script, you can run it to deploy your flow to the work pool:
 
 <div class="terminal">
-
 ```bash
 python repo_info.py
 ```
-
 </div>
 
 Prefect will build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run.
@@ -262,28 +253,24 @@ if __name__ == "__main__":
 To register this update to your deployment's parameters with Prefect's API, run:
 
 <div class="terminal">
-
 ```bash
 python repo_info.py
 ```
-
 </div>
 
 Now everything is set for us to submit a flow-run to the work pool:
 
 <div class="terminal">
-
 ```bash
 prefect deployment run 'get_repo_info/my-deployment'
 ```
-
 </div>
 
 !!! danger "Common Pitfall"
     - Store and run your deploy scripts at the **root of your repo**, otherwise the built Docker file may be missing files that it needs to execute!
 
 !!! tip "Did you know?"
-    A Prefect flow can have more than one deployment. 
+    A Prefect flow can have more than one deployment.
     This pattern can be useful if you want your flow to run in different execution environments.
 
 ## Next steps
