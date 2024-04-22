@@ -4085,3 +4085,15 @@ class TestNestedTasks:
         result = my_flow()
         assert result == "Failed"
         assert count == 4
+
+    async def test_nested_async_task_without_parent_flow(self):
+        @task
+        async def inner_task():
+            return 42
+
+        @task
+        async def outer_task():
+            return await inner_task()
+
+        result = await outer_task()
+        assert result == 42
