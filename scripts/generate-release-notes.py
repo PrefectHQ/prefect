@@ -119,7 +119,9 @@ def get_latest_and_previous_releases(
     response = httpx.get(
         f"https://api.github.com/repos/{repo_org}/{repo_name}/releases", headers=headers
     )
+    response.raise_for_status()
     releases = response.json()
+
     if not releases:
         raise Exception(f"No releases found for {repo_name}")
 
