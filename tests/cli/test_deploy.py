@@ -2501,6 +2501,43 @@ class TestSchedules:
         assert deployment.schedules[0].schedule.interval == timedelta(seconds=42)
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_default_interval_schedule_interactive(
+        self, prefect_client, work_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Confirm schedule creation
+                readchar.key.ENTER
+                # Select interval schedule
+                + readchar.key.ENTER
+                # Enter default interval
+                + readchar.key.ENTER
+                # accept schedule being active
+                + readchar.key.ENTER
+                # decline adding another schedule
+                + readchar.key.ENTER
+                # decline save
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            # expected_output_contains=[
+            #     "? Seconds between scheduled runs",
+            #     "Please enter a valid interval denoted in seconds",
+            #     "Interval must be greater than 0",
+            # ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedules[0].schedule.interval == timedelta(seconds=3600)
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_cron_schedule_interactive(self, prefect_client, work_pool):
         await run_sync_in_worker_thread(
             invoke_and_assert,
