@@ -105,7 +105,7 @@ def get_latest_repo_release_date(repo_org: str, repo_name: str) -> datetime:
     )
 
 
-def get_latest_and_previous_tags(
+def get_latest_and_previous_releases(
     repo_org: str, repo_name: str, github_token: str
 ) -> tuple:
     """
@@ -128,8 +128,6 @@ def get_latest_and_previous_tags(
 
     latest_tag = releases[0]["tag_name"]
     previous_tag = releases[1]["tag_name"] if len(releases) > 1 else None
-
-    breakpoint()
 
     return latest_tag, previous_tag
 
@@ -154,13 +152,13 @@ def generate_release_notes(
             latest_repo_release_date = get_latest_repo_release_date(repo_org, repo_name)
 
             repo_has_release_since_latest_prefect_release = (
-                latest_repo_release_date <= latest_prefect_release_date
+                latest_repo_release_date >= latest_prefect_release_date
             )
             if not repo_has_release_since_latest_prefect_release:
                 continue
 
         if repo_name != "prefect":
-            tag_name, previous_tag = get_latest_and_previous_tags(
+            tag_name, previous_tag = get_latest_and_previous_releases(
                 repo_org, repo_name, github_token
             )
 
