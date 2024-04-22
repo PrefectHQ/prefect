@@ -463,14 +463,14 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
     @sync_compatible
     async def disable(cls: Type[Self], automation_id: UUID):
         client, _ = get_or_create_client()
-        automation = await client.disable_automation(automation_id=automation_id)
+        automation = await client.pause_automation(automation_id=automation_id)
         return automation if automation else None
 
     @classmethod
     @sync_compatible
     async def enable(cls: Type[Self], automation_id: UUID):
         client, _ = get_or_create_client()
-        automation = await client.enable_automation(automation_id=automation_id)
+        automation = await client.resume_automation(automation_id=automation_id)
         return automation if automation else None
 
 
