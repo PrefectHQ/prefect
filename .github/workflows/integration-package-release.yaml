@@ -9,6 +9,8 @@ jobs:
   build-pypi-dists:
     name: Build Python package
     runs-on: ubuntu-latest
+    outputs:
+      PACKAGE_NAME: ${{ steps.package_name.outputs.PACKAGE_NAME }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -52,7 +54,7 @@ jobs:
   publish-pypi-dists:
     name: Publish to TestPyPI
     environment: "prod"
-    needs: [build-pypi-dists]
+    needs: build-pypi-dists
     runs-on: ubuntu-latest
 
     steps:
