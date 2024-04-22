@@ -248,6 +248,12 @@ nav:
                       - Container Instance Worker: integrations/prefect-azure/container_instance_worker.md
                       - Deployments:
                             - Steps: integrations/prefect-azure/deployments/steps.md
+                - Databricks:
+                      - integrations/prefect-databricks/index.md
+                      - Credentials: integrations/prefect-databricks/credentials.md
+                      - Jobs: integrations/prefect-databricks/jobs.md
+                      - Rest: integrations/prefect-databricks/rest.md
+                      - Flows: integrations/prefect-databricks/flows.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:
@@ -300,7 +306,6 @@ nav:
                       - "deployments": api-ref/prefect/deployments/deployments.md
                       - "base": api-ref/prefect/deployments/base.md
                       - "runner": api-ref/prefect/deployments/runner.md
-                      - "schedules": api-ref/prefect/deployments/schedules.md
                       - "steps.core": api-ref/prefect/deployments/steps/core.md
                       - "steps.pull": api-ref/prefect/deployments/steps/pull.md
                       - "steps.utility": api-ref/prefect/deployments/steps/utility.md
