@@ -314,9 +314,6 @@ class TaskRunEngine(Generic[P, R]):
                     self.task_run = await self.create_task_run(client)
 
                 yield self
-
-                self._is_started = False
-                self._client = None
             except Exception:
                 # regular exceptions are caught and re-raised to the user
                 raise
@@ -324,6 +321,9 @@ class TaskRunEngine(Generic[P, R]):
                 # BaseExceptions are caught and handled as crashes
                 await self.handle_crash(exc)
                 raise
+            finally:
+                self._is_started = False
+                self._client = None
 
     async def get_client(self):
         if not self._is_started:
