@@ -1,7 +1,13 @@
 from contextlib import contextmanager
-from typing import List, Union
+from typing import List, Union, cast
 
 import pendulum
+
+try:
+    from pendulum import Interval
+except ImportError:
+    # pendulum < 3
+    from pendulum.period import Period as Interval  # type: ignore
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
@@ -30,11 +36,9 @@ def concurrency(names: Union[str, List[str]], occupy: int = 1):
     try:
         yield
     finally:
-        occupancy_seconds: float = (
-            pendulum.now("UTC") - acquisition_time
-        ).total_seconds()
+        occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
         _call_async_function_from_sync(
-            _release_concurrency_slots, names, occupy, occupancy_seconds
+            _release_concurrency_slots, names, occupy, occupancy_period.total_seconds()
         )
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 

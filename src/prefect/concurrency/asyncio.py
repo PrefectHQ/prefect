@@ -1,9 +1,15 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import List, Literal, Union
+from typing import List, Literal, Union, cast
 
 import httpx
 import pendulum
+
+try:
+    from pendulum import Interval
+except ImportError:
+    # pendulum < 3
+    from pendulum.period import Period as Interval  # type: ignore
 
 from prefect import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
@@ -30,10 +36,10 @@ async def concurrency(names: Union[str, List[str]], occupy: int = 1):
     try:
         yield
     finally:
-        occupancy_seconds: float = (
-            pendulum.now("UTC") - acquisition_time
-        ).total_seconds()
-        await _release_concurrency_slots(names, occupy, occupancy_seconds)
+        occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
+        await _release_concurrency_slots(
+            names, occupy, occupancy_period.total_seconds()
+        )
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
