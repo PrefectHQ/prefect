@@ -3135,6 +3135,18 @@ class PrefectClient:
 
         return UUID(response.json()["id"])
 
+    async def update_automation(self, id: UUID, automation: AutomationCore):
+        """Creates an automation in Prefect Cloud."""
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.put(
+            f"/automations/{id}",
+            json=automation.dict(json_compatible=True, exclude_unset=True),
+        )
+
+        response.raise_for_status
+
     async def read_automations(self) -> List[Automation]:
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
@@ -3180,7 +3192,7 @@ class PrefectClient:
         response.raise_for_status()
         return Automation.parse_obj(response.json())
 
-    async def pause_automation(self, automation_id: UUID):
+    async def disable_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
 
@@ -3189,7 +3201,7 @@ class PrefectClient:
         )
         response.raise_for_status()
 
-    async def resume_automation(self, automation_id: UUID):
+    async def enable_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
 

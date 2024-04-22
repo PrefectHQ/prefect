@@ -9,14 +9,17 @@ from typing import (
     Literal,
     Optional,
     Set,
+    Type,
     Union,
     cast,
 )
 from uuid import UUID
 
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.utilities import get_or_create_client
+from prefect.utilities.asyncutils import sync_compatible
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -426,6 +429,49 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
     owner_resource: Optional[str] = Field(
         default=None, description="The owning resource of this automation"
     )
+
+    @classmethod
+    @sync_compatible
+    async def create(cls: Type[Self], automation: Type[Self]) -> UUID:
+        client, _ = get_or_create_client()
+        automation = await client.create_automation(automation=automation)
+        return automation if automation else None
+
+    @classmethod
+    @sync_compatible
+    async def update(cls: Type[Self], id: UUID, automation: Type[Self]) -> UUID:
+        client, _ = get_or_create_client()
+        print(automation)
+        automation = await client.update_automation(id=id, automation=automation)
+        return automation if automation else None
+
+    @classmethod
+    @sync_compatible
+    async def read(cls: Type[Self], id_or_name: str) -> Self:
+        client, _ = get_or_create_client()
+        automation = await client.find_automation(id_or_name=id_or_name)
+        return automation if automation else None
+
+    @classmethod
+    @sync_compatible
+    async def delete(cls: Type[Self], automation_id: UUID):
+        client, _ = get_or_create_client()
+        automation = await client.delete_automation(automation_id=automation_id)
+        return automation if automation else None
+
+    @classmethod
+    @sync_compatible
+    async def disable(cls: Type[Self], automation_id: UUID):
+        client, _ = get_or_create_client()
+        automation = await client.disable_automation(automation_id=automation_id)
+        return automation if automation else None
+
+    @classmethod
+    @sync_compatible
+    async def enable(cls: Type[Self], automation_id: UUID):
+        client, _ = get_or_create_client()
+        automation = await client.enable_automation(automation_id=automation_id)
+        return automation if automation else None
 
 
 class Automation(AutomationCore):
