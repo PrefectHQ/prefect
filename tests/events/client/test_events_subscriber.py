@@ -4,7 +4,11 @@ import pytest
 from websockets.exceptions import ConnectionClosedError
 
 from prefect.events import Event, get_events_subscriber
-from prefect.events.clients import PrefectCloudEventSubscriber, PrefectEventSubscriber
+from prefect.events.clients import (
+    PrefectCloudAccountEventSubscriber,
+    PrefectCloudEventSubscriber,
+    PrefectEventSubscriber,
+)
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -69,11 +73,29 @@ async def test_constructs_cloud_client(cloud_settings):
 def pytest_generate_tests(metafunc: pytest.Metafunc):
     fixtures = set(metafunc.fixturenames)
 
+    cloud_subscribers = {
+        PrefectCloudEventSubscriber: "/accounts/A/workspaces/W/events/out",
+        PrefectCloudAccountEventSubscriber: "/accounts/A/events/out",
+    }
+    subscribers = {
+        # The base subscriber for OSS will just use the API URL, which is set to a
+        # Cloud URL here, but it would usually be just /events/out
+        PrefectEventSubscriber: "/accounts/A/workspaces/W/events/out",
+        **cloud_subscribers,
+    }
+
     if "Subscriber" in fixtures:
-        metafunc.parametrize(
-            "Subscriber",
-            [PrefectEventSubscriber, PrefectCloudEventSubscriber],
-        )
+        if "expected_path" in fixtures:
+            metafunc.parametrize("Subscriber,expected_path", subscribers.items())
+        else:
+            metafunc.parametrize("Subscriber", subscribers.keys())
+    elif "CloudSubscriber" in fixtures:
+        if "expected_path" in fixtures:
+            metafunc.parametrize(
+                "CloudSubscriber,expected_path", cloud_subscribers.items()
+            )
+        else:
+            metafunc.parametrize("CloudSubscriber", cloud_subscribers.keys())
 
 
 @pytest.fixture(autouse=True)
@@ -89,13 +111,15 @@ def api_setup(events_cloud_api_url: str):
 
 async def test_subscriber_can_connect_with_defaults(
     Subscriber: Type[PrefectEventSubscriber],
-    events_cloud_api_url: str,
+    expected_path: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    puppeteer.token = "my-token" if Subscriber == PrefectCloudEventSubscriber else None
+    puppeteer.token = (
+        "my-token" if issubclass(Subscriber, PrefectCloudEventSubscriber) else None
+    )
     puppeteer.outgoing_events = [example_event_1, example_event_2]
 
     async with Subscriber() as subscriber:
@@ -103,7 +127,7 @@ async def test_subscriber_can_connect_with_defaults(
             recorder.events.append(event)
 
     assert recorder.connections == 1
-    assert recorder.path == "/accounts/A/workspaces/W/events/out"
+    assert recorder.path == expected_path
     assert recorder.events == [example_event_1, example_event_2]
     assert recorder.token == puppeteer.token
     assert subscriber._filter
@@ -111,7 +135,7 @@ async def test_subscriber_can_connect_with_defaults(
 
 
 async def test_cloud_subscriber_complains_without_api_url_and_key(
-    events_cloud_api_url: str,
+    CloudSubscriber: Type[PrefectCloudEventSubscriber],
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
@@ -119,18 +143,20 @@ async def test_cloud_subscriber_complains_without_api_url_and_key(
 ):
     with temporary_settings(updates={PREFECT_API_KEY: "", PREFECT_API_URL: ""}):
         with pytest.raises(ValueError, match="must be provided or set"):
-            PrefectCloudEventSubscriber()
+            CloudSubscriber()
 
 
 async def test_subscriber_can_connect_and_receive_one_event(
     Subscriber: Type[PrefectEventSubscriber],
-    events_cloud_api_url: str,
+    expected_path: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    puppeteer.token = "my-token" if Subscriber == PrefectCloudEventSubscriber else None
+    puppeteer.token = (
+        "my-token" if issubclass(Subscriber, PrefectCloudEventSubscriber) else None
+    )
     puppeteer.outgoing_events = [example_event_1, example_event_2]
 
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
@@ -143,7 +169,7 @@ async def test_subscriber_can_connect_and_receive_one_event(
             recorder.events.append(event)
 
     assert recorder.connections == 1
-    assert recorder.path == "/accounts/A/workspaces/W/events/out"
+    assert recorder.path == expected_path
     assert recorder.events == [example_event_1, example_event_2]
     assert recorder.token == puppeteer.token
     assert recorder.filter == filter
@@ -151,13 +177,14 @@ async def test_subscriber_can_connect_and_receive_one_event(
 
 async def test_subscriber_specifying_negative_reconnects_gets_error(
     Subscriber: Type[PrefectEventSubscriber],
-    events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    puppeteer.token = "my-token" if Subscriber == PrefectCloudEventSubscriber else None
+    puppeteer.token = (
+        "my-token" if issubclass(Subscriber, PrefectCloudEventSubscriber) else None
+    )
     puppeteer.outgoing_events = [example_event_1, example_event_2]
 
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
@@ -172,6 +199,8 @@ async def test_subscriber_specifying_negative_reconnects_gets_error(
 
 
 async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
+    CloudSubscriber: Type[PrefectCloudEventSubscriber],
+    expected_path: str,
     events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
@@ -184,7 +213,7 @@ async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     with pytest.raises(Exception, match="Unable to authenticate"):
-        subscriber = PrefectCloudEventSubscriber(
+        subscriber = CloudSubscriber(
             events_cloud_api_url,
             "bogus",
             filter=filter,
@@ -193,12 +222,14 @@ async def test_subscriber_raises_on_invalid_auth_with_soft_denial(
         await subscriber.__aenter__()
 
     assert recorder.connections == 1
-    assert recorder.path == "/accounts/A/workspaces/W/events/out"
+    assert recorder.path == expected_path
     assert recorder.token == "bogus"
     assert recorder.events == []
 
 
 async def test_cloud_subscriber_raises_on_invalid_auth_with_hard_denial(
+    CloudSubscriber: Type[PrefectCloudEventSubscriber],
+    expected_path: str,
     events_cloud_api_url: str,
     example_event_1: Event,
     example_event_2: Event,
@@ -212,7 +243,7 @@ async def test_cloud_subscriber_raises_on_invalid_auth_with_hard_denial(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     with pytest.raises(Exception, match="Unable to authenticate"):
-        subscriber = PrefectCloudEventSubscriber(
+        subscriber = CloudSubscriber(
             events_cloud_api_url,
             "bogus",
             filter=filter,
@@ -221,7 +252,7 @@ async def test_cloud_subscriber_raises_on_invalid_auth_with_hard_denial(
         await subscriber.__aenter__()
 
     assert recorder.connections == 1
-    assert recorder.path == "/accounts/A/workspaces/W/events/out"
+    assert recorder.path == expected_path
     assert recorder.token == "bogus"
     assert recorder.events == []
 
@@ -233,7 +264,9 @@ async def test_subscriber_reconnects_on_hard_disconnects(
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    puppeteer.token = "my-token" if Subscriber == PrefectCloudEventSubscriber else None
+    puppeteer.token = (
+        "my-token" if issubclass(Subscriber, PrefectCloudEventSubscriber) else None
+    )
     puppeteer.outgoing_events = [example_event_1, example_event_2]
     puppeteer.hard_disconnect_after = example_event_1.id
 
@@ -257,7 +290,9 @@ async def test_subscriber_gives_up_after_so_many_attempts(
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    puppeteer.token = "my-token" if Subscriber == PrefectCloudEventSubscriber else None
+    puppeteer.token = (
+        "my-token" if issubclass(Subscriber, PrefectCloudEventSubscriber) else None
+    )
     puppeteer.outgoing_events = [example_event_1, example_event_2]
     puppeteer.hard_disconnect_after = example_event_1.id
 
@@ -282,7 +317,9 @@ async def test_subscriber_skips_duplicate_events(
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    puppeteer.token = "my-token" if Subscriber == PrefectCloudEventSubscriber else None
+    puppeteer.token = (
+        "my-token" if issubclass(Subscriber, PrefectCloudEventSubscriber) else None
+    )
     puppeteer.outgoing_events = [example_event_1, example_event_1, example_event_2]
 
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
