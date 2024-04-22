@@ -4,16 +4,8 @@
     <a href="https://pypi.python.org/pypi/prefect-databricks/" alt="PyPI version">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-databricks?color=0052FF&labelColor=090422"></a>
     <a href="https://github.com/PrefectHQ/prefect-databricks/" alt="Stars">
-        <img src="https://img.shields.io/github/stars/PrefectHQ/prefect-databricks?color=0052FF&labelColor=090422" /></a>
     <a href="https://pepy.tech/badge/prefect-databricks/" alt="Downloads">
         <img src="https://img.shields.io/pypi/dm/prefect-databricks?color=0052FF&labelColor=090422" /></a>
-    <a href="https://github.com/PrefectHQ/prefect-databricks/pulse" alt="Activity">
-        <img src="https://img.shields.io/github/commit-activity/m/PrefectHQ/prefect-databricks?color=0052FF&labelColor=090422" /></a>
-    <br>
-    <a href="https://prefect-community.slack.com" alt="Slack">
-        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
-    <a href="https://discourse.prefect.io/" alt="Discourse">
-        <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse" /></a>
 </p>
 
 ## Welcome!
