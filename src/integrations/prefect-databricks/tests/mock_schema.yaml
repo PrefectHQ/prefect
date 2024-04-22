@@ -1,0 +1,31 @@
+components:
+  schemas:
+    NewCluster:
+      properties:
+        node_type_id:
+          description: This field encodes, through a single value, the resources available
+            to each of the Spark nodes in this cluster. For example, the Spark nodes
+            can be provisioned and optimized for memory or compute intensive workloads
+            A list of available node types can be retrieved by using the [List node
+            types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types)
+            API call. This field is required.
+          type: string
+        instance_pool_id:
+          description: The optional ID of the instance pool to use for cluster nodes.
+            If `driver_instance_pool_id` is present, `instance_pool_id` is used for
+            worker nodes only. Otherwise, it is used for both the driver node and
+            worker nodes. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html)
+            for details.
+          type: string
+      required:
+        - node_type_id
+        - spark_version
+
+    GitSource:
+      properties:
+        git_provider:
+          required: true
+          type: string
+        totally_made_up:
+          items:
+            imagination
