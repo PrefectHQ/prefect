@@ -449,7 +449,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
     @sync_compatible
     async def read(cls: Type[Self], id_or_name: str) -> Self:
         client, _ = get_or_create_client()
-        automation = await client.find_automation(id_or_name=id_or_name)
+        automation = await client.find_automation(id_or_name=str(id_or_name))
         return automation if automation else None
 
     @classmethod
