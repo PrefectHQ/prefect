@@ -2525,11 +2525,9 @@ class TestSchedules:
                 + readchar.key.ENTER
             ),
             expected_code=0,
-            # expected_output_contains=[
-            #     "? Seconds between scheduled runs",
-            #     "Please enter a valid interval denoted in seconds",
-            #     "Interval must be greater than 0",
-            # ],
+            expected_output_contains=[
+                "Seconds between scheduled runs (3600)",
+            ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
