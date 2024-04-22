@@ -61,7 +61,7 @@ def emit_event(
     if worker_instance.client_type not in operational_clients:
         return None
 
-    event_kwargs = {
+    event_kwargs: Dict[str, Any] = {
         "event": event,
         "resource": resource,
     }

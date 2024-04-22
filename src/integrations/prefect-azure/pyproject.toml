@@ -48,11 +48,8 @@ dev = [
   "azure-cosmos",
   "azure-storage-blob",
   "azureml-core",
-  "black",
   "coverage",
-  "flake8",
   "interrogate",
-  "isort",
   "mkdocs-gen-files",
   "mkdocs-material",
   "mkdocs",
@@ -77,18 +74,7 @@ version_file = "prefect_azure/_version.py"
 root = "../../.."
 tag_regex = "^prefect-azure-(?P<version>\\d+\\.\\d+\\.\\d+)$"
 fallback_version = "0.0.0"
-
-[tool.flake8]
-exclude = [".git", "__pycache__", "build", "dist"]
-per-file-ignores = ["setup.py:E501"]
-max-line-length = 88
-extend-ignore = ["E203"]
-
-[tool.isort]
-skip = ["__init__.py"]
-profile = "black"
-skip_gitignore = true
-multi_line_output = 3
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-azure-*[0-9]*"'
 
 [tool.interrogate]
 ignore-init-module = true

@@ -517,7 +517,7 @@ class EventOrder(AutoEnum):
 
 class EventFilter(EventDataFilter):
     occurred: EventOccurredFilter = Field(
-        default_factory=EventOccurredFilter,
+        default_factory=lambda: EventOccurredFilter(),
         description="Filter criteria for when the events occurred",
     )
     event: Optional[EventNameFilter] = Field(
@@ -534,7 +534,7 @@ class EventFilter(EventDataFilter):
         None, description="Filter criteria for the related resources of the event"
     )
     id: EventIDFilter = Field(
-        default_factory=EventIDFilter,
+        default_factory=lambda: EventIDFilter(),
         description="Filter criteria for the events' ID",
     )
 

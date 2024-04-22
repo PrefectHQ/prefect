@@ -10,22 +10,23 @@ from typing import (
     Optional,
     Set,
     Union,
+    cast,
 )
 from uuid import UUID
 
 from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_trigger_within
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
     from pydantic.v1.fields import ModelField
 else:
-    from pydantic import Field, PrivateAttr, root_validator, validator
-    from pydantic.fields import ModelField
+    from pydantic import Field, PrivateAttr, root_validator, validator  # type: ignore
+    from pydantic.fields import ModelField  # type: ignore
 
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect._internal.schemas.validators import validate_trigger_within
 from prefect.events.actions import ActionTypes, RunDeployment
 from prefect.utilities.collections import AutoEnum
 
@@ -61,10 +62,11 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     def owner_resource(self) -> Optional[str]:
         return f"prefect.deployment.{self._deployment_id}"
 
-    def actions(self) -> List[RunDeployment]:
+    def actions(self) -> List[ActionTypes]:
         assert self._deployment_id
         return [
             RunDeployment(
+                source="selected",
                 deployment_id=self._deployment_id,
                 parameters=getattr(self, "parameters", None),
                 job_variables=getattr(self, "job_variables", None),
@@ -74,7 +76,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     def as_automation(self) -> "AutomationCore":
         assert self._deployment_id
 
-        trigger = self
+        trigger: TriggerTypes = cast(TriggerTypes, self)
 
         # This is one of the Deployment*Trigger classes, so translate it over to a
         # plain Trigger
@@ -86,6 +88,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
                 getattr(self, "name", None)
                 or f"Automation for deployment {self._deployment_id}"
             ),
+            description="",
             enabled=getattr(self, "enabled", True),
             trigger=trigger,
             actions=self.actions(),
