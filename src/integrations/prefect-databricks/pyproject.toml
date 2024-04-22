@@ -45,6 +45,7 @@ dev = [
   "pytest-asyncio",
   "pytest",
   "pytest-xdist",
+  "respx",
 ]
 
 [project.urls]
