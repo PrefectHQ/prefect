@@ -1,5 +1,6 @@
 import logging
-from unittest.mock import MagicMock
+from typing import List
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
@@ -8,7 +9,7 @@ from prefect import Task, flow, get_run_logger, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import TaskRunContext, get_run_context
-from prefect.exceptions import MissingResult
+from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task
 from prefect.settings import (
@@ -381,3 +382,49 @@ class TestTaskRetries:
 
             await test_flow()
             assert mock.call_count == 2
+
+
+class TestTaskCrashDetection:
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_task_function_crashes_task(
+        self, prefect_client, interrupt_type
+    ):
+        @task
+        async def my_task():
+            raise interrupt_type()
+
+        with pytest.raises(interrupt_type):
+            await my_task()
+
+        task_runs = await prefect_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
+        assert task_run.state.is_crashed()
+        assert task_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in task_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await task_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
+        self, prefect_client, interrupt_type, monkeypatch
+    ):
+        monkeypatch.setattr(
+            TaskRunEngine, "begin_run", AsyncMock(side_effect=interrupt_type)
+        )
+
+        @task
+        async def my_task():
+            pass
+
+        with pytest.raises(interrupt_type):
+            await my_task()
+
+        task_runs = await prefect_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
+        assert task_run.state.is_crashed()
+        assert task_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in task_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await task_run.state.result()
