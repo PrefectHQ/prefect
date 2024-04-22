@@ -3192,7 +3192,7 @@ class PrefectClient:
         response.raise_for_status()
         return Automation.parse_obj(response.json())
 
-    async def disable_automation(self, automation_id: UUID):
+    async def pause_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
 
@@ -3201,7 +3201,7 @@ class PrefectClient:
         )
         response.raise_for_status()
 
-    async def enable_automation(self, automation_id: UUID):
+    async def resume_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
 
