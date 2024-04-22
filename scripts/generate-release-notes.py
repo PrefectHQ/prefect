@@ -118,6 +118,7 @@ def get_latest_and_previous_tags(
     response = httpx.get(
         f"https://api.github.com/repos/{repo_org}/{repo_name}/tags", headers=headers
     )
+    response.raise_for_status()
     tags = response.json()
     if not tags:
         raise Exception(f"No tags found for {repo_name}")
