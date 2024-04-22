@@ -1319,7 +1319,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-gcp/worker_v2/",
       "install_command": "pip install prefect-gcp",
       "is_beta": false,
-      "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/4SpnOBvMYkHp6z939MDKP6/549a91bc1ce9afd4fb12c68db7b68106/social-icon-google-cloud-1200-630.png?h=250",
+      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
       "type": "cloud-run-v2"
     },
     "vertex-ai": {
