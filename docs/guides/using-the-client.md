@@ -167,7 +167,7 @@ The code below will cancel all flow runs that are in `Pending`, `Running`, `Sche
 import anyio
 
 from prefect import get_client
-from prefect.server.schemas.filters import FlowRunFilter, FlowRunFilterState, FlowRunFilterStateName
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterState, FlowRunFilterStateName
 from prefect.client.schemas.objects import StateType
 
 async def list_flow_runs_with_states(states: list[str]):

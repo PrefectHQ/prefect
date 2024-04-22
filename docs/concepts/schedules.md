@@ -225,7 +225,7 @@ However, if you are using that deployment creation method you can create a sched
 Here's how you create the equivalent schedule in a Python deployment file.
 
 ```python
-from prefect.server.schemas.schedules import CronSchedule
+from prefect.client.schemas.schedules import CronSchedule
 
 cron_demo = Deployment.build_from_flow(
     pipeline,
