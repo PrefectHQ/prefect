@@ -340,7 +340,6 @@ async def run_task(
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
-
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
     async with engine.start() as run:
         # This is a context manager that keeps track of the run of the task run.
