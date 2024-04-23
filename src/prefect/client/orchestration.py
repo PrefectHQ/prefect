@@ -3180,16 +3180,16 @@ class PrefectClient:
         response.raise_for_status()
         return Automation.parse_obj(response.json())
 
-    async def read_automation_by_name(self, name: str) -> Optional[Automation]:
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
+    # async def read_automation_by_name(self, name: str) -> Optional[Automation]:
+    #     if not self.server_type.supports_automations():
+    #         self._raise_for_unsupported_automations()
 
-        response = await self._client.get(f"/automations/name/{name}")
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
+    #     response = await self._client.get(f"/automations/name/{name}")
+    #     if response.status_code == 404:
+    #         return None
+    #     response.raise_for_status()
 
-        return Automation.parse_obj(response.json())
+    #     return Automation.parse_obj(response.json())
 
     async def pause_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
