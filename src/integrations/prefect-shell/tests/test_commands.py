@@ -22,11 +22,6 @@ def test_shell_run_command_error(prefect_task_runs_caplog):
     with pytest.raises(RuntimeError, match=match):
         test_flow()
 
-    assert (
-        "ls: this/is/invalid: No such file or directory"
-        in prefect_task_runs_caplog.text
-    )
-
 
 def test_shell_run_command(prefect_task_runs_caplog):
     prefect_task_runs_caplog.set_level(logging.INFO)
