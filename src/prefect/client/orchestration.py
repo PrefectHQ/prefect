@@ -3156,17 +3156,19 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[Automation], response.json())
 
     async def find_automation(
-        self, id_or_name: str, exit_if_not_found: bool = True
+        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
     ) -> Optional[Automation]:
-        try:
-            id = UUID(id_or_name)
-        except ValueError:
-            id = None
+        if isinstance(id_or_name, UUID):
+            id = id_or_name
+        else:
+            try:
+                id = UUID(id_or_name)
+            except ValueError:
+                id = None
 
         if id:
             automation = await self.read_automation(id)
-            if automation:
-                return automation
+            return automation
 
         automations = await self.read_automations()
 
